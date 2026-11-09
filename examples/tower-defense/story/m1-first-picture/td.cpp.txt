@@ -6,7 +6,7 @@
 // recipe builds it with these links:
 //     zengine::pane, zengine::graphics, zengine::activation, zengine::input, zengine::timer,
 //     loom::switchboard
-// and a load-plan row loads it under the role "td.game" (kOffice, below). It draws in the area of
+// and a load-plan row loads it under the role "td.game" (kRole, below). It draws in the area of
 // that name, in the graphics window that shows it, and publishes what happens in it (TdSeen,
 // TdOccurred) for whoever its host lets observe it.
 
@@ -37,8 +37,8 @@ namespace gfx = zengine::graphics;
 using zengine::timer::TimedWeave;
 using zengine::timer::TimerFired;
 
-constexpr const char* kOffice = "td.game";            // the role its load-plan row gives it
-constexpr const char* kWorkshop = "zengine.workshop"; // the only office it answers
+constexpr const char* kRole = "td.game";            // the role its load-plan row gives it
+constexpr const char* kWorkshop = "zengine.workshop"; // the only role it answers
 constexpr const char* kPane = "td";
 
 // ---- What a reload in place carries -----------------------------------------------------------
@@ -287,7 +287,7 @@ public:
         tell(mail);
         offer(mail);
         if (!window_.shown()) { // a reloaded game draws in its window again
-            (void)mail.as_role(kOffice).send_to_role(gfx::kGraphicsRole,
+            (void)mail.as_role(kRole).send_to_role(gfx::kGraphicsRole,
                                                      gfx::RoomAsked{window_.area()});
         }
     }
@@ -334,7 +334,7 @@ public:
 
 private:
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop, ws::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
     }
 
@@ -372,7 +372,7 @@ private:
 
     Handle tick_;
     Said said_; // what the rules said since the last tell; a report, not state
-    ws::WindowDrawing window_{kOffice, kOffice}; // not state: a reload is told its room afresh
+    ws::WindowDrawing window_{kRole, kRole}; // not state: a reload is told its room afresh
 };
 
 } // namespace

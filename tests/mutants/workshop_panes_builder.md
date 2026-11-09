@@ -193,18 +193,18 @@ Red in `zengine-workshop-panes-tests`:
 
 - a reader waiting on its first page still offers its whole list in a narrow room
 
-## paste-asked-of-another-office
+## paste-asked-of-another-role
 
 The Builder's role line asks the graphics directory for a paste, not the window showing its area.
 
 In `builder/builder-pane/pane.cpp`:
 
 ```diff
--        const std::string office = room().clipboard_office();
-+        const std::string office = "zengine.graphics";
+-        const std::string role = room().clipboard_role();
++        const std::string role = "zengine.graphics";
 ```
 
 Red in `zengine-workshop-panes-tests`:
 
-- the Builder's role line asks the window that shows the pane for a paste, the OS window or the
+- the Builder's role line asks the window that shows the pane for a paste, the GUI window or the
   terminal's

@@ -10,12 +10,12 @@ Retired: WL-LOCK-04.
 
 ## WL-LOCK-01 — A lock holds a setting in one layout or everywhere, and every write door refuses or passes over it
 
-LAW — `PaneSettingLockRequested` locks a key of a pane's row in one layout, or everywhere, pinning the value its layout holds into every row seating the pane; an office-wide setting locks everywhere.
+LAW — `PaneSettingLockRequested` locks a key of a pane's row in one layout, or everywhere, pinning the value its layout holds into every row seating the pane; a role-wide setting locks everywhere.
 
 MEANS
 - an everywhere lock pins the row's value, or its default when the row keeps none, writes it into every layout through the setter, all or none, and is given to a row seated later;
 - it replaces each layout's own lock on the key; refused: a layout's lock on a key locked everywhere, a lock twice, a key nothing declares or keeps, a pane not seated, a file not written;
-- a row's commit, Info's and an office's refuse a locked key, a clear included; every reading says each lock and where it holds.
+- a row's commit, Info's and a role's refuse a locked key, a clear included; every reading says each lock and where it holds.
 
 DOES NOT MEAN
 - that a lock binds a loaded weave: code in Workshop's process holds `allow_any`; a lock restrains guests, the Terminal and honest writers.
@@ -24,11 +24,11 @@ WHY — `agents/decisions/a-lock-holds-a-setting-in-a-layout-or-everywhere.md`
 
 ## WL-LOCK-02 — Unlocking is the weaver's hand
 
-LAW — An unlock is accepted from the Terminal this host mounted, or from an office naming the correlation of the weaver's current act sent to its pane; any other unlock is refused, and the lock stands.
+LAW — An unlock is accepted from the Terminal this host mounted, or from a role naming the correlation of the weaver's current act sent to its pane; any other unlock is refused, and the lock stands.
 
 MEANS
 - a guest's act is its own hand's, never the weaver's: no guest power and no number a guest names unlocks;
-- an act the weaver's hand has since moved on from is stale, as is a number it never sent and one sent to another office's pane.
+- an act the weaver's hand has since moved on from is stale, as is a number it never sent and one sent to another role's pane.
 
 WHY — `agents/decisions/a-lock-holds-a-setting-in-a-layout-or-everywhere.md`
 
@@ -70,15 +70,15 @@ kLockScopeLayout kLockScopeEverywhere
 doors refuse it, every reading says it, and another layout still writes it" "an everywhere lock pins
 the value its layout holds into every layout that seats the pane, and a pane seated later wears it"
 "a lock act is refused in words with nothing changed: an act or a scope not known, a target naming
-its layout, no such layout, a key nothing takes, a pane its layout does not seat" "an office-wide
-setting is locked everywhere alone, and its lock freezes the office's commit"
+its layout, no such layout, a key nothing takes, a pane its layout does not seat" "a role-wide
+setting is locked everywhere alone, and its lock freezes the role's commit"
 
 ### WL-LOCK-02
 `workshop/weave_settings.cpp` weavers_act on(WeaversActRequested)
 `workshop/layouts/owner.cpp` on(WeaversActAnswered) on(PaneSettingLockRequested)
 `workshop/layouts/store.cpp` lock
 `tests/test_workshop_panes_settings.cpp` "only the weaver unlocks: a pane on the weaver's current
-act does, and an office's ask, a forged number and a stale act are refused"
+act does, and a role's ask, a forged number and a stale act are refused"
 `tests/test_workshop_panes_guests.cpp` "a guest whose row has `settings` locks a setting, reads every
 layout and writes a batch, and never unlocks; without it Loom's grant refuses all three"
 `tests/test_workshop_panes_terminal.cpp` "a Terminal line locks a setting and, as the weaver's hand,
@@ -92,10 +92,10 @@ SettingsWriteAnswered SettingWriteResult
 `workshop/layouts/store.cpp` layout_settings_reading layout_settings_revision read_layouts write
 `workshop/setup.hpp` layout_theme_name_problem
 `tests/test_workshop_panes_settings.cpp` "every layout is read at once: each row with its locks, what
-each pane and office takes, the everywhere locks, the live one and one revision" "a batch is judged
+each pane and role takes, the everywhere locks, the live one and one revision" "a batch is judged
 whole at its revision: a stale one, a value not taken, a layout not held or a bad baseline writes
 nothing" "a batch writes what it can across layouts, says each write's outcome, keeps baselines, and
-hands the live rows and offices it moved"
+hands the live rows and roles it moved"
 
 ### WL-LOCK-05
 `workshop/setup.hpp` SetupLock SetupPins Setup::locks Setup::pins Setup::theme

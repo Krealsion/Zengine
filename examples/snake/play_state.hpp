@@ -12,10 +12,10 @@
 
 namespace zengine::snake {
 
-struct OperatorState {
+struct ConsoleState {
     std::int64_t answers = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(OperatorState, 1, ZEN_FIELD(answers));
+    ZEN_SHAPE(ConsoleState, 1, ZEN_FIELD(answers));
 };
 
 } // namespace zengine::snake

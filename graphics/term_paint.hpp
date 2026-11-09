@@ -38,7 +38,7 @@ inline constexpr std::int64_t kQuiet = -3; ///< `PaintTask::quiet`
 } // namespace ink
 
 /// One cell: where, its character, and its colour -- as painted, which of its node's colours
-/// (`ink::`); as a terminal window keeps it, the colour that window numbered. Its character is one
+/// (`ink::`); as a TUI window keeps it, the colour that window numbered. Its character is one
 /// character's UTF-8 with the characters of no column after it; the second cell of a wide character
 /// holds none ("") and shows the right half of the one before it.
 struct Cell {

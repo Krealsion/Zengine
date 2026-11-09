@@ -16,7 +16,7 @@ they are excluded from the repository's first-party AGPL-3.0-only claim, and the
 provenance is recorded as unresolved in [LICENSING.md](LICENSING.md).
 
 **JetBrains Mono and GNU Unifont are different in kind from those three, and deliberately
-so.** They are the faces the OS window sets its text in -- Unifont the last resort for every
+so.** They are the faces the GUI window sets its text in -- Unifont the last resort for every
 character JetBrains Mono lacks -- they are unmodified upstream bytes, their provenance is
 written down in full beside them
 ([graphics/window/fonts/PROVENANCE.md](graphics/window/fonts/PROVENANCE.md) — upstream

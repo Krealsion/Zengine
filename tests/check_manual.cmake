@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 # The `manual` entry (manual/docs/manual.md): every manual in form and carried by a target, a pane's
-# commands exactly its ids in the action census (tests/actions.txt and tests/actions/<office>.txt),
-# each command's Answers line linking exactly the shapes its rows declare a press causes, and every
-# key marker in a current page its declared default, Workshop's own (tests/workshop_actions.txt)
-# beside the panes'.
+# commands exactly its ids in the action census (tests/actions.txt and tests/actions/<role>.txt),
+# each command's Answers line linking exactly the shapes its rows declare a press causes, each Hears
+# entry naming who sends it by role, and every key marker in a current page its declared default,
+# Workshop's own (tests/workshop_actions.txt) beside the panes'.
 #   cmake -P tests/check_manual.cmake   (from the root, or -DZEN_REPO=)
 
 cmake_minimum_required(VERSION 3.16)
@@ -35,10 +35,10 @@ function(zen_manual_swap text out)
     set(${out} "${text}" PARENT_SCOPE)
 endfunction()
 
-# The census as `office|id|key|shapes` entries, one per row (a key swapped as text is; `shapes` the
+# The census as `role|id|key|shapes` entries, one per row (a key swapped as text is; `shapes` the
 # names of the shapes its press causes, `,`-joined, or empty), from the lines of tests/actions.txt:
-# `<office> <mode> <id> <key> <causes> <enters> <label>`, a cause `<shape>/<version>` and its
-# subject after `@` or `>`, `-` for none. tests/actions/<office>.txt holds a further office's lines
+# `<role> <mode> <id> <key> <causes> <enters> <label>`, a cause `<shape>/<version>` and its
+# subject after `@` or `>`, `-` for none. tests/actions/<role>.txt holds a further role's lines
 # in the same form.
 function(zen_manual_census text out)
     zen_manual_swap("${text}" text)
@@ -183,8 +183,8 @@ function(zen_manual_judge page stem text census compiled out)
     foreach(r IN LISTS m_REFUSALS)
         list(APPEND problems "${page}: ${r}")
     endforeach()
-    if(NOT m_OFFICE STREQUAL "" AND NOT m_OFFICE STREQUAL stem)
-        list(APPEND problems "${page}: its title names `${m_OFFICE}` -- a manual is named by its office")
+    if(NOT m_ROLE STREQUAL "" AND NOT m_ROLE STREQUAL stem)
+        list(APPEND problems "${page}: its title names `${m_ROLE}` -- a manual is named by its role")
     endif()
     if(NOT compiled)
         list(APPEND problems "${page}: no target carries it -- `zengine_weave(... MANUAL <page>)` or `zengine_manual(<target> <scope> <page>)` names a manual")
@@ -364,7 +364,7 @@ if(NOT st_marks MATCHES "the key marker for `layout.rename`")
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- a key on an action with none passed: '${st_marks}'")
 endif()
 string(REPLACE "# t.pane --" "# zengine.workshop --" st_workshop_page "${st_good}")
-zen_manual_judge("ws-office" "zengine.workshop" "${st_workshop_page}" "${st_workshop}" ON st_problems)
+zen_manual_judge("ws-role" "zengine.workshop" "${st_workshop_page}" "${st_workshop}" ON st_problems)
 if(st_problems)
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- Workshop's own actions were asked of a manual: '${st_problems}'")
 endif()
@@ -379,9 +379,53 @@ foreach(case "0|README.md" "0|workshop/docs/hotkeys.md" "0|agents/panes.md" "1|d
     endif()
 endforeach()
 
+# A Hears entry names who sends it, by role: its first paragraph says "from `<role>`", where the
+# role is one a manual is named by, one tests/code_values.txt registers, a window's
+# (`zengine.window.*`) or Loom's (`loom.*`); or "from any ..." for any weave of a kind; or
+# "from the host" for what the host itself says. Sets ${out} to the entries that do not.
+function(zen_manual_hears_senders page text known out)
+    set(problems "")
+    zengine_manual_split_text("${text}" h)
+    if(h_COUNT GREATER 0)
+        math(EXPR last "${h_COUNT} - 1")
+        foreach(i RANGE ${last})
+            if(NOT h_GROUP_${i} MATCHES "^Hears" OR h_KEY_${i} MATCHES "^hears(-|$)")
+                continue()
+            endif()
+            set(body "${h_TEXT_${i}}")
+            string(FIND "${body}" "\n\n" cut)
+            if(NOT cut EQUAL -1)
+                string(SUBSTRING "${body}" 0 ${cut} body)
+            endif()
+            string(REPLACE "\n" " " body "${body}")
+            if(body MATCHES "(^|[^A-Za-z])[Ff]rom (any|the host)([^A-Za-z]|$)")
+                continue()
+            endif()
+            if(NOT body MATCHES "(^|[^A-Za-z])[Ff]rom `([a-z][a-z0-9_-]*(\\.[a-z0-9_*-]+)+)`")
+                list(APPEND problems "${page}: `${h_KEY_${i}}` hears it from nobody it names -- say who sends it, from `<role>`, from any <weave of a kind>, or from the host")
+                continue()
+            endif()
+            set(sender "${CMAKE_MATCH_2}")
+            if(NOT sender IN_LIST known AND NOT sender STREQUAL "zengine.window.*" AND NOT sender MATCHES "^loom[.]")
+                list(APPEND problems "${page}: `${h_KEY_${i}}` hears it from `${sender}`, a role no manual is named by and tests/code_values.txt does not register")
+            endif()
+        endforeach()
+    endif()
+    set(${out} "${problems}" PARENT_SCOPE)
+endfunction()
+
+# Make it say NO, and make it say YES: a sender named by a known role, by a kind and by the host
+# pass; a sender in words and an unknown role are refused.
+set(st_hears_page "# t.pane -- the test pane\n\n**Manual.** A pane.\n\n## About\n\nIt is.\n\n## Use\n\nUse it.\n\n## Hears\n\n### `Beat`\n\n`Beat` v1, from `t.clock`, the clock: it ticks.\n\n### `Asked`\n\n`Asked` v1, from any weave granted it: it is asked.\n\n### `Waited`\n\n`Waited` v1, from the host alone: it waits.\n\n### `Said`\n\n`Said` v1, from the clock: it says.\n\n### `Told`\n\n`Told` v1, from `t.nobody`: it is told.\n")
+zen_manual_hears_senders("t.md" "${st_hears_page}" "t.pane;t.clock" st_hears)
+list(LENGTH st_hears st_hears_n)
+if(NOT st_hears_n EQUAL 2 OR NOT st_hears MATCHES "`Said` hears it from nobody" OR NOT st_hears MATCHES "`Told` hears it from `t.nobody`")
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- the Hears senders read '${st_hears}': want `Said` named by nobody and `Told` from an unknown role, and nothing else")
+endif()
+
 # ---- the tree ---------------------------------------------------------------------------------
-# The census: tests/actions.txt, then each office's own file in tests/actions/, by name, each of
-# whose rows is about that office.
+# The census: tests/actions.txt, then each role's own file in tests/actions/, by name, each of
+# whose rows is about that role.
 set(problems "")
 set(census "")
 file(GLOB census_files RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/tests/actions/*.txt")
@@ -389,13 +433,13 @@ list(SORT census_files)
 foreach(census_file IN ITEMS tests/actions.txt ${census_files})
     file(READ "${ZEN_REPO}/${census_file}" census_text)
     zen_manual_census("${census_text}" file_census)
-    get_filename_component(file_office "${census_file}" NAME_WLE)
+    get_filename_component(file_role "${census_file}" NAME_WLE)
     foreach(entry IN LISTS file_census)
-        string(REGEX REPLACE "[|].*$" "" entry_office "${entry}")
+        string(REGEX REPLACE "[|].*$" "" entry_role "${entry}")
         if(entry MATCHES "^!(.*)$")
-            list(APPEND problems "${census_file}: '${CMAKE_MATCH_1}' is not `office mode id key causes enters label`")
-        elseif(NOT census_file STREQUAL "tests/actions.txt" AND NOT entry_office STREQUAL file_office)
-            list(APPEND problems "${census_file}: a row of ${entry_office}, which is not this file's office")
+            list(APPEND problems "${census_file}: '${CMAKE_MATCH_1}' is not `role mode id key causes enters label`")
+        elseif(NOT census_file STREQUAL "tests/actions.txt" AND NOT entry_role STREQUAL file_role)
+            list(APPEND problems "${census_file}: a row of ${entry_role}, which is not this file's role")
         endif()
     endforeach()
     list(APPEND census ${file_census})
@@ -461,14 +505,14 @@ if(NOT pages)
                         "an empty population is red (VM-POP-01)")
 endif()
 
-set(offices "")
+set(roles "")
 foreach(page IN LISTS pages)
     get_filename_component(name "${page}" NAME)
     string(REGEX REPLACE "\\.md$" "" stem "${name}")
-    if(stem IN_LIST offices)
+    if(stem IN_LIST roles)
         list(APPEND problems "${page}: a second manual for `${stem}`")
     endif()
-    list(APPEND offices "${stem}")
+    list(APPEND roles "${stem}")
     file(READ "${ZEN_REPO}/${page}" text)
     set(compiled OFF)
     if(page IN_LIST compiled_pages)
@@ -478,6 +522,22 @@ foreach(page IN LISTS pages)
     list(APPEND problems ${found})
     zen_manual_markers("${page}" "${text}" "${census}" found)
     list(APPEND problems ${found})
+endforeach()
+# Each manual's Hears entries name their senders, by the roles every manual and the value register
+# know.
+set(known_roles "${roles}")
+file(STRINGS "${ZEN_REPO}/tests/code_values.txt" value_rows REGEX "^name[ \t]")
+foreach(row IN LISTS value_rows)
+    if(row MATCHES "^name[ \t]+([^ \t]+)")
+        list(APPEND known_roles "${CMAKE_MATCH_1}")
+    endif()
+endforeach()
+set(heard_pages 0)
+foreach(page IN LISTS pages)
+    file(READ "${ZEN_REPO}/${page}" text)
+    zen_manual_hears_senders("${page}" "${text}" "${known_roles}" found)
+    list(APPEND problems ${found})
+    math(EXPR heard_pages "${heard_pages} + 1")
 endforeach()
 foreach(page IN LISTS tutorials)
     file(READ "${ZEN_REPO}/${page}" text)
@@ -506,7 +566,7 @@ foreach(page IN LISTS guides)
     zen_manual_markers("${page}" "${text}" "${census}" found)
     list(APPEND problems ${found})
 endforeach()
-# An office the census holds and no manual names is not refused here: a pane's page is held to its
+# A role the census holds and no manual names is not refused here: a pane's page is held to its
 # declared ids from the day the page exists.
 
 list(LENGTH pages page_count)
@@ -528,5 +588,5 @@ if(problems)
     message(FATAL_ERROR "manual FAILED: ${problem_count} problem(s):\n  ${shown}")
 endif()
 message(STATUS "manual: PASSED -- every manual is in form and carried by a target, every pane's "
-               "commands are its declared ids, each Answers line links what its rows cause, and "
-               "every key marker names its declared default")
+               "commands are its declared ids, each Answers line links what its rows cause, every "
+               "Hears entry names who sends it, and every key marker names its declared default")

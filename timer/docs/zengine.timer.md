@@ -1,7 +1,7 @@
 # zengine.timer -- the Timer
 
-**Manual.** The Timer: the weave that gives other weaves time as messages, answering to the office
-`zengine.timer` (an office is the name a weave answers to). A weave never sleeps or polls to wait:
+**Manual.** The Timer: the weave that gives other weaves time as messages, answering to the role
+`zengine.timer` (a role is the name a weave answers to). A weave never sleeps or polls to wait:
 it asks the Timer for a beat, once or on repeat, and `TimerFired` arrives when the beat is due. It
 is the loadable weave `zengine-timer`, which a plan loads; it offers no pane, and other weaves
 reach it by the messages below. A weave whose rhythm is part of what it is declares that rhythm
@@ -39,7 +39,7 @@ Unloaded, its timers end with it.
 
 ## Use
 
-Speak to the office, never to an id: `mail.send_to_role(zengine::timer::kTimerRole, ...)`. Ask
+Speak to the role, never to an id: `mail.send_to_role(zengine::timer::kTimerRole, ...)`. Ask
 with [`EnsureTimer`](#ensuretimer), which answers what it did, or [`StartTimer`](#starttimer),
 which does not; each timer is named by an `id` you choose, scoped to you. When
 [`TimerFired`](#follow) arrives, match its id against your own asks and ignore the rest: anyone
@@ -78,14 +78,14 @@ with no receipt.
 `StartRoleTimer` v1 asks for `TimerFired` to whoever holds a role at each firing, so a holder's
 successor inherits the beat.
 
-- **Takes:** `id`, `delay_ms` and `repeat`, as [`StartTimer`](#starttimer); `role`, the office
+- **Takes:** `id`, `delay_ms` and `repeat`, as [`StartTimer`](#starttimer); `role`, the role
   the beat goes to.
 - **Answers:** `TimerFired{id}` to the role's holder at each firing. A role timer is keyed by its
   role and id whoever sent it, so a successor asking again replaces the beat, and takes the right
   to cancel it, rather than doubling it.
 - **Refuses:** an empty `role` is no ask: dropped, and counted in `dropped`. A firing while nobody
   holds the role is refused by the bus, and the timer keeps standing.
-- **Example:** a weave asks for its 10 ms beat at its own office, so its successor inherits it,
+- **Example:** a weave asks for its 10 ms beat at its own role, so its successor inherits it,
   `StartRoleTimer{1, 10, true, "zengine.input"}`.
 
 ### `EnsureTimer`
@@ -169,7 +169,7 @@ to become the Timer.
 
 ### `Drive`
 
-`Drive` v2, from the Timer itself through its office: its own beat. A beat is acted on only when
+`Drive` v2, from `zengine.timer`, the Timer itself: its own beat. A beat is acted on only when
 the Timer is activated, the beat names the current activation, carries the serial expected next
 and comes from the chain's own sender; any other is ignored whole.
 
@@ -181,7 +181,7 @@ due; `TimerResolution` v1, to the weave that sent an ordered ask. Activated, it 
 predecessor's letter, `zen.ClaimBequest` to the Loom's manager role, and waits `kBootstrapBeats`
 beats for it before starting fresh; asked `zen.PrepareShutdown`, it answers with a `zen.Bequest`
 holding `TimerHandoff` v1, firing, cancelling and advancing nothing. At every beat that fired what
-was due it claims `TimerRest` v1 as the office, a latest claim rather than a message: `serial`,
+was due it claims `TimerRest` v1 as the role, a latest claim rather than a message: `serial`,
 the beat it sent next, and `until_ms`, the reading of its own clock until which the bus may rest.
 A host reads it between turns (`timer/rest.hpp`); the reading means something only in the
 Timer's process. To follow it, accept `TimerReady` and the receipts of your own orders; its

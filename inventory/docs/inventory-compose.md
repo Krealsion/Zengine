@@ -1,7 +1,7 @@
 # Reuse a stored command through Compose
 
 Open **Loaded**, **Inventory** and **Compose** in non-overlapping areas of the desk, fully above the bottom status bands. Select
-the receiving weave in Loaded; Compose asks that office for its accepted message schemas.
+the receiving weave in Loaded; Compose asks that role for its accepted message schemas.
 
 1. Choose a message in Compose. Type scalar fields normally. Drop a compatible stored message
    onto a Message field to copy its data. Tab excludes an existing value before replacement.

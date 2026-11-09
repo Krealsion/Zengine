@@ -6,7 +6,7 @@
 // Workshop law: agents/workshop/planes.md (+4 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
-#include "workshop/pane_drawing.hpp" // pane_area: every pane's area, `<office>.<pane>`
+#include "workshop/pane_drawing.hpp" // pane_area: every pane's area, `<role>.<pane>`
 #include "component/text.hpp"
 
 #include <algorithm>

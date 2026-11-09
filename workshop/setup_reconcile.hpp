@@ -90,11 +90,11 @@ inline bool within_a_pixel(const PaneOfferedBody& a, const PaneOfferedBody& b) {
            by_a_pixel(a.width, b.width) && by_a_pixel(a.height, b.height);
 }
 
-/// Admit one `PaneOffered` under the office Loom stamped on it, `mail.authored_role()`: the shape
+/// Admit one `PaneOffered` under the role Loom stamped on it, `mail.authored_role()`: the shape
 /// has no provider field, and `mail.sender()` is a WeaveId, which would make a reloaded provider a
 /// different pane. A refresh at capacity is allowed: capacity bounds distinct panes.
 // WL-CAT-03 -- agents/workshop/catalog.md
-inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
+inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_role,
                                   const PaneOffered& offer, std::int64_t rows = 0,
                                   std::int64_t columns = 0, PaneBody body = {}) {
     Admission out;
@@ -116,9 +116,9 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     }
     // The stamp is judged first, as a view, before anything owns a copy. An empty role is
     // personal speech, refused here as well as at the door; Loom bounds no role's length.
-    const Written office = check_pane_key(stamped_office, "provider");
-    if (!office.accepted) {
-        out.written = office;
+    const Written role = check_pane_key(stamped_role, "provider");
+    if (!role.accepted) {
+        out.written = role;
         return out;
     }
     const Written key = check_pane_key(offer.pane, "pane key");
@@ -136,8 +136,8 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         out.written = said;
         return out;
     }
-    // The first owned copy of the office, made only once all four fields have passed.
-    const PaneRef ref{std::string(stamped_office), offer.pane};
+    // The first owned copy of the role, made only once all four fields have passed.
+    const PaneRef ref{std::string(stamped_role), offer.pane};
     if (resolve_builtin_pane(ref).has_value()) {
         out.written = Written::no("`" + ref_text(ref) + "` is a built-in pane");
         return out;
@@ -148,7 +148,7 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         if (row.provider == ref.provider && row.pane == ref.pane) {
             row.name = offer.name;       // in place: the position and the handle are kept,
             row.summary = offer.summary; // so an open pane stays the pane it was
-            // THE FIRST OFFER STANDS for `default`; `fit` takes this one, and in the OS window
+            // THE FIRST OFFER STANDS for `default`; `fit` takes this one, and in the GUI window
             // stays where it stands while this is within a pixel of it.
             row.latest = asked;
             if (!within_a_pixel(asked, row.standing)) {
@@ -183,18 +183,18 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     return out;
 }
 
-/// Which admitted pane a `PaneActions` is about, under the office Loom stamped on it: the shape's
+/// Which admitted pane a `PaneActions` is about, under the role Loom stamped on it: the shape's
 /// half of admission. It takes the pane key, not the shape, since both published versions name a
-/// pane alike. An office that never offered this key is refused by name. Nothing is written here:
+/// pane alike. A role that never offered this key is refused by name. Nothing is written here:
 /// the rows are `join_pane_rows`' (keymap_join.hpp), and the caller commits both or neither.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
-                                    std::string_view stamped_office,
+                                    std::string_view stamped_role,
                                     const std::string& pane) {
     Admission out;
-    const Written office = check_pane_key(stamped_office, "provider");
-    if (!office.accepted) {
-        out.written = office;
+    const Written role = check_pane_key(stamped_role, "provider");
+    if (!role.accepted) {
+        out.written = role;
         return out;
     }
     const Written key = check_pane_key(pane, "pane key");
@@ -202,10 +202,10 @@ inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
         out.written = key;
         return out;
     }
-    const RuntimePane* row = runtime.find(stamped_office, pane);
+    const RuntimePane* row = runtime.find(stamped_role, pane);
     if (row == nullptr) {
-        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_office), pane}) +
-                                  "` is not a pane that office has offered -- its actions "
+        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_role), pane}) +
+                                  "` is not a pane that role has offered -- its actions "
                                   "were not taken");
         return out;
     }
@@ -214,18 +214,18 @@ inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
     return out;
 }
 
-/// WHICH ADMITTED PANE A `PaneSettingsDeclared` IS ABOUT, of either version, under the office Loom
+/// WHICH ADMITTED PANE A `PaneSettingsDeclared` IS ABOUT, of either version, under the role Loom
 /// stamped on it, and whether its settings are sound by that version's rules (each version's
-/// `pane_settings_declared_problem`): the declaration judged whole. An office that never offered the
+/// `pane_settings_declared_problem`): the declaration judged whole. A role that never offered the
 /// key is refused by name. Nothing is written here; the caller writes the settings or nothing.
 // WL-SETTING-03 -- agents/workshop/settings.md
 template <class Declared>
-inline Admission admit_pane_settings(const RuntimeCatalog& runtime, std::string_view stamped_office,
+inline Admission admit_pane_settings(const RuntimeCatalog& runtime, std::string_view stamped_role,
                                      const Declared& declared) {
     Admission out;
-    const Written office = check_pane_key(stamped_office, "provider");
-    if (!office.accepted) {
-        out.written = office;
+    const Written role = check_pane_key(stamped_role, "provider");
+    if (!role.accepted) {
+        out.written = role;
         return out;
     }
     const Written key = check_pane_key(declared.pane, "pane key");
@@ -233,11 +233,11 @@ inline Admission admit_pane_settings(const RuntimeCatalog& runtime, std::string_
         out.written = key;
         return out;
     }
-    const RuntimePane* row = runtime.find(stamped_office, declared.pane);
+    const RuntimePane* row = runtime.find(stamped_role, declared.pane);
     if (row == nullptr) {
-        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_office),
+        out.written = Written::no("`" + ref_text(PaneRef{std::string(stamped_role),
                                                          declared.pane}) +
-                                  "` is not a pane that office has offered -- its settings "
+                                  "` is not a pane that role has offered -- its settings "
                                   "were not taken");
         return out;
     }
@@ -416,7 +416,7 @@ inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapa
 }
 
 /// The offer `fit` reads in this room: the latest where the medium cannot say a pixel, and in the
-/// OS window the one it stands on, which a re-offer within a pixel of it does not move.
+/// GUI window the one it stands on, which a re-offer within a pixel of it does not move.
 // WL-PANE-17 -- agents/workshop/panes-and-windows.md
 inline const PaneOfferedBody& fit_offer(const RuntimePane& pane, const StackCapacity& room) {
     return room.grain == 1 ? pane.standing : pane.latest;

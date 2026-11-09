@@ -168,7 +168,7 @@ the same menu" "WL-CTX-08: a further right press while the host's menu is open a
 with the door is offered it first, and a doorless body opens the host's menu where it landed"
 "WL-CTX-08: a pass-back after a clean click opens the host's menu for that pane, once" "WL-CTX-08: a
 pass-back on the press's own turn opens the menu, and the release still reaches the pane under it"
-"WL-CTX-08: a stale correlation, a zero one, and a pass-back from an office that did not offer the
+"WL-CTX-08: a stale correlation, a zero one, and a pass-back from a role that did not offer the
 pane all move nothing"
 `workshop/weave_handlers.cpp` on(AreaPressed)
 `tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop

@@ -4,8 +4,8 @@
 #ifndef ZENGINE_TESTS_PANE_WINDOW_HPP
 #define ZENGINE_TESTS_PANE_WINDOW_HPP
 
-// A graphics window as a pane's office meets one, for the suites that drive a pane in a window: a
-// participant in a `zengine.window.*` office that tells an area its room, keeps what its owner
+// A graphics window as a pane's role meets one, for the suites that drive a pane in a window: a
+// participant in a `zengine.window.*` role that tells an area its room, keeps what its owner
 // draws there by the real window's judge and store (graphics/window/store.hpp), refuses what that
 // judge or a case refuses, and gives a press as the real window does. It paints with the character
 // painter and reads an area back as Workshop reads a drawing, its text a cell a character or, given
@@ -48,7 +48,7 @@ struct PaneWindowState {
     ZEN_SHAPE(PaneWindowState, 1, ZEN_FIELD(drawn));
 };
 
-/// The case's hand inside the window's own delivery, which gives its office a moment to speak in.
+/// The case's hand inside the window's own delivery, which gives its role a moment to speak in.
 struct PaneWindowDo {
     ZEN_SHAPE(PaneWindowDo, 1);
 };
@@ -56,8 +56,8 @@ struct PaneWindowDo {
 /// THE STAND-IN ITSELF: the areas it keeps, every drawing its areas' owners sent it, the refusals
 /// it answered, and the drawings it heard from anyone but an area's owner, which it ignores. It
 /// holds the platform's clipboard as the real windows do, and answers a paste with what that
-/// holds, counting each read. Asked what an area shows, it says it as the terminal window reads
-/// its cells (`gw::read_area`), to the office that owns the area or placed it.
+/// holds, counting each read. Asked what an area shows, it says it as the TUI window reads
+/// its cells (`gw::read_area`), to the role that owns the area or placed it.
 class PaneWindow
     : public loom::WeaveBase<PaneWindow, PaneWindowState,
                              loom::Accept<gfx::Drawn, PaneWindowDo, graphics::ClipboardTextRequested,
@@ -70,7 +70,7 @@ class PaneWindow
 public:
     explicit PaneWindow(std::string window) : window_(std::move(window)) {}
 
-    std::string office() const { return std::string(gfx::kWindowOfficePrefix) + window_; }
+    std::string role() const { return std::string(gfx::kWindowRolePrefix) + window_; }
     const std::string& window() const { return window_; }
 
     void on(const gfx::Drawn& d, loom::Mail& mail) {
@@ -86,7 +86,7 @@ public:
         refuse_next = false;
         if (!why.empty()) {
             refusals.push_back(why);
-            (void)mail.as_role(office()).send_to_role(a->owner, gfx::DrawnRefused{d.area, why});
+            (void)mail.as_role(role()).send_to_role(a->owner, gfx::DrawnRefused{d.area, why});
             return;
         }
         (void)gw::apply(*a, gw::Drawer{}, d);
@@ -170,7 +170,7 @@ private:
     std::string window_;
 };
 
-/// A STAND-IN WINDOW ON `bus`, in the office `zengine.window.<window>`, and the case's hand on it:
+/// A STAND-IN WINDOW ON `bus`, in the role `zengine.window.<window>`, and the case's hand on it:
 /// the rooms it tells, what each area shows, and the presses it makes there.
 class Window {
 public:
@@ -190,8 +190,8 @@ public:
         grant.allow_to_any(graphics::ClipboardText::zen_name, graphics::ClipboardText::zen_version);
         grant.allow_to_any(gfx::AreaShown::zen_name, gfx::AreaShown::zen_version);
         grant.allow_to_any(gfx::WindowOffered::zen_name, gfx::WindowOffered::zen_version);
-        const std::string office = w_->office();
-        id_ = bus_.register_weave(std::move(weave), std::move(grant), office);
+        const std::string role = w_->role();
+        id_ = bus_.register_weave(std::move(weave), std::move(grant), role);
         w_->zen_set_self(id_);
         w_->read = [this](const gw::WinArea& a, gfx::AreaShown& s) { return read_area(a, s); };
     }
@@ -224,7 +224,7 @@ public:
     }
 
     /// THE ROOM OF `area`, `cols` characters by `rows` lines of its text, told its owner as this
-    /// window's office, empty while it holds none of the owner's drawing. A new `epoch` is a window
+    /// window's role, empty while it holds none of the owner's drawing. A new `epoch` is a window
     /// started again, which holds nothing of the area's.
     void room(const std::string& area, const std::string& owner, std::int64_t cols,
               std::int64_t rows, std::int64_t epoch = 1) {
@@ -379,7 +379,7 @@ public:
     }
 
     /// A PRESS ON A CELL, as the real window makes one: the action its record names, asked of the
-    /// area's owner as this window's office. Returns the action asked, "" for none.
+    /// area's owner as this window's role. Returns the action asked, "" for none.
     std::string press(const std::string& area, std::int64_t col, std::int64_t row) {
         std::string action = action_at(area, col, row);
         if (!action.empty()) {
@@ -409,7 +409,7 @@ public:
     }
 
     /// ANY WORDS, asked of the area's owner -- or of `owner`, for an area this window does not
-    /// show -- as this window's office, as no press would ask them.
+    /// show -- as this window's role, as no press would ask them.
     void ask(const std::string& area, const std::string& action, std::string owner = {}) {
         const gw::WinArea* a = w_->find(area);
         if (owner.empty() && a != nullptr) {
@@ -432,13 +432,13 @@ public:
     /// THE CLOCK THIS WINDOW COUNTS CLICKS BY, as the real window counts the weaver's: the case's
     /// reading. None stands still, so two presses of one button are a double click.
     std::function<std::int64_t()> clock;
-    /// THE DOUBLE-CLICK TIME it counts by, as the input office would say it.
+    /// THE DOUBLE-CLICK TIME it counts by, as the input role would say it.
     void double_click_ms(std::int64_t ms) { clicks_.time(ms); }
 
     /// A BUTTON PRESSED (`down`) OR LET GO AT A CELL OF `area`, as the real window gives an area
     /// placed to hear the pointer: `AreaButtonChanged` at the cell's centre in the area's pixels,
     /// with what this window drew under the hand there (`said_under`) and, for a press, its clicks
-    /// counted by `clock`, told the area's owner under `press` as this window's office -- and,
+    /// counted by `clock`, told the area's owner under `press` as this window's role -- and,
     /// given an `arranger`, `AreaPressed` at the window's pixel, told it under the same number.
     void button(const std::string& area, std::int64_t col, std::int64_t row, bool down,
                 std::uint64_t press, std::int64_t which = 1, const std::string& arranger = {}) {
@@ -507,7 +507,7 @@ public:
             0);
     }
     /// THE HOLD OF `button` IN `area` ENDED with no release, as the real window tells the owner --
-    /// and, given an `arranger`, that office too.
+    /// and, given an `arranger`, that role too.
     void hold_ended(const std::string& area, std::int64_t button,
                     const std::string& arranger = {}) {
         const gw::WinArea* a = w_->find(area);
@@ -518,7 +518,7 @@ public:
         }
     }
     /// THE POINTER LEFT `area`, with no button held, as the real window tells the owner -- and,
-    /// given an `arranger`, that office too.
+    /// given an `arranger`, that role too.
     void left(const std::string& area, const std::string& arranger = {}) {
         const gw::WinArea* a = w_->find(area);
         const std::string owner = a == nullptr ? std::string() : a->owner;
@@ -544,7 +544,7 @@ public:
         return true;
     }
 
-    /// ANY MOMENT OF THE WINDOW'S, told the owner of `area` as this window's office under
+    /// ANY MOMENT OF THE WINDOW'S, told the owner of `area` as this window's role under
     /// `correlation` -- the press a button, a move or a release carries.
     template <class Shape>
     void tell(const std::string& area, const Shape& shape, std::uint64_t correlation = 0) {
@@ -575,15 +575,15 @@ public:
         }
     }
 
-    /// THIS WINDOW OFFERS ITSELF to `to`, as its office: its room in canvas pixels, its
-    /// incarnation, and the cell its text is set in, as the terminal window offers itself.
+    /// THIS WINDOW OFFERS ITSELF to `to`, as its role: its room in canvas pixels, its
+    /// incarnation, and the cell its text is set in, as the TUI window offers itself.
     void offer(const std::string& to, std::int64_t width_px, std::int64_t height_px,
                std::int64_t epoch = 1) {
         say(to, gfx::WindowOffered{w_->window(), width_px, height_px, epoch, 0, gfx::kCellPx,
                                    gfx::kCellPx, {}});
     }
 
-    /// A DRAWING OF `area` REFUSED, told its owner as this window's office, whatever it last drew.
+    /// A DRAWING OF `area` REFUSED, told its owner as this window's role, whatever it last drew.
     void refuse(const std::string& area, const std::string& reason) {
         const gw::WinArea* a = w_->find(area);
         say(a == nullptr ? std::string() : a->owner, gfx::DrawnRefused{area, reason});
@@ -599,7 +599,7 @@ private:
     template <class Shape>
     void queue(const std::string& to, const Shape& shape, std::uint64_t correlation) {
         w_->next.push_back([to, shape, correlation](PaneWindow& w, loom::Mail& mail) {
-            (void)mail.as_role(w.office()).send_to_role(to, shape, correlation);
+            (void)mail.as_role(w.role()).send_to_role(to, shape, correlation);
         });
         (void)bus_.send(id_, loom::Message(loom::to_value(PaneWindowDo{}), loom::WeaveId{},
                                            loom::WeaveId{}, 0));
@@ -620,7 +620,7 @@ private:
         return out;
     }
 
-    /// WHAT `a` SHOWS, as the terminal window reads its cells, with nothing in front of it: its
+    /// WHAT `a` SHOWS, as the TUI window reads its cells, with nothing in front of it: its
     /// words and parts in the area's pixels, by this window's face.
     std::string read_area(const gw::WinArea& a, gfx::AreaShown& s) const {
         const gfx::TextMeasure face = face_;
@@ -722,30 +722,30 @@ private:
     std::int64_t cell_px_ = 0; ///< its device pixels in a cell: none while text is the cell
 };
 
-/// THE GRAPHICS DIRECTORY AS AN OWNER MEETS IT: the `zengine.graphics` office, keeping each room
-/// asked of it and the office that asked, answering none.
+/// THE GRAPHICS DIRECTORY AS AN OWNER MEETS IT: the `zengine.graphics` role, keeping each room
+/// asked of it and the role that asked, answering none.
 class PaneDirectory
     : public loom::WeaveBase<PaneDirectory, PaneWindowState, loom::Accept<gfx::RoomAsked>,
                              loom::Emit<>> {
 public:
     struct Asked {
-        std::string area, office;
+        std::string area, role;
     };
     void on(const gfx::RoomAsked& r, loom::Mail& mail) {
         asked.push_back(Asked{r.area, std::string(mail.authored_role())});
     }
-    /// How many times `office` asked the room of `area`.
-    std::size_t times(const std::string& area, const std::string& office) const {
+    /// How many times `role` asked the room of `area`.
+    std::size_t times(const std::string& area, const std::string& role) const {
         std::size_t n = 0;
         for (const Asked& a : asked) {
-            n += a.area == area && a.office == office ? std::size_t{1} : std::size_t{0};
+            n += a.area == area && a.role == role ? std::size_t{1} : std::size_t{0};
         }
         return n;
     }
     std::vector<Asked> asked;
 };
 
-/// A stand-in directory mounted on `bus`, holding the graphics directory's office.
+/// A stand-in directory mounted on `bus`, holding the graphics directory's role.
 inline PaneDirectory* mount_directory(loom::Switchboard& bus) {
     auto weave = std::make_unique<PaneDirectory>();
     PaneDirectory* raw = weave.get();

@@ -325,7 +325,7 @@ PaneSubjectShown pane_subject_shown(const Session& s) {
     if (!in.addressed()) {
         return shown;
     }
-    shown.office = in.ref.provider;
+    shown.role = in.ref.provider;
     shown.pane = in.ref.pane;
     shown.name = in.ref.pane;
     for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
@@ -345,7 +345,7 @@ PaneSubjectShown pane_subject_shown(const Session& s) {
 }
 
 bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b) {
-    if (a.office != b.office || a.pane != b.pane || a.name != b.name || a.subject != b.subject ||
+    if (a.role != b.role || a.pane != b.pane || a.name != b.name || a.subject != b.subject ||
         a.properties.size() != b.properties.size()) {
         return false;
     }
@@ -383,7 +383,7 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
     rows.push_back(Row::show("Provider", [found, ref] {
         const std::optional<CatalogRow> row = found();
         if (!row || row->kind == kNoPaneKind) {
-            return ref.provider + " (unresolved -- no office here offers it)";
+            return ref.provider + " (unresolved -- no role here offers it)";
         }
         if (is_runtime_kind(row->kind)) {
             return ref.provider + " (offered this session)";

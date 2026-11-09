@@ -56,7 +56,7 @@ inline std::string entry_address(const ShownEntry& e) {
     if (e.addressing == ws::kAddressWeave) {
         return "#" + std::to_string(e.target);
     }
-    if (e.addressing == ws::kAddressRole) {
+    if (e.addressing == ws::kAddressRoleHolder) {
         return "@" + e.role;
     }
     if (e.addressing == ws::kAddressPublish) {

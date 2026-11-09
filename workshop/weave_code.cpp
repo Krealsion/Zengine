@@ -19,15 +19,15 @@ namespace {
 // WL-CODE-02 -- agents/workshop/code.md
 std::string code_refusal(const std::string& name, const HostContext::CodeSource& code) {
     if (code.weave == 0) {
-        return "nobody holds " + code.office + " now, so " + name +
+        return "nobody holds " + code.role + " now, so " + name +
                " has no running code to trace -- nothing was opened";
     }
     if (code.artifact.empty()) {
-        if (code.office == kWorkshopProvider) {
+        if (code.role == kWorkshopProvider) {
             return name + " is part of Workshop itself: no artifact of its own was loaded for "
                           "it, so there is no source to open";
         }
-        return name + " is drawn by " + code.office + " (weave #" + std::to_string(code.weave) +
+        return name + " is drawn by " + code.role + " (weave #" + std::to_string(code.weave) +
                "), which this project's plan did not load -- no artifact names its code, so "
                "nothing was opened";
     }
@@ -104,7 +104,7 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     next.code = code;
     next.recipe = recipe.id;
     next.source = recipe.source;
-    // THE MANAGED OPENING, AS AN OFFICE, WITH ITS TICKET KEPT (WL-OPEN-01, WL-OPEN-07): the
+    // THE MANAGED OPENING, AS A ROLE, WITH ITS TICKET KEPT (WL-OPEN-01, WL-OPEN-07): the
     // manager arranges the document and the desk together, a dirty document refuses, and
     // Loom's later word that exactly this attempt was refused reaches `on(DispatchRefused)`.
     // Nothing is selected, focused or seated here; an accepted open seats the Editor's pane.
@@ -113,7 +113,7 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     if (!next.attempt.valid()) {
         // NOTHING WAS QUEUED, so nothing is awaited and an older ask this desk still holds is
         // left to its own answer: a spend that sent nothing supersedes nothing.
-        say(name + "'s code was not opened -- nothing was queued to the opening office", true);
+        say(name + "'s code was not opened -- nothing was queued to the opening role", true);
         return;
     }
     code_open_ = std::move(next);
@@ -137,7 +137,7 @@ void WorkshopWeave::on(const SourceOpened& said, loom::Mail& mail) {
         repaint(mail);
         return;
     }
-    // ⚠ RE-RESOLVED AT THE ANSWER. The open took turns, and in them the office may have changed
+    // ⚠ RE-RESOLVED AT THE ANSWER. The open took turns, and in them the role may have changed
     // hands, the catalog may have been replaced, or a second recipe may have arrived. The file
     // is open either way -- the Editor holds it, and that stands -- but the Builder is told only
     // about code that is still the pane's, so a later answer cannot point it at a recipe that
@@ -153,7 +153,7 @@ void WorkshopWeave::on(const SourceOpened& said, loom::Mail& mail) {
         return;
     }
     PaneSourceOpened opened;
-    opened.office = done.pane.provider;
+    opened.role = done.pane.provider;
     opened.pane = done.pane.pane;
     opened.name = done.name;
     opened.artifact = done.code.artifact;
@@ -189,9 +189,9 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         repaint(mail);
         return;
     }
-    // ...AND A SENTENCE TO THE PRESENTER'S OFFICE THAT LOOM COULD NOT DELIVER means no presenter
-    // can answer the menu it was about: it left, or never held the office when the sentence
-    // arrived. WHICH menu is the attempt's to say, never the office's name alone -- the open one,
+    // ...AND A SENTENCE TO THE PRESENTER'S ROLE THAT LOOM COULD NOT DELIVER means no presenter
+    // can answer the menu it was about: it left, or never held the role when the sentence
+    // arrived. WHICH menu is the attempt's to say, never the role's name alone -- the open one,
     // or one already withdrawn whose requester is still owed; an older menu's refusal settles
     // nothing newer. This host answers that requester itself, unchosen (WL-CTX-10).
     if (refused.role == kPresenterRole) {

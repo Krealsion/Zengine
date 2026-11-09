@@ -1,8 +1,8 @@
 {
   "format": "zengine-slots",
-  "format_version": 1,
+  "format_version": 2,
   "about": "Flow's own colours: the three parts of a rule's sentence -- a message, what the rule keeps, a step -- each with its outline. Every other colour Flow draws is the shared pool's.",
-  "office": "zengine.flow",
+  "role": "zengine.flow",
   "colors": [
     { "name": "message", "color": "#ebcb8b", "like": "accent", "about": "a message, in the rule and on the graph" },
     { "name": "kept", "color": "#8fbcbb", "like": "accent", "about": "what the rule keeps" },

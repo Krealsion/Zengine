@@ -4,7 +4,7 @@
 becomes one message on this Workshop's bus; the pane recalls the commands you have run, reads back
 through everything the session has said, and offers, as you type, what can come next. It is a
 *weave*: a piece of Workshop that is loaded, replaced and spoken to by messages, built as
-`zengine-terminal-pane`. Other weaves reach it by its *office*, the name it answers to,
+`zengine-terminal-pane`. Other weaves reach it by its *role*, the name it answers to,
 `zengine.terminal`, and it offers one pane, `terminal`. Hiding its legend in one layout, keeping a
 reply in Inventory, finding a power from the line and taking a completion are walked through in
 [Terminal](terminal.md).
@@ -27,7 +27,7 @@ ask  @zengine.editor-switch EditorSwitchStatusRequested 1
 ```
 
 `send` authors one message; `ask` authors one and remembers it until Loom's answer arrives. An
-address is `#12` for one weave, `@office` for whoever holds that office when the message is
+address is `#12` for one weave, `@role` for whoever holds that role when the message is
 delivered, or `*` for everyone that accepts the shape. It is not a shell: it starts no process, and
 knows no `cd` and no pipeline.
 
@@ -84,7 +84,7 @@ recalled command it keeps that line for editing instead, and runs nothing.
   author it ([`TerminalActRequested`](../../workshop/terminal_seam_vocabulary.hpp)), and what it
   came to is on the record: `> ` your line, then `^ ... SUBMITTED`, or the participant's notice when
   it authored nothing, such as `` this pane speaks two verbs, and `ask` takes the same form as
-  `send`: send <addr> <Shape> <version> [args] -- an address is #12 for one weave, @office for
+  `send`: send <addr> <Shape> <version> [args] -- an address is #12 for one weave, @role for
   whoever holds a role, or * for everyone ``. An `ask`'s answer arrives later, as a `v` row.
 - **Refuses:** an empty line authors nothing. Over the top row, beside the line: `no terminal
   participant is mounted on this bus -- nothing was authored`. A send the participant may not make,
@@ -121,7 +121,7 @@ Typing asks too: the list follows the word you are in.
   ([`TerminalCompletionRequested`](../../workshop/terminal_seam_vocabulary.hpp)), read at the moment
   you ask and kept by nobody; the list stands above the line ([`candidate`](#candidate)). At the
   verb, `send` and `ask`. At the address, under `where it goes -- on this bus now; not permission,
-  nor a promise at send`: `*`, each office held now, `@zengine.powers   held by #12 now; reaches
+  nor a promise at send`: `*`, each role held now, `@zengine.powers   held by #12 now; reaches
   whoever holds it when sent`, then each weave by id, `#12   @zengine.powers; accepts
   ShapeDocumentRequested, FindPowers, FindPowers +1`. Then the shapes the participant knows, under
   `shapes this terminal KNOWS -- knowing one is not authority to send it`, their versions, and
@@ -226,7 +226,7 @@ same, and so does running a line.
 
 ## Follow
 
-The pane's record is `TranscriptShown`, which Workshop publishes from its office,
+The pane's record is `TranscriptShown`, which Workshop publishes from its role,
 `zengine.workshop`, to any, each time the participant's record changed; a weave that wants the
 record follows that rather than the pane ([the terminal seam](../../workshop/terminal_seam_vocabulary.hpp)).
 The pane says nothing else unasked but its picture, to Workshop, `ClipboardCopy` when you copy

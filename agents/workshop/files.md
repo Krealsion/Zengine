@@ -3,7 +3,7 @@
 Register `WL-FILES`: the browser over the machine, paths, marks and roots. One law per heading;
 cite by ID. Router: [`../workshop.md`](../workshop.md).
 
-⚠ THE BROWSER IS NOT THIS HOST'S CODE. It is `Zengine/files/`, a loadable weave in the office
+⚠ THE BROWSER IS NOT THIS HOST'S CODE. It is `Zengine/files/`, a loadable weave in the role
 `zengine.files`, offering `project-files` and arriving by a plan row. This register stayed here
 because what it states is a law both sides keep: most of it constrains the package, and the last
 two entries constrain the host. Values are proved in `files_weave`, gestures in
@@ -164,11 +164,11 @@ WHY — `agents/decisions/files-is-a-weave.md`
 
 ## WL-FILES-17 — Two doors, and what crosses them is a value
 
-LAW — The four facts the browser read off `HostContext` cross as asks to offices and answers back: where this run began, which file the recipes come from, one authored row, one source opened (the Editor's).
+LAW — The four facts the browser read off `HostContext` cross as asks to roles and answers back: where this run began, which file the recipes come from, one authored row, one source opened (the Editor's).
 
 MEANS
 - every field on the wire is Text, Int, Bool or a List: no reference of any kind crosses;
-- a door answers an OFFICE, refuses speech with no author, and answers the asker alone;
+- a door answers an ROLE, refuses speech with no author, and answers the asker alone;
 - knowledge is not authority: hearing where the project is permits reading nothing under it.
 
 WHY — `agents/decisions/files-is-a-weave.md`
@@ -341,7 +341,7 @@ RecipeAuthorRequested RecipeOutcome OpenSourceRequested SourceOpened kEditorRole
 `workshop/pane_doors.hpp` ProjectDoor
 `editor/editor-pane/pane.cpp` on(OpenSourceRequested)
 `tests/test_workshop_files.cpp` "the project door answers the weave that asked, and nobody else" "a
-door answers an office, and refuses speech with no author" "the project door spends this host's one
+door answers a role, and refuses speech with no author" "the project door spends this host's one
 recipe writer and re-words nothing"
 `tests/test_workshop_panes_editor.cpp` "the door refuses speech with no author, and answers nobody"
 

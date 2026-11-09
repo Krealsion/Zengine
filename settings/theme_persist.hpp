@@ -63,7 +63,7 @@ inline constexpr std::uintmax_t kMaxThemeBytes = 1u << 16;
 
 // ---- The file's shapes -------------------------------------------------------------------
 
-/// ONE SETTING A THEME WRITES: where (`*`, `<office>` or `<office>/<pane>`), which key, and its
+/// ONE SETTING A THEME WRITES: where (`*`, `<role>` or `<role>/<pane>`), which key, and its
 /// value in the one field of its kind -- or `clear`, which clears what an earlier theme set.
 struct ThemeSetting {
     std::string target;
@@ -130,8 +130,8 @@ inline workshop::Written check_theme_name(std::string_view name) {
     return workshop::Written::ok();
 }
 
-/// WHERE A THEME SETTING GOES: `*` (every pane that takes its key), `<office>` (an office-wide
-/// setting) or `<office>/<pane>` (that pane), an office named with a `.`.
+/// WHERE A THEME SETTING GOES: `*` (every pane that takes its key), `<role>` (a role-wide
+/// setting) or `<role>/<pane>` (that pane), a role named with a `.`.
 inline workshop::Written check_theme_target(std::string_view target) {
     if (target.empty() || target.size() > kMaxThemeTargetLen) {
         return workshop::Written::no("a theme setting's target is 1 to " +
@@ -147,16 +147,16 @@ inline workshop::Written check_theme_target(std::string_view target) {
         return workshop::Written::ok();
     }
     const std::size_t slash = target.find('/');
-    const std::string_view office = target.substr(0, slash);
-    const bool office_ok = !office.empty() && office.find('.') != std::string_view::npos;
+    const std::string_view role = target.substr(0, slash);
+    const bool role_ok = !role.empty() && role.find('.') != std::string_view::npos;
     bool pane_ok = true;
     if (slash != std::string_view::npos) {
         const std::string_view pane = target.substr(slash + 1);
         pane_ok = !pane.empty() && pane != "*" && pane.find('/') == std::string_view::npos;
     }
-    if (!office_ok || !pane_ok) {
-        return workshop::Written::no("a theme setting's target is `*`, `<office>` or "
-                                     "`<office>/<pane>` -- `" +
+    if (!role_ok || !pane_ok) {
+        return workshop::Written::no("a theme setting's target is `*`, `<role>` or "
+                                     "`<role>/<pane>` -- `" +
                                      std::string(target) + "` is not");
     }
     return workshop::Written::ok();

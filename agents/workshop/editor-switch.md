@@ -1,17 +1,17 @@
 # Workshop law — switching the Editor
 
-Register `WL-SWITCH`: an office with authored choices, and one switch of `zengine.editor`
+Register `WL-SWITCH`: a role with authored choices, and one switch of `zengine.editor`
 between them with the document carried across. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). Document custody is [`editor.md`](editor.md); an open is
 [`opening.md`](opening.md); what crosses the seam is the protocol's law in
 [`../panes.md`](../panes.md); prepared replacement is Loom's law, never restated here.
 
-## WL-SWITCH-01 — A plan authors an office's choices, and exactly one of them starts
+## WL-SWITCH-01 — A plan authors a role's choices, and exactly one of them starts
 
 LAW — `choices` name the artifacts that may hold a role, each name and artifact once; exactly one row of `artifacts` loads the role and is a choice, and the rest load only when a switch asks.
 
 MEANS
-- an artifact is a choice for one office; its start row asks for weave participation alone;
+- an artifact is a choice for one role; its start row asks for weave participation alone;
 - a plan with no choices is written as version 1, byte for byte; choices are version 2;
 - a version-2 file with no choices, and a version-1 file carrying them, are refused.
 
@@ -20,9 +20,9 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
-## WL-SWITCH-02 — Realization records which choice holds the office, and every reader follows it
+## WL-SWITCH-02 — Realization records which choice holds the role, and every reader follows it
 
-LAW — After Loom moved the office, realization records the choice's weave and image; the row it left is `switched` and refuses a reload in words, and arrangement and provenance follow the weave.
+LAW — After Loom moved the role, realization records the choice's weave and image; the row it left is `switched` and refuses a reload in words, and arrangement and provenance follow the weave.
 
 MEANS
 - a switch back resolves the plan's own row again; a choice outside `artifacts` gets a kept row;
@@ -35,7 +35,7 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 LAW — The native `EditorSwitchCoordinator` owns one switch's intent, stage, consent and outcome over Loom's prepared replacement: one at a time, no timeout, each ending answering the ask that waits.
 
 MEANS
-- the choice in office is `already-active` and loads nothing; an unloadable one moves nothing;
+- the choice in role is `already-active` and loads nothing; an unloadable one moves nothing;
 - a request while one is under way is refused in words; silence stays pending and cancellable;
 - a request replaces one awaiting consent, whose confirmation is then answered `superseded`.
 
@@ -46,7 +46,7 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
 ## WL-SWITCH-04 — The incumbent authors the document at the boundary and holds still until told
 
-LAW — Asked at the boundary, the editor in office answers the exact transfer and applies no input until it hears the outcome; what it refused is counted, and said when it resumes or reported with the switch.
+LAW — Asked at the boundary, the editor in role answers the exact transfer and applies no input until it hears the outcome; what it refused is counted, and said when it resumes or reported with the switch.
 
 MEANS
 - judging holds nothing, and the incumbent keeps editing while the candidate starts;
@@ -77,26 +77,26 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
 ## WL-SWITCH-07 — A weaver switches from the Terminal, and the desk shows the switch meanwhile
 
-LAW — The host mounts the coordinator over its managed pane's office and grants its Terminal the four switch asks, to that office alone; a pending switch is a standing condition saying how to stop it.
+LAW — The host mounts the coordinator over its managed pane's role and grants its Terminal the four switch asks, to that role alone; a pending switch is a standing condition saying how to stop it.
 
 MEANS
 - the documented lines are typed against the host's own widening, `let_terminal_switch_editors`;
-- the desk keeps a condition only when the switch's office said it, and drops it when it ends;
+- the desk keeps a condition only when the switch's role said it, and drops it when it ends;
 - every answer is said as Workshop's notice, but a status asked quietly, which only its asker hears; a question for consent shows the line that confirms it.
 
 DOES NOT MEAN
-- that the host names an editor artifact: its managed pane's office, and the plan's choices.
+- that the host names an editor artifact: its managed pane's role, and the plan's choices.
 
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
 ## WL-SWITCH-08 — A start loads the choice the last session remembered, while the plan authors it
 
-LAW — The session's header keeps which authored choice held each switchable office at quit, as the host hands it to the layouts' owner; the next start loads it in the office's row while the plan authors it
+LAW — The session's header keeps which authored choice held each switchable role at quit, as the host hands it to the layouts' owner; the next start loads it in the role's row while the plan authors it
 
 MEANS
 - the project's plan file is never changed; only the start's reading of it is;
 - a remembered choice the plan no longer authors loads nothing, and the start says so once;
-- a run with no session file -- `--isolated` without `--session` -- reads none, so every office starts on the plan's own row.
+- a run with no session file -- `--isolated` without `--session` -- reads none, so every role starts on the plan's own row.
 
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
@@ -115,25 +115,25 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 `tests/test_workshop_load.cpp` "a plan authoring no choices is written as version 1, byte for byte
 what it always was" "choices are written as version 2 and read back as the same plan, byte for byte"
 "a version-2 file with no choices is refused, and a version-1 file cannot carry choices" "the choice
-law: one start holder that is a choice, one office per artifact, one spelling per word"
+law: one start holder that is a choice, one role per artifact, one spelling per word"
 
 ### WL-SWITCH-02
 `workshop/load_execute.hpp` record_choice_holder choice_holder image_of reload_refusal
 ResolvedArtifact::switched_to
 `workshop/arrangement.hpp` kSwitchedToken
 `introspection/resolved.hpp` kSwitchedRow
-`tests/test_workshop_load.cpp` "a recorded switch moves an office between its authored choices, and
+`tests/test_workshop_load.cpp` "a recorded switch moves a role between its authored choices, and
 every reader follows the weave" "a switch is recorded only for an authored choice, and a refused
 record moves nothing"
 `tests/test_workshop_editor_switch.cpp` "a switch between two authored Editors carries the document,
-its unsaved edits and its caret, and moves the office"
+its unsaved edits and its caret, and moves the role"
 
 ### WL-SWITCH-03
 `workshop/editor_switch.hpp` EditorSwitchCoordinator on(EditorSwitchRequested)
 on(EditorSwitchCancelled) on(EditorSwitchStatusRequested) answer_superseded load_and_warm on_beat
 abandon
 `workshop/editor_switch_vocabulary.hpp` EditorSwitchAnswered EditorSwitchProgress
-`tests/test_workshop_editor_switch.cpp` "asking for the choice that already holds the office is
+`tests/test_workshop_editor_switch.cpp` "asking for the choice that already holds the role is
 harmless: nothing is loaded" "a choice the plan does not author, and one whose artifact will not
 load, are refused with nothing moved" "a switch waiting on a silent candidate is pending, published,
 refuses a second switch, and cancels cleanly" "a newer request replaces a switch awaiting consent,
@@ -153,8 +153,8 @@ published, refuses a second switch, and cancels cleanly"
 `editor/editor-pane/opening_switch.hpp` on(EditorAdoptRequested) on(EditorLiveRequested)
 `workshop/editor_switch.hpp` on(EditorAdopted) on(EditorLive) release_retired release_retained
 `tests/test_workshop_editor_switch.cpp` "a switch between two authored Editors carries the document,
-its unsaved edits and its caret, and moves the office" "a keystroke queued behind the commitment
-reaches the successor, ahead of nothing it could miss" "a successor that holds the office and does
+its unsaved edits and its caret, and moves the role" "a keystroke queued behind the commitment
+reaches the successor, ahead of nothing it could miss" "a successor that holds the role and does
 not serve is a failure after the commitment, and the retired Editor is kept"
 
 ### WL-SWITCH-06
@@ -182,7 +182,7 @@ at the Terminal is said"
 `workshop/weave.hpp` HostContext::chosen HostContext::choice_note
 `workshop/workshop.cpp` remember_choices
 `workshop/layouts/store.hpp` chosen
-`tests/test_workshop_persistence.cpp` "a start loads the remembered choice in its office's row,
-while the plan authors it" "a session keeps the choices it was given, and refuses more than an
-office's worth" "a quit saves which choice holds each office, and a start says a choice no longer
+`tests/test_workshop_persistence.cpp` "a start loads the remembered choice in its role's row,
+while the plan authors it" "a session keeps the choices it was given, and refuses more than a
+role's worth" "a quit saves which choice holds each role, and a start says a choice no longer
 authored"

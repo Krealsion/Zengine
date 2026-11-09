@@ -12,7 +12,7 @@ LAW — A row of `v3::PaneActions` or `v2::AppActions` names each shape a press 
 
 MEANS
 - a send that waits on an answer is the press's; one that waits on another gesture, a menu's choice, is not;
-- a subject is empty (the pane's own state), `on <prefix>` (the part pressed) or `to <office>/<pane>`;
+- a subject is empty (the pane's own state), `on <prefix>` (the part pressed) or `to <role>/<pane>`;
 - an earlier version is widened with none, and Workshop resolves nothing: a reader joins the rows with the desk.
 
 DOES NOT MEAN
@@ -53,7 +53,7 @@ WHY — `agents/decisions/a-press-says-what-it-may-cause.md`
 LAW — The census holds each row's causes and mode entered, a press of each action sends nothing beside the pane protocol its row does not declare, and each manual command's Answers line links its causes.
 
 MEANS
-- every row each office's census pins is pressed, on a pane of its own in the state its suite drives;
+- every row each role's census pins is pressed, on a pane of its own in the state its suite drives;
 - a declared cause no driven state sent is listed beside the build, never failed: "may";
 - the manual check reads only which shapes a line links, never its words.
 
@@ -118,6 +118,6 @@ desk's, are tests/actions.txt" "the press witness: each action the Builder decla
 mode it is driven into, sends nothing beside the pane protocol that its row does not declare" "the
 press witness: each row the desktop declares, pressed, sends nothing beside the pane protocol that
 the row does not declare -- the application's, the Pane Manager's and the Manual's" "the press
-witness: every office in the census has one press driver, every driver an office the census holds,
-and each share of an office's rows one case that presses it"
+witness: every role in the census has one press driver, every driver a role the census holds,
+and each share of a role's rows one case that presses it"
 `tests/check_manual.cmake` zen_manual_census zen_manual_answers

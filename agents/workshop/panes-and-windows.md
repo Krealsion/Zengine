@@ -133,13 +133,13 @@ LAW — An open pane carries a kind and nothing else; a kind is open once or not
 
 MEANS
 - a second copy of a tool's status in each instance would need a policy about several instances;
-- removing a pane touches nothing behind it: no message reaches the office.
+- removing a pane touches nothing behind it: no message reaches the role.
 
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-16 — A pane with no drawing says waiting, never unavailable
 
-LAW — A pane's frame says `waiting for <name>` behind its area until the pane draws there, or `<name> draws in no window` for an office taking no room in one; `unavailable` is never said.
+LAW — A pane's frame says `waiting for <name>` behind its area until the pane draws there, or `<name> draws in no window` for a role taking no room in one; `unavailable` is never said.
 
 MEANS
 - the pane's ground covers the words once it draws; silence proves no fate, as Loom tells no unload;
@@ -163,7 +163,7 @@ LAW — A preferred size budgets body text, or a canvas body of whole pixels, pl
 
 MEANS
 - a pixel body is granted exactly: to the pixel in a window, rounded up to cells in a terminal;
-- `default` reads the first accepted offer; `fit` follows each re-offer at once, either way, save one the OS window holds and says: within a pixel, on every axis, of what it stands on;
+- `default` reads the first accepted offer; `fit` follows each re-offer at once, either way, save one the GUI window holds and says: within a pixel, on every axis, of what it stands on;
 - the column spends the default height a pane is drawn at; old providers keep their fallback.
 
 WHY — `agents/decisions/preferred-pane-space.md`
@@ -291,7 +291,7 @@ offer"
 
 ### WL-PANE-13
 `workshop/panes.hpp` OpenPane Panes::has open_kind close_kind
-`tests/test_workshop_host.cpp` "a built-in pane needs no weave, and opening one speaks to no office"
+`tests/test_workshop_host.cpp` "a built-in pane needs no weave, and opening one speaks to no role"
 `tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close takes a pane off the desk and leaves
 its provider holding; a close of a pane that is not there is refused and opens nothing"
 
@@ -302,7 +302,7 @@ its provider holding; a close of a pane that is not there is refused and opens n
 `tests/test_workshop_panes_seam.cpp` "silence is waiting, and Workshop never says unavailable"
 `tests/test_workshop_screen.cpp` "unload and reload -- waiting is said, and a reload recovers the
 view"
-`tests/test_workshop_desk.cpp` "a pane whose office draws in no graphics window has no area there,
+`tests/test_workshop_desk.cpp` "a pane whose role draws in no graphics window has no area there,
 and its frame says so; one that does is placed its area, titled, and nothing is drawn over it while
 arranging"
 
@@ -318,7 +318,7 @@ arranging"
 metrics" "pane comfort survives offer refresh and rejects malformed preferences" "pane comfort: the
 column spends each pane's preferred height, and begins again at its top when spent" "pane comfort:
 `fit` follows a pane switching between two sizes each time, in both windows, and `default` keeps
-the first" "pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window
-alone, and the terminal window follows it" "pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer"
+the first" "pane comfort: a re-offer within one pixel of what `fit` stands on is held in the GUI window
+alone, and the TUI window follows it" "pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer"
 `tests/test_workshop_panes_canvas.cpp` "a view asks for its size in pixels and its pane grants
 exactly that room: to the pixel in a window, to the cells that hold it in a terminal"

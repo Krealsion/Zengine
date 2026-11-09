@@ -42,7 +42,7 @@ inline std::string spelled(const std::filesystem::path& at) {
     return zengine::persist::resolved_against(std::string(), at.generic_string());
 }
 
-inline constexpr const char* kSwitchAskerOffice = "zengine.test.switch-asker";
+inline constexpr const char* kSwitchAskerRole = "zengine.test.switch-asker";
 
 /// A SEAT THAT READS DECLARED FIELDS, the way a weaver's probe does (`zen.PokeRead`).
 class PokeReader : public loom::WeaveBase<PokeReader, SeenState,
@@ -106,7 +106,7 @@ struct SwitchRig {
     /// HELD HERE, because the project door keeps the path it is handed by reference.
     std::string marks_path;
 
-    /// WHAT A CASE MOUNTS BEFORE THE PLAN RUNS -- a seat an office's first activation must find.
+    /// WHAT A CASE MOUNTS BEFORE THE PLAN RUNS -- a seat a role's first activation must find.
     std::function<void()> before_plan;
 
     explicit SwitchRig(const char* tag) : dir(tag) {
@@ -167,7 +167,7 @@ struct SwitchRig {
         EditorSwitchHost host;
         host.bus = &r.bus;
         host.kernel = &r.kernel;
-        host.office = r.host.managed_pane.provider;
+        host.role = r.host.managed_pane.provider;
         host.choices = [this] { return r.plan_->plan().choices; };
         host.holder = [this] { return r.plan_->choice_holder(pane::kEditorPaneRole); };
         host.image_of = [this](const std::string& stem) { return r.plan_->image_of(stem); };
@@ -197,7 +197,7 @@ struct SwitchRig {
         grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
         grant.allow_to_role(TerminalActRequested::zen_name, TerminalActRequested::zen_version,
                             kWorkshopProvider);
-        const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant), std::string(kSwitchAskerOffice));
+        const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant), std::string(kSwitchAskerRole));
         asker->zen_set_self(id);
         asker->id = id;
     }
@@ -212,10 +212,10 @@ struct SwitchRig {
     EditorSwitchAnswered ask(const Shape& shape) {
         const std::size_t before = asker->answers.size();
         enqueue([shape](SwitchAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, shape);
+            (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, shape);
         });
         r.bus.drain_until_idle();
-        REQUIRE_MESSAGE(asker->answers.size() == before + 1, "the switch office did not answer (stage `",
+        REQUIRE_MESSAGE(asker->answers.size() == before + 1, "the switch role did not answer (stage `",
                         switcher->stage() == EditorSwitchCoordinator::Stage::Idle ? "idle" : "busy", "`)");
         return asker->answers.back();
     }
@@ -229,7 +229,7 @@ struct SwitchRig {
         const std::string path = spelled(root / name);
         const std::size_t before = asker->opens.size();
         enqueue([path](SwitchAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kSwitchAskerOffice).send_to_role(kOpeningRole, OpenSourceRequested{path});
+            (void)mail.as_role(kSwitchAskerRole).send_to_role(kOpeningRole, OpenSourceRequested{path});
         });
         r.bus.drain_until_idle();
         REQUIRE(asker->opens.size() == before + 1);
@@ -268,7 +268,7 @@ struct SwitchRig {
         }
     }
 
-    /// ONE DECLARED FIELD OF THE OFFICE'S HOLDER, as `zen.PokeRead` answers it.
+    /// ONE DECLARED FIELD OF THE ROLE'S HOLDER, as `zen.PokeRead` answers it.
     std::string read(const char* field) {
         const std::uint64_t corr = ++reads;
         (void)r.bus.send(holder(), loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{},
@@ -293,7 +293,7 @@ struct SwitchRig {
 
     void enqueue_switch(const std::string& destination) {
         enqueue([destination](SwitchAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchRequested{destination});
+            (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, EditorSwitchRequested{destination});
         });
     }
 
@@ -322,7 +322,7 @@ struct SwitchRig {
         const std::size_t answers_before = of_kind(*terminal, loom::TranscriptKind::AnswerReceived).size();
         const std::size_t acted_before = asker->acted.size();
         enqueue([line](SwitchAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kSwitchAskerOffice)
+            (void)mail.as_role(kSwitchAskerRole)
                 .send_to_role(kWorkshopProvider, TerminalActRequested{kTerminalSubmitAct, line});
         });
         r.bus.drain_until_idle();

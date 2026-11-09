@@ -1,18 +1,18 @@
 # The action census: every action a shipped pane declares, in every mode its suite drives, one row
-# each, `<office> <mode> <id> <default key> <causes> <enters> <label>`, in the order the pane
+# each, `<role> <mode> <id> <default key> <causes> <enters> <label>`, in the order the pane
 # declares them. The key is spelled as a weaver's keymap file spells it, `unbound` for none, and a
 # row's key for a POSIX terminal follows its default after a `~`; the
 # mode is the name the pane declares its rows in force for (the application's rows are `desk`), `-`
 # for a pane that declares none.
 # The causes are what a press may send beside the pane protocol, `,`-joined, each
 # `<shape>/<version>` with its subject after `@` (the part a press lands on, by its name's opening)
-# or `>` (one pane, `<office>/<pane>`); `-` for none. `enters` is the mode a press leaves its pane
-# in, `-` for none. This file holds the Builder pane's rows and the desk's; each further office's
-# are in tests/actions/<office>.txt, in the same form. The census case in
+# or `>` (one pane, `<role>/<pane>`); `-` for none. `enters` is the mode a press leaves its pane
+# in, `-` for none. This file holds the Builder pane's rows and the desk's; each further role's
+# are in tests/actions/<role>.txt, in the same form. The census case in
 # tests/test_workshop_panes_builder.cpp runs the driver each pane's suite registers (tests/census.hpp)
-# and holds every office's rows to what its panes declare, each mode's `elsewhere` to the union of
+# and holds every role's rows to what its panes declare, each mode's `elsewhere` to the union of
 # the pane's other modes' causes here, and writes the census as it stands beside the build to diff;
-# the press witness presses every row of every office, on a pane of its own in the state its suite
+# the press witness presses every row of every role, on a pane of its own in the state its suite
 # drives, and holds each press's sends to the row's causes. tests/check_manual.cmake holds every
 # manual's commands, their Answers links and key markers to it. A pane is listed once a
 # manual or a tutorial names its keys. ASCII only.
@@ -49,19 +49,19 @@ zengine.builder-pane output builder.output-close escape - browse close output
 zengine.builder-pane role authoring.commit return PlanRowRequested/1,BuildRequested/3,ProjectFrontierRequested/1 browse load it
 zengine.builder-pane role builder.menu unbound - - this pane's menu
 zengine.builder-pane role authoring.cancel escape - browse cancel
-zengine.desktop desk desktop.terminal ctrl+t PaneLaunchRequested/1>zengine.terminal/terminal - terminal
-zengine.desktop desk desktop.panes ctrl+p PaneToggleRequested/1>zengine.desktop/launcher - panes
-zengine.desktop desk desktop.hotkeys ctrl+k PaneLaunchRequested/1>zengine.desktop/hotkeys - hotkeys
+zengine.desktop desk desktop.terminal ctrl+t PaneLaunchRequested/3>zengine.terminal/terminal - terminal
+zengine.desktop desk desktop.panes ctrl+p PaneToggleRequested/2>zengine.desktop/launcher - panes
+zengine.desktop desk desktop.hotkeys ctrl+k PaneLaunchRequested/3>zengine.desktop/hotkeys - hotkeys
 zengine.desktop desk desktop.deselect escape DeselectRequested/1 - put down
-zengine.desktop desk desktop.manual ctrl+f PaneDocumentRequested/1,PaneLaunchRequested/1>zengine.desktop/manual - manual
-zengine.desktop desk desktop.palette ctrl+space PaneToggleRequested/1>zengine.palette/palette - palette
-zengine.desktop desk desktop.palette-shift double-shift PaneToggleRequested/1>zengine.palette/palette - palette
+zengine.desktop desk desktop.manual ctrl+f PaneDocumentRequested/1,PaneLaunchRequested/3>zengine.desktop/manual - manual
+zengine.desktop desk desktop.palette ctrl+space PaneToggleRequested/2>zengine.palette/palette - palette
+zengine.desktop desk desktop.palette-shift double-shift PaneToggleRequested/2>zengine.palette/palette - palette
 zengine.desktop list launcher.up up - - row up
 zengine.desktop list launcher.down down - - row down
-zengine.desktop list launcher.open return PaneLaunchRequested/1@pane: - show or focus
-zengine.desktop list launcher.close x PaneCloseRequested/1@pane: - hide
+zengine.desktop list launcher.open return PaneLaunchRequested/3@pane: - show or focus
+zengine.desktop list launcher.close x PaneCloseRequested/2@pane: - hide
 zengine.desktop list launcher.menu m - - row menu
-zengine.desktop list launcher.new n PaneLaunchRequested/1>zengine.view.builder/view-builder - new pane
+zengine.desktop list launcher.new n PaneLaunchRequested/3>zengine.view.builder/view-builder - new pane
 zengine.desktop table hotkeys.up up - - row up
 zengine.desktop table hotkeys.down down - - row down
 zengine.desktop table hotkeys.top home - - top
@@ -79,4 +79,4 @@ zengine.desktop read manual.top home - - top
 zengine.desktop read manual.bottom end - - bottom
 zengine.desktop read manual.copy ctrl+c - - copy
 zengine.desktop read manual.all ctrl+a - - select all
-zengine.desktop read manual.close escape PaneCloseRequested/1>zengine.desktop/manual - close
+zengine.desktop read manual.close escape PaneCloseRequested/2>zengine.desktop/manual - close

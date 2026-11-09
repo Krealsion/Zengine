@@ -13,6 +13,18 @@
 #
 # A shape's `Name vN` is an identity, frozen once published, and no copy of anything. When review
 # finds a value copied that this file does not know, it is registered here then.
+#
+# A role's name has one home, a string constant in its vocabulary header, and a part's code reads
+# it there:
+#
+#   name  <id>  <owner file>  <symbol>   the home
+#   copy  <id>  <file>  <symbol>         a part's copy where it must not include the home; it must
+#                                        say what the home says
+#   fact  <id>  <file>  <symbol>         a constant saying the same name as a fact of its own (what
+#                                        files already written say), which a rename leaves as it is
+#
+# Any other spelling of a registered name in a part's code (a feature's, a host's or a library's)
+# is a red.
 
 # ---- the law register's budgets
 ZEN_LAW_CORE_BYTES              tests/check_law_register.cmake            ZEN_LAW_CORE_BYTES
@@ -160,3 +172,63 @@ kMaxFoldCount                   operator/fold.hpp                         kMaxFo
 
 # ---- generating C++
 kMaxGeneratedBytes              flow/generate.hpp                         kMaxGeneratedBytes
+
+# ---- the roles' names: each one's home, the copies parts keep, and the facts
+name  zengine.app                app/vocabulary.hpp                     kAppRole
+name  zengine.app.host           app/vocabulary.hpp                     kAppHostRole
+name  zengine.arrangement        workshop/arrangement_vocabulary.hpp    kArrangementRole
+name  zengine.attention          attention/vocabulary.hpp               kAttentionPaneRole
+name  zengine.build-runner       builder/vocabulary.hpp                 kBuildRunnerRole
+name  zengine.builder            builder/vocabulary.hpp                 kBuilderRole
+name  zengine.builder-pane       builder/builder-pane/vocabulary.hpp    kBuilderPaneRole
+copy  zengine.builder-pane       workshop/pane_migration.hpp            kBuilderProvider
+name  zengine.composer           composer/vocabulary.hpp                kComposerRole
+name  zengine.connections        external-host/connections-pane/vocabulary.hpp kConnectionsPaneRole
+copy  zengine.connections        workshop/pane_seam_vocabulary.hpp      kConnectionsRole
+name  zengine.demo               external-host/demo-control/vocabulary.hpp kRole
+name  zengine.desktop            workshop/desktop_seam_vocabulary.hpp   kDesktopRole
+name  zengine.editor             editor/editor-pane/vocabulary.hpp      kEditorPaneRole
+copy  zengine.editor             editor/neovim-editor/vocabulary.hpp    kEditorRole
+copy  zengine.editor             workshop/pane_seam_vocabulary.hpp      kEditorRole
+name  zengine.editor-switch      workshop/editor_switch_vocabulary.hpp  kEditorSwitchRole
+name  zengine.files              files/vocabulary.hpp                   kFilesRole
+copy  zengine.files              workshop/pane_migration.hpp            kFilesProvider
+name  zengine.first-run          workshop/first-run/setup.hpp           kFirstRunRole
+name  zengine.flow               flow/flow-pane/vocabulary.hpp          kRole
+name  zengine.flow.host          flow/flow-host/vocabulary.hpp          kFlowHostRole
+name  zengine.graphics           graphics/vocabulary.hpp                kGraphicsRole
+name  zengine.guests             workshop/guest_seam_vocabulary.hpp     kGuestsRole
+name  zengine.info               info/vocabulary.hpp                    kInfoPaneRole
+copy  zengine.info               workshop/desktop-pane/vocabulary.hpp   kInfoRole
+copy  zengine.info               workshop/pane_migration.hpp            kInfoProvider
+copy  zengine.info               workshop/panes.hpp                     kInfoPaneProvider
+name  zengine.input              input/vocabulary.hpp                   kInputRole
+name  zengine.introspection      introspection/vocabulary.hpp           kIntrospectionRole
+name  zengine.inventory          inventory/vocabulary.hpp               kInventoryRole
+name  zengine.inventory-pane     inventory/inventory-pane/vocabulary.hpp kRole
+name  zengine.launcher           launcher/vocabulary.hpp                kLauncherRole
+name  zengine.layouts            workshop/pane_settings.hpp             kLayoutsRole
+name  zengine.notices            notices/vocabulary.hpp                 kNoticesRole
+name  zengine.notices-pane       notices/notices-pane/vocabulary.hpp    kNoticesPaneRole
+copy  zengine.notices-pane       workshop/panes.hpp                     kNoticesPaneProvider
+name  zengine.opening            workshop/open_seam_vocabulary.hpp      kOpeningRole
+name  zengine.palette            workshop/command_vocabulary.hpp        kPaletteRole
+name  zengine.powers             workshop/powers_vocabulary.hpp         kPowersRole
+name  zengine.presenter          workshop/pane_vocabulary.hpp           kPresenterRole
+name  zengine.project            workshop/pane_seam_vocabulary.hpp      kProjectRole
+name  zengine.realization        builder/vocabulary.hpp                 kRealizationRole
+name  zengine.settings           settings/vocabulary.hpp                kSettingsRole
+name  zengine.sources            workshop/sample_vocabulary.hpp         kSampleRole
+name  zengine.terminal           terminal/vocabulary.hpp                kTerminalPaneRole
+copy  zengine.terminal           workshop/pane_seam_vocabulary.hpp      kTerminalRole
+name  zengine.timer              timer/vocabulary.hpp                   kTimerRole
+name  zengine.view.builder       view/view-builder/vocabulary.hpp       kRole
+copy  zengine.view.builder       workshop/desktop-pane/desktop_common.hpp kViewBuilderRole
+name  zengine.view.host          view/vocabulary.hpp                    kViewHostRole
+name  zengine.workshop           workshop/pane_menu.hpp                 kWorkshopRole
+fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredFilesProvider
+fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredBuilderProvider
+fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredInfoProvider
+fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredEditorProvider
+fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredManagerProvider
+name  zengine.workshop.host      workshop/host_sources.hpp              kHostProvider

@@ -9,12 +9,12 @@ from inventory_slots_demo import first_box
 from workshop_steps import picture
 
 
-def exercise_desk(office, view):
+def exercise_desk(role, view):
     """The values desk with the restored view seated below it, at a front rank after every rank
     the desk holds: Workshop refuses two panes that claim one."""
     setup = layout("values")
     panes = setup["fields"]["panes"]
-    panes.append(dict(provider=office, pane=view,
+    panes.append(dict(provider=role, pane=view,
         place=dict(mode="pixels", x="12", y=str(35 * 12)),
         width=dict(mode="pixels", amount=str(50 * 12)),
         height=dict(mode="pixels", amount=str(11 * 12)),
@@ -29,17 +29,17 @@ def run(ctx):
     phase, label = ctx.inputs["phase"], ctx.inputs["label"]
     ctx.check(phase in ("prepare", "exercise"), "phase must be prepare or exercise")
     ctx.check(label.isascii() and label.isalnum() and len(label) <= 30, "use a short ASCII word")
-    office, pane = "zengine.inventory-pane", "inventory"
+    role, pane = "zengine.inventory-pane", "inventory"
     command_name, output_name = label + " command", label + "Output"
 
     def entries():
         return hand.ask("zengine.inventory", "InventoryList", {})["entries"]
 
     def views():
-        return hand.ask(office, "InventoryViewsRequested", {})
+        return hand.ask(role, "InventoryViewsRequested", {})
 
     def edit(operation, entry=None, view="", text="", enabled=False):
-        hand.ask(office, "InventoryViewEdit", dict(operation=operation, view=view, text=text,
+        hand.ask(role, "InventoryViewEdit", dict(operation=operation, view=view, text=text,
             entry=entry or {"owner": "", "entry": ""}, before={"owner": "", "entry": ""},
             scancode=38, modifiers=4, enabled=enabled), settle=True)  # Alt+9
 
@@ -69,7 +69,7 @@ def run(ctx):
         before = entries()
         command = next(e for e in before if e["label"] == command_name)
         slot = next(v for v in state["views"] if command["reference"] in v["entries"])
-        setup = exercise_desk(office, slot["id"])
+        setup = exercise_desk(role, slot["id"])
         hand.ask("zengine.layouts", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
         count = sum(e["label"] == output_name for e in before)
         ctx.check(count == 1, "fixture should contain its original output, without an automatic replay")
@@ -80,7 +80,7 @@ def run(ctx):
         ctx.check(sum(e["label"] == output_name for e in entries()) == count + 1,
                   "the restored command did not create exactly one new result under current authority")
         edit("context", view=slot["id"], enabled=False)
-        hand.drag(first_box(ctx, hand, office, slot["id"]), hand.first("zengine.info", "info"), 350)
+        hand.drag(first_box(ctx, hand, role, slot["id"]), hand.first("zengine.info", "info"), 350)
 
     current = entries()
     command = next(e for e in current if e["label"] == command_name)

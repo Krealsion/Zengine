@@ -1,7 +1,7 @@
 # Workshop law — the Info controls
 
 Register `WL-CTRL`: the grounds Info's structural rows sit on, and a property view that carries no
-controls of its own. Info inspects the one pane an office names (WL-INFO-14), and a pane is listed,
+controls of its own. Info inspects the one pane a role names (WL-INFO-14), and a pane is listed,
 launched and closed from the Pane Manager, never from here. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
@@ -79,8 +79,8 @@ words"
 ### WL-CTRL-05
 `info/property_view.hpp` ask_inspect ask_commit
 `workshop/weave_inspection.cpp` on(InspectPaneRequested) on(PaneCommitRequested)
-`tests/test_workshop_panes_info.cpp` "an office's ask inspects a pane through the host's own door,
-and the office is answered what the host said"
+`tests/test_workshop_panes_info.cpp` "a role's ask inspects a pane through the host's own door,
+and the role is answered what the host said"
 
 ### WL-CTRL-06
 `info/property_view.hpp` compose

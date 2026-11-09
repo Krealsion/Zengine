@@ -37,7 +37,7 @@ out loud and opens a pane through Workshop's launch door, or closes one through 
 close door. A pane that is not in the
 catalog cannot be opened by any gesture at all, and the catalog has **two halves**: a
 compile-time constant array of Workshop's own, and a bounded **session-local runtime catalog**
-of panes some office actually offered this run (see
+of panes some role actually offered this run (see
 *[A weave may offer a pane](#a-weave-may-offer-a-pane)* below). The first two built-ins were
 chosen to be unalike:
 
@@ -77,18 +77,18 @@ the admission seam a per-connection prompt will attach to is the door's
 ([external host](../../external-host/docs/external-host.md)).
 
 `pane == weave` is deliberately **not** an architectural rule, and `Info` is what pays for
-that sentence rather than asserting it: opening it sends no message, asks no office and needs
+that sentence rather than asserting it: opening it sends no message, asks no role and needs
 no weave mounted anywhere, and it has no per-pane state for a close to destroy. A Workshop
 hosting no tools at all opens it and it works.
 
 **Presence is the desk's, and two doors change it** (`workshop/desktop_seam_vocabulary.hpp`):
 
 ```text
-PaneLaunchRequested{office, pane}  ->  Workshop: open it, or focus it if it is open   (never toggles)
-PaneCloseRequested{office, pane}   ->  zengine.layouts: take its row off the live layout (unloads nothing)
+PaneLaunchRequested{role, pane}  ->  Workshop: open it, or focus it if it is open   (never toggles)
+PaneCloseRequested{role, pane}   ->  zengine.layouts: take its row off the live layout (unloads nothing)
 ```
 
-Only an office may ask either, and each is answered to the asker; a close's answer names the
+Only a role may ask either, and each is answered to the asker; a close's answer names the
 settings and locks its row took. The shipped desktop's Pane
 Manager spends them on `Enter` and `x`, over the one inventory Workshop publishes
 (`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[load]`
@@ -109,7 +109,7 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   ever`, the tool's running count, which comes back as 3 rather than as 1 and is the number a
   pane that owned the state could not produce.
 - **Workshop gained two sentences and later gave them back.** Its grant used to add
-  `StatusRequested` and `BuildRequested`, both scoped *to the Builder office*; the pane is a
+  `StatusRequested` and `BuildRequested`, both scoped *to the Builder role*; the pane is a
   loaded weave now and says them in its own image, so this host holds neither. The only build
   anything here can ask for is still the one the tool has already named — a pane that has not
   heard from its tool cannot ask for anything, and says so.
@@ -282,8 +282,8 @@ Setup
 - **The provider key is a route, not a credential.** It says which namespace to read a pane key
   in. It does not say which package author created the pane, which binary is running, that the
   same author returned after a restart, or that anything claiming the string is authentic. The
-  setup by itself adds no role, office, discovery message or registry; the external pane
-  protocol adds a *live* office and a discovery message and **changes none of those non-claims** — a Loom role is a replacement-stable service
+  setup by itself adds no role, discovery message or registry; the external pane
+  protocol adds a *live* role and a discovery message and **changes none of those non-claims** — a Loom role is a replacement-stable service
   route on this bus in this process, and never an author identity across a restart.
 - **Authored intent and resolved presentation have one path between them.** `setup.active.panes`
   is which panes a weaver *meant*; `panes.open` is which presentations this build could make of
@@ -336,7 +336,7 @@ Setup
 Deliberately absent, so the absences are decisions: no opaque provider configuration (a pane's
 [settings](#a-panes-settings) are typed values the layouts' owner judges by form); no multiple
 pane instances; no setup catalog, recent list, autosave or import/export; no tabs or
-layout weave. Workshop manages **one** active setup path. (The external provider, office and
+layout weave. Workshop manages **one** active setup path. (The external provider, role and
 discovery protocol this list once excluded now exists, bounded — the section below says exactly
 how far. So do pane drag/resize, authored pane geometry and an arrange mode, equally bounded
 — the section after that says how far.)
@@ -466,20 +466,20 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   the pane restricts, a fraction a whole number of a finer unit, a set one flag per member, and a
   colour a role's name. A further kind would move every file format that carries a setting.
 - **A pane declares the settings it takes** (`PaneSettingsDeclared`, beside its offer, to
-  [`zengine.layouts`](zengine.layouts.md), the office that keeps the layouts): each a
+  [`zengine.layouts`](zengine.layouts.md), the role that keeps the layouts): each a
   key, its default in the field of its kind, and what it takes — a text one of its `choices` (or
   any text when it names none), a number from `low` to `high`. The declaration is judged whole
-  under the office stamp, a refusal is said as Workshop's notice and leaves the settings in force, a later
-  one replaces it, and it counts only while the weave that sent it holds the office, at the
+  under the role stamp, a refusal is said as Workshop's notice and leaves the settings in force, a later
+  one replaces it, and it counts only while the weave that sent it holds the role, at the
   incarnation that sent it: a reloaded image declares again, or is shown none of its
   predecessor's settings. Version 2 of the declaration says how a weaver finds each setting -- up
   to `kMaxSettingTags` tags of its own (words like `chrome` or `scroll`, never `pinned`, `all` or
   `kept`, which an editor's tab strip spells for itself), whether it is among the pane's default
   pins (`kMaxDefaultPins` at most), and a one-line `summary` -- and at most `kMaxDeclaredTags`
   distinct tags between them. The layouts' owner judges these by form and never acts on them.
-- **The layouts' owner hands a seated pane its row's settings** (`PaneSettings`) when the office's
+- **The layouts' owner hands a seated pane its row's settings** (`PaneSettings`) when the role's
   holder accepts the shape, declared or not, without the `workshop.` keys: when the pane asks for
-  them (`PaneSettingsAsked`, which a pane sends once in each life of the weave holding its office,
+  them (`PaneSettingsAsked`, which a pane sends once in each life of the weave holding its role,
   after the first message that life delivers), and again whenever they differ from what that holder
   was last handed. A pane the live layout seats nowhere -- one a graphics window shows while
   Workshop seats it nowhere -- is handed every setting at its default. **A pane draws no room
@@ -489,7 +489,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   setting shows when it cannot use the value it was handed. A pane a managed opening seats shows
   the picture it prepared before the seat; its next picture has its row. A holder that accepts
   version 2 (`v2::PaneSettings`) is handed the row's **revision** with them: a number minted
-  afresh whenever the desk put live, the row's settings, the counted declaration or the office's
+  afresh whenever the desk put live, the row's settings, the counted declaration or the role's
   holder moved, so a holder is handed again at each new one. A pane that cannot use a value says
   so back to the layouts' owner, `PaneSettingUnused` naming the revision it was handed, and the
   owner keeps it with the row until a later revision is handed or the pane asks again; a reading
@@ -499,7 +499,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   use, and calls the pane's `on_settings(taken, mail)`, `taken.revision` the revision it came at;
   its `held()` says whether the pane may draw.
 - **A pane may commit its own word** -- a setting a weaver changes by acting in the pane, as Files'
-  places open and shut -- by the commit below, as its office, naming itself and the revision it was
+  places open and shut -- by the commit below, as its role, naming itself and the revision it was
   last handed. The owner writes the row, hands it back at its new revision and then answers, so
   the pane shows what the row keeps, never what it asked for; a stale revision, a lock or a value
   the declaration does not take is refused in words, and the pane says the refusal where the
@@ -508,7 +508,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   `PaneSettingsRequested` answers the live layout's row for one pane -- its revision, the counted
   declaration, what it keeps, its pins and the band's sentence -- and `PaneSettingCommitRequested`
   writes one setting at the revision read, or refuses in words with nothing written; both are
-  `zengine.layouts`'s, and Info's rows read and write through them. An office asks, and so may this
+  `zengine.layouts`'s, and Info's rows read and write through them. A role asks, and so may this
   Workshop's Terminal and a guest whose row has `settings`; the Terminal's line spells every field,
   `clear=false` included:
 
@@ -519,7 +519,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
 
 ## A weave may offer a pane
 
-> **The office authors the pane; Workshop places its area; the window gives it its room.**
+> **The role authors the pane; Workshop places its area; the window gives it its room.**
 
 A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, and a
 rectangle a weaver can open, which Workshop places as the pane's own area in the window that shows
@@ -540,19 +540,19 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
 ```
 
 - **`PaneOffered` carries no provider field, and the absence is the enforcement.**
-  The provider half of a `PaneRef` is `mail.authored_role()` — the office Loom *verified at the
+  The provider half of a `PaneRef` is `mail.authored_role()` — the role Loom *verified at the
   moment the sentence was authored*, carried as delivery provenance that no payload can write and
   no sender can choose. There is nothing to compare against the stamp because there is
-  nothing to compare. **Holding an office is not speaking as one**: a provider that reaches for
+  nothing to compare. **Holding a role is not speaking as one**: a provider that reaches for
   `mail.send_to_role` instead of `mail.as_role(R).send_to_role` registers nothing, *even though it
-  currently holds the office* — which is the sharpest negative case in the suite.
-- **What a Loom role proves, exactly.** That the sender held this office at this moment, on this
+  currently holds the role* — which is the sharpest negative case in the suite.
+- **What a Loom role proves, exactly.** That the sender held this role at this moment, on this
   bus, in this process. It is a live, replacement-stable **service route**. It is not a package
   author, a signature, a publisher, or evidence that the same author returned after a restart.
   This protocol makes none of those claims and adds no mechanism that could grow into one.
 - **Discovery converges in either load order**, with no polling and no timer. A provider loaded
-  *first* announces on its attested `zen.Activated` to an office nobody holds yet, and that
-  sentence is simply gone; Workshop then office-publishes `PaneCatalogRequested` on the first
+  *first* announces on its attested `zen.Activated` to a role nobody holds yet, and that
+  sentence is simply gone; Workshop then role-publishes `PaneCatalogRequested` on the first
   window's offer (`WindowOffered`) — its ordinary startup hook, because Loom deliberately sends no
   `zen.Activated` to a *native* mount and inventing one would be a fake lifecycle event — and
   every provider that verifies the
@@ -566,11 +566,11 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   invalid *refresh* leaves the last accepted descriptor whole, and a refresh is still allowed while
   full because the bound is on how many distinct panes are held rather than on how often a provider
   may correct itself.
-- **A runtime offer cannot shadow a built-in**, and two offices offering one pane key stay two
-  panes: the `PaneRef` is the *pair*, so neither office can refresh or overwrite the other's row.
+- **A runtime offer cannot shadow a built-in**, and two roles offering one pane key stay two
+  panes: the `PaneRef` is the *pair*, so neither role can refresh or overwrite the other's row.
 - **The setup file keeps no runtime fact.** No descriptor, drawing, room, handle or liveness fact
   is saved. A setup naming `third.party/hello` loads, stays exactly as authored, resolves the
-  moment that office offers the pane — *without the file being touched* — and is unresolved again
+  moment that role offers the pane — *without the file being touched* — and is unresolved again
   in a fresh process where the provider is absent.
 - **Workshop chooses the placement, and no room rations it.** Every external pane with no place
   of its own goes in the overlay stack, down one column from the room's top; a pane that would pass
@@ -597,8 +597,8 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   provider-unload notification and a sender's silence does not prove a delivery's fate — so nothing
   times out, nothing polls, no catalog row is withdrawn and no setup reference is deleted. Until a
   pane draws, its frame says `waiting for <name>` behind its area, and `<name> draws in no window`
-  for an office that takes no room in one. That is a stated limit, not liveness.
-- **Closing ends only the presentation.** The provider's weave, its office, its semantic state
+  for a role that takes no room in one. That is a stated limit, not liveness.
+- **Closing ends only the presentation.** The provider's weave, its role, its semantic state
   and its catalog row all outlive it: the area is withdrawn, no unload is sent, and the close door
   — a close, never a toggle — is the one way off the desk.
 - **Workshop gained grant rules and no powers.** `PaneCatalogRequested` and the pane
@@ -607,8 +607,8 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   scope it to yet, the rest because Workshop sends to one resolved role that is runtime data. The Builder
   sentences stay role-scoped; Workshop still commands no lifecycle, loads no weave, reaches no
   Manager, and holds no observation, filesystem, process or network authority. Workshop is now
-  mounted **in** the `zengine.workshop` office so a provider can verify its ask — and holding an
-  office is not a super-grant: every rule is still checked at every send.
+  mounted **in** the `zengine.workshop` role so a provider can verify its ask — and holding a
+  role is not a super-grant: every rule is still checked at every send.
 - **The pane protocol grants no application or host authority** — no whole-screen drawing,
   document, filesystem, process, network or lifecycle access. A pane draws only in its own area;
   input follows the pane seam below. That is
@@ -624,13 +624,13 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
 
 Workshop's last meaning for `Esc` is to put the selected pane down, and every pane that holds the
 keys answers a bare `Esc` the same way unless it means more there: it **drops what it has
-selected**, and with nothing selected it says so — `PaneEscapeUnspent{pane}`, sent as the office
+selected**, and with nothing selected it says so — `PaneEscapeUnspent{pane}`, sent as the role
 that offered the pane and **under the correlation the Escape arrived on** — and Workshop puts the
 pane down. That default is `workshop/pane_escape.hpp`, installed beside the protocol:
 
 ```cpp
 void on(const PaneKey& key, loom::Mail& mail) {
-    if (pane_escape::answer(key, mail, kOffice, [&] { return drop_selection(mail); }))
+    if (pane_escape::answer(key, mail, kRole, [&] { return drop_selection(mail); }))
         return;   // a bare Escape: the selection dropped, or the Escape handed back unspent
     ...           // the pane's own keys
 }
@@ -683,26 +683,26 @@ neither and draws neither.
 
 ## The pane facets
 
-A pane office here writes what its pane shows and what its acts mean; the conversations every
+A pane role here writes what its pane shows and what its acts mean; the conversations every
 pane holds with Workshop are facets it composes with `zengine::With`
 ([`workshop/pane_facets.hpp`](../pane_facets.hpp)), and the shapes they carry are the facets'
 `Accept` and `Emit` lists, never the weave's. What each facet calls on the weave is a public member
 of the weave; a member the facet calls only when present is optional.
 
-- **`PaneFacet<Pane, Office, Page, Offer>`: the offer, the room and the manual.** It holds the
-  activation the office lives under; offers `Pane` from `Office` on each accepted `zen.Activated`
-  and on each `PaneCatalogRequested` Workshop's office sends; answers the manual from `Page`, as
+- **`PaneFacet<Pane, Role, Page, Offer>`: the offer, the room and the manual.** It holds the
+  activation the role lives under; offers `Pane` from `Role` on each accepted `zen.Activated`
+  and on each `PaneCatalogRequested` Workshop's role sends; answers the manual from `Page`, as
   `PaneManualFacet` does; and keeps the room the window that shows the pane's area gave it
-  (`graphics::AreaRoom`, taken only from that window's office), with the rows and columns the pane
+  (`graphics::AreaRoom`, taken only from that window's role), with the rows and columns the pane
   composes for (`rows()`, `columns()`). The weave supplies `offering()`, its `Offer`
   (`v2::PaneOffered` for a pane of rows, `v3::PaneOffered` for a picture of a given size), and
   `on_room(mail)`, where it draws. Optional: `offered(mail)`, after each offer (its rows, its
   settings); `on_activated(mail)`, which then offers by `announce` where it chooses.
-- **`PaneRowsFacet<Pane, Office, Page, Meaning, Offer>`: a pane that says rows.** `PaneFacet`, the
+- **`PaneRowsFacet<Pane, Role, Page, Meaning, Offer>`: a pane that says rows.** `PaneFacet`, the
   rows being composed (`begin`, `push`), what each row and run of columns means
   (`component::RowMap<Meaning>`, `map()`), the caret (`caret()`), and `publish`, which sends the
-  rows to the graphics window that shows the area named `Office` (`graphics::AreaRoom`, from that
-  window's office, runs `on_room`) as a drawing
+  rows to the graphics window that shows the area named `Role` (`graphics::AreaRoom`, from that
+  window's role, runs `on_room`) as a drawing
   ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp), `rows_drawing`): the room's ground, the
   whole of it, then each row's text a line of the window's text down and a character an advance of
   it across (`AreaRoom::measure`), in its role over its ground, cut into runs where a part begins
@@ -713,7 +713,7 @@ of the weave; a member the facet calls only when present is optional.
   asks. Only what changed goes, and the whole after the window's room changed. A refused change
   (`graphics::DrawnRefused`) is followed at once by the rows last sent, whole; a refused whole
   drawing is not sent again, nor are those rows unchanged, and the next rows go whole
-  (`WindowDrawing`, which an office of several panes keeps for each pane too, and both Editors,
+  (`WindowDrawing`, which a role of several panes keeps for each pane too, and both Editors,
   Flow and the View Builder keep for their areas). A row's fold mark (`TextRow::mark`, the column
   of a section's `+` or `-`) is drawn as that character in a room of cells and, where the window
   sets type, as the icon table's `right` or `down` outline in its place. A row carries a text box
@@ -726,7 +726,7 @@ of the weave; a member the facet calls only when present is optional.
   window sets type; the pane reads a press there with `graphics::text_area_cells_place` or
   `rows_text_area_place`. The pane sends Workshop no rows. The window's pointer in the area
   (`graphics::AreaButtonChanged`, `AreaPointerMoved`, `AreaPointerLeft`, `AreaWheelTurned`, from
-  that window's office) is read on the rows it was last sent: the first button pressed on a shown
+  that window's role) is read on the rows it was last sent: the first button pressed on a shown
   cell is `press(RowPress, mail)` there, `keys_went_here` as Workshop's last `PaneKeys` said; the
   third is `right_press` on what the cell means, else passed back under the window's number for the
   press; the wheel is `wheel(dy, mail)`; a release means nothing. A pane that hears the pointer
@@ -745,15 +745,15 @@ of the weave; a member the facet calls only when present is optional.
   stands behind it, and an act Workshop must approve is refused. An id `answers(id)` admits is
   `on_action(id, mail)`; any other is no act. The room is asked once each life while no window has
   said it (`graphics::RoomAsked`).
-- **`PaneDrawingFacet<Pane, Office, Page, Offer>`: a pane that draws one picture.** `PaneFacet`,
+- **`PaneDrawingFacet<Pane, Role, Page, Offer>`: a pane that draws one picture.** `PaneFacet`,
   and the weave's `picture(graphics::Sketch&)` -- named nodes and element records, as any drawer
   draws ([A drawing weave](../../graphics/docs/graphics.md#a-drawing-weave)) -- shown by
   `show(self, mail)` wherever the pane stands. The graphics window that shows the area named
-  `Office` is sent what changed since it last held the area's drawing (`graphics::Drawn`): nothing
+  `Role` is sent what changed since it last held the area's drawing (`graphics::Drawn`): nothing
   when nothing did, the whole picture after its room changed, and after a refused change the
   picture last sent, whole, at once (a refused whole picture is not sent again until it changes).
   The weave calls `show` where its state changed and in `on_room`, which the window's room
-  (`graphics::AreaRoom`, from that window's office) runs, so a message the pane ignores draws
+  (`graphics::AreaRoom`, from that window's role) runs, so a message the pane ignores draws
   nothing; the picture is set in the window's measure (`text()`, which the weave's `picture`
   stands its rows by). A press on a part is the weave's `on_action(id, mail)` with the action the
   part's record names: in the window that shows the area, the first button pressed on a part of
@@ -766,37 +766,37 @@ of the weave; a member the facet calls only when present is optional.
   `pointer_left(mail)` once a rest was handed. The room is asked once each life while no
   window has said it (`graphics::RoomAsked`), so a pane reloaded into a window draws there again.
   Operators other than text are the window's alone.
-- **`PaneActionFacet<Pane, Office>`: the actions a pane declares.** `declare(mail, rows, mode,
-  elsewhere)` sends `v3::PaneActions` as `Office`, replacing the rows last declared. A
+- **`PaneActionFacet<Pane, Role>`: the actions a pane declares.** `declare(mail, rows, mode,
+  elsewhere)` sends `v3::PaneActions` as `Role`, replacing the rows last declared. A
   `PaneActionRequested` counts only as Workshop's own word about `Pane`, and only for an id the
   weave's `answers(id)` admits where the weave has one, so an id the pane does not answer to in the
   mode it is in spends nothing; it is then the weave's `on_action(id, mail)`, the same member a
   press on a part a `PaneDrawingFacet` pane drew reaches, so a pane writes one. `answers` must be
   public, as every member a facet calls is.
-- **`PaneMenuFacet<Pane, Office>`: the pane's own menu.** It holds the one menu the image asked
+- **`PaneMenuFacet<Pane, Role>`: the pane's own menu.** It holds the one menu the image asked
   the presenter for and has not heard answered (`pane_menu::Asked`, never reload-kept state).
-  `offer(subject)` begins a menu; `send(mail, menu)` sends it as `Office`, and
+  `offer(subject)` begins a menu; `send(mail, menu)` sends it as `Role`, and
   `send_continuing(mail, menu, correlation)` continues the gesture it answers, each replacing the
-  ask held. A `PaneMenuAnswered` settles only that ask, from the presenter's office, about the pane
+  ask held. A `PaneMenuAnswered` settles only that ask, from the presenter's role, about the pane
   and subject it asked about, once; its chosen row is the weave's `on_menu(id, subject, mail)`.
-- **`AskFacet<Pane, Office, Act, Approvals, Capacity>`: the asks a pane still waits on.** One
+- **`AskFacet<Pane, Role, Act, Approvals, Capacity>`: the asks a pane still waits on.** One
   bounded table (`loom::AskBook`) numbered from the pane's one correlation sequence, each entry the
   pane's own record of the act, `Act`, captured when it was asked. `approve` asks Workshop whether
   a gesture's actor may do an act (`v2::PaneOperationRequested`); `ask` and `ask_with` send a
-  request to an office; `answered(mail, which)` takes the ask an answer settles, by Loom's answer
+  request to a role; `answered(mail, which)` takes the ask an answer settles, by Loom's answer
   provenance and its correlation. Workshop's `PaneOperationAnswered` is the weave's
   `on_approval(act, answer, mail)`, and Loom's `zen.DispatchRefused` for exactly one held send --
-  its attempt, office, shape and version -- is `on_refused(act, refused, mail)`; a forged, stale
+  its attempt, role, shape and version -- is `on_refused(act, refused, mail)`; a forged, stale
   or unmatched one settles nothing. A full table refuses the new ask (`Asked::kFull`), a send that
   queued nothing is never held (`Asked::kUnqueued`), and the weave says either in its own words.
   The table is the image's alone: a reloaded pane asked nothing, so no earlier answer settles it.
-- **`PaneSettingsFacet<Pane, Office>`: the pane's row.**
+- **`PaneSettingsFacet<Pane, Role>`: the pane's row.**
   ([`workshop/pane_settings_taken.hpp`](../pane_settings_taken.hpp)) Once in each life, after the
-  first message the life delivers, it asks the layouts' owner for `Pane`'s row as `Office`
+  first message the life delivers, it asks the layouts' owner for `Pane`'s row as `Role`
   (`PaneSettingsAsked`), and again after a delivery whose ask queued nothing. A `v2::PaneSettings`
   authored by `zengine.layouts` for `Pane` is taken whole against the weave's static
   `setting_rows()`, each value it cannot use said back (`PaneSettingUnused`), and handed to the
-  weave's `on_settings(taken, mail)`; any other office's is passed over. `held()` says whether the
+  weave's `on_settings(taken, mail)`; any other role's is passed over. `held()` says whether the
   life holds a row, and the weave draws no room until it does; the first row the life holds is the
   weave's `on_settings_held(mail)` too, where it has one, to draw the room it drew nothing in.
 
@@ -856,7 +856,7 @@ view runs in a 680 by 360 room.
   (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded`);
   `WindowDrawing::pointer` reads each against the drawing last sent. Where the medium reports a
   resting pointer, it tells the owner too of each move with no button held, under no number, and
-  of the pointer leaving the area (`AreaPointerLeft`): an office of several panes whose panes hear
+  of the pointer leaving the area (`AreaPointerLeft`): a role of several panes whose panes hear
   it (`MultiPaneFacet<..., kHearsRest>`) hands each pane's first move onto another cell to the
   weave's `on_window_rest(pane, cell, mail)` and the leave to its `on_window_left(pane, mail)`,
   beside the moves `on_window_pointer` is handed as before. A secondary press may
@@ -906,7 +906,7 @@ own area, so its press arrives from the window as a point it reads back to a row
 weaver presses a visible row
     -> the window lands the press in the area it shows there, and tells, with what it drew
        under the hand (the area, the part named there, the drawing's number),
-       AreaButtonChanged { area, button, pressed, x, y, under, part, drawing } to the area's office
+       AreaButtonChanged { area, button, pressed, x, y, under, part, drawing } to the area's role
        AreaPressed { window, area, button, pressed, x, y, ... }          to Workshop, which placed it
     -> the provider acts on the row the window drew there, refused where another row stands now
     -> LoadedSelected { pane, library, role }   published; nobody answers
@@ -916,7 +916,7 @@ weaver presses a visible row
   holds no row identities, no selectable flags, no weave metadata and no list-item semantics; it
   moves the desk's selection and the keys, and sends the pane nothing about the press.
 - **Whether the keys were already there is Workshop's word, and the pane's own press.**
-  `PaneKeys{pane, here}` is said to the pane's office whenever the keys come or go, and after each
+  `PaneKeys{pane, here}` is said to the pane's role whenever the keys come or go, and after each
   primary press in its area, so a pane reads it as it was before the press moved them: a press
   that brings the keys back finds `here` false. A primary press of its own brings them, so the next
   press is made with them here even before Workshop's word on the first has come; that word, when
@@ -992,7 +992,7 @@ PaneMenuAnswered    presenter -> provider  chosen + id, or not chosen + why; onc
                                            (Workshop answers only an ask it refused, or one
                                            whose presenter left, was replaced, could not be told
                                            the menu was withdrawn, or gave it back unanswered)
-PaneManageRequested provider -> Workshop   open the host's pane menu on (office, target);
+PaneManageRequested provider -> Workshop   open the host's pane menu on (role, target);
                                            continues a menu answer, once
 ```
 
@@ -1000,7 +1000,7 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
   window; nothing opens, and neither selection nor keys move. The release goes to the area that
   was pressed wherever the pointer is, and a hold the window ends is the press lost
   (`AreaHoldEnded`). The title row, the border, a tab and the room still get the host's own menu,
-  and so does a right press on a pane whose office does not hear the window: no keys move, and the
+  and so does a right press on a pane whose role does not hear the window: no keys move, and the
   host's pane menu opens at the press. A right press is never lost to a shipped pane either —
   each acts, offers its rows, or hands the press back where it has nothing to offer.
 - **Every continuation echoes a number.** A press carries the window's number for it, and the
@@ -1013,7 +1013,7 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
 - **A menu is presented by a participant, not performed.** Workshop judges the ask and grants
   it to whoever holds `zengine.presenter` — the shipped `zengine-menu-presenter`, loaded by a
   plan row like any weave, or any replacement (next section). The presenter shows the rows,
-  reads the weaver's keys and presses, ends the menu and ANSWERS it, as its office, under the
+  reads the weaver's keys and presses, ends the menu and ANSWERS it, as its role, under the
   request's number, subject-bound — `answer.subject` is the pane's own word, echoed unread.
   Beneath the pane's rows, in the same menu, the grant carries the host's own pane menu for that
   pane — the standard rows (`arrange`, `Order >`, `Reset >`, `Dock >`, `edit code`, `shut or open`, `hide pane`, `remove from the setup`); one chosen
@@ -1034,7 +1034,7 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
   chosen row is a fact about the weaver's gesture, never an authority grant.
 - **An answer is safe to act on only through the ask's own record.** `pane_menu::Asked` —
   what `Offer::send` returns — is the one read: `take(mail, answer)` returns the chosen id only
-  for an answer from the presenter's office, under this image's pending number, about the pane
+  for an answer from the presenter's role, under this image's pending number, about the pane
   and subject asked, once; Workshop's refusal settles an ask but never chooses; anything else
   settles nothing. Keep the record in the image, not in reload-kept state: a reloaded pane then
   cancels its predecessor's menus instead of acting on rows its predecessor was showing. Whether
@@ -1048,7 +1048,7 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
   it moves no keys and no selection, exactly as the other two do not.
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_escape.hpp` is
   Escape's default ([above](#escape-in-a-pane-that-holds-the-keys)). `workshop/pane_menu.hpp`:
-  `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
+  `Offer(pane, subject).at(row, col).row(id, label).send(mail, role)` builds and sends the
   request continuing the delivery's gesture and returns its `Asked`; `.row(id, label, key)` is a
   row beside the key that does what it does now, carried in its label after `kMenuKeyMark`, which
   the shipped presenter draws in a column of its own; `.submenu(id, label)` is a
@@ -1056,7 +1056,7 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
   wear (`kSubmenuMark`, " >") -- a row that asks for more input ends in "..." instead; `pass_back`, `manage`
   and `take_keyboard` are the other lines a consumer would otherwise write.
   `take_keyboard_continuing` is `take_keyboard` under a number the pane names rather than the
-  delivery's own, for a chosen row whose edit opens only after an office has answered: the pane
+  delivery's own, for a chosen row whose edit opens only after a role has answered: the pane
   keeps the choice's number across that round trip and spends it where the line appears, and
   the host judges it exactly as it judges the same-delivery form — once, and only while that
   choice is still its hand's latest act. A pane
@@ -1068,13 +1068,13 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
 
 ### The menu presenter, and replacing it
 
-> **Presenting a pane's menu is an office, held by an ordinary weave.**
+> **Presenting a pane's menu is a role, held by an ordinary weave.**
 
 `workshop/presenter_vocabulary.hpp`, installed beside the protocol (`zengine::pane`), is the whole
 seam between Workshop and the participant in `zengine.presenter`:
 
 ```text
-MenuGranted     Workshop -> presenter   present this offer as menu n, for office/pane, in a room
+MenuGranted     Workshop -> presenter   present this offer as menu n, for role/pane, in a room
                                         of rows x columns, with the host's standard rows to show
                                         beneath it and the pane's name, in area a of the window
                                         that shows the desk; under the request's correlation
@@ -1090,7 +1090,7 @@ MenuClosed      presenter -> Workshop   menu n is over and its requester is answ
 MenuReturned    presenter -> Workshop   menu n is not mine to carry: I hold no such menu, so
                                         take the interaction back, and here is why
 MenuWithdrawn   Workshop -> presenter   menu n is over because the host ended it, and why
-PresenterReady  presenter -> Workshop   I hold the office now, carrying menu n (or 0)
+PresenterReady  presenter -> Workshop   I hold the role now, carrying menu n (or 0)
 HeldMenu        state                   the open menu, as the shipped presenters keep it across
                                         a reload
 ```
@@ -1178,11 +1178,11 @@ directory they happened to be browsing when they quit is deliberately not rememb
   The session format is **version <!-- value session_persist::kFormatVersion -->13<!-- /value -->**: the weaver's whole ordered run of layouts — each an
   ordinary saved setup, its panes' settings, locks, pins and baseline included, with the id the
   layouts' owner minted for it and the Setup file it is related to, if any — which position was
-  live, the id the next layout takes, and which authored choice held each office the plan lets you
+  live, the id the next layout takes, and which authored choice held each role the plan lets you
   switch (the Editor's `standard` or `neovim`). The file is a header line holding everything but
   the layouts, with their count, then one line for each layout; each line is a value read on its
   own, so no one read holds the whole run. [`zengine.layouts`](zengine.layouts.md) alone writes
-  it. The room, the desktop placement and the OS window's own room are Workshop's **window
+  it. The room, the desktop placement and the GUI window's own room are Workshop's **window
   file** beside it, which Workshop alone writes; while none stands, a session before version 12
   is read for them once. Older versions do **not** load through
   roads this reader carries — it admits one shape and nothing else. What reads them is a
@@ -1193,7 +1193,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   file; a desk before version 6 gains the Layouts pane its layout surface always was; and a room
   and desks before version 7, kept in cells and sub-units, land on the pixels the window painted
   them at; a desk before version 8 holds no settings; a session before version 9 remembers no choice;
-  and one before version 10 keeps no OS window's room; a session before version 11 was one value,
+  and one before version 10 keeps no GUI window's room; a session before version 11 was one value,
   and comes back whole; and one before version 12 numbers its layouts in order. Without the provider such a file is refused
   by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->13<!-- /value -->.
 - **The viewport is the window file's, not the session's**, and that is the whole reason it is
@@ -1205,10 +1205,10 @@ directory they happened to be browsing when they quit is deliberately not rememb
 - **Pixels, because the room crosses the seam in pixels.** The window is its own weave; the only
   thing it says about its room is its offer (`WindowOffered`), in canvas pixels, and Workshop lays
   its desk out in an area of that room. So the durable number is the one that crosses that seam:
-  the OS window grows to the room the desk is laid out in, so a restored window is the weaver's
+  the GUI window grows to the room the desk is laid out in, so a restored window is the weaver's
   chosen size, to the pixel, where the display holds it; it never shrinks to a smaller one, and a
   terminal keeps its own. The restore's notice says the room in the unit the window names —
-  pixels in the OS window, cells in a terminal — and since a window names its unit when it
+  pixels in the GUI window, cells in a terminal — and since a window names its unit when it
   offers itself a room, the notice waits for the first window that does, and is said once.
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The graphics vocabulary's placement pair closed the old deliberate omission: the
@@ -1224,7 +1224,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
 - **The room, and then the desk into it.** The viewport is adopted before the desk is applied.
   The order changes no seating: every resolved pane is seated, whatever the room.
 - **Written on an orderly close, by the one door.** `q`, `Ctrl`+`c` and the close the window that
-  shows the desk says (`SurfaceCloseRequested`, as that window's office) all reach `quit()`,
+  shows the desk says (`SurfaceCloseRequested`, as that window's role) all reach `quit()`,
   which writes the window file and asks `zengine.layouts` to write the session before it stops
   the bus. No autosave, no dirty
   tracking, no background writer — and no crash durability, which is not claimed here or in
@@ -1314,7 +1314,7 @@ Workshop answers each part beside the pane's words in its reading (`PaneView`,
   a part of its own lands on the name, beside the mark -- else its middle blank cell of its own. A
   part with no place of its own is said with its words and place and no point: `x` and `y` are 0
   and `space` is 0, `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses;
-  `workshop/act` never presses one. Every part of a pane whose office nobody holds is said so too
+  `workshop/act` never presses one. Every part of a pane whose role nobody holds is said so too
   ([`PaneViewRequested`](zengine.workshop.md#paneviewrequested)). A point is in the medium's own units: a window's pixel, or a terminal's cell. A
   terminal shows a span `[begin, end)` on the cells from `floor(begin / kCellPx)` up to
   `floor(end / kCellPx)`, that one left out, so a canvas part it paints on no cell is not
@@ -1352,7 +1352,7 @@ v2::AppActions      desktop  -> Workshop   v2::AppActionRow: AppActionRow's fiel
   state sends less, or nothing.
 - **A subject says what the send is about**: empty for the pane's own state (the chosen recipe);
   `on <prefix>` for the part a press lands on, named `<prefix>` and its subject (the Pane
-  Manager's `launcher.open`, `on pane:`); `to <office>/<pane>` for one pane always (`desktop.panes`).
+  Manager's `launcher.open`, `on pane:`); `to <role>/<pane>` for one pane always (`desktop.panes`).
   No field of the message is declared.
 - **The modes.** `mode` names the mode the rows are in force for, a row's `enters` the mode its
   press leaves the pane in, and `elsewhere` each other mode with what its rows may cause -- never
@@ -1368,7 +1368,7 @@ v2::AppActions      desktop  -> Workshop   v2::AppActionRow: AppActionRow's fiel
   `cause_of<Shape>(subject)` names a cause by its shape's own name and version, `on_part` and
   `to_pane` spell a subject, `causes_elsewhere(modes, mode, rows_of)` says `elsewhere` from the
   function that declares each mode's rows, and `pane_declaration_problem` is the judge's words.
-- **Workshop says them with the keys.** `KeymapShown` gives each binding its address -- `office`,
+- **Workshop says them with the keys.** `KeymapShown` gives each binding its address -- `role`,
   `pane`, `id` -- its `causes` and `enters`, and `modes` each pane's mode and `elsewhere`. Workshop
   resolves nothing: a reader joins them with the desk and the parts' availability.
 
@@ -1376,7 +1376,7 @@ v2::AppActions      desktop  -> Workshop   v2::AppActionRow: AppActionRow's fiel
 
 The same header answers the whole desk in one turn, and one pane's reading page by page under a
 stamp naming what it stands on, and publishes a notice whenever the desk moves. A drawing's number
-alone names nothing: it starts again when a pane's office is held again. So a `PaneStamp` names
+alone names nothing: it starts again when a pane's role is held again. So a `PaneStamp` names
 what a pane shows, and where, by a fingerprint, never a number. One
 version of each of these shapes stands.
 
@@ -1384,20 +1384,20 @@ version of each of these shapes stands.
 |---|---|
 | `DeskReadRequested{}` | Anyone granted it, to Workshop: the desk in one turn |
 | `DeskRead{desk, stamps, panes}` | The desk as `DeskView`; every presented pane's `PaneStamp`, from the front back; and as many of those panes' readings, in that order, as one decoded value and one reply's bytes hold |
-| `PaneStamp{provider, pane, holder, incarnation, epoch, fingerprint}` | What one pane's reading stands on: the `WeaveId` holding its office, that holder's incarnation, the incarnation of the window showing the desk, and a fingerprint of what the pane shows and where |
+| `PaneStamp{provider, pane, holder, incarnation, epoch, fingerprint}` | What one pane's reading stands on: the `WeaveId` holding its role, that holder's incarnation, the incarnation of the window showing the desk, and a fingerprint of what the pane shows and where |
 | `PaneViewRequested{provider, pane, from, stamp}` | A page of one pane's reading from item `from`, continuing the reading `stamp` names; a stamp naming no holder (holder 0, as an empty stamp does) at `from` 0 reads the pane as it stands |
 | `PaneView{stamp, area, advance, line, words, parts, covered, in_flight, from, total}` | The reading's stamp; the place its text stands on and its text measure, so any cell of it is `area` plus a column's `advance` and a row's `line`; its words and then its parts from item `from`, of `total`, as many as one decoded value and one reply's bytes hold; what covers the pane; and whether what it shows is still in flight |
 | `PaneCover{by, words, rect}` | What covers part of a pane -- `by` names each: a pane in front by its name, `menu`, `arranging`, `band` -- how many of its words and parts are not said for it, and the `DeskRect` bounding what they cover of it; empty for a pane nothing covers |
 | `PanePointRequested{provider, pane, fingerprint, word, column}`, `PanePoint{provider, pane, fingerprint, word, column, x, y, space}` | Where one character of a word of the reading at `fingerprint` is now; refused, in words, when what the pane shows moved |
-| `DeskStamps{desk, panes}` | Published by Workshop's office to whoever follows it: the desk number and every presented pane's `PaneStamp`, from the front back, as a `DeskRead` would say them now |
-| `DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words}` | The desk by Workshop's own numbers: each pane's state, rank, place and size, selection and keys; the room; arranging; the menu, a `DeskMenu{open, office, pane, picture, place, lines, parts}`; the band's legend as `PaneWord`s with their places and no point, since the band takes no press; and `desk`, a number that moves when anything it says moves |
+| `DeskStamps{desk, panes}` | Published by Workshop's role to whoever follows it: the desk number and every presented pane's `PaneStamp`, from the front back, as a `DeskRead` would say them now |
+| `DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words}` | The desk by Workshop's own numbers: each pane's state, rank, place and size, selection and keys; the room; arranging; the menu, a `DeskMenu{open, role, pane, picture, place, lines, parts}`; the band's legend as `PaneWord`s with their places and no point, since the band takes no press; and `desk`, a number that moves when anything it says moves |
 
 - **Where a pane is read from.** A pane drawing in a window area Workshop placed is read as that
   window says the area shows: Workshop asks it (`graphics::AreaShowAsked`) and answers the read
   once it has, at most `kMaxDeskWaits` (<!-- value kMaxDeskWaits -->4<!-- /value -->) reads
   waiting at once and `kDeskWaitMs` (<!-- value kDeskWaitMs grouped -->2,000<!-- /value --> ms)
   each, after which, or when the window starts again, the read is refused in words. What another
-  office draws in front of the area is left out of the window's answer; what Workshop draws over
+  role draws in front of the area is left out of the window's answer; what Workshop draws over
   it is Workshop's own cover. A pane no window shows is refused in its frame's words
   (`<name> draws in no window`, or that it waits for its provider); Layouts is read as Workshop
   draws it.
@@ -1442,7 +1442,7 @@ version of each of these shapes stands.
 - **The desk number.** `desk` moves whenever the `DeskView` Workshop says differs from the last
   one it said, and holds while nothing does, so a reader knows whether the geometry it read still
   stands. Consistency is per pane: each reading stands on its own stamp.
-- **A notice when the desk moved.** Workshop publishes `DeskStamps` as its office at the end of
+- **A notice when the desk moved.** Workshop publishes `DeskStamps` as its role at the end of
   each delivery that moved the desk number or a presented pane's stamp -- one notice for every
   repaint that delivery made -- and a `DeskRead` that
   finds the number moved without one publishes it. A delivery that may have moved the desk asks
@@ -1458,7 +1458,7 @@ version of each of these shapes stands.
   for the tab that makes one. While a layout's name is being typed no tab is named. Its
   fingerprint is that of what it says, with its naming line's caret.
 - **The inventory and the keymap answer a `capture` guest.** `PaneInventoryRequested` and
-  `KeymapRequested`, answered to an office, are answered to a guest session whose admitted row
+  `KeymapRequested`, answered to a role, are answered to a guest session whose admitted row
   holds `capture` too, to it alone; other personal speech is still answered by nobody.
 - **The guest door grants these.** The guest `capture` power grants `DeskReadRequested`,
   `PaneViewRequested` and `PanePointRequested` to `zengine.workshop`, and a row naming

@@ -4,7 +4,7 @@
 #define ZENGINE_VIEW_VOCABULARY_HPP
 
 // What a participant asks the view host, and its one answer. A session is the asker's own: the
-// office that authored the ask, or else its bus-stamped identity, never a name it may guess.
+// role that authored the ask, or else its bus-stamped identity, never a name it may guess.
 // Then what a running view says of its own wiring, and the ask for it. Reference:
 // view/docs/view.md.
 
@@ -17,7 +17,7 @@
 namespace zengine::view {
 
 inline constexpr const char* kViewHostRole = "zengine.view.host";
-/// The key of the one pane a view offers in its own office: a running view draws in that pane's
+/// The key of the one pane a view offers in its own role: a running view draws in that pane's
 /// area, `<name>.view`.
 inline constexpr const char* kPane = "view";
 
@@ -51,17 +51,17 @@ struct ViewStop {
     ZEN_SHAPE(ViewStop, 1, ZEN_FIELD(session));
 };
 
-/// The host's answer to each: `office` is the view's name, `fresh` whether this ask registered a
+/// The host's answer to each: `role` is the view's name, `fresh` whether this ask registered a
 /// participant afresh, and `reason` says what happened, or why nothing did.
 struct ViewAnswer {
     std::string session;
     std::string action;
     bool ok = false;
     std::string reason;
-    std::string office;
+    std::string role;
     bool fresh = false;
-    ZEN_SHAPE(ViewAnswer, 1, ZEN_FIELD(session), ZEN_FIELD(action), ZEN_FIELD(ok),
-              ZEN_FIELD(reason), ZEN_FIELD(office), ZEN_FIELD(fresh));
+    ZEN_SHAPE(ViewAnswer, 2, ZEN_FIELD(session), ZEN_FIELD(action), ZEN_FIELD(ok),
+              ZEN_FIELD(reason), ZEN_FIELD(role), ZEN_FIELD(fresh));
 };
 
 // ---- What a running view's wiring has done, said by the view itself -------------------------
@@ -97,7 +97,7 @@ struct ViewFieldWiring {
 };
 
 /// WHAT A RUNNING VIEW'S WIRING HAS DONE: a row for each of its intents and for each field its
-/// labels show, in the description's order. A view says it as its own office, the view's name,
+/// labels show, in the description's order. A view says it as its own role, the view's name,
 /// which Loom stamps on the delivery: published to every accepter when it starts and whenever a
 /// row changes, and answered to an asker of `ViewWiringRequested` as it is then.
 struct ViewWiring {
@@ -107,7 +107,7 @@ struct ViewWiring {
 };
 
 /// Ask every running view what its wiring has done: each answers `ViewWiring` to the asker
-/// alone, as its office, under the ask's correlation.
+/// alone, as its role, under the ask's correlation.
 struct ViewWiringRequested {
     ZEN_SHAPE(ViewWiringRequested, 1);
 };

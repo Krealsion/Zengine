@@ -9,10 +9,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `CMakeLists.txt` | target `zengine-notices`, a loadable weave; needs `loom::kernel` |
 | `notices.cpp` | the record: keeps `NoticeSaid`, says `NoticesMoved`, answers `NoticesRequested`, declares `keep` |
-| `vocabulary.hpp` | office `zengine.notices`, stem, setting, bounds, the page's shapes, `NoticesState` |
+| `vocabulary.hpp` | role `zengine.notices`, stem, setting, bounds, the page's shapes, `NoticesState` |
 | `notices-pane/CMakeLists.txt` | target `zengine-notices-pane`, a loadable weave |
 | `notices-pane/pane.cpp` | the pane: offers `notices`, walks the record a page at a time, its two actions and the wheel |
-| `notices-pane/vocabulary.hpp` | office `zengine.notices-pane`, pane key, stem, action ids, `NoticesPaneState` |
+| `notices-pane/vocabulary.hpp` | role `zengine.notices-pane`, pane key, stem, action ids, `NoticesPaneState` |
 | `docs/zengine.notices.md`, `docs/zengine.notices-pane.md` | the two manuals, each compiled into its weave |
 
 ## Law
@@ -43,7 +43,7 @@ pinned in `tests/actions/zengine.notices-pane.txt`.
   `workshop/panes.hpp`); the band without the notice, `band_region` in `workshop/screen_compose.cpp`.
 - A guest's reading: `workshop/guests.cpp` (`carries_the_desk`, `follows_the_desk`, the page a row
   observing `NoticesMoved` may ask).
-- The record's setting: the layouts' owner's office-wide settings (`workshop/layouts/`).
+- The record's setting: the layouts' owner's role-wide settings (`workshop/layouts/`).
 
 ## Pages
 

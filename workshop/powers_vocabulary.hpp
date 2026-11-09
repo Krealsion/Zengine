@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_POWERS_VOCABULARY_HPP
 
 // Finding a power: `FindPowers` -> `PowersFound` and `DescribePower` -> `PowerDescribed`, answered
-// by one read-only office (introspection/docs/zengine.powers.md). Values only: a description of the
+// by one read-only role (introspection/docs/zengine.powers.md). Values only: a description of the
 // host's catalog, and of the evaluator's forms, at the ask, which confers no authority over it.
 // `FindPowers` is built with a `loom::SchemaBuilder`, every field of it optional, so a weaver at
 // the Terminal types only what they mean: `ask @zengine.powers FindPowers 1 text=larger`.
@@ -24,7 +24,7 @@
 
 namespace zengine::workshop {
 
-/// The office the host's discovery door holds. A host that mounts no door holds none, and an ask
+/// The role the host's discovery door holds. A host that mounts no door holds none, and an ask
 /// then reaches nobody.
 inline constexpr const char* kPowersRole = "zengine.powers";
 
@@ -237,7 +237,7 @@ struct PowerDescribed {
               ZEN_FIELD(row), ZEN_FIELD(stack), ZEN_FIELD(contribution));
 };
 
-/// The two asks, to the door's office and nowhere else: what a host writes on a participant it
+/// The two asks, to the door's role and nowhere else: what a host writes on a participant it
 /// lets find powers. Asking describes; it grants nothing to send, mount or open.
 inline void allow_finding_powers(loom::Grant& grant) {
     grant.allow_to_role(kFindPowersName, 1, kPowersRole);

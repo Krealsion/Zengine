@@ -3,14 +3,14 @@
 **Manual.** The quick setup asks, once, how you edit text, and lists the ready-to-use setups, each
 with Start. Then **Start here** walks the story a step at a time -- make a view, wire it into Flow,
 show Flow's answer, make it an app, start it -- each box ticked as it happens. Both are panes of
-the weave in the office `zengine.first-run`, built as `zengine-first-run` and loaded by a row of the
+the weave in the role `zengine.first-run`, built as `zengine-first-run` and loaded by a row of the
 shipped plans that load a window. The quick setup shows itself at your first start; find either
 again as any pane, in the Pane Manager (<!-- key desktop.panes -->`ctrl+p`<!-- /key -->) or the
 palette (<!-- key desktop.palette -->`ctrl+space`<!-- /key -->), as Quick setup and Start here.
 
 ## About
 
-The weave keeps two office-wide settings at [`zengine.layouts`](zengine.layouts.md): `answered`,
+The weave keeps two role-wide settings at [`zengine.layouts`](zengine.layouts.md): `answered`,
 set by **Done**, **Skip** or **The story**, and `story`, the steps ticked -- their numbers, `h`
 after one you ticked by hand, as `1 2h 4`. At a start whose run keeps a settings file and
 `answered` is not set, the quick setup shows itself in front, holding the keys. A run with no
@@ -39,9 +39,9 @@ The quick setup's items, top to bottom:
 
 - **Edit text with Neovim** asks the editor switch
   ([`zengine.editor-switch`](../../editor/docs/zengine.editor-switch.md)) to switch the Editor's
-  office to the plan's `neovim` choice, or back to `standard` when it is unchecked. The box shows
-  which choice holds the office, as the switch says it. A switch that would lose something asks
-  first: the pane says what, and choosing the box again confirms it. The choice holding the office
+  role to the plan's `neovim` choice, or back to `standard` when it is unchecked. The box shows
+  which choice holds the role, as the switch says it. A switch that would lose something asks
+  first: the pane says what, and choosing the box again confirms it. The choice holding the role
   when you quit is the one the next start opens ([Neovim in
   Workshop](../../editor/docs/neovim.md#switch-while-you-work)).
 - **Ready-to-use setups** are the ones [the launcher](../../launcher/docs/zengine.launcher.md)
@@ -91,7 +91,7 @@ Chooses the quick setup's item under the cursor.
   switch's answer is shown under the box. On a setup's Start, asks the launcher for it
   ([`Launch`](../../launcher/docs/zengine.launcher.md#launch)) once Workshop allowed the hand. On
   The story, Done or Skip, writes `answered`
-  ([`OfficeSettingCommitRequested`](zengine.layouts.md#officesettingcommitrequested)), puts the pane
+  ([`RoleSettingCommitRequested`](zengine.layouts.md#rolesettingcommitrequested)), puts the pane
   down ([`PaneCloseRequested`](zengine.layouts.md#panecloserequested)) when that is answered, and
   opens Start here ([`PaneLaunchRequested`](zengine.workshop.md#panelaunchrequested)).
 - **Refuses:** `the editor switch is still under way`; the switch's refusal, as it says it; `a start
@@ -126,7 +126,7 @@ Chooses Start here's item under the cursor.
 - **Takes:** the item under the cursor. Default key
   <!-- key story.choose -->`return`<!-- /key -->.
 - **Answers:** on a box, ticks it by hand, or unticks a hand's tick, and writes the ticks
-  ([`OfficeSettingCommitRequested`](zengine.layouts.md#officesettingcommitrequested)); on Show me,
+  ([`RoleSettingCommitRequested`](zengine.layouts.md#rolesettingcommitrequested)); on Show me,
   opens the step's pane ([`PaneLaunchRequested`](zengine.workshop.md#panelaunchrequested)) and says
   its next move.
 - **Refuses:** a box its owner ticked stays ticked, saying what ticked it; the launch's refusal, in
@@ -141,7 +141,7 @@ Each box of Start here is ticked by a fact its owner says, never by the desk's w
 | step | ticked when |
 |---|---|
 | 1. Make a view | a running view is on the desk (the inventory) |
-| 2. Wire its button into Flow | an office accepted what one of its buttons said (the view's own wiring) |
+| 2. Wire its button into Flow | a role accepted what one of its buttons said (the view's own wiring) |
 | 3. Show Flow's answer in the view | the view was told a field it shows (the view's own wiring) |
 | 4. Make it an app | the launcher lists an app in the project's `apps/`, or started one |
 | 5. Start it, and close Workshop | the launcher started an app, or says one runs |

@@ -5,7 +5,7 @@
 // content id, and scan:: as SDL's scancode values; the native translations as pure math, both
 // backends on every lane; the weave through a real bus with an injected reader; the real libraries
 // through the real Kernel, down to a published KeyPressed steering the world; and, on POSIX, a
-// pseudo-terminal on standard input, which a reader reads or leaves to a terminal window holding
+// pseudo-terminal on standard input, which a reader reads or leaves to a TUI window holding
 // it. A real console, and a real terminal through the real host, are the live pty run's to drive.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
@@ -21,8 +21,8 @@
 #include "input/vocabulary.hpp"
 
 #include "lifecycle_door.hpp"
-#include "manuals/zengine.input.hpp" // the office's page, as the suite carries it
-#include "office_manual.hpp"
+#include "manuals/zengine.input.hpp" // the role's page, as the suite carries it
+#include "role_manual.hpp"
 
 #include "graphics/vocabulary.hpp" // the one lifecycle fact a reader of SDL's queue could hand on
 #include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
@@ -1198,7 +1198,7 @@ TEST_CASE("terminal SGR: malformed reports fail explicitly and leak no keys") {
 // Tier 2e — SDL, as pure translation
 // ============================================================================
 // No SDL headers here, as for the Win32 paths, so the WSL lane and the Windows stranger (which
-// builds no SDL) both pin the SDL translation. The local constants ARE SDL's: the OS window's
+// builds no SDL) both pin the SDL translation. The local constants ARE SDL's: the GUI window's
 // backend, where both spellings exist, static_asserts them against the real headers.
 
 namespace {
@@ -1601,7 +1601,7 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
     // A first breath is Loom's to grant. The suite activates through a real
-    // lifecycle operator holding a real authority, because that is the only way a
+    // lifecycle initiator holding a real authority, because that is the only way a
     // weave can be activated at all — hand-posting the public shape is exactly
     // the forgery the attestation refuses.
     const loom::WeaveId door = zengine::testing::mount_door(bus);
@@ -1676,14 +1676,14 @@ TEST_CASE("the input .so loads into its role and answers its pump, honestly idle
     CHECK(a.text == "0");
 }
 
-TEST_CASE("the input .so answers what each shape it accepts does, from its office's page") {
-    // THE OFFICE WITNESS, on the artifact a plan loads: asked as any weave asks, it answers every
+TEST_CASE("the input .so answers what each shape it accepts does, from its role's page") {
+    // THE ROLE WITNESS, on the artifact a plan loads: asked as any weave asks, it answers every
     // shape its gate accepts from its page's Commands or Hears, and its page names no other.
     Rig r;
     (void)r.load("zengine-input", INPUT_SO, kInputRole);
     const std::vector<std::string> described =
         described_shapes_of(r.bus, r.bus.role_holder(kInputRole));
-    CHECK(check_office_manual(r.bus, kInputRole) >= described.size());
+    CHECK(check_role_manual(r.bus, kInputRole) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_input::kManual, described);
     // ...and the words are this page's, the one the suite carries.
     ShapeDocumentReader reader(r.bus, kInputRole);
@@ -1696,7 +1696,7 @@ TEST_CASE("the input .so answers what each shape it accepts does, from its offic
 }
 
 TEST_CASE("keys become turns: a key its window gives steers the real world through its own keys, "
-          "and nothing the input office publishes reaches it") {
+          "and nothing the input role publishes reaches it") {
     using namespace zengine::snake;
     Rig r;
     const loom::WeaveId world = r.load("snake-world-v1", WORLD_V1_SO, kWorldRole);
@@ -1724,7 +1724,7 @@ TEST_CASE("keys become turns: a key its window gives steers the real world throu
     r.tick();
     CHECK(r.seen.visuals.back().snake.front().y == 6);
 
-    // The doors snake deliberately does not open: the input office's keys, releases, text and
+    // The doors snake deliberately does not open: the input role's keys, releases, text and
     // pointer have ZERO accepters in this game -- published, delivered to nobody, and that is
     // legal (the recipient count is the pin).
     CHECK(r.publish_root(loom::to_value(KeyPressed{scan::kW, "W"})) == 0);
@@ -1932,7 +1932,7 @@ TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are cl
         CHECK(code.find("SDL_HasClipboardText") == std::string::npos);
         CHECK(code.find("ClipboardChanged") == std::string::npos);
     }
-    // The OS window reads the clipboard when a paste asks it, and only then: nothing SDL's queue
+    // The GUI window reads the clipboard when a paste asks it, and only then: nothing SDL's queue
     // says of the clipboard is read, and the beat that empties the queue names no clipboard.
     const std::string window = code_of(WINDOW_SDL_BACKEND_HPP);
     CHECK(window.find("SDL_EVENT_CLIPBOARD_UPDATE") == std::string::npos);
@@ -2027,7 +2027,7 @@ struct SessionRig {
 
     InputWeaveT<FakeReader>::Clock::time_point now{};
     SessionRig() {
-        // IN ITS OFFICE, because a session is asked of `zengine.input`, never of a WeaveId.
+        // IN ITS ROLE, because a session is asked of `zengine.input`, never of a WeaveId.
         auto w = std::make_unique<InputWeaveT<FakeReader>>(FakeReader{&feed}, [this] { return now; });
         InputWeaveT<FakeReader>* raw = w.get();
         loom::Grant grant = loom::emit_default_grant(*raw);
@@ -2104,20 +2104,20 @@ InjectedEvent button(std::int64_t b, bool down, std::int64_t x, std::int64_t y,
 
 namespace {
 
-/// THE OFFICES AROUND THE DOUBLE-CLICK TIME, as the suite speaks them: what the layouts' owner was
-/// declared, and what a window asking the time heard, from the input office alone.
+/// THE ROLES AROUND THE DOUBLE-CLICK TIME, as the suite speaks them: what the layouts' owner was
+/// declared, and what a window asking the time heard, from the input role alone.
 struct TimingHeard {
-    std::vector<zengine::workshop::OfficeSettingsDeclared> declared;
+    std::vector<zengine::workshop::RoleSettingsDeclared> declared;
     std::vector<std::int64_t> said;
 };
 
 class LayoutsStandIn
     : public loom::WeaveBase<LayoutsStandIn, AgentState,
-                             loom::Accept<zengine::workshop::OfficeSettingsDeclared>,
-                             loom::Emit<zengine::workshop::OfficeSettings>> {
+                             loom::Accept<zengine::workshop::RoleSettingsDeclared>,
+                             loom::Emit<zengine::workshop::RoleSettings>> {
 public:
     explicit LayoutsStandIn(TimingHeard& heard) : heard_(&heard) {}
-    void on(const zengine::workshop::OfficeSettingsDeclared& d, loom::Mail& mail) {
+    void on(const zengine::workshop::RoleSettingsDeclared& d, loom::Mail& mail) {
         if (mail.authored_from_role(kInputRole)) {
             heard_->declared.push_back(d);
         }
@@ -2145,7 +2145,7 @@ private:
 
 } // namespace
 
-TEST_CASE("the input office keeps the double-click time: declared to the layouts' owner at each "
+TEST_CASE("the input role keeps the double-click time: declared to the layouts' owner at each "
           "activation, said to an asker, set from what the owner hands it, and published when it "
           "changes") {
     namespace ws = zengine::workshop;
@@ -2153,10 +2153,10 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
     TimingHeard heard;
     std::vector<std::vector<InputEvent>> feed;
     auto w = std::make_unique<InputWeaveT<FakeReader, DoubleClickSetting>>(FakeReader{&feed});
-    InputWeaveT<FakeReader, DoubleClickSetting>* office = w.get();
-    loom::Grant grant = loom::emit_default_grant(*office);
+    InputWeaveT<FakeReader, DoubleClickSetting>* role = w.get();
+    loom::Grant grant = loom::emit_default_grant(*role);
     const loom::WeaveId input = bus.register_weave(std::move(w), std::move(grant), kInputRole);
-    office->zen_set_self(input);
+    role->zen_set_self(input);
     auto l = std::make_unique<LayoutsStandIn>(heard);
     LayoutsStandIn* l_raw = l.get();
     loom::Grant lg = loom::emit_default_grant(*l_raw);
@@ -2168,7 +2168,7 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
     const loom::WeaveId window = bus.register_weave(std::move(t), std::move(tg));
     t_raw->zen_set_self(window);
     const auto hand_back = [&](std::optional<std::int64_t> ms) {
-        ws::OfficeSettings kept;
+        ws::RoleSettings kept;
         kept.revision = 1;
         if (ms) {
             ws::PaneSetting s;
@@ -2176,7 +2176,7 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
             s.number = *ms;
             kept.settings.push_back(s);
         }
-        (void)bus.office_send_to_role_as(layouts, ws::kLayoutsRole, kInputRole,
+        (void)bus.role_send_to_role_as(layouts, ws::kLayoutsRole, kInputRole,
                                          loom::Message(loom::to_value(kept)));
         bus.drain_until_idle();
     };
@@ -2199,14 +2199,14 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
     CHECK(row.low == kLeastDoubleClickMs);
     CHECK(row.high == kMostDoubleClickMs);
 
-    // UNTIL IT IS HANDED ONE, the default, to the asker alone and as the office.
+    // UNTIL IT IS HANDED ONE, the default, to the asker alone and as the role.
     ask();
     REQUIRE(heard.said.size() == 1);
     CHECK(heard.said[0] == kDefaultDoubleClickMs);
 
     // HANDED 800: taken, and published once; the same again publishes nothing.
     hand_back(800);
-    CHECK(office->double_click_ms() == 800);
+    CHECK(role->double_click_ms() == 800);
     REQUIRE(heard.said.size() == 2);
     CHECK(heard.said[1] == 800);
     hand_back(800);
@@ -2217,20 +2217,20 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
 
     // HELD TO WHAT IT TAKES; and a default kept as its absence is the default again.
     hand_back(5000);
-    CHECK(office->double_click_ms() == kMostDoubleClickMs);
+    CHECK(role->double_click_ms() == kMostDoubleClickMs);
     hand_back(std::nullopt);
-    CHECK(office->double_click_ms() == kDefaultDoubleClickMs);
+    CHECK(role->double_click_ms() == kDefaultDoubleClickMs);
     CHECK(heard.said.back() == kDefaultDoubleClickMs);
 
     // FROM ANYONE BUT THE LAYOUTS' OWNER it is nothing.
-    ws::OfficeSettings forged;
+    ws::RoleSettings forged;
     ws::PaneSetting s;
     s.key = kSettingDoubleClickMs;
     s.number = 1500;
     forged.settings.push_back(s);
     (void)bus.send_to_role(kInputRole, loom::Message(loom::to_value(forged)));
     bus.drain_until_idle();
-    CHECK(office->double_click_ms() == kDefaultDoubleClickMs);
+    CHECK(role->double_click_ms() == kDefaultDoubleClickMs);
 
     // ACTIVATED AGAIN, it declares again.
     zengine::testing::order_activation(bus, door, input, 2);
@@ -2365,12 +2365,12 @@ TEST_CASE("session: closing releases every key and button still held, from the s
     CHECK(r.last() == "refused: no open input session numbered 1");
 }
 
-TEST_CASE("session: an office may close a session on its holder's behalf, and a stranger may not") {
+TEST_CASE("session: a role may close a session on its holder's behalf, and a stranger may not") {
     SessionRig r;
     r.open();
     r.inject({button(1, true, 3, 3)});
     r.heard.clear();
-    // A custodian holding an office -- the host's guest door -- speaks AS that office.
+    // A custodian holding a role -- the host's guest door -- speaks AS that role.
     class Custodian : public loom::WeaveBase<Custodian, AgentState, loom::Accept<PumpInput, loom::Ack, loom::Refused>,
                                              loom::Emit<InputSessionClosed>> {
     public:
@@ -2642,7 +2642,7 @@ std::string own_pid() {
 }
 
 /// The variable as another hand leaves it -- a parent's claim, garbage -- or gone (nullptr).
-void put_claim_text(const char* text, const char* variable = kWindowTerminalInputVariable) {
+void put_claim_text(const char* text, const char* variable = kWindowTuiInputVariable) {
 #if defined(_WIN32)
     ::SetEnvironmentVariableA(variable, text);
 #else
@@ -2655,7 +2655,7 @@ void put_claim_text(const char* text, const char* variable = kWindowTerminalInpu
 }
 
 /// The variable's text as a child process would inherit it, or "(unset)".
-std::string claim_text(const char* variable = kWindowTerminalInputVariable) {
+std::string claim_text(const char* variable = kWindowTuiInputVariable) {
 #if defined(_WIN32)
     char buf[64];
     ::SetLastError(ERROR_SUCCESS);
@@ -2676,40 +2676,40 @@ struct ClaimClearedAtEnd {
     ClaimClearedAtEnd(const ClaimClearedAtEnd&) = delete;
     ClaimClearedAtEnd& operator=(const ClaimClearedAtEnd&) = delete;
     ~ClaimClearedAtEnd() {
-        put_claim_text(nullptr, kWindowTerminalInputVariable);
+        put_claim_text(nullptr, kWindowTuiInputVariable);
         put_claim_text(nullptr, kWindowSdlInputVariable);
     }
 };
 
 } // namespace
 
-TEST_CASE("a terminal window's claim on the terminal input is counted under this process's pid") {
+TEST_CASE("a TUI window's claim on the terminal input is counted under this process's pid") {
     ClaimClearedAtEnd cleared;
     const std::string pid = own_pid();
     CHECK_FALSE(window_holds_terminal_input());
-    CHECK(window_terminal_input_claims() == 0);
+    CHECK(window_tui_input_claims() == 0);
 
-    claim_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 1);
+    claim_window_tui_input();
+    CHECK(window_tui_input_claims() == 1);
     CHECK(window_holds_terminal_input());
     CHECK(claim_text() == pid + ":1");
 
     // A reload in place makes the new window before it destroys the old one.
-    claim_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 2);
+    claim_window_tui_input();
+    CHECK(window_tui_input_claims() == 2);
     CHECK(claim_text() == pid + ":2");
 
-    release_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 1);
+    release_window_tui_input();
+    CHECK(window_tui_input_claims() == 1);
     CHECK(window_holds_terminal_input());
 
-    release_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 0);
+    release_window_tui_input();
+    CHECK(window_tui_input_claims() == 0);
     CHECK_FALSE(window_holds_terminal_input());
     CHECK(claim_text() == "(unset)"); // a child started now inherits nothing
 
-    release_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 0);
+    release_window_tui_input();
+    CHECK(window_tui_input_claims() == 0);
     CHECK(claim_text() == "(unset)");
 }
 
@@ -2722,23 +2722,23 @@ TEST_CASE("a claim under another pid, or one that is not a count, holds nothing,
           pid + ":0", pid + ":-2", pid + ":2x", pid + ": 2", pid, std::string(":3")}) {
         CAPTURE(text);
         put_claim_text(text.c_str());
-        CHECK(window_terminal_input_claims() == 0);
+        CHECK(window_tui_input_claims() == 0);
         CHECK_FALSE(window_holds_terminal_input());
     }
     put_claim_text((pid + ":7").c_str());
-    CHECK(window_terminal_input_claims() == 7);
+    CHECK(window_tui_input_claims() == 7);
 
     // The parent's claim a child inherited: the child's own window counts from one, and its last
     // release leaves nothing.
     put_claim_text("0:3");
-    claim_window_terminal_input();
+    claim_window_tui_input();
     CHECK(claim_text() == pid + ":1");
-    release_window_terminal_input();
+    release_window_tui_input();
     CHECK(claim_text() == "(unset)");
 }
 
-TEST_CASE("a reader touches the terminal as the terminal window's own, or while no window holds "
-          "input: neither a terminal window nor an OS window") {
+TEST_CASE("a reader touches the terminal as the TUI window's own, or while no window holds "
+          "input: neither a TUI window nor a GUI window") {
     CHECK(terminal_reader_may_use_terminal(false, false, false));
     CHECK_FALSE(terminal_reader_may_use_terminal(false, true, false));
     CHECK_FALSE(terminal_reader_may_use_terminal(false, false, true));
@@ -2750,7 +2750,7 @@ TEST_CASE("a reader touches the terminal as the terminal window's own, or while 
     }
 }
 
-TEST_CASE("an OS window's claim on SDL's queue is counted under this process's pid, apart from the "
+TEST_CASE("a GUI window's claim on SDL's queue is counted under this process's pid, apart from the "
           "terminal's, and the SDL reader drains the queue only while no window holds it") {
     ClaimClearedAtEnd cleared;
     const std::string pid = own_pid();
@@ -2764,10 +2764,10 @@ TEST_CASE("an OS window's claim on SDL's queue is counted under this process's p
     CHECK_FALSE(sdl_reader_may_use_sdl());
     CHECK(claim_text(kWindowSdlInputVariable) == pid + ":1");
     // The terminal's claim is another: neither counts the other's.
-    CHECK(window_terminal_input_claims() == 0);
-    claim_window_terminal_input();
+    CHECK(window_tui_input_claims() == 0);
+    claim_window_tui_input();
     CHECK(window_sdl_input_claims() == 1);
-    release_window_terminal_input();
+    release_window_tui_input();
 
     // A reload in place makes the new window before it destroys the old one.
     claim_window_sdl_input();
@@ -2866,7 +2866,7 @@ bool reads_text(PlatformReader& reader, const std::string& text) {
 
 } // namespace
 
-TEST_CASE("a reader beside a terminal window takes nothing, reads nothing and gives nothing back "
+TEST_CASE("a reader beside a TUI window takes nothing, reads nothing and gives nothing back "
           "while the window holds the terminal") {
     ClaimClearedAtEnd cleared;
     PtyOnStdin pty;
@@ -2874,32 +2874,32 @@ TEST_CASE("a reader beside a terminal window takes nothing, reads nothing and gi
     REQUIRE(pty.cooked());
 
     // Made while a window holds the terminal, it never takes it.
-    claim_window_terminal_input();
+    claim_window_tui_input();
     {
         const PlatformReader late;
         CHECK(pty.cooked());
     }
     CHECK(pty.cooked());
-    release_window_terminal_input();
+    release_window_tui_input();
 
     // Made before the window, it took the terminal: while the window holds it, it reads nothing of
     // what is typed, which it reads once the window gives the terminal back.
     {
         PlatformReader early;
         REQUIRE_FALSE(pty.cooked());
-        claim_window_terminal_input();
+        claim_window_tui_input();
         REQUIRE(pty.type("a"));
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         CHECK(early.poll().empty());
-        release_window_terminal_input();
+        release_window_tui_input();
         CHECK(reads_text(early, "a"));
-        claim_window_terminal_input(); // and it goes while a window holds the terminal again
+        claim_window_tui_input(); // and it goes while a window holds the terminal again
     }
     CHECK_FALSE(pty.cooked()); // the window's mode, untouched
-    release_window_terminal_input();
+    release_window_tui_input();
 }
 
-TEST_CASE("a reader beside an OS window leaves the terminal as it found it and reads nothing typed "
+TEST_CASE("a reader beside a GUI window leaves the terminal as it found it and reads nothing typed "
           "there; one that took it first gives it back when the window comes, and takes it again "
           "once no window holds input") {
     ClaimClearedAtEnd cleared;
@@ -2907,7 +2907,7 @@ TEST_CASE("a reader beside an OS window leaves the terminal as it found it and r
     REQUIRE(pty.ok);
     REQUIRE(pty.as_found());
 
-    // MADE BESIDE AN OS WINDOW, it never takes the terminal, and what is typed there is not its.
+    // MADE BESIDE AN GUI WINDOW, it never takes the terminal, and what is typed there is not its.
     claim_window_sdl_input();
     {
         PlatformReader beside;
@@ -2937,12 +2937,12 @@ TEST_CASE("a reader beside an OS window leaves the terminal as it found it and r
     CHECK(pty.as_found());
 }
 
-TEST_CASE("the terminal window's own reader takes, reads and gives back the terminal it holds") {
+TEST_CASE("the TUI window's own reader takes, reads and gives back the terminal it holds") {
     ClaimClearedAtEnd cleared;
     PtyOnStdin pty;
     REQUIRE(pty.ok);
     REQUIRE(pty.cooked());
-    claim_window_terminal_input();
+    claim_window_tui_input();
     {
         PlatformReader own(true);
         CHECK_FALSE(pty.cooked());
@@ -2950,13 +2950,13 @@ TEST_CASE("the terminal window's own reader takes, reads and gives back the term
         CHECK(reads_text(own, "b"));
     }
     CHECK(pty.cooked());
-    release_window_terminal_input();
+    release_window_tui_input();
 }
 
 #endif
 
 // ============================================================================
-// A host's one wait (Loom's `zen/host/reactor.hpp`): the office's beat stops only once the host's
+// A host's one wait (Loom's `zen/host/reactor.hpp`): the role's beat stops only once the host's
 // wait holds what its reader waits on, and what it waits on then wakes it; a host with no wait,
 // and a `Waited` from any participant, leave the beat as it was (timer/held_beat.hpp).
 
@@ -3046,7 +3046,7 @@ struct BookState {
     ZEN_SHAPE(BookState, 1, ZEN_FIELD(asks));
 };
 
-/// A stand-in Timer that counts the office's asks for its beat and its cancels of it.
+/// A stand-in Timer that counts the role's asks for its beat and its cancels of it.
 class BeatBook : public loom::WeaveBase<BeatBook, BookState,
                                         loom::Accept<zengine::timer::EnsureRoleTimer,
                                                      zengine::timer::CancelTimer>,
@@ -3066,7 +3066,7 @@ public:
     int cancels = 0;
 };
 
-/// The office in its role over a waitable reader, ears, the stand-in Timer, and its activation.
+/// The weave in its role over a waitable reader, ears, the stand-in Timer, and its activation.
 struct HeldRig {
     loom::Switchboard bus;
     Signal signal;
@@ -3091,7 +3091,7 @@ struct HeldRig {
 
 } // namespace
 
-TEST_CASE("held: the office's beat stops once a host's one wait holds its reader, and what the "
+TEST_CASE("held: the role's beat stops once a host's one wait holds its reader, and what the "
           "reader waits on wakes it") {
     HeldRig r;
     REQUIRE(r.book->ensures == 1);
@@ -3105,7 +3105,7 @@ TEST_CASE("held: the office's beat stops once a host's one wait holds its reader
     REQUIRE_FALSE(wait.sources().empty());
     CHECK(wait.sources().front().held);
 
-    // What the reader waits on is ready: the wait ends for it, and the office reads at once.
+    // What the reader waits on is ready: the wait ends for it, and the role reads at once.
     r.feed.push_back({KeyPressed{scan::kD, "D"}});
     r.signal.set();
     const auto t = std::chrono::steady_clock::now();
@@ -3113,7 +3113,7 @@ TEST_CASE("held: the office's beat stops once a host's one wait holds its reader
     const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(
                           std::chrono::steady_clock::now() - t)
                           .count();
-    CHECK(woke.offices == 1);
+    CHECK(woke.roles == 1);
     CHECK(took < 2500);
     r.bus.drain_until_idle();
     REQUIRE(r.heard.size() == 1);
@@ -3126,7 +3126,7 @@ TEST_CASE("held: the office's beat stops once a host's one wait holds its reader
     CHECK(r.book->ensures == 2);
 }
 
-TEST_CASE("held: with no host's wait the office's beat is never let go") {
+TEST_CASE("held: with no host's wait the role's beat is never let go") {
     HeldRig r;
     for (int i = 0; i < 5; ++i) {
         r.bus.send_to_role(kInputRole, loom::Message(loom::to_value(PumpInput{})));
@@ -3136,7 +3136,7 @@ TEST_CASE("held: with no host's wait the office's beat is never let go") {
     CHECK(r.book->cancels == 0);
 }
 
-TEST_CASE("held: a Waited from a participant is nothing, so no weave stops the office's beat") {
+TEST_CASE("held: a Waited from a participant is nothing, so no weave stops the role's beat") {
     HeldRig r;
     loom::Grant may;
     may.allow_to_role(loom::host::Waited::zen_name, loom::host::Waited::zen_version,

@@ -225,7 +225,7 @@ class Workshop(object):
                                 version=tuple(shapes[0])[1])
         return self.sub
 
-    def ask(self, office, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
+    def ask(self, role, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
         self.contact()
         self.asked.append((shape, version, copy.deepcopy(fields)))
         assert via == "workshop", via

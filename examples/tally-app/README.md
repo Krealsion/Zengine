@@ -8,7 +8,7 @@ by hand.
 
 | file | what it is |
 |---|---|
-| `app-plan.json` | the plan: the basic operators, the app's weave, the graphics directory, the OS window and the Timer |
+| `app-plan.json` | the plan: the basic operators, the app's weave, the graphics directory, the GUI window and the Timer |
 | `app.json` | the app: its name, the `day` palette, the panel at (8, 8) and the flow |
 | `tally.view` | the panel, as the View Builder saves it |
 | `tally.flow` | the flow `tally`, folding `math.add`, its total starting at 0, as Flow's Export writes it |
@@ -19,7 +19,7 @@ by hand.
 
 A build stages a copy of this folder beside `zengine-app`, in `app/apps/tally/` of the build tree,
 with two launchers: `run.cmd` starts the app in a console of its own on Windows, and `run.sh` in
-the terminal it is run from. Its plan's window is the OS window, which every build but a
+the terminal it is run from. Its plan's window is the GUI window, which every build but a
 `ZENGINE_TUI_ONLY` one builds; without it, the console says the window's artifact cannot be read.
 
 On its first start the console asks about each of the five artifacts in turn; answer each with the

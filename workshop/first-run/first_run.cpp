@@ -27,6 +27,7 @@
 #include "input/vocabulary.hpp"
 #include "launcher/vocabulary.hpp"
 #include "view/vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -49,8 +50,8 @@ namespace fr = zengine::first_run;
 namespace launcher = zengine::launcher;
 namespace view = zengine::view;
 
-constexpr const char* kWorkshop = "zengine.workshop";
-constexpr const char* kOffice = fr::kFirstRunRole;
+constexpr const char* kWorkshop = zengine::workshop::pane_menu::kWorkshopRole;
+constexpr const char* kRole = fr::kFirstRunRole;
 constexpr const char* kPane = fr::kSetupPane;
 constexpr const char* kStory = fr::kStoryPane;
 
@@ -81,15 +82,15 @@ class FirstRun
     : public loom::WeaveBase<
           FirstRun, FirstRunState,
           loom::Accept<loom::Activated, ws::PaneCatalogRequested,
-                       ws::PaneActionRequested, ws::OfficeSettings, ws::OfficeSettingsAnswered,
-                       ws::PaneInventory, ws::OfficeSettingCommitAnswered, ws::PaneLaunchAnswered,
+                       ws::PaneActionRequested, ws::RoleSettings, ws::RoleSettingsAnswered,
+                       ws::PaneInventory, ws::RoleSettingCommitAnswered, ws::PaneLaunchAnswered,
                        ws::PaneCloseAnswered, ws::PaneOperationAnswered, ws::EditorSwitchAnswered,
                        launcher::LaunchCatalog, launcher::Launched, view::ViewWiring,
                        loom::DispatchRefused, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
-          loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::OfficeSettingsDeclared,
-                     ws::OfficeSettingsRequested, ws::OfficeSettingCommitRequested,
-                     ws::PaneLaunchRequested, ws::v2::PaneLaunchRequested, ws::PaneCloseRequested,
+          loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::RoleSettingsDeclared,
+                     ws::RoleSettingsRequested, ws::RoleSettingCommitRequested,
+                     ws::PaneLaunchRequested, ws::PaneCloseRequested,
                      ws::PaneInventoryRequested, ws::v2::PaneOperationRequested,
                      ws::EditorSwitchRequested, ws::EditorSwitchConfirmed,
                      ws::EditorSwitchQuietStatusRequested, launcher::LaunchCatalogRequested,
@@ -105,14 +106,14 @@ public:
         offer(mail);
         declare(mail);
         settings_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole,
-                                                 ws::OfficeSettingsRequested{kOffice},
+        (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole,
+                                                 ws::RoleSettingsRequested{kRole},
                                                  settings_ask_);
         ask_status(mail);
         ask_facts(mail);
         for (const ws::WindowDrawing* w : {&window_, &story_window_}) {
             if (!w->shown()) {
-                (void)mail.as_role(kOffice).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{w->area()});
+                (void)mail.as_role(kRole).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{w->area()});
             }
         }
     }
@@ -125,8 +126,8 @@ public:
     /// ITS SETTINGS AS THE LAYOUTS' OWNER KEEPS THEM -- and, at a start that keeps a settings file,
     /// the quick setup shown once a run while it is not answered.
     // WL-FIRST-01, WL-FIRST-05 -- agents/workshop/first-run.md
-    void on(const ws::OfficeSettingsAnswered& shown, loom::Mail& mail) {
-        if (!answers(mail, settings_ask_) || shown.office != kOffice) {
+    void on(const ws::RoleSettingsAnswered& shown, loom::Mail& mail) {
+        if (!answers(mail, settings_ask_) || shown.role != kRole) {
             return;
         }
         read(shown.revision, shown.settings, mail);
@@ -143,9 +144,9 @@ public:
         // keeps the keys.
         state_.launched = true;
         fresh_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneInventoryRequested{}, fresh_ask_);
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{}, fresh_ask_);
     }
-    void on(const ws::OfficeSettings& kept, loom::Mail& mail) {
+    void on(const ws::RoleSettings& kept, loom::Mail& mail) {
         if (mail.authored_from_role(ws::kLayoutsRole)) {
             read(kept.revision, kept.settings, mail);
         }
@@ -165,22 +166,22 @@ public:
         story_open_ = false;
         for (const ws::InventoryPane& p : inventory.panes) {
             if (p.open) {
-                open.emplace_back(p.office, p.pane);
-                story_open_ = story_open_ || (p.office == kOffice && p.pane == kStory);
+                open.emplace_back(p.role, p.pane);
+                story_open_ = story_open_ || (p.role == kRole && p.pane == kStory);
             }
             if (p.pane == view::kPane && p.available) {
-                views.insert(p.office);
+                views.insert(p.role);
             }
         }
         const bool new_view = std::any_of(views.begin(), views.end(), [&](const std::string& v) {
-            return view_offices_.count(v) == 0;
+            return view_roles_.count(v) == 0;
         });
-        view_offices_ = views;
+        view_roles_ = views;
         if (!views.empty()) {
             fact(kMakeView, mail);
         }
         if (new_view) {
-            (void)mail.as_role(kOffice).publish(view::ViewWiringRequested{});
+            (void)mail.as_role(kRole).publish(view::ViewWiringRequested{});
         }
         ask_listing(mail);
         if (!fresh) {
@@ -191,15 +192,15 @@ public:
             return; // not shown by itself this run; the Pane Manager still lists it
         }
         launch_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneLaunchRequested{kOffice, kPane},
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneLaunchRequested{kRole, kPane},
                                                  launch_ask_);
     }
 
-    /// WHAT A RUNNING VIEW'S WIRING HAS DONE, said by the view as its own office: an intent
+    /// WHAT A RUNNING VIEW'S WIRING HAS DONE, said by the view as its own role: an intent
     /// something accepted ticks step 2, a field it was told step 3.
     // WL-FIRST-04 -- agents/workshop/first-run.md
     void on(const view::ViewWiring& wiring, loom::Mail& mail) {
-        if (view_offices_.count(std::string(mail.authored_role())) == 0) {
+        if (view_roles_.count(std::string(mail.authored_role())) == 0) {
             return; // only a running view on the desk says its own wiring
         }
         if (std::any_of(wiring.intents.begin(), wiring.intents.end(),
@@ -310,7 +311,7 @@ public:
     /// down and open "Start here" either way, so a settings file that would not take it never
     /// holds the weaver at this pane; a story's write that did not land is said in its pane.
     // WL-FIRST-05 -- agents/workshop/first-run.md
-    void on(const ws::OfficeSettingCommitAnswered& acted, loom::Mail& mail) {
+    void on(const ws::RoleSettingCommitAnswered& acted, loom::Mail& mail) {
         if (commit_ask_ == 0 || !answers(mail, commit_ask_)) {
             return;
         }
@@ -326,8 +327,8 @@ public:
             } else {
                 moment_.notice = "not kept: " + acted.refusal;
             }
-            (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole,
-                                                     ws::PaneCloseRequested{kOffice, kPane}, ++asks_);
+            (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole,
+                                                     ws::PaneCloseRequested{kRole, kPane}, ++asks_);
             show(mail);
             if (!fr::story_done(ticks_)) {
                 state_.story_shown = true;
@@ -359,7 +360,7 @@ public:
             return;
         }
         start_ask_ = ++asks_;
-        if (!mail.as_role(kOffice)
+        if (!mail.as_role(kRole)
                  .send_to_role(launcher::kLauncherRole,
                                launcher::Launch{launcher::kKindDemo, starting_}, start_ask_)
                  .valid()) {
@@ -372,7 +373,7 @@ public:
         show(mail);
     }
 
-    /// THE EDITOR SWITCH'S WORD, in its own words: the box follows what holds the office.
+    /// THE EDITOR SWITCH'S WORD, in its own words: the box follows what holds the role.
     // WL-FIRST-03 -- agents/workshop/first-run.md
     void on(const ws::EditorSwitchAnswered& a, loom::Mail& mail) {
         namespace out = ws::switch_outcome;
@@ -474,10 +475,10 @@ private:
     enum class Commit { kNone, kAnswered, kTicks };
 
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop, ws::v2::PaneOffered{kPane, "Quick setup",
                                            "how you edit text, and the ready-to-use setups", 36, 80});
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop, ws::v2::PaneOffered{kStory, "Start here",
                                            "the story a step at a time, each ticked as it happens",
                                            34, 80});
@@ -494,20 +495,20 @@ private:
                                                          "", std::move(causes)});
             return actions;
         };
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop,
             rows(kPane, fr::kActionUp, fr::kActionDown, fr::kActionChoose,
                  {ws::cause_of<ws::EditorSwitchRequested>(), ws::cause_of<ws::EditorSwitchConfirmed>(),
-                  ws::cause_of<ws::OfficeSettingCommitRequested>(),
+                  ws::cause_of<ws::RoleSettingCommitRequested>(),
                   ws::cause_of<ws::PaneCloseRequested>(), ws::cause_of<launcher::Launch>(),
                   ws::cause_of<ws::PaneLaunchRequested>()}));
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop, rows(kStory, fr::kStoryUp, fr::kStoryDown, fr::kStoryChoose,
-                            {ws::cause_of<ws::OfficeSettingCommitRequested>(),
+                            {ws::cause_of<ws::RoleSettingCommitRequested>(),
                              ws::cause_of<ws::PaneLaunchRequested>()}));
     }
 
-    /// ITS TWO SETTINGS, office-wide: `answered`, off by default, and `story`, no step ticked.
+    /// ITS TWO SETTINGS, role-wide: `answered`, off by default, and `story`, no step ticked.
     void declare(loom::Mail& mail) {
         ws::v2::PaneSettingRow answered;
         answered.key = fr::kAnsweredKey;
@@ -519,14 +520,14 @@ private:
         story.text = std::string();
         story.tags = {"chrome"};
         story.summary = "the story's steps ticked, h for one you ticked"; // at most 64 characters
-        (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole,
-                                                 ws::OfficeSettingsDeclared{{answered, story}});
+        (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole,
+                                                 ws::RoleSettingsDeclared{{answered, story}});
     }
 
     /// THE SWITCH'S STATUS, ASKED QUIETLY: the box shows the answer, so nothing is said of it.
     void ask_status(loom::Mail& mail) {
         status_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(ws::kEditorSwitchRole,
+        (void)mail.as_role(kRole).send_to_role(ws::kEditorSwitchRole,
                                                  ws::EditorSwitchQuietStatusRequested{}, status_ask_);
     }
 
@@ -534,9 +535,9 @@ private:
     /// launcher's listing.
     void ask_facts(loom::Mail& mail) {
         inventory_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneInventoryRequested{},
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{},
                                                  inventory_ask_);
-        (void)mail.as_role(kOffice).publish(view::ViewWiringRequested{});
+        (void)mail.as_role(kRole).publish(view::ViewWiringRequested{});
         ask_listing(mail);
     }
     void ask_listing(loom::Mail& mail) {
@@ -544,7 +545,7 @@ private:
             return; // one listing in flight
         }
         listing_ask_ = ++asks_;
-        if (!mail.as_role(kOffice)
+        if (!mail.as_role(kRole)
                  .send_to_role(launcher::kLauncherRole, launcher::LaunchCatalogRequested{},
                                listing_ask_)
                  .valid()) {
@@ -605,14 +606,14 @@ private:
         if (!read_ || committing_ != Commit::kNone || now == kept_) {
             return;
         }
-        ws::OfficeSettingCommitRequested commit;
-        commit.office = kOffice;
+        ws::RoleSettingCommitRequested commit;
+        commit.role = kRole;
         commit.revision = revision_;
         commit.key = fr::kStoryKey;
         commit.text = now;
         writing_ = now;
         commit_ask_ = ++asks_;
-        if (!mail.as_role(kOffice).send_to_role(ws::kLayoutsRole, commit, commit_ask_).valid()) {
+        if (!mail.as_role(kRole).send_to_role(ws::kLayoutsRole, commit, commit_ask_).valid()) {
             commit_ask_ = 0;
             story_says("the layouts' owner could not be asked to keep the ticks");
             return;
@@ -623,11 +624,11 @@ private:
     void launch_story(loom::Mail& mail, bool keys) {
         story_launch_ask_ = ++asks_;
         if (keys) {
-            (void)mail.as_role(kOffice).send_to_role(
-                kWorkshop, ws::PaneLaunchRequested{kOffice, kStory}, story_launch_ask_);
+            (void)mail.as_role(kRole).send_to_role(
+                kWorkshop, ws::PaneLaunchRequested{kRole, kStory}, story_launch_ask_);
         } else {
-            (void)mail.as_role(kOffice).send_to_role(
-                kWorkshop, ws::v2::PaneLaunchRequested{kOffice, kStory, false}, story_launch_ask_);
+            (void)mail.as_role(kRole).send_to_role(
+                kWorkshop, ws::PaneLaunchRequested{kRole, kStory, false}, story_launch_ask_);
         }
     }
 
@@ -664,13 +665,13 @@ private:
             show(mail);
             return;
         }
-        ws::OfficeSettingCommitRequested commit;
-        commit.office = kOffice;
+        ws::RoleSettingCommitRequested commit;
+        commit.role = kRole;
         commit.revision = revision_;
         commit.key = fr::kAnsweredKey;
         commit.flag = true;
         const std::uint64_t asked = ++asks_;
-        if (!mail.as_role(kOffice).send_to_role(ws::kLayoutsRole, commit, asked).valid()) {
+        if (!mail.as_role(kRole).send_to_role(ws::kLayoutsRole, commit, asked).valid()) {
             moment_.notice = "the layouts' owner could not be asked to keep the answer";
             show(mail);
             return;
@@ -696,7 +697,7 @@ private:
         asked.gesture = static_cast<std::int64_t>(gesture);
         asked.classes = {ws::scope::kBuild, ws::scope::kWrite};
         approval_ask_ = ++asks_;
-        if (!mail.as_role(kOffice).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
+        if (!mail.as_role(kRole).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
             approval_ask_ = 0;
             moment_.notice = "nothing was started -- Workshop could not be asked";
             show(mail);
@@ -716,9 +717,9 @@ private:
         if (story_.cursor % 2 == 1) {
             show_me_step_ = step;
             show_me_ask_ = ++asks_;
-            (void)mail.as_role(kOffice).send_to_role(
+            (void)mail.as_role(kRole).send_to_role(
                 kWorkshop,
-                ws::PaneLaunchRequested{fr::steps()[step].office, fr::steps()[step].pane},
+                ws::PaneLaunchRequested{fr::steps()[step].role, fr::steps()[step].pane},
                 show_me_ask_);
             return;
         }
@@ -780,7 +781,7 @@ private:
     template <class Ask>
     bool send_switch(loom::Mail& mail, const Ask& ask) {
         const std::uint64_t asked = ++asks_;
-        if (!mail.as_role(kOffice).send_to_role(ws::kEditorSwitchRole, ask, asked).valid()) {
+        if (!mail.as_role(kRole).send_to_role(ws::kEditorSwitchRole, ask, asked).valid()) {
             moment_.notice = "the editor switch could not be asked";
             return false;
         }
@@ -849,7 +850,7 @@ private:
     bool answered_ = false;
     std::int64_t revision_ = 0;
     Commit committing_ = Commit::kNone;
-    std::set<std::string> view_offices_; ///< the running views the inventory last named
+    std::set<std::string> view_roles_; ///< the running views the inventory last named
     std::string starting_;               ///< the setup a start waits on Workshop for
     std::size_t show_me_step_ = 0;
     /// THIS WEAVE'S OWN NUMBERS, one an ask, and the ask each kind of answer is read against.
@@ -858,8 +859,8 @@ private:
                   start_ask_ = 0, story_launch_ask_ = 0, show_me_ask_ = 0;
     std::int64_t op_ = 0;
     std::string consent_;
-    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)};
-    ws::WindowDrawing story_window_{kOffice, ws::pane_area(kOffice, kStory)};
+    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)};
+    ws::WindowDrawing story_window_{kRole, ws::pane_area(kRole, kStory)};
     zengine::ActivationCursor activation_;
 };
 

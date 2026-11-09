@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Joshua DeMoss
+
+#ifndef ZENGINE_INPUT_ROLE_PAGE_HPP
+#define ZENGINE_INPUT_ROLE_PAGE_HPP
+
+// The `zengine.input` role's page, as the two loadable weaves carry it: an `InputWeaveT` composed
+// with `RolePage` answers `ShapeDocumentRequested` from the manual compiled into its artifact
+// (`MANUAL` in input/CMakeLists.txt). Not installed: a weave built over another reader names its
+// own page, or none. Reference: input/docs/zengine.input.md.
+
+#include "manual/vocabulary.hpp"
+#include "manuals/zengine.input.hpp" // this role's manual, compiled in from its page
+
+namespace zengine::input {
+
+using RolePage = manual::ManualFacet<manual::pages::zengine_input::kManual>;
+
+} // namespace zengine::input
+
+#endif // ZENGINE_INPUT_ROLE_PAGE_HPP

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_DESKTOP_PANE_MANUAL_VIEW_HPP
 #define ZENGINE_DESKTOP_PANE_MANUAL_VIEW_HPP
 
-// The Manual: the manual of the pane whose `?` a weaver pressed, asked of that pane's office under
+// The Manual: the manual of the pane whose `?` a weaver pressed, asked of that pane's role under
 // a number of this image's own and shown beside the keys in force, in a text area: wrapped to the
 // pane's width, scrolled, its text selected and copied.
 // It keeps the words only while its pane is on the desk; the weave routes its messages here.
@@ -69,7 +69,7 @@ public:
 
 
     const PaneCanvas& canvas() const { return manual_canvas_; }
-    /// ...for the office to hand the room a graphics window gives the pane.
+    /// ...for the role to hand the room a graphics window gives the pane.
     PaneCanvas& canvas() { return manual_canvas_; }
 
 
@@ -78,28 +78,28 @@ public:
     /// A PANE'S `?`, or the manual key while a pane holds the keys: the Manual is shown (or
     /// focused) and that pane is asked for its whole manual, under a number of this image's own,
     /// so only its answer is shown. The keys come from the keymap the host last said.
-    void show_manual(const std::string& office, const std::string& pane_key, bool keys_heard,
+    void show_manual(const std::string& role, const std::string& pane_key, bool keys_heard,
                      const ws::KeymapShown& keymap, loom::Mail& mail, std::uint64_t& launches) {
-        const bool itself = office == kDesktopRole && pane_key == kManualPane;
+        const bool itself = role == kDesktopRole && pane_key == kManualPane;
         if (!itself) {
             manual_ = ManualShown{};
-            manual_.office = office;
+            manual_.role = role;
             manual_.pane = pane_key;
-            if (office.empty()) {
+            if (role.empty()) {
                 manual_.word = "no pane was named: press the ? at the top right of a pane, or "
                                "the manual key while a pane holds your keys";
             } else {
-                manual_.word = "asking " + office + " for its manual";
+                manual_.word = "asking " + role + " for its manual";
                 const std::uint64_t asked = ++manual_asks_;
                 const loom::Ticket sent =
                     mail.as_role(kDesktopRole)
-                        .send_to_role(office, ws::PaneDocumentRequested{pane_key, std::string()},
+                        .send_to_role(role, ws::PaneDocumentRequested{pane_key, std::string()},
                                       asked);
                 if (sent.valid()) {
                     manual_.asked = asked;
                     manual_.sent = sent;
                 } else {
-                    manual_.word = "the ask for the manual of " + office + " was not sent";
+                    manual_.word = "the ask for the manual of " + role + " was not sent";
                 }
             }
         }
@@ -127,18 +127,18 @@ public:
         say_manual(keys_heard, keymap, mail);
     }
 
-    /// ...AND A MANUAL ASKED OF AN OFFICE THAT COULD NOT BE REACHED: said, not waited on. True
+    /// ...AND A MANUAL ASKED OF A ROLE THAT COULD NOT BE REACHED: said, not waited on. True
     /// when the refusal named that ask.
     bool ask_refused(const loom::DispatchRefused& refused, bool keys_heard,
                      const ws::KeymapShown& keymap, loom::Mail& mail) {
         if (!refused_ask(manual_.asked != 0, manual_.sent, manual_.asked, refused, mail,
                          ws::PaneDocumentRequested::zen_name,
-                         ws::PaneDocumentRequested::zen_version, manual_.office.c_str())) {
+                         ws::PaneDocumentRequested::zen_version, manual_.role.c_str())) {
             return false;
         }
         manual_.asked = 0;
         manual_.word =
-            "the manual of " + manual_.office + " could not be asked (" + refused.reason + ")";
+            "the manual of " + manual_.role + " could not be asked (" + refused.reason + ")";
         say_manual(keys_heard, keymap, mail);
         return true;
     }
@@ -151,7 +151,7 @@ public:
     void inventory_said(const std::vector<ws::InventoryPane>& panes) {
         bool open = false;
         for (const ws::InventoryPane& p : panes) {
-            open = open || (p.office == kDesktopRole && p.pane == kManualPane && p.open);
+            open = open || (p.role == kDesktopRole && p.pane == kManualPane && p.open);
         }
         if (!open) {
             forget_manual();
@@ -274,13 +274,13 @@ public:
                     ws::TextRow{fit(std::move(text), room_columns), ink});
             }
         };
-        if (manual_.office.empty() && manual_.word.empty()) {
+        if (manual_.role.empty() && manual_.word.empty()) {
             push("MANUAL -- press the ? at the top right of a pane to read its manual here",
                  graphics::colors::quiet);
             publish_manual(mail, std::move(out));
             return;
         }
-        push("MANUAL -- " + manual_.office + (manual_.pane.empty() ? "" : "/" + manual_.pane),
+        push("MANUAL -- " + manual_.role + (manual_.pane.empty() ? "" : "/" + manual_.pane),
              graphics::colors::accent);
         if (!manual_.words || !keys_heard) {
             push(manual_.words ? std::string("waiting for the keys in force") : manual_.word,
@@ -352,7 +352,7 @@ private:
     /// where its window stands -- all of it gone when its pane leaves the desk, and none of it in
     /// `DesktopState`, so a reloaded image shows no words it did not ask for.
     struct ManualShown {
-        std::string office, pane;
+        std::string role, pane;
         std::uint64_t asked = 0;  ///< the number of the ask not yet answered; 0 when none
         loom::Ticket sent{};      ///< ...and its queued attempt, which a refusal names
         std::optional<ws::PaneDocumentShown> words;

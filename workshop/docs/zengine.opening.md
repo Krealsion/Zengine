@@ -1,7 +1,7 @@
-# zengine.opening -- the opening office
+# zengine.opening -- the opening role
 
-**Manual.** The opening office opens a source file in the Editor. It is Workshop's opening manager,
-the weave that answers to the office `zengine.opening` (an office is the name a weave answers to).
+**Manual.** The opening role opens a source file in the Editor. It is Workshop's opening manager,
+the weave that answers to the role `zengine.opening` (a role is the name a weave answers to).
 A pane that wants a file shown in the Editor asks it once; it has the Editor prepare the file and
 the desk make room for it, publishes both at once, and answers when both have shown it. Workshop
 mounts it; it is not a file you load.
@@ -9,8 +9,8 @@ mounts it; it is not a file you load.
 ## About
 
 Opening a file changes two things that belong to two owners: the Editor's document and the desk's
-presentation of the Editor pane (its seat, its room, its picture). The opening office owns neither.
-It owns the one open in flight: its path, who asked, the stage it has reached and the office it
+presentation of the Editor pane (its seat, its room, its picture). The opening role owns neither.
+It owns the one open in flight: its path, who asked, the stage it has reached and the role it
 waits on. It asks the desk whether the Editor pane would seat and with what room (the trial), the
 Editor to prepare the file as a whole candidate beside the current document (the preparation), and
 the desk to admit that candidate (the admission). Then it publishes both owners' claims in one
@@ -26,7 +26,7 @@ and on the desk as a standing condition, with no timeout.
 
 ## Use
 
-Ask with [`OpenSourceRequested`](#opensourcerequested), as your office, and wait for the one
+Ask with [`OpenSourceRequested`](#opensourcerequested), as your role, and wait for the one
 `SourceOpened` answered to you. Files, the Builder pane and a pane's Edit Code ask it, each after
 Workshop has judged your hand may `open`; the Editor relays an `OpenSourceRequested` sent to
 `zengine.editor` here, in the asker's right. A guest row needs the `open` power. The shapes are
@@ -37,33 +37,33 @@ in [`workshop/open_seam_vocabulary.hpp`](../open_seam_vocabulary.hpp).
 
 ### `OpenSourceRequested`
 
-`OpenSourceRequested` v1 asks the opening office to open a file as the Editor's document, shown in
+`OpenSourceRequested` v1 asks the opening role to open a file as the Editor's document, shown in
 the Editor pane.
 
 - **Takes:** `path`, the file to open.
 - **Answers:** `SourceOpened` v1, to the asker alone, under its correlation, once the open ends:
   `accepted` true when the document and the desk were published together and both owners applied
   them; otherwise `accepted` false and `refusal` in the words below. Meanwhile the desk is told the
-  stage (`trial`, `prepare`, `admit`, `apply`) and the office awaited.
+  stage (`trial`, `prepare`, `admit`, `apply`) and the role awaited.
 - **Refuses:** in `refusal`, with `a.cpp` for the path: `the room or the document changed while
   opening a.cpp -- your work is kept; try again`; `no Editor and desk are present to open a.cpp`;
   `too many opens on this bus are still unsettled -- a.cpp was not opened; try again`; `the Editor
   or the desk was replaced while opening a.cpp -- try again`; `zengine.editor could not be reached
-  (<the bus's reason>) -- a.cpp was not opened`, or the desk's office; `the Editor could not be
+  (<the bus's reason>) -- a.cpp was not opened`, or the desk's role; `the Editor could not be
   asked to prepare a.cpp`, and the same for the desk to show or admit it; `the desk and the Editor are still applying a.cpp
   -- b.cpp was not opened; try again`; to the older asker, `superseded by a newer request to open
   b.cpp -- a.cpp was not opened`; and the desk's or the Editor's own refusal, in its words (a
   document with unsaved changes, a paste still arriving). After publication: `zengine.editor did not
   apply a.cpp after it was published -- it kept what it had; open it again`, or `... could not
   apply ...` and `... was removed before it could apply ...`, naming the owner. An ask with no
-  office behind it is not answered.
+  role behind it is not answered.
 - **Example:** `mail.as_role("example.tool").send_to_role("zengine.opening",
   zengine::workshop::OpenSourceRequested{"/home/me/game/tally.cpp"}, ask);`, as the Builder pane's
   [`builder.edit-source`](../../builder/docs/zengine.builder-pane.md#builderedit-source) does.
 
 ## Hears
 
-Each answer below counts only when it is the answer to this office's own ask, under the open's
+Each answer below counts only when it is the answer to this role's own ask, under the open's
 number and at the stage it waits on; any other is ignored. It also reads three of Loom's words
 against the bus's own record of the open: `zen.DispatchRefused` (an ask it sent was refused before
 it arrived), `zen.JointEnded` (the bus ended the open, a participant replaced or a claim moved) and
@@ -71,19 +71,19 @@ it arrived), `zen.JointEnded` (the bus ended the open, a participant replaced or
 
 ### `PresentationTrial`
 
-`PresentationTrial` v3, from the desk: whether the Editor pane would seat, and the room its area
+`PresentationTrial` v3, from `zengine.workshop`, the desk: whether the Editor pane would seat, and the room its area
 will have (`OpeningRoom`, in pixels and the window's measure), so the Editor prepares the candidate
 for it. A refused trial ends the open in the desk's words.
 
 ### `SourcePrepared`
 
-`SourcePrepared` v3, from the Editor: the candidate is ready for the reserved room, or the
+`SourcePrepared` v3, from `zengine.editor`, the Editor: the candidate is ready for the reserved room, or the
 Editor's refusal. The desk is asked to admit the seat; the Editor draws the candidate in its own
 area as it commits its claim.
 
 ### `PresentationAdmitted`
 
-`PresentationAdmitted` v1, from the desk: the candidate admitted, and the office publishes both
+`PresentationAdmitted` v1, from `zengine.workshop`, the desk: the candidate admitted, and the role publishes both
 claims at once; or refused, in the desk's words, and the open ends with nothing moved.
 
 ## Follow

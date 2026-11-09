@@ -8,10 +8,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | Path | What it is |
 |---|---|
 | `CMakeLists.txt` | its three targets; the weave is skipped where Loom exports no `loom::kernel` |
-| `vocabulary.hpp` | office, pane and stem names; `zengine-composer-vocabulary`, links nothing |
+| `vocabulary.hpp` | role, pane and stem names; `zengine-composer-vocabulary`, links nothing |
 | `draft.hpp` | the draft model and what a draft composes to; `zengine-composer-draft`, no bus |
 | `view.hpp` | what the pane shows and what each row means; also in `zengine-composer-draft` |
-| `command_context.hpp` | `ComposerCommandContext` v1: the target office stored with a command |
+| `command_context.hpp` | `ComposerCommandContext` v1: the target role stored with a command |
 | `composer.cpp` | the Compose pane, `zengine-composer`: a loadable weave |
 | `docs/zengine.composer.md` | its manual, carried by the weave (`MANUAL`) and answered by it |
 
@@ -41,7 +41,7 @@ action census driver, `tests/actions/zengine.composer.txt`, and its manual witne
 - Submit: `PaneOperationRequested` (`workshop/pane_operation.hpp`), judged for the gesture's actor
   in `workshop/weave_operation.cpp` with `workshop/actor_scope.hpp`.
 - Grants: `workshop/guests.cpp` lets the `demo` power reset its pane.
-- Owners it asks: the target office (`zen.DescribeAccepted`), Introspection (`LoadedSelected`,
+- Owners it asks: the target role (`zen.DescribeAccepted`), Introspection (`LoadedSelected`,
   `introspection/vocabulary.hpp`), the window's clipboard and Inventory
   (`inventory/pane_client.hpp`).
 

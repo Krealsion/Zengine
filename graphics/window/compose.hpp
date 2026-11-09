@@ -7,7 +7,7 @@
 // A window's picture: each node painted once, when it changes, in its area's palette, and kept
 // painted, so a change paints only what changed, and the composition and a press read what was
 // painted. What it keeps painted is the window's memory, never its state: a reload paints it
-// again from the nodes its state keeps. Reference: graphics/docs/zengine.window.terminal.md.
+// again from the nodes its state keeps. Reference: graphics/docs/zengine.window.tui.md.
 
 #include "graphics/ops.hpp"
 #include "graphics/term_paint.hpp"
@@ -25,7 +25,7 @@ namespace zengine::graphics::window {
 
 using CellAt = std::pair<std::int64_t, std::int64_t>; ///< a column and a row of the window
 
-/// The colour a terminal window numbers 0: the terminal's default ink, where no area painted.
+/// The colour a TUI window numbers 0: the terminal's default ink, where no area painted.
 inline constexpr std::int64_t kDefaultInk = 0;
 
 /// Where an area's cells stand among its window's.

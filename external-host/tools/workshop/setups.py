@@ -284,8 +284,8 @@ class Setup:
         return path.exists() and contents(path) == loaded
 
     def load_plan(self):
-        """The shipped plan this setup's Workshop loads: the OS window, else the terminal window,
-        which `--tui` narrows to the terminal window."""
+        """The shipped plan this setup's Workshop loads: the GUI window, else the TUI window,
+        which `--tui` narrows to the TUI window."""
         return "default-load-plan.json"
 
     # ---- validation -------------------------------------------------------------------------------

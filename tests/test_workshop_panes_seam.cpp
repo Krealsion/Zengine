@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- the protocol and the provider seam: what an office may offer, who may
+// The Workshop panes suite -- the protocol and the provider seam: what a role may offer, who may
 // speak for it, how Workshop discovers it, where its area stands and the room the window gives
 // it, and how a pane ends. One source of the panes program, run in `workshop_panes_seam`, whose units split by subject
 // where one object cannot hold them all (VM-POP-12); a new case goes to its subject's. Cases drive
@@ -11,14 +11,14 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "pane_window.hpp"
 
 // ============================================================================
-// The office authors the pane; the window gives its area the room
+// The role authors the pane; the window gives its area the room
 // ============================================================================
-// Against: PROVENANCE (no payload carries a provider; the office is Loom's stamp, so personal
-// speech, another office and a forged room are the negatives); BOUNDS (each number has a case
+// Against: PROVENANCE (no payload carries a provider; the role is Loom's stamp, so personal
+// speech, another role and a forged room are the negatives); BOUNDS (each number has a case
 // one past it); SILENCE (unavailable is never said); THE REAL SEAM (an attested real library).
 
 // ---- The protocol itself ------------------------------------------------------
@@ -60,33 +60,33 @@ TEST_CASE("a pane's offer round-trips through the wire with its semantics intact
     CHECK(offer_back.summary == "a bounded external greeting");
 }
 
-// ---- The office's manual -------------------------------------------------------
+// ---- The role's manual -------------------------------------------------------
 
-TEST_CASE("Workshop's office answers every shape it accepts from its manual, and the page names no other") {
-    // Asked as any weave asks an office (manual/docs/manual.md#an-office-answers-for-a-shape):
+TEST_CASE("Workshop's role answers every shape it accepts from its manual, and the page names no other") {
+    // Asked as any weave asks a role (manual/docs/manual.md#a-role-answers-for-a-shape):
     // every version Workshop's gate accepts is answered from a section under Commands or Hears,
     // and every such section is about a shape the gate lets in.
     PaneRig r;
     r.mount_workshop();
     const zengine::manual::Manual& page = zengine::manual::pages::zengine_workshop::kManual;
-    CHECK(std::string(page.office) == kWorkshopProvider);
+    CHECK(std::string(page.role) == kWorkshopProvider);
     const std::vector<std::string> accepted =
         described_shapes_of(r.bus, r.bus.role_holder(kWorkshopProvider));
     REQUIRE(accepted.size() >= 60);
-    CHECK(check_office_manual(r.bus, kWorkshopProvider) >= accepted.size());
+    CHECK(check_role_manual(r.bus, kWorkshopProvider) >= accepted.size());
     check_page_names_accepted(page, accepted);
 }
 
 // ---- Descriptor law and the catalog bound ---------------------------------------
 
-TEST_CASE("a valid offer is admitted under the office that stamped it") {
+TEST_CASE("a valid offer is admitted under the role that stamped it") {
     Panes panes;
     RuntimeCatalog& cat = panes.runtime;
-    const Admission a = admit_pane_offer(cat, kHelloOffice, good_offer());
+    const Admission a = admit_pane_offer(cat, kHelloRole, good_offer());
     REQUIRE(a.written.accepted);
     CHECK_FALSE(a.refreshed);
     REQUIRE(cat.entries.size() == 1);
-    CHECK(cat.entries[0].provider == std::string(kHelloOffice));
+    CHECK(cat.entries[0].provider == std::string(kHelloRole));
     CHECK(cat.entries[0].pane == "hello");
     CHECK(cat.entries[0].name == "Hello");
     CHECK(cat.entries[0].summary == "a bounded external greeting");
@@ -95,11 +95,11 @@ TEST_CASE("a valid offer is admitted under the office that stamped it") {
     CHECK(is_runtime_kind(a.kind));
     CHECK(a.kind >= kFirstRuntimeKind);
     CHECK(cat.entries[0].kind == a.kind);
-    // AND THE DURABLE IDENTITY IS THE STAMPED OFFICE PLUS THE PAYLOAD'S PANE KEY.
+    // AND THE DURABLE IDENTITY IS THE STAMPED ROLE PLUS THE PAYLOAD'S PANE KEY.
     CHECK(resolve_pane(hello_ref(), panes).value_or(0) == a.kind);
 }
 
-TEST_CASE("an offer with no stamped office is refused, and retains nothing") {
+TEST_CASE("an offer with no stamped role is refused, and retains nothing") {
     Panes panes;
     RuntimeCatalog& cat = panes.runtime;
     const Admission a = admit_pane_offer(cat, "", good_offer());
@@ -112,7 +112,7 @@ TEST_CASE("a descriptor's name and summary are bounded, and a refusal keeps noth
     RuntimeCatalog& cat = panes.runtime;
     const auto refused = [&cat](const PaneOffered& o) {
         const std::size_t before = cat.entries.size();
-        const Admission a = admit_pane_offer(cat, kHelloOffice, o);
+        const Admission a = admit_pane_offer(cat, kHelloRole, o);
         CHECK_FALSE(a.written.accepted);
         CHECK(cat.entries.size() == before);
         return a.written.refusal;
@@ -134,7 +134,7 @@ TEST_CASE("a descriptor's name and summary are bounded, and a refusal keeps noth
           "a pane's summary is at most 64 bytes");
 
     // THE BOUNDS ARE BYTE COUNTS AND THE LAST ACCEPTED BYTE IS ACCEPTED.
-    CHECK(admit_pane_offer(cat, kHelloOffice,
+    CHECK(admit_pane_offer(cat, kHelloRole,
                            PaneOffered{"hello", bytes(kMaxPaneNameLen, 'n'),
                                        bytes(kMaxPaneSummaryLen, 's')})
               .written.accepted);
@@ -151,9 +151,9 @@ TEST_CASE("a descriptor's two keys are judged by the setup file's own law") {
           "a pane reference's provider cannot contain spaces or control characters");
     CHECK(admit_pane_offer(cat, bytes(kMaxPaneKeyLen + 1, 'p'), good_offer()).written.refusal ==
           "a pane reference's provider is at most 64 bytes");
-    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{"", "Hello", "fine"})
+    CHECK(admit_pane_offer(cat, kHelloRole, PaneOffered{"", "Hello", "fine"})
               .written.refusal == "a pane reference's pane key cannot be empty");
-    CHECK(admit_pane_offer(cat, kHelloOffice,
+    CHECK(admit_pane_offer(cat, kHelloRole,
                            PaneOffered{bytes(kMaxPaneKeyLen + 1, 'k'), "Hello", "fine"})
               .written.refusal == "a pane reference's pane key is at most 64 bytes");
     CHECK(cat.entries.empty());
@@ -173,9 +173,9 @@ TEST_CASE("a runtime offer cannot shadow a built-in pane") {
     CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kLayouts}, panes).value_or(-1) ==
           pane_kind::kLayouts);
 
-    // A DIFFERENT OFFICE OFFERING THE SAME PANE KEY IS A DIFFERENT PANE, and is
+    // A DIFFERENT ROLE OFFERING THE SAME PANE KEY IS A DIFFERENT PANE, and is
     // admitted normally -- the `PaneRef` is the PAIR.
-    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{pane_key::kLayouts, "Layouts", "theirs"})
+    CHECK(admit_pane_offer(cat, kHelloRole, PaneOffered{pane_key::kLayouts, "Layouts", "theirs"})
               .written.accepted);
     REQUIRE(cat.entries.size() == 1);
     CHECK(is_runtime_kind(cat.entries[0].kind));
@@ -184,12 +184,12 @@ TEST_CASE("a runtime offer cannot shadow a built-in pane") {
 TEST_CASE("re-offering one reference refreshes it in place and grows nothing") {
     Panes panes;
     RuntimeCatalog& cat = panes.runtime;
-    const Admission first = admit_pane_offer(cat, kHelloOffice, good_offer());
+    const Admission first = admit_pane_offer(cat, kHelloRole, good_offer());
     REQUIRE(first.written.accepted);
     const std::int64_t handle = first.kind;
 
     const Admission again =
-        admit_pane_offer(cat, kHelloOffice, PaneOffered{"hello", "Hello!", "a better line"});
+        admit_pane_offer(cat, kHelloRole, PaneOffered{"hello", "Hello!", "a better line"});
     CHECK(again.written.accepted);
     CHECK(again.refreshed);
     CHECK(again.kind == handle); // THE HANDLE IS KEPT, so an open pane stays the pane it was
@@ -198,32 +198,32 @@ TEST_CASE("re-offering one reference refreshes it in place and grows nothing") {
     CHECK(cat.entries[0].summary == "a better line");
 
     // AN INVALID REFRESH LEAVES THE LAST ACCEPTED DESCRIPTOR WHOLE.
-    CHECK_FALSE(admit_pane_offer(cat, kHelloOffice, PaneOffered{"hello", "", "x"})
+    CHECK_FALSE(admit_pane_offer(cat, kHelloRole, PaneOffered{"hello", "", "x"})
                     .written.accepted);
     REQUIRE(cat.entries.size() == 1);
     CHECK(cat.entries[0].name == "Hello!");
     CHECK(cat.entries[0].summary == "a better line");
 }
 
-TEST_CASE("two offices offering one pane key stay two panes, and neither can move the other") {
+TEST_CASE("two roles offering one pane key stay two panes, and neither can move the other") {
     Panes panes;
     RuntimeCatalog& cat = panes.runtime;
-    const Admission a = admit_pane_offer(cat, kHelloOffice, good_offer());
+    const Admission a = admit_pane_offer(cat, kHelloRole, good_offer());
     const Admission b =
-        admit_pane_offer(cat, kOtherOffice, PaneOffered{"hello", "Hello", "somebody else's"});
+        admit_pane_offer(cat, kOtherRole, PaneOffered{"hello", "Hello", "somebody else's"});
     REQUIRE(a.written.accepted);
     REQUIRE(b.written.accepted);
     CHECK(a.kind != b.kind);
     REQUIRE(cat.entries.size() == 2);
 
-    // Office A refreshing its own row leaves office B's untouched.
-    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{"hello", "Hello", "mine, corrected"})
+    // Role A refreshing its own row leaves role B's untouched.
+    CHECK(admit_pane_offer(cat, kHelloRole, PaneOffered{"hello", "Hello", "mine, corrected"})
               .refreshed);
     CHECK(cat.entries.size() == 2);
-    CHECK(cat.find(kHelloOffice, "hello")->summary == "mine, corrected");
-    CHECK(cat.find(kOtherOffice, "hello")->summary == "somebody else's");
-    CHECK(resolve_pane(PaneRef{kHelloOffice, "hello"}, panes).value() == a.kind);
-    CHECK(resolve_pane(PaneRef{kOtherOffice, "hello"}, panes).value() == b.kind);
+    CHECK(cat.find(kHelloRole, "hello")->summary == "mine, corrected");
+    CHECK(cat.find(kOtherRole, "hello")->summary == "somebody else's");
+    CHECK(resolve_pane(PaneRef{kHelloRole, "hello"}, panes).value() == a.kind);
+    CHECK(resolve_pane(PaneRef{kOtherRole, "hello"}, panes).value() == b.kind);
 }
 
 TEST_CASE("the combined catalog stops at its bound, built-ins included") {
@@ -232,7 +232,7 @@ TEST_CASE("the combined catalog stops at its bound, built-ins included") {
     // THE BOUND LESS THE BUILT-INS IN RUNTIME ROWS, because the built-ins are part of the total.
     for (std::size_t i = 0; i < kMaxPaneCatalogEntries - kBuiltinPaneCount; ++i) {
         const Admission a = admit_pane_offer(
-            cat, kHelloOffice, PaneOffered{"pane" + std::to_string(i), "P", "one of many"});
+            cat, kHelloRole, PaneOffered{"pane" + std::to_string(i), "P", "one of many"});
         INFO("offer ", i);
         REQUIRE(a.written.accepted);
     }
@@ -241,22 +241,22 @@ TEST_CASE("the combined catalog stops at its bound, built-ins included") {
 
     // THE ROW PAST THE BOUND IS REFUSED, VISIBLY, AND CHANGES NOTHING.
     const Admission over =
-        admit_pane_offer(cat, kHelloOffice, PaneOffered{"one-too-many", "Extra", "over"});
+        admit_pane_offer(cat, kHelloRole, PaneOffered{"one-too-many", "Extra", "over"});
     CHECK_FALSE(over.written.accepted);
     CHECK(over.written.refusal ==
           "Workshop holds at most " + std::to_string(kMaxPaneCatalogEntries) +
               " panes -- `zengine.test.workshop-hello/one-too-many` was not added");
     CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kBuiltinPaneCount);
-    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "one-too-many"}, panes).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{kHelloRole, "one-too-many"}, panes).has_value());
 
     // ...AND AN EXISTING ENTRY MAY STILL BE REFRESHED WHILE FULL. The bound is on how
     // many DISTINCT panes are held, not on how often a provider may correct itself.
     const Admission refresh =
-        admit_pane_offer(cat, kHelloOffice, PaneOffered{"pane0", "P0", "corrected"});
+        admit_pane_offer(cat, kHelloRole, PaneOffered{"pane0", "P0", "corrected"});
     CHECK(refresh.written.accepted);
     CHECK(refresh.refreshed);
     CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kBuiltinPaneCount);
-    CHECK(cat.find(kHelloOffice, "pane0")->summary == "corrected");
+    CHECK(cat.find(kHelloRole, "pane0")->summary == "corrected");
 }
 
 TEST_CASE("the runtime catalog is beside the compile-time one and never inside it") {
@@ -279,7 +279,7 @@ TEST_CASE("the runtime catalog is beside the compile-time one and never inside i
     }
 
     Panes panes;
-    REQUIRE(admit_pane_offer(panes.runtime, kHelloOffice, good_offer()).written.accepted);
+    REQUIRE(admit_pane_offer(panes.runtime, kHelloRole, good_offer()).written.accepted);
     const std::vector<CatalogRow> rows = combined_catalog(panes);
     REQUIRE(rows.size() == kBuiltinPaneCount + 1);
 
@@ -321,34 +321,34 @@ TEST_CASE("the catalog is asked with VIEWS, and only an exact pair is a row") {
     // so the comparison moves no ownership in either direction.
     Panes panes;
     RuntimeCatalog& cat = panes.runtime;
-    REQUIRE(admit_pane_offer(cat, kHelloOffice, good_offer()).written.accepted);
-    REQUIRE(admit_pane_offer(cat, kOtherOffice, PaneOffered{"hello", "Theirs", "theirs"})
+    REQUIRE(admit_pane_offer(cat, kHelloRole, good_offer()).written.accepted);
+    REQUIRE(admit_pane_offer(cat, kOtherRole, PaneOffered{"hello", "Theirs", "theirs"})
                 .written.accepted);
 
-    // THE EXACT PAIR, AND IT IS THE PAIR: each office finds its own row and neither
+    // THE EXACT PAIR, AND IT IS THE PAIR: each role finds its own row and neither
     // finds the other's, which is the identity claim said through the lookup itself.
-    const RuntimePane* mine = cat.find(std::string_view(kHelloOffice), std::string_view("hello"));
+    const RuntimePane* mine = cat.find(std::string_view(kHelloRole), std::string_view("hello"));
     REQUIRE(mine != nullptr);
     CHECK(mine->name == "Hello");
-    const RuntimePane* theirs = cat.find(std::string_view(kOtherOffice), std::string_view("hello"));
+    const RuntimePane* theirs = cat.find(std::string_view(kOtherRole), std::string_view("hello"));
     REQUIRE(theirs != nullptr);
     CHECK(theirs->name == "Theirs");
     CHECK(mine->kind != theirs->kind);
 
     // A NEAR MISS IS NOTHING, and the two directions of near are both asked: a
-    // prefix of a real office, and a real office with an unoffered pane key.
-    const std::string almost = std::string(kHelloOffice) + "x";
+    // prefix of a real role, and a real role with an unoffered pane key.
+    const std::string almost = std::string(kHelloRole) + "x";
     CHECK(cat.find(std::string_view(almost), std::string_view("hello")) == nullptr);
-    CHECK(cat.find(std::string_view(kHelloOffice), std::string_view("hell")) == nullptr);
-    CHECK(cat.find(std::string_view(kHelloOffice), std::string_view("")) == nullptr);
+    CHECK(cat.find(std::string_view(kHelloRole), std::string_view("hell")) == nullptr);
+    CHECK(cat.find(std::string_view(kHelloRole), std::string_view("")) == nullptr);
     CHECK(cat.find(std::string_view(""), std::string_view("hello")) == nullptr);
 
     // AND THE VIEW'S LENGTH IS WHAT IS COMPARED, not a terminator the lookup has no
     // right to assume is there. `window` is `zengine.test.workshop-hello` spelled as
     // a slice of a LONGER buffer, so the byte after the view is a real byte -- and it
     // finds the same row a null-terminated spelling finds.
-    const std::string_view window(almost.data(), std::string(kHelloOffice).size());
-    REQUIRE(window == std::string_view(kHelloOffice));
+    const std::string_view window(almost.data(), std::string(kHelloRole).size());
+    REQUIRE(window == std::string_view(kHelloRole));
     REQUIRE(window.data()[window.size()] == 'x');
     CHECK(cat.find(window, std::string_view("hello")) == mine);
     // ...and the same buffer read one byte longer is the near miss above.
@@ -359,11 +359,11 @@ TEST_CASE("the catalog is asked with VIEWS, and only an exact pair is a row") {
 TEST_CASE("an unknown runtime reference never becomes the Builder") {
     Panes panes;
     RuntimeCatalog& cat = panes.runtime;
-    REQUIRE(admit_pane_offer(cat, kHelloOffice, good_offer()).written.accepted);
+    REQUIRE(admit_pane_offer(cat, kHelloRole, good_offer()).written.accepted);
     const std::int64_t hello = cat.entries[0].kind;
 
     // THE NEGATIVE CONTROL THE FALLIBLE DOOR EXISTS FOR, said about a runtime kind.
-    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "never-offered"}, panes).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{kHelloRole, "never-offered"}, panes).has_value());
     CHECK_FALSE(resolve_pane(PaneRef{"nobody", "hello"}, panes).has_value());
     CHECK_FALSE(resolve_builtin_pane(hello_ref()).has_value());
 
@@ -385,16 +385,16 @@ TEST_CASE("an unknown runtime reference never becomes the Builder") {
     CHECK(kind_name(panes, 9999).empty());
 }
 
-// ---- Provenance: the office authors, and holding is not speaking-for --------------
+// ---- Provenance: the role authors, and holding is not speaking-for --------------
 
 TEST_CASE("a personal offer from the actual role holder registers nothing") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
 
     // THE SHARPEST NEGATIVE HERE. This weave HOLDS `zengine.test.workshop-hello` at this instant
     // -- Loom would confirm it -- and it speaks with `mail.send_to_role`, which is personal speech.
-    // `authored_role()` is empty, so there is no office to derive a `PaneRef`'s provider half
+    // `authored_role()` is empty, so there is no role to derive a `PaneRef`'s provider half
     // from, and the offer is not a fact about anybody's arrangement.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer_personally(m, good_offer()); });
     CHECK(r.session().panes.runtime.entries.empty());
@@ -403,19 +403,19 @@ TEST_CASE("a personal offer from the actual role holder registers nothing") {
     // THE SAME SENTENCE, DELIBERATELY AUTHORED, IS ADMITTED. One `as_role` apart.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     REQUIRE(r.session().panes.runtime.entries.size() == 1);
-    CHECK(r.session().panes.runtime.entries[0].provider == std::string(kHelloOffice));
+    CHECK(r.session().panes.runtime.entries[0].provider == std::string(kHelloRole));
 }
 
-TEST_CASE("an office longer than the key bound is delivered whole and admitted by nobody") {
+TEST_CASE("a role longer than the key bound is delivered whole and admitted by nobody") {
     // THE CASE THAT SAYS THE BOUNDARY IS REACHABLE. Loom preserves a role name of any length
     // across a dynamic seam, and proves it past two hundred bytes -- so sixty-four bytes is THIS
     // application's law, which nothing in the substrate enforces. The honest way to ask is to seat
-    // a real weave in a real office too long for that law and have it author a valid offer.
-    const std::string long_office = "zengine.test." + std::string(kMaxPaneKeyLen, 'z');
-    REQUIRE(long_office.size() > kMaxPaneKeyLen);
+    // a real weave in a real role too long for that law and have it author a valid offer.
+    const std::string long_role = "zengine.test." + std::string(kMaxPaneKeyLen, 'z');
+    REQUIRE(long_role.size() > kMaxPaneKeyLen);
 
     // FIRST, THAT THE SUBSTRATE CARRIES IT WHOLE -- measured, not assumed, and
-    // measured where the office actually lands. A watcher holding `zengine.workshop`
+    // measured where the role actually lands. A watcher holding `zengine.workshop`
     // INSTEAD of Workshop reads the same stamp off the same wire, so if this were a
     // truncation somewhere under Workshop the refusal below would be about the wrong
     // thing entirely.
@@ -424,17 +424,17 @@ TEST_CASE("an office longer than the key bound is delivered whole and admitted b
         PaneWatcher* watcher = probe.mount_watcher();
         // NOT `far`: it is an empty macro in the Windows SDK's `minwindef.h`, so a variable of
         // that name vanishes mid-declaration under MSVC.
-        ProviderSeat* distant = probe.mount_provider(long_office);
+        ProviderSeat* distant = probe.mount_provider(long_role);
         probe.drive(distant, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
         REQUIRE(watcher->offers.size() == 1);
         REQUIRE(watcher->offer_authors.size() == 1);
-        CHECK(watcher->offer_authors[0] == long_office);
-        CHECK(watcher->offer_authors[0].size() == long_office.size());
+        CHECK(watcher->offer_authors[0] == long_role);
+        CHECK(watcher->offer_authors[0].size() == long_role.size());
     }
 
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(long_office);
+    ProviderSeat* seat = r.mount_provider(long_role);
     const std::size_t panes_before = r.session().panes.open.size();
     const Setup setup_before = r.session().setup.active;
 
@@ -448,24 +448,24 @@ TEST_CASE("an office longer than the key bound is delivered whole and admitted b
 
     // THE REFUSAL IS THE EXISTING PROVIDER-KEY BYTE LAW, in its own wording.
     CHECK(r.last_notice() == "a pane reference's provider is at most 64 bytes");
-    // AND THE UNVALIDATED OFFICE IS NOT IN IT. A notice that echoed the bytes it had
+    // AND THE UNVALIDATED ROLE IS NOT IN IT. A notice that echoed the bytes it had
     // just refused would put an unbounded stranger's string on a weaver's one line.
-    CHECK(r.last_notice().find(long_office) == std::string::npos);
+    CHECK(r.last_notice().find(long_role) == std::string::npos);
     CHECK(r.last_notice().find("zzzz") == std::string::npos);
 
-    // THE SAME OFFICE, ONE BYTE SHORTER THAN THE BOUND, IS ADMITTED -- so what was
-    // refused was the length and not the office being a stranger.
-    ProviderSeat* fits = r.mount_provider(std::string_view(long_office.data(), kMaxPaneKeyLen));
+    // THE SAME ROLE, ONE BYTE SHORTER THAN THE BOUND, IS ADMITTED -- so what was
+    // refused was the length and not the role being a stranger.
+    ProviderSeat* fits = r.mount_provider(std::string_view(long_role.data(), kMaxPaneKeyLen));
     r.drive(fits, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     REQUIRE(r.session().panes.runtime.entries.size() == 1);
     CHECK(r.session().panes.runtime.entries[0].provider.size() == kMaxPaneKeyLen);
 }
 
-TEST_CASE("one office cannot overwrite another office's descriptor") {
+TEST_CASE("one role cannot overwrite another role's descriptor") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* mine = r.mount_provider(kHelloOffice);
-    ProviderSeat* theirs = r.mount_provider(kOtherOffice);
+    ProviderSeat* mine = r.mount_provider(kHelloRole);
+    ProviderSeat* theirs = r.mount_provider(kOtherRole);
 
     r.drive(mine, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.drive(theirs, [](ProviderSeat& s, loom::Mail& m) {
@@ -473,18 +473,18 @@ TEST_CASE("one office cannot overwrite another office's descriptor") {
     });
     const RuntimeCatalog& cat = r.session().panes.runtime;
     REQUIRE(cat.entries.size() == 2);
-    CHECK(cat.find(kHelloOffice, "hello")->summary == "a bounded external greeting");
-    CHECK(cat.find(kOtherOffice, "hello")->summary == "somebody else's greeting");
+    CHECK(cat.find(kHelloRole, "hello")->summary == "a bounded external greeting");
+    CHECK(cat.find(kOtherRole, "hello")->summary == "somebody else's greeting");
 
-    // AND NEITHER CAN REACH THE OTHER'S ROW. The office is stamped by Loom, so the
+    // AND NEITHER CAN REACH THE OTHER'S ROW. The role is stamped by Loom, so the
     // second provider cannot name the first even by trying: there is no field for it.
     r.drive(theirs, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"hello", "Hijacked", "theirs, rewritten"});
     });
     REQUIRE(cat.entries.size() == 2);
-    CHECK(cat.find(kHelloOffice, "hello")->name == "Hello");
-    CHECK(cat.find(kHelloOffice, "hello")->summary == "a bounded external greeting");
-    CHECK(cat.find(kOtherOffice, "hello")->name == "Hijacked");
+    CHECK(cat.find(kHelloRole, "hello")->name == "Hello");
+    CHECK(cat.find(kHelloRole, "hello")->summary == "a bounded external greeting");
+    CHECK(cat.find(kOtherRole, "hello")->name == "Hijacked");
 }
 
 // ---- Discovery, through the REAL dynamic seam -------------------------------------
@@ -501,11 +501,11 @@ TEST_CASE("Workshop first, then the provider: an attested activation announces t
     // committed incarnation an ATTESTED `zen.Activated`, `ActivationCursor` accepts it,
     // and the provider announces.
     const loom::WeaveId hello =
-        r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+        r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     REQUIRE(r.load_refusals.empty());
     REQUIRE(hello.valid());
     REQUIRE(r.session().panes.runtime.entries.size() == 1);
-    CHECK(r.session().panes.runtime.entries[0].provider == std::string(kHelloOffice));
+    CHECK(r.session().panes.runtime.entries[0].provider == std::string(kHelloRole));
     CHECK(r.session().panes.runtime.entries[0].pane == std::string(kHelloPane));
     CHECK(r.session().panes.runtime.entries[0].name == "Hello");
     CHECK(r.session().panes.runtime.entries[0].summary == "a bounded external greeting");
@@ -514,10 +514,10 @@ TEST_CASE("Workshop first, then the provider: an attested activation announces t
 TEST_CASE("the provider first, then Workshop: the catalog request recovers the lost offer") {
     PaneRig r;
     // THE AWKWARD ORDER, and the one ask-and-announce exists for. The provider's
-    // activation offer is addressed to the `zengine.workshop` office, which nobody
+    // activation offer is addressed to the `zengine.workshop` role, which nobody
     // holds yet -- so it reaches nobody and is gone.
     const loom::WeaveId hello =
-        r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+        r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     REQUIRE(hello.valid());
     r.mount_workshop();
     CHECK(r.session().panes.runtime.entries.empty()); // the first offer really was lost
@@ -532,7 +532,7 @@ TEST_CASE("the provider first, then Workshop: the catalog request recovers the l
 TEST_CASE("asking twice and announcing twice still yields one catalog row") {
     PaneRig r;
     r.mount_workshop();
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     REQUIRE(r.session().panes.runtime.entries.size() == 1);
     const std::int64_t handle = r.session().panes.runtime.entries[0].kind;
 
@@ -548,13 +548,13 @@ TEST_CASE("asking twice and announcing twice still yields one catalog row") {
 
 TEST_CASE("the provider answers Workshop and nobody else") {
     PaneRig r;
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     r.mount_workshop();
     REQUIRE(r.session().panes.runtime.entries.empty());
 
     // AN UNAUTHENTICATED CATALOG REQUEST -- a root publication, carrying no authored
     // role at all. A provider that answered this would hand its catalog to whoever
-    // asked, including a weave holding no office.
+    // asked, including a weave holding no role.
     (void)r.bus.publish(loom::Message(loom::to_value(PaneCatalogRequested{}), loom::WeaveId{},
                                       loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
@@ -567,32 +567,32 @@ TEST_CASE("the provider answers Workshop and nobody else") {
 
 TEST_CASE("a forged room grants the provider nothing") {
     // THE PROVIDER'S OWN CHECK, MEASURED FROM THE OTHER SIDE. A watcher holds
-    // `zengine.workshop` to hear the offer; a room no window's office authored -- one sent with no
-    // office at all -- draws nothing, and the room a window gives its area is drawn there.
+    // `zengine.workshop` to hear the offer; a room no window's role authored -- one sent with no
+    // role at all -- draws nothing, and the room a window gives its area is drawn there.
     PaneRig r;
     PaneWatcher* watch = r.mount_watcher();
-    const loom::WeaveId hello = r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    const loom::WeaveId hello = r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     REQUIRE(hello.valid());
     REQUIRE(watch->offers.size() == 1); // the activation announcement landed here
     zengine::testing::pane_window::Window window(r.bus);
     const std::size_t before = window.weave().heard.size();
 
-    const gfx::AreaRoom unsaid{pane_area(kHelloOffice, kHelloPane), window.name(), 1,
+    const gfx::AreaRoom unsaid{pane_area(kHelloRole, kHelloPane), window.name(), 1,
                                20 * gfx::kCellPx, 4 * gfx::kCellPx, {}, true};
     r.bus.send(hello, loom::Message(loom::to_value(unsaid), loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
     CHECK(window.weave().heard.size() == before); // no room was believed, so nothing was drawn
 
-    window.room(pane_area(kHelloOffice, kHelloPane), kHelloOffice, 20, 4);
+    window.room(pane_area(kHelloRole, kHelloPane), kHelloRole, 20, 4);
     r.bus.drain_until_idle();
-    const std::vector<std::string> rows = window.rows(pane_area(kHelloOffice, kHelloPane));
+    const std::vector<std::string> rows = window.rows(pane_area(kHelloRole, kHelloPane));
     REQUIRE(rows.size() == 4);
     CHECK(rows[0] == "hello -- 4x20");
 }
 
 // ---- Setup resolution: an unchanged reference, resolved later ---------------------
 
-TEST_CASE("an authored external reference is unresolved until its office offers it") {
+TEST_CASE("an authored external reference is unresolved until its role offers it") {
     PaneRig r;
     r.mount_workshop();
     // The weaver authored this before any provider existed -- which the setup grammar allows,
@@ -605,14 +605,14 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     r.key(input::scan::kEscape); // a repaint, so the setup line is current
 
     // THREE: the reference this case authored, and the Info and Notices rows the shipped desk
-    // names -- each a weave no office has offered in this rig.
+    // names -- each a weave no role has offered in this rig.
     CHECK(unresolved_panes(r.session().setup.active, r.session().panes).size() == 3);
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
                             r.session().keymap, KeySpelling::kShort)
               .find("3 unresolved") != std::string::npos);
     CHECK_FALSE(r.session().panes.has(kFirstRuntimeKind));
 
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
 
     // THE SAME UNCHANGED REFERENCE NOW RESOLVES, and reconciliation opened it through
@@ -649,7 +649,7 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     const std::vector<PaneRef> waiting =
         unresolved_panes(saved, fresh.session().panes);
     REQUIRE(waiting.size() == 2);
-    CHECK(waiting[0] == info_ref()); // the shipped desk's row, offered by no office here
+    CHECK(waiting[0] == info_ref()); // the shipped desk's row, offered by no role here
     CHECK(waiting[1] == hello_ref());
     // NOT DROPPED, NOT REMAPPED, AND NOT CALLED UNAVAILABLE. Workshop knows it has no
     // row for the reference and knows nothing at all about whoever could present it.
@@ -663,7 +663,7 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
 TEST_CASE("setup bytes carry no descriptor, room or handle") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     SeatRows said;
@@ -679,7 +679,7 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
     // INTENT beside the reference moved that line not at all -- which the assertions measure.
     CHECK(text.find("\"zengine-workshop-setup\"") != std::string::npos);
     CHECK(text.find("\"version\"") != std::string::npos);
-    CHECK(text.find(kHelloOffice) != std::string::npos);
+    CHECK(text.find(kHelloRole) != std::string::npos);
     CHECK(text.find("\"hello\"") != std::string::npos);
     // ...AND NOT ONE BYTE OF WHAT THIS SESSION LEARNED AT RUNTIME.
     CHECK(text.find("\"Hello\"") == std::string::npos); // the display name is not saved
@@ -723,7 +723,7 @@ TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's 
 TEST_CASE("a pane the layout left in the stack, launched when its column is spent, lands at the column's top, in front") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
@@ -734,11 +734,11 @@ TEST_CASE("a pane the layout left in the stack, launched when its column is spen
     REQUIRE(first.y == sc.room_y);
     // A SECOND PROVIDER OFFERING A SECOND STACK PANE, launched as the Pane Manager, a launch key
     // or `n` launches one: through the launch door.
-    ProviderSeat* other = r.mount_provider(kOtherOffice);
+    ProviderSeat* other = r.mount_provider(kOtherRole);
     r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
     });
-    const PaneRef other_ref{kOtherOffice, "other"};
+    const PaneRef other_ref{kOtherRole, "other"};
     // The layout kept the column's place for it, so the launch puts it back there.
     left_in_column(r, other_ref);
     const PaneLaunchAnswered said = hand_launch(r, other_ref);
@@ -782,7 +782,7 @@ TEST_CASE("a pane launched where its own place stands off this screen stays ther
     // see, and nothing says where it went.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
@@ -807,12 +807,12 @@ TEST_CASE("a pane launched where its own place stands off this screen stays ther
 TEST_CASE("an oversubscribed authored setup seats every reference, the column beginning again at its top") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
 
     // AUTHORED FIRST, THEN OFFERED -- the order a restored file meets a provider that loads
     // afterwards. The offer's own admission runs the ONE reconciliation path, so nothing here
     // reaches past a message boundary to open anything.
-    const PaneRef other_ref{kOtherOffice, "other"};
+    const PaneRef other_ref{kOtherRole, "other"};
     Setup both = r.session().setup.active;
     (void)add_pane(both, other_ref); // a second stack pane, authored first
     (void)add_pane(both, hello_ref());
@@ -820,7 +820,7 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
         run.active = both;
         run.active_link = SetupLink{"setup.json", both};
     });
-    ProviderSeat* seat2 = r.mount_provider(kOtherOffice);
+    ProviderSeat* seat2 = r.mount_provider(kOtherRole);
     r.drive(seat2, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
     });
@@ -878,7 +878,7 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
 TEST_CASE("opening an external pane gives its area exactly the fit_region room, authored as the window") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
 
@@ -886,7 +886,7 @@ TEST_CASE("opening an external pane gives its area exactly the fit_region room, 
     CHECK(seat->rooms[0].pane == std::string(kHelloPane));
     // AUTHORED AS THE WINDOW THAT SHOWS THE AREA -- which is what lets the provider verify it.
     REQUIRE_FALSE(seat->room_authors.empty());
-    CHECK(seat->room_authors.back() == r.windows.office());
+    CHECK(seat->room_authors.back() == r.windows.role());
 
     // THE NUMBERS ARE `fit_region`'S AND NOBODY MULTIPLIES A METRIC. At the minimum composition
     // the pane's region is the WHOLE of the first overlay slot, and the header row is subtracted
@@ -918,7 +918,7 @@ cells_covered(bounds_of(r.session().panes, r.session().setup.active, kind, sc).r
 TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends exactly one") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
@@ -949,7 +949,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     REQUIRE(seat->rooms.size() == 2);
     CHECK(seat->rooms[1].rows == 6);       // unchanged: the rows are the slot's interior's
     CHECK(seat->rooms[1].columns == 72);   // moved: the columns are the room's share, inside
-    CHECK(seat->room_authors.back() == r.windows.office());
+    CHECK(seat->room_authors.back() == r.windows.role());
 
     // ...and saying it again is not a second answer. The same extent resolves the same
     // capacity, and an unchanged capacity is noise a provider would have to parse.
@@ -997,7 +997,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
     // never against arithmetic this case performed for itself.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
@@ -1020,7 +1020,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
     };
     std::size_t said = seat->rooms.size();
     // EACH IS THE PANE'S INTERIOR: two cells less on both axes than its rectangle in a cell
-    // medium, its visible boundary coming out of it; a pixel less on each side in the OS window,
+    // medium, its visible boundary coming out of it; a pixel less on each side in the GUI window,
     // which shows every pixel.
     for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 6, 82},
                                              {200, 60, 0, 0, 6, 122},
@@ -1047,7 +1047,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
             CHECK(seat->rooms.back().rows == g.rows);
             CHECK(seat->rooms.back().columns == g.columns);
         } else {
-            // IN THE OS WINDOW THE ROOM IS THE AREA THE WINDOW GIVES, its whole width in the face's
+            // IN THE GUI WINDOW THE ROOM IS THE AREA THE WINDOW GIVES, its whole width in the face's
             // characters: the body's inset is the area's to draw in.
             const ExternalPane* placed = r.session().panes.external_pane(kind);
             REQUIRE(placed != nullptr);
@@ -1067,7 +1067,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
 TEST_CASE("a pane's rows are shown in its area at the exact body bounds") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1107,7 +1107,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     // row a weaver reaches for to remove a pane would be under the pane it removes.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     REQUIRE(has_pane(r.session().setup.active, hello_ref()));
@@ -1164,7 +1164,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
 TEST_CASE("rows for a closed or never-offered pane do nothing at all") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     const std::size_t catalog_before = r.session().panes.runtime.entries.size();
 
@@ -1178,7 +1178,7 @@ TEST_CASE("rows for a closed or never-offered pane do nothing at all") {
     CHECK(r.session().panes.external.empty());
     CHECK(r.session().panes.runtime.entries.size() == catalog_before);
 
-    // A PANE KEY THIS OFFICE NEVER OFFERED CREATES NO CATALOG ROW EITHER.
+    // A PANE KEY THIS ROLE NEVER OFFERED CREATES NO CATALOG ROW EITHER.
     SeatRows unknown;
     unknown.pane = "never-offered";
     unknown.rows.push_back(TextRow{"nor this", gfx::colors::text});
@@ -1192,7 +1192,7 @@ TEST_CASE("rows for a closed or never-offered pane do nothing at all") {
 TEST_CASE("an external pane occupies its whole rectangle, and takes hold of nothing under it") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1238,7 +1238,7 @@ TEST_CASE("a read-only pane that ignores presses is unchanged when the window la
     // its area changes nothing about what this provider does, says, or shows.
     PaneRig r;
     r.mount_workshop();
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const CellRect body = external_body_rect(r.session(), kind);
@@ -1257,7 +1257,7 @@ TEST_CASE("a read-only pane that ignores presses is unchanged when the window la
 TEST_CASE("closing an external pane ends only its presentation") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1290,7 +1290,7 @@ TEST_CASE("closing an external pane ends only its presentation") {
 TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without duplicating") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1313,7 +1313,7 @@ TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without 
 TEST_CASE("silence is waiting, and Workshop never says unavailable") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1341,7 +1341,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
 TEST_CASE("one provider offering several panes is still one weave") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"hello", "Hello", "one"});
         s.offer(m, PaneOffered{"goodbye", "Goodbye", "two"});
@@ -1351,7 +1351,7 @@ TEST_CASE("one provider offering several panes is still one weave") {
           r.session().panes.runtime.entries[1].provider);
     CHECK(r.session().panes.runtime.entries[0].kind !=
           r.session().panes.runtime.entries[1].kind);
-    // TWO CATALOG ROWS, ONE OFFICE, AND NOTHING ANYWHERE THAT COUNTS PROVIDERS. Closing
+    // TWO CATALOG ROWS, ONE ROLE, AND NOTHING ANYWHERE THAT COUNTS PROVIDERS. Closing
     // one presentation could not unload a weave even if this file wanted it to.
     CHECK(combined_catalog(r.session().panes).size() == kBuiltinPaneCount + 2);
 }
@@ -1361,7 +1361,7 @@ TEST_CASE("one provider offering several panes is still one weave") {
 TEST_CASE("the built-in panes behave exactly as they did, with a provider in the room") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.extent(120, 44); // room for both stack slots, so nothing here is a capacity case
 
@@ -1399,7 +1399,7 @@ TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both wa
         CAPTURE(name);
         PaneRig r;
         r.mount_workshop();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         r.drive(seat, [&name](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, name, "a bounded external greeting"});
         });

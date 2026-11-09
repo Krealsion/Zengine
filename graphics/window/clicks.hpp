@@ -4,7 +4,7 @@
 #ifndef ZENGINE_GRAPHICS_WINDOW_CLICKS_HPP
 #define ZENGINE_GRAPHICS_WINDOW_CLICKS_HPP
 
-// How a window counts the clicks of a hand's presses: by the double-click time the input office
+// How a window counts the clicks of a hand's presses: by the double-click time the input role
 // says (`zengine::input::PointerTimingSaid`), time its argument, each hand on a counter of its own.
 
 #include "input/vocabulary.hpp"
@@ -55,7 +55,7 @@ inline std::int64_t clicks_of(const CountedPress& last, std::int64_t now_ms,
 /// ONE HAND'S PRESSES COUNTED, a button each (1 left, 2 middle, 3 right), by the time it holds.
 class ClickCounter {
 public:
-    /// The time two presses are one double click by, held to what the input office takes.
+    /// The time two presses are one double click by, held to what the input role takes.
     void time(std::int64_t double_click_ms) noexcept {
         double_click_ms_ = std::clamp(double_click_ms, zengine::input::kLeastDoubleClickMs,
                                       zengine::input::kMostDoubleClickMs);

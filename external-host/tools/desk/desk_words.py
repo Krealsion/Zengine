@@ -4,7 +4,7 @@
 writes itself.
 
 `AGENTS_MD` is a constant. No argument reaches it and nothing is formatted into it, so no word a
-pane drew, an office declared or another guest typed can stand in the file a coding agent loads
+pane drew, a role declared or another guest typed can stand in the file a coding agent loads
 as its standing instructions. Everything the desk said goes to `guide.md` and the readings, each
 quoted text in a block that names who said it.
 
@@ -38,7 +38,7 @@ like an instruction included.
   to back.
 - `glance.txt`: the glance, the desk drawn at the medium's own text cell, frames and words where
   they stand: where things are. Take coordinates from `desk.txt`, never from the glance.
-- `panes/<office>.<pane>.txt`: one pane's sparse reading, the same lines as its section of
+- `panes/<role>.<pane>.txt`: one pane's sparse reading, the same lines as its section of
   `desk.txt`, beneath the desk's first lines. Where two panes' references would name one file,
   the later takes `~2` (and on) before `.txt`: each page of a pane's file opens with that pane's
   `==` header, so take a pane from its header, never from a file's name.
@@ -66,15 +66,15 @@ the window's pixels in a window, and in a terminal 12 canvas pixels to each of i
   pixels, the canvas's own; `points=cells` is the terminal's console cells, whose rows stand 2
   below the canvas's. `name@-` is a part with no point of its own: no press reaches it. A part
   with no name, `@x,y`, is a place its pane names nothing.
-- A header line, `== Name office/pane state front=N at x,y wxh stamp=H/I/E/F`: the pane's name as
-  its office gives it, its reference, its state (`open`, `covered`, `off-room`, `unresolved`), its
+- A header line, `== Name role/pane state front=N at x,y wxh stamp=H/I/E/F`: the pane's name as
+  its role gives it, its reference, its state (`open`, `covered`, `off-room`, `unresolved`), its
   rank from the front (0 in front), its visible rectangle in canvas pixels, and the stamp its
   reading stands on; `selected` and `keys` when it is selected or the keyboard points at it.
 
 ## Stamps, and when a reading is stale
 
 A stamp, `H/I/E/F`, names what a pane's reading stands on: the holder (the weave holding the
-pane's office), that holder's incarnation, `E`, the incarnation of the window that shows the desk,
+pane's role), that holder's incarnation, `E`, the incarnation of the window that shows the desk,
 in hex, and `F`, the fingerprint of what the pane shows, in sixteen hex digits. Whatever the pane
 shows changing moves the fingerprint, and the same picture shown again keeps it; a reload moves the
 incarnation, and a window started again moves `E`. A reading is stale once any of the four moved,
@@ -105,7 +105,7 @@ While a menu is open (`menu=open` on the desk line), a primary press outside it 
 beside it -- it closes the menu, or is refused: every part beside it reads `name@-`. Press a part at the point your reading lists
 for it, on a reading whose stamp is still the pane's: `workshop/inspect-capture` with `chord=` empty and `click=x,y` (window pixels) or
 `click=x,y@console` (a terminal's cells). Where the pane is uncovered, `workshop/act` with a `part`
-step, `{"part": ["<office>", "<pane>", "<name>"]}`, presses it by name instead, asking Workshop for
+step, `{"part": ["<role>", "<pane>", "<name>"]}`, presses it by name instead, asking Workshop for
 its point as it presses; that step reaches neither Layouts' tabs nor a covered pane's parts. A
 line of Workshop's own menu: `workshop/act` with `{"menu": "<line name>"}`. Workshop's own words
 have no parts: no press lands on them. Pressing needs your row's `input`, and `workshop/act` is in
@@ -119,11 +119,11 @@ the `workshop` package where your session's catalog holds it.
   read anew. Its result names this file's path. It needs your row's `capture`.
 - `desk-machine/watch` (this package): follow the desk as it moves, for `seconds`, and write each change
   into `changes.txt`, keeping the reading files current: Workshop says when the desk moved, and
-  the watch reads again only what moved. `panes` (a JSON list of `["<office>", "<pane>"]`) watches
+  the watch reads again only what moved. `panes` (a JSON list of `["<role>", "<pane>"]`) watches
   those panes alone, writing their changes and files only. It needs your row's `capture` and an
   `observe` entry naming `zengine.workshop` `DeskStamps` 3.
 - `workshop/act`, `workshop/inspect-capture`: press, type and check, where your row may.
-- `workshop/observe`: follow what an office publishes, as your row's `observe` lists.
+- `workshop/observe`: follow what a role publishes, as your row's `observe` lists.
 
 ## Best practice
 
@@ -189,30 +189,30 @@ at most 4 desk reads a second to a session."""
 
 ACT = """Press a part at the point a reading lists, with `workshop/inspect-capture`
 (`click=x,y`), or, where its pane is uncovered, by its name with `workshop/act`
-(`{"part": [office, pane, name]}`); a line of Workshop's own menu with `{"menu": name}`. Acting
+(`{"part": [role, pane, name]}`); a line of Workshop's own menu with `{"menu": name}`. Acting
 by message, without a hand, is not answered by this Workshop: absent here."""
 
 FOLLOW = """Follow the desk with `desk-machine/watch`: Workshop says when the desk moved -- its number, or a
 pane's stamp -- and the watch reads again only what moved, writing each change into `changes.txt`
 as the smaller of its changed lines and the lines as they now stand. It needs `capture` and an
 `observe` entry naming `zengine.workshop` `DeskStamps` 3 (section 1 lists your row's).
-Follow what any other office publishes with `workshop/observe`, for the shapes your row's `observe`
+Follow what any other role publishes with `workshop/observe`, for the shapes your row's `observe`
 lists."""
 
 SHAPES = """Absent from this reading: a shape's structure is answered under `inspect`
-(`DescribeAccepted`); no office's own document of its shapes is answered yet."""
+(`DescribeAccepted`); no role's own document of its shapes is answered yet."""
 
 PURPOSE = """Absent: no pane declares its purpose (`about`, `use`, `audience`) to this reader
 yet."""
 
 EACH_PANE = """Not asked by this reading: `desk-machine/read` asks each offered pane's manual of its
-office and writes it beside the pane's file, as `panes/<office>.<pane>.manual.md`. A pane's words
-and parts now are in `panes/<office>.<pane>.txt`, under its `==` header."""
+role and writes it beside the pane's file, as `panes/<role>.<pane>.manual.md`. A pane's words
+and parts now are in `panes/<role>.<pane>.txt`, under its `==` header."""
 
-MANUALS = """Each offered pane's manual, asked of its own office under your row
+MANUALS = """Each offered pane's manual, asked of its own role under your row
 (`PaneDocumentRequested`): an answered one is written beside the pane's file, as
-`panes/<office>.<pane>.manual.md`, its words quoted as its office wrote them; a refusal stands
-below in its office's words. A pane's words and parts now are in `panes/<office>.<pane>.txt`,
+`panes/<role>.<pane>.manual.md`, its words quoted as its role wrote them; a refusal stands
+below in its role's words. A pane's words and parts now are in `panes/<role>.<pane>.txt`,
 under its `==` header."""
 
 BEST_PRACTICE = """- Read a pane you work in, not the whole desk, once you know where things are.

@@ -38,8 +38,8 @@ Red in `zengine-workshop-shapes-tests`:
 
 ## facet-never-asks
 
-The settings facet every pane office takes its row through declares no ask and sends none, as a pane
-office taking `PaneSettings` on its own would.
+The settings facet every pane role takes its row through declares no ask and sends none, as a pane
+role taking `PaneSettings` on its own would.
 
 In `workshop/pane_settings_taken.hpp`:
 
@@ -52,9 +52,9 @@ In `workshop/pane_settings_taken.hpp`:
 
 ```diff
 -        if (!asked_) {
--            asked_ = mail.as_role(Office)
+-            asked_ = mail.as_role(Role)
 +        if constexpr (false) {
-+            asked_ = mail.as_role(Office)
++            asked_ = mail.as_role(Role)
 ```
 
 Red in `zengine-workshop-shapes-tests`:

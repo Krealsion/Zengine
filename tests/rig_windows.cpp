@@ -62,8 +62,8 @@ public:
     std::vector<gfx::WindowShown> shown;
 };
 
-std::string office_of(const std::string& window) {
-    return std::string(gfx::kWindowOfficePrefix) + window;
+std::string role_of(const std::string& window) {
+    return std::string(gfx::kWindowRolePrefix) + window;
 }
 
 /// The pool's colours, each a number here: a reading keeps the number, and says the colour.
@@ -82,7 +82,7 @@ const gfx::PaletteColor* color_of_pool(const gfx::PaletteOffered& palette, std::
     return gfx::window::pool_color(palette, kPool[r].name);
 }
 
-/// The number of the pool colour whose ink a terminal window writes as this sequence in the block
+/// The number of the pool colour whose ink a TUI window writes as this sequence in the block
 /// palette, the one a terminal draws every colour in its own ink, or -1: the terminal's default ink is
 /// no pool colour's.
 std::int64_t pool_of_ink(const std::string& sgr) {
@@ -162,7 +162,7 @@ struct Windows::Impl {
         light.keeps_last = true;
         light.clipboard = std::string();
         light.holds_copies = true;
-        light.grows = true; // the OS window grows to the reach of the areas it shows
+        light.grows = true; // the GUI window grows to the reach of the areas it shows
         auto made = std::make_unique<Ears>();
         ears = made.get();
         loom::Grant grant;
@@ -208,15 +208,15 @@ struct Windows::Impl {
         REQUIRE(directory.valid());
     }
 
-    /// Mount a window at its office, over its device.
+    /// Mount a window at its role, over its device.
     template <class W, class Device>
     loom::WeaveId mount(const std::string& window, Device device) {
         auto made = std::make_unique<W>(std::move(device));
         W* raw = made.get();
         loom::Grant grant = loom::emit_default_grant(*raw);
         const loom::WeaveId id = bus.register_weave(std::move(made), std::move(grant),
-                                                    office_of(window));
-        REQUIRE_MESSAGE(id.valid(), "the rig's window could not hold " << office_of(window));
+                                                    role_of(window));
+        REQUIRE_MESSAGE(id.valid(), "the rig's window could not hold " << role_of(window));
         raw->zen_set_self(id);
         return id;
     }
@@ -231,7 +231,7 @@ struct Windows::Impl {
     }
 
     void pump(const std::string& window) {
-        bus.send_as_to_role(ears_id, office_of(window),
+        bus.send_as_to_role(ears_id, role_of(window),
                             loom::Message(loom::to_value(gfx::PumpSurface{}), ears_id, ears_id, 0));
         bus.drain_until_idle();
     }
@@ -239,7 +239,7 @@ struct Windows::Impl {
     /// The terminal's screen now: each of its rows cut to its width, trailing blanks off.
     Shown terminal_screen() const {
         Shown s;
-        s.window = gfx::kTerminalWindow;
+        s.window = gfx::kTuiWindow;
         const auto rows = static_cast<std::size_t>((std::max)(term.size.rows, std::int64_t{0}));
         const auto cols = static_cast<std::size_t>((std::max)(term.size.cols, std::int64_t{0}));
         s.rows.resize(rows);
@@ -331,7 +331,7 @@ struct Windows::Impl {
         term.written.clear();
     }
 
-    /// The OS window's last picture as text: each character of a run where it stands, inside its
+    /// The GUI window's last picture as text: each character of a run where it stands, inside its
     /// area, a front area over the ones behind, as the window reads itself back.
     Shown light_screen() const {
         Shown s;
@@ -376,7 +376,7 @@ struct Windows::Impl {
     /// What the window answers `WindowShowAsked`, its rows.
     std::vector<std::string> answered() {
         const std::size_t before = ears->shown.size();
-        bus.send_as_to_role(ears_id, office_of(up),
+        bus.send_as_to_role(ears_id, role_of(up),
                             loom::Message(loom::to_value(gfx::WindowShowAsked{}), ears_id, ears_id,
                                           asks++));
         bus.drain_until_idle();
@@ -432,22 +432,22 @@ void Windows::room(std::int64_t width_px, std::int64_t height_px, std::int64_t a
     Impl& m = *impl_;
     m.load_directory();
     if (advance <= 0 || line <= 0) {
-        // A CELL MEDIUM: the terminal window, its room in whole cells.
+        // A CELL MEDIUM: the TUI window, its room in whole cells.
         m.term.size = gfx::window::TerminalSize{width_px / gfx::kCellPx, height_px / gfx::kCellPx};
         if (!m.terminal_id.valid()) {
             m.terminal_id =
-                m.mount<wb::FakeTerminalWindow>(gfx::kTerminalWindow, wb::FakeTerminal{&m.term});
-            m.up = gfx::kTerminalWindow;
+                m.mount<wb::FakeTuiWindow>(gfx::kTuiWindow, wb::FakeTerminal{&m.term});
+            m.up = gfx::kTuiWindow;
             m.activate(m.terminal_id, m.terminal_lives);
-        } else if (m.up != gfx::kTerminalWindow) {
-            m.up = gfx::kTerminalWindow;
+        } else if (m.up != gfx::kTuiWindow) {
+            m.up = gfx::kTuiWindow;
             m.activate(m.terminal_id, m.terminal_lives);
         } else {
-            m.pump(gfx::kTerminalWindow);
+            m.pump(gfx::kTuiWindow);
         }
         return;
     }
-    // A FACE: the OS window, measured with it. A face it did not set text in before is taken as
+    // A FACE: the GUI window, measured with it. A face it did not set text in before is taken as
     // a window started again takes it, since the window measures its face when it claims it.
     const gfx::TextMeasure face{advance, line};
     const bool new_face = !(m.light.face == face);
@@ -471,7 +471,7 @@ void Windows::queue_offer(std::int64_t width_px, std::int64_t height_px) {
     const auto last = m.offers.find(m.up);
     REQUIRE_MESSAGE(last != m.offers.end(), "the window up has offered no room yet");
     gfx::WindowOffered offer = last->second;
-    if (m.up == gfx::kTerminalWindow) {
+    if (m.up == gfx::kTuiWindow) {
         m.term.size = gfx::window::TerminalSize{width_px / gfx::kCellPx, height_px / gfx::kCellPx};
         offer.width = m.term.size.cols * gfx::kCellPx;
         offer.height = m.term.size.rows * gfx::kCellPx;
@@ -480,13 +480,13 @@ void Windows::queue_offer(std::int64_t width_px, std::int64_t height_px) {
         offer.width = width_px;
         offer.height = height_px;
     }
-    (void)m.bus.office_publish_as(id(), office(), loom::Message(loom::to_value(offer)));
+    (void)m.bus.role_publish_as(id(), role(), loom::Message(loom::to_value(offer)));
 }
 
 void Windows::restart() {
     Impl& m = *impl_;
     REQUIRE_MESSAGE(!m.up.empty(), "no window is up to start again");
-    if (m.up == gfx::kTerminalWindow) {
+    if (m.up == gfx::kTuiWindow) {
         m.activate(m.terminal_id, m.terminal_lives);
     } else {
         m.activate(m.sdl_id, m.sdl_lives);
@@ -497,10 +497,10 @@ bool Windows::up() const { return !impl_->up.empty(); }
 
 std::string Windows::window() const { return impl_->up; }
 
-std::string Windows::office() const { return up() ? office_of(impl_->up) : std::string(); }
+std::string Windows::role() const { return up() ? role_of(impl_->up) : std::string(); }
 
 loom::WeaveId Windows::id() const {
-    if (impl_->up == gfx::kTerminalWindow) {
+    if (impl_->up == gfx::kTuiWindow) {
         return impl_->terminal_id;
     }
     if (impl_->up == gfx::kSdlWindow) {
@@ -515,7 +515,7 @@ Shown Windows::shown() {
         return Shown{};
     }
     Shown out;
-    if (m.up == gfx::kTerminalWindow) {
+    if (m.up == gfx::kTuiWindow) {
         m.fold();
         out = m.terminal_screen();
     } else {
@@ -553,7 +553,7 @@ void Windows::clock(std::function<std::int64_t()> read) {
 void Windows::queue(const std::vector<zengine::input::InputEvent>& moments) {
     Impl& m = *impl_;
     for (const zengine::input::InputEvent& e : moments) {
-        if (m.up == gfx::kTerminalWindow) {
+        if (m.up == gfx::kTuiWindow) {
             m.term.moments.push_back(e);
         } else if (m.up == gfx::kSdlWindow) {
             m.light.queued.events.push_back(e);
@@ -564,7 +564,7 @@ void Windows::queue(const std::vector<zengine::input::InputEvent>& moments) {
 std::vector<Quad> Windows::quads() {
     Impl& m = *impl_;
     const bool sdl = m.up == gfx::kSdlWindow;
-    REQUIRE_MESSAGE(sdl, "quads are the OS window's");
+    REQUIRE_MESSAGE(sdl, "quads are the GUI window's");
     std::vector<Quad> out;
     if (m.light.frames.empty()) {
         return out;
@@ -581,8 +581,8 @@ std::vector<Quad> Windows::quads() {
 
 std::vector<Cell> Windows::cells() {
     Impl& m = *impl_;
-    const bool terminal = m.up == gfx::kTerminalWindow;
-    REQUIRE_MESSAGE(terminal, "cells are the terminal window's");
+    const bool terminal = m.up == gfx::kTuiWindow;
+    REQUIRE_MESSAGE(terminal, "cells are the TUI window's");
     m.fold();
     std::vector<Cell> out;
     const auto rows = static_cast<std::size_t>((std::max)(m.term.size.rows, std::int64_t{0}));
@@ -598,8 +598,8 @@ std::vector<Cell> Windows::cells() {
 
 void Windows::watch() {
     Impl& m = *impl_;
-    const bool terminal = m.up == gfx::kTerminalWindow;
-    REQUIRE_MESSAGE(terminal, "only the terminal window's showings are kept");
+    const bool terminal = m.up == gfx::kTuiWindow;
+    REQUIRE_MESSAGE(terminal, "only the TUI window's showings are kept");
     m.fold();
     m.watched.clear();
     m.watching = true;

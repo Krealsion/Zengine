@@ -145,7 +145,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v2
         shape<::zengine::workshop::SessionSaveRequested>(), // SessionSaveRequested v1
         shape<::zengine::workshop::SessionSaveAnswered>(), // SessionSaveAnswered v1
-        shape<::zengine::workshop::WeaversActRequested>(), // WeaversActRequested v1
+        shape<::zengine::workshop::WeaversActRequested>(), // WeaversActRequested v2
         shape<::zengine::workshop::WeaversActAnswered>(), // WeaversActAnswered v1
         shape<::zengine::workshop::ArrangementDoorState>(), // ArrangementDoorState v2
         shape<::zengine::workshop::EditorSwitchState>(), // EditorSwitchState v1
@@ -183,13 +183,29 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1
         shape<::zengine::workshop::PaneRevealRequested>(), // PaneRevealRequested v1
         shape<::zengine::workshop::PowersDoorState>(), // PowersDoorState v1
-        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v4
+        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v5
+        shape<::zengine::workshop::prefs_persist::v4::WorkshopPrefs>(), // WorkshopPrefs v4
         shape<::zengine::workshop::prefs_persist::v3::WorkshopPrefs>(), // WorkshopPrefs v3
         shape<::zengine::workshop::prefs_persist::v2::WorkshopPrefs>(), // WorkshopPrefs v2
         shape<::zengine::workshop::prefs_persist::v1::WorkshopPrefs>(), // WorkshopPrefs v1
-        shape<::zengine::workshop::OfficeSettings>(), // OfficeSettings v1
-        shape<::zengine::workshop::OfficeSettingCommitAnswered>(), // OfficeSettingCommitAnswered v1
+        shape<::zengine::workshop::RoleSettings>(), // RoleSettings v1
+        shape<::zengine::workshop::RoleSettingCommitAnswered>(), // RoleSettingCommitAnswered v1
+        shape<::zengine::workshop::RoleSettingsDeclared>(), // RoleSettingsDeclared v1
+        // ...and the asks a pane built on an earlier vocabulary says, which Workshop and the
+        // layouts' owner read, with the answers they give it
+        shape<::zengine::workshop::v1::PaneLaunchRequested>(), // PaneLaunchRequested v1
+        shape<::zengine::workshop::v2::PaneLaunchRequested>(), // PaneLaunchRequested v2
+        shape<::zengine::workshop::v1::PaneLaunchAnswered>(), // PaneLaunchAnswered v1
+        shape<::zengine::workshop::v1::PaneCloseRequested>(), // PaneCloseRequested v1
+        shape<::zengine::workshop::v2::PaneCloseAnswered>(), // PaneCloseAnswered v2
+        shape<::zengine::workshop::v1::PaneToggleRequested>(), // PaneToggleRequested v1
+        shape<::zengine::workshop::v1::PaneToggleAnswered>(), // PaneToggleAnswered v1
+        shape<::zengine::workshop::v1::PaneManageRequested>(), // PaneManageRequested v1
         shape<::zengine::workshop::OfficeSettingsDeclared>(), // OfficeSettingsDeclared v1
+        shape<::zengine::workshop::OfficeSettingsRequested>(), // OfficeSettingsRequested v1
+        shape<::zengine::workshop::OfficeSettingsAnswered>(), // OfficeSettingsAnswered v1
+        shape<::zengine::workshop::OfficeSettingCommitRequested>(), // OfficeSettingCommitRequested v1
+        shape<::zengine::workshop::OfficeSettingCommitAnswered>(), // OfficeSettingCommitAnswered v1
         shape<::zengine::workshop::QuitDeliveryRefusalNoted>(), // QuitDeliveryRefusalNoted v1
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1
         shape<::zengine::workshop::recipe_persist::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v2
@@ -270,7 +286,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::AppActionRow>(), // AppActionRow v1
         shape<::zengine::workshop::AppActions>(), // AppActions v1
         shape<::zengine::composer::ComposerCommandContext>(), // ComposerCommandContext v1
-        shape<::zengine::snake::OperatorState>(), // OperatorState v1
+        shape<::zengine::snake::ConsoleState>(), // ConsoleState v1
         // What crosses the window's two seams, and the operands of the seven operators: bytes in
         // process, in no weave's manifest.
         shape<::zengine::graphics::PaintNode>(), // PaintNode v1
@@ -304,7 +320,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::snake::SnakeStep>(), // SnakeStep v1
         shape<::zengine::snake::SnakeNewGame>(), // SnakeNewGame v1
         shape<::zengine::snake::SnakeBoardState>(), // SnakeBoardState v1
-        // The theme file and the settings office's doors, which no weave declares.
+        // The theme file and the settings role's doors, which no weave declares.
         shape<::zengine::settings::ThemeSetting>(), // ThemeSetting v1
         shape<::zengine::settings::ThemeKey>(), // ThemeKey v1
         shape<::zengine::settings::ThemeFile>(), // ThemeFile v1
@@ -325,7 +341,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::settings::ThemeProvenanceRequested>(), // ThemeProvenanceRequested v1
         shape<::zengine::settings::ThemeProvenanceEntry>(), // ThemeProvenanceEntry v1
         shape<::zengine::settings::ThemeProvenanceShown>(), // ThemeProvenanceShown v1
-        // Said by the OS window, which a build without SDL has no manifest of.
+        // Said by the GUI window, which a build without SDL has no manifest of.
         shape<zengine::graphics::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
     };
 }

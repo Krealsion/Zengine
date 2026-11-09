@@ -30,10 +30,10 @@ plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts i
   what the console allows. Loom's warden adopts each load inside the control door, so `authority
   allow`, `show` and `revoke` reach a running row.
 - The app's window is the first window that offers itself. Its `SurfaceCloseRequested`, said as its
-  office, ends the run with exit 0; a close any other office says, or one said with no office,
+  role, ends the run with exit 0; a close any other role says, or one said with no role,
   ends nothing. `quit` at the console ends it too.
 - `zengine-app-weave` reads `app.json` from the folder the place door says, runs each flow then
-  each view as its office, and on the directory's `GraphicsReady` and the window's `WindowOffered`
+  each view as its role, and on the directory's `GraphicsReady` and the window's `WindowOffered`
   offers the palette of the shipped theme `app.json` names, chooses it for each area, and places
   each view's area hearing the window's keys and pointer. Once its own line has its room in the app's window, the
   window holds it as an arranger, and it says `app.json`'s title and size there (`WindowShaped`),

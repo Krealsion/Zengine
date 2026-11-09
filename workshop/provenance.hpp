@@ -4,8 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_PROVENANCE_HPP
 #define ZENGINE_WORKSHOP_PROVENANCE_HPP
 
-// What stands behind a running office's code: the host's side of a pane's Edit Code. Three edges,
-// read from three owners at the ask (office to weave, the bus; weave to artifact, the realization
+// What stands behind a running role's code: the host's side of a pane's Edit Code. Three edges,
+// read from three owners at the ask (role to weave, the bus; weave to artifact, the realization
 // owner's row, joined by WeaveId and never by role string; artifact to recipes, the catalog), and
 // nothing chosen. Host-side, because it reads the realization owner's rows.
 // Workshop law: agents/workshop/code.md
@@ -23,15 +23,15 @@
 
 namespace zengine::workshop::provenance {
 
-/// WHAT STANDS BEHIND `office`, given the three owners' readings at this instant: the office's
+/// WHAT STANDS BEHIND `role`, given the three owners' readings at this instant: the role's
 /// holder (invalid when nobody holds it), the realization owner's resolved rows, and the
 /// completed recipe catalog.
 // WL-CODE-01 -- agents/workshop/code.md
-inline HostContext::CodeSource code_source_of(const std::string& office, loom::WeaveId holder,
+inline HostContext::CodeSource code_source_of(const std::string& role, loom::WeaveId holder,
                                               const std::vector<load::ResolvedArtifact>& rows,
                                               const std::vector<builder::Recipe>& recipes) {
     HostContext::CodeSource out;
-    out.office = office;
+    out.role = role;
     if (!holder.valid()) {
         return out;
     }
@@ -88,15 +88,15 @@ inline HostContext::RecipeSource recipe_source_of(const std::vector<builder::Rec
     return out;
 }
 
-/// THE SAME READING, TAKEN FROM THE OWNERS THEMSELVES at this instant: who holds the office on
+/// THE SAME READING, TAKEN FROM THE OWNERS THEMSELVES at this instant: who holds the role on
 /// this bus, the rows this realization owner has resolved, and the catalog in force. What the
 /// host wires into `HostContext::code_source`; it reads, and it drives nothing.
 // WL-CODE-01 -- agents/workshop/code.md
-inline HostContext::CodeSource code_source_of(const std::string& office,
+inline HostContext::CodeSource code_source_of(const std::string& role,
                                               const loom::Switchboard& bus,
                                               const load::PlanExecutor& realization,
                                               const CurrentRecipes& recipes) {
-    return code_source_of(office, bus.role_holder(office), realization.resolved(), recipes.all());
+    return code_source_of(role, bus.role_holder(role), realization.resolved(), recipes.all());
 }
 
 } // namespace zengine::workshop::provenance

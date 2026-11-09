@@ -5,7 +5,7 @@
 // artifacts by path from the directory argv[1] names: the Timer service, from the installed
 // package, and the oven this project built. It installs a refusal observer, since a sender cannot
 // see its send's fate: `kitchen-host <dir>` must bake and print no refusal, and
-// `kitchen-host <dir> --no-timer` must name the refused order's shape and office. Either arm
+// `kitchen-host <dir> --no-timer` must name the refused order's shape and role. Either arm
 // alone speaks only to volume; together they speak to meaning.
 
 #include "kitchen.hpp"
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
         // hear it, so nothing can be served -- and the only question worth asking is
         // whether the program said WHY. `StartTimer` cannot resolve, because the artifact
         // that defines the Timer vocabulary is the one that was not loaded, so the seam
-        // refuses the emission and names the office the oven addressed.
+        // refuses the emission and names the role the oven addressed.
         if (waiter->served) {
             std::printf("kitchen: SERVED WITHOUT A TIMER\n");
             return 1;

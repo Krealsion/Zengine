@@ -60,9 +60,9 @@ inline constexpr const char* kLoadingNow = "(loading)";
 /// at the first refusal -- and its own mount, if it made one, has been rolled back.
 inline constexpr const char* kRefusedRow = "(refused)";
 
-/// A ROW WHOSE OFFICE A SWITCH MOVED to another authored choice: resolved, and not running. The
-/// choice that holds the office is its own row of the same view.
-inline constexpr const char* kSwitchedRow = "(switched: its office is held by another choice)";
+/// A ROW WHOSE ROLE A SWITCH MOVED to another authored choice: resolved, and not running. The
+/// choice that holds the role is its own row of the same view.
+inline constexpr const char* kSwitchedRow = "(switched: its role is held by another choice)";
 
 /// An optional row that refused and was stepped over: settled and not running. Its `why` and
 /// `next` rows follow it, from the owner's answer.

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_NOTICES_VOCABULARY_HPP
 #define ZENGINE_NOTICES_VOCABULARY_HPP
 
-// The notices record's durable names: the office that keeps what Workshop said, its one setting and
+// The notices record's durable names: the role that keeps what Workshop said, its one setting and
 // its bounds, the ask that reads a page of it, the page, the word that it moved, and the state a
 // reload keeps. What Workshop says arrives as `NoticeSaid` (workshop/notice_seam_vocabulary.hpp).
 // Workshop law: agents/workshop/notices.md
@@ -18,13 +18,13 @@
 
 namespace zengine::notices {
 
-/// THE OFFICE THAT KEEPS THE NOTICES, and the only address anything reaches the record by.
+/// THE ROLE THAT KEEPS THE NOTICES, and the only address anything reaches the record by.
 inline constexpr const char* kNoticesRole = "zengine.notices";
 
 /// THE LIBRARY STEM A HOST BOOTS, here because the host's plan and the suites' loader must agree.
 inline constexpr const char* kNoticesStem = "zengine-notices";
 
-/// THE ONE SETTING THE RECORD DECLARES, office-wide: how many notices it keeps, the oldest let go
+/// THE ONE SETTING THE RECORD DECLARES, role-wide: how many notices it keeps, the oldest let go
 /// past it. It takes `kDefaultKept` to `kMostKept`.
 inline constexpr const char* kSettingKeep = "keep";
 inline constexpr std::int64_t kDefaultKept = 100;

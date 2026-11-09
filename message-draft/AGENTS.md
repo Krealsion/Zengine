@@ -30,7 +30,7 @@ Consumers' suites spend it too: `composer` (`tests/test_composer.cpp`), `flow`
 
 ## Host side
 
-- Nothing in `workshop/` hosts it: no office, pane or seam vocabulary. Consumers include it:
+- Nothing in `workshop/` hosts it: no role, pane or seam vocabulary. Consumers include it:
   `composer/draft.hpp`, `flow/shape.hpp`, `flow/workspace.hpp`, `info/value_view.hpp`,
   `inventory/inventory-pane/command.hpp`, `editor/source-transfer/material.hpp`,
   `view/view-builder/pane.cpp`; `flow/flow-pane/CMakeLists.txt` links it.

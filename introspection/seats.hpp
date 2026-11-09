@@ -33,6 +33,7 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/manager.hpp>
 #include <zen/weave.hpp>
@@ -49,12 +50,12 @@
 
 namespace zengine::introspection {
 
-/// The office Workshop holds, spelled as a string: a provider is a stranger to Workshop's
-/// internals and names who it talks to as a third party would.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// WHAT A SEAT SPEAKS WITH ON ONE DELIVERY: the mail it answers, the weave's own id (the sender a
-/// value sent as a message names), and the one counter every question this office asks is
+/// value sent as a message names), and the one counter every question this role asks is
 /// numbered from, for all three panes -- so a refusal's correlation matches one question at most.
 struct Voice {
     loom::Mail& mail;
@@ -85,7 +86,7 @@ protected:
     std::int64_t rows() const noexcept { return room_.rows(); }
     std::int64_t columns() const noexcept { return room_.columns(); }
 
-    /// A NEW QUESTION OUTSTANDING, numbered from the office's one counter: a newer grant replaces
+    /// A NEW QUESTION OUTSTANDING, numbered from the role's one counter: a newer grant replaces
     /// the correlation, so the answer to an older room is dropped.
     std::uint64_t pose(Voice voice) {
         pending_ = voice.next();
@@ -94,7 +95,7 @@ protected:
     }
 
     /// Ask this pane's owner its question for the room it holds, by role (the addresses that
-    /// survive their holders), as this office, because the arrangement door answers offices
+    /// survive their holders), as this role, because the arrangement door answers roles
     /// (workshop/arrangement.hpp).
     template <class Question>
     void ask(Voice voice, const char* owner, const Question& question) {
@@ -158,7 +159,7 @@ public:
         ask(voice, loom::kManagerRole, loom::ListLoaded{});
     }
 
-    /// The Manager's answer, matched on the correlation this office minted and an open question --
+    /// The Manager's answer, matched on the correlation this role minted and an open question --
     /// all an asker can check, since the Manager relays personally: no authored role, no expected
     /// sender. A weave able to send `zen.Result` with a live private correlation could supply
     /// rows; that is the process tier's problem, not a claim this seam makes. A selection is
@@ -185,8 +186,8 @@ public:
     /// nothing re-asked -- re-reading the Manager here could select something the weaver was never
     /// shown. A row naming no entry selects nothing and clears nothing. The same row pressed twice
     /// publishes twice (a selection is an occurrence) and re-sends no picture. Published, not
-    /// addressed: who ought to care is not this pane's decision; as this office, because a fact
-    /// about a weaver's gesture is worth what its office is. True when it published.
+    /// addressed: who ought to care is not this pane's decision; as this role, because a fact
+    /// about a weaver's gesture is worth what its role is. True when it published.
     bool press(std::int64_t pressed_row, loom::Mail& mail, std::int64_t pressed_column = -1) {
         // THE SEARCH'S BOX, pressed anywhere in it, its blank room and border included: the caret
         // goes where the press names, and nothing is selected.
@@ -537,7 +538,7 @@ public:
 
     /// A KEY WHILE POWERS HOLDS THE KEYBOARD: only the query field's editing vocabulary acts here;
     /// what the pane commands arrives as a resolved id (`on_action`). A copy is said once; a paste
-    /// is asked of the office that holds the platform (`begin_clipboard_paste`), since only an
+    /// is asked of the role that holds the platform (`begin_clipboard_paste`), since only an
     /// owner can read the clipboard's current value.
     void on_key(Voice voice, const workshop::PaneKey& key) {
         const std::uint64_t copied_before = clip_.writes;
@@ -842,12 +843,12 @@ private:
         return true;
     }
 
-    /// Ask the door this pane's search, as this office: a newer search replaces the correlation,
+    /// Ask the door this pane's search, as this role: a newer search replaces the correlation,
     /// so the answer to one the weaver has typed past is dropped. `FindPowers` is a value built
     /// at its own schema, its fields optional, so it leaves as that value.
     void ask_powers(Voice voice) {
         const std::uint64_t correlation = pose(voice);
-        (void)voice.mail.bus().office_send_to_role(
+        (void)voice.mail.bus().role_send_to_role(
             kIntrospectionRole, workshop::kPowersRole,
             loom::Message(workshop::find_powers_value(powers_question(ui_)), voice.self,
                           loom::WeaveId{}, correlation));
@@ -871,9 +872,9 @@ private:
     /// Ask what the platform clipboard holds, of the window that shows the pane's area, for a paste
     /// the query requested; the epoch says the draft the answer is for is still in the box.
     void begin_clipboard_paste(loom::Mail& mail) {
-        const std::string office = room().clipboard_office();
+        const std::string role = room().clipboard_role();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            office, graphics::ClipboardTextRequested::zen_name,
+            role, graphics::ClipboardTextRequested::zen_name,
             graphics::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
@@ -882,7 +883,7 @@ private:
         paste_epoch_ = ui_.query.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(office, graphics::ClipboardTextRequested{}, opened.correlation);
+            .send_to_role(role, graphics::ClipboardTextRequested{}, opened.correlation);
     }
 
     /// ONE OUTSTANDING QUESTION OF ITS OWN, and the identity it asked about: a sample or a

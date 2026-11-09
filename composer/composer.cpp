@@ -25,6 +25,7 @@
 #include "manual/vocabulary.hpp"
 #include "message-draft/library.hpp"
 #include "manuals/zengine.composer.hpp" // this pane's manual, compiled in from its page
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/registry.hpp>
@@ -68,7 +69,7 @@ using zengine::workshop::PaneTextInput;
 namespace stage = zengine::composer::stage;
 namespace meaning = zengine::composer::meaning;
 
-constexpr const char* kWorkshopRole = "zengine.workshop";
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 using zengine::composer::ComposerCommandContext;
 using AcceptedShapes = zengine::RawValueDoor<&loom::accepted_shapes_schema>;
@@ -81,7 +82,7 @@ struct ComposerFieldState {
     ZEN_SHAPE(ComposerFieldState, 1, ZEN_FIELD(present), ZEN_FIELD(text));
 };
 
-/// The counters, and what a reload in place keeps: the target (the library pressed and the office
+/// The counters, and what a reload in place keeps: the target (the library pressed and the role
 /// addressed) and the form open on it -- its message by name and version, each field's presence
 /// and text, the values only a drop gives (a message, bytes, a list) as a draft library, and the
 /// cursor -- and what the reload ended before it was answered, a submission or a store. Never the
@@ -242,7 +243,7 @@ public:
         if (!send_value_ || !mail.answers_ask() || mail.correlation() != send_correlation_) return;
         if (!answer.allowed) { send_value_.reset(); complain(answer.reason); say(mail); return; }
         ++state_.submitted;
-        send_attempt_ = mail.bus().office_send_to_role(kComposerRole, send_role_,
+        send_attempt_ = mail.bus().role_send_to_role(kComposerRole, send_role_,
             loom::Message(std::move(*send_value_), {}, {}, send_correlation_));
         send_value_.reset();
         composing_.notice = send_attempt_.valid() ? "SUBMITTED -- queued; outcome belongs to the receiver"
@@ -707,7 +708,7 @@ private:
         if (d == nullptr) {
             return; // unreachable while edit_field's gate holds; written anyway
         }
-        const std::string clipboard = room().clipboard_office();
+        const std::string clipboard = room().clipboard_role();
         const loom::AskOpened opened = clip_asks_.open_to_role(
             clipboard, gfx::ClipboardTextRequested::zen_name,
             gfx::ClipboardTextRequested::zen_version);

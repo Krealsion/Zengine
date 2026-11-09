@@ -331,7 +331,7 @@ target_link_libraries(zengine-builder-pane-reworded PRIVATE zengine-workshop-voc
 # THE EDITOR SWITCH'S OTHER CHOICES, for suite `workshop_editor_switch`: the standard Editor's own
 # source built under other stems, so a switch runs between two real Editors with no Neovim at all
 # -- one plain, three that fail on purpose at exactly one step (a candidate that never answers
-# its warm-up, one that refuses every adoption, one that holds the office and says it does not
+# its warm-up, one that refuses every adoption, one that holds the role and says it does not
 # serve), and one whose switch away loses something that moves with its document, so consent can
 # be asked for and made stale. Each definition compiles into its own image only.
 foreach(switch_variant IN ITEMS "b" "silent" "refusing" "not-live" "losing")
@@ -367,7 +367,7 @@ zengine_test_definitions(zengine-tests
     "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
     "STDOUT_PAINTER_SO=\"$<TARGET_FILE:zengine-test-stdout-painter>\""
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
-    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-tui>\""
     # The world's beat, over virtual time: a pace is a claim about durations.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
     # The host's source, for the tripwire that no privileged wind returns: a root Drive is
@@ -396,7 +396,7 @@ zengine_test_definitions(zengine-timer-tests
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
-    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-tui>\""
     # The continuity cases: virtual time, real everything else.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
     "PROBE_ONESHOT_SO=\"$<TARGET_FILE:zengine-probe-oneshot>\""
@@ -405,7 +405,7 @@ zengine_test_definitions(zengine-timer-tests
     "TIMER_VIRTUAL_V2_SO=\"$<TARGET_FILE:zengine-timer-virtual-v2>\""
     "TIMER_DECLINES_SO=\"$<TARGET_FILE:zengine-timer-declines>\"")
 
-# timer_weave.hpp answers from the Timer office's manual, and the office case reads it.
+# timer_weave.hpp answers from the Timer role's manual, and the role case reads it.
 zengine_manual(zengine-timer-tests PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 
 zengine_doctest_test(timer zengine-timer-tests)
@@ -508,7 +508,7 @@ target_link_libraries(zengine-input-tests
 target_include_directories(zengine-input-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/examples/snake)
-# ...and the office's page, which the office witness holds the two loaded weaves to.
+# ...and the role's page, which the role witness holds the two loaded weaves to.
 zengine_manual(zengine-input-tests PRIVATE ${PROJECT_SOURCE_DIR}/input/docs/zengine.input.md)
 
 zengine_test_definitions(zengine-input-tests
@@ -774,7 +774,7 @@ zengine_test_definitions(zengine-flow-tests
     "FLOW_BOUNDARIES=\"$<TARGET_FILE:zengine-flow-boundaries>\""
     "FLOW_HIGH_WATER=\"$<TARGET_FILE:zengine-flow-high_water>\""
     "FLOW_EMPTY=\"$<TARGET_FILE:zengine-flow-empty>\"")
-# test_flow_runtime.cpp mounts the Timer and the Flow host, each answering from its office's manual.
+# test_flow_runtime.cpp mounts the Timer and the Flow host, each answering from its role's manual.
 zengine_manual(zengine-flow-tests PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 zengine_manual(zengine-flow-tests PRIVATE ${PROJECT_SOURCE_DIR}/flow/docs/zengine.flow.host.md)
 add_dependencies(zengine-flow-tests zengine-flow-thermostat zengine-flow-boundaries
@@ -818,8 +818,8 @@ zengine_test_definitions(zengine-app-host-tests
     "APP_ARTIFACTS_DIR=\"$<TARGET_FILE_DIR:zengine-app>\""
     "TALLY_APP_DIR=\"${CMAKE_SOURCE_DIR}/examples/tally-app\"")
 add_dependencies(zengine-app-host-tests zengine-app)
-# The windows the suite mounts in process carry their offices' pages.
-zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
+# The windows the suite mounts in process carry their roles' pages.
+zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.tui.md)
 zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
 zengine_doctest_test(app_host zengine-app-host-tests)
 
@@ -889,7 +889,7 @@ target_include_directories(zengine-inventory-tests PRIVATE ${CMAKE_CURRENT_SOURC
 zengine_test_definitions(zengine-inventory-tests
     "INVENTORY_SO=\"$<TARGET_FILE:zengine-inventory>\"")
 add_dependencies(zengine-inventory-tests zengine-inventory)
-# ...and the office's page as its build embeds it, which the weave mounted here answers from.
+# ...and the role's page as its build embeds it, which the weave mounted here answers from.
 zengine_manual(zengine-inventory-tests PRIVATE ${PROJECT_SOURCE_DIR}/inventory/docs/zengine.inventory.md)
 zengine_doctest_test(inventory zengine-inventory-tests)
 
@@ -929,7 +929,7 @@ zengine_compile_test(graphics_color_role_refused zengine-cn-graphics-color-role
                      "role.*has not been declared|role.*is not a member|no member named .role.|by_role.*is not a member|no member named .by_role.")
 
 # ---- the Workshop suites --------------------------------------------------------------
-# The windows the rigs show their desk in (rig_windows.hpp): the terminal window and the OS window
+# The windows the rigs show their desk in (rig_windows.hpp): the TUI window and the GUI window
 # over the suites' own devices (window_backends.hpp), compiled once here rather than in every unit
 # that includes the rig. It names no path: the suite gives it the directory's.
 add_library(zengine-workshop-rig-windows STATIC rig_windows.cpp)
@@ -939,7 +939,7 @@ target_link_libraries(zengine-workshop-rig-windows
             zengine-activation zengine-warnings zengine-sanitize)
 target_include_directories(zengine-workshop-rig-windows PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
+zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.tui.md)
 zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
 
 # One entry per subject (VM-POP-11), an entry holding several sources where one object cannot
@@ -1189,7 +1189,7 @@ endif()
 # (`editor_transfer_story.hpp`); every case there rides the `neovim` gate.
 zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp test_workshop_neovim_transfers.cpp
     DEFINITIONS ${zengine_neovim_suite_defs}
-                # The action census, whose rows for the Editor's office its manual is held to.
+                # The action census, whose rows for the Editor's role its manual is held to.
                 "ZENGINE_ACTIONS=\"${CMAKE_SOURCE_DIR}/tests/actions.txt\""
                 "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
                 "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\""
@@ -1271,14 +1271,14 @@ endforeach()
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt"
      CONTENT "${zengine_census_lines}")
 # It links the guests library, the view package and the app host, whose doors and hosts
-# tests/census_headers.hpp includes, each with the manual its office answers from.
+# tests/census_headers.hpp includes, each with the manual its role answers from.
 zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_census.cpp
     LINKS zengine-workshop-guests zengine-view zengine-settings-vocabulary zengine-app-host
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
                 "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""
     NEEDS ${zengine_census_weaves})
-# The census makes every weave it reads, the OS window among them, which opens only on a driver
+# The census makes every weave it reads, the GUI window among them, which opens only on a driver
 # SDL has: SDL's dummy driver, as the graphics suite's.
 set_tests_properties(workshop_shapes PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy;ZENGINE_SDL_NOT_FOCUSABLE=1")
@@ -1293,7 +1293,7 @@ zengine_workshop_suite(panes
     LINKS loom::history zengine-view zengine-workshop-guests
     # By subject, each part one entry, workshop_panes_<part>, or a long one pieces of a minute or
     # less under the sanitizer lane, cut by its cases' seconds (the COST table's):
-    # what an office may offer and who speaks for it, the room and where a pane sits, its canvas,
+    # what a role may offer and who speaks for it, the room and where a pane sits, its canvas,
     # the second button and the menu presenter, the demo controls;
     PART seam test_workshop_demo.cpp
               test_workshop_panes_seam.cpp
@@ -1331,7 +1331,7 @@ zengine_workshop_suite(panes
                   test_workshop_panes_powers.cpp
          PIECES 47
     # the Builder, Files, a pane's code and a build's output, with the action census, which
-    # drives every office's census and press drivers: they register in every process of the
+    # drives every role's census and press drivers: they register in every process of the
     # program, whatever it selects;
     PART project test_workshop_panes_builder.cpp
                  test_workshop_panes_files.cpp
@@ -1354,8 +1354,8 @@ zengine_workshop_suite(panes
                 # words, the image a reload in place swaps in.
                 "ZENGINE_ACTIONS=\"${CMAKE_SOURCE_DIR}/tests/actions.txt\""
                 "ZENGINE_ACTIONS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/actions-now-$<CONFIG>.txt\""
-                # ...and the Editor office's other holder, the Neovim-backed Editor, on the fake
-                # Neovim: the census and the manual are the office's, so both holders are driven.
+                # ...and the Editor role's other holder, the Neovim-backed Editor, on the fake
+                # Neovim: the census and the manual are the role's, so both holders are driven.
                 "WORKSHOP_SO_NEOVIM_EDITOR=\"$<TARGET_FILE:zengine-neovim-editor>\""
                 "NEOVIM_FIXTURE=\"$<TARGET_FILE:zengine-neovim-fixture>\""
                 "WORKSHOP_SO_BUILDER_PANE_REWORDED=\"$<TARGET_FILE:zengine-builder-pane-reworded>\""
@@ -1425,7 +1425,7 @@ zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/intros
 # The load suite asks which artifacts are in the room at all. It stages them into a real
 # directory of its own (so the suites can run at once), since "filesystem presence is not load
 # authority" cannot be asked of a lookup table, and resolves stems there by the host's own rule:
-# the files a weaver runs, the OS window where this build made one, and fixtures for what a plan
+# the files a weaver runs, the GUI window where this build made one, and fixtures for what a plan
 # can get wrong.
 set(zengine_load_os_window "")
 set(zengine_load_os_window_needs "")
@@ -1436,14 +1436,14 @@ endif()
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
           zengine-operator-consumer-weave zengine-introspection zengine-legacy-pane
-          zengine-graphics zengine-window-terminal zengine-input ${zengine_load_os_window_needs}
+          zengine-graphics zengine-window-tui zengine-input ${zengine_load_os_window_needs}
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 ${zengine_load_os_window}
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
                 # The default plan's two medium rows and the input weave after them, realized as
                 # the plan names them.
                 "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
-                "WINDOW_TERMINAL_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+                "WINDOW_TUI_SO=\"$<TARGET_FILE:zengine-window-tui>\""
                 "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
                 # Two more real images: a good consumer weave, whose reload must say `Offered`
                 # again, and one with another state shape, for the changed-shape refusal.
@@ -1592,7 +1592,7 @@ zengine_doctest_test(workshop_probe zengine-workshop-probe-tests)
 # A real `zengine-workshop` launched with a guests file and the shipped terminal plan beside it,
 # and this program as the other host: admitted by credential, refused by a wrong one, an input
 # session, the desktop's chord injected, the desktop asked what it accepts, and a picture of the
-# real terminal window read for the Pane Manager the chord opened; then a Workshop whose roots and
+# real TUI window read for the Pane Manager the chord opened; then a Workshop whose roots and
 # keymap stand in a folder named beyond ASCII, saving its session there and reopening it.
 add_executable(zengine-guest-journey guest_journey.cpp)
 target_link_libraries(zengine-guest-journey
@@ -1782,7 +1782,7 @@ target_include_directories(zengine-audit-probes PRIVATE
 zengine_test_definitions(zengine-audit-probes
     "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
-# The probes mount the Timer, which answers from its office's manual.
+# The probes mount the Timer, which answers from its role's manual.
 zengine_manual(zengine-audit-probes PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 
 zengine_doctest_test(audit_probes zengine-audit-probes)
@@ -1802,9 +1802,12 @@ target_include_directories(zengine-graphics-tests PRIVATE
 # The suite's own slots, generated as a stranger's pane generates its own (cmake/ZengineNames.cmake).
 zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_slots.json
               NAMESPACE graphics_suite::colors HEADER graphics_suite/colors.hpp)
+# ...and a version-1 file, which names its role `office`, read the same way.
+zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_slots_v1.json
+              NAMESPACE graphics_suite_v1::colors HEADER graphics_suite/colors_v1.hpp)
 zengine_test_definitions(zengine-graphics-tests
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
-    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-tui>\""
     # The package's own folder, for the tripwire that no graphics source includes Surface: a claim
     # about what code does not contain holds on every lane, and only reading the files can show
     # it (VM-WALL-11).
@@ -1814,15 +1817,15 @@ zengine_test_definitions(zengine-graphics-tests
     "WORLD_V2_SO=\"$<TARGET_FILE:snake-world-v2>\""
     "ATTENTION_PANE_SO=\"$<TARGET_FILE:zengine-attention-pane>\""
     "CONNECTIONS_PANE_SO=\"$<TARGET_FILE:zengine-connections-pane>\"")
-# The suite mounts both windows in process, and reads every office's page against what it accepts.
-zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
+# The suite mounts both windows in process, and reads every role's page against what it accepts.
+zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.tui.md)
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.graphics.md)
 zengine_doctest_test(graphics zengine-graphics-tests)
-# The OS window's own weave is a conditional subpopulation (VM-POP-08): the cases that load
+# The GUI window's own weave is a conditional subpopulation (VM-POP-08): the cases that load
 # zengine-window-sdl through the kernel, open its window under SDL's dummy driver and reload it,
 # behind GRAPHICS_HAS_SDL. The suite links the same shared SDL the weave does, so a case can count
-# the process's OS windows across a reload.
+# the process's GUI windows across a reload.
 if(TARGET zengine-window-sdl)
     zengine_test_definitions(zengine-graphics-tests
         GRAPHICS_HAS_SDL=1

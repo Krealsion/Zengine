@@ -138,7 +138,7 @@ desk_v5_to_v6 session_v11_to_v12 session_v11_to_v13 session_v12_to_v13 v12 v12::
 `tests/test_workshop_persistence.cpp` "a retired shape's wire identity is the identity it was
 written at" "three DIRECT edges, and no chain to walk even if one wanted to" "a conversion owns
 yesterday's semantics and does not rewrite history" "a version-8 session converts with every field
-kept and no choice remembered" "a version-9 session converts with every field kept and no OS
+kept and no choice remembered" "a version-9 session converts with every field kept and no GUI
 window's room" "a version-10 session comes forward whole and is written back in lines"
 
 ### WL-MIG-03
@@ -185,7 +185,7 @@ weave" "unmounting the artifact takes the conversion with it"
 `workshop/load_execute.hpp` PlanExecutor PlanExecutor::begin
 `workshop/default-load-plan.json` zengine-workshop-session-history
 `tests/test_workshop_load.cpp` "a plan of provider-only rows finishes inside begin(), turning
-nothing" "the shipped default plan is a legal plan, and it opens the OS window, else the terminal
+nothing" "the shipped default plan is a legal plan, and it opens the GUI window, else the TUI
 window"
 
 ### WL-MIG-10

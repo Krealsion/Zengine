@@ -6,7 +6,7 @@ Info` to make it Info's subject, the keys into Info, and for each of X, Y, Width
 its row, Return, the value, Return. loom-tool.json describes the input.
 
 EVERY ROW IS CHOSEN BY THE NAME ITS PANE GIVES IT: a pane's Pane Manager row by its reference,
-`pane:<office>/<pane>`, the menu's line by its id, `launcher.inspect`, and Info's property by its
+`pane:<role>/<pane>`, the menu's line by its id, `launcher.inspect`, and Info's property by its
 label, `property:Width`. A row is read back by that name too. A Pane Manager the run put on the
 desk to choose a pane is taken off it again.
 
@@ -39,8 +39,8 @@ def rows_now(hand):
 
 def listed_name(ctx, hand, name):
     """What the desk calls the pane `name` names -- the subject line Info paints for it."""
-    office, pane = pane_ref(name)
-    on = [p for p in hand.desk()["panes"] if p["provider"] == office and p["pane"] == pane]
+    role, pane = pane_ref(name)
+    on = [p for p in hand.desk()["panes"] if p["provider"] == role and p["pane"] == pane]
     ctx.check(on, "place: the desk holds no pane %s" % name[len("pane:"):])
     return on[0]["name"]
 
@@ -111,7 +111,7 @@ def write(ctx, hand, label, value):
 def run(ctx):
     panes = json.loads(ctx.inputs["panes"])
     ctx.check(isinstance(panes, list) and panes and all(isinstance(p, dict) for p in panes),
-              "panes is a JSON list of {\"pane\": \"pane:<office>/<pane>\", \"x\": .., \"y\": .., "
+              "panes is a JSON list of {\"pane\": \"pane:<role>/<pane>\", \"x\": .., \"y\": .., "
               "\"width\": .., \"height\": ..}")
     for p in panes:
         pane_ref(p.get("pane"))  # a pane named by anything but its row's name, before any contact

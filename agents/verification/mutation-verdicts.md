@@ -116,9 +116,9 @@ guard out of play, and only a probe of the delivery order showed it.
 ## VM-MUT-31 — A refusal case names which of three facts it witnesses
 
 METHOD — Say whether a refusal case witnesses an enqueue that queued nothing, Loom's refusal of a queued attempt, or a forgery, and show it by that branch's mutant alone: the other branches' mutants leave it green.
-BECAUSE — a case titled for dispatch refusal removed the only office declaring the lookup's
+BECAUSE — a case titled for dispatch refusal removed the only role declaring the lookup's
 shape, so nothing was queued; its lookup half was an enqueue refusal, and the pane's handling
-of a queued lookup refused later had no witness until a killed office refused one.
+of a queued lookup refused later had no witness until a killed role refused one.
 
 ## Seen
 
@@ -165,7 +165,7 @@ host answers ^s nowhere" "an opening that cannot be shown opens nothing, and the
 why" "a resize after the commitment is an ordinary presentation change"
 
 ### VM-MUT-28
-`tests/test_workshop_panes_editor.cpp` mount_asker (the grants) "a reveal from an office that
+`tests/test_workshop_panes_editor.cpp` mount_asker (the grants) "a reveal from a role that
 offered no such pane is dropped" "a forged quit answer moves nothing -- only Loom's answer to the
 host's ask decides"
 
@@ -173,10 +173,10 @@ host's ask decides"
 nowhere yet
 
 ### VM-MUT-30
-`tests/test_workshop_panes_builder.cpp` HeldLookupOffice "a forged refusal naming the pane's own
+`tests/test_workshop_panes_builder.cpp` HeldLookupRole "a forged refusal naming the pane's own
 live attempt settles nothing at either stage, and the open completes"
 
 ### VM-MUT-31
-`tests/test_workshop_panes_builder.cpp` "a lookup queued to the project office and refused at
-dispatch -- the office gone before delivery -- is said by that exact attempt at the lookup stage,
-opens nothing, and a fresh e takes once the office is back"
+`tests/test_workshop_panes_builder.cpp` "a lookup queued to the project role and refused at
+dispatch -- the role gone before delivery -- is said by that exact attempt at the lookup stage,
+opens nothing, and a fresh e takes once the role is back"

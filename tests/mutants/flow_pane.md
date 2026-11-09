@@ -368,9 +368,9 @@ What a running view answers is kept nowhere.
 In `flow/flow-pane/pane.cpp`:
 
 ```diff
-     const std::string office(mail.authored_role());
--    if (office.empty() || office == pane::kRole)
-+    if (!office.empty() || office == pane::kRole)
+     const std::string role(mail.authored_role());
+-    if (role.empty() || role == pane::kRole)
++    if (!role.empty() || role == pane::kRole)
        return;
 ```
 

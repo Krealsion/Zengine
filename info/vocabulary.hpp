@@ -4,12 +4,12 @@
 #ifndef ZENGINE_INFO_PANE_VOCABULARY_HPP
 #define ZENGINE_INFO_PANE_VOCABULARY_HPP
 
-// The Info pane's durable names: the office it holds, the panes it offers, the action ids its
+// The Info pane's durable names: the role it holds, the panes it offers, the action ids its
 // keys answer to, and the state a same-shape reload keeps. It inspects one pane as a subject,
-// named by an office, with property edits written by the pane's owner
-// (`workshop/inspection_seam_vocabulary.hpp`). The office is not the host's `zengine.workshop`,
+// named by a role, with property edits written by the pane's owner
+// (`workshop/inspection_seam_vocabulary.hpp`). The role is not the host's `zengine.workshop`,
 // whose holder admission refuses as a pane's offerer (WL-CAT-03); the key stays `info`, so a
-// desk saved as `zengine.workshop/info` converts at load by moving the office only.
+// desk saved as `zengine.workshop/info` converts at load by moving the role only.
 // Workshop law: agents/workshop/info-body.md
 
 // `info.up`, `info.down` and `info.edit` keep the ids weavers' overrides name. The draft's
@@ -25,22 +25,22 @@
 
 namespace zengine::info_pane {
 
-/// THE OFFICE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
+/// THE ROLE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
 /// anything reaches it by. A ROLE, so the window and Workshop find whoever holds it rather
 /// than the incarnation that offered first.
 inline constexpr const char* kInfoPaneRole = "zengine.info";
 
-/// THE PANE KEY, in this office's namespace. The built-in it replaces carried this same key
-/// under `zengine.workshop`; the conversion moves the office and keeps the key.
+/// THE PANE KEY, in this role's namespace. The built-in it replaces carried this same key
+/// under `zengine.workshop`; the conversion moves the role and keeps the key.
 inline constexpr const char* kInfoPane = "info";
 
 /// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
-/// summary in Info -- and what Workshop's pane header says after the office.
+/// summary in Info -- and what Workshop's pane header says after the role.
 inline constexpr const char* kInfoPaneName = "Info";
 inline constexpr const char* kInfoPaneSummary = "one pane's properties";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
-/// office is -- it is a file name, here because the host's boot plan and the suite's loader
+/// role is -- it is a file name, here because the host's boot plan and the suite's loader
 /// must agree on it.
 inline constexpr const char* kInfoPaneStem = "zengine-info-pane";
 

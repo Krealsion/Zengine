@@ -4,9 +4,9 @@
 #ifndef ZENGINE_MANUAL_VOCABULARY_HPP
 #define ZENGINE_MANUAL_VOCABULARY_HPP
 
-// The door an office answers for the shapes it accepts: a caller names a shape, and the office
+// The door a role answers for the shapes it accepts: a caller names a shape, and the role
 // answers its page's section for it, from the manual compiled into it. Nothing keeps a table of
-// shape documents: the office that accepts a shape is the one that says what it does.
+// shape documents: the role that accepts a shape is the one that says what it does.
 // Reference: manual/docs/manual.md.
 
 #include "manual/manual.hpp"
@@ -21,9 +21,9 @@
 
 namespace zengine::manual {
 
-/// Caller -> an office: what does a shape you accept do? `content_id` is the shape's content id as
+/// Caller -> a role: what does a shape you accept do? `content_id` is the shape's content id as
 /// the caller holds it (`0x` and sixteen hex digits, as `tests/shapes.txt` spells one), or empty to
-/// ask for the office's own; the words describe one definition of the shape and are said against
+/// ask for the role's own; the words describe one definition of the shape and are said against
 /// it. Answered to the caller alone.
 struct ShapeDocumentRequested {
     std::string shape;
@@ -33,10 +33,10 @@ struct ShapeDocumentRequested {
               ZEN_FIELD(content_id));
 };
 
-/// An office -> the caller: its page's section for the shape. `content_id` is the shape's content
-/// id as this office accepts it and `page` the content id of the page the words come from;
+/// A role -> the caller: its page's section for the shape. `content_id` is the shape's content
+/// id as this role accepts it and `page` the content id of the page the words come from;
 /// `current` is false when the caller named another content id, whose shape these words do not
-/// describe, and `said` then says so. A shape the office does not accept, or one its page has no
+/// describe, and `said` then says so. A shape the role does not accept, or one its page has no
 /// section for, is answered with `refusal` and no text.
 struct ShapeDocumentShown {
     std::string shape;
@@ -60,9 +60,9 @@ inline std::string content_id_text(loom::ContentId id) {
     return std::string(out);
 }
 
-/// THE ANSWER TO `ask` FROM AN OFFICE whose gate is `accepted` and whose page is `page`: the
-/// section for a shape the office accepts under that name and version, said against the content
-/// id the caller named. A shape outside `zen.` that the office accepts and its page does not
+/// THE ANSWER TO `ask` FROM A ROLE whose gate is `accepted` and whose page is `page`: the
+/// section for a shape the role accepts under that name and version, said against the content
+/// id the caller named. A shape outside `zen.` that the role accepts and its page does not
 /// describe is refused naming the page, as is one it does not accept.
 template <class Schemas>
 ShapeDocumentShown shape_document(const ShapeDocumentRequested& ask, const Schemas& accepted,
@@ -80,7 +80,7 @@ ShapeDocumentShown shape_document(const ShapeDocumentRequested& ask, const Schem
         const Section* section = page.find(ask.shape);
         if (section == nullptr || !(is_command_group(section->group) ||
                                     is_heard_group(section->group))) {
-            out.refusal = "the page of " + std::string(page.office) + " has no section for `" +
+            out.refusal = "the page of " + std::string(page.role) + " has no section for `" +
                           ask.shape + "`";
             return out;
         }
@@ -89,12 +89,12 @@ ShapeDocumentShown shape_document(const ShapeDocumentRequested& ask, const Schem
         out.current = ask.content_id.empty() || ask.content_id == out.content_id;
         if (!out.current) {
             out.said = "out of date: these words describe `" + ask.shape + "` v" +
-                       std::to_string(ask.version) + " as " + std::string(page.office) +
+                       std::to_string(ask.version) + " as " + std::string(page.role) +
                        " accepts it, " + out.content_id + ", not " + ask.content_id;
         }
         return out;
     }
-    out.refusal = std::string(page.office) + " does not accept `" + ask.shape + "` v" +
+    out.refusal = std::string(page.role) + " does not accept `" + ask.shape + "` v" +
                   std::to_string(ask.version);
     return out;
 }

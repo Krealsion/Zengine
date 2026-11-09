@@ -16,7 +16,7 @@ struct WorkshopState {
     ZEN_SHAPE(WorkshopState, 1);
 };
 
-/// The host's fence behind a menu it withdrew, authored as its office. Its second hop comes round
+/// The host's fence behind a menu it withdrew, authored as its role. Its second hop comes round
 /// behind every refusal the menu's earlier sentences produced, so the record of who is owed an
 /// answer is forgotten only then. It orders the bus; it proves no answer.
 struct WithdrawalFence {

@@ -158,6 +158,14 @@ knows: the owner's name with a number beside it, in a page or a comment, and a s
 registry names, such as a claim of a file format's current version. A shape's `Name vN` is an
 identity, frozen once published, and no copy.
 
+**A role's name has one home**, a string constant in its owner's vocabulary header
+(`kWorkshopRole` in `workshop/pane_menu.hpp`, `kInfoPaneRole` in `info/vocabulary.hpp`), and a
+part that includes that header reads the name there. A part that must not include it keeps a
+copy, registered as a `copy` row beside the home's `name` row, and a constant that says the same
+name as a fact of its own -- what files already written say, which a rename leaves as it is -- is
+a `fact` row. `code_values` reads each, refuses a copy that says another name, and refuses any
+other spelling of a registered name in a feature's, a host's or a library's code.
+
 A test count outside the population inventory names, beside it, the commit and the command that
 measured it, or it is not written; `code_values` refuses one that names neither. No change
 sweeps for copies by hand: when review finds a moving value the registry does not know, it is
@@ -181,7 +189,7 @@ every reply to a request a reading included, ends `Answered` or `Refused` (`Pane
 `DrawnRefused`). A deed, something that happened, is said in the past tense (`BuildFinished`). An
 observation, a state said unasked, is a noun (`DeskStamps`). A new shape is named by its kind. An
 existing name that does not follow this, as a noun answering a request does (`DeskView`,
-`PaneView`), is not changed for it alone: a renamed shape is a new shape to every office that
+`PaneView`), is not changed for it alone: a renamed shape is a new shape to every role that
 sends or reads it.
 
 ## Source comment conventions

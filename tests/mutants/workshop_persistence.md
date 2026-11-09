@@ -5,6 +5,22 @@ Each entry is a mutant that a comment in
 the comment naming the entry by its path and heading. [The corpus's front page](README.md) says how
 an entry reads and how `tests/mutants/run.py` runs it.
 
+## version-four-unread
+
+The settings file's reader takes version 4 for a foreign version and refuses it.
+
+In `workshop/prefs_persist.hpp`:
+
+```diff
+-    if (ours && version != WorkshopPrefs::zen_version && version != v4::WorkshopPrefs::zen_version &&
++    if (ours && version != WorkshopPrefs::zen_version &&
+```
+
+Red in `zengine-workshop-persistence-tests`:
+
+- the settings file round-trips what it keeps: Workshop's own settings, another role's, pin lists
+  and locks
+
 ## passed-over-unsaid
 
 The desk comes up saying nothing of what the plan gave way from.
@@ -97,20 +113,20 @@ The window file's room is this run's, whichever window the run was in.
 In `workshop/weave_session.cpp`:
 
 ```diff
--    const bool os_window = window_name_ == graphics::kSdlWindow;
--    place.room_w = os_window ? session_.normal_w : session_.window_room_w;
-+    const bool os_window = true;
-+    place.room_w = os_window ? session_.normal_w : session_.window_room_w;
+-    const bool gui_window = window_name_ == graphics::kSdlWindow;
+-    place.room_w = gui_window ? session_.normal_w : session_.window_room_w;
++    const bool gui_window = true;
++    place.room_w = gui_window ? session_.normal_w : session_.window_room_w;
 ```
 
 Red in `zengine-workshop-persistence-tests`:
 
-- the window file keeps the OS window's own room beside its placement, and a run in the terminal
+- the window file keeps the GUI window's own room beside its placement, and a run in the TUI
   window writes it back as it read it, as it does the placement
 
 ## placed-before-shaped
 
-A restore places the OS window as soon as it reads the window file, before the shaping.
+A restore places the GUI window as soon as it reads the window file, before the shaping.
 
 In `workshop/weave_session.cpp`:
 
@@ -123,12 +139,12 @@ In `workshop/weave_session.cpp`:
 
 Red in `zengine-workshop-persistence-tests`:
 
-- a restore in the OS window shapes it to its own room, a smaller one taken, then places it; a
-  maximized one is shaped before it is maximized; the terminal window keeps its own
+- a restore in the GUI window shapes it to its own room, a smaller one taken, then places it; a
+  maximized one is shaped before it is maximized; the TUI window keeps its own
 
 ## v10-edge-drops-the-room
 
-A version-10 session's OS window room is left unread on its way to the window file.
+A version-10 session's GUI window room is left unread on its way to the window file.
 
 In `workshop/window_persist.hpp`:
 
@@ -230,7 +246,7 @@ Red in `zengine-workshop-persistence-tests`:
 
 ## v9-viewport-as-the-room
 
-A session older than version 10 has its viewport taken as the OS window's room.
+A session older than version 10 has its viewport taken as the GUI window's room.
 
 In `workshop/window_persist.hpp`:
 
@@ -243,7 +259,7 @@ In `workshop/window_persist.hpp`:
 
 Red in `zengine-workshop-persistence-tests`:
 
-- a version-9 session converts with every field kept and no OS window's room
+- a version-9 session converts with every field kept and no GUI window's room
 
 ## import-over-the-window-file
 

@@ -56,7 +56,7 @@ the draft and says so. The desk row a weaver never authored is the other half of
 which is why this record now supports one more law than it did.
 
 **Since.** The subject changed and the body holds one list: the properties are one pane's, and
-the pane is named by an office -- the Pane Manager's `inspect in Info` -- which lists the desk's
+the pane is named by a role -- the Pane Manager's `inspect in Info` -- which lists the desk's
 panes itself. The windowing, the inverse row maps, the fitted value and the windowed draft hold
 over that one list, and the room is reserved for its heading and the front sentence alone. What a
 subject is, and who names it, is [an inspector names its subject](an-inspector-names-its-subject.md).

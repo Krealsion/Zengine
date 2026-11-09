@@ -8,7 +8,7 @@
 // touches disk uses a temporary directory of its own, which is also Workshop's project root.
 
 #include "workshop_support.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 
 // THE BUILD SIDE OF THE SAME QUESTION. This suite owns "where does source come from",
 // and half that answer is what a RELATIVE authored source means to the thing that
@@ -412,7 +412,7 @@ TEST_CASE("the project door names the file that recipe's build would compile") {
         return out;
     };
     // THE GESTURE CROSSES AS A SENTENCE. `builder.edit-source` is the Builder PANE'S row,
-    // so what reaches the project office is `RecipeSourceRequested{recipe}` -- a recipe NAME,
+    // so what reaches the project role is `RecipeSourceRequested{recipe}` -- a recipe NAME,
     // never a path -- and the door resolves it against the catalog the host owns.
     mount_project_door_with_source(r);
     DoorAsker* asker = mount_door_asker(r.t);
@@ -834,7 +834,7 @@ inline zengine::builder::BuilderWeave* mount_live_tool(Live& t, const CurrentRec
     return raw;
 }
 
-/// ASK THE EDITOR DOOR, from an office of its own: a host case that needs a file open makes
+/// ASK THE EDITOR DOOR, from a role of its own: a host case that needs a file open makes
 /// it happen through the very door the Files pane spends.
 inline DoorAsker* asker_for(ProjectRig& r) { return mount_door_asker(r.t); }
 
@@ -1135,7 +1135,7 @@ TEST_CASE("a refused catalog leaves the weaver exactly where they were") {
 
 TEST_CASE("the republish is the ask a presentation already sends, once") {
     // THE ROUTE, COUNTED. A replacement must push the live catalog projection, and it pushes
-    // with the message a presentation sends: one `StatusRequested`, to the office that
+    // with the message a presentation sends: one `StatusRequested`, to the role that
     // already answers it, publishing the two shapes it already publishes. The stand-in COUNTS
     // how often it was asked -- an observer graph, subscription, second event or repeated poll
     // would show as a different number -- and the baseline is ZERO: no built-in asks it.
@@ -1434,12 +1434,12 @@ TEST_CASE("a pane fits a path by its middle -- its root, the mark and as much of
 // Tier 6c — THE PROJECT DOOR, FROM THE HOST'S SIDE
 // ============================================================================
 // What a loaded pane can ask this host for, and what it gets: who may ask, who is answered,
-// and whose words the answer is in. The asker is a real weave in a real office (`DoorAsker`,
+// and whose words the answer is in. The asker is a real weave in a real role (`DoorAsker`,
 // workshop_support.hpp), because these claims are about AUTHORSHIP, which a call cannot put.
 
 namespace {
 
-/// This host's project door, mounted the way `workshop.cpp` mounts it: in its own office,
+/// This host's project door, mounted the way `workshop.cpp` mounts it: in its own role,
 /// granted exactly the answers it gives -- its own, and its page's -- with the recipe acts a
 /// case wires.
 ///
@@ -1476,13 +1476,13 @@ struct DoorRig {
 
 } // namespace
 
-TEST_CASE("the project office answers what every shape it accepts does from its own page, and "
+TEST_CASE("the project role answers what every shape it accepts does from its own page, and "
           "its page names no other shape") {
     namespace pages = zengine::manual::pages;
     DoorRig d("doormanuals");
     d.mount_project();
     loom::Switchboard& bus = d.r.t.bus;
-    CHECK(check_office_manual(bus, kProjectRole) == 7);
+    CHECK(check_role_manual(bus, kProjectRole) == 7);
     check_page_names_accepted(pages::zengine_project::kManual,
                               described_shapes_of(bus, bus.role_holder(kProjectRole)));
 }
@@ -1503,15 +1503,15 @@ TEST_CASE("the project door answers the weave that asked, and nobody else") {
     REQUIRE(files->roots.size() == 1);
     CHECK(files->roots[0].project_dir == d.r.root.generic_string());
     CHECK(files->roots[0].marks_path == d.marks_path);
-    // ...AND THE SECOND OFFICE HEARD NOTHING AT ALL. An answer is not a broadcast, so a
+    // ...AND THE SECOND ROLE HEARD NOTHING AT ALL. An answer is not a broadcast, so a
     // weave that did not ask learns neither path.
     CHECK(nosy->roots.empty());
 }
 
-TEST_CASE("a door answers an office, and refuses speech with no author") {
+TEST_CASE("a door answers a role, and refuses speech with no author") {
     // THE RULE EVERY DOOR KEEPS, AND ITS CANARY. An ask authored personally reaches the
     // door and is refused there -- so the refusal is a measurement rather than a bus
-    // accident, and the very same asker gets its answer the moment it speaks as an office.
+    // accident, and the very same asker gets its answer the moment it speaks as a role.
     DoorRig d("anonymous");
     d.mount_project([](const std::string&) {
         HostContext::RecipeSwap done;
@@ -1627,7 +1627,7 @@ TEST_CASE("a row authored while the shipped catalog is in force goes into a proj
     CHECK(read.recipes[1].id == "oven");
 }
 
-TEST_CASE("a host that holds no such office answers nothing, and that is the answer") {
+TEST_CASE("a host that holds no such role answers nothing, and that is the answer") {
     // THE DESIGNED ABSENCE. A host with no project mounts no project door, so the ask
     // reaches nobody -- which is not an error and must not be one: the pane's own answer to
     // silence is to go on browsing from wherever it is.
@@ -2758,21 +2758,21 @@ TEST_CASE("the development launch claims its runtime, prepares it through the ru
     CHECK(std::filesystem::path(develop::choose({"--project", "here"}, facts).project).is_absolute());
 }
 
-TEST_CASE("a development launch that is refused starts nothing and holds nothing after: no OS window, a runtime another launch holds or that could not be claimed, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
+TEST_CASE("a development launch that is refused starts nothing and holds nothing after: no GUI window, a runtime another launch holds or that could not be claimed, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
     namespace develop = zengine::workshop::develop;
     const develop::Facts facts = launch_facts();
     const develop::Choice usual = develop::choose({}, facts);
     const std::string claim = "claim /tree/workshop-runtime";
     const std::string in_use = "in use? /tree/workshop-runtime/zengine-workshop";
 
-    // A TREE CONFIGURED WITHOUT THE OS WINDOW has no window to open Workshop in.
+    // A TREE CONFIGURED WITHOUT THE GUI WINDOW has no window to open Workshop in.
     develop::Facts plain = facts;
     plain.plan.clear();
     LaunchDoors unplanned;
     CHECK(develop::launch(plain, usual, unplanned.world()) == 1);
     CHECK(unplanned.asked.empty());
     CHECK(unplanned.ran.empty());
-    CHECK(unplanned.said_words("has no OS window to open Workshop in"));
+    CHECK(unplanned.said_words("has no GUI window to open Workshop in"));
 
     // ANOTHER LAUNCH HOLDS THE RUNTIME, or its claim could not be asked for: nothing more is asked.
     LaunchDoors elsewhere;

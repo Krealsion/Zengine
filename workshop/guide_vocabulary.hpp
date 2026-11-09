@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_GUIDE_VOCABULARY_HPP
 
 // A guest points at one control or part of the desk for the weaver to see, and changes nothing
-// else: a guide mark, named as a press names it -- a pane, `<office>/<pane>`, and a control's action
+// else: a guide mark, named as a press names it -- a pane, `<role>/<pane>`, and a control's action
 // id, drawn by the part `control:<id>`, or a subject `part:<name>` -- with its words beside the
 // guest's row name. Granted by the guests file's `guide` power, within the row's `guide` doors.
 // How it is drawn and how it ends is the law's: agents/workshop/guide.md.
@@ -21,7 +21,7 @@ namespace zengine::workshop {
 /// guest's own name. `control` is an action id, or `part:<name>` for a subject part; empty clears
 /// the asker's mark.
 struct GuideRequested {
-    std::string pane;    ///< "<office>/<pane>"
+    std::string pane;    ///< "<role>/<pane>"
     std::string control; ///< "builder.build", or "part:pane:zengine.builder-pane/builder"
     std::string words;   ///< at most `kGuideWordsBytes` of printable ASCII
     ZEN_SHAPE(GuideRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(control), ZEN_FIELD(words));

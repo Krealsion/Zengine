@@ -4,7 +4,7 @@
 #ifndef ZENGINE_CONNECTIONS_PANE_VOCABULARY_HPP
 #define ZENGINE_CONNECTIONS_PANE_VOCABULARY_HPP
 
-// The Connections pane's durable names: the office it holds, the one pane it offers, and the
+// The Connections pane's durable names: the role it holds, the one pane it offers, and the
 // stem a host boots. Each row is one connection as the guest door (`zengine.guests`,
 // workshop/guest_seam_vocabulary.hpp) reports it, replaced whole on each publication. Not Info
 // (a socket inventory is not a pane's properties), not an admission surface (a decision is the

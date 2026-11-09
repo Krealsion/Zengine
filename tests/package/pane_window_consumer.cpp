@@ -4,8 +4,8 @@
 // A stranger's pane that draws in a window, from the installed package alone: the pane is built on
 // the installed rows facet (`workshop/pane_facets.hpp`), so its rows go to the graphics window that
 // shows its area as a drawing (`rows_drawing`), and a press there is read against the rows last
-// drawn. A stand-in window (a `zengine.window.<name>` office) gives the area its room, takes the
-// drawing and presses a row; a forger gives a room under its own office. A failed check returns
+// drawn. A stand-in window (a `zengine.window.<name>` role) gives the area its room, takes the
+// drawing and presses a row; a forger gives a room under its own role. A failed check returns
 // non-zero, which run.cmake's exit test catches.
 
 #include "workshop/pane_facets.hpp"
@@ -39,16 +39,16 @@ void check(bool ok, const char* what) {
     }
 }
 
-constexpr const char* kOffice = "stranger.tally";
+constexpr const char* kRole = "stranger.tally";
 constexpr const char* kPane = "tally";
 constexpr const char* kWindowName = "w1";
-constexpr const char* kWindowOffice = "zengine.window.w1";
+constexpr const char* kWindowRole = "zengine.window.w1";
 constexpr const char* kForger = "stranger.forger";
-/// The pane's area in a window, `<office>.<pane>`, as every pane's is.
-const std::string kArea = ws::pane_area(kOffice, kPane);
+/// The pane's area in a window, `<role>.<pane>`, as every pane's is.
+const std::string kArea = ws::pane_area(kRole, kPane);
 
 /// THE PANE'S MANUAL: a page with no section, which the facet answers a document request from.
-constexpr zengine::manual::Manual kManual{kOffice, "Tally", "stranger.tally", nullptr, 0};
+constexpr zengine::manual::Manual kManual{kRole, "Tally", "stranger.tally", nullptr, 0};
 
 /// WHAT THIS PROGRAM ASKS A PARTICIPANT TO DO NEXT: a room for the area, or a press at a point.
 struct Poke {
@@ -63,7 +63,7 @@ struct Nothing {
 
 // ---- the pane a stranger writes ----------------------------------------------------------------
 
-using Rows = ws::PaneRowsFacet<kPane, kOffice, kManual, std::string>;
+using Rows = ws::PaneRowsFacet<kPane, kRole, kManual, std::string>;
 
 class Tally : public zengine::With<Rows>::Weave<Tally, Nothing, loom::Accept<>, loom::Emit<>> {
 public:
@@ -97,7 +97,7 @@ class Window : public loom::WeaveBase<Window, Nothing, loom::Accept<gfx::Drawn, 
 public:
     /// WHAT THE PANE DREW in its area: the words of every text node put, the parts it names.
     void on(const gfx::Drawn& d, loom::Mail& mail) {
-        if (mail.authored_role() != kOffice || d.area != kArea) {
+        if (mail.authored_role() != kRole || d.area != kArea) {
             return;
         }
         ++drawings;
@@ -115,7 +115,7 @@ public:
             parts.push_back(r.action);
         }
     }
-    /// A ROOM for the area, as this window's office, or a press and its release at a point.
+    /// A ROOM for the area, as this window's role, or a press and its release at a point.
     void on(const Poke& p, loom::Mail& mail) {
         if (!p.press) {
             gfx::AreaRoom r;
@@ -127,13 +127,13 @@ public:
             r.cell_px = 0;
             r.text_advance_px = 8;
             r.text_line_px = 16;
-            (void)mail.as_role(kWindowOffice).send_to_role(kOffice, r);
+            (void)mail.as_role(kWindowRole).send_to_role(kRole, r);
             return;
         }
-        (void)mail.as_role(kWindowOffice)
-            .send_to_role(kOffice, gfx::AreaButtonChanged{kArea, 1, true, p.x, p.y, 0, true, 0});
-        (void)mail.as_role(kWindowOffice)
-            .send_to_role(kOffice, gfx::AreaButtonChanged{kArea, 1, false, p.x, p.y, 0, true, 0});
+        (void)mail.as_role(kWindowRole)
+            .send_to_role(kRole, gfx::AreaButtonChanged{kArea, 1, true, p.x, p.y, 0, true, 0});
+        (void)mail.as_role(kWindowRole)
+            .send_to_role(kRole, gfx::AreaButtonChanged{kArea, 1, false, p.x, p.y, 0, true, 0});
     }
     int drawings = 0;
     bool whole = false;
@@ -141,7 +141,7 @@ public:
     std::vector<std::string> parts;
 };
 
-// ---- a forger: a room given under another office ---------------------------------------------
+// ---- a forger: a room given under another role ---------------------------------------------
 
 class Forger : public loom::WeaveBase<Forger, Nothing, loom::Accept<Poke>, loom::Emit<gfx::AreaRoom>> {
 public:
@@ -152,15 +152,15 @@ public:
         r.epoch = 2;
         r.w = 800;
         r.h = 320;
-        (void)mail.as_role(kForger).send_to_role(kOffice, r);
+        (void)mail.as_role(kForger).send_to_role(kRole, r);
     }
 };
 
 template <class T>
-T* seat(loom::Switchboard& bus, loom::WeaveId& id, loom::Grant grant, const char* office) {
+T* seat(loom::Switchboard& bus, loom::WeaveId& id, loom::Grant grant, const char* role) {
     auto owned = std::make_unique<T>();
     T* raw = owned.get();
-    id = bus.register_weave(std::move(owned), std::move(grant), std::string(office));
+    id = bus.register_weave(std::move(owned), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     return raw;
 }
@@ -178,22 +178,22 @@ int main() {
     loom::WeaveId pane_id{};
     loom::WeaveId forger_id{};
     loom::Grant window_speaks;
-    window_speaks.allow_to_role(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version, kOffice);
+    window_speaks.allow_to_role(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version, kRole);
     window_speaks.allow_to_role(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version,
-                                kOffice);
-    Window* window = seat<Window>(bus, window_id, window_speaks, kWindowOffice);
+                                kRole);
+    Window* window = seat<Window>(bus, window_id, window_speaks, kWindowRole);
     loom::Grant pane_speaks;
-    pane_speaks.allow_to_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowOffice);
+    pane_speaks.allow_to_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowRole);
     pane_speaks.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version,
                               gfx::kGraphicsRole); // asked once a life, of no directory here
-    Tally* pane = seat<Tally>(bus, pane_id, pane_speaks, kOffice);
+    Tally* pane = seat<Tally>(bus, pane_id, pane_speaks, kRole);
     loom::Grant forger_speaks;
-    forger_speaks.allow_to_role(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version, kOffice);
+    forger_speaks.allow_to_role(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version, kRole);
     (void)seat<Forger>(bus, forger_id, forger_speaks, kForger);
 
     poke(bus, forger_id, Poke{});
     check(window->drawings == 0 && pane->room().rows() == 0,
-          "a room another office gives is not the window's: nothing is drawn");
+          "a room another role gives is not the window's: nothing is drawn");
 
     poke(bus, window_id, Poke{});
     check(pane->room().rows() == 10 && pane->room().columns() == 50,

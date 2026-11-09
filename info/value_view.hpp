@@ -35,6 +35,7 @@
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/weave/poke.hpp>
 #include <zen/weave/role_request.hpp>
@@ -469,7 +470,7 @@ public:
         if (pickup_ == Pickup::permission && c.mail.answers_ask() && c.mail.correlation() == pickup_ask_) {
             if (!answer.allowed) { finish_pickup("Field pickup refused: " + answer.reason); return true; }
             pickup_ = Pickup::carry;
-            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
+            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
                 workshop::PaneValueCarryRequested{key_, pickup_label_, pickup_bytes_, pickup_drag_}, pickup_gesture_);
             if (!pickup_ticket_.valid()) finish_pickup("Field pickup could not be queued");
             return true;
@@ -529,7 +530,7 @@ public:
                                                          : workshop::PaneValueCarryRequested::zen_name;
         if (pickup_ != Pickup::idle && c.mail.dispatch_refused() && pickup_ticket_.valid() &&
             refused.refused_attempt().seq == pickup_ticket_.seq && refused.shape == shape &&
-            refused.version == 1 && refused.role == "zengine.workshop" && refused.target.empty()) {
+            refused.version == 1 && refused.role == zengine::workshop::pane_menu::kWorkshopRole && refused.target.empty()) {
             finish_pickup("Field pickup was not delivered: " + refused.reason);
             return true;
         }
@@ -1192,7 +1193,7 @@ private:
         sample_.role = route.first;
         sample_.original = recorded_responder();
         const auto correlation = ++c.asks;
-        if (!sample_.permission.send_to_role(c.mail.as_role(kInfoPaneRole), "zengine.workshop",
+        if (!sample_.permission.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::workshop::pane_menu::kWorkshopRole,
                 workshop::PaneOperationRequested{key_, sample_.role, loom::PokeDescribe::zen_name,
                     loom::PokeDescribe::zen_version, static_cast<std::int64_t>(c.mail.correlation())}, correlation)) {
             notice_ = "Sample permission request could not be queued";
@@ -1219,8 +1220,8 @@ private:
             pickup_label_ = (title_ + ": " + f->label).substr(0, workshop::kMaxCarryLabelBytes);
             pickup_gesture_ = gesture; pickup_ask_ = ++c.asks; pickup_drag_ = drag;
             pickup_ = Pickup::permission;
-            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
-                workshop::PaneOperationRequested{key_, "zengine.workshop",
+            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
+                workshop::PaneOperationRequested{key_, zengine::workshop::pane_menu::kWorkshopRole,
                     workshop::PaneValueCarryRequested::zen_name, 1, static_cast<std::int64_t>(pickup_gesture_)}, pickup_ask_);
             if (!drag) notice_ = "Checking field acquisition authority";
             if (!pickup_ticket_.valid()) finish_pickup("Field permission request could not be queued");

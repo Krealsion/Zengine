@@ -34,16 +34,16 @@ def cause(shape, version, subject=""):
     return {"shape": shape, "version": version, "subject": subject}
 
 
-def binding(office, pane, ident, key, causes=(), enters=""):
-    return {"office": office, "pane": pane, "id": ident, "gesture": key, "shown": key,
+def binding(role, pane, ident, key, causes=(), enters=""):
+    return {"role": role, "pane": pane, "id": ident, "gesture": key, "shown": key,
             "causes": list(causes), "enters": enters, "label": ident}
 
 
 APP_ROWS = [
     binding("zengine.desktop", "", "desktop.panes", "ctrl+p",
-            [cause("PaneToggleRequested", 1, "to zengine.desktop/launcher")]),
+            [cause("PaneToggleRequested", 2, "to zengine.desktop/launcher")]),
     binding("zengine.desktop", "", "desktop.hotkeys", "ctrl+k",
-            [cause("PaneLaunchRequested", 1, "to zengine.desktop/hotkeys")]),
+            [cause("PaneLaunchRequested", 3, "to zengine.desktop/hotkeys")]),
 ]
 BROWSE = [
     binding(*BUILDER, ident="builder.build", key="b", causes=[cause("BuildRequested", 2)]),
@@ -53,7 +53,7 @@ BROWSE = [
 OUTPUT = [binding(*BUILDER, ident="builder.output-close", key="escape", enters="browse")]
 LAUNCHER_ROWS = [
     binding(*LAUNCHER, ident="launcher.open", key="return",
-            causes=[cause("PaneLaunchRequested", 1, "on pane:")]),
+            causes=[cause("PaneLaunchRequested", 3, "on pane:")]),
 ]
 HOTKEYS_ROWS = [binding(*HOTKEYS, ident="hotkeys.commit", key="return",
                         causes=[cause("BuildRequested", 2)])]
@@ -76,9 +76,9 @@ class Scripted(object):
         self.parts = {}
 
     def desk(self, resolve):
-        def read_view(office, pane):
-            return {"provider": office, "pane": pane, "parts": self.parts.get((office, pane), [])}
-        inventory = {"panes": [{"office": o, "pane": p, "name": p.title(), "open": (o, p) in self.on_desk,
+        def read_view(role, pane):
+            return {"provider": role, "pane": pane, "parts": self.parts.get((role, pane), [])}
+        inventory = {"panes": [{"role": o, "pane": p, "name": p.title(), "open": (o, p) in self.on_desk,
                                 "available": True} for o, p in self.offered]}
         desk = {"panes": [{"provider": o, "pane": p, "name": p.title(), "state": "open"}
                           for o, p in self.on_desk]}
@@ -90,8 +90,8 @@ class FakeAsker(object):
     def __init__(self, answer):
         self.answer, self.asked = answer, []
 
-    def ask(self, office, shape, version, fields):
-        self.asked.append((office, shape, version, fields))
+    def ask(self, role, shape, version, fields):
+        self.asked.append((role, shape, version, fields))
         return self.answer, None
 
 
@@ -173,7 +173,7 @@ def make_checks(resolve):
             s = Scripted()
             s.on_desk = [BUILDER]
             s.rows = APP_ROWS + OUTPUT
-            s.modes = [{"office": BUILDER[0], "pane": BUILDER[1], "mode": "output",
+            s.modes = [{"role": BUILDER[0], "pane": BUILDER[1], "mode": "output",
                         "elsewhere": [{"mode": "browse", "causes": [cause("BuildRequested", 2)]}]}]
             s.parts[BUILDER] = [part("control:builder.output-close")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
@@ -201,7 +201,7 @@ def make_checks(resolve):
             s = Scripted()
             s.row = {"name": "tutor", "by_door": True, "capture": ["zengine.builder-pane/*"]}
             s.rows = APP_ROWS + BROWSE  # the Pane Manager's rows are withheld: outside the read
-            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 1, "zengine.builder-pane/builder")
+            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 3, "zengine.builder-pane/builder")
             self.assertFalse(r["nowhere"])
             self.assertTrue(any("zengine.desktop/launcher" in o for o in r["outside"]))
 
@@ -240,7 +240,7 @@ def make_checks(resolve):
             s.on_desk = [LAUNCHER]
             s.rows = APP_ROWS + BROWSE + LAUNCHER_ROWS + [
                 binding(*LAUNCHER, ident="launcher.show", key="space",
-                        causes=[cause("PaneLaunchRequested", 1, "on pane:")])]
+                        causes=[cause("PaneLaunchRequested", 3, "on pane:")])]
             s.parts[LAUNCHER] = [part("pane:zengine.builder-pane/builder")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
             line, address = resolve.mark(FakeAsker({"shown": True}), r, "")
@@ -253,7 +253,7 @@ def make_checks(resolve):
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
 
             class Refusing(FakeAsker):
-                def ask(self, office, shape, version, fields):
+                def ask(self, role, shape, version, fields):
                     return None, "dispatch-refused: CapabilityDenied"
             line, address = resolve.mark(Refusing(None), r, "")
             self.assertIsNone(address)
@@ -265,15 +265,15 @@ def make_checks(resolve):
             s.on_desk = [info]
             s.offered = [BUILDER, LAUNCHER, HOTKEYS, info]
             s.rows = APP_ROWS + BROWSE + [
-                binding(*info, ident="info.view.new", key="n", causes=[cause("PaneLaunchRequested", 1)]),
-                binding(*info, ident="info.view.fork", key="f", causes=[cause("PaneLaunchRequested", 1)])]
+                binding(*info, ident="info.view.new", key="n", causes=[cause("PaneLaunchRequested", 3)]),
+                binding(*info, ident="info.view.fork", key="f", causes=[cause("PaneLaunchRequested", 3)])]
             s.parts[info] = [part("control:info.view.new"), part("control:info.view.fork")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
             routes = [c["address"] for st in resolve.flatten(r["steps"]) for c in st["by"]]
             self.assertNotIn("zengine.info/view:info.view.new", routes)
             self.assertNotIn("zengine.info/view:info.view.fork", routes)
             # Asked with no subject, the same causes still answer.
-            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 1, "")
+            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 3, "")
             self.assertIn("zengine.info/view:info.view.new", [c["address"] for c in r["found"]])
 
         def test_version_and_mark_are_typed_and_the_whole_resolution_is_written(self):
@@ -302,7 +302,7 @@ def make_checks(resolve):
             s.parts[HOTKEYS] = [part("control:hotkeys.commit")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
             self.assertEqual(r["found"], [])
-            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 1, "zengine.desktop/hotkeys")
+            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 3, "zengine.desktop/hotkeys")
             self.assertEqual(r["found"], [])
 
     return ResolveChecks
@@ -315,8 +315,8 @@ class GuideCtx(FakeCtx):
         FakeCtx.__init__(self, inputs)
         self.answer, self.refusal, self.asked = answer, refusal, []
 
-    def ask(self, office, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
-        self.asked.append((office, shape, version, fields, via))
+    def ask(self, role, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
+        self.asked.append((role, shape, version, fields, via))
         if self.refusal is not None:
             raise self.refusal
         return self.answer

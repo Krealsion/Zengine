@@ -1,9 +1,9 @@
-# zengine.window.terminal -- the terminal window
+# zengine.window.tui -- the TUI window
 
 **Manual.** The window over the process's own terminal: the weave that does the whole job of
-showing what its areas' owners draw. It answers to the office `zengine.window.terminal` (a
-window's office is `zengine.window.` and its name, `terminal`) and is built as
-`zengine-window-terminal`, a file a host loads. It keeps what each owner drew, paints it in the
+showing what its areas' owners draw. It answers to the role `zengine.window.tui` (a
+window's role is `zengine.window.` and its name, `terminal`) and is built as
+`zengine-window-tui`, a file a host loads. It keeps what each owner drew, paints it in the
 palette its area wears, composes the areas, writes the terminal only the cells that changed, and
 sends the terminal's keys, their text and its pointer to the owners. The directory,
 [`zengine.graphics`](zengine.graphics.md), introduces its areas to it. It answers for its terminal
@@ -24,7 +24,7 @@ It takes the terminal when activated, its output with the terminal's claim
 (`graphics/window/terminal_io.hpp`) and its input as the Input weave reads it
 (`input/terminal_reader.hpp`), and gives both back when it goes. With no terminal (a pipe, a suite)
 it reads and writes nothing, offers no size, and draws its picture as far as its areas reach
-(`graphics/window/window_terminal.hpp`: at least `kUnmeasuredCols` by `kUnmeasuredRows`).
+(`graphics/window/window_tui.hpp`: at least `kUnmeasuredCols` by `kUnmeasuredRows`).
 
 **Showing.** A node is painted once, when it changes, in its area's palette. The areas are
 composed front to back by their order, and the terminal is written only the cells that changed,
@@ -60,7 +60,7 @@ landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Each 
 ([`PointerTimingSaid`](#pointertimingsaid)).
 
 Who may send: whoever the host's grant lets reach the window. It takes a drawing or an element only
-from the area's owner, as that office, and the directory's words only from `zengine.graphics`.
+from the area's owner, as that role, and the directory's words only from `zengine.graphics`.
 Every bound is judged before anything changes, and a drawing past one is refused whole, in words,
 to its drawer (`DrawnRefused`), leaving what the window shows as it was. The bounds are
 `graphics/vocabulary.hpp`'s: `kMaxNodesPerArea`, `kMaxElementsPerArea`, `kMaxPathBytes`,
@@ -142,7 +142,7 @@ reading the terminal.
 
 ### `AreaShowAsked`
 
-`AreaShowAsked` v1 asks what one area shows, of the office that placed it.
+`AreaShowAsked` v1 asks what one area shows, of the role that placed it.
 
 - **Takes:** `area`; `since`, the `version` of the last answer the asker took, or 0.
 - **Answers:** `AreaShown` v1, to the asker alone: the window's name and incarnation; the area's
@@ -157,7 +157,7 @@ reading the terminal.
   (`px`, `py`); and `available`, as the record says it (`PartFace`), else true. What the window
   holds painted is what it shows at its next showing at the latest.
 - **Refuses:** in `zen.Refused`: `window 'terminal' shows no area '<area>'`; `area '<area>' is read
-  only by the office that placed it`; `area '<area>' shows more than <bound> runs of text`
+  only by the role that placed it`; `area '<area>' shows more than <bound> runs of text`
   (`kMaxAreaWords`).
 - **Example:** Workshop reads the area of a pane it placed, `AreaShowAsked{"zengine.info", 0}`, and
   then asks again since the version it took.
@@ -176,7 +176,7 @@ reading the terminal.
 
 `SurfacePlacementRemembered` v1 offers back a place on the desktop a session remembered.
 
-- **Takes:** `x`, `y` and `maximized`, as an OS window said them.
+- **Takes:** `x`, `y` and `maximized`, as a GUI window said them.
 - **Answers:** nothing: a terminal's window is its emulator's, so this window takes no place and
   says none (`SurfacePlacement`).
 - **Refuses:** nothing.
@@ -223,9 +223,9 @@ reading the terminal.
 
 ### `WindowShaped`
 
-`WindowShaped` v1 names a window and sizes it, said by an office that arranges an area in it.
+`WindowShaped` v1 names a window and sizes it, said by a role that arranges an area in it.
 
-- **Takes:** `window`, `title`, `width` and `height`, as an OS window takes them.
+- **Takes:** `window`, `title`, `width` and `height`, as a GUI window takes them.
 - **Answers:** nothing: the terminal's size and title are its emulator's, so this window keeps them.
 - **Refuses:** nothing.
 - **Example:** an app's weave says its window's title and size; the terminal stays as it is.
@@ -234,7 +234,7 @@ reading the terminal.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v9, from the directory: an area, its owner, its arranger, place, order, the key
+`AreaIntroduced` v9, from `zengine.graphics`: an area, its owner, its arranger, place, order, the key
 moments and pointer it hears, the palette it wears, `weaver_only` and `followed`. The window keeps
 it, paints it again where it moved or wears another palette, empties it when another owner draws in it, ends a
 press held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas`
@@ -242,17 +242,17 @@ it is not shown, and `WindowShown` reports `the window shows <bound> areas: '<ar
 
 ### `AreaWithdrawn`
 
-`AreaWithdrawn` v1, from the directory: the area is no longer this window's. What it held goes, a
+`AreaWithdrawn` v1, from `zengine.graphics`, the directory: the area is no longer this window's. What it held goes, a
 press held for it ends, and the cells it covered are shown again.
 
 ### `ElementCodeOffered`
 
-`ElementCodeOffered` v1, from the directory: the library whose code presents an element type. New
+`ElementCodeOffered` v1, from `zengine.graphics`, the directory: the library whose code presents an element type. New
 code for a type the window presents draws each such element again, from the state it kept.
 
 ### `PaletteOffered`
 
-`PaletteOffered` v1, from the directory: a palette, whole, at a revision. The window keeps the
+`PaletteOffered` v1, from `zengine.graphics`, the directory: a palette, whole, at a revision. The window keeps the
 latest revision of each palette in its state, and paints every area wearing it again from what it
 keeps: its owners are told nothing and draw nothing. A revision no higher than the one kept changes
 nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports `the window holds
@@ -260,24 +260,24 @@ nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports
 
 ### `GraphicsReady`
 
-`GraphicsReady` v1, from a directory started afresh: the window offers itself again
+`GraphicsReady` v1, from `zengine.graphics`, a directory started afresh: the window offers itself again
 (`WindowOffered`), and keeps its areas until the directory says otherwise.
 
 ### `TimerFired`
 
-`TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It measures the
+`TimerFired` v1, from `zengine.timer`, the Timer: the window's beat, `zengine.window.pump`. It measures the
 terminal, and at another size in cells shows its whole picture at that size and offers itself
 again (`WindowOffered`) with the new size and the same incarnation. Then it reads what the terminal
 typed and sends the keys, their releases, their text and the pointer on.
 
 ### `TimerReady`
 
-`TimerReady` v1, from the Timer: the service is there, first or again; the window orders its beat
+`TimerReady` v1, from `zengine.timer`, the Timer: the service is there, first or again; the window orders its beat
 again.
 
 ### `TimerResolution`
 
-`TimerResolution` v1, from the Timer: what became of the window's order for its beat, kept by its
+`TimerResolution` v1, from `zengine.timer`, the Timer: what became of the window's order for its beat, kept by its
 timer binding.
 
 ### `loom.host.Waited`
@@ -289,7 +289,7 @@ beat does at once. From any participant it is nothing.
 
 ### `ClipboardCopy`
 
-`ClipboardCopy` v1, a weaver's copy: the text written to the terminal as its copy sequence, OSC 52,
+`ClipboardCopy` v1, from any weave that copies, a weaver's copy: the text written to the terminal as its copy sequence, OSC 52,
 which no terminal confirms. It is no showing, and nothing answers it.
 
 ### `AttributedInput`
@@ -309,7 +309,7 @@ The window asks it at each activation (`PointerTimingAsked`); until told, it cou
 
 ## Follow
 
-As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
+As its own role the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
 and at each new terminal size: its name, its cells as `kCellPx` pixels (none with no terminal),
 incarnation, its unit the cell and text a cell; the directory keeps it. It never publishes
 `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v4 for each

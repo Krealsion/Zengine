@@ -19,7 +19,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-voc
                                                             zengine-persist
                                                             loom::core
                                                             loom::terminal)
-# ...and the manuals of the host's own offices compiled into it, each office answering a shape's
+# ...and the manuals of the host's own roles compiled into it, each role answering a shape's
 # section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp): Workshop's own weave
 # (its header, workshop/weave.hpp), the opening manager (`opening.hpp`), and the door a pane asks
 # about the project.
@@ -127,7 +127,7 @@ target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)
-# The editor switch's manual, compiled into whatever mounts the office
+# The editor switch's manual, compiled into whatever mounts the role
 # (`editor_switch.hpp`): it answers a shape's section from this page (`ShapeDocumentRequested`).
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../editor/docs/zengine.editor-switch.md)
 
@@ -251,8 +251,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 
 # The artifacts this host loads, staged beside its binary: the host resolves them from its own
 # directory (workshop.cpp's exe_dir). Copied, not aimed here: snake aims the same files at its own
-# directory, and each host takes a copy. The OS window joins only where this configuration built
-# it. The graphics directory, its terminal window and the painters a window opens stand here too:
+# directory, and each host takes a copy. The GUI window joins only where this configuration built
+# it. The graphics directory, its TUI window and the painters a window opens stand here too:
 # Workshop offers the painters to the directory from this directory (`arrange_graphics`).
 set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
@@ -265,7 +265,7 @@ set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zen
                                zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
                                zengine-workshop-session-history
-                               zengine-graphics zengine-window-terminal)
+                               zengine-graphics zengine-window-tui)
 if(TARGET zengine-window-sdl)
     list(APPEND zengine_workshop_artifacts zengine-window-sdl)
 endif()
@@ -303,8 +303,8 @@ endforeach()
 # ---- The authored load plans, which are not artifacts ---------------------------------
 #
 # Staged by the same stamp rule, since the host resolves its default plan from its own directory:
-# the one shipped plan, the OS window, else the terminal window, in every build (a build without
-# the OS window passes it unsaid). Not in `zengine_workshop_artifacts`: an artifact is a library
+# the one shipped plan, the GUI window, else the TUI window, in every build (a build without
+# the GUI window passes it unsaid). Not in `zengine_workshop_artifacts`: an artifact is a library
 # this host may execute.
 set(zengine_workshop_plans default-load-plan.json)
 foreach(plan IN LISTS zengine_workshop_plans)
@@ -444,7 +444,7 @@ include(\"${CMAKE_CURRENT_SOURCE_DIR}/prepare-runtime.cmake\")
 # it): it claims the runtime, runs the script above and starts the runtime's host, or says why
 # not. Nothing inside Workshop can launch it. It depends on the host, so an IDE's build refreshes
 # what a runtime copies, and exists without SDL, refusing to launch, so every lane compiles it: it
-# opens Workshop in the OS window, with the runtime's own plan.
+# opens Workshop in the GUI window, with the runtime's own plan.
 if(TARGET zengine-window-sdl)
     set(zengine_development_plan default-load-plan.json)
 else()

@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // The pane protocol: every shape a weave and Workshop exchange to offer, present and drive a
-// pane (workshop/docs/workshop-panes.md). No shape names a provider: the provider is the office
+// pane (workshop/docs/workshop-panes.md). No shape names a provider: the provider is the role
 // Loom stamped on the message, `mail.authored_role()`, which no payload can write. Workshop sends
 // each gesture and asks nothing back; a shape a pane does not accept is refused at Loom's gate.
 
@@ -24,10 +24,10 @@ struct PaneCatalogRequested {
     ZEN_SHAPE(PaneCatalogRequested, 1);
 };
 
-/// Provider -> Workshop: one pane it can present -- its key in the office's own namespace, and
+/// Provider -> Workshop: one pane it can present -- its key in the role's own namespace, and
 /// the two lines the Pane Manager lists.
 struct PaneOffered {
-    std::string pane;    ///< the durable pane key, in the AUTHORING office's namespace
+    std::string pane;    ///< the durable pane key, in the AUTHORING role's namespace
     std::string name;    ///< what the Pane Manager lists
     std::string summary; ///< one line, so a weaver can tell what they are opening
     ZEN_SHAPE(PaneOffered, 1, ZEN_FIELD(pane), ZEN_FIELD(name), ZEN_FIELD(summary));
@@ -118,10 +118,10 @@ struct PaneActionRow {
 };
 
 /// Provider -> Workshop: the actions one pane declares beside its offer, judged whole under the
-/// office stamp. A declaration that fails joins nothing and keeps the previous rows; one that
+/// role stamp. A declaration that fails joins nothing and keeps the previous rows; one that
 /// passes replaces them. Declaring rows points no keyboard at the pane.
 struct PaneActions {
-    std::string pane;                ///< the pane key, in the AUTHORING office's namespace
+    std::string pane;                ///< the pane key, in the AUTHORING role's namespace
     std::vector<PaneActionRow> rows; ///< at most `kMaxPaneActionRows` (workshop/keymap.hpp)
     ZEN_SHAPE(PaneActions, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
@@ -147,7 +147,7 @@ struct PaneActionRow {
 };
 
 /// `PaneActions` v1's statement, over v2 rows. Every law of the v1 shape applies unchanged:
-/// judged whole under the office stamp, atomic both ways, and a replacement rather than a merge.
+/// judged whole under the role stamp, atomic both ways, and a replacement rather than a merge.
 struct PaneActions {
     std::string pane;
     std::vector<PaneActionRow> rows;
@@ -162,11 +162,11 @@ struct PaneActions {
 /// beside the pane protocol a pane speaks to Workshop about itself (its offer, rows, content,
 /// caret, menus and the approval it asks before an act). `subject` says what the send is about:
 /// empty, the pane's own state; `on <prefix>`, the part a press lands on, named `<prefix><s>`;
-/// `to <office>/<pane>`, always that one pane. No field of the message is declared.
+/// `to <role>/<pane>`, always that one pane. No field of the message is declared.
 struct ActionCause {
     std::string shape;        ///< the shape's name, as Loom knows it
     std::int64_t version = 0; ///< its version, 1 or more
-    std::string subject;      ///< "", "on <prefix>" or "to <office>/<pane>"
+    std::string subject;      ///< "", "on <prefix>" or "to <role>/<pane>"
     ZEN_SHAPE(ActionCause, 1, ZEN_FIELD(shape), ZEN_FIELD(version), ZEN_FIELD(subject));
 };
 
@@ -266,7 +266,7 @@ struct ActionsJudged {
 };
 
 /// Workshop -> provider: an accepted declaration left the keymap. It names the number, so a
-/// successor holding the office can tell it is not about its own rows; nothing is retained.
+/// successor holding the role can tell it is not about its own rows; nothing is retained.
 struct ActionsWithdrawn {
     std::string pane;             ///< as the declaration named it; empty for application rows
     std::int64_t declaration = 0; ///< the number `ActionsJudged` gave it
@@ -283,7 +283,7 @@ struct PaneActionRequested {
     ZEN_SHAPE(PaneActionRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(id));
 };
 
-/// Provider -> Workshop, about a pane its office offered: seat it now, select it and point the
+/// Provider -> Workshop, about a pane its role offered: seat it now, select it and point the
 /// keys at it -- an ask, sent when the pane's own act needs nothing more. Judged through the
 /// launch door's trial and written whole in the answering delivery, or refused with nothing
 /// moved. Not an offer, a room grant, a reservation or focus authority; the notice line names
@@ -311,7 +311,7 @@ struct PaneEscapeUnspent {
     ZEN_SHAPE(PaneEscapeUnspent, 1, ZEN_FIELD(pane));
 };
 
-/// Workshop -> everyone, published as its office: may this Workshop end? It waits for as many
+/// Workshop -> everyone, published as its role: may this Workshop end? It waits for as many
 /// answers as Loom counted accepters. A pane that accepts it MUST answer (`PaneQuitAnswered`)
 /// truthfully, on the delivery that asked; a pending operation that could change the answer is a
 /// refusal. Gestures are held until the last answer and replayed if the quit is refused; a
@@ -335,8 +335,8 @@ struct PaneQuitAnswered {
 // nothing. A press is read against the drawing the pane last sent the window: no number names
 // which drawing the window showed when it read the press.
 
-/// Workshop -> the office of a pane a graphics window shows in an area of its own, as Workshop's
-/// office: the keys now reach the pane (`here`), or no longer do, said each time that changes. A
+/// Workshop -> the role of a pane a graphics window shows in an area of its own, as Workshop's
+/// role: the keys now reach the pane (`here`), or no longer do, said each time that changes. A
 /// press the window gives the pane is read against the last of these it heard before that press:
 /// whether the keys were already the pane's when it was made.
 struct PaneKeys {
@@ -398,8 +398,8 @@ struct PaneMenuRequested {
               ZEN_FIELD(column), ZEN_FIELD(rows));
 };
 
-/// THE OFFICE THAT PRESENTS A PANE'S MENU AND ANSWERS IT. A requester authenticates a choice as
-/// authored from this office; Workshop grants menus to whoever holds it.
+/// THE ROLE THAT PRESENTS A PANE'S MENU AND ANSWERS IT. A requester authenticates a choice as
+/// authored from this role; Workshop grants menus to whoever holds it.
 inline constexpr const char* kPresenterRole = "zengine.presenter";
 
 /// What the menu came to: `chosen` with the row's `id`, or not (dismissed, replaced, closed,
@@ -415,15 +415,28 @@ struct PaneMenuAnswered {
               ZEN_FIELD(id), ZEN_FIELD(refusal));
 };
 
-/// Provider -> Workshop: open the host's own pane menu for `office`/`target` -- the management
+/// Provider -> Workshop: open the host's own pane menu for `role`/`target` -- the management
 /// route for a covered, closed or press-consuming pane. Echoes the menu answer's correlation;
 /// refused for a pair the inventory does not name.
+struct PaneManageRequested {
+    std::string pane;
+    std::string role;
+    std::string target;
+    ZEN_SHAPE(PaneManageRequested, 2, ZEN_FIELD(pane), ZEN_FIELD(role), ZEN_FIELD(target));
+};
+/// The same ask from a pane built on an earlier vocabulary, the role named `office`; read as the
+/// current one.
+namespace v1 {
 struct PaneManageRequested {
     std::string pane;
     std::string office;
     std::string target;
     ZEN_SHAPE(PaneManageRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(office), ZEN_FIELD(target));
 };
+} // namespace v1
+inline PaneManageRequested current(const v1::PaneManageRequested& a) {
+    return PaneManageRequested{a.pane, a.office, a.target};
+}
 
 // ---- The parts a pane names --------------------------------------------------------------
 //

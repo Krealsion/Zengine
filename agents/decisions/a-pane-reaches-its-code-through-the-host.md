@@ -7,15 +7,15 @@ it supports are in [code](../workshop/code.md).
 Builder's `e` opened a *chosen recipe's* source and Files opened any file, so the join from a
 pane to its artifact and recipe was the weaver's to reconstruct from names.
 
-**Decision.** The host answers what stands behind an office's code from the owners of each
+**Decision.** The host answers what stands behind a role's code from the owners of each
 edge, at the ask: the bus's holder, the realization owner's row minted for that WeaveId, and the
 catalog's recipes for its artifact. The desk's Edit Code opens exactly one recipe's single source
-through the opening office and refuses every other answer in words; after the open took, and
+through the opening role and refuses every other answer in words; after the open took, and
 only while the code is unchanged, it publishes a reading the Builder pane follows by name.
 
 **Alternatives considered.**
-- *Joining the office to a plan row's authored role* — rejected: that role is copied forward,
-  never observed; pinned by case `"the code behind an office is found by the weave holding it,
+- *Joining the held role to a plan row's authored role* — rejected: that role is copied forward,
+  never observed; pinned by case `"the code behind a role is found by the weave holding it,
   never by a plan row's authored role"`.
 - *Taking the first recipe when several produce the artifact* — rejected: catalog order is
   nobody's intent; pinned by the several-recipes subcase of case `"code that cannot be named is
@@ -33,8 +33,8 @@ only while the code is unchanged, it publishes a reading the Builder pane follow
   the owner's words at that moment, so the reading needs no second copy of them. Presenting an
   owner's refusal, attributed to that owner, would not make the Builder decide eligibility; a
   later presentation that needs the words may carry them so.
-- *Addressing the Builder pane's office from the desk* — argued: the host names no pane's
-  office, `StandingConditions`' rule; a publication any presenter may follow keeps that true.
+- *Addressing the Builder pane's role from the desk* — argued: the host names no pane's
+  role, `StandingConditions`' rule; a publication any presenter may follow keeps that true.
 - *A source field on `cmake_target` recipes* — argued at the time: a format change for panes
   that loop did not build; later made an editing entry
   ([an-entry-is-where-reading-starts](an-entry-is-where-reading-starts.md)).

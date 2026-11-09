@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_LAYOUTS_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_LAYOUTS_VOCABULARY_HPP
 
-// The layouts' owner and its presenter: the live layout as the owner sends it to the one office
+// The layouts' owner and its presenter: the live layout as the owner sends it to the one role
 // that presents it, every change the presenter's gestures make asked of the owner, the session
 // written at an orderly close, and the one question the owner asks the presenter -- whether a
 // gesture is the weaver's current act. Each pane's own settings go from the owner to the pane
@@ -44,7 +44,7 @@ struct RowSettingUnused {
     friend bool operator==(const RowSettingUnused&, const RowSettingUnused&) = default;
 };
 
-/// THE LIVE LAYOUT AS ITS PRESENTER NEEDS IT, from the owner to the presenter's office: sent on
+/// THE LIVE LAYOUT AS ITS PRESENTER NEEDS IT, from the owner to the presenter's role: sent on
 /// every change of the run or of the live layout, and before the answer to every edit. Whole
 /// every time: the presenter replaces its copy with it and never edits that copy. Each row of
 /// `desk` carries Workshop's own `workshop.` keys alone: a pane's own settings are handed to the
@@ -165,11 +165,11 @@ struct SessionSaveAnswered {
 };
 
 /// THE OWNER ASKS THE PRESENTER, the judge of every hand: is `gesture` the weaver's current act,
-/// sent to a pane of `office`?
+/// sent to a pane of `role`?
 struct WeaversActRequested {
     std::int64_t gesture = 0;
-    std::string office;
-    ZEN_SHAPE(WeaversActRequested, 1, ZEN_FIELD(gesture), ZEN_FIELD(office));
+    std::string role;
+    ZEN_SHAPE(WeaversActRequested, 2, ZEN_FIELD(gesture), ZEN_FIELD(role));
 };
 
 /// ...ANSWERED: whether it is.

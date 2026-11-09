@@ -17,7 +17,7 @@ host seam answers it. An act that writes a file, builds or opens is an action cl
 Workshop to approve for the gesture's hand, once, at the act's first beat, or at the beat that
 learns its subject; a door past the dispatch asks about its sender. A guest builds only with the version-2 `build` power, and on a weaver's host
 writes nothing, opens no guests file, types into no pane, carries nothing, and reaches neither the
-editor office, whichever implementation holds it, nor the Terminal, nor the Hotkeys pane. Each hand keeps its own
+editor role, whichever implementation holds it, nor the Terminal, nor the Hotkeys pane. Each hand keeps its own
 gestures. A version-1 file still mounts, a weaver's host, and every row's losses are said beside
 it at launch, on Attention and in Connections.
 
@@ -33,7 +33,7 @@ it at launch, on Attention and in Connections.
 - *A guest's carry refused only at its drop* — argued against: no pane could take it, yet it held
   the one carry the desk has and spent the weaver's presses until the guest let it go.
 - *Neovim restricted to a command allow-list* — tried: Neovim 0.11.6 refuses `-Z` as an unknown
-  option, and Vim's `-Z` never blocked `:w`; the office refusal stands whichever editor holds it.
+  option, and Vim's `-Z` never blocked `:w`; the role refusal stands whichever editor holds it.
 - *Every key numbered, so a keymap edit's capture could be approved* — argued against: only an
   Escape asks a pane anything (WL-ARR-15); the Hotkeys pane, whose every act edits the keymap file,
   answers only the weaver's hand on a weaver's host instead.

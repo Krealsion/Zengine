@@ -21,10 +21,10 @@ an element the window presents from the owner's data (`element_export.hpp`).
 
 ## Pages
 
-- [`zengine.window.terminal`](docs/zengine.window.terminal.md), the terminal window's manual: what
+- [`zengine.window.tui`](docs/zengine.window.tui.md), the TUI window's manual: what
   it keeps and shows, what an owner sends it and what it refuses, where a key and a press go, the
   palettes it holds and the code it opens, and what a reload or a replacement costs
-- [`zengine.window.sdl`](docs/zengine.window.sdl.md), the OS window's manual: the same window on
+- [`zengine.window.sdl`](docs/zengine.window.sdl.md), the GUI window's manual: the same window on
   the desktop, drawn in light through SDL3, and how it keeps its window across a reload
 - [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual: what the arranger and a
   window tell it, and what it says to each window
@@ -53,7 +53,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
 | `painting.hpp` | a paint task, each colour resolved, and its result; what crosses the element seam: an element's event and its outcome |
 | `term_paint.hpp`, `light_paint.hpp` | the window's painters, for a medium of characters and of light |
 | `element_abi.h`, `element_export.hpp` | the element seam and its export |
-| `window/` | the windows: their store, the element code they open, the palettes they hold and the window over a medium; the terminal window, `zengine-window-terminal`, with the terminal's claim; the OS window, `zengine-window-sdl` |
+| `window/` | the windows: their store, the element code they open, the palettes they hold and the window over a medium; the TUI window, `zengine-window-tui`, with the terminal's claim; the GUI window, `zengine-window-sdl` |
 | `directory.cpp` | the directory, `zengine-graphics` |
 | `CMakeLists.txt` | how it is built |
 | `docs/` | the weaves' manuals and this package's page |

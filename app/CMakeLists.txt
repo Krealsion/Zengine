@@ -50,9 +50,9 @@ target_compile_definitions(zengine-app PRIVATE
 
 # ---- the artifacts an app's plan names, staged beside the program ----------------------------
 # The host resolves a stem in its own directory, as Workshop does, so each is copied here by a rule
-# of its own, on the artifact's clock. The OS window joins only where this configuration built it.
+# of its own, on the artifact's clock. The GUI window joins only where this configuration built it.
 set(zengine_app_artifacts zengine-app-weave zengine-operators-basic zengine-graphics
-                          zengine-window-terminal zengine-timer)
+                          zengine-window-tui zengine-timer)
 if(TARGET zengine-window-sdl)
     list(APPEND zengine_app_artifacts zengine-window-sdl)
 endif()
@@ -74,7 +74,7 @@ foreach(artifact IN LISTS zengine_app_artifacts)
 endforeach()
 add_custom_target(zengine-app-staging DEPENDS ${zengine_app_staged})
 add_dependencies(zengine-app zengine-app-staging)
-# ...and the SDL runtime the OS window opens, where this configuration fetched one.
+# ...and the SDL runtime the GUI window opens, where this configuration fetched one.
 zengine_stage_sdl(zengine-app)
 # Where the program stands, for the probe's launchers (examples/tally-app/CMakeLists.txt).
 set(ZENGINE_APP_DIR ${zengine_app_dir} PARENT_SCOPE)

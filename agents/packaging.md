@@ -59,8 +59,8 @@ target is internal, and that difference is the boundary made visible.
 own weave, which `zengine-app` runs), `zengine-timer`, `zengine-input`, `zengine-inventory`,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
-Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and terminal
-window (`zengine-graphics`, `zengine-window-terminal`), which paints with its own painter. They
+Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and TUI
+window (`zengine-graphics`, `zengine-window-tui`), which paints with its own painter. They
 install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
@@ -70,12 +70,12 @@ setups, each feature's tutorials (`<feature>/docs/tutorials/<name>/`) among them
 `share/zengine/loom-tools/desk`, the agent's desk guide and resolver; and beside each its
 `-machine` package (`workshop-machine`, `desk-machine`), the tools that also reach this machine;
 and `share/zengine/loom-tools/accounts-machine`, a checkout's Git and pull requests, which reach the
-session user's accounts. An operator approves a package whole, so a package's name says how far
+session user's accounts. A weaver approves a package whole, so a package's name says how far
 its tools reach. The generic
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs, and so
 does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`): it opens the
 artifacts from `lib/zengine/` by a path relative to its own, so it names no machine's layout, and
-with the OS window out it runs an app whose window is the terminal window.
+with the GUI window out it runs an app whose window is the TUI window.
 
 **Two CMake modules ride along**, installed beside the package config, which includes both.
 `zengine_code_page(<target>...)`, `cmake/ZengineCodePage.cmake` with the manifest it gives: a
@@ -97,7 +97,7 @@ CTest entry keeps the retired spellings from coming back — it owns the list of
 page does not spell them.
 
 **What is deliberately out of the developer package, and why** (each is a limit, not an
-oversight): the OS window (`zengine-window-sdl`), because a fetched SDL is a build-tree library
+oversight): the GUI window (`zengine-window-sdl`), because a fetched SDL is a build-tree library
 the developer package does not carry; Workshop, because a
 build's executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured
 it, so installing it would ship one machine's layout -- the package below carries both;

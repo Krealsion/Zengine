@@ -1,8 +1,8 @@
-# The SDL dependency, acquired once for every target that needs it. The OS window is a weave
+# The SDL dependency, acquired once for every target that needs it. The GUI window is a weave
 # library the Loom loads with local symbols (dlopen RTLD_LOCAL, LoadLibraryA), beside programs
 # that link SDL themselves (the graphics suite), so an archived static SDL would be two copies in
 # one process: two event queues and two SDL_Init states. So SDL is shared, and a static one is
-# refused out loud. `ZENGINE_TUI_ONLY=ON` declines the whole SDL-backed set: the terminal window
+# refused out loud. `ZENGINE_TUI_ONLY=ON` declines the whole SDL-backed set: the TUI window
 # alone.
 
 # Extracted archives are stamped at extraction (CMP0135), so a newly pinned tarball's sources are
@@ -14,7 +14,7 @@ if(POLICY CMP0135)
 endif()
 
 option(ZENGINE_TUI_ONLY
-       "Build no SDL-backed weave: the terminal window alone, no OS window, and no SDL3 fetch"
+       "Build no SDL-backed weave: the TUI window alone, no GUI window, and no SDL3 fetch"
        OFF)
 
 # What a package links, and what a host must stage beside itself; empty when this configuration
@@ -24,7 +24,7 @@ set(ZENGINE_SDL_LIB "")
 set(ZENGINE_SDL_TEXT_LIB "")
 set(ZENGINE_SDL_RUNTIME "")
 
-# zengine_sdl_weave(<target>) — a weave that links SDL, the OS window. One place, so a weave that
+# zengine_sdl_weave(<target>) — a weave that links SDL, the GUI window. One place, so a weave that
 # links SDL reaches it as the window does.
 function(zengine_sdl_weave target)
     target_link_libraries(${target} PRIVATE ${ZENGINE_SDL_LIB})
@@ -122,7 +122,7 @@ if(NOT zengine_sdl_type STREQUAL "SHARED_LIBRARY")
     message(FATAL_ERROR
         "zengine: SDL3::SDL3 is a ${zengine_sdl_type}, and Zengine needs a SHARED SDL3.\n"
         "WHY\n"
-        "  The OS window (graphics/) is a weave library the Loom loads with dlopen(RTLD_LOCAL) /\n"
+        "  The GUI window (graphics/) is a weave library the Loom loads with dlopen(RTLD_LOCAL) /\n"
         "  LoadLibraryA, beside programs that link SDL themselves, so a statically archived SDL\n"
         "  would be two copies in one process, each with its own event queue and SDL_Init state,\n"
         "  and nothing would fail until a real window sat there deaf.\n"
@@ -144,8 +144,8 @@ if(zengine_sdl_fetched)
     endif()
 endif()
 
-# ---- SDL_ttf: a real typeface for the OS window ------------------------------------------
-# A font engine that pairs with this SDL3, which the OS window needs (graphics/docs/zengine.window.sdl.md).
+# ---- SDL_ttf: a real typeface for the GUI window ------------------------------------------
+# A font engine that pairs with this SDL3, which the GUI window needs (graphics/docs/zengine.window.sdl.md).
 # SDL_ttf requires FreeType and its tarball does not bundle it, and both of its doors were
 # measured shut here: SDLTTF_VENDORED=OFF finds no FreeType on the WSL lane or in CLion's MinGW,
 # and ON needs external/freetype to exist. So FreeType is fetched, pinned, into that directory;

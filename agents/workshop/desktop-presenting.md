@@ -8,7 +8,7 @@ Router: [`../workshop.md`](../workshop.md).
 
 ## WL-DESK-09 — A presenter that arrives is answered the inventory as it is now
 
-LAW — A presenter asking as an office, or a guest session holding `capture`, is answered the inventory reading of that moment, alone; an offer clears the record, so the next is said to all.
+LAW — A presenter asking as a role, or a guest session holding `capture`, is answered the inventory reading of that moment, alone; an offer clears the record, so the next is said to all.
 
 MEANS
 - a desktop reloaded while nothing changes shows the list at once, not at an unrelated change;
@@ -55,7 +55,7 @@ LAW — The host publishes every binding in force, grouped by where it is answer
 
 MEANS
 - a moved row prints where it moved, a disabled one as having no key, `*` marking the weaver's;
-- each binding says its address -- office, pane, id -- and what a press causes, and each pane its modes (WL-CAUSE-01);
+- each binding says its address -- role, pane, id -- and what a press causes, and each pane its modes (WL-CAUSE-01);
 - the key list is the desktop's Hotkeys pane, launched by `desktop.hotkeys`; the host paints none.
 
 DOES NOT MEAN
@@ -73,7 +73,7 @@ MEANS
 - the manual key is above every mode: a pane keeps the keys it did not declare, so a chord.
 
 DOES NOT MEAN
-- that Workshop holds or relays a manual: the desktop asks the pane's office, and nothing keeps it.
+- that Workshop holds or relays a manual: the desktop asks the pane's role, and nothing keeps it.
 
 WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 
@@ -106,7 +106,7 @@ presenter is answered the inventory as it is now, to itself alone, and an offer 
 reading be said again"
 
 ### WL-DESK-10
-`workshop/desktop-pane/vocabulary.hpp` DesktopState DesktopState::cursor_office
+`workshop/desktop-pane/vocabulary.hpp` DesktopState DesktopState::cursor_role
 DesktopState::cursor_pane
 `workshop/desktop-pane/launcher_view.hpp` find_cursor write_choice launch_cursor close_cursor
 inventory_said wheel

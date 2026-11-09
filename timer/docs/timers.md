@@ -64,7 +64,7 @@ it is replaced.
 A host rests between turns until what is due next, so no firing is late for the rest. With
 nothing due it rests at most `kBeatCapMs` (`timer/vocabulary.hpp`), and that bound is a safety net,
 not a source's lateness: a host that rests in Loom's one wait (`loom::host::Reactor`) wakes at once
-for every source the wait holds -- a window, the Input office, a Neovim pane, the guest door each
+for every source the wait holds -- a window, the Input role, a Neovim pane, the guest door each
 claim what they wait on -- and a source the wait does not hold keeps a beat of its own
 ([`timer/held_beat.hpp`](../held_beat.hpp)). So the cap is the longest that anything neither waited
 on nor due goes unseen, and the one turn a second an idle host keeps.

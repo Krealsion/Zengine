@@ -28,7 +28,7 @@ element -- with names of its own that it keeps across its redraws, and a menu na
 the rows' ids. `part` presses a part by its pane and its name, wherever the pane last drew it;
 `carry` presses a part by its name, or by the row that shows it where its name is an id no step
 knows ahead, moves to another part's point or a pane's middle and releases there, a drag by names;
-`open` presses the Pane Manager's row named for a pane (`pane:<office>/<pane>`); `wheel` turns the
+`open` presses the Pane Manager's row named for a pane (`pane:<role>/<pane>`); `wheel` turns the
 wheel over a part by its name; `select` and `menu` take a name before the text a row or line shows.
 A name is the pane's: Workshop carries it as said.
 
@@ -263,7 +263,7 @@ def words_now(hand, provider, pane, end=None):
 
 def pause(hand, end, pane=None):
     """Until what a wait waits on may have moved, or `end`: at the desk's next move for `pane`
-    (office, pane), or for the desk (`hand.wait`) -- for a picture not yet aimed at, at its aimed
+    (role, pane), or for the desk (`hand.wait`) -- for a picture not yet aimed at, at its aimed
     number moving."""
     left = end - time.monotonic()
     if left > 0:
@@ -730,14 +730,14 @@ def choose(ctx, hand, text, seconds, button):
             ctx.check(not unreached(named[0]), "menu: no press reaches the line named %r on its "
                       "own: the parts over it take every place of it" % text)
             press_at(ctx, hand, named[0], button)
-            return {"line": named[0]["text"], "name": text, "office": menu["office"],
+            return {"line": named[0]["text"], "name": text, "role": menu["role"],
                     "pane": menu["pane"]}
         lines = [l for l in menu["lines"] if text in l["text"]] if menu["open"] else []
         if len(lines) > 1:
             break
         if lines:
             press_at(ctx, hand, lines[0], button)
-            return {"line": lines[0]["text"], "office": menu["office"], "pane": menu["pane"]}
+            return {"line": lines[0]["text"], "role": menu["role"], "pane": menu["pane"]}
         if time.monotonic() >= end:
             break
         pause(hand, end)
@@ -921,13 +921,13 @@ def settings_step(ctx, hand, arg):
 
 
 def pane_ref(name):
-    """The office and pane a pane's row is named for, as the Pane Manager and Info name it:
-    `pane:<office>/<pane>`."""
+    """The role and pane a pane's row is named for, as the Pane Manager and Info name it:
+    `pane:<role>/<pane>`."""
     ref = name[len("pane:"):] if isinstance(name, str) and name.startswith("pane:") else ""
-    office, _, pane = ref.partition("/")
-    if not office or not pane:
-        raise ValueError("a pane is named by its row's name, pane:<office>/<pane> -- not %r" % (name,))
-    return office, pane
+    role, _, pane = ref.partition("/")
+    if not role or not pane:
+        raise ValueError("a pane is named by its row's name, pane:<role>/<pane> -- not %r" % (name,))
+    return role, pane
 
 
 def marked(hand, view, part):
@@ -939,13 +939,13 @@ def marked(hand, view, part):
 
 
 def open_pane(ctx, hand, name, seconds):
-    """Open, or go to, the pane whose Pane Manager row is named `name` -- `pane:<office>/<pane>`,
+    """Open, or go to, the pane whose Pane Manager row is named `name` -- `pane:<role>/<pane>`,
     the pane's reference: its row drawn where a press reaches it (`manager_row`), then pressed where
     Workshop says its name is. A press on a row not yet marked chooses it and gives the Pane Manager
     the keys; a press on the marked row with the keys already there opens the pane, or focuses it.
     The step ends when the desk says the pane is selected -- what a launch makes it, opened or not --
     and says the state it is in; it fails with the names the list said when none is `name`."""
-    office, pane = pane_ref(name)
+    role, pane = pane_ref(name)
     view, part = manager_row(ctx, hand, name, seconds)
     presses = 1
     if not marked(hand, view, part):
@@ -969,7 +969,7 @@ def open_pane(ctx, hand, name, seconds):
     end = time.monotonic() + seconds
     while True:
         desk = hand.desk()
-        on = [p for p in desk["panes"] if p["provider"] == office and p["pane"] == pane]
+        on = [p for p in desk["panes"] if p["provider"] == role and p["pane"] == pane]
         if on and on[0]["selected"] and on[0]["state"] != "closed":
             return {"opened": name, "row": part["text"], "presses": presses, "state": on[0]["state"]}
         if time.monotonic() >= end:

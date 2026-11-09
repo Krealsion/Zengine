@@ -90,7 +90,7 @@ static_assert(kDefault == ui::kPlaceDefault && kPixels == ui::kPlacePixels,
 /// medium's cell changes.
 inline constexpr std::int64_t kSavedCellPx = 12;
 
-/// THE SMALLEST AUTHORED EXTENT, in canvas pixels: one cell, the terminal window's step, so every
+/// THE SMALLEST AUTHORED EXTENT, in canvas pixels: one cell, the TUI window's step, so every
 /// window can show an extent a weaver authors.
 // WL-GEO-06 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPanePxMin = kSavedCellPx;
@@ -1317,8 +1317,8 @@ inline Setup default_setup() {
         (void)add_pane(s, pane_ref_of(kind));
     }
     // Info opens at the room's top-right and Notices at its bottom-left, each at the size it asks
-    // for, because these desk rows say so: the two places this host names a weave's office, as rows
-    // a weaver may move or delete like any other. An office that never arrives leaves an unresolved
+    // for, because these desk rows say so: the two places this host names a weave's role, as rows
+    // a weaver may move or delete like any other. A role that never arrives leaves an unresolved
     // row (`unresolved_panes`).
     const std::pair<PaneRef, std::int64_t> seated[] = {
         {PaneRef{kInfoPaneProvider, kInfoPaneKey}, ui::kPlaceTopRight},

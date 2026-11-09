@@ -4,7 +4,7 @@
 #define ZENGINE_INFO_PROPERTY_VIEW_HPP
 
 // Info's pane-property view, the default pane `info` while it holds no value: the properties of
-// the one pane an office named as its subject (`InspectPaneRequested`, the Pane Manager's
+// the one pane a role named as its subject (`InspectPaneRequested`, the Pane Manager's
 // `inspect in Info`), as the host says them (`PaneSubjectShown`), its settings as the layouts'
 // owner reads them (`PaneSettingsAnswered`), and a draft of one of them its owner writes when it
 // is committed (`PaneCommitRequested`, `PaneSettingCommitRequested`). It touches no desk: it asks.
@@ -30,6 +30,7 @@
 #include "graphics/colors.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/weave.hpp>
 
@@ -43,9 +44,9 @@
 
 namespace zengine::info_pane {
 
-/// WHO THIS PANE IS TALKING TO -- the host's office, spelled as a literal exactly as the
-/// other pane weaves spell it.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 class PropertyView {
 public:
@@ -94,7 +95,7 @@ public:
     /// never merged -- published when it changes, or answered to this image's arrival.
     void shown(const workshop::PaneSubjectShown& said) {
         // THE SETTINGS OF ANOTHER SUBJECT ARE NOT THIS ONE'S: read again, and none shown meanwhile.
-        if (said.office != host_.office || said.pane != host_.pane) {
+        if (said.role != host_.role || said.pane != host_.pane) {
             settings_.reset();
         }
         host_ = said;
@@ -118,7 +119,7 @@ public:
     /// the subject it shows, and merged into the rows before the interior. The weave has already
     /// judged that the mail answers an ask and comes from the owner.
     void settings_shown(const workshop::PaneSettingsAnswered& read, std::uint64_t correlation) {
-        if (correlation != settings_ask_ || read.provider != host_.office ||
+        if (correlation != settings_ask_ || read.provider != host_.role ||
             read.pane != host_.pane) {
             return; // an older reading, or another subject's
         }
@@ -139,7 +140,7 @@ public:
         settings_ask_ = ++c.asks;
         (void)c.mail.as_role(kInfoPaneRole)
             .send_to_role(workshop::kLayoutsRole,
-                          workshop::PaneSettingsRequested{host_.office, host_.pane}, settings_ask_);
+                          workshop::PaneSettingsRequested{host_.role, host_.pane}, settings_ask_);
     }
 
     /// WHAT THE SETTINGS' OWNER MADE OF A COMMIT OF ONE OF THEM, read as the host's answers are:
@@ -181,11 +182,11 @@ public:
         }
     }
 
-    /// AN OFFICE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
+    /// A ROLE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
     /// and the ask is this pane's own inspect (`ask_inspect`): held back while a draft is live,
     /// since another subject would take the draft's rows away, and the host's answer passed back
     /// whole. It is the weaver's act on this view, so it spends the notice before it asks. The
-    /// weave has already judged that an office asked.
+    /// weave has already judged that a role asked.
     void inspect_asked(const workshop::InspectPaneRequested& asked, ViewContext& c) {
         if (draft_.open) {
             notice_ = kFinishTheEdit;
@@ -195,7 +196,7 @@ public:
         }
         spend_notice();
         loom::DeferredAnswer owed = c.mail.defer_answer();
-        ask_inspect(asked.office, asked.pane, c);
+        ask_inspect(asked.role, asked.pane, c);
         if (acting_.awaiting) {
             relay_ = std::move(owed);
         } else {
@@ -411,8 +412,8 @@ private:
     static constexpr std::int64_t kPropertyMarkCols = 1;  ///< the `>` that marks the cursor's row
     static constexpr std::int64_t kPropertyLabelCols = 9; ///< the label column a value is measured after
 
-    /// THE PANE'S OWN REFUSAL WHILE A DRAFT IS LIVE -- for every act the draft holds back: an
-    /// office naming another subject.
+    /// THE PANE'S OWN REFUSAL WHILE A DRAFT IS LIVE -- for every act the draft holds back: a
+    /// role naming another subject.
     static constexpr const char* kFinishTheEdit = "finish the edit first -- commit it or cancel it";
 
     /// A COMMIT ASKED FOR WHILE ONE IS UNANSWERED (`act`): not sent, and the draft and its edits
@@ -578,7 +579,7 @@ private:
         std::string label;       ///< the row it was typed into, for the owner's refusal
     };
 
-    /// The office's ask, answered with what became of the inspect it started: once, and only
+    /// The role's ask, answered with what became of the inspect it started: once, and only
     /// while one is held.
     void settle_relay(const workshop::PaneSubjectActed& said, loom::Mail& mail) {
         if (relay_.valid()) {
@@ -588,11 +589,11 @@ private:
     }
 
     /// ONE INSPECT OUTSTANDING, THE NEWEST: an older one's answer names a correlation nothing
-    /// waits on and is dropped unread, its office told it was replaced; the commit's record is
+    /// waits on and is dropped unread, its role told it was replaced; the commit's record is
     /// never replaced by it. (!) THE TICKET IS KEPT (WL-INFO-13): one not valid means nothing was
     /// queued and no answer or refusal can follow, so the record is released at once, aloud. A
     /// queued inspect changes nothing shown: the picture its answer brings says it.
-    void ask_inspect(const std::string& office, const std::string& pane_key, ViewContext& c) {
+    void ask_inspect(const std::string& role, const std::string& pane_key, ViewContext& c) {
         settle_relay(workshop::PaneSubjectActed{false, kInspectReplaced}, c.mail);
         const std::uint64_t correlation = ++c.asks;
         Asked asking;
@@ -601,7 +602,7 @@ private:
         asking.act = kInspectAct;
         asking.attempt = c.mail.as_role(kInfoPaneRole)
                              .send_to_role(kWorkshopRole,
-                                           workshop::InspectPaneRequested{office, pane_key},
+                                           workshop::InspectPaneRequested{role, pane_key},
                                            correlation);
         if (!asking.attempt.valid()) {
             acting_ = Asked{};
@@ -613,7 +614,7 @@ private:
     }
 
     /// DOES THIS NOTICE NAME THE ASK `record` IS WAITING ON -- the same queued attempt, under the
-    /// same correlation, of the shape it sent, to the office it addressed? Every half, because a
+    /// same correlation, of the shape it sent, to the role it addressed? Every half, because a
     /// sequence alone is a number and the rest is what this view asked.
     static bool refused_ask(const Asked& record, const loom::DispatchRefused& refused,
                             const loom::Mail& mail, const char* shape, std::uint32_t version) {
@@ -1042,7 +1043,7 @@ private:
     Due due_;
 
     Asked acting_;               ///< an inspect
-    loom::DeferredAnswer relay_; ///< the office that asked for `acting_`, owed its answer
+    loom::DeferredAnswer relay_; ///< the role that asked for `acting_`, owed its answer
     SentCommit committing_;      ///< a commit
 
     std::int64_t rows_ = 0;

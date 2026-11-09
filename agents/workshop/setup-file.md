@@ -209,7 +209,7 @@ key bounds are BYTES, and the refusal says bytes"
 `workshop/setup.hpp` check_pane_key check_pane_ref kMaxPaneKeyLen
 `tests/test_workshop_persistence.cpp` "what this application accepts as either half of a reference"
 `tests/test_workshop_panes_seam.cpp` "a descriptor's two keys are judged by the setup file's own
-law" "an office longer than the key bound is delivered whole and admitted by nobody"
+law" "a role longer than the key bound is delivered whole and admitted by nobody"
 
 ### WL-SETUP-11
 `workshop/setup_persist.hpp` save_file load_file persist::write_file kMaxSetupBytes

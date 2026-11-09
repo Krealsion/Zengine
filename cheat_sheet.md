@@ -27,7 +27,7 @@ like.
   [supported toolchains](docs/contributing/supported-toolchains.md#the-matrix),
   [MSVC](docs/contributing/supported-toolchains.md#msvc),
   [MinGW](docs/contributing/supported-toolchains.md#mingw).
-- No SDL, the terminal window alone, `ZENGINE_TUI_ONLY=ON`:
+- No SDL, the TUI window alone, `ZENGINE_TUI_ONLY=ON`:
   [SDL](docs/contributing/supported-toolchains.md#sdl).
 
 ## Using Zengine from another project
@@ -56,14 +56,14 @@ like.
   [when it does not work](docs/getting-started.md#when-it-does-not-work).
 - What a sender learns about its own send:
   [limitations](workshop/docs/limitations.md#a-sender-sees-its-own-sends-fate-only-if-it-asks).
-- Publishing, sending, sending to a role, speaking as an office, asking and answering:
+- Publishing, sending, sending to a role, speaking as a role, asking and answering:
   [Loom's messaging reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md).
 
 ## Libraries
 
 - The Timer: [ordering a timer](timer/docs/timers.md), [an authored rhythm](timer/docs/timed-weaves.md),
   [the binding's factories and handles](timer/docs/timer-binding.md#model),
-  [its office](timer/docs/zengine.timer.md), [its laws](timer/docs/timer-laws.md).
+  [its role](timer/docs/zengine.timer.md), [its laws](timer/docs/timer-laws.md).
 - Key, text and pointer moments: [input](input/docs/input.md),
   [pointer spaces](workshop/docs/pointer-spaces.md).
 - Drawing in a window's area, colours by name, the windows and their palettes: [graphics](graphics/docs/graphics.md).
@@ -120,7 +120,7 @@ like.
 
 ## Words
 
-- Loom's words, weave, shape, role, office, grant, Sense and the rest:
+- Loom's words, weave, shape, role, grant, Sense and the rest:
   [Loom's terminology](https://github.com/Krealsion/Loom/blob/main/docs/terminology.md).
 - Artifact, weave and provider, three words and not synonyms:
   [run it](docs/getting-started.md#run-it).

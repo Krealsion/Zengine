@@ -6,7 +6,7 @@
 
 // The app host (app/docs/app.md): what `zengine-app` composes over one bus, and nothing a weave
 // could hold: one operator catalog, the Kernel asking Loom's authority store in the app's folder,
-// Loom's warden adopting each load, the operator seat, the plan's booter and executor (its barrier
+// Loom's warden adopting each load, the weaver seat, the plan's booter and executor (its barrier
 // asking the store before each row), the Flow host and the view host, the place door, the close,
 // and the console's words a line at a time, so a program and a suite drive it alike.
 
@@ -57,7 +57,7 @@ namespace load_persist = zengine::workshop::load_persist;
 /// The most turns of the bus the seat gives the warden to answer one question.
 inline constexpr int kSeatTurns = 64;
 
-// ---- the operator seat ---------------------------------------------------------------------
+// ---- the weaver seat ---------------------------------------------------------------------
 
 /// The seat's own nudge: a turn in which it sends the question it holds.
 struct AppSeatTurn {
@@ -69,7 +69,7 @@ struct AppSeatState {
     ZEN_SHAPE(AppSeatState, 1, ZEN_FIELD(answers));
 };
 
-/// THE OPERATOR SEAT, the one participant the warden obeys. A question it sends from inside its
+/// THE WEAVER SEAT, the one participant the warden obeys. A question it sends from inside its
 /// own delivery is a participant's send, gated and stamped with its id, and an answer counts only
 /// when Loom attributes it to that question (`loom::AskBook`).
 class Seat final
@@ -177,9 +177,9 @@ struct AppCloseState {
     ZEN_SHAPE(AppCloseState, 1, ZEN_FIELD(heard));
 };
 
-/// THE CLOSE: the app's window is the first window that offers itself, as its office, and the
-/// app's weave arranges in that one. Its `SurfaceCloseRequested`, said as that office, ends the
-/// run; a close any other office says, or one said with no office, ends nothing.
+/// THE CLOSE: the app's window is the first window that offers itself, as its role, and the
+/// app's weave arranges in that one. Its `SurfaceCloseRequested`, said as that role, ends the
+/// run; a close any other role says, or one said with no role, ends nothing.
 class CloseDoor final
     : public loom::WeaveBase<CloseDoor, AppCloseState,
                              loom::Accept<zengine::graphics::WindowOffered,
@@ -187,9 +187,9 @@ class CloseDoor final
 public:
     explicit CloseDoor(std::function<void()> close) : close_(std::move(close)) {}
     void on(const zengine::graphics::WindowOffered& w, loom::Mail& mail) {
-        const std::string office = std::string(zengine::graphics::kWindowOfficePrefix) + w.window;
-        if (window_.empty() && mail.authored_from_role(office)) {
-            window_ = office;
+        const std::string role = std::string(zengine::graphics::kWindowRolePrefix) + w.window;
+        if (window_.empty() && mail.authored_from_role(role)) {
+            window_ = role;
         }
     }
     void on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail& mail) {
@@ -200,7 +200,7 @@ public:
     }
 
 private:
-    std::string window_; ///< the office of the app's window, once one offered itself
+    std::string window_; ///< the role of the app's window, once one offered itself
     std::function<void()> close_;
 };
 
@@ -234,7 +234,7 @@ public:
             return false;
         }
         if (!loaded.plan.choices.empty()) {
-            *why = "the plan " + plan_path + " authors choices for an office; an app's plan " +
+            *why = "the plan " + plan_path + " authors choices for a role; an app's plan " +
                    "names each artifact it runs";
             return false;
         }

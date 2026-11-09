@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_GRAPHICS_WINDOW_WINDOW_TERMINAL_HPP
-#define ZENGINE_GRAPHICS_WINDOW_WINDOW_TERMINAL_HPP
+#ifndef ZENGINE_GRAPHICS_WINDOW_WINDOW_TUI_HPP
+#define ZENGINE_GRAPHICS_WINDOW_WINDOW_TUI_HPP
 
-// The terminal window: the window (graphics/window/window.hpp) over a medium of characters and an
+// The TUI window: the window (graphics/window/window.hpp) over a medium of characters and an
 // injected Terminal. It keeps each node painted as cells, composes the areas, writes its terminal
 // only the cells whose picture changed, keeps what it showed, and reads the terminal's keys and
-// presses with Zengine's parser. Reference: graphics/docs/zengine.window.terminal.md, its manual,
+// presses with Zengine's parser. Reference: graphics/docs/zengine.window.tui.md, its manual,
 // compiled in and answered.
 
 #include "component/text.hpp"
@@ -16,7 +16,7 @@
 #include "graphics/window/window.hpp"
 
 #include "input/translate.hpp"
-#include "manuals/zengine.window.terminal.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.window.tui.hpp" // this role's manual, compiled in from its page
 
 #include <algorithm>
 #include <cstdint>
@@ -30,7 +30,7 @@
 
 namespace zengine::graphics::window {
 
-/// The size a terminal window shows when its terminal cannot be measured -- a pipe, a suite --
+/// The size a TUI window shows when its terminal cannot be measured -- a pipe, a suite --
 /// while its areas reach no further.
 inline constexpr std::int64_t kUnmeasuredCols = 80;
 inline constexpr std::int64_t kUnmeasuredRows = 24;
@@ -95,9 +95,9 @@ inline std::string cells_text(const std::vector<std::string>& row, bool utf8) {
 template <class Terminal>
 class TerminalMedium {
 public:
-    static constexpr const char* kWindow = kTerminalWindow;
+    static constexpr const char* kWindow = kTuiWindow;
     static constexpr const zengine::manual::Manual& kManual =
-        zengine::manual::pages::zengine_window_terminal::kManual;
+        zengine::manual::pages::zengine_window_tui::kManual;
 
     TerminalMedium() { dirty_.size(cols_, rows_); }
     explicit TerminalMedium(Terminal terminal) : terminal_(std::move(terminal)) {
@@ -399,10 +399,10 @@ private:
     std::int64_t device_bytes_ = 0;
 };
 
-/// The terminal window over `Terminal`.
+/// The TUI window over `Terminal`.
 template <class Terminal>
 using WindowT = Window<TerminalMedium<Terminal>>;
 
 } // namespace zengine::graphics::window
 
-#endif // ZENGINE_GRAPHICS_WINDOW_WINDOW_TERMINAL_HPP
+#endif // ZENGINE_GRAPHICS_WINDOW_WINDOW_TUI_HPP

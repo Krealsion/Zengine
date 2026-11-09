@@ -9,7 +9,7 @@ is [`workshop.md`](workshop.md); public reference:
 
 ## A press reaches a pane from the window, as a place in its area
 
-The window that shows a pane's area tells the area's owner office of a press there --
+The window that shows a pane's area tells the area's owner role of a press there --
 `AreaButtonChanged`: the button, whether it went down, the point in the area's pixels, under the
 window's number for the press -- and tells Workshop, which placed the area, where it landed
 (`AreaPressed`, in the window's pixels, under the same number). The pane reads the point against
@@ -21,7 +21,7 @@ lets a provider locate itself on a screen.
   keeps a continuation under the window's number, and ends an open menu; it sends the pane
   nothing about the press, and interprets none of its rows.
 - **Where the keys were is Workshop's word, said before the press moved them**: **`PaneKeys v1`
-  `{pane, here}`**, to the pane's office whenever the keys come or go. A pane that activates a row
+  `{pane, here}`**, to the pane's role whenever the keys come or go. A pane that activates a row
   on a press does so only when the keys were already its own (WL-FOCUS-04); a mode holding the
   keys is "not here".
 - **The title rows are Workshop's frame, outside the area.** The area stands under the resolved
@@ -74,7 +74,7 @@ stands for an act's every beat: the pane asks at the first and carries it, never
 Builder's frontier and its role line); an act that learns its subject later asks at the beat that
 learns it (the Builder's edit-source). The Builder's, Files', Flow's and the View Builder's
 writing, building and opening acts, the Inventory pane's toolbox save and Workshop's own carry
-this; the editor office's saves and opens, the Hotkeys pane's keymap writes and the quick setup's
+this; the editor role's saves and opens, the Hotkeys pane's keymap writes and the quick setup's
 settings write and editor switch are kept from a guest on a weaver's host by the dispatch instead
 (WL-GUEST-06), and any carry a guest's press or key would begin there is refused when the pane asks
 Workshop to begin it. Every other control an
@@ -105,11 +105,12 @@ press, and the carry ends the press's canvas hold as lost (WL-CANVAS-05).
 
 `PaneObservationRequested` retains that one approval, narrowly, for repeated reads: the same
 current-gesture and actor check (`approve_gesture`) spends the gesture and records a lease of
-holder, office, pane, role, shape, version, subject and actor, one per pane and sixteen in all.
-Each `PaneObservationContinued` is judged again -- office holder, desk presence, subject, and an
+holder, the holder's role, pane, the observed role, shape, version, subject and actor, one per pane and
+sixteen in all.
+Each `PaneObservationContinued` is judged again -- role holder, desk presence, subject, and an
 injected actor's live authority -- and any lapse refuses and forgets it; only the holder's own
 continuation or `PaneObservationEnded` touches a lease, and a request first forgets leases whose
-holder no longer holds its office. It grants nothing on the bus, is never created by a timer,
+holder no longer holds its role. It grants nothing on the bus, is never created by a timer,
 invalidation or old correlation, and lives only in the running Workshop. Ending is the pane's on
 every exit: a request stopped before its answer ends the lease that answer grants, and because a
 reload keeps the WeaveId, an arriving image sends `PaneObservationEnded{pane, 0}` -- every lease
@@ -119,7 +120,7 @@ it holds on that pane -- for each pane it may observe from.
 when what the pane shows moved. It reads presentation; pressing the point is ordinary input. A
 pane's reading is the window's (WL-READ-08): the words its area shows, each with its place in
 canvas pixels and the point a press names it by, and its place and text measure, from which any
-cell is reckoned; a pane whose office nobody holds gives a word or part none, as its press reaches
+cell is reckoned; a pane whose role nobody holds gives a word or part none, as its press reaches
 nothing. Workshop's own surfaces are answered from its own numbers (WL-GEO-13). Workshop names
 nothing inside a pane: a word's number is its place in one answer. A pane names its parts
 (WL-HAND-06) as its drawing's records' actions -- a run of a row's columns, a rectangle of the
@@ -145,7 +146,7 @@ WL-GUEST-11). The shapes: [the desk, said whole](../workshop/docs/workshop-panes
 
 Every pane draws its picture in an area of its own in the window that shows the desk, and in
 nothing else: Workshop places the area (its frame, title rows and depth are Workshop's), and the
-window gives the area's owner office its room (`AreaRoom`) and takes its drawing (`Drawn`). The
+window gives the area's owner role its room (`AreaRoom`) and takes its drawing (`Drawn`). The
 complete reference is [`workshop/docs/workshop-panes.md`](../workshop/docs/workshop-panes.md); the
 host's laws are [`workshop/canvas.md`](workshop/canvas.md). The provider owns its picture, hit
 testing and every semantic action. No node, wire or pan behavior belongs in the host.
@@ -164,7 +165,7 @@ testing and every semantic action. No node, wire or pan behavior belongs in the 
   past an area's node or record bound as that bound in words on the ground; a drawing the window
   refuses all the same is told its drawer alone (`DrawnRefused`), which says it in its own picture.
 - **The pointer is the window's word.** A pane hears `AreaButtonChanged`, `AreaPointerMoved`,
-  `AreaWheelTurned` and `AreaHoldEnded` in its area where its office takes them, as every shipped
+  `AreaWheelTurned` and `AreaHoldEnded` in its area where its role takes them, as every shipped
   pane's does: a press's moves and release held to it under the window's number for the press,
   and a hold the window ends the press lost ([the Graphics package](../graphics/docs/graphics.md#who-says-what)).
   Workshop relays it none of them. A continuation it sends about the press -- a carry, a
@@ -184,9 +185,9 @@ screen says so, is Workshop routing law
 ([`workshop/focus.md`](workshop/focus.md) (WL-FOCUS-01)).
 
 - **On a weaver's host a guest's keys, text, presses, wheels and drops never reach the editor
-  office, the Terminal, the Hotkeys pane or the quick setup, and its typed text and any carry it
+  role, the Terminal, the Hotkeys pane or the quick setup, and its typed text and any carry it
   would begin no pane** (WL-GUEST-06): Workshop refuses them
-  in words at the dispatch, by office, whichever implementation holds it. On a development host,
+  in words at the dispatch, by role, whichever implementation holds it. On a development host,
   as the weaver's.
 
 - **Workshop does not ask a provider whether it wants keys, and there is no shape for saying
@@ -197,9 +198,9 @@ screen says so, is Workshop routing law
 - **No key release, no focus-changed shape and no IME.** The
   shape's ARRIVAL is the gesture, the press's rule one gesture on.
 - **Escape deselects by default (WL-ARR-15).** A bare Escape no row of the pane claims reaches
-  it only when its office's holder lists `PaneEscapeUnspent` in what it emits: the declaration
+  it only when its role's holder lists `PaneEscapeUnspent` in what it emits: the declaration
   that it judges its own Escape. It drops what it has selected, or, with nothing selected, says
-  `PaneEscapeUnspent{pane}` as the office that offered the pane, **echoing the correlation that
+  `PaneEscapeUnspent{pane}` as the role that offered the pane, **echoing the correlation that
   Escape arrived under**, and Workshop puts the pane down while the pane still has the desk and
   the keys and that Escape is still the last gesture the host handled. `workshop/pane_escape.hpp`
   is that default (`pane_escape::answer`). What counts as a selection is the pane's: a chosen row
@@ -213,7 +214,7 @@ screen says so, is Workshop routing law
   Escape restores every other check the first one met, and an answer about the first would
   otherwise be spent on the second. Zero, an older Escape's number and an already-spent one all
   move nothing.
-  **And a bare Escape is not sent at all** when the office's holder accepts no `PaneKey` and the
+  **And a bare Escape is not sent at all** when the role's holder accepts no `PaneKey` and the
   pane declared no row for it (`holder_accepts`, the same reading the press's version comes from):
   nothing could have spent it, so Escape's last meaning answers at once (WL-ARR-16). That is a
   declaration read off the bus, never an inference from silence. The weaver leaves a pane that keeps
@@ -245,7 +246,7 @@ beside the shapes before them, and each is an ordinary optional capability any p
 area from the window):
 
 - **The reveal is one ask and one answer**: **`PaneRevealRequested v1` `{pane}`**
-  (provider → Workshop, as the office that offered the pane: seat me now, my act needs nothing
+  (provider → Workshop, as the role that offered the pane: seat me now, my act needs nothing
   more) and **`PaneRevealAnswered v1` `{pane, seated, refusal}`** (Workshop's answer, on the
   delivery that asked, about what that delivery DID — the pane is seated, selected and has the
   keys, or nothing moved and here is the launch door's sentence). Judged first, through the
@@ -253,8 +254,8 @@ area from the window):
   refusal moved nothing; a screen that shrank before the ask arrived refuses it in the launch
   door's words; a
   shrink after the answer is an ordinary presentation change to a pane on the desk. Workshop
-  holds nothing between deliveries — no record, no reservation — so two offices' asks are two
-  seats judged in order. A reveal naming a pane the office never offered is refused; one from
+  holds nothing between deliveries — no record, no reservation — so two roles' asks are two
+  seats judged in order. A reveal naming a pane the role never offered is refused; one from
   nobody is dropped unanswered.
   **It is an ordinary pane's door, and no longer the Editor's open.** A pane whose act needs a
   seat and nothing else asks for one. An act that changes a DOCUMENT and its presentation
@@ -262,7 +263,7 @@ area from the window):
   two weaves and FIFO dispatch lets either change between two deliveries: the reveal-as-
   commitment shape held the asker's gestures to a bound and dropped the rest, and no bound
   repairs that.
-- **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the office, and
+- **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the role, and
   **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
   that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's
   accepters at the publication, ends the process at once when nobody accepted, and otherwise holds
@@ -275,7 +276,7 @@ area from the window):
   recipient — so the host reads the refusal off its own tap (`QuitDeliveryWatch`,
   `workshop/quit_delivery.hpp`): a `Refused` event under Workshop's sender stamp for this shape is
   written into a book Workshop reads, and Workshop is woken by a delivery that carries nothing.
-  Workshop refuses the quit in flight on an entry for its own ask, naming the office, the weave and
+  Workshop refuses the quit in flight on an entry for its own ask, naming the role, the weave and
   Loom's reason, even with another answer still owed; the next quit asks afresh. A pane author
   registers nothing, and a participant that shows no pane is counted like any other. What is NOT
   solved: an accepter that IS delivered the question and never answers holds the quit open, and
@@ -285,19 +286,19 @@ area from the window):
 
 A secondary press reaches the pane from the window as any press does (`AreaButtonChanged`, its
 button 2 or 3), and Workshop, the area's arranger, as `AreaPressed`. `PanePassRequested v1` `{pane}`, `PaneMenuRequested v1` `{pane, subject, row, column, rows}`,
-`PaneKeyboardRequested v1` `{pane}` and `PaneManageRequested v1` `{pane, office, target}`,
-provider → Workshop as the office that offered the pane; `PaneMenuAnswered v1`
+`PaneKeyboardRequested v1` `{pane}` and `PaneManageRequested v2` `{pane, role, target}`,
+provider → Workshop as the role that offered the pane; `PaneMenuAnswered v1`
 `{pane, subject, chosen, id, refusal}`, the presenter (or, for an ask it refused or one no
 presenter can answer, Workshop) → provider. Between Workshop
 and the participant holding `zengine.presenter`, `workshop/presenter_vocabulary.hpp`:
 `MenuGranted`, `MenuInput` and `MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed`
 and `PresenterReady` presenter → Workshop, and `HeldMenu`, the reload state the shipped
 presenters share. The pane shapes ADDED
-to the protocol and revised nothing. `MenuGranted v3` and `HeldMenu v3` carry the host's standard
+to the protocol and revised nothing. `MenuGranted v4` and `HeldMenu v4` carry the host's standard
 rows (`standard`, below), the name of the pane they act on (`pane_name`) and the area the menu
 stands in (`area`), and `MenuClosed v2` the standard row chosen; `MenuShown v3` names that area
 and how much of it the menu takes, and carries no lines. A holder that accepts only an older
-`MenuGranted` does not hold the office for this host, so a menu is refused where it would open,
+`MenuGranted` does not hold the role for this host, so a menu is refused where it would open,
 in words. Several NEST — `PaneMenuRequested` and `MenuGranted` carry
 `vector<PaneMenuRow>` — and since Loom ABI v9 a
 nested component is agreed at admission like any other declared shape; these admit because
@@ -308,12 +309,12 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
 `workshop/pane_menu.hpp`, installed beside the protocol.
 
 - **The pane is first, and delivery is the disposition.** A secondary press in a pane's area is
-  the pane's, heard from the window where its office takes `AreaButtonChanged`: no menu, no
+  the pane's, heard from the window where its role takes `AreaButtonChanged`: no menu, no
   selection, no keys. A pane may act (the guard example blocks while the button is held), hand
   the press back (`PanePassRequested`, citing the window's number: the host's own pane menu opens
   once), or ask for a menu of its own rows. The shipped panes hand back every right press they
   have nothing for, so none is lost; a holder's silence is still its own disposition, which the
-  host cannot see. **A right press on a pane whose office does not hear the window is not
+  host cannot see. **A right press on a pane whose role does not hear the window is not
   lost:** no keys move, and the host's own pane menu opens at the press — the same menu the
   chrome (the title row) and the Pane Manager reach.
 - **Three gestures may continue into a menu, and they are judged alike.** A secondary press and a
@@ -331,8 +332,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   press began (`on(PointerButton)` counts presses, keys, text and the wheel, never a release) —
   so a click's own release never makes its choice late. A release never restores it; a pane that
   leaves the desk after the release cannot be handed back or given a menu — the review's first
-  finding, repaired at `end_lost_holds`. The release goes to the area's office, so a holder
-  replaced mid-hold is not promised it, and a holder that gives up its office ends its own hold.
+  finding, repaired at `end_lost_holds`. The release goes to the area's role, so a holder
+  replaced mid-hold is not promised it, and a holder that gives up its role ends its own hold.
 - **A menu is requested, judged where it opens, granted to the presenter, answered once.**
   Every declared action goes to a pane under a number of its own (`Hand::action_sent`), so a request
   opened by key continues that keystroke and one opened by the second button continues that
@@ -360,7 +361,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   host withdraws the menu when custody moves — a newer menu, a right press, its own menu, the
   pane leaving the desk or being offered again — and the presenter answers it unchosen in the
   host's words. The PRESENTER owns the rest (WL-CTX-10): what can be presented (the row bounds),
-  how it reads, what each key and press means, when it ends, and the answer, as its office,
+  how it reads, what each key and press means, when it ends, and the answer, as its role,
   under the request's number. It closes the menu to the host (`MenuClosed`) naming the act that
   chose -- the word that its requester is answered and nothing more is owed -- and the host
   records that act as the choice's continuation: a choice may continue,
@@ -369,7 +370,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   press of that hand defeats it, the choosing click's release does not. The reveal door is not the menu's route.
 - **The requester reads an answer through its own record of the ask.** `pane_menu::Asked` is
   what `Offer::send` returns and what `take` settles: a choice counts only from the presenter's
-  office (a refusal may also be Workshop's), under this image's pending number, once, about the
+  role (a refusal may also be Workshop's), under this image's pending number, once, about the
   pane and subject asked; the subject is then the pane's to judge against what it holds. Kept in
   the image and never in reload-kept state, so a reloaded requester CANCELS its predecessor's
   menus — the shipped desktop's policy; the host also withdraws the menu when the successor
@@ -384,14 +385,14 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   are these consumers' policies,
   not a rule every participant must follow.
 - **The host learns a presenter left from Loom, by the exact attempt, and answers THAT menu.**
-  Every sentence the host queues to the presenter's office from a grant until that menu ends is
+  Every sentence the host queues to the presenter's role from a grant until that menu ends is
   about that menu, and Loom numbers attempts in queue order, so a `zen.DispatchRefused` names
   its menu (`end_refused_menu`): an attempt at or after the open menu's grant
   (`PresentedMenu::first_attempt`) ends the open menu, answered; one inside a withdrawn menu's
   span settles that one; anything older settles nothing -- an older menu's refusal never ends,
-  alters or answers a newer one. The office's name alone could not tell them apart. **Taking a
+  alters or answers a newer one. The role's name alone could not tell them apart. **Taking a
   menu off the screen is not answering it:** the withdrawal is still the presenter's to answer,
-  so the host keeps who asked (`WithdrawnMenu`: office, pane, subject, number, why, the attempt
+  so the host keeps who asked (`WithdrawnMenu`: role, pane, subject, number, why, the attempt
   span) until Loom has had its say. A withdrawal that queues nothing, or one Loom refuses (the
   presenter unloaded after the menu opened), is answered by the host, unchosen, under the ask's
   number, saying why the menu ended and what Loom said. The record is forgotten when the host's
@@ -461,7 +462,7 @@ EditorDocument v1, PanePresentation v1                    the two latest claims,
   prepares B for that room, and draws it in its own area in the delivery that commits its claim,
   so the window never shows A after the commitment. Neovim's editor draws B's prepared preview
   until Neovim has drawn B.
-- **Every managed sentence is judged under the office stamp.** The trial, the admission and
+- **Every managed sentence is judged under the role stamp.** The trial, the admission and
   the settlement are taken only from `zengine.opening`; a preparation only from the manager;
   a forged settlement, preparation or admission reaches its party and is dropped by it. The
   manager's own answers are matched by Loom's `answers_ask()` plus its correlation and stage.
@@ -524,8 +525,8 @@ in force in place of the default, and the default stands everywhere else; one ac
   is; the label is what the band prints; the gesture is the SAME two numbers `PaneKey` carries,
   `input::scan` and `input::mod`, and never a key name — a name is a spelling the host's grammar
   owns. `scan::kUnknown` declares a row with no default, one a weaver may bind.
-- **Judged whole under the office stamp, exactly as the offer is.** An empty office retains
-  nothing; a pane this office never offered is refused by name; the rows meet a bound
+- **Judged whole under the role stamp, exactly as the offer is.** An empty role retains
+  nothing; a pane this role never offered is refused by name; the rows meet a bound
   (`kMaxPaneActionRows`), an id law (present, printable, no space, unique, never one of
   Workshop's own) and the collision law over the effective map — the globals, which are what is
   active while a text-taking pane holds the keys, and the pane's own rows against each other. When adding a chord, check the desktop application rows too and exercise both declaration orders with the desktop loaded; a pane-only fixture cannot witness that join. A refused shape leaves the pane's previous rows standing; an accepted
@@ -601,28 +602,28 @@ in force in place of the default, and the default stands everywhere else; one ac
 choices, low?, high?}`, provider → the layouts' owner (`zengine.layouts`), sent beside the offer;
 `PaneSettingsAsked v1` `{pane}`, provider → the layouts' owner, once in each life when it
 arrives; `PaneSettings v1` `{pane, settings}` of `PaneSetting v1` `{key, flag?, number?, text?}`,
-the layouts' owner → the office's holder (`workshop/pane_settings.hpp`). Version 2 of each adds
+the layouts' owner → the role's holder (`workshop/pane_settings.hpp`). Version 2 of each adds
 how a weaver finds a setting and which row a hand-off was: `PaneSettingRow v2` adds `tags`,
 `pinned` and `summary`, so `PaneSettingsDeclared v2` carries those rows, and `PaneSettings v2`
 `{pane, revision, settings}` names the revision of the live layout's row it was handed at. A pane
 that speaks about what it was handed says `PaneSettingUnused` `{pane, revision, key, why}` back to
-the layouts' owner. None names a provider: the office is Loom's stamp. The owner's side is
+the layouts' owner. None names a provider: the role is Loom's stamp. The owner's side is
 Workshop's law, [`workshop/settings.md`](workshop/settings.md); a pane's side is
 `PaneSettingsFacet` (`workshop/pane_settings_taken.hpp`).
 
 - **A setting is a key and exactly one value, in its kind's own field**: a flag, a number or a
   text. Loom admits a value with none or two, so judging "exactly one" is every reader's, and
   each refuses such a value by its key. A declared setting's kind is the field its default fills.
-- **The declaration stands alone, on `PaneActions`' rules.** It is judged whole under the office
-  stamp: an empty office declares nothing, a pane this office never offered is refused by name,
+- **The declaration stands alone, on `PaneActions`' rules.** It is judged whole under the role
+  stamp: an empty role declares nothing, a pane this role never offered is refused by name,
   and a setting whose default is not one it takes is refused naming what it does take. A refusal
   is said in the band and leaves the settings in force standing; an accepted declaration replaces
-  them. It counts only while the weave that sent it holds the office, at the incarnation that
+  them. It counts only while the weave that sent it holds the role, at the incarnation that
   sent it -- a reloaded image declares again or takes nothing -- and nothing waits on it: it
   makes no pane appear, and no hand-off is held for it. The owner takes either version and reads
   both as one declaration; v2's tags, pins and summary are judged by form and never acted on,
   the pins seeding the pin list an editor reads until it is edited (`PaneSettingPinRequested`).
-- **The hand-off waits on nothing but the door and the ask.** A seated pane whose office's holder
+- **The hand-off waits on nothing but the door and the ask.** A seated pane whose role's holder
   accepts `PaneSettings` is handed its row's settings by the layouts' owner, whether or not, and
   whenever, it declared -- when it asks, and again whenever what the live layout keeps differs
   from what that holder was last handed: another layout's settings, a re-seat, a managed opening,
@@ -655,7 +656,7 @@ minted, and the inventory learned its row from a live offer.
 
 ```text
 PaneRef      zengine.introspection / loaded         the durable pair a saved setup names
-office       zengine.introspection                  the only address anything reaches it by
+role       zengine.introspection                  the only address anything reaches it by
 stem         zengine-introspection                  a line in the HOST'S boot list
 ```
 
@@ -679,7 +680,7 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   weave's Emit set and from every send it makes. The suite pins that **from a bus tap**, not
   from the declaration, because `Emit<...>` declares vocabulary and gates no send in this Loom
   (an undeclared shape is still sendable under a grant). This pane retains Workshop's
-  permissive artifact policy; `workshop/admission.hpp` separately bounds the inventory office.
+  permissive artifact policy; `workshop/admission.hpp` separately bounds the inventory role.
   A Kernel mints no grant of its own, and one with no policy admits nothing. A declaration
   proves nothing on its own and is not quoted as though it did.
 - **Room grants and wheel gestures refresh the snapshot.** Loom gives a participant no arrival or departure
@@ -689,7 +690,7 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   moves -- and when the weaver scrolls or changes its search. A separate list origin moves the
   viewport without changing selection or publishing LoadedSelected. The last row of the pane says
   `snapshot`, because between readings that is what it is.
-- **Typed text is Loaded's search.** Its rows narrow to the weaves whose name or office holds
+- **Typed text is Loaded's search.** Its rows narrow to the weaves whose name or role holds
   it, ignoring case (`matches`), and the heading states the narrowing beside the population,
   `loaded weaves -- 1 of 3 match plain`, the search's caret after it. The search is
   presentation, kept across a room granted; a selection is still cleared only when the whole
@@ -717,7 +718,7 @@ stem         zengine-introspection                  a line in the HOST'S boot li
 `composer/` builds `zengine-composer`, holding `zengine.composer` and offering pane `compose`.
 The public weaver route is [Inventory to Compose](../inventory/docs/inventory-compose.md).
 
-- LoadedSelected is accepted only from the introspection office. The target supplies its
+- LoadedSelected is accepted only from the introspection role. The target supplies its
   accepted roots and referenced closure through authenticated DescribeAccepted answers.
   The whole snapshot is replaced per selection; dependencies are not sendable roots.
 - The catalog is a row a root: its identity, then what it carries (`fields_text`),
@@ -778,10 +779,10 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   a row of `arrangement` and is ABSENT from `loaded`, because no Kernel loads a provider. Do
   not "fix" that. Three questions, three owners, three currencies; one merged table would need
   a row kind that is none of them.
-- **THE SEAM IS AN OFFICE, NOT AN INJECTION.** The host mounts two read-only participants holding
-  `const` references into `main`: `ArrangementDoor` (`workshop/arrangement.hpp`, office
+- **THE SEAM IS A ROLE, NOT AN INJECTION.** The host mounts two read-only participants holding
+  `const` references into `main`: `ArrangementDoor` (`workshop/arrangement.hpp`, role
   `zengine.arrangement`) over the realization owner, and `PowersDoor`
-  (`workshop/powers_door.hpp`, office `zengine.powers`) over the catalog; the loaded tool ASKS
+  (`workshop/powers_door.hpp`, role `zengine.powers`) over the catalog; the loaded tool ASKS
   and gets a value back. No `Catalog*`, `PlanExecutor*` or container crosses into a dynamic
   artifact, `ZenHostApi` did not widen, and there is no second injected capability. It is the
   same seam `zen.ListLoaded` already spends, pointed at more facts.
@@ -794,13 +795,13 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   in the next one with nobody notified. A copied provider map answered from the door's
   constructor turns the overlay witness and the keeps-nothing witness RED and leaves every
   derivation-tier case green.
-- **AT THE ARRANGEMENT DOOR AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT.** The rule names
+- **AT THE ARRANGEMENT DOOR A ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT.** The rule names
   nobody — no allow-list — so a tool added tomorrow asks with no edit here. It is NOT
   containment and is not reported as one: the loader binds `allow_any()` to every library. What
   keeps these facts from becoming ambient is that the door PUBLISHES NOTHING; every answer goes
   to the one weave that asked.
-- **THE DISCOVERY DOOR ANSWERS WHOEVER ASKED**, an office or a participant speaking for itself,
-  because the Workshop Terminal asks it in its own name and holds no office; only a root's send,
+- **THE DISCOVERY DOOR ANSWERS WHOEVER ASKED**, a role or a participant speaking for itself,
+  because the Workshop Terminal asks it in its own name and holds no role; only a root's send,
   which has nobody to answer, is counted instead. It too publishes nothing, and asking it grants
   nothing to send, mount or open: the Terminal's widening is its two asks, to `zengine.powers`
   alone (WL-TERM-18).
@@ -808,7 +809,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   overlay — the MODE is only in the plan — so `describe_arrangement` walks the AUTHORED list
   and asks the resolved list about each stem. Walking the resolved rows instead loses the
   authored mode. There is deliberately NO resolved role: `ResolvedArtifact::role` is the
-  authored role copied forward, and the office the Kernel bound is the Loaded pane's fact.
+  authored role copied forward, and the role the Kernel bound is the Loaded pane's fact.
   **⚠ A provider-only row reports no offer outcome** — its `offer` field is the FIELD'S
   DEFAULT and no offer was made; copying the enum straight through publishes a default as an
   observation. The row-state law itself is realization's:
@@ -901,10 +902,10 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
 - **THE QUERY'S SELECTION IS FUNCTIONAL AND INVISIBLE.** The pane says where the query's caret
   stands and draws no selection for it, so cut and copy work and no highlight shows. Named
   residual.
-- **A KEY IS GUARDED BY PANE BEFORE ANY STATE MOVES.** This office offers three panes and
+- **A KEY IS GUARDED BY PANE BEFORE ANY STATE MOVES.** This role offers three panes and
   Workshop points the keyboard at the last one pressed, so every arm is behind one
   `key.pane != kPowersPane` test. A case drives it through the real seam with two panes from
-  this same office.
+  this same role.
 - **THE SAMPLE LEAVES AS A MESSAGE AND COMES BACK AS PROSE.** `SampleRequested{identity}` to
   `zengine.sources`; `op::sample` at the spend; the value rendered HOST-side; `SourceSampled`
   answered. No `loom::Value`, `OperatorDef`, callable or provider image crosses — and could not,

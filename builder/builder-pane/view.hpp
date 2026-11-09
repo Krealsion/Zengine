@@ -195,7 +195,7 @@ inline void BuilderPaneWeave::chose(const std::string& id, const std::string& su
             // The row's own promise, established again: a menu stands open across the
             // weaver's other acts and every build that settles under it, so `load the built
             // `a` now` loads `a` or refuses. A choice that begins an edit carries its number
-            // to where the edit opens: the role line opens only after the project office
+            // to where the edit opens: the role line opens only after the project role
             // answers, so the number rides in its ask's `choice` and the grab is spent there
             // (`on(PlanNames)`), still judged by the host as a continuation of this choice.
             const Offered offered = offered_as(id);
@@ -345,7 +345,7 @@ inline void BuilderPaneWeave::publish(Facts facts, const std::string& said_detai
 }
 
 /// The facts, composed against the budget: nine facts do not fit five rows, so each carries a
-/// survival priority. What a weaver is acting on survives longest -- the office, the live
+/// survival priority. What a weaver is acting on survives longest -- the role, the live
 /// build's activity, the frontier, what a build will do next, the realization outcome, the
 /// compiler's words -- and static metadata and the output's tail yield first. The display
 /// order never changes with the budget: a shorter face shows the same rows, fewer of them.
@@ -362,8 +362,8 @@ inline void BuilderPaneWeave::say_builder() {
     // would be the row that silently vanished, and it is the only mouse route there is.
     const std::vector<ControlRow> controls = builder_controls();
 
-    // The header names the office it presents -- the tool's, whose facts these are; this
-    // pane's own office is the pane header Workshop draws above the room. It also names the
+    // The header names the role it presents -- the tool's, whose facts these are; this
+    // pane's own role is the pane header Workshop draws above the room. It also names the
     // catalog in force, carried by `RecipeCatalog` from its one owner (WL-PROJ-09).
     std::string head = std::string("BUILDER @") + builder::kBuilderRole;
     if (!known_.source.empty()) {

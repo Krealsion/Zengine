@@ -283,12 +283,12 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
     return nearest != nullptr ? nearest->action : std::string();
 }
 
-/// What an owner keeps for its life: the office it draws as, its area, the window that shows it
+/// What an owner keeps for its life: the role it draws as, its area, the window that shows it
 /// and the elements that window presents, what it last sent there, and what one beat has queued.
 class Canvas {
 public:
-    explicit Canvas(std::string office, std::string area = {})
-        : office_(std::move(office)), area_(area.empty() ? office_ : std::move(area)) {}
+    explicit Canvas(std::string role, std::string area = {})
+        : role_(std::move(role)), area_(area.empty() ? role_ : std::move(area)) {}
 
     /// The room the window that shows the area told. True when the window, its incarnation, its
     /// size or its measure changed, or the window says the area is empty: it holds none of this
@@ -319,9 +319,9 @@ public:
     /// text, as its room said.
     std::int64_t cell_px() const { return cell_px_; }
     const TextMeasure& text() const { return text_; }
-    const std::string& office() const { return office_; }
+    const std::string& role() const { return role_; }
     const std::string& area() const { return area_; }
-    std::string window_office() const { return std::string(kWindowOfficePrefix) + window_; }
+    std::string window_role() const { return std::string(kWindowRolePrefix) + window_; }
     /// The next drawing goes whole.
     void forget() { known_ = false; }
 
@@ -371,7 +371,7 @@ public:
 
     /// Send what this beat queued, its nodes before its elements, the last saying the drawing is
     /// whole, so the window shows once. Throws, sending nothing more, when this participant does
-    /// not hold the office it draws as.
+    /// not hold the role it draws as.
     void show(loom::Mail& mail) {
         std::vector<Out> out = std::move(queued_);
         queued_.clear();
@@ -383,10 +383,10 @@ public:
                 [&](auto& m) {
                     m.more = more;
                     const loom::Ticket t =
-                        mail.as_role(office_).send_to_role(window_office(), m);
+                        mail.as_role(role_).send_to_role(window_role(), m);
                     if (!t.valid()) {
                         throw std::logic_error("graphics: this participant does not hold the "
-                                               "office '" + office_ + "' it draws as");
+                                               "role '" + role_ + "' it draws as");
                     }
                 },
                 out[i]);
@@ -420,7 +420,7 @@ private:
         return index_of<C, Changes>(all);
     }
 
-    std::string office_;
+    std::string role_;
     std::string area_;
     std::string window_;
     std::int64_t epoch_ = 0;

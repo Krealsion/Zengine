@@ -7,7 +7,7 @@ heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-KEY-17 — An edit is a candidate map judged whole, applied live, then written
 
-LAW — An office asks to set, add, remove, disable or reset an id's keys; the host judges the candidate as a file at load; a refusal changes nothing, in that law's words; an accepted edit is live, then written
+LAW — A role asks to set, add, remove, disable or reset an id's keys; the host judges the candidate as a file at load; a refusal changes nothing, in that law's words; an accepted edit is live, then written
 
 MEANS
 - removing the last key disables the action aloud; reset restores the declared default;

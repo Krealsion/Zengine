@@ -17,7 +17,7 @@ in [`zengine.editor-switch`](zengine.editor-switch.md), and what crosses a switc
   Set `ZENGINE_NEOVIM_PROFILE=user` to start it with your own configuration, or to the path of an
   init file to use that one — see [which configuration is running](#which-configuration-is-running)
   for how to set it, how to check it, and what a mistyped name says.
-- **The load plan authors the choice.** Both shipped plans name two editors for the Editor's office,
+- **The load plan authors the choice.** Both shipped plans name two editors for the Editor's role,
   `standard` (the one that starts) and `neovim`. A plan of your own names them under `choices`
   ([load plans](../../workshop/docs/load-plans.md#making-your-own); the format is
   [the reference](../../workshop/docs/load-plan.md#the-file-format)).
@@ -75,7 +75,7 @@ edits, the caret, the selection, the scroll position -- and the Editor pane beco
 same place on your desk. What came of it is said as Workshop's notice, in the answer's own
 words, followed by what did not cross exactly --
 ``editor switch 1: switched -- switched zengine.editor from `standard` to `neovim` -- reset: the standard Editor's undo history; ...``
--- and the Terminal's record shows that the answer arrived, with the switch office's weave
+-- and the Terminal's record shows that the answer arrived, with the switch role's weave
 number: `v EditorSwitchAnswered v1 from #14  [Loom: answers ask 1]`.
 
 Switch back the same way:
@@ -85,7 +85,7 @@ ask @zengine.editor-switch EditorSwitchRequested 1 destination=standard
 ```
 
 Asking for the editor you already have is harmless: the notice says `already-active` and nothing
-is loaded. To see where you are -- which editor holds the office, which are authored, and whether
+is loaded. To see where you are -- which editor holds the role, which are authored, and whether
 a switch is under way, said as Workshop's notice:
 
 ```text
@@ -97,9 +97,9 @@ for the standard Editor and `Neovim @zengine.editor` for Neovim, and the top row
 names Neovim's mode (`saved NORMAL -- ...`) where the standard Editor names a line and column
 (`saved L1:C1/4 -- ...`).
 
-**Your choice is remembered.** Quit with Neovim holding the Editor's office and the next Workshop
+**Your choice is remembered.** Quit with Neovim holding the Editor's role and the next Workshop
 started in that project opens Neovim there too: the session file records which authored choice held
-each switchable office, and the start loads it in the plan's row while the plan still authors it.
+each switchable role, and the start loads it in the plan's row while the plan still authors it.
 Your project's plan file is never changed. A remembered choice the plan no longer authors loads
 nothing, and the notice says so once. A run with no session file -- `--isolated` without a
 `--session` path -- reads none, so it starts on the plan's own row.
@@ -180,7 +180,7 @@ selection is, a bar cursor as a caret and a block cursor as the one cell it cove
 there](editor.md#editing)).
 
 **Opening files reaches Neovim.** The Files pane, the Builder's `e` and **edit code** on a pane all
-open into whichever editor holds the office, so while Neovim does, they open in Neovim -- in a new
+open into whichever editor holds the role, so while Neovim does, they open in Neovim -- in a new
 buffer, beside any unsaved ones.
 
 **Copy and paste cross with everything else.** A yank to `+` or `*` reaches your clipboard, and a
@@ -278,7 +278,7 @@ The same `zengine-neovim-editor` artifact runs under `loom-host`, installed from
 (`lib/zengine/`). Neovim runs **headless and listening**, and you attach Neovim's own interface
 from a **second terminal**, so `loom-host` keeps its console.
 
-1. Name the Timer and the Neovim editor in your boot file, the Neovim editor in the Editor's office:
+1. Name the Timer and the Neovim editor in your boot file, the Neovim editor in the Editor's role:
 
    ```json
    {

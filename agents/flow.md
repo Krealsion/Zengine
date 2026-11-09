@@ -61,7 +61,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   are named. A kept field's kind is chosen from `flow_pane::field_kinds`, never typed. A message's
   name is offered as it is typed (`flow_pane::suggestions`): what the rule says, for a message it
   says, and what each running view's buttons say and labels show, asked of every view by
-  `ViewWiringRequested` as the editor opens and kept by the office that answered (`ViewWiring`),
+  `ViewWiringRequested` as the editor opens and kept by the role that answered (`ViewWiring`),
   bounded; never a name the rule hears, nor for a new message one it says.
   While one is open the pane declares Return as its `dialog-confirm` row, so a confirm arrives
   under a gesture; a writing verb's confirm (save, generate, export, library save) asks Workshop
@@ -105,7 +105,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   siblings; a part carries a run of words only where the run's whole row stands inside it, since a
   window draws a run whole once its row begins inside a group; one more than a window keeps is the
   recovery picture. Its room is
-  the window's word alone (`AreaRoom`, as that window's office), asked of `zengine.graphics` once a
+  the window's word alone (`AreaRoom`, as that window's role), asked of `zengine.graphics` once a
   life. A refused change goes whole at once; a refused whole picture is said in the notice and
   draws nothing more until the next change, so a window that keeps refusing starts no loop. The
   window's pointer there is read against the picture last sent there as Workshop's canvas pointer

@@ -3,8 +3,8 @@
 **Manual.** The pane you build with. It shows the recipes your project can build, builds the one you
 choose, and hands what it built to the running project. It is a *weave*: a piece of Workshop that is
 loaded, replaced and spoken to by messages, built as `zengine-builder-pane`. Other weaves reach it by
-its *office*, the name it answers to, `zengine.builder-pane`. The builds themselves are the Builder
-office's, [`zengine.builder`](zengine.builder.md). New to it? Start with
+its *role*, the name it answers to, `zengine.builder-pane`. The builds themselves are the Builder
+role's, [`zengine.builder`](zengine.builder.md). New to it? Start with
 [Build your first pane](tutorials/build-your-first-pane/README.md).
 
 ## About
@@ -16,11 +16,11 @@ you have chosen and the artifact it makes, how the last build went and what it s
 running project made of the result. Building a file and loading it are two answers, and the pane
 shows both: a build can succeed and its load still be refused.
 
-The pane runs nothing itself. It asks the Builder office to build, and to offer a build to the
+The pane runs nothing itself. It asks the Builder role to build, and to offer a build to the
 project; the project's realization owner, `zengine.realization`, decides whether to load it. It asks
-the project office which file a recipe names and to add a row to the project's plan, and the
-opening office to open a source. It publishes a promotion or a revert for the realization owner. It
-shows what those offices say.
+the project role which file a recipe names and to add a row to the project's plan, and the
+opening role to open a source. It publishes a promotion or a revert for the realization owner. It
+shows what those roles say.
 
 ## Use
 
@@ -39,8 +39,8 @@ with its reason.
 Every command that builds, loads, promotes, reverts, writes the plan or opens a file asks Workshop
 first. A refusal names what was not done and why, as `` `tally` was not built -- <the reason> ``: a
 guest without the `build` power is refused this way before anything runs. The reason is Workshop's
-own, `8 acts are already waiting on Workshop`, `nothing was queued to <office>`, or `the ask could
-not reach <office> (<the bus's reason>)`. Until the Builder office has said what it builds, a
+own, `8 acts are already waiting on Workshop`, `nothing was queued to <role>`, or `the ask could
+not reach <role> (<the bus's reason>)`. Until the Builder role has said what it builds, a
 command says `the Builder has not said what it builds yet` and does nothing.
 
 ## Commands
@@ -131,7 +131,7 @@ The project's *plan* says what runs and as what; this adds one row to it.
   [`authoring.commit`](#authoringcommit).
 - **Refuses:** `` `tally` is already in this project's plan -- build-and-load it instead ``; `this
   project has no build recipes -- nothing to load`; `` `tally`: nothing was added to the plan -- ``
-  and the project office's reason when the ask could not reach it.
+  and the project role's reason when the ask could not reach it.
 - **Example:** choose `tally`, press <!-- key builder.load -->`o`<!-- /key -->, type `example.tally`,
   press <!-- key authoring.commit -->`return`<!-- /key -->.
 
@@ -186,12 +186,12 @@ Opens the chosen recipe's source in the Editor: a one-file recipe's `.cpp`, or a
   and, in the list, `[edit this recipe's source]`.
 - **Answers:** asks the project which file the recipe names
   ([`RecipeSourceRequested`](../../workshop/builder_seam_vocabulary.hpp)), then asks the opening
-  office to open it ([`OpenSourceRequested`](../../workshop/pane_seam_vocabulary.hpp)); the Editor
+  role to open it ([`OpenSourceRequested`](../../workshop/pane_seam_vocabulary.hpp)); the Editor
   shows it, and the pane says nothing when it worked.
 - **Refuses:** `` `skin-tui-block` is a cmake_target recipe -- it names no source file or editing
   entry to open ``; `` this project's recipes do not hold `tally` -- nothing was opened ``; `this host
   resolves no recipe sources -- nothing was opened`; `` `tally`: the source was not opened -- `` and
-  the opening office's words when it cannot open the file now.
+  the opening role's words when it cannot open the file now.
 - **Example:** press <!-- key builder.edit-source -->`e`<!-- /key -->; the Editor opens `tally.cpp`.
 
 ### `builder.output`
@@ -201,12 +201,12 @@ it. While it reads, no build command is reachable.
 
 - **Takes:** the build the `last` row names. Default key <!-- key builder.output -->`l`<!-- /key -->;
   the control `[read output #1]`.
-- **Answers:** asks the Builder office for a page of that build's lines
+- **Answers:** asks the Builder role for a page of that build's lines
   ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)). The header names the build,
   how it ended and which lines show, `output #1 tally -- FAILED, exit 1 -- lines 1-40 of 212`, and
   each row is one line as the build wrote it, spelled in ASCII.
 - **Refuses:** `no build has started in this Workshop -- there is no output to read`; `` output #1:
-  the page was not read -- `` and the reason when the ask could not reach the Builder office.
+  the page was not read -- `` and the reason when the ask could not reach the Builder role.
 - **Example:** after a build says `FAILED`, press <!-- key builder.output -->`l`<!-- /key --> and read
   up from the end for the compiler's reason.
 
@@ -282,7 +282,7 @@ One line up.
 
 - **Takes:** the reader. Default key <!-- key builder.output-up -->`up`<!-- /key -->; the wheel moves
   three lines a notch; the control `[up]`.
-- **Answers:** the page moves, asked again of the Builder office
+- **Answers:** the page moves, asked again of the Builder role
   ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)); moving up into lines the
   Builder did not keep lands on the line before them.
 - **Refuses:** nothing; at the first line nothing moves.
@@ -294,7 +294,7 @@ One line down.
 
 - **Takes:** the reader. Default key <!-- key builder.output-down -->`down`<!-- /key -->; the control
   `[down]`.
-- **Answers:** the page moves, asked again of the Builder office
+- **Answers:** the page moves, asked again of the Builder role
   ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)); moving down into lines the
   Builder did not keep lands after them.
 - **Refuses:** nothing; at the last line nothing moves.
@@ -306,7 +306,7 @@ The first line.
 
 - **Takes:** the reader. Default key <!-- key builder.output-first -->`home`<!-- /key -->; the control
   `[first line]`.
-- **Answers:** the page from line 1, asked of the Builder office
+- **Answers:** the page from line 1, asked of the Builder role
   ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)).
 - **Refuses:** nothing.
 - **Example:** <!-- key builder.output-first -->`home`<!-- /key -->.
@@ -317,7 +317,7 @@ The last lines; the reader follows new ones while the build is still writing.
 
 - **Takes:** the reader. Default key <!-- key builder.output-last -->`end`<!-- /key -->; the control
   `[last lines]`.
-- **Answers:** the page that ends at the last line, asked of the Builder office
+- **Answers:** the page that ends at the last line, asked of the Builder role
   ([`BuildOutputRequested`](zengine.builder.md#buildoutputrequested)).
 - **Refuses:** nothing.
 - **Example:** <!-- key builder.output-last -->`end`<!-- /key -->.
@@ -430,7 +430,7 @@ project waits on and the artifact is already built, it loads it now.
 
 - **Takes:** the role typed. Default key <!-- key authoring.commit -->`return`<!-- /key -->; the
   control `[load it with this role]`.
-- **Answers:** asks the project office to write the row
+- **Answers:** asks the project role to write the row
   ([`PlanRowRequested`](../../workshop/docs/zengine.project.md#planrowrequested)), and once it is
   written asks the project what it is waiting on
   ([`ProjectFrontierRequested`](../../workshop/builder_seam_vocabulary.hpp)). The notice is the
@@ -456,7 +456,7 @@ Closes the line; nothing is loaded and nothing is written.
 
 ## Follow
 
-The pane's rows follow the Builder office's `BuildStatus`, and the `project` row the project's
+The pane's rows follow the Builder role's `BuildStatus`, and the `project` row the project's
 frontier. An observer follows the same owners instead of reading the pane: `BuildAsked` and
 `BuildStatus` from `zengine.builder` ([Follow](zengine.builder.md#follow)), and `RealizationAsked`,
 `ArtifactRealized` and `ArtifactPromoted` from `zengine.realization`. The rows that move are `last`,
@@ -500,15 +500,15 @@ The last lines the build said; [`builder.output`](#builderoutput) reads all of t
 
 ## Files
 
-The pane reads no file. The recipe file it shows is the Builder office's
+The pane reads no file. The recipe file it shows is the Builder role's
 ([Files](zengine.builder.md#files)); [`authoring.commit`](#authoringcommit) writes the plan through
-the project office. A built artifact is kept beside Workshop, as `<stem>.so` or `<stem>.dll`,
+the project role. A built artifact is kept beside Workshop, as `<stem>.so` or `<stem>.dll`,
 with each reload's copy under `<stem>.reloads/`; [`builder.load`](#builderload) loads one an earlier
 run built.
 
 ## See also
 
-- [`zengine.builder`](zengine.builder.md), the office that builds.
+- [`zengine.builder`](zengine.builder.md), the role that builds.
 - [The recipe file](recipes.md): what a recipe holds, and where its artifact lands.
 - [Build your first pane](tutorials/build-your-first-pane/README.md), and
   [edit a running pane](edit-a-running-pane.md).

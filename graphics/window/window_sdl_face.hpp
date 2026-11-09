@@ -4,7 +4,7 @@
 #ifndef ZENGINE_GRAPHICS_WINDOW_WINDOW_SDL_FACE_HPP
 #define ZENGINE_GRAPHICS_WINDOW_WINDOW_SDL_FACE_HPP
 
-// The faces the OS window sets its text in: embedded JetBrains Mono, regular and bold, at every
+// The faces the GUI window sets its text in: embedded JetBrains Mono, regular and bold, at every
 // size a palette names, measured and drawn a character a column; what it lacks drawn from the
 // platform's fonts, then from embedded GNU Unifont, the last resort, each such glyph in its own
 // columns. `ZENGINE_SDL_EMBEDDED_FACES=1` keeps it to the embedded faces. Reference:
@@ -152,7 +152,7 @@ inline std::vector<std::string> platform_font_files() {
     return found;
 }
 
-/// The OS window's faces for one window's life: opened and measured with no renderer needed, their
+/// The GUI window's faces for one window's life: opened and measured with no renderer needed, their
 /// glyphs made for the renderer they are drawn by, and dropped with it.
 class SdlFace {
 public:

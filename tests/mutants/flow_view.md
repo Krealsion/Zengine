@@ -121,7 +121,7 @@ Red in `zengine-flow-tests`:
 
 ## preview-names-its-provider
 
-The preview says whose a row is, by its provider's office.
+The preview says whose a row is, by its provider's role.
 
 In `flow/flow-pane/find.hpp`:
 

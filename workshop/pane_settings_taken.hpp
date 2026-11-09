@@ -86,23 +86,23 @@ inline SettingsTaken take_pane_settings(const std::vector<v2::PaneSettingRow>& d
     return out;
 }
 
-/// ...AND SAY WHAT IT CANNOT USE to the layouts' owner, as the office that holds the pane.
-inline void say_settings_unused(loom::Mail& mail, std::string_view office,
+/// ...AND SAY WHAT IT CANNOT USE to the layouts' owner, as the role that holds the pane.
+inline void say_settings_unused(loom::Mail& mail, std::string_view role,
                                 const SettingsTaken& taken) {
     for (const PaneSettingUnused& u : taken.unused) {
-        (void)mail.as_role(office).send_to_role(kLayoutsRole, u);
+        (void)mail.as_role(role).send_to_role(kLayoutsRole, u);
     }
 }
 
 /// THE PANE'S SIDE OF ITS ROW, as a facet composed with `zengine::With`: once in each life, after
 /// the first message the life delivers, the pane named `Pane` asks the layouts' owner for its row
-/// as `Office`; a row handed by that owner alone, for that pane alone, is taken whole against the
+/// as `Role`; a row handed by that owner alone, for that pane alone, is taken whole against the
 /// weave's `setting_rows()`, what it cannot use is said back, and the weave's
 /// `on_settings(taken, mail)` applies it. The first row the life holds is the weave's
 /// `on_settings_held(mail)` too, where it has one: the room it drew nothing in is drawn now.
 /// Until then `held()` is false, and the pane draws no room. Image-local: a successor holds
 /// nothing and asks again.
-template <const char* const& Pane, const char* const& Office>
+template <const char* const& Pane, const char* const& Role>
 class PaneSettingsFacet {
 public:
     using Accept = loom::Accept<v2::PaneSettings>;
@@ -111,10 +111,10 @@ public:
     template <class Self>
     void on(Self& self, const v2::PaneSettings& handed, loom::Mail& mail) {
         if (!from_owner(mail) || handed.pane != Pane) {
-            return; // another office's word on this pane's row, or a word on another pane's
+            return; // another role's word on this pane's row, or a word on another pane's
         }
         const SettingsTaken taken = take_pane_settings(Self::setting_rows(), handed);
-        say_settings_unused(mail, Office, taken);
+        say_settings_unused(mail, Role, taken);
         const bool first = !held_;
         held_ = true;
         self.on_settings(taken, mail);
@@ -129,7 +129,7 @@ public:
     template <class Self>
     void after_delivery(Self&, loom::Mail& mail) {
         if (!asked_) {
-            asked_ = mail.as_role(Office)
+            asked_ = mail.as_role(Role)
                          .send_to_role(kLayoutsRole, PaneSettingsAsked{Pane})
                          .valid();
         }

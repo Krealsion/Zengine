@@ -11,7 +11,7 @@
 namespace zengine::flow_host {
 inline constexpr const char* kFlowHostRole = "zengine.flow.host";
 
-// Session names are scoped to the deliberately authored office (current holder only),
+// Session names are scoped to the deliberately authored role (current holder only),
 // or to the requesting participant's bus-stamped identity for personal speech.
 // Saved bytes carry values, not senders, grants, reply provenance or destinations.
 struct FlowRun {

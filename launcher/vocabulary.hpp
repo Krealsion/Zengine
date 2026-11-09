@@ -17,7 +17,7 @@
 
 namespace zengine::launcher {
 
-/// The launcher's office.
+/// The launcher's role.
 inline constexpr const char* kLauncherRole = "zengine.launcher";
 
 /// The kinds the catalog holds: an app in the project's `apps/` folder, started by the
@@ -40,7 +40,7 @@ inline constexpr const char* kStartedAppGoesOn =
     "run.sh in a terminal decides it";
 #endif
 
-/// An office -> `zengine.launcher`: start the catalog's `kind` named `name`. Answered `Launched`.
+/// A role -> `zengine.launcher`: start the catalog's `kind` named `name`. Answered `Launched`.
 struct Launch {
     std::string kind;
     std::string name;
@@ -49,7 +49,7 @@ struct Launch {
 
 /// `zengine.launcher` -> the asker: the process started, its id, or why nothing was. Started is
 /// not running: the process is its own from then on, and the launcher keeps nothing of it. A
-/// start is also published to any as it is answered, so an office that did not ask hears it.
+/// start is also published to any as it is answered, so a role that did not ask hears it.
 struct Launched {
     bool ok = false;
     std::string kind;
@@ -77,7 +77,7 @@ struct LaunchEntry {
               ZEN_FIELD(running));
 };
 
-/// Any office -> `zengine.launcher`: what can be started now. Answered `LaunchCatalog`.
+/// Any role -> `zengine.launcher`: what can be started now. Answered `LaunchCatalog`.
 struct LaunchCatalogRequested {
     ZEN_SHAPE(LaunchCatalogRequested, 1);
 };

@@ -43,8 +43,8 @@ inline Condition unavailable_tool(const std::string& stem, const std::string& sa
                      graphics::colors::alert, "build its artifact, then launch again"};
 }
 
-/// AN ARTIFACT A ROW COULD NOT LOAD, AND WHAT STANDS IN ITS ROW, for the whole run: the OS window
-/// that could not open here, the terminal window holding the desk in its place, and why.
+/// AN ARTIFACT A ROW COULD NOT LOAD, AND WHAT STANDS IN ITS ROW, for the whole run: the GUI window
+/// that could not open here, the TUI window holding the desk in its place, and why.
 inline constexpr const char* kGaveWayKeyPrefix = "load.gave-way/";
 // WL-PROJ-17 -- agents/workshop/project.md
 inline Condition gave_way(const std::string& stem, const std::string& next,

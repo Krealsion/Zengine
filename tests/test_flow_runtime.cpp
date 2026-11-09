@@ -8,7 +8,7 @@
 #include "operator/primitives.hpp"
 #include "timer/timer_weave.hpp"
 #include "lifecycle_door.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 
 namespace {
 namespace fh = zengine::flow_host;
@@ -226,14 +226,14 @@ TEST_CASE("Flow refusal and observation bounds remain explicit") {
     CHECK(retained.last_sequence >= retained.first_sequence);
 }
 
-TEST_CASE("Flow office custody survives holder replacement and does not follow personal speech") {
+TEST_CASE("Flow role custody survives holder replacement and does not follow personal speech") {
     Rig rig;
     loom::Grant grant;
     fh::allow_flow_requests(grant);
     auto first = std::make_unique<Client>();
     auto* first_reader = first.get();
     const auto incumbent = rig.bus.register_weave(std::move(first), grant, "flowtest.pane");
-    rig.bus.office_send_to_role_as(incumbent, "flowtest.pane", fh::kFlowHostRole,
+    rig.bus.role_send_to_role_as(incumbent, "flowtest.pane", fh::kFlowHostRole,
         loom::Message(loom::to_value(fh::FlowRun{"pane", fh::bytes(flow::project_bytes(rig.project()))}), incumbent, {}, 500));
     rig.pump();
     REQUIRE_FALSE(first_reader->messages.empty());
@@ -245,7 +245,7 @@ TEST_CASE("Flow office custody survives holder replacement and does not follow p
     auto second = std::make_unique<Client>();
     auto* successor_reader = second.get();
     const auto successor = rig.bus.register_weave(std::move(second), grant, "flowtest.pane");
-    rig.bus.office_send_to_role_as(successor, "flowtest.pane", fh::kFlowHostRole,
+    rig.bus.role_send_to_role_as(successor, "flowtest.pane", fh::kFlowHostRole,
         loom::Message(loom::to_value(fh::FlowInspect{"pane", 0}), successor, {}, 501));
     rig.pump();
     REQUIRE_FALSE(successor_reader->messages.empty());
@@ -490,7 +490,7 @@ TEST_CASE("the Flow host answers a shape's section from its own page, and its pa
               "zengine.flow.host does not accept `FlowAnswer` v1");
     }
     // Six requests and the host's pulse to itself, each described; the page names no other.
-    CHECK(check_office_manual(rig.bus, fh::kFlowHostRole) >= 7);
+    CHECK(check_role_manual(rig.bus, fh::kFlowHostRole) >= 7);
     check_page_names_accepted(page, described_shapes_of(rig.bus, rig.bus.role_holder(fh::kFlowHostRole)));
     // ...and asking touched no session: the running one is where it was, and its owner heard nothing.
     rig.pump();

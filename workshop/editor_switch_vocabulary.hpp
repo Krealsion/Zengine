@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_EDITOR_SWITCH_VOCABULARY_HPP
 
 // Switching the Editor as a weaver asks for it (WL-SWITCH; its manual is
-// editor/docs/zengine.editor-switch.md): the office `zengine.editor-switch` moves `zengine.editor`
+// editor/docs/zengine.editor-switch.md): the role `zengine.editor-switch` moves `zengine.editor`
 // between the choices the load plan authors, carrying the document. Four asks, and the status
 // asked quietly, each answered with `EditorSwitchAnswered`; while a switch is under way,
 // `EditorSwitchProgress` keeps it on the desk as a standing condition.
@@ -18,7 +18,7 @@
 
 namespace zengine::workshop {
 
-/// The office that switches the Editor: an asker names the service, not the weave providing it.
+/// The role that switches the Editor: an asker names the service, not the weave providing it.
 inline constexpr const char* kEditorSwitchRole = "zengine.editor-switch";
 
 namespace switch_outcome {
@@ -58,8 +58,8 @@ struct EditorSwitchQuietStatusRequested {
     ZEN_SHAPE(EditorSwitchQuietStatusRequested, 1);
 };
 
-/// Every answer the office gives. `op` names the switch (0 when none began); `active` is the
-/// choice holding the office when it was written; `choices` are the authored names.
+/// Every answer the role gives. `op` names the switch (0 when none began); `active` is the
+/// choice holding the role when it was written; `choices` are the authored names.
 struct EditorSwitchAnswered {
     std::int64_t op = 0;
     std::string outcome;

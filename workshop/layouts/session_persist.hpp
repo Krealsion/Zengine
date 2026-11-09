@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_SESSION_PERSIST_HPP
 
 // The last session: the run of layouts, the id each was minted, which one was live and which
-// authored choice held each switchable office. Its file is a header line and a line per layout,
+// authored choice held each switchable role. Its file is a header line and a line per layout,
 // each its own value; an older file of lines is read whole and brought forward.
 // Workshop law: agents/workshop/session-restore.md (+4 registers; agents/workshop.md routes)
 
@@ -55,7 +55,7 @@ inline constexpr std::uintmax_t kMaxLinkPathBytes = 4096;
 inline constexpr std::uintmax_t kMaxLayoutLineBytes =
     2u * setup_persist::kMaxSetupBytes + kMaxLinkPathBytes;
 
-/// The header's line: room for every remembered choice with its office's name and its own at
+/// The header's line: room for every remembered choice with its role's name and its own at
 /// their bounds, spelled at the most bytes JSON spells them, and the numbers and words beside.
 inline constexpr std::uintmax_t kMaxHeaderLineBytes = 4u << 10;
 
@@ -87,7 +87,7 @@ struct WorkshopLayout {
     ZEN_SHAPE(WorkshopLayout, 5, ZEN_FIELD(id), ZEN_FIELD(desk), ZEN_FIELD(link));
 };
 
-/// WHICH AUTHORED CHOICE HELD AN OFFICE AT QUIT, by the office and the choice's name: what the
+/// WHICH AUTHORED CHOICE HELD A ROLE AT QUIT, by the role and the choice's name: what the
 /// next start loads in place of the plan's row while the plan still authors it.
 // WL-SWITCH-08 -- agents/workshop/editor-switch.md
 struct WorkshopChoice {
@@ -97,12 +97,12 @@ struct WorkshopChoice {
     ZEN_SHAPE(WorkshopChoice, 1, ZEN_FIELD(role), ZEN_FIELD(choice));
 };
 
-/// How many offices' choices a session may remember: one an office the plan authors choices for.
+/// How many roles' choices a session may remember: one a role the plan authors choices for.
 inline constexpr std::size_t kMaxRememberedChoices = 16;
 
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the LAYOUTS of the run with
 /// their ids and which one the weaver was standing on, the id the next layout takes, and which
-/// authored choice held each switchable office. It is one value in memory alone: what the
+/// authored choice held each switchable role. It is one value in memory alone: what the
 /// reader's law judges and what a conversion of an older file answers with. Its file holds it a
 /// line at a time.
 // WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-05 -- agents/workshop/session-restore.md
@@ -226,7 +226,7 @@ struct LoadedSession {
     /// HOW MANY REFERENCES IN THIS SESSION NAMED A PANE THAT HAS SINCE CHANGED HANDS
     /// (`workshop/pane_migration.hpp`), over every desk and every remembered Setup value.
     pane_migration::Converted converted;
-    /// Which authored choice held each switchable office at quit.
+    /// Which authored choice held each switchable role at quit.
     std::vector<WorkshopChoice> choices;
 
     static LoadedSession no(std::string why) {
@@ -409,7 +409,7 @@ inline LoadedSession current_in(const WorkshopSession& file, std::int64_t read_v
     // THE CHOICES ARE BOUNDED; whether the plan still authors each is the load's to judge.
     if (file.choices.size() > kMaxRememberedChoices) {
         return LoadedSession::no("a session remembers at most " +
-                                 std::to_string(kMaxRememberedChoices) + " offices' choices");
+                                 std::to_string(kMaxRememberedChoices) + " roles' choices");
     }
     LoadedSession loaded;
     loaded.outcome = Written::ok();

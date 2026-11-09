@@ -3,7 +3,7 @@
 **Manual.** The pane for looking closely at things: the properties of one pane on your desk, the one
 you name from the Pane Manager, and typed values kept in Inventory, several at once. It is a
 *weave*: a piece of Workshop that is loaded, replaced and spoken to by messages, built as
-`zengine-info-pane`. Other weaves reach it by its *office*, the name it answers to, `zengine.info`.
+`zengine-info-pane`. Other weaves reach it by its *role*, the name it answers to, `zengine.info`.
 Its panes are `info`, the default, and the value views `info.2`, `info.3` and on, up to
 `kMaxInfoViews` in all ([`info/vocabulary.hpp`](../vocabulary.hpp)). New to it? Start with
 [Independent Info views and the inspection workbench](info-views.md).
@@ -24,7 +24,7 @@ pane in the live layout, read there at the row's revision, under a `Settings` ro
 their hand-off got, in the same reading; and
 Workshop's list of panes ([`PaneInventory`](../../workshop/desktop_seam_vocabulary.hpp)) tells Info
 which of its views are on the desk. Info names the pane to inspect by asking Workshop, when the Pane
-Manager or another office asks it to, and a property you change is written into the desk by
+Manager or another role asks it to, and a property you change is written into the desk by
 Workshop, whose rows they are. A value is Inventory's: every read, save and copy asks Workshop
 first whether you may, then asks Inventory, and a refusal is said in the owner's words.
 
@@ -126,7 +126,7 @@ view.
 
 While a draft is open, the default pane declares these two and nothing else: every other key edits
 the line, as any text line does ([`component/text_box.hpp`](../../component/text_box.hpp)), its
-clipboard included. An ask to inspect another pane, from the Pane Manager or any office, is refused,
+clipboard included. An ask to inspect another pane, from the Pane Manager or any role, is refused,
 `finish the edit first -- commit it or cancel it`. When Workshop's picture no longer shows the row
 the draft was opened on (another pane, another desk put live, the rows' layout changed), the draft
 ends: `edit abandoned -- the inspected pane, its desk or its rows changed; unwritten changes
@@ -538,13 +538,13 @@ Takes the view into use, empty.
 
 ### `PaneInventory`
 
-From Workshop alone: every pane it knows, whole, each time the list changes
+From `zengine.workshop` alone: every pane it knows, whole, each time the list changes
 ([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)), read for
 which of Info's views are on the desk; a hidden view keeps its draft and ends its watch.
 
 ### `PaneSubjectShown`
 
-From Workshop alone: the pane inspected and its rows, whole, each time they change
+From `zengine.workshop` alone: the pane inspected and its rows, whole, each time they change
 ([`workshop/inspection_seam_vocabulary.hpp`](../../workshop/inspection_seam_vocabulary.hpp)).
 Workshop names what the rows address; a draft opened on other rows is abandoned.
 
@@ -556,14 +556,13 @@ once.
 
 ### `PaneResetRequested`
 
-A reset of one view ([`workshop/setup_control.hpp`](../../workshop/setup_control.hpp)), from a guest
-with the `demo` power: the default pane drops its drafts and goes back to its properties; another
+A reset of one view ([`workshop/setup_control.hpp`](../../workshop/setup_control.hpp)), from any guest with the `demo` power: the default pane drops its drafts and goes back to its properties; another
 view is emptied. Refused, `Info reset needs its pane and no pending commit`, while that view waits
 on an ask.
 
 ### `InspectPaneRequested`
 
-From an office, as the Pane Manager's `inspect in Info` row asks: the default pane asks Workshop to
+From any role, as the Pane Manager's `inspect in Info` row asks: the default pane asks Workshop to
 make that pane the subject, shown under `PANE <its name>`, and answers with Workshop's
 `PaneSubjectActed`, or in its own words: `finish the edit first -- commit it or cancel it` while a
 draft is open; `inspect not submitted -- nothing was queued`; `inspect not delivered -- nothing

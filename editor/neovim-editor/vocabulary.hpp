@@ -4,8 +4,8 @@
 #ifndef ZENGINE_NEOVIM_EDITOR_VOCABULARY_HPP
 #define ZENGINE_NEOVIM_EDITOR_VOCABULARY_HPP
 
-// The Neovim-backed Editor's durable names: the office and pane it holds, the actions its keys
-// answer to, what a probe reads of it, and the three asks a weaver sends it directly. Its office
+// The Neovim-backed Editor's durable names: the role and pane it holds, the actions its keys
+// answer to, what a probe reads of it, and the three asks a weaver sends it directly. Its role
 // and pane are the Editor's (`zengine.editor`), so whatever reaches the Editor reaches whichever
 // implementation a load plan chose, and a switch keeps the weaver's seat; they are spelled here,
 // not borrowed from the standard Editor, so neither depends on the other. From a Loom with no
@@ -21,12 +21,12 @@
 
 namespace zengine::neovim_editor {
 
-/// THE EDITOR'S OFFICE AND PANE KEY -- the standard Editor's own spellings (see above).
-inline constexpr const char* kEditorOffice = "zengine.editor";
+/// THE EDITOR'S ROLE AND PANE KEY -- the standard Editor's own spellings (see above).
+inline constexpr const char* kEditorRole = "zengine.editor";
 inline constexpr const char* kEditorPane = "editor";
 
 /// WHAT THE PANE MANAGER, INFO AND THE PANE HEADER SAY while this implementation holds the
-/// office.
+/// role.
 inline constexpr const char* kPaneName = "Neovim";
 inline constexpr const char* kPaneSummary = "edit a source file in Neovim";
 

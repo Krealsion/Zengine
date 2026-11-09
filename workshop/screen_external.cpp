@@ -170,7 +170,7 @@ void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
             graphics::colors::accent});
     }
     // ...AND IN THE BODY, WHAT STANDS THERE BEHIND THE PANE'S OWN AREA: that Workshop waits for the
-    // pane to draw, covered once its area's ground is drawn, or that its office draws in no window.
+    // pane to draw, covered once its area's ground is drawn, or that its role draws in no window.
     if (body.present && pane != nullptr) {
         region.rows.push_back(TextRow{
             detail::fit(external_body_words(*pane, row->name), body.columns),

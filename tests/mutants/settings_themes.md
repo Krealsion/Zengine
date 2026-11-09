@@ -20,20 +20,20 @@ Red in `zengine-settings-themes-tests`:
 
 - a theme's name is 1 to 32 bytes of lowercase letters, digits and dashes
 
-## office-without-dot
+## role-without-dot
 
-A target's office is taken without a `.` in it.
+A target's role is taken without a `.` in it.
 
 In `settings/theme_persist.hpp`:
 
 ```diff
--    const bool office_ok = !office.empty() && office.find('.') != std::string_view::npos;
-+    const bool office_ok = !office.empty();
+-    const bool role_ok = !role.empty() && role.find('.') != std::string_view::npos;
++    const bool role_ok = !role.empty();
 ```
 
 Red in `zengine-settings-themes-tests`:
 
-- a theme setting's target is every pane, an office, or one pane of an office
+- a theme setting's target is every pane, a role, or one pane of a role
 
 ## pane-with-slash
 
@@ -48,7 +48,7 @@ In `settings/theme_persist.hpp`:
 
 Red in `zengine-settings-themes-tests`:
 
-- a theme setting's target is every pane, an office, or one pane of an office
+- a theme setting's target is every pane, a role, or one pane of a role
 
 ## pane-of-star
 
@@ -63,7 +63,7 @@ In `settings/theme_persist.hpp`:
 
 Red in `zengine-settings-themes-tests`:
 
-- a theme setting's target is every pane, an office, or one pane of an office
+- a theme setting's target is every pane, a role, or one pane of a role
 
 ## clear-with-value
 

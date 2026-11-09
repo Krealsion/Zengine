@@ -112,8 +112,8 @@ convenience; a weave that paints its own fields needs no authority the weaver di
 
 ## VM-WIT-26 — A console witness takes the size of the window that shows it
 
-METHOD — Size a console witness to the terminal window that shows it, and read its rows at that size: a buffer wider than its window wraps every row, so the desk reads broken.
-BECAUSE — a 160x50 console inside a 120x30 Windows Terminal window wrapped every row and its
+METHOD — Size a console witness to the TUI window that shows it, and read its rows at that size: a buffer wider than its window wraps every row, so the desk reads broken.
+BECAUSE — a 160x50 console inside a 120x30 Windows TUI window wrapped every row and its
 picture read as a product defect; launched at the window's own 120x30, the same desk read whole.
 
 ## Seen

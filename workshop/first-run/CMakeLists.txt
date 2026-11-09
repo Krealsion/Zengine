@@ -1,6 +1,6 @@
 # The quick setup: a weaver's first start asks how they edit text and shows where the setups are,
 # once, as a loadable weave holding `zengine.first-run`, replaced as any weave is. It keeps one
-# office-wide setting in Workshop's settings file and draws in its own area of a graphics window
+# role-wide setting in Workshop's settings file and draws in its own area of a graphics window
 # (the pane protocol, the graphics canvas); its answers go to the editor switch and Workshop.
 
 if(NOT TARGET loom::kernel)

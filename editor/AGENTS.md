@@ -9,8 +9,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `editor-pane/` | the standard Editor: `zengine-editor-pane`, a loadable weave |
 | `editor-pane/editor.hpp` | the document: buffer, caret and selection, source bytes, tab geometry |
-| `editor-pane/vocabulary.hpp` | its office `zengine.editor`, pane key, action ids, reload state |
-| `office_seam.hpp` | what both Editors keep and say alike: the relayed open, a switch's hold, a carry's and a dropped location's steps, and their sentences; header-only, read by the two weaves |
+| `editor-pane/vocabulary.hpp` | its role `zengine.editor`, pane key, action ids, reload state |
+| `role_seam.hpp` | what both Editors keep and say alike: the relayed open, a switch's hold, a carry's and a dropped location's steps, and their sentences; header-only, read by the two weaves |
 | `neovim-editor/` | the Neovim-backed Editor: `zengine-neovim-editor`, a loadable weave |
 | `neovim-editor/vocabulary.hpp` | its names and three asks; `zengine::neovim`, installed |
 | `neovim/` | `zengine-neovim`: header-only Neovim hosting library; not a weave, not installed |
@@ -66,13 +66,13 @@ Rigs: `tests/editor_transfer_story.hpp`, `tests/workshop_switch_rig.hpp`.
 ## Host side
 
 - `workshop/workshop.cpp` mounts the opening manager (`workshop/opening.hpp`) and the editor
-  switch (`workshop/editor_switch.hpp`, with its grant) for the office `zengine.editor`.
-- `workshop/default-load-plan.json` loads the office and authors its choices `standard` and `neovim`; `workshop/CMakeLists.txt` stages both weaves.
+  switch (`workshop/editor_switch.hpp`, with its grant) for the role `zengine.editor`.
+- `workshop/default-load-plan.json` loads the role and authors its choices `standard` and `neovim`; `workshop/CMakeLists.txt` stages both weaves.
 - Seam vocabulary: `workshop/pane_seam_vocabulary.hpp` (`kEditorRole`, the open),
   `workshop/open_seam_vocabulary.hpp`, `workshop/editor_handoff_vocabulary.hpp`,
   `workshop/editor_switch_vocabulary.hpp`; the carry is `workshop/pane_carry.hpp`.
 - Both Editors read files through `persist/file.hpp`, and the standard Editor writes through
-  it; `workshop/pane_migration.hpp` reads a desk saved under the Editor's old office.
+  it; `workshop/pane_migration.hpp` reads a desk saved under the Editor's old role.
 
 ## Pages
 

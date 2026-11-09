@@ -177,7 +177,7 @@ def window_path(session_path):
 
 def window(viewport):
     """A window file's text at WINDOW_VERSION: the room `viewport`, (width, height) in canvas
-    pixels, and no placement and no OS window's room."""
+    pixels, and no placement and no GUI window's room."""
     width, height = viewport
     return json.dumps({"zen": 1, "schema": "WorkshopWindow", "version": WINDOW_VERSION, "fields": {
         "format": WINDOW_FORMAT, "format_version": str(WINDOW_VERSION),

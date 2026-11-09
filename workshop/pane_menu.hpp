@@ -15,12 +15,12 @@
 //     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {  // the window's press
 //         if (!b.pressed || b.button != 3) return;             // a release: nothing to do
 //         const std::int64_t row = b.y / line_, column = b.x / advance_;   // in the window's text
-//         if (heading_row(row)) { pane_menu::pass_back(mail, kOffice, kPane); return; }
+//         if (heading_row(row)) { pane_menu::pass_back(mail, kRole, kPane); return; }
 //         asked_ = pane_menu::Offer(kPane, subject_at(row))
 //                      .at(row, column)
 //                      .row("mine.open", "Open")
 //                      .row("mine.forget", "Forget")
-//                      .send(mail, kOffice);                   // continues THIS press
+//                      .send(mail, kRole);                   // continues THIS press
 //     }
 //     void on(const PaneMenuAnswered& a, loom::Mail& mail) {
 //         const std::string id = asked_.take(mail, a);         // provenance, lifetime, once, subject
@@ -39,17 +39,17 @@
 
 namespace zengine::workshop::pane_menu {
 
-/// THE OFFICE WORKSHOP HOLDS, spelled here so a pane that includes only the installed protocol
+/// THE ROLE WORKSHOP HOLDS, spelled here so a pane that includes only the installed protocol
 /// need not spell it. A stranger's pane addresses Workshop by this name and no other.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// THE OFFICE THAT PRESENTS A MENU AND ANSWERS IT (`workshop::kPresenterRole`).
+/// THE ROLE THAT PRESENTS A MENU AND ANSWERS IT (`workshop::kPresenterRole`).
 inline constexpr const char* kPresenterRole = ::zengine::workshop::kPresenterRole;
 
 /// ONE MENU THIS IMAGE ASKED FOR, UNTIL IT IS ANSWERED: the request's number, and the pane and
 /// subject it was about. What makes an answer safe to act on is checked here in one read --
 ///
-///   provenance  a CHOICE counts only from the presenter's office; a refusal may also be
+///   provenance  a CHOICE counts only from the presenter's role; a refusal may also be
 ///               Workshop's, which answers an ask it never presented. Anybody else's word,
 ///               however it is shaped, settles nothing.
 ///   lifetime    the answer settles THIS image's outstanding ask, matched by its number; an
@@ -145,20 +145,20 @@ public:
     bool empty() const noexcept { return request_.rows.empty(); }
     const PaneMenuRequested& request() const noexcept { return request_; }
 
-    /// SEND AS `office`, CONTINUING THE GESTURE THIS DELIVERY BROUGHT (a press the window gave the
+    /// SEND AS `role`, CONTINUING THE GESTURE THIS DELIVERY BROUGHT (a press the window gave the
     /// pane, or a `PaneActionRequested`): the request goes out under `mail.correlation()`.
-    Asked send(loom::Mail& mail, std::string_view office,
+    Asked send(loom::Mail& mail, std::string_view role,
                std::string_view workshop = kWorkshopRole) const {
-        return continuing(mail, office, mail.correlation(), workshop);
+        return continuing(mail, role, mail.correlation(), workshop);
     }
 
     /// SEND CONTINUING A GESTURE BY ITS NUMBER -- for a pane that kept the number of a press it
     /// heard earlier in the same delivery chain, or that answers from a later delivery of its
     /// own. Zero continues nothing: the host refuses it, and the record is not pending.
-    Asked continuing(loom::Mail& mail, std::string_view office, std::uint64_t correlation,
+    Asked continuing(loom::Mail& mail, std::string_view role, std::uint64_t correlation,
                      std::string_view workshop = kWorkshopRole) const {
         Asked asked;
-        const loom::Ticket sent = mail.as_role(office).send_to_role(workshop, request_, correlation);
+        const loom::Ticket sent = mail.as_role(role).send_to_role(workshop, request_, correlation);
         if (sent.valid() && correlation != 0) {
             asked.correlation_ = correlation;
             asked.pane_ = request_.pane;
@@ -174,22 +174,22 @@ private:
 /// HAND THE PRESS THIS DELIVERY BROUGHT BACK TO THE HOST: "not mine -- open your own surface for
 /// my pane". Echoes the press's correlation; the host opens its pane menu once, at the press's
 /// place, while the press is still the weaver's latest act.
-inline loom::Ticket pass_back(loom::Mail& mail, std::string_view office, std::string pane,
+inline loom::Ticket pass_back(loom::Mail& mail, std::string_view role, std::string pane,
                               std::string_view workshop = kWorkshopRole) {
-    return mail.as_role(office).send_to_role(workshop, PanePassRequested{std::move(pane)},
+    return mail.as_role(role).send_to_role(workshop, PanePassRequested{std::move(pane)},
                                              mail.correlation());
 }
 
 /// ASK THE HOST FOR THE KEYBOARD, CONTINUING A MENU ANSWER BY ITS NUMBER -- for a pane whose
 /// chosen row begins an edit that opens a DOOR first, so the line the weaver will type into
-/// exists only once an office has answered, one or more deliveries later. The pane keeps the
+/// exists only once a role has answered, one or more deliveries later. The pane keeps the
 /// choice's number across that round trip and spends it here; the host judges it exactly as it
 /// judges the same-delivery form -- once, and only while that choice is still the weaver's
 /// latest act -- so a round trip the weaver interrupted grabs nothing. Zero continues nothing.
-inline loom::Ticket take_keyboard_continuing(loom::Mail& mail, std::string_view office,
+inline loom::Ticket take_keyboard_continuing(loom::Mail& mail, std::string_view role,
                                              std::string pane, std::uint64_t correlation,
                                              std::string_view workshop = kWorkshopRole) {
-    return mail.as_role(office).send_to_role(workshop, PaneKeyboardRequested{std::move(pane)},
+    return mail.as_role(role).send_to_role(workshop, PaneKeyboardRequested{std::move(pane)},
                                              correlation);
 }
 
@@ -199,19 +199,19 @@ inline loom::Ticket take_keyboard_continuing(loom::Mail& mail, std::string_view 
 /// (Delete again), a picked item waiting for a paste or Escape. A notice that names a key is the
 /// tell; a row that only navigates or operates asks for nothing. The host grants them only while
 /// the choice is still the weaver's latest act, so a newer press or key defeats a late grab.
-inline loom::Ticket take_keyboard(loom::Mail& mail, std::string_view office, std::string pane,
+inline loom::Ticket take_keyboard(loom::Mail& mail, std::string_view role, std::string pane,
                                   std::string_view workshop = kWorkshopRole) {
-    return take_keyboard_continuing(mail, office, std::move(pane), mail.correlation(), workshop);
+    return take_keyboard_continuing(mail, role, std::move(pane), mail.correlation(), workshop);
 }
 
 /// ASK THE HOST FOR ITS OWN PANE MENU ON `target` (a `PaneRef`'s two halves), continuing the
 /// menu answer this delivery brought -- the deliberate management route for a pane that is
 /// covered, closed, or consumes every right press.
-inline loom::Ticket manage(loom::Mail& mail, std::string_view office, std::string pane,
-                           std::string target_office, std::string target,
+inline loom::Ticket manage(loom::Mail& mail, std::string_view role, std::string pane,
+                           std::string target_role, std::string target,
                            std::string_view workshop = kWorkshopRole) {
-    return mail.as_role(office).send_to_role(
-        workshop, PaneManageRequested{std::move(pane), std::move(target_office), std::move(target)},
+    return mail.as_role(role).send_to_role(
+        workshop, PaneManageRequested{std::move(pane), std::move(target_role), std::move(target)},
         mail.correlation());
 }
 

@@ -11,12 +11,12 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `description.hpp` | `view::Description`, its saved bytes, and `view::problem`, the rules |
 | `view.hpp` | the view renderer, `view::View`: one running view on its pane's canvas |
 | `host.hpp` | the view host, `view::Host`: each view its own participant |
-| `vocabulary.hpp` | the view host's office and asks: `ViewRun`, `ViewApply`, `ViewStop`, ... |
+| `vocabulary.hpp` | the view host's role and asks: `ViewRun`, `ViewApply`, `ViewStop`, ... |
 | `view-builder/` | the View Builder: `zengine-view-builder`, a loadable weave |
 | `view-builder/pane.cpp` | the weave: its pane, its asks of the view host, its project file |
 | `view-builder/model.hpp` | the semantic edits over one description, each whole or refused |
 | `view-builder/picture.hpp` | its picture: bar, kinds, element list, boxes, design canvas |
-| `view-builder/vocabulary.hpp` | its office, `ViewEdit`, reload state, `view-builder.json` |
+| `view-builder/vocabulary.hpp` | its role, `ViewEdit`, reload state, `view-builder.json` |
 | `docs/` | the View Builder's manual, the reference and the weaver's guide, with their images |
 
 ## Law
@@ -53,7 +53,7 @@ its census driver and manual witness), `workshop_panes_seam`
 - [zengine.view.builder](docs/zengine.view.builder.md) — the View Builder's manual, carried by
   `zengine-view-builder` and answered by it
 - [zengine.view.host](docs/zengine.view.host.md) — the view host's manual, carried by `zengine-view`
-  (`zengine_manual` in `CMakeLists.txt`) and answered by the host's office
+  (`zengine_manual` in `CMakeLists.txt`) and answered by the host's role
 - [Make a small panel by hand in the View Builder](docs/view-builder.md)
 - [Described views](docs/view.md)
 

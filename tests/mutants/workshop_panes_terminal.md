@@ -21,9 +21,9 @@ Red in `zengine-workshop-panes-tests`:
 - the Terminal draws nothing in a window's room before it holds its row, takes a row from the
   layouts' owner alone, and draws whole once it holds one
 
-## row-from-any-office
+## row-from-any-role
 
-A pane takes the row any office hands it as its own.
+A pane takes the row any role hands it as its own.
 
 In `workshop/pane_settings_taken.hpp`:
 

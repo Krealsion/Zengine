@@ -9,9 +9,9 @@
 // (`PaneCommitRequested`); nothing here touches a desk or a definition.
 // Workshop law: agents/workshop/info-body.md
 
-// The subject is named by an office and nothing else moves it: the Pane Manager's `inspect in
+// The subject is named by a role and nothing else moves it: the Pane Manager's `inspect in
 // Info` row asks this pane, which asks the host. The host's one inventory (`PaneInventory`) says
-// which of this office's views are on the desk. Each view draws its rows, and the caret of a line
+// which of this role's views are on the desk. Each view draws its rows, and the caret of a line
 // being typed, in its own area of the window.
 
 #include "info/vocabulary.hpp"
@@ -80,13 +80,13 @@ using pane::kWorkshopRole;
 // The weave
 // =============================================================================
 
-/// THE OFFICE OF THE FOUR VIEWS: its activation, its offers on Workshop's catalog request, and
+/// THE ROLE OF THE FOUR VIEWS: its activation, its offers on Workshop's catalog request, and
 /// the manual of any view it offers, the whole page the weave's.
-using Office = ws::MultiPaneFacet<pane::kInfoPaneRole, pane::kInfoPane,
+using Role = ws::MultiPaneFacet<pane::kInfoPaneRole, pane::kInfoPane,
                                   zengine::manual::pages::zengine_info::kManual>;
 
 class InfoPaneWeave
-    : public zengine::With<Office>::Weave<
+    : public zengine::With<Role>::Weave<
           InfoPaneWeave, pane::InfoPaneState,
           loom::Accept<ws::PaneCarryAnswered, ws::PaneResetRequested, ws::PaneCanvasDrop, ws::PaneCanvasValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
                        InspectPaneRequested,
@@ -211,7 +211,7 @@ public:
     void on(const ws::PaneObservationAnswered& answer, loom::Mail& mail) { route(answer, mail); }
     void on(const loom::PokeStructure& answer, loom::Mail& mail) { route(answer, mail); }
 
-    /// AN INVALIDATION FROM THE INVENTORY OFFICE, never a value: watching views run one cycle.
+    /// AN INVALIDATION FROM THE INVENTORY ROLE, never a value: watching views run one cycle.
     void on(const zengine::inventory::InventoryChanged&, loom::Mail& mail) {
         if (!mail.authored_from_role(zengine::inventory::kInventoryRole)) return;
         pane::ViewContext c{mail, asked_};
@@ -246,7 +246,7 @@ public:
     /// weave's, from the page this image was built with, so a reloaded image answers its own words.
     bool known_pane(const std::string& key) { return view_of(key) != nullptr; }
 
-    // ---- Its views in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+    // ---- Its views in graphics windows (its role's `MultiPaneFacet` calls these) ------------
 
     /// EACH VIEW'S SEAT, where a window that shows the view's area finds it.
     template <class F>
@@ -337,7 +337,7 @@ public:
     /// AN ACCEPTED ACTIVATION offers the views (`announce`) and ends each lease no view here holds.
     void on_activated(loom::Mail& mail) {
         announce(mail);
-        // AN ARRIVING IMAGE HOLDS NO OBSERVATION. A reload keeps this office's WeaveId, so
+        // AN ARRIVING IMAGE HOLDS NO OBSERVATION. A reload keeps this role's WeaveId, so
         // Workshop cannot tell a predecessor's leases from ours; lease 0 ends every one this
         // holder has on the pane. Only on activation: a catalog request re-announces live views.
         for (const auto& v : views_)
@@ -347,7 +347,7 @@ public:
     }
 
     /// THE ONE INVENTORY, AS THE HOST SAYS IT -- published when it changes, or answered to this
-    /// image's arrival -- read for which of this office's views are on the desk: a hidden view
+    /// image's arrival -- read for which of this role's views are on the desk: a hidden view
     /// keeps its draft, not a watch.
     void on(const PaneInventory& said, loom::Mail& mail) {
         if (!from_workshop(mail)) {
@@ -357,7 +357,7 @@ public:
         pane::ViewContext c{mail, asked_};
         for (auto& v : views_) {
             bool open = false;
-            for (const auto& p : said.panes) if (p.office == pane::kInfoPaneRole && p.pane == v.key()) open = p.open;
+            for (const auto& p : said.panes) if (p.role == pane::kInfoPaneRole && p.pane == v.key()) open = p.open;
             const bool was = v.watching();
             v.desk(open, c);
             if (was && !v.watching()) say(v, mail);
@@ -400,11 +400,11 @@ public:
         settle(mail);
     }
 
-    /// AN OFFICE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
+    /// A ROLE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
     /// and the ask is the property view's own inspect (`PropertyView::inspect_asked`).
     void on(const InspectPaneRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
-            return; // an office asks; personal speech is answered by nobody
+            return; // a role asks; personal speech is answered by nobody
         }
         pane::ViewContext c{mail, asked_};
         properties_.inspect_asked(asked, c);
@@ -534,9 +534,9 @@ public:
     }
 
 private:
-    /// THE HOST, SPEAKING AS ITS OFFICE OR ANSWERING THIS IMAGE'S OWN ASK. A host answer carries
-    /// answer provenance, not office authorship (Loom ANS-01), and it can only come from the
-    /// office this image asked.
+    /// THE HOST, SPEAKING AS ITS ROLE OR ANSWERING THIS IMAGE'S OWN ASK. A host answer carries
+    /// answer provenance, not role authorship (Loom ANS-01), and it can only come from the
+    /// role this image asked.
     static bool from_workshop(const loom::Mail& mail) {
         return mail.authored_from_role(kWorkshopRole) || mail.answers_ask();
     }
@@ -553,7 +553,7 @@ public:
             offer(v, mail);
             declare(v, mail);
         }
-        // ...AND WHAT THE HOST HOLDS NOW: the inventory, and the subject this office named --
+        // ...AND WHAT THE HOST HOLDS NOW: the inventory, and the subject this role named --
         // which a reload of this image finds standing, because the host keeps it. Both are
         // published when they change; an image arriving while nothing changes would otherwise
         // wait for an unrelated change.
@@ -745,7 +745,7 @@ private:
         paste_.epoch = properties_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(canvases_.front().clipboard_office(), gfx::ClipboardTextRequested{},
+            .send_to_role(canvases_.front().clipboard_role(), gfx::ClipboardTextRequested{},
                           paste_.pending);
     }
 

@@ -170,7 +170,7 @@ In `workshop/weave_desktop.cpp`:
 ```diff
 -    (void)mail.answer(verdict);
 -}
-+    (void)mail.as_role(kWorkshopProvider).send_to_role(office, verdict);
++    (void)mail.as_role(kWorkshopProvider).send_to_role(role, verdict);
 +}
 ```
 
@@ -226,7 +226,7 @@ The inventory never says a pane is still to come.
 In `workshop/weave_desktop.cpp`:
 
 ```diff
--        p.pending = !p.available && host_->office_pending && host_->office_pending(p.office);
+-        p.pending = !p.available && host_->role_pending && host_->role_pending(p.role);
 +        p.pending = false;
 ```
 
@@ -269,6 +269,23 @@ Red in `zengine-workshop-panes-tests`:
 - WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close of a pane
   that is not there is refused and opens nothing
 
+## earlier-close-answered-now
+
+The owner answers a close an earlier vocabulary asked in the current version, which its asker does
+not hear.
+
+In `workshop/layouts/owner.cpp`:
+
+```diff
+-    (void)mail.answer(as_v2(close_asked(current(asked), mail)));
++    (void)mail.answer(close_asked(current(asked), mail));
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- a pane built on an earlier vocabulary closes, launches and toggles as it says, the role named
+  office, and is answered in the version it asked in
+
 ## close-falls-through-to-a-seat
 
 A close of a pane that is not on the desk seats it, as the launch door does, before it refuses.
@@ -302,9 +319,9 @@ In `workshop/layouts/owner.cpp`:
 
 ```diff
 -    if (mail.authored_role().empty()) {
--        // AN OFFICE, AND ONLY AN OFFICE, changes who is on the desk -- the seam's rule -- and the
+-        // A ROLE, AND ONLY A ROLE, changes who is on the desk -- the seam's rule -- and the
 +    if (false) {
-+        // AN OFFICE, AND ONLY AN OFFICE, changes who is on the desk -- the seam's rule -- and the
++        // A ROLE, AND ONLY A ROLE, changes who is on the desk -- the seam's rule -- and the
 ```
 
 Red in `zengine-workshop-panes-tests`:
@@ -338,7 +355,7 @@ The Pane Manager's `n` launches the Hotkeys pane.
 In `workshop/desktop-pane/launcher_view.hpp`:
 
 ```diff
--            launch(mail, kViewBuilderOffice, kViewBuilderPane, launches);
+-            launch(mail, kViewBuilderRole, kViewBuilderPane, launches);
 +            launch(mail, "zengine.desktop", "hotkeys", launches);
 ```
 
@@ -354,7 +371,7 @@ The Pane Manager's `n` launches nothing.
 In `workshop/desktop-pane/launcher_view.hpp`:
 
 ```diff
--            launch(mail, kViewBuilderOffice, kViewBuilderPane, launches);
+-            launch(mail, kViewBuilderRole, kViewBuilderPane, launches);
 +            (void)launches;
 ```
 

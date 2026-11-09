@@ -1,7 +1,7 @@
 # zengine.flow.host -- the Flow host
 
 **Manual.** The Flow host: the weave that runs Flow projects on the host's own bus, answering to
-the office `zengine.flow.host` (an office is the name a weave answers to). Given a project, it
+the role `zengine.flow.host` (a role is the name a weave answers to). Given a project, it
 registers the project's definition as a participant of its own, changes its behaviour, sends it
 examples, reports what it did, and stops it. A Zengine host mounts it -- Workshop, and an app's
 own host, `zengine-app` -- so it is not a file you load. In Workshop the [Flow pane](zengine.flow.md)
@@ -10,14 +10,14 @@ is the weave that asks it, and in an app the app's own weave
 
 ## About
 
-The Flow host is `flow_host::RuntimeHost` and its office's weave, `flow_host::Manager`, in
+The Flow host is `flow_host::RuntimeHost` and its role's weave, `flow_host::Manager`, in
 [`flow/flow-host/runtime.hpp`](../flow-host/runtime.hpp). It runs interpreted Flow projects
 (`flow::Project`) as ordinary maker participants (`maker::Weave`) on the host's existing
 Switchboard, resolving their operators through the host's live operator catalog: it starts no
 second session and publishes no operators of its own ([Flow in an existing host](flow-runtime.md)).
 
-Every running project belongs to a session, named by the asker and scoped to it: to the office the
-ask was sent as, while that office's holder is still the one asking, or else to the asker's own
+Every running project belongs to a session, named by the asker and scoped to it: to the role the
+ask was sent as, while that role's holder is still the one asking, or else to the asker's own
 identity on the bus. Another weave cannot reach a session by guessing its name. Each session sends
 its examples from a participant of its own, granted only the definition's accepted shapes to its
 subject, and keeps a journal of what happened: each input it sent, queued, delivered or refused;
@@ -41,7 +41,7 @@ The Flow pane, `zengine.flow`, or any weave granted `flow_host::allow_flow_reque
 [`FlowInspect`](#flowinspect) and [`FlowStop`](#flowstop), each answered once, to the asker alone,
 with `FlowAnswer` v1, and [`FlowCatalog`](#flowcatalog), answered with `FlowCatalogAnswer` v1. When a
 session moves, its owner hears [`FlowChanged`](#follow) and inspects it again. Any weave granted
-`ShapeDocumentRequested` to this office may ask what a shape it accepts does, and is answered from
+`ShapeDocumentRequested` to this role may ask what a shape it accepts does, and is answered from
 this page.
 
 ## Commands
@@ -55,7 +55,7 @@ this page.
   the project as it now stands, `pending`, `first_sequence`, `last_sequence`, `dropped` and the
   journal's `events`.
 - **Refuses:** `ok` false, nothing registered, with `reason`: `a live requesting participant is
-  required`; `session name must be between 1 and 128 bytes`; `the request's authored office has
+  required`; `session name must be between 1 and 128 bytes`; `the request's authored role has
   moved to another participant`; `session already runs; apply behavior or explicitly stop it before
   running a fresh project`; `Flow already owns eight running sessions`, at `kMaxSessions`; `project
   exceeds 1 MiB`; `the definition's role is already held: tally.counter`; or the reason the project
@@ -72,7 +72,7 @@ this page.
 - **Answers:** `FlowAnswer` with `action` `apply`, `ok`, and the session as it now stands; the
   running participant keeps its live state.
 - **Refuses:** `ok` false with `reason`: `a live requesting participant is required`; `session
-  name must be between 1 and 128 bytes`; `the request's authored office has moved to another
+  name must be between 1 and 128 bytes`; `the request's authored role has moved to another
   participant`; `no session by this name belongs to this requesting participant`; `definition
   exceeds 1 MiB`; `inputs still have pending dispatch; try the edit after they settle`;
   or the reason the definition is not read, or the edit not taken.
@@ -89,7 +89,7 @@ this page.
   dispatch, outputs and state`, and the session as it now stands, its journal ending `queued`. It
   says the input was queued, never that it was delivered or did anything.
 - **Refuses:** `ok` false, nothing sent, with `reason`: `a live requesting participant is required`;
-  `session name must be between 1 and 128 bytes`; `the request's authored office has moved to
+  `session name must be between 1 and 128 bytes`; `the request's authored role has moved to
   another participant`; `no session by this name belongs to this requesting participant`; `this
   session already retains 16 inputs; let the host advance before sending more`, at
   `kMaxPendingInputs`; `input exceeds 1 MiB`; `input does not match a declared accepted schema`, or
@@ -107,7 +107,7 @@ this page.
 - **Answers:** `FlowAnswer` with `action` `inspect`, `ok`, the `project` as it now stands, `pending`,
   `first_sequence`, `last_sequence`, `dropped`, and every event the journal keeps after `after`.
 - **Refuses:** `ok` false with `reason`: `a live requesting participant is required`; `session name
-  must be between 1 and 128 bytes`; `the request's authored office has moved to another
+  must be between 1 and 128 bytes`; `the request's authored role has moved to another
   participant`; `no session by this name belongs to this requesting participant`; `event cursor
   cannot be negative`; `managed subject no longer exists`; or why the participant or its state
   could not be read.
@@ -123,7 +123,7 @@ this page.
   project snapshot`, and the final `project` and journal; the session's sender and participant are
   then unregistered.
 - **Refuses:** `ok` false, nothing stopped, with `reason`: `a live requesting participant is
-  required`; `session name must be between 1 and 128 bytes`; `the request's authored office has
+  required`; `session name must be between 1 and 128 bytes`; `the request's authored role has
   moved to another participant`; `no session by this name belongs to this requesting participant`;
   or `inputs still have pending dispatch; stop after they settle`.
 - **Example:**
@@ -152,9 +152,9 @@ sender is ignored.
 ## Follow
 
 The host says one thing unasked: `FlowChanged` v1 `{session}`, from `zengine.flow.host`, to the
-office or participant that owns the session, when an input settles or its journal changes. It is
+role or participant that owns the session, when an input settles or its journal changes. It is
 a prompt to ask again with [`FlowInspect`](#flowinspect), never word that something succeeded;
-check that it came as the office `zengine.flow.host` before believing it.
+check that it came as the role `zengine.flow.host` before believing it.
 
 ## See also
 

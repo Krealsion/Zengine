@@ -2,18 +2,18 @@
 
 **Manual.** The pane you edit a source file in: it opens one file, edits it, and saves exactly what
 you meant to save, so the next build reads it. It is a *weave*: a piece of Workshop that is loaded,
-replaced and spoken to by messages. Other weaves reach it by its *office*, the name it answers to,
-`zengine.editor`. Two weaves can hold that office, one at a time: the standard Editor,
+replaced and spoken to by messages. Other weaves reach it by its *role*, the name it answers to,
+`zengine.editor`. Two weaves can hold that role, one at a time: the standard Editor,
 `zengine-editor-pane`, and the Neovim-backed Editor, `zengine-neovim-editor`. This page is both
 holders' manual. New to it? Start with [The source editor](editor.md) or
 [Neovim in Workshop](neovim.md).
 
 ## About
 
-The office has one pane, `editor`, and whichever weave holds the office draws it: in Workshop, and
+The role has one pane, `editor`, and whichever weave holds the role draws it: in Workshop, and
 in a graphics window that shows the area `zengine.editor` (`AreaRoom`, below). The load plan
 names the weave that starts and the choices a weaver may switch to, `standard` and `neovim` in
-both shipped plans; the switch is the office [`zengine.editor-switch`](zengine.editor-switch.md),
+both shipped plans; the switch is the role [`zengine.editor-switch`](zengine.editor-switch.md),
 which moves the document across: its bytes, unsaved edits, caret, selection and scroll. The pane's
 title says which holder you are in, `Editor @zengine.editor` or `Neovim @zengine.editor`.
 
@@ -176,7 +176,7 @@ Closes the document: the Editor holds no source after it, and the file is as you
 
 ## Commands in Neovim
 
-The Neovim-backed Editor's declared rows, while it holds the office. Every other key reaches
+The Neovim-backed Editor's declared rows, while it holds the role. Every other key reaches
 Neovim.
 
 ### `neovim.write`
@@ -250,15 +250,14 @@ Neovim's own (redo, or Insert's register).
 
 ### `OpenSourceRequested`
 
-`OpenSourceRequested` v1 ([`workshop/pane_seam_vocabulary.hpp`](../../workshop/pane_seam_vocabulary.hpp)):
-open this file. The holder hands it to the opening office, `zengine.opening`, and answers with what
+`OpenSourceRequested` v1 ([`workshop/pane_seam_vocabulary.hpp`](../../workshop/pane_seam_vocabulary.hpp)), from any weave granted it: open this file. The holder hands it to the opening role, `zengine.opening`, and answers with what
 became of it. The standard Editor refuses
 `the Editor holds unsaved changes to <path> -- save source or discard source edits in the Editor
 first; nothing was opened`; Neovim opens the file in a new buffer beside any unsaved one.
 
 ### `PaneQuitRequested`
 
-`PaneQuitRequested` v1, Workshop's orderly quit: may Workshop end now? The standard Editor refuses
+`PaneQuitRequested` v1, from `zengine.workshop`, its orderly quit: may Workshop end now? The standard Editor refuses
 `the Editor holds unsaved changes to <path> -- save source or discard source edits in the Editor
 first; Workshop stays open`. Neovim refuses `Neovim holds unsaved changes to <files> -- write them
 (:w) or discard them in Neovim first; Workshop stays open`, or a running terminal job. Both refuse
@@ -266,34 +265,31 @@ while a switch holds them still.
 
 ### `KeymapShown`
 
-`KeymapShown` v4 ([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)),
-Workshop's account of the keys in force. The standard Editor asks for it as it starts and hears it
+`KeymapShown` v5 ([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)), from `zengine.workshop`, its account of the keys in force. The standard Editor asks for it as it starts and hears it
 again whenever it changes: the keys its right-press menu shows beside its rows.
 
 ### `NeovimStartRequested`
 
-`NeovimStartRequested` v1 ([`editor/neovim-editor/vocabulary.hpp`](../neovim-editor/vocabulary.hpp)),
-for a Loom with no Workshop: start Neovim headless and listening, at `listen` or an address the
+`NeovimStartRequested` v1 ([`editor/neovim-editor/vocabulary.hpp`](../neovim-editor/vocabulary.hpp)), from any weave granted it, for a Loom with no Workshop: start Neovim headless and listening, at `listen` or an address the
 weave makes, editing `path` when named. Answered `zen.Result`, `<Neovim> is listening at <address>
 ... -- attach its interface with: nvim --server <address> --remote-ui`, or `zen.Refused`, as
 `Neovim is already running (...) -- stop it first with NeovimStopRequested`.
 
 ### `NeovimStatusRequested`
 
-`NeovimStatusRequested` v1: what runs and what it holds, asked of Neovim now. Answered
+`NeovimStatusRequested` v1, from any weave granted it: what runs and what it holds, asked of Neovim now. Answered
 `zen.Result`: `<Neovim> (<how it is attached>) is editing <file>, saved, in mode n`, or `Neovim is
 not running` and why.
 
 ### `NeovimStopRequested`
 
-`NeovimStopRequested` v1: end the Neovim this weave runs. Refused while a buffer holds unsaved
+`NeovimStopRequested` v1, from any weave granted it: end the Neovim this weave runs. Refused while a buffer holds unsaved
 changes, `Neovim holds unsaved changes to <files> -- write them first, or stop with discard=true to
 lose them`, unless `discard` is true; answered `Neovim ended (status 0)`.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the graphics window that shows the area `zengine.editor`, as that window's
-office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the Editor's room and text
+`AreaRoom` v4, from `zengine.window.*`, the window that shows the area `zengine.editor`, as its role ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the Editor's room and text
 there. The holder draws the pane Workshop is shown on its ground, a row a line, the caret a bar,
 the selection in the accent colour: whole when the room changed, then only what changed. Seated
 nowhere, it composes for this room, Neovim sized to it. A holder asks for it (`RoomAsked`) each
@@ -301,13 +297,13 @@ time it is activated.
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was.
+`DrawnRefused` v1, from `zengine.window.*`, that window: a drawing it refused, and why. What it shows stays as it was.
 A refused change is followed at once by the pane whole; a refused whole drawing by nothing until
 the pane changes.
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window, where it shows the pane's area deaf to the pointer: a press
+`ActionRequested` v1, from `zengine.window.*`, that window, where it shows the pane's area deaf to the pointer: a press
 on a part of the pane there, by its name, `status` or `line:<n>`. It is the press Workshop's canvas
 makes at that part's first column: on a line the caret moves to the line's first shown column, and
 on `status` nothing moves. It leaves no sweep and begins no carry. The Neovim-backed Editor names
@@ -315,8 +311,7 @@ only `status`.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v4, from that window: a button pressed or let go in the pane's area, at a point
-of its rows, with what the window drew there: the first button places the caret and arms the sweep,
+`AreaButtonChanged` v4, from `zengine.window.*`: a button pressed or let go in the pane's area, at a point of its rows, with what it drew there: the first button places the caret and arms the sweep,
 or holds the highlight or status row to carry out; the third offers them or is handed back; the
 release ends the sweep. A press on a line since left is refused in words. Its moves and release
 carry its number. For the Neovim-backed Editor each is Neovim's own mouse, carrying nothing from a
@@ -324,17 +319,17 @@ line since left.
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v1, from that window: the pointer moved while the press in the pane's area is
+`AreaPointerMoved` v1, from `zengine.window.*`, that window: the pointer moved while the press in the pane's area is
 held, which sweeps the selection or begins the remembered carry, as on Workshop's canvas.
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v1, from that window: the wheel over the pane's area, which scrolls as on
+`AreaWheelTurned` v1, from `zengine.window.*`, that window: the wheel over the pane's area, which scrolls as on
 Workshop's canvas.
 
 ### `AreaHoldEnded`
 
-`AreaHoldEnded` v1, from that window, about the pane's area: the press held there ended with no
+`AreaHoldEnded` v1, from `zengine.window.*`, that window, about the pane's area: the press held there ended with no
 release, which ends the sweep as a release does.
 
 ## Follow

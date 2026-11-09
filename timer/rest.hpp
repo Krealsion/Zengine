@@ -5,7 +5,7 @@
 #define ZENGINE_TIMER_REST_HPP
 
 // The rest between turns: what a host does with the thread once a turn of its bus is over. The
-// Timer never sleeps in a handler; at every beat that fired what was due it claims, as its office,
+// Timer never sleeps in a handler; at every beat that fired what was due it claims, as its role,
 // how long the bus may rest (`TimerRest`). A host reads that claim after each turn and naps until
 // it only while the Timer's beat is the one thing queued, so a reply to a firing, a key or an
 // answer is delivered in the next turn, not after a nap. A host that never rests is served the
@@ -32,12 +32,12 @@ public:
     /// HOW LONG THIS HOST MAY WAIT BEFORE ITS NEXT TURN, read once after each turn: until the
     /// Timer's claimed deadline, at most `kBeatCapMs`, when its beat is all the bus holds and the
     /// claim is new since the last turn read (so the beat ran in this turn and its successor is
-    /// that one queued delivery); 0 otherwise -- something else waits, the claim is a stale office
+    /// that one queued delivery); 0 otherwise -- something else waits, the claim is a stale role
     /// holder's, or no Timer has claimed.
     std::int64_t quiet_ms(const loom::Switchboard& bus) {
         const loom::SenseReading read =
-            bus.observe_office(kTimerRole, TimerRest::zen_name, TimerRest::zen_version);
-        if (!read || !read.value.has_value() || read.by.office_claim_is_stale()) {
+            bus.observe_role(kTimerRole, TimerRest::zen_name, TimerRest::zen_version);
+        if (!read || !read.value.has_value() || read.by.role_claim_is_stale()) {
             return 0;
         }
         const bool fresh = !seen_ || read.by.revision != revision_;

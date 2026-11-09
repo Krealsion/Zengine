@@ -4,13 +4,13 @@
 // zengine-snake, the playable host: it owns the boot list and its loop's rest, and nothing else --
 // it draws nothing of the game, knows no snake rules, reads no keys and keeps no time: between
 // turns it rests as long as the Timer's beat allows (timer/rest.hpp). The world keeps its own
-// rules, keys and beat; the terminal window reads the terminal and shows what owners draw;
-// the directory introduces the two; and the operator weave arranges the window, chooses its
+// rules, keys and beat; the TUI window reads the terminal and shows what owners draw;
+// the directory introduces the two; and the console weave arranges the window, chooses its
 // palette, speaks the status line and sends every lifecycle command (examples/snake/README.md).
 
-// The moments are keys, which the window gives the world and the operator alike, and the
-// operator's buttons beneath its status line, each making its key's gesture: 1 the other palette,
-// 2 the score weave, 3 the world grown (a graceful swap: v1's letter, v2's migration), 4 no OS
+// The moments are keys, which the window gives the world and the console alike, and the
+// console's buttons beneath its status line, each making its key's gesture: 1 the other palette,
+// 2 the score weave, 3 the world grown (a graceful swap: v1's letter, v2's migration), 4 no GUI
 // window, 5 the pilot flown or landed; r reloads the world, n starts afresh, l lists, q quits.
 // `--pilot` flies the pilot from birth and `--pause-at <step>` pauses the first game after that
 // step: the same game every run, held still on the same step.
@@ -71,21 +71,21 @@ namespace input = zengine::input;
 namespace scan = zengine::input::scan;
 namespace timer = zengine::timer;
 
-// ---- the operator ------------------------------------------------------------
+// ---- the console ------------------------------------------------------------
 
-/// The operator's office, the owner of the status line's area.
-constexpr const char* kOperatorRole = "snake.operator";
-constexpr const char* kStatusArea = "snake.operator";
-constexpr const char* kWindowRole = "zengine.window.terminal";
+/// The console's role, the owner of the status line's area.
+constexpr const char* kConsoleRole = "snake.console";
+constexpr const char* kStatusArea = "snake.console";
+constexpr const char* kWindowRole = "zengine.window.tui";
 
-/// The palettes the operator offers and chooses between: two of the shipped themes, made unlike
+/// The palettes the console offers and chooses between: two of the shipped themes, made unlike
 /// each other so a choice mid-game is unmistakable.
 inline std::vector<gfx::PaletteOffered> palettes() {
     return {gfx::themes::night(), gfx::themes::block()};
 }
 
-/// The operator's buttons, in the row beneath its status line: the action each asks of the
-/// operator, and its words, which name the key that makes the same gesture. `skin` is the game's
+/// The console's buttons, in the row beneath its status line: the action each asks of the
+/// console, and its words, which name the key that makes the same gesture. `skin` is the game's
 /// word for the look a palette gives it.
 constexpr const char* kPaletteAction = "skin";
 constexpr const char* kScoreAction = "score";
@@ -106,7 +106,7 @@ constexpr Control kControls[] = {
 };
 
 /// What the host remembers about a command in flight, so an answer can be reported in the words
-/// of the question, and so a success can flip the operator's own trackers.
+/// of the question, and so a success can flip the console's own trackers.
 struct Pending {
     std::string label;
     int action = 0; // 0 none, else one of the moments below
@@ -118,10 +118,10 @@ constexpr int kPilotLanded = 5;
 constexpr int kWorldReset = 6;
 constexpr int kWorldLoaded = 7;
 
-/// How many commands the operator keeps in flight at once; one more is refused out loud.
+/// How many commands the console keeps in flight at once; one more is refused out loud.
 constexpr std::size_t kAsksInFlight = 32;
 
-struct OperatorContext {
+struct ConsoleContext {
     loom::AskBook asks{kAsksInFlight};        ///< the commands in flight, each settled once
     std::map<std::uint64_t, Pending> pending; ///< what each open ask was, by its local id
     bool quit = false;         ///< the q key; the loop reads it after the pump returns
@@ -176,9 +176,9 @@ struct OperatorContext {
 /// and the board's code, chooses the palette, draws the status line and its buttons, holds the
 /// reach (the manager and the kernel's door, target-scoped, and the world's poke doors by role),
 /// and hears every answer.
-class OperatorWeave
+class ConsoleWeave
     : public gfx::With<gfx::ActionFacet>::Weave<
-          OperatorWeave, OperatorState,
+          ConsoleWeave, ConsoleState,
           loom::Accept<loom::Result, loom::Ack, loom::Refused, gfx::AreaKeyPressed,
                        gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
@@ -187,8 +187,8 @@ class OperatorWeave
 public:
     using Weave::on;
 
-    explicit OperatorWeave(OperatorContext& ctx)
-        : Weave(kOperatorRole, kStatusArea), ctx_(&ctx) {}
+    explicit ConsoleWeave(ConsoleContext& ctx)
+        : Weave(kConsoleRole, kStatusArea), ctx_(&ctx) {}
 
     // The three standard answers. Refusal-ness is carried as a FLAG from the handler that knows
     // it by TYPE: the shape is the fact.
@@ -200,7 +200,7 @@ public:
         answered(mail, "-> refused: " + r.reason, /*refused=*/true);
     }
 
-    /// A directory started: the window arranged again, from what the operator knows.
+    /// A directory started: the window arranged again, from what the console knows.
     void on(const gfx::GraphicsReady&, loom::Mail& mail) {
         if (mail.authored_from_role(gfx::kGraphicsRole)) {
             arrange(mail);
@@ -215,7 +215,7 @@ public:
         switch (k.scancode) {
         case scan::k1: flip_palette(mail); break;
         case scan::k4:
-            status("no window weave draws an OS window: this one is the terminal");
+            status("no window weave draws a GUI window: this one is the terminal");
             break;
         case scan::k2: load_score(mail); break;
         case scan::k3: grow_world(mail); break;
@@ -349,12 +349,12 @@ private:
         }
     }
 
-    /// The window as the operator arranges it: the palettes and the board's code offered, the
+    /// The window as the console arranges it: the palettes and the board's code offered, the
     /// status line and its buttons across the top, the world beneath them, the score beside it
     /// once loaded; every area hears the keys, and each wears the chosen palette.
     void arrange(loom::Mail& mail) {
         const auto to_directory = [&](const auto& m) {
-            (void)mail.as_role(kOperatorRole).send_to_role(gfx::kGraphicsRole, m);
+            (void)mail.as_role(kConsoleRole).send_to_role(gfx::kGraphicsRole, m);
         };
         for (const gfx::PaletteOffered& p : palettes()) {
             to_directory(p);
@@ -362,9 +362,9 @@ private:
         to_directory(gfx::ElementCodeOffered{"SnakeBoardData", ctx_->so("snake-board")});
         choose_palette(mail); // before the places, so each area is introduced once, wearing it
         const std::int64_t c = gfx::kCellPx;
-        to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTerminalWindow, kOperatorRole, 0,
+        to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTuiWindow, kConsoleRole, 0,
                                      0, 200 * c, 2 * c, 1, true});
-        to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTerminalWindow, kWorldRole, 0, 2 * c,
+        to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTuiWindow, kWorldRole, 0, 2 * c,
                                      50 * c, 28 * c, 0, true});
         if (ctx_->score_loaded) {
             place_score(mail);
@@ -373,16 +373,16 @@ private:
 
     void place_score(loom::Mail& mail) {
         const std::int64_t c = gfx::kCellPx;
-        (void)mail.as_role(kOperatorRole)
+        (void)mail.as_role(kConsoleRole)
             .send_to_role(gfx::kGraphicsRole,
-                          gfx::AreaPlaced{kScoreRole, gfx::kTerminalWindow, kScoreRole,
+                          gfx::AreaPlaced{kScoreRole, gfx::kTuiWindow, kScoreRole,
                                           52 * c, 2 * c, 50 * c, c, 0, false});
     }
 
     void choose_palette(loom::Mail& mail) {
         const std::string chosen = palettes()[static_cast<std::size_t>(ctx_->palette)].palette;
         for (const char* area : {kStatusArea, kWorldArea, kScoreRole}) {
-            (void)mail.as_role(kOperatorRole)
+            (void)mail.as_role(kConsoleRole)
                 .send_to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, chosen});
         }
     }
@@ -467,7 +467,7 @@ private:
         }
     }
 
-    OperatorContext* ctx_;
+    ConsoleContext* ctx_;
 };
 
 std::string exe_dir() {
@@ -513,7 +513,7 @@ constexpr const char* kWeaveSuffix =
     ".so";
 #endif
 
-std::string OperatorContext::so(const char* stem) const { return dir + "/" + stem + kWeaveSuffix; }
+std::string ConsoleContext::so(const char* stem) const { return dir + "/" + stem + kWeaveSuffix; }
 
 } // namespace
 
@@ -567,7 +567,7 @@ int main(int argc, char** argv) {
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
-    OperatorContext ctx;
+    ConsoleContext ctx;
     ctx.manager = manager;
     ctx.control = control;
     ctx.pause_at = pause_at;
@@ -596,12 +596,12 @@ int main(int argc, char** argv) {
                         gfx::kGraphicsRole);
     reach.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
     reach.allow_to_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowRole);
-    auto weave = std::make_unique<OperatorWeave>(ctx);
-    OperatorWeave* raw = weave.get();
-    const loom::WeaveId op = bus.register_weave(std::move(weave), std::move(reach), kOperatorRole);
+    auto weave = std::make_unique<ConsoleWeave>(ctx);
+    ConsoleWeave* raw = weave.get();
+    const loom::WeaveId op = bus.register_weave(std::move(weave), std::move(reach), kConsoleRole);
     raw->zen_set_self(op);
 
-    // Startup commands are sent AS the operator, asked in the same book its key commands use.
+    // Startup commands are sent AS the console, asked in the same book its key commands use.
     const auto boot = [&](std::string label, const auto& cmd, int action = 0) {
         using Cmd = std::decay_t<decltype(cmd)>;
         if (const loom::AskOpened opened = ctx.ask_manager<Cmd>(std::move(label), action)) {
@@ -610,14 +610,14 @@ int main(int argc, char** argv) {
         }
     };
 
-    // Birth of the game: the directory first (its hello is what has the operator arrange the
+    // Birth of the game: the directory first (its hello is what has the console arrange the
     // window), then the window that takes the terminal, the world, the pilot when it flies from
     // birth, and the timer service, whose loading is what starts time: every weave arranges its
     // own beat on its own activation, so the pilot hears the first game from its first step.
     boot("load directory", loom::LoadWeave{"zengine-graphics", ctx.so("zengine-graphics"),
                                            gfx::kGraphicsRole});
-    boot("load terminal window", loom::LoadWeave{"zengine-window-terminal",
-                                                 ctx.so("zengine-window-terminal"), kWindowRole});
+    boot("load TUI window", loom::LoadWeave{"zengine-window-tui",
+                                                 ctx.so("zengine-window-tui"), kWindowRole});
     boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), kWorldRole},
          kWorldLoaded);
     if (fly_at_birth) {

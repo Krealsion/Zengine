@@ -52,11 +52,11 @@ cmake -DZEN_BUILD_DIR=build-dev -P tests/verify.cmake
 
 A dependency's proof rides its version, so the sibling build contributes its libraries and
 nothing else: its tests and examples are forced off, as is its own SDL2 UI-tree renderer (which
-is a different thing from Zengine's OS window).
+is a different thing from Zengine's GUI window).
 
 ### Where a fetched dependency goes, and that nothing prunes it
 
-The OS window fetches SDL3, SDL_ttf and FreeType at configure time
+The GUI window fetches SDL3, SDL_ttf and FreeType at configure time
 ([supported toolchains](supported-toolchains.md#sdl)). Under WSL, building from a
 Windows-mounted checkout, those trees cannot live in the build directory — that filesystem cannot
 hold the symlinks inside SDL's tarball — so the build sends them to
@@ -104,7 +104,7 @@ host that loads it is an installed Loom session host, which is uninstrumented an
 instrumented image. It only declares shapes, and Workshop on the far side of `workshop_journey`
 stays instrumented.
 
-The lane runs the **full** population, the OS window included — the verifier prints
+The lane runs the **full** population, the GUI window included — the verifier prints
 `gates active: always;sdl`, and every entry the ordinary lane declares is here at the same
 floor. No floor is lowered and no gate is turned off to buy the instrumentation.
 
@@ -148,11 +148,11 @@ What it asks, in order:
 | run `witness-surfaces` | an exported target whose headers are not self-contained |
 | run `witness-message-drafts` | a draft library, Flow workspace or pane-canvas helper that loses what it carries when used from the installed headers |
 | run `witness-pane-menu` | the pane menu, the presenter seam or the list helpers failing a live exchange on the stranger's own bus, a forged answer included |
-| run `witness-pane-settings` | a pane's declared settings not judged, its row not asked for and handed to it by the layouts' office on the stranger's bus, or settings another office hands it taken |
+| run `witness-pane-settings` | a pane's declared settings not judged, its row not asked for and handed to it by the layouts' role on the stranger's bus, or settings another role hands it taken |
 | run `kitchen-host` | a loadable artifact a consumer cannot find or load |
 | run `flow-host` on the Flow weave the copy authored and compiled | Flow authoring, generation, loading or a live operator overlay that works only inside this repository |
 | run the installed `zengine-flow --help`, and the installed `zengine-inventory-read` with no file | an installed program that does not start; the reader must answer with its usage and exit 2 |
-| run `kitchen-host --no-timer` | diagnostics that stopped working: without the Timer service its order is refused, and the failure must name the order's shape and office |
+| run `kitchen-host --no-timer` | diagnostics that stopped working: without the Timer service its order is refused, and the failure must name the order's shape and role |
 | rebuild against a **moved** prefix, and run `kitchen-host` and `flow-host` from it | a package that only works where it was installed |
 | **canary**: delete one installed header | a consumer secretly reading the source tree |
 
@@ -174,7 +174,7 @@ installs with `--strip` and asks first ([`package_arm.cmake`](../../tests/packag
 | find the launchers, the first page, the notices and the SDL in the prefix | a package that dropped what a stranger opens or Workshop loads |
 | run `zengine-workshop --version`, read `BUILD-INFO.txt` | an identity that is not this checkout's commit |
 | read every file in `bin/` and `lib/` for the source and build folders | an image that names the machine that built it |
-| start Workshop from the prefix on the OS window's plan and on the terminal's, PATH naming only the system | a row that does not load from the package alone |
+| start Workshop from the prefix on the GUI window's plan and on the terminal's, PATH naming only the system | a row that does not load from the package alone |
 
 It is deliberately **not** a CTest entry: it installs, relocates and configures a second
 unrelated project, and folding that into `ctest` would put a nested CMake build inside a test
@@ -254,7 +254,7 @@ their diagnostics, plus script entries.
 | `workshop_document` | the typed property connection every editable row is built on, including both ways a commit can fail; the quit policy; editable text as a component; and the keymap that says which gesture a key is. (The name is the object document's, whose cases it held until the prototype canvas retired.) |
 | `workshop_screen` | whole screens asserted as Workshop's composed planes; what a press reaches — a pane, the room, a mode — and what a hand can and cannot reach; and the whole pixels a pane arrangement is authored in |
 | `workshop_host` | what Workshop itself presents around the panes: placement and the stack, the Layouts pane and its tab run, the contextual menu, a pane's subject rows, the Terminal line's completion vocabulary, Escape's order, and the surface that says what is currently true. (The terminal, the Builder and Info had cases here as built-ins until each became a loaded pane.) |
-| `workshop_panes_seam`, `_hand`, `_inspect`, `_info`, `_settings`, `_terminal`, `_project`, `_editor` | the external pane seam from both sides: an office authors a pane, Workshop grants the room, and a press inside that room reaches the office that owns it — against real loaded libraries through the real kernel. One program, `zengine-workshop-panes-tests`, run as eight parts by subject, each selecting its own sources' cases, a long part as pieces |
+| `workshop_panes_seam`, `_hand`, `_inspect`, `_info`, `_settings`, `_terminal`, `_project`, `_editor` | the external pane seam from both sides: a role authors a pane, Workshop grants the room, and a press inside that room reaches the role that owns it — against real loaded libraries through the real kernel. One program, `zengine-workshop-panes-tests`, run as eight parts by subject, each selecting its own sources' cases, a long part as pieces |
 | `workshop_persistence` | what survives a process and what deliberately does not: an old object document left exactly as it is, the named arrangement, the desk that comes back on its own, a saved desk naming a retired built-in read as its successor, and the installed application's per-user roots |
 | `workshop_load` | which artifacts are in the room at all: the authored load plan, its codec, and the executor that walks it |
 | `builder` | real child processes — every recipe is `cmake -E …` or this repository's own deliberately slow script, so it needs no shell and no assumption about what is installed — plus the regression canary for non-blocking custody |

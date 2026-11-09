@@ -4,11 +4,11 @@
 #ifndef ZENGINE_BUILDER_PANE_VOCABULARY_HPP
 #define ZENGINE_BUILDER_PANE_VOCABULARY_HPP
 
-// The Builder pane's durable names: the office it holds, the one pane it offers, the action ids
-// its keys answer to, and the state a same-shape reload keeps. The office is not the tool's
-// `zengine.builder`: the tool owns the facts and this pane presents them, and one office would
+// The Builder pane's durable names: the role it holds, the one pane it offers, the action ids
+// its keys answer to, and the state a same-shape reload keeps. The role is not the tool's
+// `zengine.builder`: the tool owns the facts and this pane presents them, and one role would
 // make a `BuildRequested` a message to itself. The pane key stays `builder`, so a desk saved as
-// `zengine.workshop/builder` converts at load by moving the office only
+// `zengine.workshop/builder` converts at load by moving the role only
 // (`workshop/pane_migration.hpp`).
 // Builder law: agents/realization.md
 
@@ -24,23 +24,23 @@
 
 namespace zengine::builder_pane {
 
-/// THE OFFICE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
+/// THE ROLE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
 /// anything reaches it by. A ROLE, so the window and Workshop find whoever holds it rather
 /// than the incarnation that offered first: a reloaded provider is a different `WeaveId` and
-/// the same office.
+/// the same role.
 inline constexpr const char* kBuilderPaneRole = "zengine.builder-pane";
 
-/// The pane key, in this office's namespace: a converted desk keeps it.
+/// The pane key, in this role's namespace: a converted desk keeps it.
 inline constexpr const char* kBuilderPane = "builder";
 
 /// The two lines a weaver reads about this pane (its name in the Pane Manager's list, its
-/// summary in Info), also what Workshop's pane header says after the office; bounded by
+/// summary in Info), also what Workshop's pane header says after the role; bounded by
 /// Workshop's admission law (32 and 64 bytes) and written short.
 inline constexpr const char* kBuilderPaneName = "Builder";
 inline constexpr const char* kBuilderPaneSummary = "build a chosen recipe";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
-/// office is -- it is a file name, here because the host's boot plan and the suite's loader
+/// role is -- it is a file name, here because the host's boot plan and the suite's loader
 /// must agree on it.
 inline constexpr const char* kBuilderPaneStem = "zengine-builder-pane";
 
@@ -121,7 +121,7 @@ inline constexpr const char* kActionMenu = "builder.menu";
 inline constexpr const char* kModeBrowse = "browse";
 inline constexpr const char* kModeRecipes = "recipes";
 inline constexpr const char* kModeOutput = "output";
-inline constexpr const char* kModeRole = "role";
+inline constexpr const char* kModeRoleLine = "role";
 
 // ---- The ids the pane's own menu rows carry ---------------------------------------------
 //

@@ -217,7 +217,7 @@ endforeach()
 # Loom statically and needs nothing else at load time.
 set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
-# Out of the developer package: the OS window (a fetched SDL is a build-tree library this package
+# Out of the developer package: the GUI window (a fetched SDL is a build-tree library this package
 # does not carry); introspection and the composer, shown only inside a Workshop run; the snake
 # example; every test fixture. The package a stranger downloads (ZENGINE_PACKAGE, below) carries
 # Workshop with the SDL it built, in bin/.
@@ -226,14 +226,14 @@ set(zengine_installable_artifacts
     zengine-timer                # weave
     zengine-input                # weave
     zengine-inventory            # weave
-    zengine-neovim-editor        # weave: the Editor's office held with a Neovim, and a Neovim
+    zengine-neovim-editor        # weave: the Editor's role held with a Neovim, and a Neovim
                                  # for a second terminal from a Loom with no Workshop; its one
                                  # runtime need beyond the Loom is a Neovim, found at run time
     zengine-operators-basic      # provider, not a weave
     zengine-guest-vocabulary     # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
                                  # declared there, so a session's Python tools can speak it
     zengine-graphics             # weave: the graphics directory
-    zengine-window-terminal)     # weave: the window over the process's own terminal
+    zengine-window-tui)     # weave: the window over the process's own terminal
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)
@@ -262,7 +262,7 @@ endif()
 # Python tools another Loom host's session runs against Workshop: `workshop`, and `desk`, the desk
 # guided and resolved, by message alone; each one's `-machine` package, which builds on it and
 # reaches this machine as well; and `accounts-machine`, whose Git pushes and opens pull requests as
-# the session's user. An operator approves a package whole, so its name says its reach. DATA, not a
+# the session's user. A weaver approves a package whole, so its name says its reach. DATA, not a
 # target, riding the condition of the vocabulary weave they need (a Loom that hosts loadable weaves).
 if(TARGET zengine-guest-vocabulary)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/external-host/tools/workshop
@@ -316,7 +316,7 @@ endif()
 # identity and the notices. Every other build stays the developer's package.
 if(ZENGINE_PACKAGE)
     if(NOT TARGET zengine-workshop OR NOT TARGET zengine-window-sdl)
-        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE needs the Workshop host and the OS window "
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE needs the Workshop host and the GUI window "
                             "(a Loom with loom::kernel, and no ZENGINE_TUI_ONLY)")
     endif()
     if(NOT zengine_sdl_fetched OR NOT zengine_sdl_ttf_fetched)

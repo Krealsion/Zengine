@@ -4,8 +4,8 @@
 #ifndef ZENGINE_ATTENTION_PANE_VOCABULARY_HPP
 #define ZENGINE_ATTENTION_PANE_VOCABULARY_HPP
 
-// The Attention pane's durable names: the office it holds, the one pane it offers, the action
-// ids its keys answer to, and the state a same-shape reload keeps. The office is
+// The Attention pane's durable names: the role it holds, the one pane it offers, the action
+// ids its keys answer to, and the state a same-shape reload keeps. The role is
 // `zengine.attention`, not the host's `zengine.workshop` (admission refuses a pane offered by
 // its holder, WL-CAT-03). No saved file names this pane -- it was never a catalog row -- so
 // nothing converts. `attention.close` and `workshop.attention` retired with the overlay: a
@@ -22,24 +22,24 @@
 
 namespace zengine::attention_pane {
 
-/// THE OFFICE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
+/// THE ROLE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
 /// anything reaches it by. A ROLE, so the window and Workshop find whoever holds it rather
 /// than the incarnation that offered first: a reloaded provider is a different `WeaveId` and
-/// the same office.
+/// the same role.
 inline constexpr const char* kAttentionPaneRole = "zengine.attention";
 
-/// THE PANE KEY, in this office's namespace.
+/// THE PANE KEY, in this role's namespace.
 inline constexpr const char* kAttentionPane = "attention";
 
 /// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
-/// summary in Info -- and what Workshop's pane header says after the office.
+/// summary in Info -- and what Workshop's pane header says after the role.
 /// Bounded by Workshop's admission law before a byte is retained: a name at 32 bytes, a
 /// summary at 64.
 inline constexpr const char* kAttentionPaneName = "Attention";
 inline constexpr const char* kAttentionPaneSummary = "what is true right now";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
-/// office is -- it is a file name, here because the host's boot plan and the suite's loader
+/// role is -- it is a file name, here because the host's boot plan and the suite's loader
 /// must agree on it.
 inline constexpr const char* kAttentionPaneStem = "zengine-attention-pane";
 

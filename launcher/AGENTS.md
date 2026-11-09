@@ -8,7 +8,7 @@ are. It states no law. The repository's own rules are the root [AGENTS.md](../AG
 | path | what it is |
 |---|---|
 | `CMakeLists.txt` | `zengine-launcher-vocabulary`, `zengine-launcher-catalog` (header-only), `zengine-launcher`; the demo service and its setups fixed at configure |
-| `weave.cpp` | `zengine-launcher`, office `zengine.launcher` |
+| `weave.cpp` | `zengine-launcher`, role `zengine.launcher` |
 | `catalog.hpp` | `launcher::judge_launch`: a kind and a name judged against the catalog; `launcher::listing`, what it can start now |
 | `start.hpp` | `launcher::start_detached`; `launcher::runs_program`, whether a process still runs a program |
 | `vocabulary.hpp` | `zengine.launcher`, `Launch`, `Launched`, `LaunchCatalogRequested`, `LaunchCatalog`, `LaunchEntry` |

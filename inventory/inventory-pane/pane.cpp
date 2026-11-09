@@ -30,17 +30,17 @@ namespace inv = zengine::inventory;
 namespace slots = zengine::inventory_pane;
 namespace input = zengine::input;
 namespace component = zengine::component;
-constexpr const char* office = slots::kRole;
+constexpr const char* own_role = slots::kRole;
 constexpr const char* pane = "inventory";
 struct InventoryPaneState {
     slots::InventoryViews layout;
     ZEN_SHAPE(InventoryPaneState, 2, ZEN_FIELD(layout));
 };
-/// THE OFFICE OF MAIN INVENTORY AND EVERY VIEW IT MADE: its activation, its offers on Workshop's
+/// THE ROLE OF MAIN INVENTORY AND EVERY VIEW IT MADE: its activation, its offers on Workshop's
 /// catalog request, and the manual of any pane it offers, one page for all of them.
-using Office =
-    ws::MultiPaneFacet<office, pane, zengine::manual::pages::zengine_inventory_pane::kManual>;
-class InventoryPane : public zengine::With<Office>::Weave<InventoryPane, InventoryPaneState,
+using Role =
+    ws::MultiPaneFacet<own_role, pane, zengine::manual::pages::zengine_inventory_pane::kManual>;
+class InventoryPane : public zengine::With<Role>::Weave<InventoryPane, InventoryPaneState,
     loom::Accept<ws::PaneResetRequested, ws::PaneKey, ws::PaneTextInput,
         ws::PaneCanvasValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered,
         ws::PaneOperationAnswered, ws::ActorScopeJudged, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
@@ -140,7 +140,7 @@ public:
         if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current inventory operation or editor first"}); return; }
         apply(edit,m,m.defer_answer());
     }
-    // ---- its views in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+    // ---- its views in graphics windows (its role's `MultiPaneFacet` calls these) ------------
     /// EACH VIEW'S SEAT, main Inventory's and every view it made, where a window finds the view.
     template<class F> void each_seat(F&& visit) {
         visit(seat_of(pane));
@@ -201,7 +201,7 @@ private:
     /// no row, is handed back, as is one while an edit or an ask is in flight.
     void right_press(const std::string& view,const ws::RowCell& at,bool current,loom::Mail& m) {
         // AN EDIT OR AN ASK IN FLIGHT OFFERS NOTHING NOW: the press is handed back, not dropped.
-        if (!at.shown || editing_!=Editing::none || busy()) { (void)ws::pane_menu::pass_back(m, office, view); return; }
+        if (!at.shown || editing_!=Editing::none || busy()) { (void)ws::pane_menu::pass_back(m, own_role, view); return; }
         remove_armed_=false; current_=view; menu_folder_.reset(); pressed_folder_.clear();
         if (!current) { notice_="That picture moved; try again"; draw(m); return; }
         const auto* e=pointed(view,at.row,at.column,current); target_={}; if(e) select(*e,view);
@@ -232,7 +232,7 @@ private:
             menu.row("folder-new","New folder here...");
             if(pick_) menu.row("here","Move '"+pick_->label+"' here");
         }
-        menu_=menu.send(m,office); draw(m);
+        menu_=menu.send(m,own_role); draw(m);
     }
     void wheel(const std::string& view,double dy,loom::Mail& m) {
         if(editing_!=Editing::none) return;
@@ -275,7 +275,7 @@ public:
             else if(choice=="bind") {
                 const auto* b=slots::binding(state_.layout,target_.reference);
                 begin_edit(Editing::binding,b?b->target+" "+ws::gesture_word({b->scancode,b->modifiers}):"");
-                notice_="Enter target-office then a key, e.g. zengine.input alt+1";
+                notice_="Enter target-role then a key, e.g. zengine.input alt+1";
             } else if(choice=="remove") { remove_armed_=true; removing_folder_.reset(); notice_="Press Delete to confirm removing "+target_.label; }
             else if(choice=="folder-new") new_folder();
             else if(choice=="folder-rename" && menu_folder_) rename_folder(*menu_folder_);
@@ -321,16 +321,16 @@ public:
             else if(a.id=="inventory.move.here" && current_==pane) move_here(m);
             else if(a.id=="inventory.remove" && remove_armed_ && removing_folder_) {
                 remove_armed_=false; const auto doomed=*removing_folder_;
-                if(client_.begin(inv::InventoryFolderRemove{doomed.folder,doomed.revision},current_,office,m,asks_)) {
+                if(client_.begin(inv::InventoryFolderRemove{doomed.folder,doomed.revision},current_,own_role,m,asks_)) {
                     mode_=Mode::organize; organizing_="Removed empty folder '"+doomed.name+"'";
                 }
                 notice_=client_.notice;
             } else if(a.id=="inventory.remove" && remove_armed_) {
                 remove_armed_=false;
-                if(client_.begin(inv::InventoryRemove{target_.reference,target_.revision},current_,office,m,asks_)) removed_="Removed "+target_.label;
+                if(client_.begin(inv::InventoryRemove{target_.reference,target_.revision},current_,own_role,m,asks_)) removed_="Removed "+target_.label;
             } else if(folder && (a.id=="inventory.rename" || a.id=="inventory.remove" || a.id=="inventory.live")) {
                 if(a.id=="inventory.rename") {
-                    m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneKeyboardRequested{current_},m.correlation());
+                    m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneKeyboardRequested{current_},m.correlation());
                     rename_folder(*folder);
                 } else if(a.id=="inventory.remove") arm_folder_removal(*folder);
                 else notice_="A folder is not a value; Enter opens it";
@@ -348,7 +348,7 @@ public:
     void on(const ws::PaneKey& k, loom::Mail& m) {
         // Escape's default: a view's marker rests on a row as a cursor does, not a selection, so
         // Escape goes back to Workshop.
-        if(host(m) && known(k.pane) && ws::pane_escape::answer(k,m,office,[] { return false; })) return;
+        if(host(m) && known(k.pane) && ws::pane_escape::answer(k,m,own_role,[] { return false; })) return;
         if(host(m) && k.pane==current_ && editing_!=Editing::none && editing_!=Editing::toolbox_confirm && line_.consume(k.scancode,k.modifiers,clipboard_)) draw(m);
     }
     void on(const ws::PaneTextInput& t, loom::Mail& m) {
@@ -366,7 +366,7 @@ public:
         const auto at=found->second.cell_at(v.x,v.y);
         const bool current=!found->second.moved(v.under,v.part,v.drawing,v.x,v.y);
         if(busy()) { notice_=waiting(); draw(m); return; }
-        if(v.source_office!=office || v.token.empty()) { copy_drop(v.pane,at.row,at.column,current,v.data,m); return; }
+        if(v.source_role!=own_role || v.token.empty()) { copy_drop(v.pane,at.row,at.column,current,v.data,m); return; }
         const auto it=transfers_.find(v.token);
         if(it==transfers_.end() || it->second.from!=v.source_pane || it->second.layout!=layout_revision_ ||
             !current) { notice_="That slot transfer expired; drag its current picture"; draw(m); return; }
@@ -435,7 +435,7 @@ public:
                 command_.begin(e,*read.binding,read.from,read.gesture,m,asks_); notice_=command_.notice;
             } else {
                 duplicate_source_=read.target.reference;
-                if(client_.begin(inv::v2::InventoryAdd{e.pair,duplicate_label_,read.folder},read.from,office,m,asks_,read.gesture)) mode_=Mode::duplicate;
+                if(client_.begin(inv::v2::InventoryAdd{e.pair,duplicate_label_,read.folder},read.from,own_role,m,asks_,read.gesture)) mode_=Mode::duplicate;
                 notice_=client_.notice;
             } draw(m); return;
         }
@@ -460,7 +460,7 @@ public:
                 target_={}; target_.reference=e.reference; target_.revision=e.revision;
                 views_[current_].selected=slots::key(e.reference);
                 begin_edit(Editing::rename,{});
-                m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
+                m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::PaneKeyboardRequested{current_},client_.gesture);
             }
             drop_into_=pane; propose(std::move(candidate),m);
@@ -477,7 +477,7 @@ public:
                 auto named=target_; named.revision=e.revision;
                 const auto encoded=inv::encode_pair(loom::to_value(e.reference),{loom::to_value(named)});
                 carry_shape_=ws::PaneCarryRequested::zen_name;
-                carry_=m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
+                carry_=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::PaneCarryRequested{current_,label,loom::Bytes(encoded.begin(),encoded.end())},client_.gesture);
             } else if(mode_==Mode::drag) {
                 // The folder recorded when the press began the pickup, never the listing now.
@@ -486,11 +486,11 @@ public:
                 auto target=target_; target.revision=e.revision;
                 transfers_[token]={target,current_,layout_revision_,*from};
                 carry_shape_=ws::v2::PaneValueCarryRequested::zen_name; carry_version_=2;
-                carry_=m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
+                carry_=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::v2::PaneValueCarryRequested{current_,label,e.pair,true,token},client_.gesture);
             } else {
                 carry_shape_=ws::PaneValueCarryRequested::zen_name;
-                carry_=m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
+                carry_=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::PaneValueCarryRequested{current_,label,e.pair,false},client_.gesture);
             }
             notice_=carry_.valid()?"Entry acquired; finish the gesture to place it":"Pickup could not be queued";
@@ -673,7 +673,7 @@ private:
     /// Delete to confirm, a picked item waiting for Ctrl+V or Escape -- asks for the keys the menu
     /// left where they were. Workshop grants them once, and only while the choice is still the
     /// weaver's latest act, so a press or key the weaver made since keeps them (WL-CTX-09).
-    void take_keys(loom::Mail& m) { (void)ws::pane_menu::take_keyboard(m,office,current_); }
+    void take_keys(loom::Mail& m) { (void)ws::pane_menu::take_keyboard(m,own_role,current_); }
     /// Is the picked item still in the collection this pane lists?
     bool picked_here() const {
         if(!pick_) return false;
@@ -693,7 +693,7 @@ private:
             if(const auto* now=listing_.folder(f.folder.folder); now && now->parent==browser_.folder) {
                 notice_="'"+now->name+"' is already in "+listing_.path(browser_.folder); return;
             }
-            if(client_.begin(inv::InventoryFolderMove{f.folder,f.revision,into},current_,office,m,asks_)) mode_=Mode::organize;
+            if(client_.begin(inv::InventoryFolderMove{f.folder,f.revision,into},current_,own_role,m,asks_)) mode_=Mode::organize;
             notice_=client_.notice;
         } else if(const auto* e=summary(*pick_->entry)) file(*e,pick_->from,into,m);
         else { pick_.reset(); declare_all(m); notice_="The item picked to move is no longer here"; }
@@ -703,7 +703,7 @@ private:
     /// refuses if the entry has left `from` meanwhile.
     void file(const inv::InventorySummary& e,const inv::InventoryFolderReference& from,const inv::InventoryFolderReference& into,loom::Mail& m) {
         if(from.folder==into.folder && from.owner==into.owner) { notice_="'"+e.label+"' is already in "+listing_.path(into.folder); return; }
-        if(client_.begin(inv::InventoryFile{e.reference,from,into},current_,office,m,asks_)) {
+        if(client_.begin(inv::InventoryFile{e.reference,from,into},current_,own_role,m,asks_)) {
             mode_=Mode::organize; organizing_="Filed '"+e.label+"' in "+listing_.path(into.folder);
             if(slots::placed(state_.layout,e.reference)!=pane) organizing_+="; it stays placed in its view";
         }
@@ -724,7 +724,7 @@ private:
             toolbox_.begin(toolbox_path_,restore,restore,state_.layout,m,asks_,{},current_);
             notice_=toolbox_.notice;
         } else if(editing_==Editing::rename) {
-            if(client_.begin(inv::InventoryRename{target_.reference,target_.revision,line_.text()},current_,office,m,asks_)) {mode_=Mode::change; editing_=Editing::none;}
+            if(client_.begin(inv::InventoryRename{target_.reference,target_.revision,line_.text()},current_,own_role,m,asks_)) {mode_=Mode::change; editing_=Editing::none;}
         } else if(editing_==Editing::duplicate) {
             duplicate_label_=line_.text(); editing_=Editing::none; prepare(Mode::duplicate,m);
         } else if(editing_==Editing::folder_create || editing_==Editing::folder_rename) {
@@ -733,13 +733,13 @@ private:
             if(const auto problem=inv::folder_name_problem(name); !problem.empty()) { notice_=problem; return; }
             const bool create=editing_==Editing::folder_create;
             const bool asked=create
-                ? client_.begin(inv::InventoryFolderCreate{folder_parent_,name},current_,office,m,asks_)
-                : client_.begin(inv::InventoryFolderRename{folder_target_->folder,folder_target_->revision,name},current_,office,m,asks_);
+                ? client_.begin(inv::InventoryFolderCreate{folder_parent_,name},current_,own_role,m,asks_)
+                : client_.begin(inv::InventoryFolderRename{folder_target_->folder,folder_target_->revision,name},current_,own_role,m,asks_);
             if(asked) { mode_=Mode::organize; editing_=Editing::none; }
             notice_=client_.notice;
         } else {
             const auto text=line_.text(); const auto at=text.find(' ');
-            if(at==std::string::npos) {notice_="Use: target-office alt+1"; return;}
+            if(at==std::string::npos) {notice_="Use: target-role alt+1"; return;}
             const auto parsed=ws::parse_gesture(text.substr(at+1));
             if(!parsed.accepted || !parsed.gesture.scancode) {notice_=parsed.refusal.empty()?"Choose a bound key":parsed.refusal; return;}
             slots::InventoryViewEdit op; op.operation="bind"; op.entry=target_.reference; op.text=text.substr(0,at);
@@ -750,7 +750,7 @@ private:
     /// with the pickup; listings that arrive before the read answers never change it.
     void acquire(Mode mode,loom::Mail& m) {
         const inv::InventoryFolderReference from{target_.reference.owner,listing_.member_of(target_.reference)};
-        if(client_.begin(inv::InventoryRead{target_.reference},current_,office,m,asks_)) { mode_=mode; pickup_from_=from; }
+        if(client_.begin(inv::InventoryRead{target_.reference},current_,own_role,m,asks_)) { mode_=mode; pickup_from_=from; }
         notice_=client_.notice;
         draw(m);
     }
@@ -776,14 +776,14 @@ private:
         current_=view;
         auto folder=drop_folder(view,row,column,current)
             .value_or(inv::InventoryFolderReference{listing_.owner,view==pane?browser_.folder:std::string{}});
-        if(client_.begin(inv::v2::InventoryAdd{data,{},folder},current_,office,m,asks_)) {mode_=Mode::store; drop_into_=current_;}
+        if(client_.begin(inv::v2::InventoryAdd{data,{},folder},current_,own_role,m,asks_)) {mode_=Mode::store; drop_into_=current_;}
         notice_=client_.notice;
         draw(m);
     }
     void authorize(const slots::InventoryViewEdit& op,loom::Mail& m) {
         const auto correlation=++asks_;
-        auto ticket=m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneOperationRequested{
-            current_,office,slots::InventoryViewEdit::zen_name,1,static_cast<std::int64_t>(m.correlation())},correlation);
+        auto ticket=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneOperationRequested{
+            current_,own_role,slots::InventoryViewEdit::zen_name,1,static_cast<std::int64_t>(m.correlation())},correlation);
         if(ticket.valid()) {edit_=Edit{op,correlation,ticket}; notice_="Checking authority for this view change";}
         else notice_="View permission request could not be queued";
     }
@@ -814,7 +814,7 @@ private:
         }
         declare_all(m,&candidate);
         const auto correlation=++asks_;
-        const auto ticket=m.as_role(office).send_to_role(ws::kDesktopRole,ws::PaneShortcuts{slots::shortcuts(candidate)},correlation);
+        const auto ticket=m.as_role(own_role).send_to_role(ws::kDesktopRole,ws::PaneShortcuts{slots::shortcuts(candidate)},correlation);
         registration_=Registration{std::move(candidate),std::move(due),correlation,ticket,std::move(launch)};
         notice_="Waiting for Desktop to admit the active shortcuts";
         if(!ticket.valid()) finish_registration(false,"Desktop registration could not be queued",m);
@@ -831,7 +831,7 @@ private:
     }
     void open(const std::string& id,loom::Mail& m) {
         if(id.empty()) return;
-        launch_ask_=++asks_; m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{office,id},launch_ask_);
+        launch_ask_=++asks_; m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{own_role,id},launch_ask_);
     }
 public:
     /// EVERY PANE OFFERED AND DECLARED, the listing asked for and the hotkeys proposed: at each
@@ -851,7 +851,7 @@ private:
             const std::string said=o.name+"\n"+o.summary+"\n"+std::to_string(o.rows)+"x"+std::to_string(o.columns);
             auto& heard=offered_[o.pane];
             if(!all && heard==said) return;
-            heard=said; m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,o);
+            heard=said; m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,o);
         };
         offer(ws::v2::PaneOffered{pane,"Inventory","Owned entries and portable toolboxes",7,54});
         for(const auto& v:state_.layout.views) offer(ws::v2::PaneOffered{v.id,"Inventory "+v.kind+" "+v.id.substr(10),
@@ -882,7 +882,7 @@ private:
         }
         if(id==pane) for(const auto& b:(candidate?*candidate:state_.layout).bindings) rows.push_back({slots::action(b),"run inventory command",0,0});
         for(auto& row:rows) row.causes=causes_of(row.id);
-        m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneActions{id,{},std::move(rows)});
+        m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneActions{id,{},std::move(rows)});
     }
     /// WHAT A PRESS OF ONE ROW MAY SEND BESIDE THE PANE PROTOCOL, its asks' answers followed: the
     /// owner's read and the carry a pickup ends in, the owner's change and the listing after it,
@@ -1001,7 +1001,7 @@ private:
     /// image-local: a reload waits for fresh rooms.
     std::map<std::string,ws::PaneCanvasSeat> canvases_;
     ws::PaneCanvasSeat& seat_of(const std::string& id) {
-        return canvases_.try_emplace(id,id,office).first->second;
+        return canvases_.try_emplace(id,id,own_role).first->second;
     }
     std::map<std::string,Sent> sent_; // each view's picture as drawn since its room was given
     std::map<std::string,Transfer> transfers_;

@@ -137,7 +137,7 @@ TEST_CASE("a described view of the greatest size its rules allow asks for a pane
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(150, 65);
     view::Host views(r.bus);
@@ -207,7 +207,7 @@ TEST_CASE("a weaver keys a described view's button by naming its id in their key
     PaneRig r;
     r.host.keymap_path = path;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(160, 90, 8, 18, gfx::kCellPx);
     view::Host views(r.bus);
@@ -252,7 +252,7 @@ TEST_CASE("a weaver keys a described view's button by naming its id in their key
     // ...AND THE KEYMAP SAYS IT WHERE A READER LOOKS: its address and its cause.
     bool shown = false;
     for (const ShownBinding& b : keymap_shown(r.session(), std::string(), std::string()).rows) {
-        if (b.office != "keyed.panel" || b.id != "go") continue;
+        if (b.role != "keyed.panel" || b.id != "go") continue;
         shown = true;
         CHECK(b.pane == view::kPane);
         CHECK(b.gesture == "g");
@@ -272,7 +272,7 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(160, 90, 8, 18, gfx::kCellPx); // the shipped window's face
     view::Host views(r.bus);
@@ -331,9 +331,9 @@ TEST_CASE("a view the layout left in the stack, run when its column is spent, is
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
@@ -384,7 +384,7 @@ TEST_CASE("a view shown where its own place stands off this screen stays there, 
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     // THE VIEW'S ROW ON THE DESK BEFORE IT RUNS, its own place past the room's right edge.
     const PaneRef greeting{"greeting", view::kPane};
@@ -428,7 +428,7 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
+    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(150, 65);
     std::vector<zengine::graphics::AreaPlaced> placed;
@@ -466,7 +466,7 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     REQUIRE(client->answers.size() == 1);
     REQUIRE_MESSAGE(client->answers[0].ok, client->answers[0].reason);
 
-    // Offered as its own office, seated on the desk by its own ask, and drawn in its area.
+    // Offered as its own role, seated on the desk by its own ask, and drawn in its area.
     const auto* row = r.session().panes.runtime.find("tally.panel", view::kPane);
     REQUIRE(row);
     CHECK(row->name == "tally.panel");
@@ -501,7 +501,7 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     for (const std::string& line : held_reading(row->kind).rows) sentence += line + " ";
     CHECK(sentence.find("said tally.panel.Count; nothing accepts it") != std::string::npos);
 
-    // ITS AREA IN WORKSHOP'S WINDOW HEARS THE POINTER, placed by Workshop as its office accepts it.
+    // ITS AREA IN WORKSHOP'S WINDOW HEARS THE POINTER, placed by Workshop as its role accepts it.
     r.bus.remove_observer(placing);
     REQUIRE_FALSE(placed.empty());
     CHECK(placed.back().pointer);

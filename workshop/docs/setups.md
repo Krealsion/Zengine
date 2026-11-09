@@ -262,7 +262,7 @@ reopened your last desk "Code" (2 of 3 layouts) -- 1440x528 px
 
 Workshop does not own its window. The window weave does, and the only thing it ever tells
 Workshop about the room is how many **canvas pixels** it has. So that is what is written down,
-and the OS window grows to it: **you get back the size you chose, to the pixel**, where your
+and the GUI window grows to it: **you get back the size you chose, to the pixel**, where your
 display holds it. A terminal keeps its own size: there the notice says the saved room in cells,
 and the terminal's size stands.
 

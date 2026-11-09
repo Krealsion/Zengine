@@ -4,7 +4,7 @@
 #ifndef ZENGINE_GRAPHICS_WINDOW_WINDOW_SDL_HPP
 #define ZENGINE_GRAPHICS_WINDOW_WINDOW_SDL_HPP
 
-// The OS window: the window (graphics/window/window.hpp) over a medium of light and an injected
+// The GUI window: the window (graphics/window/window.hpp) over a medium of light and an injected
 // pixel Backend. It keeps each node painted as pixel primitives (graphics/light_paint.hpp), and
 // when anything changed hands the backend the whole picture, back to front, each area in its own
 // bounds; a press lands on the primitives shown. The desktop's arithmetic and the picture read
@@ -17,7 +17,7 @@
 
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
-#include "manuals/zengine.window.sdl.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.window.sdl.hpp" // this role's manual, compiled in from its page
 
 #include <algorithm>
 #include <cstddef>
@@ -34,13 +34,13 @@
 
 namespace zengine::graphics::window {
 
-/// The size an OS window opens at, and the size it keeps its picture at when it has none.
+/// The size a GUI window opens at, and the size it keeps its picture at when it has none.
 inline constexpr std::int64_t kDefaultWidth = 1600;
 inline constexpr std::int64_t kDefaultHeight = 900;
 
 // ---- The window on its desktop ------------------------------------------------------------------
 //
-// Where an OS window sits and how large it grows, as pure arithmetic every lane pins: the backend
+// Where a GUI window sits and how large it grows, as pure arithmetic every lane pins: the backend
 // supplies the displays and the window's frame, and applies the answer.
 
 /// One display's usable area -- its bounds less what the platform keeps for itself (a taskbar, a
@@ -213,7 +213,7 @@ struct ComposedLightFrame {
 };
 
 /// What a backend read: its keys, text and pointer, whether its picture must be drawn again (the
-/// desktop uncovered it), and whether the OS window was asked to close.
+/// desktop uncovered it), and whether the GUI window was asked to close.
 struct PixelPolled {
     std::vector<zengine::input::InputEvent> events;
     bool redraw = false;
@@ -235,7 +235,7 @@ public:
     LightMedium() = default;
     explicit LightMedium(Backend backend) : backend_(std::move(backend)) {}
 
-    /// The OS window taken, and measured: its size, and the face it sets text in.
+    /// The GUI window taken, and measured: its size, and the face it sets text in.
     void claim() {
         backend_.claim();
         size_ = measure();
@@ -246,7 +246,7 @@ public:
         dirty_ = true;
     }
 
-    /// The OS window at another size: drawn again, and true when it changed.
+    /// The GUI window at another size: drawn again, and true when it changed.
     bool remeasure() {
         const PixelSize now = measure();
         if (now.width == size_.width && now.height == size_.height) {
@@ -332,7 +332,7 @@ public:
     }
 
     /// The whole picture handed to the backend, back to front, once anything changed: one showing
-    /// when the backend drew it (with no OS window, it keeps the picture and shows nothing), and
+    /// when the backend drew it (with no GUI window, it keeps the picture and shows nothing), and
     /// that picture kept to be read back. Areas that reach past the window ask it to grow first.
     void show(const std::vector<WinArea>& areas) {
         if (!dirty_) {
@@ -817,7 +817,7 @@ public:
     /// The clock the window counts the weaver's clicks by: its backend's, where it keeps one.
     std::int64_t now_ms() { return device_now_ms(backend_); }
 
-    /// Whether the OS window was asked to close since the request was last taken.
+    /// Whether the GUI window was asked to close since the request was last taken.
     bool close_requested() const noexcept { return close_requested_; }
     bool take_close() noexcept { return std::exchange(close_requested_, false); }
 
@@ -826,7 +826,7 @@ public:
     void clipboard_copy(std::string_view text) { backend_.clipboard_copy(text); }
     std::optional<std::string> clipboard_text() { return backend_.clipboard_text(); }
 
-    /// Where the OS window sits on its desktop, as the backend reads it.
+    /// Where the GUI window sits on its desktop, as the backend reads it.
     std::optional<WindowPlacementValue> placement() { return backend_.placement(); }
 
     /// A remembered placement offered back: the backend moves the window there, whole on a
@@ -838,7 +838,7 @@ public:
         maximize_ = want.maximized ? Maximize::kWaitingForRoom : Maximize::kNone;
     }
 
-    /// SHAPED by an office that arranges in it: the backend sets the title and the size, kept
+    /// SHAPED by a role that arranges in it: the backend sets the title and the size, kept
     /// within its display. As after a weaver's resize, the areas grow it again only once they reach
     /// further than they did (`fit`).
     void shape(const std::string& title, const PixelSize& want) {
@@ -977,7 +977,7 @@ private:
     std::int64_t device_bytes_ = 0;
 };
 
-/// The OS window over `Backend`.
+/// The GUI window over `Backend`.
 template <class Backend>
 using SdlWindowT = Window<LightMedium<Backend>>;
 

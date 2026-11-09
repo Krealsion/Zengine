@@ -11,7 +11,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 #include "census.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "pane_window.hpp"
 #include "input/input_weave.hpp"
 
@@ -33,7 +33,7 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
     // only ever sees through SDL.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -154,7 +154,7 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     // origin, so the press and the inspection door must count from there too.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -211,7 +211,7 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     const loom::WeaveId asker_id = r.bus.register_weave(std::move(asker), std::move(grant));
     raw->zen_set_self(asker_id);
     raw->next = [](loom::Mail& m) {
-        (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kHelloOffice, kHelloPane, 0, {}});
+        (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kHelloRole, kHelloPane, 0, {}});
     };
     (void)r.bus.send(asker_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
     r.bus.drain_until_idle();
@@ -246,7 +246,7 @@ TEST_CASE("every press a pane reads on its rows is inside the room its area was 
     // `[0, rows) x [0, columns)`.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -288,14 +288,14 @@ TEST_CASE("every press a pane reads on its rows is inside the room its area was 
     }
 }
 
-TEST_CASE("a press is authored as the window showing the pane and told the offering office") {
+TEST_CASE("a press is authored as the window showing the pane and told the offering role") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    ProviderSeat* other = r.mount_provider(kOtherOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    ProviderSeat* other = r.mount_provider(kOtherRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
-        s.offer(m, PaneOffered{"second", "Second", "another office's pane"});
+        s.offer(m, PaneOffered{"second", "Second", "another role's pane"});
     });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -311,14 +311,14 @@ TEST_CASE("a press is authored as the window showing the pane and told the offer
     // verify and the only thing a forger cannot write.
     REQUIRE(seat->presses.size() == 1);
     REQUIRE(seat->press_authors.size() == 1);
-    CHECK(seat->press_authors[0] == r.windows.office());
+    CHECK(seat->press_authors[0] == r.windows.role());
     CHECK(other->presses.empty());
 }
 
 TEST_CASE("management chrome gets first refusal, and a mode takes the press whole") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -372,7 +372,7 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     // THE AUTHORITY AUDIT, FROM THE BUS. Across a whole life -- discovery, a room, presses on
     // several rows, a resize -- Workshop says exactly these shapes, and none about a pane's rows.
     // Each is deliberate: `StandingConditions` and `TranscriptShown` are readings the panes that
-    // show them cannot make (WL-ATTN-12, WL-TERM-03), `PaneLaunchAnswered` goes to the office
+    // show them cannot make (WL-ATTN-12, WL-TERM-03), `PaneLaunchAnswered` goes to the role
     // that asked (WL-DESK-03), `PaneSubjectShown` waits for an inspector (WL-INFO-14), and the
     // window's are its areas, their skins, rooms and drawing. An accidental sentence fails here.
     PaneRig r;
@@ -385,7 +385,7 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     });
     r.mount_workshop();
     who = r.workshop_id;
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.ready();
     r.pick(hello_ref());
@@ -402,15 +402,15 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
     // ...AND TO THE LAYOUTS' OWNER, the desk's changes it asks, its own settings it declares, and
-    // the panes it presents, answered; and the double-click time, asked of the input office.
+    // the panes it presents, answered; and the double-click time, asked of the input role.
     const std::vector<std::string> allowed{"AreaPlaced",           "AreaShowAsked",
                                            "Drawn",                "LayoutEditRequested",
-                                           "OfficeSettingsDeclared",
                                            "PaletteChosen",        "PaletteOffered",
                                            "PaneCatalogRequested", "PaneInventory",
                                            "PaneKeys",             "PaneLaunchAnswered",
-                                           "PointerTimingAsked",   "RoomAsked",
-                                           "StandingConditions",   "TranscriptShown"};
+                                           "PointerTimingAsked",   "RoleSettingsDeclared",
+                                           "RoomAsked",            "StandingConditions",
+                                           "TranscriptShown"};
     std::string heard;
     for (const std::string& one : distinct) {
         heard += one + " ";
@@ -434,15 +434,15 @@ TEST_CASE("a press names WHICH pane, when one provider offers two") {
     // would have to be widened by the second pane rather than merely used by it.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.offer(m, PaneOffered{"second", "Second", "the same office's other pane"});
+        s.offer(m, PaneOffered{"second", "Second", "the same role's other pane"});
     });
     REQUIRE(r.session().panes.runtime.entries.size() == 2);
     r.extent(160, 60); // room in the stack for two panes at once
     r.pick(hello_ref());
-    r.pick(PaneRef{kHelloOffice, "second"});
+    r.pick(PaneRef{kHelloRole, "second"});
     REQUIRE(r.session().panes.open.size() == 3); // Layouts, and both panes
 
     for (const RuntimePane& row : r.session().panes.runtime.entries) {
@@ -626,14 +626,14 @@ TEST_CASE("a held selection asks the population, not the rows") {
 namespace {
 
 /// THE LOADED PANE IN A STAND-IN WINDOW, no Workshop on the bus: the window gives its area a room,
-/// reads the rows it draws there, and lands a press or the wheel on it as the window's office.
+/// reads the rows it draws there, and lands a press or the wheel on it as the window's role.
 struct LoadedWindow {
     pw::Window window;
-    std::string area = std::string(kIntroOffice) + "." + kIntroPane;
+    std::string area = std::string(kIntroRole) + "." + kIntroPane;
     loom::Switchboard& bus;
     explicit LoadedWindow(loom::Switchboard& b) : window(b), bus(b) {}
     void room(std::int64_t rows, std::int64_t columns) {
-        window.room(area, kIntroOffice, columns, rows);
+        window.room(area, kIntroRole, columns, rows);
     }
     std::vector<std::string> rows() { return window.rows(area); }
     /// The drawings the pane sent its area.
@@ -643,12 +643,12 @@ struct LoadedWindow {
     /// in one turn.
     void in_one_turn(std::function<void(pw::PaneWindow&, loom::Mail&)> what) {
         window.weave().next.push_back(std::move(what));
-        (void)bus.send(bus.role_holder(window.weave().office()),
+        (void)bus.send(bus.role_holder(window.weave().role()),
                        loom::Message(loom::to_value(pw::PaneWindowDo{}), loom::WeaveId{},
                                      loom::WeaveId{}, 0));
         bus.drain_until_idle();
     }
-    /// A press at a row of the area, its press and release, as the window's office, saying what
+    /// A press at a row of the area, its press and release, as the window's role, saying what
     /// the window drew under the hand when it landed.
     void press_in(pw::PaneWindow& w, loom::Mail& m, const std::string& at, std::int64_t row,
                   std::uint64_t number) {
@@ -657,8 +657,8 @@ struct LoadedWindow {
         window.said_under(down, 0, row);
         gfx::AreaButtonChanged up = down;
         up.pressed = false;
-        (void)m.as_role(w.office()).send_to_role(kIntroOffice, down, number);
-        (void)m.as_role(w.office()).send_to_role(kIntroOffice, up, number);
+        (void)m.as_role(w.role()).send_to_role(kIntroRole, down, number);
+        (void)m.as_role(w.role()).send_to_role(kIntroRole, up, number);
     }
 };
 
@@ -669,8 +669,8 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     PaneRig r;
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40); // a room grant, which is this tool's one beat: two weaves now
@@ -699,7 +699,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     REQUIRE(ears.heard.size() == 1);
     CHECK(ears.heard[0].pane == std::string(kIntroPane));
     CHECK(ears.heard[0].library == named);
-    CHECK(ears.authors[0] == std::string(kIntroOffice)); // authored as the office, verifiably
+    CHECK(ears.authors[0] == std::string(kIntroRole)); // authored as the role, verifiably
     // THE IDENTITY IS THE LOADED LIBRARY'S NAME, and it is one of the names the kernel actually
     // has -- the window's directory among them -- never a WeaveId and never a participant identity.
     CHECK((named == std::string(intro::kIntrospectionStem) || named == "zengine-workshop-hello" ||
@@ -737,7 +737,7 @@ TEST_CASE("heading, caveat, source note and blank select nothing") {
     PaneRig r;
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const CellRect body = external_body_rect(r.session(), kind);
@@ -769,8 +769,8 @@ TEST_CASE("an omission marker on a live pane selects nothing") {
     PaneRig r;
     LoadedWindow lw(r.bus);
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
 
     // A ROOM TOO SHORT TO NAME EVERYTHING -- given directly, so the case owns the density rather
     // than hoping a screen produces it. At three rows the view spends one on the heading, one on
@@ -801,8 +801,8 @@ TEST_CASE("a press is read against the snapshot the weaver saw, not a fresh one"
     PaneRig r;
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
@@ -840,7 +840,7 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
     // mutation that would make the case above wrong, and only sometimes.
     PaneRig r;
     r.mount_workshop();
-    // THE LISTENER IS PART OF THE INSTRUMENT, not scenery. `LoadedSelected` is an office
+    // THE LISTENER IS PART OF THE INSTRUMENT, not scenery. `LoadedSelected` is a role
     // PUBLICATION, and a publication into a room with no accepter for its shape reaches
     // nobody and leaves no bus event at all -- so without an ear for it, this audit would
     // be tallying a vocabulary of three and calling it the whole one. With the ear, every
@@ -855,7 +855,7 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
             said.push_back(e.schema_name);
         }
     });
-    who = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    who = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(who.valid());
     // THE FIRST OFFER IS SPOKEN BEFORE `who` IS KNOWN -- the weave activates inside the
     // load, and its id is this call's return value. `ready()` asks the catalog again, so
@@ -895,15 +895,15 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
 }
 
 TEST_CASE("a forged press selects nothing and publishes nothing") {
-    // MEASURED FROM BOTH WRONG SIDES: a weave in ANOTHER office authoring a press deliberately, and
-    // the holder of the window's office speaking PERSONALLY. Holding an office is not speaking as
+    // MEASURED FROM BOTH WRONG SIDES: a weave in ANOTHER role authoring a press deliberately, and
+    // the holder of the window's role speaking PERSONALLY. Holding a role is not speaking as
     // one, and neither of these is the window.
     Ears ears;
     PaneRig r;
     LoadedWindow lw(r.bus);
-    ProviderSeat* stranger = r.mount_provider(kOtherOffice);
+    ProviderSeat* stranger = r.mount_provider(kOtherRole);
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     lw.room(6, 46);
     REQUIRE(lw.drawn() == 1);
     REQUIRE_FALSE(lw.rows().empty());
@@ -912,8 +912,8 @@ TEST_CASE("a forged press selects nothing and publishes nothing") {
 
     // A STRANGER'S PRESS AT ROW 1 -- the row a real press would have selected.
     r.drive(stranger, [area](ProviderSeat&, loom::Mail& m) {
-        (void)m.as_role(kOtherOffice)
-            .send_to_role(kIntroOffice, gfx::AreaButtonChanged{area, 1, true, gfx::kCellPx / 2,
+        (void)m.as_role(kOtherRole)
+            .send_to_role(kIntroRole, gfx::AreaButtonChanged{area, 1, true, gfx::kCellPx / 2,
                                                                gfx::kCellPx + gfx::kCellPx / 2, 0});
     });
     CHECK(ears.heard.empty());
@@ -921,7 +921,7 @@ TEST_CASE("a forged press selects nothing and publishes nothing") {
 
     // THE WINDOW'S HOLDER, SPEAKING PERSONALLY.
     lw.in_one_turn([area](pw::PaneWindow&, loom::Mail& m) {
-        (void)m.send_to_role(kIntroOffice, gfx::AreaButtonChanged{area, 1, true, gfx::kCellPx / 2,
+        (void)m.send_to_role(kIntroRole, gfx::AreaButtonChanged{area, 1, true, gfx::kCellPx / 2,
                                                                   gfx::kCellPx + gfx::kCellPx / 2, 0});
     });
     CHECK(ears.heard.empty());
@@ -936,7 +936,7 @@ TEST_CASE("a forged press selects nothing and publishes nothing") {
 
     // A PRESS IN AN AREA THIS PANE DOES NOT DRAW IN IS NOT ONE OF ITS ROWS EITHER.
     lw.in_one_turn([&lw](pw::PaneWindow& w, loom::Mail& m) {
-        lw.press_in(w, m, std::string(kIntroOffice) + ".schemas", 1, 99);
+        lw.press_in(w, m, std::string(kIntroRole) + ".schemas", 1, 99);
     });
     CHECK(ears.heard.size() == 1);
 }
@@ -951,8 +951,8 @@ TEST_CASE("a press between a room and the pane's answer to it names nothing") {
     PaneRig r;
     LoadedWindow lw(r.bus);
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     lw.room(8, 46);
     // ROW 1 IS AN ENTRY IN THE READING NOW ON SCREEN -- the control for what follows.
     REQUIRE(lw.rows().size() > 1);
@@ -961,8 +961,8 @@ TEST_CASE("a press between a room and the pane's answer to it names nothing") {
 
     const std::string area = lw.area;
     lw.in_one_turn([&lw, area](pw::PaneWindow& w, loom::Mail& m) {
-        (void)m.as_role(w.office()).send_to_role(
-            kIntroOffice, gfx::AreaRoom{area, w.window(), 1, 46 * gfx::kCellPx, 6 * gfx::kCellPx,
+        (void)m.as_role(w.role()).send_to_role(
+            kIntroRole, gfx::AreaRoom{area, w.window(), 1, 46 * gfx::kCellPx, 6 * gfx::kCellPx,
                                         {}, false, 0, gfx::kCellPx, gfx::kCellPx, {}});
         lw.press_in(w, m, area, 1, 7);
     });
@@ -983,8 +983,8 @@ TEST_CASE("a row of the previous room names nothing in the room now in force") {
     PaneRig r;
     LoadedWindow lw(r.bus);
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     lw.room(8, 46);
     const std::size_t tall = lw.rows().size();
     REQUIRE(tall >= 3);
@@ -1002,8 +1002,8 @@ TEST_CASE("a selection is held while its entry is windowed out, and returns with
     PaneRig r;
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
@@ -1040,8 +1040,8 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
     PaneRig r;
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
@@ -1091,7 +1091,7 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
     const loom::WeaveId who =
-        r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+        r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(who.valid());
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1122,13 +1122,13 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
     }
     // ...AND THE ROLE IS THE OBSERVED ONE. The pane writes `(no role)` for a weaver; the
     // wire carries the observation, so a listener reads the fact and not the prose.
-    CHECK(ears.heard[0].role == std::string(kIntroOffice));
+    CHECK(ears.heard[0].role == std::string(kIntroRole));
     CHECK(intro::kNoRole == std::string("(no role)"));
 }
 
 TEST_CASE("the same gesture in a terminal names the same row of the same room") {
     // MEDIUM-INDEPENDENT BY CONSTRUCTION, and this is the witness. The TUI's mouse
-    // reporting is already live (DECSET 1002+1006, claimed by the terminal window), the
+    // reporting is already live (DECSET 1002+1006, claimed by the TUI window), the
     // wire already carries a `space`, and Workshop reads it into the pane's own canvas place
     // rather than branching on a backend -- so a terminal press reaches the same row of
     // Loaded's lattice (`row_cell_at`) with no parity work and no new protocol.
@@ -1136,7 +1136,7 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     PaneRig cells;
     cells.mount_workshop();
     (void)loom::mount<SelectionListener>(cells.bus, by_cell);
-    (void)cells.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)cells.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     cells.pick(intro_ref());
     const std::int64_t kind = cells.session().panes.runtime.entries[0].kind;
     const CellRect body = external_body_rect(cells.session(), kind);
@@ -1147,7 +1147,7 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     PaneRig px;
     px.mount_workshop();
     (void)loom::mount<SelectionListener>(px.bus, by_pixel);
-    (void)px.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)px.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     px.pick(intro_ref());
     const std::int64_t gkind = px.session().panes.runtime.entries[0].kind;
     px.extent(1000, 700, 8, 18, gfx::kCellPx); // a window reports its device scale
@@ -1174,7 +1174,7 @@ TEST_CASE("nothing in this build reacts to a selection") {
     PaneRig r;
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const CellRect body = external_body_rect(r.session(), kind);
@@ -1244,8 +1244,8 @@ TEST_CASE("a press into an external pane's room points the keyboard at it") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     REQUIRE(is_runtime_kind(kind));
 
     // BEFORE THE PRESS, NOBODY HAS THE KEYBOARD, and an ordinary command still runs.
@@ -1271,8 +1271,8 @@ TEST_CASE("text crosses the seam beside the key, as its own sentence") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
 
     // A KEYSTROKE THAT PRODUCES A CHARACTER PRODUCES BOTH FACTS, in the order the
@@ -1295,8 +1295,8 @@ TEST_CASE("a press anywhere else takes the keyboard away again") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.keyboard == kind);
 
@@ -1335,9 +1335,9 @@ TEST_CASE("a press into a second external pane moves the keyboard to it") {
     // column again at its top, over the first, so a press could not reach the first's body
     // and the case would be measuring the wrong absence.
     r.extent(120, 60);
-    ProviderSeat* first = r.mount_provider(kHelloOffice);
+    ProviderSeat* first = r.mount_provider(kHelloRole);
     ProviderSeat* second = r.mount_provider("zengine.other");
-    const std::int64_t a = seat_pane_open(r, first, kHelloOffice, kHelloPane);
+    const std::int64_t a = seat_pane_open(r, first, kHelloRole, kHelloPane);
     const std::int64_t b = seat_pane_open(r, second, "zengine.other", "pane");
     REQUIRE(is_runtime_kind(a));
     REQUIRE(is_runtime_kind(b));
@@ -1362,8 +1362,8 @@ TEST_CASE("typing `a` into a focused pane does not open the contextual surface")
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
 
     // WITH NO OWNER, `a` IS STILL WORKSHOP'S. Nothing about the binding moved.
     press_outside(r, kind);
@@ -1395,8 +1395,8 @@ TEST_CASE("the keys that mean the same thing in every mode still outrank a pane"
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.keyboard == kind);
 
@@ -1434,8 +1434,8 @@ TEST_CASE("every Workshop mode owns the keyboard above a focused pane") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.keyboard == kind);
 
@@ -1490,14 +1490,14 @@ TEST_CASE("a pane that stops being presentable stops being typed into") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     r.key(input::scan::kUp);
     REQUIRE(seat->keys.size() == 1);
 
     // ...and the pane is closed from outside it, the way the Pane Manager closes one.
-    r.pick(PaneRef{kHelloOffice, kHelloPane}); // the close door, for an open row
+    r.pick(PaneRef{kHelloRole, kHelloPane}); // the close door, for an open row
     REQUIRE_FALSE(r.session().panes.has(kind));
     r.key(input::scan::kUp);
     CHECK(seat->keys.size() == 1); // nothing was sent
@@ -1514,8 +1514,8 @@ TEST_CASE("a press on a pane's header claims the keyboard and names no row") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     const CellRect body = external_body_rect(r.session(), kind);
 
     r.press_cell(body.x + 1, body.y); // the header row
@@ -1529,8 +1529,8 @@ TEST_CASE("a key carries the modifiers the transition carried, unchanged") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
 
     r.key(input::scan::kTab, input::mod::kShift);
@@ -1552,8 +1552,8 @@ TEST_CASE("the same gesture in both media produces the same provider intent") {
         PaneRig r;
         r.mount_workshop();
         r.ready();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
-        const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
+        const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
         if (graphical) {
             r.extent(1000, 700, 8, 18);
             const ExternalBodyPlace body = external_body_of(r.session(), kind);
@@ -1593,9 +1593,9 @@ TEST_CASE("a provider that never asked for keys is unchanged") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    const loom::WeaveId id = r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    const loom::WeaveId id = r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     REQUIRE(id.valid());
-    r.pick(PaneRef{kHelloOffice, kHelloPane});
+    r.pick(PaneRef{kHelloRole, kHelloPane});
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const CellRect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> before = external_rows(r.shown(), body);
@@ -1631,8 +1631,8 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     // THE APPLICATION'S LAUNCHES ARE WHAT SURVIVE ABOVE A PANE, so the desktop that declares
     // them is here.
     (void)mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     const CellRect body = external_body_rect(r.session(), kind);
 
     const auto header = [&]() { return external_region_rows(r.shown(), body).at(0); };
@@ -1652,7 +1652,7 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
 
     // BEFORE: the header is unmarked and the band advertises Workshop's own keys.
     CHECK(header() == std::string(kFoldOpenArrow) + " " + kTypingElsewhere + "Seat @" +
-                          std::string(kHelloOffice));
+                          std::string(kHelloRole));
     {
         const std::vector<std::string> lines = band();
         REQUIRE(lines.size() == 2);
@@ -1668,11 +1668,11 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     // takes text, so the chord is the pane's, and a band advertising a quit that would not
     // happen is the lie this band exists to refuse.
     CHECK(header() == std::string(kFoldOpenArrow) + " " + kTypingHere + "Seat @" +
-                          std::string(kHelloOffice));
+                          std::string(kHelloRole));
     {
         const std::vector<std::string> lines = band();
         REQUIRE(lines.size() == 2);
-        CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloOffice)) !=
+        CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloRole)) !=
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
@@ -1694,9 +1694,9 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
 
 namespace {
 
-/// A WEAVE THAT PUBLISHES `LoadedSelected` AS WHATEVER OFFICE IT IS TOLD TO -- the stand-in for
+/// A WEAVE THAT PUBLISHES `LoadedSelected` AS WHATEVER ROLE IT IS TOLD TO -- the stand-in for
 /// the Introspection pane wherever the subject is what the Composer does with the fact, since
-/// those cases must say the exact wrong sentence (a foreign office, a role nobody holds, an
+/// those cases must say the exact wrong sentence (a foreign role, a role nobody holds, an
 /// empty role), which the real tool refuses to produce. One case uses the real library: the
 /// edge, not the listener.
 class Selector : public loom::WeaveBase<Selector, SeatState, loom::Accept<SeatDo>,
@@ -1709,8 +1709,8 @@ public:
             once(*this, mail);
         }
     }
-    void say(loom::Mail& mail, const std::string& office, const intro::LoadedSelected& s) {
-        (void)mail.as_role(office).publish(s);
+    void say(loom::Mail& mail, const std::string& role, const intro::LoadedSelected& s) {
+        (void)mail.as_role(role).publish(s);
     }
     std::function<void(Selector&, loom::Mail&)> next;
 };
@@ -1890,7 +1890,7 @@ struct ComposeRig {
         // these cases are about the conversation, and a case that had to scroll to
         // find a row would be measuring the window twice.
         r.extent(240, 80);
-        (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
+        (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerRole);
         r.pick(composer_ref());
         // ...AND BIG ENOUGH IN BOTH DIRECTIONS. The slot's HEIGHT is `kStackRows` at every
         // extent, less a boundary cell each side, so the form's composition -- target row,
@@ -1908,21 +1908,21 @@ struct ComposeRig {
             r.extent(240, 81); // one more row, so the authored height is reconciled
         }
         for (const RuntimePane& row : r.session().panes.runtime.entries) {
-            if (row.provider == std::string(kComposerOffice)) {
+            if (row.provider == std::string(kComposerRole)) {
                 kind = row.kind;
             }
         }
-        // The stand-in for the Loaded pane, in the office the Composer verifies.
+        // The stand-in for the Loaded pane, in the role the Composer verifies.
         auto weave = std::make_unique<Selector>();
         selector = weave.get();
         loom::Grant grant;
         grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
         selector_id = r.bus.register_weave(std::move(weave), std::move(grant),
-                                           std::string(kIntroOffice));
+                                           std::string(kIntroRole));
         selector->zen_set_self(selector_id);
     }
 
-    /// THE TIMER'S OWN VOCABULARY, in the Timer's own office. See `TimerSeat` for
+    /// THE TIMER'S OWN VOCABULARY, in the Timer's own role. See `TimerSeat` for
     /// what is real about it and what is not.
     TimerSeat* timer = nullptr;
     void with_timer() {
@@ -1931,7 +1931,7 @@ struct ComposeRig {
         loom::Grant grant;
         (void)loom::allow_describe_answers(grant);
         const loom::WeaveId id =
-            r.bus.register_weave(std::move(weave), std::move(grant), std::string(kTimerOffice));
+            r.bus.register_weave(std::move(weave), std::move(grant), std::string(kTimerRole));
         timer->zen_set_self(id);
     }
 
@@ -1979,12 +1979,12 @@ struct ComposeRig {
     }
 
     void select(const std::string& role, const std::string& library) {
-        select_as(kIntroOffice, role, library);
+        select_as(kIntroRole, role, library);
     }
-    void select_as(const std::string& office, const std::string& role,
+    void select_as(const std::string& speaker, const std::string& role,
                    const std::string& library) {
-        selector->next = [office, role, library](Selector& s, loom::Mail& m) {
-            s.say(m, office, intro::LoadedSelected{"loaded", library, role});
+        selector->next = [speaker, role, library](Selector& s, loom::Mail& m) {
+            s.say(m, speaker, intro::LoadedSelected{"loaded", library, role});
         };
         (void)r.bus.send(selector_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
@@ -2028,7 +2028,7 @@ struct ComposeRig {
         r.windows.queue({input::PointerButton{1, true, x, y, input::space::kCells, 0},
                          input::PointerButton{1, false, x, y, input::space::kCells, 0}});
         selector->next = [role, library](Selector& s, loom::Mail& m) {
-            s.say(m, kIntroOffice, intro::LoadedSelected{"loaded", library, role});
+            s.say(m, kIntroRole, intro::LoadedSelected{"loaded", library, role});
         };
         (void)r.bus.send(selector_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
@@ -2121,37 +2121,37 @@ struct ComposeRig {
 /// THE ROWS COMPOSE DECLARES, AS WORKSHOP HOLDS THEM: the one set it declares in every stage,
 /// under no mode.
 const RuntimePane& compose_held(ComposeRig& r) {
-    const RuntimePane* held = r.r.session().panes.runtime.find(kComposerOffice, kComposePane);
+    const RuntimePane* held = r.r.session().panes.runtime.find(kComposerRole, kComposePane);
     REQUIRE(held != nullptr);
     REQUIRE_FALSE(held->actions.empty());
     return *held;
 }
 
 /// COMPOSE'S CENSUS: its rows with a form open on the Timer's `StartTimer`, in the one mode it has.
-const CensusDriverOf kComposerCensus{kComposerOffice, [] {
-    OfficeCensus census;
+const CensusDriverOf kComposerCensus{kComposerRole, [] {
+    RoleCensus census;
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.focus();
     r.choose("StartTimer v1");
     REQUIRE(r.shows("StartTimer v1 -> @zengine.timer"));
     const RuntimePane& held = compose_held(r);
     CHECK(held.mode.empty()); // a pane that declares no mode: `-` in the census
     CHECK(held.elsewhere.empty());
-    census_take(census, kComposerOffice, held);
+    census_take(census, kComposerRole, held);
     return census;
 }};
 
 /// COMPOSE'S PRESSES: each row with the Timer's catalog listed, with its `StartTimer` form open,
 /// and with that form filled.
-const PressDriverOf kComposerPresses{kComposerOffice, [](PressWitness& w) {
+const PressDriverOf kComposerPresses{kComposerRole, [](PressWitness& w) {
     press_each_state<ComposeRig>(
         w,
         [] {
             auto r = std::make_unique<ComposeRig>();
             r->with_timer();
-            r->select(kTimerOffice, "zengine-timer");
+            r->select(kTimerRole, "zengine-timer");
             r->focus();
             return r;
         },
@@ -2166,7 +2166,7 @@ const PressDriverOf kComposerPresses{kComposerOffice, [](PressWitness& w) {
         });
 }};
 
-ZEN_PRESS_WITNESS_CASE(kComposerOffice, 0, "the Composer's rows")
+ZEN_PRESS_WITNESS_CASE(kComposerRole, 0, "the Composer's rows")
 
 } // namespace
 
@@ -2179,14 +2179,14 @@ TEST_CASE("the manual Compose answers names exactly the commands it declares, wi
     };
     take();
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     take();
     r.focus();
     r.choose("StartTimer v1");
     REQUIRE(r.shows("StartTimer v1 -> @zengine.timer"));
     take();
-    CHECK(declared == census_ids(census_pinned_of(kComposerOffice)));
-    ManualReader reader(r.r, kComposerOffice);
+    CHECK(declared == census_ids(census_pinned_of(kComposerRole)));
+    ManualReader reader(r.r, kComposerRole);
     check_answered_manual(reader, kComposePane, declared);
     const PaneDocumentShown other = reader.ask("elsewhere", "");
     CHECK(other.refusal == "zengine.composer offers no pane `elsewhere`");
@@ -2196,9 +2196,9 @@ TEST_CASE("the manual Compose answers names exactly the commands it declares, wi
 TEST_CASE("Compose answers a shape it hears from its page's Hears, and refuses one of the pane "
           "protocol's, whose words are Workshop's") {
     ComposeRig r;
-    const loom::WeaveId holder = r.r.bus.role_holder(kComposerOffice);
+    const loom::WeaveId holder = r.r.bus.role_holder(kComposerRole);
     REQUIRE(holder.valid());
-    ShapeDocumentReader reader(r.r.bus, kComposerOffice);
+    ShapeDocumentReader reader(r.r.bus, kComposerRole);
     std::set<std::string> heard;
     for (const std::string& name : described_shapes_of(r.r.bus, holder)) {
         for (const auto& schema : r.r.bus.accepted_schemas(holder)) {
@@ -2229,17 +2229,17 @@ TEST_CASE("Compose answers a shape it hears from its page's Hears, and refuses o
     CHECK(none.refusal == "zengine.composer does not accept `NoSuchShapeRequested` v1");
 }
 
-TEST_CASE("loading the real Composer puts its pane in the catalog, offered by its office") {
+TEST_CASE("loading the real Composer puts its pane in the catalog, offered by its role") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
     const loom::WeaveId id =
-        r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
+        r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerRole);
     REQUIRE(r.load_refusals.empty());
     REQUIRE(id.valid());
     REQUIRE(r.session().panes.runtime.entries.size() == 1);
     const RuntimePane& row = r.session().panes.runtime.entries[0];
-    CHECK(row.provider == std::string(kComposerOffice)); // Loom's stamp, not a payload field
+    CHECK(row.provider == std::string(kComposerRole)); // Loom's stamp, not a payload field
     CHECK(row.pane == std::string(kComposePane));
     CHECK(row.name == std::string(zengine::composer::kComposePaneName));
     CHECK(row.summary == std::string(zengine::composer::kComposePaneSummary));
@@ -2256,7 +2256,7 @@ TEST_CASE("with no selection the real pane says it has no target") {
 TEST_CASE("the catalog is the Timer's own accept-set, substrate doors included") {
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
 
     // THE COUNT IS THE POPULATION AND IT IS ON THE FIRST FRAME. Eleven: six declared
     // doors and the five universal substrate ones.
@@ -2279,17 +2279,17 @@ TEST_CASE("the catalog is the Timer's own accept-set, substrate doors included")
     CHECK_FALSE(r.shows("Available"));
     // ...and what is not shown is COUNTED rather than dropped.
     CHECK(r.shows("..."));
-    // The office a send is addressed to, on the first row, always.
-    CHECK(r.rows()[0] == "to @" + std::string(kTimerOffice));
+    // The role a send is addressed to, on the first row, always.
+    CHECK(r.rows()[0] == "to @" + std::string(kTimerRole));
 }
 
 TEST_CASE("a weaver fills a generated form and SUBMITS a real StartTimer") {
     // THE GENERICITY CLAIM, END TO END. Nothing about this message was compiled into the
     // Composer: the shape came off the wire, the form came off the shape, and the value went to
-    // the office the weaver never typed.
+    // the role the weaver never typed.
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.watch();
 
     r.focus();
@@ -2310,11 +2310,11 @@ TEST_CASE("a weaver fills a generated form and SUBMITS a real StartTimer") {
     r.act("[ Submit ]");
     CHECK(r.shows("SUBMITTED"));
 
-    // ...AND THE TIMER REALLY RECEIVED IT, authored as the Composer's office and
+    // ...AND THE TIMER REALLY RECEIVED IT, authored as the Composer's role and
     // addressed to the Timer's. `SUBMITTED` is what the PANE may claim; this is what a
     // case with a bus tap can see, and the two are deliberately different questions.
     CHECK(r.delivered("StartTimer"));
-    CHECK(r.author_of("StartTimer") == std::string(kComposerOffice));
+    CHECK(r.author_of("StartTimer") == std::string(kComposerRole));
     // The Composer says nothing stronger than SUBMITTED about any of it.
     CHECK_FALSE(r.shows("Delivered"));
     CHECK_FALSE(r.shows("Accepted"));
@@ -2347,7 +2347,7 @@ std::size_t unspent_said(const ComposeRig& r) {
     const std::string shape = loom::schema_of<PaneEscapeUnspent>()->name();
     std::size_t n = 0;
     for (std::size_t i = 0; i < r.delivered_.size(); ++i) {
-        n += r.delivered_[i] == shape && r.authors_[i] == std::string(kComposerOffice) ? 1u : 0u;
+        n += r.delivered_[i] == shape && r.authors_[i] == std::string(kComposerRole) ? 1u : 0u;
     }
     return n;
 }
@@ -2366,7 +2366,7 @@ TEST_CASE("Compose moves, chooses, includes and goes back by the rows it declare
           "shows, and a field still edits its own text") {
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.watch();
     r.focus();
     // AT THE CATALOG: the rows move and choose; going back and including are unbound there.
@@ -2430,7 +2430,7 @@ TEST_CASE("a weaver's keymap moves Compose's navigation, choice, include and bac
                                                          {"compose.back", "ctrl+5"}}));
     ComposeRig r(false, path);
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.focus();
     std::map<std::string, std::string> keys = compose_keys(r);
     CHECK(keys["compose.up"] == "ctrl+1");
@@ -2470,7 +2470,7 @@ TEST_CASE("one coarse grow gives the DEFAULT Compose pane a usable form") {
     // composition priorities, and the room comes from the weaver's own ordinary key.
     ComposeRig r(/*default_size=*/true);
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.focus();
     r.choose("StartTimer v1");
 
@@ -2536,7 +2536,7 @@ TEST_CASE("`1O00` never leaves the pane, and the refusal is the ladder's own") {
     // have to live.
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.watch();
 
     r.focus();
@@ -2568,7 +2568,7 @@ TEST_CASE("a nonexistent TimerID composes, submits, and nothing here knows bette
     // to expose without solving.
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.watch();
 
     r.focus();
@@ -2589,7 +2589,7 @@ TEST_CASE("a nonexistent TimerID composes, submits, and nothing here knows bette
 TEST_CASE("Compose draws the edited value's caret in its own picture, on the cell after the value, and none once the field rests") {
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.focus();
     r.choose("CancelTimer v1");
     r.fill("id", "abc");
@@ -2616,7 +2616,7 @@ TEST_CASE("Compose draws the edited value's caret in its own picture, on the cel
 TEST_CASE("a right press on Compose's canvas is handed back, and Workshop's own pane menu opens") {
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     REQUIRE(r.reach("CancelTimer v1"));
     const std::int64_t row = r.row_of("CancelTimer v1");
     REQUIRE_FALSE(r.r.session().context.open);
@@ -2631,7 +2631,7 @@ TEST_CASE("a right press on Compose's canvas is handed back, and Workshop's own 
 TEST_CASE("a form with no fields is ready at once, and invents none") {
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.watch();
     r.focus();
     r.choose("CancelAllMyTimers v1");
@@ -2695,9 +2695,9 @@ TEST_CASE("pressing the same selection twice asks twice") {
     ComposeRig r;
     r.with_timer();
     r.watch();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     CHECK(r.asks == 1);
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     CHECK(r.asks == 2);
 
     // ...and no root accumulated: the snapshot was REPLACED, not appended to.
@@ -2716,13 +2716,13 @@ TEST_CASE("retargeting drops the previous target's catalog and draft at once") {
     // that snapshot.
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     r.focus();
     r.choose("StartTimer v1");
     r.fill("id", "tick");
     REQUIRE(r.shows("id:Text  [tick"));
 
-    // A SECOND TARGET NOBODY HOLDS: the office is real, the send resolves to nobody,
+    // A SECOND TARGET NOBODY HOLDS: the role is real, the send resolves to nobody,
     // and no answer arrives. What matters is what happened to A's material.
     r.select("zengine.nobody", "some-library");
     for (const std::string& row : r.rows()) {
@@ -2745,7 +2745,7 @@ TEST_CASE("an answer to a question this pane is no longer waiting on is dropped"
     // in-process answer, so the ORDER is what the case controls: after the second
     // selection the pane must be showing the SECOND target's vocabulary and nothing
     // of the first's.
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     REQUIRE(r.shows("StartTimer v1"));
     r.select("zengine.stranger", "a-stranger");
     CHECK(r.rows()[0] == "to @zengine.stranger");
@@ -2770,14 +2770,14 @@ TEST_CASE("an empty role is a library with nothing to address") {
     CHECK(rows[1].find("no messaging role observed") != std::string::npos);
 }
 
-TEST_CASE("a selection from an office that is not Introspection retargets nothing") {
-    // A fact about a weaver's gesture is worth exactly as much as the office it came
+TEST_CASE("a selection from a role that is not Introspection retargets nothing") {
+    // A fact about a weaver's gesture is worth exactly as much as the role it came
     // from. Any weave granted `LoadedSelected` could otherwise point a weaver's
     // Composer at a target of its choosing.
     ComposeRig r;
     r.with_timer();
     r.watch();
-    r.select_as("zengine.impostor", kTimerOffice, "zengine-timer");
+    r.select_as("zengine.impostor", kTimerRole, "zengine-timer");
     CHECK(r.asks == 0);
     CHECK(r.rows()[0] == "no weave selected");
 }
@@ -2815,7 +2815,7 @@ TEST_CASE("a Compose press the window landed on its rows before another target's
     ComposeRig r;
     r.with_timer();
     r.with_stranger();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     const std::int64_t row = r.row_of("StartTimer v1");
     REQUIRE(row >= 0);
     // AIMED AT StartTimer, READ AFTER Curious TOOK ITS ROW: no form opens.
@@ -2834,7 +2834,7 @@ TEST_CASE("a Compose press the window landed on one target's message opens nothi
     ComposeRig r;
     r.with_timer();
     r.with_stranger();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     const std::int64_t row = r.row_of("StartTimer v1");
     REQUIRE(row >= 0);
     const std::string timers = part_drawn_at(r.kind, row, 4);
@@ -2929,8 +2929,8 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
     r.mount_workshop();
     r.ready();
     r.extent(240, 80);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerRole);
     REQUIRE(r.load_refusals.empty());
 
     r.pick(intro_ref());
@@ -2938,12 +2938,12 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
     std::int64_t intro_kind = kNoPaneKind;
     std::int64_t compose_kind = kNoPaneKind;
     for (const RuntimePane& row : r.session().panes.runtime.entries) {
-        // BOTH HALVES OF THE `PaneRef`: this office offers three panes, so matching on the
-        // office alone would pick whichever the catalog happened to hold last.
-        if (row.provider == std::string(kIntroOffice) && row.pane == std::string(kIntroPane)) {
+        // BOTH HALVES OF THE `PaneRef`: this role offers three panes, so matching on the
+        // role alone would pick whichever the catalog happened to hold last.
+        if (row.provider == std::string(kIntroRole) && row.pane == std::string(kIntroPane)) {
             intro_kind = row.kind;
         }
-        if (row.provider == std::string(kComposerOffice)) {
+        if (row.provider == std::string(kComposerRole)) {
             compose_kind = row.kind;
         }
     }
@@ -2951,7 +2951,7 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
     REQUIRE(is_runtime_kind(compose_kind));
 
     // Press the Loaded row that names the INTROSPECTION library -- the Loaded pane's
-    // own provider, which is a real loaded library holding a real office with a real
+    // own provider, which is a real loaded library holding a real role with a real
     // accept-set, and the target this composition can actually reach. Which row that
     // is, is the kernel's map's business and a case must never assume it.
     const std::vector<std::string> loaded = loaded_rows(r, intro_kind);
@@ -2967,7 +2967,7 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
 
     const std::vector<std::string> shown = pane_rows(r, compose_kind);
     REQUIRE_FALSE(shown.empty());
-    CHECK(shown[0] == "to @" + std::string(kIntroOffice));
+    CHECK(shown[0] == "to @" + std::string(kIntroRole));
     // THE TARGET ANSWERED, in the same turn, so the pane is already showing its real
     // accepted roots rather than the pending state.
     bool counted = false;
@@ -2993,13 +2993,13 @@ TEST_CASE("the Composer opens, closes and moves nothing but itself") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
+    (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerRole);
     auto weave = std::make_unique<Selector>();
     Selector* selector = weave.get();
     loom::Grant grant;
     grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
     const loom::WeaveId selector_id =
-        r.bus.register_weave(std::move(weave), std::move(grant), std::string(kIntroOffice));
+        r.bus.register_weave(std::move(weave), std::move(grant), std::string(kIntroRole));
     selector->zen_set_self(selector_id);
 
     // The Compose pane is NOT open. A selection updates a target nobody is looking at.
@@ -3010,7 +3010,7 @@ TEST_CASE("the Composer opens, closes and moves nothing but itself") {
     const std::int64_t selected_before = r.session().panes.selected;
 
     selector->next = [](Selector& s, loom::Mail& m) {
-        s.say(m, kIntroOffice, intro::LoadedSelected{"loaded", "zengine-timer", kTimerOffice});
+        s.say(m, kIntroRole, intro::LoadedSelected{"loaded", "zengine-timer", kTimerRole});
     };
     (void)r.bus.send(selector_id,
                      loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -3032,8 +3032,8 @@ TEST_CASE("a wheel over an external pane's body reaches it unchanged from the wi
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     const CellRect body = external_body_rect(r.session(), kind);
     REQUIRE(body.h > kExternalHeaderRows + 1);
 
@@ -3045,7 +3045,7 @@ TEST_CASE("a wheel over an external pane's body reaches it unchanged from the wi
     REQUIRE(seat->wheels.size() == 1);
     CHECK(seat->wheels[0].pane == std::string(kHelloPane));
     CHECK(seat->wheels[0].dy == doctest::Approx(-1.0));
-    CHECK(seat->wheel_authors[0] == r.windows.office()); // authored as the window
+    CHECK(seat->wheel_authors[0] == r.windows.role()); // authored as the window
     // AND IT POINTED NOTHING: a wheel is looking, not pressing, so neither the selection nor
     // the keyboard moved.
     CHECK(r.session().panes.keyboard == kNoPaneKind);
@@ -3073,14 +3073,14 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
           "lift moves it") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.offer(m, PaneOffered{"second", "Second", "the same office's other pane"});
+        s.offer(m, PaneOffered{"second", "Second", "the same role's other pane"});
     });
     r.extent(160, 60);
     r.pick(hello_ref());
-    const PaneRef second_ref{kHelloOffice, "second"};
+    const PaneRef second_ref{kHelloRole, "second"};
     r.pick(second_ref);
     std::int64_t hello_kind = kNoPaneKind;
     std::int64_t second_kind = kNoPaneKind;
@@ -3159,8 +3159,8 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     r.mount_workshop();
     r.ready();
     mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.selected == kind);
     REQUIRE(r.session().panes.keyboard == kind);
@@ -3211,7 +3211,7 @@ TEST_CASE("the Composer's windowed catalog is reached by the wheel") {
     // body walks the cursor to it -- through `move_cursor`, the same step Down takes.
     ComposeRig r;
     r.with_timer();
-    r.select(kTimerOffice, "zengine-timer");
+    r.select(kTimerRole, "zengine-timer");
     REQUIRE(r.shows("accepted messages -- 11"));
     REQUIRE(r.shows("..."));
     REQUIRE_FALSE(r.shows("zen.PokeResetState v1")); // the last root, hidden below
@@ -3251,8 +3251,8 @@ TEST_CASE("a pane that takes keys keeps Escape until it says the Escape was unsp
     r.mount_workshop();
     r.ready();
     mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.selected == kind);
 
@@ -3283,8 +3283,8 @@ TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's i
     r.mount_workshop();
     r.ready();
     mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.selected == kind);
 
@@ -3337,8 +3337,8 @@ TEST_CASE("only an Escape is sent under a number, and a pane may answer the one 
     r.mount_workshop();
     r.ready();
     mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.selected == kind);
 
@@ -3364,8 +3364,8 @@ TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or
     r.mount_workshop();
     r.ready();
     mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     REQUIRE(r.session().panes.selected == kind);
 
@@ -3381,7 +3381,7 @@ TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or
     CHECK(r.session().panes.selected == kind);
     CHECK(r.session().panes.keyboard == kind);
 
-    // ANONYMOUS SPEECH IS NO OFFICE'S WORD, and a pane this office never offered is no pane.
+    // ANONYMOUS SPEECH IS NO ROLE'S WORD, and a pane this role never offered is no pane.
     r.key(input::scan::kEscape);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent_personally(m, kHelloPane); });
     CHECK(r.session().panes.selected == kind);
@@ -3414,7 +3414,7 @@ TEST_CASE("Loaded wheel browses without publishing a different selected target")
     PaneRig r;
     LoadedWindow lw(r.bus);
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     (void)r.load("a-hello", WORKSHOP_SO_HELLO, "a.hello");
     (void)r.load("b-hello", WORKSHOP_SO_HELLO, "b.hello");
     lw.room(4, 80);
@@ -3442,7 +3442,7 @@ TEST_CASE("a Loaded press the window landed before the wheel moved its rows sele
     PaneRig r;
     LoadedWindow lw(r.bus);
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     (void)r.load("a-hello", WORKSHOP_SO_HELLO, "a.hello");
     (void)r.load("b-hello", WORKSHOP_SO_HELLO, "b.hello");
     lw.room(4, 80);
@@ -3456,13 +3456,13 @@ TEST_CASE("a Loaded press the window landed before the wheel moved its rows sele
         lw.in_one_turn([word, number](pw::PaneWindow& w, loom::Mail& m) {
             gfx::AreaButtonChanged up = word;
             up.pressed = false;
-            (void)m.as_role(w.office()).send_to_role(kIntroOffice, word, number);
-            (void)m.as_role(w.office()).send_to_role(kIntroOffice, up, number);
+            (void)m.as_role(w.role()).send_to_role(kIntroRole, word, number);
+            (void)m.as_role(w.role()).send_to_role(kIntroRole, up, number);
         });
     };
     lw.in_one_turn([area](pw::PaneWindow& w, loom::Mail& m) {
-        (void)m.as_role(w.office()).send_to_role(
-            kIntroOffice, gfx::AreaWheelTurned{area, 0, -1, gfx::kCellPx / 2,
+        (void)m.as_role(w.role()).send_to_role(
+            kIntroRole, gfx::AreaWheelTurned{area, 0, -1, gfx::kCellPx / 2,
                                                gfx::kCellPx + gfx::kCellPx / 2, 0});
     });
     REQUIRE(lw.rows()[1].find("b-hello") != std::string::npos);
@@ -3708,9 +3708,9 @@ struct TwoSeats {
         r.ready();
         // Tall enough for two slots, as the press case above needs it.
         r.extent(120, 60);
-        first = r.mount_provider(kHelloOffice);
+        first = r.mount_provider(kHelloRole);
         second = r.mount_provider("zengine.other");
-        a = seat_pane_open(r, first, kHelloOffice, kHelloPane);
+        a = seat_pane_open(r, first, kHelloRole, kHelloPane);
         b = seat_pane_open(r, second, "zengine.other", "pane");
         REQUIRE(is_runtime_kind(a));
         REQUIRE(is_runtime_kind(b));
@@ -3896,8 +3896,8 @@ TEST_CASE("the focus actions move with a weaver's keymap, and focus.leave's chor
     std::size_t read = 0;
     for (const std::string& line : census_pinned()) {
         std::istringstream in(line);
-        std::string office, mode, id, key;
-        in >> office >> mode >> id >> key;
+        std::string role, mode, id, key;
+        in >> role >> mode >> id >> key;
         if (key == "unbound") {
             continue;
         }

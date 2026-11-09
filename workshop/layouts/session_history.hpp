@@ -241,7 +241,7 @@ struct WorkshopSession {
 
 namespace v9 {
 
-/// Version 9: version 10's fields but the OS window's room, which no session before 10 keeps.
+/// Version 9: version 10's fields but the GUI window's room, which no session before 10 keeps.
 // WL-MIG-02 -- agents/workshop/migration.md
 struct WorkshopSession {
     std::string format;
@@ -283,7 +283,7 @@ struct WorkshopSession {
 namespace v11 {
 
 /// Version 11, as its file's lines put together: the room, the run of layouts with no ids, which
-/// position was live, the desktop placement, the remembered choices, and the OS window's room.
+/// position was live, the desktop placement, the remembered choices, and the GUI window's room.
 // WL-MIG-02, WL-MIG-11 -- agents/workshop/migration.md
 struct WorkshopSession {
     std::string format;
@@ -774,7 +774,7 @@ inline v8::WorkshopSession session_v7_to_v8(const v7::WorkshopSession& old) {
 }
 
 /// A SESSION OF VERSION 8 AS ONE OF VERSION 9: every field as it was, and no choice remembered,
-/// so the next start loads each office's row the plan names.
+/// so the next start loads each role's row the plan names.
 // WL-MIG-02 -- agents/workshop/migration.md
 inline v9::WorkshopSession session_v8_to_v9(const v8::WorkshopSession& old) {
     if (old.format_version != kV8FormatVersion) {
@@ -791,8 +791,8 @@ inline v9::WorkshopSession session_v8_to_v9(const v8::WorkshopSession& old) {
     return out;
 }
 
-/// A SESSION OF VERSION 9 AS ONE OF VERSION 10: every field as it was, and no OS window's room
-/// kept, so its OS window opens and grows as it did, and the next run in it keeps one.
+/// A SESSION OF VERSION 9 AS ONE OF VERSION 10: every field as it was, and no GUI window's room
+/// kept, so its GUI window opens and grows as it did, and the next run in it keeps one.
 // WL-MIG-02 -- agents/workshop/migration.md
 inline v10::WorkshopSession session_v9_to_v10(const v9::WorkshopSession& old) {
     if (old.format_version != kV9FormatVersion) {
@@ -853,7 +853,7 @@ inline setup_persist::v6::WorkshopSetup absent_v6_desk() {
 
 /// A SESSION OF VERSION 11 AS ONE OF VERSION 12: the run, each layout given an id in run order and
 /// the next id after them, every desk and remembered Setup value at setup version 6 by its words
-/// with no baseline, locks or pins; the choices as they were. The room, the placement and the OS
+/// with no baseline, locks or pins; the choices as they were. The room, the placement and the GUI
 /// window's room are the window file's now, and are not carried.
 // WL-MIG-02 -- agents/workshop/migration.md
 inline v12::WorkshopSession session_v11_to_v12(const v11::WorkshopSession& old) {

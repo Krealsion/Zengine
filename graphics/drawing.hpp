@@ -33,16 +33,16 @@ public:
     using Accept = loom::Accept<AreaRoom, DrawnRefused>;
     using Emit = loom::Emit<Drawn, RoomAsked>;
 
-    explicit DrawingFacet(std::string office, std::string area = {})
-        : canvas_(std::move(office), std::move(area)) {}
+    explicit DrawingFacet(std::string role, std::string area = {})
+        : canvas_(std::move(role), std::move(area)) {}
 
-    /// The room, from the window that shows the area, as that window's office. When the window,
+    /// The room, from the window that shows the area, as that window's role. When the window,
     /// its incarnation, its size or its measure changed, or the area is empty, the drawer's
     /// `on_room` runs and its picture goes whole at the end of the delivery.
     template <class Self>
     void on(Self& self, const AreaRoom& r, loom::Mail& mail) {
         if (r.area != canvas_.area() ||
-            !mail.authored_from_role(std::string(kWindowOfficePrefix) + r.window)) {
+            !mail.authored_from_role(std::string(kWindowRolePrefix) + r.window)) {
             return;
         }
         if (canvas_.room(r)) {
@@ -71,7 +71,7 @@ public:
         }
         if (!asked_ && canvas_.window().empty()) {
             asked_ = true;
-            (void)mail.as_role(canvas_.office())
+            (void)mail.as_role(canvas_.role())
                 .send_to_role(kGraphicsRole, RoomAsked{canvas_.area()});
         }
         canvas_.show(mail);
@@ -86,7 +86,7 @@ private:
 };
 
 /// `DrawingFacet` for a drawer whose parts name actions, composed in its place: a press on one of
-/// them, which the window that shows the drawer's area asks of it as that window's office, is the
+/// them, which the window that shows the drawer's area asks of it as that window's role, is the
 /// drawer's `on_action(action, mail)`. An action asked about another area, or by anyone else,
 /// does nothing.
 class ActionFacet : public DrawingFacet {
@@ -97,7 +97,7 @@ public:
 
     template <class Self>
     void on(Self& self, const ActionRequested& a, loom::Mail& mail) {
-        if (a.area == canvas().area() && mail.authored_from_role(canvas().window_office())) {
+        if (a.area == canvas().area() && mail.authored_from_role(canvas().window_role())) {
             self.on_action(a.action, mail);
         }
     }
@@ -116,9 +116,9 @@ public:
     using FacetBase::on;
 
 protected:
-    /// `office` is the role the drawer holds and draws as; `area` its area, the office by default.
-    explicit DrawingWeave(std::string office, std::string area = {})
-        : FacetBase(std::move(office), std::move(area)) {
+    /// `role` is the role the drawer holds and draws as; `area` its area, the role by default.
+    explicit DrawingWeave(std::string role, std::string area = {})
+        : FacetBase(std::move(role), std::move(area)) {
         static_assert(
             std::is_same_v<decltype(&Self::after_delivery), void (FacetBase::*)(loom::Mail&)>,
             "zengine::graphics::DrawingWeave: this drawer defines its own after_delivery, which "

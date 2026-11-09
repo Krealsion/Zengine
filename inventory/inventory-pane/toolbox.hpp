@@ -7,6 +7,7 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 #include <zen/weave/role_request.hpp>
 
 namespace zengine::inventory_pane {
@@ -37,17 +38,17 @@ public:
             stage_ = Stage::permission;
             const auto gesture = static_cast<std::int64_t>(mail.correlation());
             const bool queued = restore
-                ? pending_.send_to_role(mail.as_role(kRole), "zengine.workshop",
+                ? pending_.send_to_role(mail.as_role(kRole), zengine::workshop::pane_menu::kWorkshopRole,
                       workshop::PaneOperationRequested{pane, kRole, InventoryToolboxRestore::zen_name, 1,
                                                        gesture}, ++asks)
-                : pending_.send_to_role(mail.as_role(kRole), "zengine.workshop",
+                : pending_.send_to_role(mail.as_role(kRole), zengine::workshop::pane_menu::kWorkshopRole,
                       workshop::v2::PaneOperationRequested{pane, kRole, InventoryToolboxSave::zen_name, 1,
                                                            gesture, {workshop::scope::kWrite}, {}}, ++asks);
             if (!queued) fail("Toolbox permission request could not be queued", mail);
             else notice = "Checking authority for the toolbox file";
         } else start(mail, asks);
     }
-    // A SAVE SENT STRAIGHT TO THIS OFFICE crossed no gesture: before anything is read or written,
+    // A SAVE SENT STRAIGHT TO THIS ROLE crossed no gesture: before anything is read or written,
     // the guest door judges its sender's class `write`, and a refusal answers that sender in words.
     void begin_sent_save(std::string path, const InventoryViews& layout, loom::Mail& mail,
                          std::uint64_t& asks, loom::DeferredAnswer due, const std::string& pane) {
@@ -119,7 +120,7 @@ public:
     }
     bool hear(const loom::DispatchRefused& answer, loom::Mail& mail, std::uint64_t& asks) {
         if (!busy() || !pending_.matches_refusal(answer, mail)) return false;
-        // NO ONE HOLDS THE GUEST DOOR'S OFFICE: there is no door, so the sender is no guest.
+        // NO ONE HOLDS THE GUEST DOOR'S ROLE: there is no door, so the sender is no guest.
         if (stage_ == Stage::scope && answer.reason == loom::name_of(loom::RefusalReason::NoSuchTarget)) {
             pending_.forget();
             start(mail, asks);

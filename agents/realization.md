@@ -67,14 +67,14 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   the one rule that spells a stem as a file (`HostContext::so`), which is why ONE plan is
   legal on Linux and Windows with no platform field.
 - **`--load-plan` is the door, and there is no compiled-in fallback plan**: a missing file
-  refuses by path and the host exits without mounting or loading anything. The OS window's
-  arrangement is a second SHIPPED PLAN staged only where the OS window and SDL's reader exist.
+  refuses by path and the host exits without mounting or loading anything. The GUI window's
+  arrangement is a second SHIPPED PLAN staged only where the GUI window and SDL's reader exist.
 - **Filesystem presence is not load authority.** The suite stages a real directory holding
   MORE artifacts than any plan names and proves an unlisted valid provider is neither opened
   nor mounted. A lookup table could not have asked the question.
-- **An office may have authored CHOICES** (format version 2): the artifacts a weaver may switch
+- **A role may have authored CHOICES** (format version 2): the artifacts a weaver may switch
   it between, one of which starts; the others load only when a switch asks, and realization
-  records which one holds the office. The law is `WL-SWITCH-01` and `-02`
+  records which one holds the role. The law is `WL-SWITCH-01` and `-02`
   (`agents/workshop/editor-switch.md`); participation is still conferred by the plan alone.
 
 ## Realization is a living owner, not a call
@@ -150,7 +150,7 @@ begin(plan)                    the ordinary host loop        answered()
   settled fact to the owner. It owns no catalog, no offer, no cursor and no order -- only the
   NUMBERS of the realization asks it hears (`RealizationAsked`: taken as N, or refused) and which
   one's answer is owed, because the owner holds one such conversation at a time and a revert's
-  answer arrives in nobody's dispatch; every answer names its ask. It holds the office
+  answer arrives in nobody's dispatch; every answer names its ask. It holds the role
   `zengine.realization` so its words can be observed by name, which grants nobody anything. ⚠ It is
   mounted BY HAND in the host rather than through `loom::mount_granted`, because the owner
   needs the PARTICIPANT and not just its id — the pointer is wired in the owner's constructor
@@ -167,8 +167,8 @@ begin(plan)                    the ordinary host loop        answered()
   by the artifact (`load.unavailable/<stem>`, `<stem> is not in this Workshop`), which the
   Attention pane lists, its glance first. The Pane Manager's `[gone]` rows read the INVENTORY,
   not these conditions: they name a missing tool only once an offer or a desk row gave it a
-  row, and a row whose office a plan row still owes is `pending` there (`office_pending`),
-  never `[gone]` — the walk has not reached its verdict. In a terminal Workshop the terminal window
+  row, and a row whose role a plan row still owes is `pending` there (`role_pending`),
+  never `[gone]` — the walk has not reached its verdict. In a terminal Workshop the TUI window
   owns the terminal from its row on, so the console lines after it are drawn over. The owner has no
   opinion about process lifetime, and COMPLETION ends nothing.
 - **THE CONTROL DOOR PATH IS LOAD-BEARING.** `Kernel::load` is reachable from the host and
@@ -399,7 +399,7 @@ row N is waiting on the weaver
   reaches that row, the ordinary path finds the file and proceeds: there is no `prebuilt`
   state and must not be.
 - **Row states are eight tokens, each with its owner** — `authored`, `loading`, `pending`,
-  `resolved`, `refused`, then `reloading` (a reload in place), `switched` (an office moved to
+  `resolved`, `refused`, then `reloading` (a reload in place), `switched` (a role moved to
   another authored choice) and `unavailable` (an optional row stepped over) — replacing a bool
   under which a row nobody had reached, a row in flight and a row that REFUSED were
   indistinguishable. ⚠ The Arrangement and Project projections carry `unavailable` with its
@@ -421,7 +421,7 @@ The Builder pane shows the waiting frontier and `f` builds-and-realizes it, and 
 feature is one read-only seam plus one gesture over the existing route.
 
 ⚠ THE PANE IS A LOADED WEAVE (`Zengine/builder/builder-pane/`), so the seam below is a message
-boundary: the pane calls no host function, it ASKS the read-only project office
+boundary: the pane calls no host function, it ASKS the read-only project role
 (`ProjectFrontierRequested` -> `ProjectFrontierSaid`, `workshop/builder_seam_vocabulary.hpp`),
 and `ProjectDoor` answers out of the `HostContext::frontier` reading the bullets below describe.
 The pane asks on the beats where the answer can have moved -- its room grant, a settled
@@ -443,7 +443,7 @@ for authority.
   frontier view carries no recipe.
 - **`f` SPENDS THE EXISTING ROUTE, WHOLE.** It sets the pane's chosen recipe to the producing one
   — visibly, so the recipe row and the ask agree — and calls the same `build_now` path
-  `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same grant,
+  `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same role, same grant,
   after the one class `build` ask the gesture's first beat made (`agents/workshop/guests.md`,
   WL-GUEST-03), carried to it and never asked again; everything downstream is the tool's, the
   runner's, and the owner's, unchanged. There is no

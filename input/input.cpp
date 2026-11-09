@@ -7,13 +7,13 @@
 // platform's input-side state for exactly the weave's lifetime: construction engages it,
 // destruction restores it. Reference: input/docs/input.md
 
-// The output side (alternate screen, VT processing) is the terminal window's ground. With no
+// The output side (alternate screen, VT processing) is the TUI window's ground. With no
 // console (redirected stdin, headless ctest, a pipe) the reader stays disabled and poll() yields
 // nothing.
 
 #include "double_click_setting.hpp"
 #include "input_weave.hpp"
-#include "office_page.hpp"
+#include "role_page.hpp"
 #include "terminal_reader.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -21,7 +21,7 @@
 namespace {
 
 using InputWeave =
-    zengine::input::InputWeaveT<zengine::input::PlatformReader, zengine::input::OfficePage,
+    zengine::input::InputWeaveT<zengine::input::PlatformReader, zengine::input::RolePage,
                                 zengine::input::DoubleClickSetting>;
 
 } // namespace

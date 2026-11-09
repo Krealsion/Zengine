@@ -34,12 +34,12 @@ inline constexpr std::size_t kMaxHistory = 32;
 /// and `off` for one the weaver switched off. A switched-off row and a pane not here are listed
 /// and run nothing.
 struct Entry {
-    std::string kind, office, pane, id;
+    std::string kind, role, pane, id;
     std::string label, owner, key;
     std::size_t more_keys = 0;
     bool off = false;
     bool gone = false;
-    std::string address() const { return kind + "|" + office + "|" + pane + "|" + id; }
+    std::string address() const { return kind + "|" + role + "|" + pane + "|" + id; }
 };
 
 /// WHAT THE OTHER OWNERS SAID: the layouts on the shelf, as the layouts' owner answered, and what
@@ -72,7 +72,7 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
     Listing out;
     std::map<std::pair<std::string, std::string>, const workshop::InventoryPane*> panes;
     for (const workshop::InventoryPane& p : inv.panes) {
-        panes[{p.office, p.pane}] = &p;
+        panes[{p.role, p.pane}] = &p;
     }
     std::map<std::string, std::size_t> seen;
     std::size_t actions_left = 0, panes_left = 0;
@@ -84,17 +84,17 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
         out.entries.push_back(std::move(e));
     };
     for (const workshop::ShownBinding& row : keys.rows) {
-        if (!row.remappable || row.id.empty() || row.office == workshop::kPaletteRole ||
+        if (!row.remappable || row.id.empty() || row.role == workshop::kPaletteRole ||
             row.id.rfind("desktop.palette", 0) == 0) {
             continue;
         }
         Entry e;
         e.kind = workshop::kCommandAction;
-        e.office = row.office;
+        e.role = row.role;
         e.pane = row.pane;
         e.id = row.id;
         e.label = row.label;
-        if (row.office == workshop::kDesktopRole && row.pane.empty()) {
+        if (row.role == workshop::kDesktopRole && row.pane.empty()) {
             if (row.group.rfind("above every mode", 0) != 0) {
                 continue; // the default rows answer only where nothing took the key
             }
@@ -105,7 +105,7 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
             }
             e.owner = "Workshop";
         } else {
-            const auto at = panes.find({row.office, row.pane});
+            const auto at = panes.find({row.role, row.pane});
             if (at == panes.end() || !at->second->open) {
                 continue; // a pane's rows are in force only while it is on the desk
             }
@@ -125,18 +125,18 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
     }
     // EACH PANE, and the key that opens it where an application row says it opens it.
     for (const workshop::InventoryPane& p : inv.panes) {
-        if (p.office == workshop::kPaletteRole) {
+        if (p.role == workshop::kPaletteRole) {
             continue;
         }
         Entry e;
         e.kind = workshop::kCommandPane;
-        e.office = p.office;
+        e.role = p.role;
         e.pane = p.pane;
         e.label = p.name;
         e.owner = "pane";
         e.gone = !p.available;
         e.key = "-";
-        const std::string to = "to " + p.office + "/" + p.pane;
+        const std::string to = "to " + p.role + "/" + p.pane;
         for (const workshop::ShownBinding& row : keys.rows) {
             for (const workshop::ActionCause& c : row.causes) {
                 if (c.subject == to && !row.shown.empty() && e.key == "-") {
@@ -160,16 +160,16 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
     // EACH OPEN PANE'S MANUAL, while the application declares the row that shows one.
     bool manuals = false;
     for (const workshop::ShownBinding& row : keys.rows) {
-        manuals = manuals || (row.office == workshop::kDesktopRole && row.pane.empty() &&
+        manuals = manuals || (row.role == workshop::kDesktopRole && row.pane.empty() &&
                               row.id == workshop::kManualAction);
     }
     for (const workshop::InventoryPane& p : inv.panes) {
-        if (!manuals || !p.open || !p.available || p.office == workshop::kPaletteRole) {
+        if (!manuals || !p.open || !p.available || p.role == workshop::kPaletteRole) {
             continue;
         }
         Entry e;
         e.kind = workshop::kCommandManual;
-        e.office = p.office;
+        e.role = p.role;
         e.pane = p.pane;
         e.label = p.name + " manual";
         e.owner = "manual";

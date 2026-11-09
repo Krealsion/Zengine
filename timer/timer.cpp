@@ -64,4 +64,4 @@ ZENGINE_OPERATOR_CONSUMER();
 /// provider first and then offers its resolution to the instance it creates, so the contribution
 /// exists before the instance that needs it. The rule's primitives come from whoever supplies
 /// them, so another provider for either changes what this Timer schedules without a rebuild.
-ZENGINE_OPERATOR_PROVIDER("zengine.timer", zengine::timer::provider_contributions)
+ZENGINE_OPERATOR_PROVIDER(zengine::timer::kTimerRole, zengine::timer::provider_contributions)

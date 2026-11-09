@@ -6,6 +6,7 @@
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_menu.hpp"
 #include <zen/weave.hpp>
 namespace zengine::inventory_pane {
 class Command {
@@ -30,9 +31,9 @@ public:
                 value = admitted.value();
             }
             target_ = binding.target; shape_ = value.schema().name(); version_ = value.schema().version();
-            if (target_.empty()) throw std::invalid_argument("Choose an explicit target office first");
+            if (target_.empty()) throw std::invalid_argument("Choose an explicit target role first");
             value_ = std::move(value); correlation_ = ++asks; authorizing_ = true;
-            ticket_ = mail.as_role(kRole).send_to_role("zengine.workshop", workshop::PaneOperationRequested{
+            ticket_ = mail.as_role(kRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole, workshop::PaneOperationRequested{
                 pane, target_, shape_, version_, static_cast<std::int64_t>(gesture)}, correlation_);
             notice = "Checking authority for " + target_ + " / " + shape_;
             if (!ticket_.valid()) fail("Command permission request could not be queued");
@@ -44,14 +45,14 @@ public:
         if (!answer.allowed) { fail(answer.reason); return true; }
         // The destination gate admits against its current schema, at delivery. A stored
         // description or permission to configure a binding never substitutes for this gate.
-        ticket_ = mail.bus().office_send_to_role(kRole, target_, loom::Message(std::move(*value_), {}, {}, correlation_));
+        ticket_ = mail.bus().role_send_to_role(kRole, target_, loom::Message(std::move(*value_), {}, {}, correlation_));
         value_.reset();
         notice = ticket_.valid() ? "Queued " + shape_ + " to " + target_ + "; delivery is not completion"
                                  : "Command could not be queued";
         return true;
     }
     bool hear(const loom::DispatchRefused& r, loom::Mail& mail) {
-        const auto expected_role = authorizing_ ? "zengine.workshop" : target_;
+        const auto expected_role = authorizing_ ? zengine::workshop::pane_menu::kWorkshopRole : target_;
         const auto expected_shape = authorizing_ ? workshop::PaneOperationRequested::zen_name : shape_;
         const auto expected_version = authorizing_ ? 1u : version_;
         if (!ticket_.valid() || !mail.dispatch_refused() || r.refused_attempt().seq != ticket_.seq ||

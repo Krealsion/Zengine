@@ -186,8 +186,8 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   code, no development phase used as a clock and no history told in the forms the check names),
   `source_comments` (the comment standard over the folders `tests/folders.txt` lists as code: no
   long block, removal note or private id), `code_values` (every value `tests/code_values.txt`
-  registers read from its owner: no marker out of step, no known value copied unmarked, no test
-  count without its commit and command) and `folder_map` (every top-level folder listed with its
+  registers read from its owner: no marker out of step, no known value copied unmarked, no role's
+  name spelled past its home, no test count without its commit and command) and `folder_map` (every top-level folder listed with its
   kind, a front page and a router in every feature, the host and every library, and every
   register and CTest entry routed by exactly one router) and `manual` (every weave's manual in
   form and carried by a target, a pane's commands exactly its ids in the action census

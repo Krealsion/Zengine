@@ -373,14 +373,14 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
     EditorStory s("xfer-gone");
     s.add(text_pair("one"), "snippet");
     // A TEXT PANE TAKING A VALUE ON ITS ROWS, beside the Inventory the value is carried from.
-    const std::string office = "zengine.test.rows";
-    ProviderSeat* seat = s.r.mount_provider(office);
-    const std::int64_t rows = seat_pane_open(s.r, seat, office.c_str(), "rows");
+    const std::string role = "zengine.test.rows";
+    ProviderSeat* seat = s.r.mount_provider(role);
+    const std::int64_t rows = seat_pane_open(s.r, seat, role.c_str(), "rows");
     REQUIRE(rows != kNoPaneKind);
     s.r.drive(seat, [](ProviderSeat& p, loom::Mail& m) {
         p.say(m, SeatRows{"rows", {TextRow{"drop here", gfx::colors::text}}});
     });
-    const loom::WeaveId seat_id = s.r.bus.role_holder(office);
+    const loom::WeaveId seat_id = s.r.bus.role_holder(role);
     // The drop is queued and said sent; the pane leaves before the bus dispatches it.
     bool removed = false;
     RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&s, &removed, seat_id](const loom::BusEvent& e) {
@@ -390,7 +390,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
     })};
     s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, rows, 0, 1);
     REQUIRE_MESSAGE(removed, s.r.last_notice());
-    CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to " + office) != std::string::npos,
+    CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to " + role) != std::string::npos,
                   s.r.last_notice());
 }
 
@@ -501,16 +501,16 @@ TEST_CASE("a drop aimed at a picture the text has since left is refused and chan
     const RuntimePane* row = s.r.session().panes.runtime.of_kind(s.editor);
     REQUIRE(row != nullptr);
     const std::string area = pane_window_area(s.r.session().panes, *row);
-    const std::string office = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
-    const loom::WeaveId window = s.r.bus.role_holder(office);
+    const std::string role = std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
+    const loom::WeaveId window = s.r.bus.role_holder(role);
     REQUIRE(window.valid());
     bool wheeled = false;
     const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& event) {
         if (!wheeled && event.kind == loom::EventKind::Delivered &&
             event.schema_name == input::AttributedInput::zen_name && event.target == window) {
             wheeled = true;
-            (void)s.r.bus.office_send_to_role_as(
-                window, office, ed::kEditorPaneRole,
+            (void)s.r.bus.role_send_to_role_as(
+                window, role, ed::kEditorPaneRole,
                 loom::Message(loom::to_value(gfx::AreaWheelTurned{area, 0, -3.0, 10, 10, 0, true, 0})));
         }
     });
@@ -534,7 +534,7 @@ TEST_CASE("a press the window landed on a line the Editor's rows have since left
     const RuntimePane* pane = s.r.session().panes.runtime.of_kind(s.editor);
     REQUIRE(pane != nullptr);
     const std::string area = pane_window_area(s.r.session().panes, *pane);
-    REQUIRE(s.r.bus.office_send_to_role_as(s.r.windows.id(), s.r.windows.office(), ed::kEditorPaneRole,
+    REQUIRE(s.r.bus.role_send_to_role_as(s.r.windows.id(), s.r.windows.role(), ed::kEditorPaneRole,
         loom::Message(loom::to_value(gfx::AreaWheelTurned{area, 0, -3.0, 10, 10, 0, true, 0}))).valid());
     s.r.bus.drain_until_idle();
     REQUIRE(part_drawn_at(s.editor, row, 2) != drawn);

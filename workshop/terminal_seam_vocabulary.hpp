@@ -7,7 +7,7 @@
 // The terminal participant across the pane seam: the record the Terminal pane is shown, the one
 // act it may ask for and the one read. The participant stays this host's (WL-TERM-02): what
 // crosses is a picture of its record, said when it changed (WL-TERM-03), and two asks answered
-// at the office this host holds. The completion is an ask, never a picture, because `compose`
+// at the role this host holds. The completion is an ask, never a picture, because `compose`
 // is a live fact about a conversation in progress (WL-TERM-05).
 
 #include <zen/weave/shape.hpp>
@@ -32,7 +32,7 @@ inline constexpr const char* kEntryAnswer = "answer";       ///< ...and answers 
 
 /// How a submitted entry was addressed, spelled for the same reason.
 inline constexpr const char* kAddressWeave = "weave";     ///< `#12`
-inline constexpr const char* kAddressRole = "role";       ///< `@office`
+inline constexpr const char* kAddressRoleHolder = "role"; ///< `@role`, whoever holds it
 inline constexpr const char* kAddressPublish = "publish"; ///< `*`
 
 /// One displayed observation. The instance plus observation identify an acquisition subject;
@@ -45,7 +45,7 @@ struct ShownEntry {
     std::int64_t version = 0;  ///< ...and its version
     std::string addressing;    ///< `submitted` only: one of the three `kAddress*` spellings
     std::int64_t target = 0;   ///< `submitted` + `weave`: the addressed identity
-    std::string role;          ///< `submitted` + `role`: the office
+    std::string role;          ///< `submitted` + `role`: the role
     std::int64_t recipients = 0; ///< `submitted` + `publish`: the fanout Loom returned
     std::int64_t sender = 0;   ///< `received`/`answer`: the BUS-STAMPED sender
     std::int64_t answers = 0;  ///< `answer`: the local ask number, or 0

@@ -32,14 +32,14 @@ struct ReaderDo {
 
 /// A WEAVE THAT READS WHAT WORKSHOP SAID AS ANY OTHER WOULD: it hears each `NoticeSaid` and
 /// `NoticesMoved` published, asks the record for pages and the layouts' owner for the record's
-/// setting, and keeps every answer; as its own office it can also say a notice a stranger says.
+/// setting, and keeps every answer; as its own role it can also say a notice a stranger says.
 class NoticesReader
     : public loom::WeaveBase<
           NoticesReader, ReaderState,
-          loom::Accept<NoticeSaid, nt::NoticesMoved, nt::NoticesShown, OfficeSettingsAnswered,
-                       OfficeSettingCommitAnswered, ReaderDo>,
-          loom::Emit<NoticeSaid, nt::NoticesRequested, OfficeSettingsRequested,
-                     OfficeSettingCommitRequested>> {
+          loom::Accept<NoticeSaid, nt::NoticesMoved, nt::NoticesShown, RoleSettingsAnswered,
+                       RoleSettingCommitAnswered, ReaderDo>,
+          loom::Emit<NoticeSaid, nt::NoticesRequested, RoleSettingsRequested,
+                     RoleSettingCommitRequested>> {
 public:
     void on(const NoticeSaid& said, loom::Mail& mail) {
         if (mail.authored_from_role(kWorkshopProvider)) {
@@ -56,12 +56,12 @@ public:
             pages.push_back(page);
         }
     }
-    void on(const OfficeSettingsAnswered& shown, loom::Mail& mail) {
+    void on(const RoleSettingsAnswered& shown, loom::Mail& mail) {
         if (mail.answers_ask()) {
             settings.push_back(shown);
         }
     }
-    void on(const OfficeSettingCommitAnswered& acted, loom::Mail& mail) {
+    void on(const RoleSettingCommitAnswered& acted, loom::Mail& mail) {
         if (mail.answers_ask()) {
             commits.push_back(acted);
         }
@@ -78,11 +78,11 @@ public:
     std::vector<NoticeSaid> heard;
     std::vector<nt::NoticesMoved> moves;
     std::vector<nt::NoticesShown> pages;
-    std::vector<OfficeSettingsAnswered> settings;
-    std::vector<OfficeSettingCommitAnswered> commits;
+    std::vector<RoleSettingsAnswered> settings;
+    std::vector<RoleSettingCommitAnswered> commits;
 };
 
-constexpr const char* kReaderOffice = "test.notices-reader";
+constexpr const char* kReaderRole = "test.notices-reader";
 
 inline PaneRef notices_ref() { return PaneRef{np::kNoticesPaneRole, np::kNoticesPane}; }
 
@@ -110,10 +110,10 @@ struct NoticesRig {
         loom::Grant grant;
         grant.allow_to_any(NoticeSaid::zen_name, NoticeSaid::zen_version);
         grant.allow_to_any(nt::NoticesRequested::zen_name, nt::NoticesRequested::zen_version);
-        grant.allow_to_any(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version);
-        grant.allow_to_any(OfficeSettingCommitRequested::zen_name,
-                           OfficeSettingCommitRequested::zen_version);
-        reader_id = r.bus.register_weave(std::move(ear), std::move(grant), kReaderOffice);
+        grant.allow_to_any(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version);
+        grant.allow_to_any(RoleSettingCommitRequested::zen_name,
+                           RoleSettingCommitRequested::zen_version);
+        reader_id = r.bus.register_weave(std::move(ear), std::move(grant), kReaderRole);
         reader->zen_set_self(reader_id);
         r.host.transition_note = launch_note;
         r.mount_workshop();
@@ -164,29 +164,29 @@ struct NoticesRig {
     nt::NoticesShown page(std::int64_t newest = 0, std::int64_t count = nt::kMaxNoticesPage) {
         const std::size_t before = reader->pages.size();
         drive([newest, count](loom::Mail& m) {
-            (void)m.as_role(kReaderOffice)
+            (void)m.as_role(kReaderRole)
                 .send_to_role(nt::kNoticesRole, nt::NoticesRequested{newest, count}, 7);
         });
         REQUIRE(reader->pages.size() == before + 1);
         return reader->pages.back();
     }
 
-    /// THE RECORD'S `keep` WRITTEN, at the revision read, as an office writes another's setting.
-    OfficeSettingCommitAnswered keep(std::int64_t n) {
+    /// THE RECORD'S `keep` WRITTEN, at the revision read, as a role writes another's setting.
+    RoleSettingCommitAnswered keep(std::int64_t n) {
         const std::size_t asked = reader->settings.size();
         drive([](loom::Mail& m) {
-            (void)m.as_role(kReaderOffice)
-                .send_to_role(kLayoutsRole, OfficeSettingsRequested{nt::kNoticesRole}, 8);
+            (void)m.as_role(kReaderRole)
+                .send_to_role(kLayoutsRole, RoleSettingsRequested{nt::kNoticesRole}, 8);
         });
         REQUIRE(reader->settings.size() == asked + 1);
-        OfficeSettingCommitRequested commit;
-        commit.office = nt::kNoticesRole;
+        RoleSettingCommitRequested commit;
+        commit.role = nt::kNoticesRole;
         commit.revision = reader->settings.back().revision;
         commit.key = nt::kSettingKeep;
         commit.number = n;
         const std::size_t before = reader->commits.size();
         drive([commit](loom::Mail& m) {
-            (void)m.as_role(kReaderOffice).send_to_role(kLayoutsRole, commit, 9);
+            (void)m.as_role(kReaderRole).send_to_role(kLayoutsRole, commit, 9);
         });
         REQUIRE(reader->commits.size() == before + 1);
         return reader->commits.back();
@@ -260,7 +260,7 @@ struct NoticesRig {
 
 /// THE NOTICES PANE'S CENSUS: its rows in the one mode it has, which it declares by no name.
 const CensusDriverOf kNoticesCensus{np::kNoticesPaneRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     NoticesRig t;
     t.open();
     const RuntimePane* held = t.row();
@@ -334,20 +334,20 @@ TEST_CASE("the record keeps what Workshop said, the oldest let go past keep, and
     CHECK(all.let_go == all.first - 1);
     CHECK(all.rows.back().text == t.r.session().notice);
     // A SETTING RAISES IT: more are kept from then on.
-    const OfficeSettingCommitAnswered raised = t.keep(150);
+    const RoleSettingCommitAnswered raised = t.keep(150);
     REQUIRE_MESSAGE(raised.accepted, raised.refusal);
     CHECK(t.page().keep == 150);
     t.say_until(all.last + 80);
     all = t.page();
     CHECK(static_cast<std::int64_t>(all.rows.size()) == 150);
     // ...A VALUE IT DOES NOT TAKE IS REFUSED, and nothing moves.
-    const OfficeSettingCommitAnswered low = t.keep(nt::kDefaultKept - 1);
+    const RoleSettingCommitAnswered low = t.keep(nt::kDefaultKept - 1);
     CHECK_FALSE(low.accepted);
     CHECK(static_cast<std::int64_t>(t.page().rows.size()) == 150);
     // ...AND A LOWER ONE LETS GO AT ONCE, each counted -- the fifty past it, and one for each
     // thing Workshop said of the write since.
     const nt::NoticesShown before = t.page();
-    const OfficeSettingCommitAnswered lowered = t.keep(nt::kDefaultKept);
+    const RoleSettingCommitAnswered lowered = t.keep(nt::kDefaultKept);
     REQUIRE_MESSAGE(lowered.accepted, lowered.refusal);
     const nt::NoticesShown after = t.page();
     CHECK(static_cast<std::int64_t>(after.rows.size()) == nt::kDefaultKept);
@@ -372,7 +372,7 @@ TEST_CASE("the restore's sentence is said once, in the unit the first window nam
         t.r.host.session_path = session;
         t.launch_note.clear();
         if (os) {
-            t.r.on_os_window();
+            t.r.on_gui_window();
         }
         t.open(120, 75);
         t.r.extent(100, 40);
@@ -382,7 +382,7 @@ TEST_CASE("the restore's sentence is said once, in the unit the first window nam
         t.kept_as_heard();
     }
     // ANOTHER NOTICE BEFORE THE ROOM: a terminal that offered itself before it had a room named no
-    // unit, so the sentence waits for the first room a window offers -- the OS window's, or the
+    // unit, so the sentence waits for the first room a window offers -- the GUI window's, or the
     // terminal's own -- and is said after the other, once, in that window's unit.
     for (const bool os : {true, false}) {
         CAPTURE(os);
@@ -396,7 +396,7 @@ TEST_CASE("the restore's sentence is said once, in the unit the first window nam
         REQUIRE_FALSE(t.reader->heard.empty());
         const std::int64_t before = t.reader->heard.back().number;
         if (os) {
-            t.r.on_os_window();
+            t.r.on_gui_window();
         } else {
             t.r.windows.room(cells_px(120), cells_px(75));
             t.r.windows.queue_offer(cells_px(120), cells_px(75));
@@ -423,7 +423,7 @@ TEST_CASE("the record keeps nothing a stranger says, cuts a long notice and keep
     // A STRANGER'S NOTICE IS NO NOTICE OF WORKSHOP'S.
     const std::int64_t next = before.last + 1;
     t.drive([next](loom::Mail& m) {
-        (void)m.as_role(kReaderOffice).publish(NoticeSaid{next, "not Workshop's", false});
+        (void)m.as_role(kReaderRole).publish(NoticeSaid{next, "not Workshop's", false});
     });
     const nt::NoticesShown stranger = t.page();
     CHECK(stranger.last == before.last);

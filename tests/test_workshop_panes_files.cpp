@@ -32,7 +32,7 @@ namespace {
 
 namespace files = zengine::files;
 
-/// The office and pane a saved setup names, spelled through the package's own header --
+/// The role and pane a saved setup names, spelled through the package's own header --
 /// the durable names, not literals, so a case cannot agree with a typo.
 inline PaneRef files_ref() {
     return PaneRef{files::kFilesRole, files::kProjectFilesPane};
@@ -141,7 +141,7 @@ struct SeamTap {
     std::size_t rooms = 0;
     std::size_t attempts = 0;
     /// Every class `open` the weave asked Workshop to approve and Workshop heard: an open of a file
-    /// is asked for the gesture's hand before it is sent to the opening office.
+    /// is asked for the gesture's hand before it is sent to the opening role.
     std::size_t open_asks = 0;
     /// Every approval the weave asked, heard or refused before any handler (a refusal carries no
     /// payload, so its classes are not read).
@@ -362,12 +362,12 @@ struct FilesRig {
     DoorAsker* stranger = nullptr;
     loom::WeaveId stranger_id{};
     void mount_stranger() {
-        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerRole));
         stranger = held.get();
         loom::Grant grant;
         grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
         stranger_id = r.bus.register_weave(std::move(held), std::move(grant),
-                                           std::string(kDoorAskerOffice));
+                                           std::string(kDoorAskerRole));
         stranger->zen_set_self(stranger_id);
         stranger->id = stranger_id;
     }
@@ -381,7 +381,7 @@ struct FilesRig {
             forged.shape = OpenSourceRequested::zen_name;
             forged.version = OpenSourceRequested::zen_version;
             forged.reason = "NoSuchTarget";
-            (void)mail.as_role(kDoorAskerOffice).send(to, forged);
+            (void)mail.as_role(kDoorAskerRole).send(to, forged);
         };
         (void)r.bus.send(stranger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
@@ -451,7 +451,7 @@ struct FilesRig {
 
     /// PUT THE LONG LISTING'S CURSOR ON ENTRY `at`, SPEND WHATEVER NOTICE STANDS, AND -- when
     /// asked -- LEAD WITH A REFUSAL. Every step is a weaver's key: an arrow is an act, so it spends
-    /// a standing notice, and Return on a file with no opening office held is refused, which gives
+    /// a standing notice, and Return on a file with no opening role held is refused, which gives
     /// the pane a notice naming that file without moving its cursor.
     void settle(std::int64_t at, bool refusal_leads) {
         std::int64_t cursor = cursor_said(shown());
@@ -535,7 +535,7 @@ struct FilesRig {
         }
     }
 
-    /// The project office, with the host's recipe acts wired as `workshop.cpp` wires them.
+    /// The project role, with the host's recipe acts wired as `workshop.cpp` wires them.
     void mount_project_door() {
         wire_recipes();
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
@@ -578,7 +578,7 @@ struct FilesRig {
 // FILES-WEAVE — the pane arrives, and it is a stranger
 // ============================================================================
 
-TEST_CASE("the browser arrives by a plan row, under an office of its own") {
+TEST_CASE("the browser arrives by a plan row, under a role of its own") {
     // Workshop compiled nothing for this pane, minted no kind for it and holds no branch on it:
     // what puts it on a weaver's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
@@ -589,7 +589,7 @@ TEST_CASE("the browser arrives by a plan row, under an office of its own") {
     REQUIRE(f.row() != nullptr);
     CHECK(is_runtime_kind(f.kind));
     CHECK(std::string(f.row()->name) == files::kProjectFilesName);
-    // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only
+    // ...AND THE INVENTORY LISTS IT UNDER THE ROLE THAT OFFERED IT, which is the only
     // answer to "whose pane is this" (WL-CAT-03).
     bool listed = false;
     for (const CatalogRow& row : combined_catalog(f.r.session().panes)) {
@@ -660,7 +660,7 @@ void each_files_step(FilesRig& f, const std::function<void(const char*)>& at) {
 
 /// THE FILES PANE'S CENSUS: its rows in each step, in the order it declares them there.
 const CensusDriverOf kFilesCensus{files::kFilesRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     FilesRig f("files-census");
     put_file(f.root / "oven.cpp", "// a weaver's weave\n");
     f.open();
@@ -717,7 +717,7 @@ TEST_CASE("the manual Files answers names exactly the commands it declares in ea
 
 TEST_CASE("the pane lists the place this run began, asked of the host") {
     // THE READ-ONLY DOOR, END TO END. The pane has no `HostContext`; where this run began
-    // is a value it asked an office for on the beat it was first granted room.
+    // is a value it asked a role for on the beat it was first granted room.
     FilesRig f("files-listing");
     put_file(f.root / "alpha.cpp", "int a;\n");
     put_file(f.root / "beta.cpp", "int b;\n");
@@ -925,7 +925,7 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
         zengine::testing::pane_window::Window window(f.r.bus);
         window.room(area, files::kFilesRole, 160, 48);
         const auto keys = [&](bool here) {
-            f.r.bus.office_send_to_role_as(f.r.workshop_id, kWorkshopProvider, files::kFilesRole,
+            f.r.bus.role_send_to_role_as(f.r.workshop_id, kWorkshopProvider, files::kFilesRole,
                                            loom::Message(loom::to_value(
                                                PaneKeys{files::kProjectFilesPane, here})));
             f.r.bus.drain_until_idle();
@@ -1058,7 +1058,7 @@ TEST_CASE("Files declares its wheel and its listing's bound as settings, and a l
 
 TEST_CASE("a press on Files' painted header while a refusal leads selects nothing and opens nothing") {
     // THE HEADER MOVES DOWN A ROW WHEN A NOTICE LEADS, and a press is read against the picture it
-    // was aimed at. The refusal here is an open no opening office could take, so the cursor stays
+    // was aimed at. The refusal here is an open no opening role could take, so the cursor stays
     // on the file it names; the header is found in the rows Workshop painted, not assumed at 0.
     FilesRig f("files-press-header");
     put_file(f.root / "alpha.cpp", "int a;\n");
@@ -1099,8 +1099,8 @@ TEST_CASE("a press on Files' painted header while a refusal leads selects nothin
 
 TEST_CASE("a press on Files' painted selected row while a refusal leads opens exactly that row's file") {
     // THE ACTIVATION, UNDER A NOTICE. The rig's title press gave the pane the keys with the cursor
-    // on `alpha.cpp`; Return's open is refused for want of an opening office, and the refusal
-    // leads. The office is then held, so the press on the row marked `>` -- the keys still
+    // on `alpha.cpp`; Return's open is refused for want of an opening role, and the refusal
+    // leads. The role is then held, so the press on the row marked `>` -- the keys still
     // Files' -- is the activation gesture, and it must open the file that row shows, not the row
     // below it. What it asked for and what the Editor then holds are both read as exact paths.
     FilesRig f("files-press-selected");
@@ -1501,7 +1501,7 @@ TEST_CASE("Files takes a press only from the window that shows it and in its own
     // THE PROVIDER'S OWN CHECKS, MEASURED FROM THE ONLY SIDE THEY SHOW ON: a stand-in window gives
     // the area its room and says every press itself, each aimed at the row the cursor is on, and a
     // weave holding `zengine.workshop` says where the keys are. Speech that holds the window's
-    // office without speaking as it, and a press in some other area, act on nothing; a press
+    // role without speaking as it, and a press in some other area, act on nothing; a press
     // selects, and opens exactly when the keys were already this pane's.
     FilesRig f("files-press-authors");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
@@ -2126,20 +2126,20 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
     CHECK(held_caret(*pane).row == kNoCaret);
 }
 
-TEST_CASE("the authoring line asks the window that shows Files for a paste, the OS window or the terminal's") {
+TEST_CASE("the authoring line asks the window that shows Files for a paste, the GUI window or the terminal's") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#paste-asked-elsewhere): Files' paste asked
-    // of another office than the window showing its area.
+    // of another role than the window showing its area.
     namespace gfx = zengine::graphics;
-    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
         CAPTURE(window);
         const bool os = std::string(window) == gfx::kSdlWindow;
         FilesRig f("files-paste-window");
         put_file(f.root / "oven.cpp", "// a weaver's weave\n");
-        if (os) f.r.on_os_window();
+        if (os) f.r.on_gui_window();
         f.open();
         std::int64_t asks = 0;
         const loom::ObserverId tap =
-            count_paste_asks(f.r.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+            count_paste_asks(f.r.bus, std::string(gfx::kWindowRolePrefix) + window, asks);
         if (os) f.r.windows.set_clipboard("oven");
         f.letter(input::scan::kA, "a");
         f.r.key(input::scan::kReturn); // choose the one candidate
@@ -2236,8 +2236,8 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
         CHECK(f.recipes.all().empty());
     };
 
-    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE.
-    const PaneRig::OfficeAction unknown =
+    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN ROLE.
+    const PaneRig::RoleAction unknown =
         f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, "files.no-such-action");
     REQUIRE(unknown.authored);
     REQUIRE(unknown.delivered);
@@ -2249,7 +2249,7 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     // AN ID THE PANE DECLARES WHEN BROWSING, DELIVERED WHILE THE LINE IS OPEN -- its open among
     // them, which is Return while browsing and never the line's commit.
     for (const char* browsing : {files::kActionRefresh, files::kActionOpen}) {
-        const PaneRig::OfficeAction said =
+        const PaneRig::RoleAction said =
             f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, browsing);
         REQUIRE(said.delivered);
         line_stands();
@@ -2270,7 +2270,7 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     // A DECLARED ID THAT MOVES NOTHING IS STILL AN ACT: `files.up` on the first row spends the
     // notice, in the rows Workshop holds, through a new room too.
     REQUIRE(f.at_cursor() == resting);
-    const PaneRig::OfficeAction up =
+    const PaneRig::RoleAction up =
         f.r.workshop_action(files::kFilesRole, files::kProjectFilesPane, files::kActionUp);
     REQUIRE(up.delivered);
     CHECK(f.at_cursor() == resting);
@@ -2638,7 +2638,7 @@ TEST_CASE("a setup naming the retired reference opens the loaded pane") {
     f.r.extent(160, 48);
     f.r.key(input::scan::kR); // restore the setup this run was pointed at
 
-    // THE DESK CAME BACK NAMING THE OFFICE THAT HOLDS THE PANE...
+    // THE DESK CAME BACK NAMING THE ROLE THAT HOLDS THE PANE...
     CHECK(pane_row(f.r.session().setup.active, files_ref()) != kNoPaneRow);
     CHECK(pane_row(f.r.session().setup.active, PaneRef{"zengine.workshop", "project-files"}) ==
           kNoPaneRow);
@@ -2749,8 +2749,8 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
 // ============================================================================
 
 TEST_CASE("an open refused at dispatch is said by that exact attempt, and a fresh attempt takes "
-          "once an opening office is present") {
-    // NO OPENING OFFICE IS HELD: the pane's ask is queued, and Loom refuses it before any
+          "once an opening role is present") {
+    // NO OPENING ROLE IS HELD: the pane's ask is queued, and Loom refuses it before any
     // handler ran -- `NoSuchTarget`, said back to the exact attempt as `zen.DispatchRefused`.
     // The pane names the request that failed in its own row, clears only that ask, moves
     // nothing on the desk and keeps the keys.
@@ -2773,7 +2773,7 @@ TEST_CASE("an open refused at dispatch is said by that exact attempt, and a fres
     f.forge_refusal(files_id, 1);
     f.r.bus.drain_until_idle();
     CHECK(f.first() == refused);
-    // ...AND A FRESH ATTEMPT TAKES once the office is held: the open reaches the manager, the
+    // ...AND A FRESH ATTEMPT TAKES once the role is held: the open reaches the manager, the
     // Editor is seated with the file, and the keys move to it.
     f.r.mount_opening();
     f.point_at("alpha.cpp");
@@ -2818,7 +2818,7 @@ TEST_CASE("a refused open's row leaves Files' published rows at the next Return 
     REQUIRE(heard);
     // TURN BY TURN, until the picture Workshop paints for the pane stops saying the refusal --
     // its content is admitted a turn after the act and painted a turn after that -- which must
-    // happen while that open is still on its way (Workshop's approval, then the opening office),
+    // happen while that open is still on its way (Workshop's approval, then the opening role),
     // with nothing seated.
     std::string pending = f.first();
     for (int turns = 0; turns < 16 && pending.find("could not reach") != std::string::npos &&
@@ -3770,7 +3770,7 @@ void weaver_drafts_oven(FilesRig& f) {
     REQUIRE_MESSAGE(any_row(f.shown(), "or both> [native"), picture(f.shown()));
 }
 
-/// WHAT THE BROWSER SAID TO WORKSHOP AND TO THE OPENING OFFICE, AND WHAT IT WAS ANSWERED, in the
+/// WHAT THE BROWSER SAID TO WORKSHOP AND TO THE OPENING ROLE, AND WHAT IT WAS ANSWERED, in the
 /// order the bus delivered it: each class ask with its classes, subject and pane, Workshop's word
 /// on it, and each open with its path -- so a case reads which came first, not two counts.
 struct AskedAndOpened {
@@ -3931,7 +3931,7 @@ TEST_CASE("on a weaver's host a guest is refused u, a mark and a written recipe 
 TEST_CASE("on a weaver's host a guest opening the guests file through Files is refused, and another file opens") {
     // THE GUESTS FILE PUTS EVERY ROW'S CREDENTIAL ON SCREEN, so on a weaver's host only the
     // weaver's hand opens it. Files asks class `open` with the path before it sends, and the
-    // refused ask sends nothing to the opening office; any other file the guest opens goes through.
+    // refused ask sends nothing to the opening role; any other file the guest opens goes through.
     // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#guests-file-opens): `judge`'s `open` branch
     // answering empty: the guests file reaches the opening.
     FilesRig f("files-guest-guests-file");
@@ -4019,7 +4019,7 @@ TEST_CASE("on a development host a guest's u, mark and recipe write as the weave
 TEST_CASE("Files asks class open for the path before it sends the open") {
     // THE ORDER ON THE BUS, NOT TWO COUNTS: the weaver's Return on a file asks Workshop whether
     // this gesture's hand may open exactly that path, hears yes, and only then asks the opening
-    // office for the same path. A folder is walked into, and asks nothing.
+    // role for the same path. A folder is walked into, and asks nothing.
     // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#open-sent-at-once): `open` sending
     // `open_file` at once: the open precedes, or comes without, its ask.
     FilesRig f("files-open-asks-first");
@@ -4097,7 +4097,7 @@ TEST_CASE("a right press on a folder in the project's apps/ offers to start that
     INFO("the menu offered\n", picture(offered));
     REQUIRE(any_row(offered, "start the app `tally`"));
     // ITS ROW, SECOND: Workshop allows the weaver's hand, and the launcher is asked -- none holds
-    // its office here, so the ask is refused in its words and nothing started.
+    // its role here, so the ask is refused in its words and nothing started.
     f.r.key(input::scan::kDown);
     f.r.key(input::scan::kReturn);
     CHECK_FALSE(menu_shown(f.r.session()));

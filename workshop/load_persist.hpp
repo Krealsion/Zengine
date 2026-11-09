@@ -41,8 +41,8 @@ inline constexpr std::int64_t kFormatVersionV2 = 2;
 inline constexpr std::int64_t kFormatVersionV3 = 3;
 
 /// The plan Workshop ships, staged beside the executable, where the artifacts it names are: the
-/// desk in the OS window, else the terminal window (the window row, `zengine-window-sdl` and
-/// what it loads in its place, `zengine-window-terminal`), which `--tui` narrows to the terminal
+/// desk in the GUI window, else the TUI window (the window row, `zengine-window-sdl` and
+/// what it loads in its place, `zengine-window-tui`), which `--tui` narrows to the TUI
 /// window. Any other arrangement is a copy passed with `--load-plan`, or a project's own plan.
 inline constexpr const char* kDefaultLoadPlanName = "default-load-plan.json";
 
@@ -71,7 +71,7 @@ inline std::string plan_in_force(const std::string& explicit_path, const std::st
     return host_dir + "/" + kDefaultLoadPlanName;
 }
 
-/// A SHIPPED PLAN NO BUILD STAGES NOW: the desk in the OS window, which the default plan's window
+/// A SHIPPED PLAN NO BUILD STAGES NOW: the desk in the GUI window, which the default plan's window
 /// row loads first. A weaver's own file of that name is a plan like any other.
 inline constexpr const char* kRetiredGraphicalPlanName = "graphical-load-plan.json";
 
@@ -87,8 +87,8 @@ inline std::string retired_plan(const std::string& explicit_path, Present presen
         return std::string();
     }
     return std::string(kRetiredGraphicalPlanName) + " is retired: the shipped " +
-           kDefaultLoadPlanName + " opens the OS window, else the terminal window -- start " +
-           "without --load-plan, or with --tui for the terminal window " +
+           kDefaultLoadPlanName + " opens the GUI window, else the TUI window -- start " +
+           "without --load-plan, or with --tui for the TUI window " +
            "(workshop/docs/load-plans.md)";
 }
 
@@ -180,7 +180,7 @@ struct WorkshopLoadArtifact {
               ZEN_FIELD(weave), ZEN_FIELD(optional), ZEN_FIELD(otherwise));
 };
 
-/// ONE AUTHORED CHOICE AS WRITTEN: the office, the weaver's name for the choice, and the artifact.
+/// ONE AUTHORED CHOICE AS WRITTEN: the role, the weaver's name for the choice, and the artifact.
 struct WorkshopLoadChoice {
     std::string role;
     std::string name;
@@ -190,7 +190,7 @@ struct WorkshopLoadChoice {
 };
 
 /// A WHOLE SAVED LOAD PLAN: what it is, which version of that it is, the artifacts it means to
-/// run IN AUTHORED ORDER, and the choices an office may be switched between.
+/// run IN AUTHORED ORDER, and the choices a role may be switched between.
 struct WorkshopLoadFile {
     std::string format;
     std::int64_t format_version = 0;

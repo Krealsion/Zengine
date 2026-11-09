@@ -3,7 +3,7 @@
 A participant that shows something draws it into the window that shows its area. It draws **nodes**
 -- the one primitive -- or says an **element** once and then sends only that element's changes.
 The window keeps what was drawn, paints it in the colours of the palette its area wears, and shows
-only what changed: the cells that changed on a terminal, the picture once a beat in an OS window. A
+only what changed: the cells that changed on a terminal, the picture once a beat in a GUI window. A
 **directory** introduces each area to its window and tells each owner its room; nothing a picture
 is made of passes through it.
 
@@ -11,8 +11,8 @@ A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and li
 `zengine::graphics`. This page is for whoever draws: the vocabulary, colours by name, the canvas, a
 drawing weave, an element of your own, and the seam an element's code is written against; and what
 a window answers for its platform, on the bus and to C++ in its own process. The
-package ships three weaves, each with its manual: the terminal window,
-[`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
+package ships three weaves, each with its manual: the TUI window,
+[`zengine.window.tui`](zengine.window.tui.md), built as `zengine-window-tui`; the GUI
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
 Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they
@@ -20,7 +20,7 @@ are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, i
 `night`. The snake (`examples/snake/`) is the worked example:
 it draws its frame as nodes and its board as an element of its own.
 
-![The snake in a terminal window wearing the night palette, its pilot flying and the game paused after step 120: the operator's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
+![The snake in a TUI window wearing the night palette, its pilot flying and the game paused after step 120: the console's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
 
 ![The same window after 1 chose the block palette: the window painted what it keeps in the other palette, and nothing was drawn again on the bus](images/snake-block.png)
 
@@ -36,17 +36,17 @@ window -> pointer's owners   AreaButtonChanged, AreaPointerMoved, AreaWheelTurne
                              button's with what the window drew under the hand)
 window -> an area's arranger AreaHandRefused (an injected hand refused in an area the weaver's alone),
                              AreaShown (what the area shows, asked by AreaShowAsked)
-window -> its follower       AreaPressed (where a press in an area another office owns landed),
+window -> its follower       AreaPressed (where a press in an area another role owns landed),
                              AreaSettled (unasked: what the area shows settled, by its version)
-input office -> a window     AttributedInput (a participant's moment, landed as that hand's),
+input role -> a window     AttributedInput (a participant's moment, landed as that hand's),
                              PointerTimingSaid (the double-click time, asked and when it changes)
-window -> the input office   PointerTimingAsked (at each activation)
-window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another office)
+window -> the input role   PointerTimingAsked (at each activation)
+window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another role)
 window -> the keys' owners   AreaKeyPressed, AreaKeyReleased, AreaTextEntered (naming the area
                              and the hand)
 arranger -> directory        PaletteOffered, PaletteChosen, AreaPlaced, ElementCodeOffered
-arranger -> its window       WindowShaped (its title and size, from an office arranging there)
-window -> everyone           WindowOffered (as its own office: its pixels, incarnation and text)
+arranger -> its window       WindowShaped (its title and size, from a role arranging there)
+window -> everyone           WindowOffered (as its own role: its pixels, incarnation and text)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered, PaletteOffered
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
@@ -54,27 +54,27 @@ anyone -> a window           ClipboardCopy, PumpSurface, SurfacePlacementRemembe
 asker -> a window            ClipboardTextRequested, SurfaceCaptureRequested,
                              SurfaceCaptureChunkRequested
 window -> the asker          ClipboardText, SurfaceCaptured, SurfaceCaptureChunk, zen.Refused
-OS window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own office)
+GUI window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own role)
 ```
 
-The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
+The **arranger** is whoever a host lets reach the directory: in the snake's host, its console;
 in Workshop, its own weave, which places each pane's area and its own
 ([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)), and lays its desk
 out in the window's room, in its unit and its text
 ([`WindowOffered`](../../workshop/docs/zengine.workshop.md#windowoffered)).
-What each message does is the manual of the office that takes it: the window's for what an owner
+What each message does is the manual of the role that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
 
 An area placed with `keys` hears every key (`AreaKeyPressed`), with `releases` its release
 (`AreaKeyReleased`), with `text` the text it types (`AreaTextEntered`): an owner places its areas
 for the moments it takes, and is given no other. Each names the area and whose hand made it, as
-every pointer moment does: `local`, the weaver's own, or the participant the input office named. One
+every pointer moment does: `local`, the weaver's own, or the participant the input role named. One
 placed with `pointer`
 holds every point inside it, painted or not, and hears, at its own point in pixels, every pointer
 moment there as the moment it was: a button pressed or let go, a part's or not
 (`AreaButtonChanged`), a move (`AreaPointerMoved`), the wheel (`AreaWheelTurned`). A press holds its
 button for the area until its release, so its moves and its release reach the area wherever the
-pointer goes, all three under the press's number; the area's arranger, when another office that
+pointer goes, all three under the press's number; the area's arranger, when another role that
 follows the area (`AreaPlaced::followed`), hears where each press and release landed
 (`AreaPressed`), as a desktop raises what was clicked. A button's moment says what the window drew
 under the hand when it landed: the area that showed it, the part named there, and that area's
@@ -85,7 +85,7 @@ pointer takes only the points where what it drew names an action or presents an 
 the pointer through to the areas behind it everywhere else. Each time the window shows, it tells the
 arranger following an area, unasked, when the area's version moved (`AreaSettled`); of an area its
 arranger does not follow, it tells the arranger none of this. Either window, terminal or OS, routes
-them alike ([`zengine.window.terminal`](zengine.window.terminal.md#use)).
+them alike ([`zengine.window.tui`](zengine.window.tui.md#use)).
 
 A window also answers for its platform, in shapes spelled here (`graphics/vocabulary.hpp`): a
 copy, a paste's read of the clipboard, its place on the desktop and a place offered back, a close
@@ -96,7 +96,7 @@ no clipboard and has no place or close box, so it says none.
 ## How a window counts clicks
 
 A press says its `clicks` (`AreaButtonChanged::clicks`, `AreaPressed::clicks`), and a release 0. The
-window counts the weaver's own presses by the double-click time the input office says
+window counts the weaver's own presses by the double-click time the input role says
 (`zengine::input::PointerTimingSaid`, [`zengine.input`](../../input/docs/zengine.input.md#pointertimingasked)),
 on its own clock as it reads its platform: a press of one button within that time after the last
 press of it counts one more than that press, wherever either landed, else 1 -- so 2 for a double
@@ -170,7 +170,7 @@ A pane's own slots are a JSON file of its own, generated by the package's `zengi
 (installed with it; CMake 3.22 or newer):
 
 ```json
-{ "format": "zengine-slots", "format_version": 1, "office": "example.counter",
+{ "format": "zengine-slots", "format_version": 2, "role": "example.counter",
   "colors": [ { "name": "badge", "color": "#f2a541", "like": "accent",
                 "about": "the count's badge" } ] }
 ```
@@ -179,7 +179,7 @@ A pane's own slots are a JSON file of its own, generated by the package's `zengi
 zengine_names(my-pane JSON slots.json NAMESPACE counter::colors HEADER counter/colors.hpp)
 ```
 
-`counter::colors::badge` then paints the palette's `badge` for the office `example.counter` where a
+`counter::colors::badge` then paints the palette's `badge` for the role `example.counter` where a
 palette sets one, else its own `#f2a541`. `like` names the pool colour a medium that cannot show a
 colour shows in its place: a terminal writes that colour's word and fills a shape with its
 character. Without it, a terminal shows the nearest of its sixteen inks.
@@ -187,7 +187,7 @@ character. Without it, a terminal shows the nearest of its sixteen inks.
 A **palette** (`PaletteOffered`) is a theme resolved for the window: each pool colour's
 `0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `terminal default`, the
 terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
-character it fills a shape with (`fill`); each office's slots; and a terminal's outline, a corner,
+character it fills a shape with (`fill`); each role's slots; and a terminal's outline, a corner,
 across and down. Whoever arranges the window offers palettes and chooses the one each area wears
 (`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
 window's own, the pool's defaults, which are night's. The three shipped themes are
@@ -225,7 +225,7 @@ its ink. Every font is monospaced, so an owner places text by columns: each char
 columns the text core gives it (`component::character_columns`), 0, 1 or 2 by Unicode's width
 classes, the rule both painters and a terminal draw by.
 
-The OS window ([`zengine.window.sdl`](zengine.window.sdl.md)) sets text in the embedded JetBrains
+The GUI window ([`zengine.window.sdl`](zengine.window.sdl.md)) sets text in the embedded JetBrains
 Mono, regular and bold, each size measured as it is first asked. A character that face lacks is
 drawn from the platform's own fonts -- the Windows font folder, the folders fontconfig reads,
 macOS's, at most `window::kMaxPlatformFaces` files, looked in once a character -- and else from GNU
@@ -234,7 +234,7 @@ a glyph sits centred in its own columns, scaled down where it would not fit them
 `ZENGINE_SDL_EMBEDDED_FACES=1` the window draws from its embedded faces alone, so a picture never
 moves with the fonts of the machine it is taken on; the suites and the pictures of these pages are
 taken so. A face that will not open says why on standard error, and the window sets its text in
-SDL's debug face. A terminal ([`zengine.window.terminal`](zengine.window.terminal.md)) writes every
+SDL's debug face. A terminal ([`zengine.window.tui`](zengine.window.tui.md)) writes every
 character its encoding carries, a wide one over two cells, and `?` for each character past ASCII
 where its encoding carries none, one column each.
 
@@ -252,7 +252,7 @@ the window says the area is empty. The window tells the room (`AreaRoom`): its n
 incarnation, its width and height (`width()`, `height()`), the references of the owner's elements
 it still presents there, whether it holds none of the owner's drawing there (`empty`): an area
 shown afresh, or given to this owner; and how it sets text (`text()`, a `TextMeasure`: a column's
-advance and a line's height in pixels at `body`, the OS window's face or a terminal's cell, every
+advance and a line's height in pixels at `body`, the GUI window's face or a terminal's cell, every
 other size's in `measures`, and `cell_px()`, its device pixels in a cell). An owner places its text
 by that measure, a row a line and a column an advance, and paints its area's ground: what it leaves
 unpainted shows what stands behind it. `room` answers whether the window, its incarnation, its size or its measure
@@ -289,7 +289,7 @@ class ScoreWeave
                                                            loom::Accept<FoodEaten>> {
 public:
     using Weave::on;
-    ScoreWeave() : Weave("snake.score") {} // the office it draws as; its area by default
+    ScoreWeave() : Weave("snake.score") {} // the role it draws as; its area by default
     void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
     void picture(graphics::Sketch& f) const {
         f.text("eaten", 0, 0, std::to_string(state_.eaten), graphics::colors::text);
@@ -308,7 +308,7 @@ A drawer that presents elements emits `ElementPut` and `ElementChange` itself an
 presses it wants. A drawer whose parts name actions composes `graphics::ActionFacet` in place of
 `DrawingFacet`: the same facet, also taking `ActionRequested`, which is the drawer's
 `on_action(action, mail)` only when the window that shows the drawer's area asks it, as that
-window's office, about that area; a drawer without actions keeps `DrawingFacet` and accepts no
+window's role, about that area; a drawer without actions keeps `DrawingFacet` and accepts no
 `ActionRequested`:
 
 ```cpp
@@ -333,7 +333,7 @@ A pane Workshop seats draws the same way. `workshop::PaneDrawingFacet`
 ([`workshop/pane_facets.hpp`](../../workshop/pane_facets.hpp)) holds the pane's room in Workshop
 and in a window alike: the weave writes one `picture(graphics::Sketch&)` and one
 `on_action(action, mail)`, and calls the facet's `show` where its state changed. The window that
-shows the area named by the pane's office is sent what changed; Workshop is sent the same picture
+shows the area named by the pane's role is sent what changed; Workshop is sent the same picture
 as the pane's rows, each record a part named by its path. A press on a part, in the window or on
 Workshop's canvas, reaches `on_action` as the action its record names, so the owner never reads a
 place ([The pane facets](../../workshop/docs/workshop-panes.md#the-pane-facets)).
@@ -395,7 +395,7 @@ read through the one gate. Ours and a stranger's are opened and judged alike.
 
 Which library holds an element's code is the load plan's word, through the arranger and the
 directory, never a pane's. What a window says of a library it cannot open or read is
-[the window's manual](zengine.window.terminal.md#files).
+[the window's manual](zengine.window.tui.md#files).
 
 The window paints with its own painter, one of each medium -- the character painter
 (`graphics/term_paint.hpp`) and the painter for light (`graphics/light_paint.hpp`) -- handing it each
@@ -408,7 +408,7 @@ C++ in a window's own process -- a host's, beside the window it loaded -- may as
 (`Window<Medium>`, `graphics/window/window.hpp`) directly for what its messages carry, and each
 medium answers for its platform:
 
-| ask | the terminal window | the OS window |
+| ask | the TUI window | the GUI window |
 |---|---|---|
 | `clipboard_copy(text)` | the text written to the terminal as OSC 52 (`window::terminal_clipboard_sequence`), which no terminal confirms | the text put on the platform's clipboard |
 | `clipboard_text()` | none: no terminal route reads a clipboard | the clipboard's text, read only when asked and never on the window's beat; empty when it holds no text, none with no window |
@@ -418,9 +418,9 @@ medium answers for its platform:
 
 `capture()` answers none before the window has shown anything, and never shows what a drawing
 saying `more` still holds back. A close its desktop asked for is published, not kept: the beat that
-reads it publishes `SurfaceCloseRequested` as the window's office, once. The OS window opens
+reads it publishes `SurfaceCloseRequested` as the window's role, once. The GUI window opens
 centred on its display's usable area, and an area placed past its edge grows it, as far as that
 display holds it, once for each new reach: a window a weaver made smaller is not grown back while
-its areas stay where they are. An office that arranges an area in a window names it and sizes it
-(`WindowShaped`): the OS window keeps the size within its display and, as after a weaver's
+its areas stay where they are. A role that arranges an area in a window names it and sizes it
+(`WindowShaped`): the GUI window keeps the size within its display and, as after a weaver's
 resize, is not grown back while its areas reach no further; the terminal keeps its own.

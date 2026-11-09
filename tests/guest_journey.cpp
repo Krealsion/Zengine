@@ -4,7 +4,7 @@
 // THE GUEST JOURNEY ACROSS TWO REAL PROCESSES, the other half of what the guests suite proves in
 // one: a REAL `zengine-workshop` launched headless with a guests file, and THIS process as the
 // other host's participant -- admitted as the file's row, injecting the Pane Manager chord through
-// an input session, fetching a picture of what the terminal window shows. It does not prove the
+// an input session, fetching a picture of what the TUI window shows. It does not prove the
 // SDL window's pixels (a machine with a display witnesses those) or the platform's input edge (an
 // injected moment enters at the Input weave), and neither is inferred from a green here.
 
@@ -302,8 +302,8 @@ std::string read_file(const std::string& path) {
     return ss.str();
 }
 
-/// The office of the window the default plan shows the desk in, which takes the picture.
-constexpr const char* kMedium = "zengine.window.terminal";
+/// The role of the window the default plan shows the desk in, which takes the picture.
+constexpr const char* kMedium = "zengine.window.tui";
 
 /// The picture a capture answered, fetched by chunk; empty when any chunk did not come whole.
 std::string fetch_picture(Guest& g, const gfx::SurfaceCaptured& pic) {
@@ -471,7 +471,7 @@ int main(int argc, char** argv) {
     const std::optional<loom::Value> shapes = g.answer_as(inspect, loom::accepted_shapes_schema());
     const std::size_t accepted = shapes.has_value() ? shapes->get("accepted")->as_list().size() : 0;
     check(shapes.has_value() && accepted > 0,
-          "the desktop office described what it accepts (" + std::to_string(accepted) + " shapes)");
+          "the desktop role described what it accepts (" + std::to_string(accepted) + " shapes)");
 
     // A picture asked for NOW, after the settlement: every paint the chord caused is behind it.
     const std::uint64_t capture = g.ask(kMedium, gfx::SurfaceCaptureRequested{});
@@ -488,7 +488,7 @@ int main(int argc, char** argv) {
                                     ")");
         std::ofstream out(work + "/journey-capture.txt", std::ios::binary | std::ios::trunc);
         out << picture;
-        // THE PICTURE IS WHAT THE TERMINAL WINDOW PRESENTED: the Pane Manager the chord opened is in
+        // THE PICTURE IS WHAT THE TUI WINDOW PRESENTED: the Pane Manager the chord opened is in
         // it, and the Connections pane names this session by the host's word for it.
         check(picture.find("Pane Manager @zengine.desktop") != std::string::npos,
               "the picture shows the Pane Manager the injected chord opened");

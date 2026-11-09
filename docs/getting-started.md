@@ -501,10 +501,10 @@ all. The package names the physical things, because one list holds both kinds:
 |---|---|
 | `zengine-timer` | weave — the Timer service you loaded above |
 | `zengine-input` | weave — the sole producer of key, text and pointer moments |
-| `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws, in the palette the area wears |
+| `zengine-graphics`, `zengine-window-tui` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws, in the palette the area wears |
 | `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
 | `zengine-inventory` | weave — stored typed values ([inventory](../inventory/README.md)) |
-| `zengine-neovim-editor` | weave — the Editor's office held with a Neovim, found at run time ([Neovim](../editor/docs/neovim.md)) |
+| `zengine-neovim-editor` | weave — the Editor's role held with a Neovim, found at run time ([Neovim](../editor/docs/neovim.md)) |
 | `zengine-guest-vocabulary` | weave — booted by *another* Loom host, a session, so its tools speak Workshop's guest shapes ([external host](../external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools)) |
 | `zengine-app-weave` | weave — an app's own weave, which `zengine-app` runs ([app](../app/docs/app.md)) |
 
@@ -574,7 +574,7 @@ in this process has ever declared* — and a shape is declared by being in some 
 `#include`ing the header that defines it. The oven's own emit-set is registered when it loads,
 but `StartTimer` is the Timer's word: the oven sends it from its handler without listing it in
 its `Emit<...>`, and in a process with no Timer nobody declares it. So the Timer service is not
-in the process, and therefore neither is its vocabulary. The role is the address the oven named: `zengine.timer`, the office
+in the process, and therefore neither is its vocabulary. The role is the address the oven named: `zengine.timer`, the role
 it was reaching for. Together they are the whole diagnosis — what was said, and where it was
 going.
 

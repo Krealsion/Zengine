@@ -168,18 +168,18 @@ TEST_CASE("a theme's name is 1 to 32 bytes of lowercase letters, digits and dash
     }
 }
 
-TEST_CASE("a theme setting's target is every pane, an office, or one pane of an office") {
+TEST_CASE("a theme setting's target is every pane, a role, or one pane of a role") {
     for (const char* good : {"*", "zengine.workshop", "zengine.skin", "zengine.editor/editor",
                              "zengine.terminal/terminal"}) {
         CAPTURE(good);
         CHECK(st::check_theme_target(good).accepted);
     }
-    // ⚔ MUTATION (tests/mutants/settings_themes.md#office-without-dot, #pane-with-slash,
-    // #pane-of-star): an office with no `.`, a second `/`, or a pane of `*` taken as a target.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#role-without-dot, #pane-with-slash,
+    // #pane-of-star): a role with no `.`, a second `/`, or a pane of `*` taken as a target.
     for (const char* bad : {"foo", "a/b/c", "zengine.editor/a/b", "zengine.editor/*", "*/editor",
                             "zengine.editor/", "/editor", "foo/editor", "**"}) {
         CAPTURE(bad);
-        CHECK(says(st::check_theme_target(bad).refusal, "is `*`, `<office>` or"));
+        CHECK(says(st::check_theme_target(bad).refusal, "is `*`, `<role>` or"));
     }
     CHECK(says(st::check_theme_target("").refusal, "1 to 128 bytes"));
     CHECK(says(st::check_theme_target("zengine." + std::string(st::kMaxThemeTargetLen, 'x')).refusal,
@@ -191,7 +191,7 @@ TEST_CASE("a theme setting holds exactly one value, or is a clear holding none")
     CHECK(st::check_theme_setting(number("*", "wheel-rows", 5)).accepted);
     CHECK(st::check_theme_setting(flag("zengine.terminal/terminal", "legend", false)).accepted);
     CHECK(st::check_theme_setting(text("zengine.workshop", "workshop.skin", "block")).accepted);
-    // Workshop's own keys are a theme's to set, under its office, a pane or every pane.
+    // Workshop's own keys are a theme's to set, under its role, a pane or every pane.
     CHECK(st::check_theme_setting(text("*", "workshop.skin", "classic")).accepted);
     CHECK(st::check_theme_setting(cleared("zengine.skin", "window.face")).accepted);
 

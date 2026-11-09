@@ -95,7 +95,7 @@ class Context:
     def on_cleanup(self, callback, label):
         self.cleanups.append(callback)
 
-    def ask(self, office, shape, fields, **options):
+    def ask(self, role, shape, fields, **options):
         self.contacts.append(shape)
         if shape == "InputSessionRequested":
             assert set(fields) == {"purpose"} and isinstance(fields["purpose"], str)
@@ -140,10 +140,10 @@ class Manager:
         """The rows drawn now, each with the name the pane gives it."""
         out = [("PANES -- %d" % len(self.panes), None)]
         for i in self.listed():
-            office, pane, label = self.panes[i]
-            mark = "[open]" if (office, pane) in self.open else "[    ]"
+            role, pane, label = self.panes[i]
+            mark = "[open]" if (role, pane) in self.open else "[    ]"
             out.append(("%s%s %s" % ("> " if i == self.cursor else "  ", mark, label),
-                        "pane:%s/%s" % (office, pane)))
+                        "pane:%s/%s" % (role, pane)))
         return out
 
     def press(self, y):
@@ -293,7 +293,7 @@ class CanvasPane:
 class CanvasManager(Manager, CanvasPane):
     """The Pane Manager drawing its rows on its canvas: its heading on the first row, a blank row,
     then its list -- each row one run, or with `split` two, its marker and mark and then its label
-    after a blank -- each with `pane:<office>/<pane>` over the row and `mark:<office>/<pane>` over
+    after a blank -- each with `pane:<role>/<pane>` over the row and `mark:<role>/<pane>` over
     its mark, listed after it."""
     canvas = True
 
@@ -306,10 +306,10 @@ class CanvasManager(Manager, CanvasPane):
         out = [{"runs": [(0, "PANES -- %d" % len(self.panes))], "parts": []},
                {"runs": [], "parts": []}]
         for i in self.listed():
-            office, pane, label = self.panes[i]
+            role, pane, label = self.panes[i]
             head = ("> " if i == self.cursor else "  ") + (
-                "[open]" if (office, pane) in self.open else "[    ]")
-            ref = "%s/%s" % (office, pane)
+                "[open]" if (role, pane) in self.open else "[    ]")
+            ref = "%s/%s" % (role, pane)
             out.append({"runs": [(0, head), (9, label)] if self.split else [(0, head + " " + label)],
                         "parts": [("pane:" + ref, 0, self.columns()), ("mark:" + ref, 2, 6)]})
         return out
@@ -790,7 +790,7 @@ class CanvasWorkshop(Context):
             return Moving(self)
         return Quiet()
 
-    def ask(self, office, shape, fields, **options):
+    def ask(self, role, shape, fields, **options):
         if shape in ("PaneViewRequested", "PanePointRequested"):
             from loom_session.tool import Refused
             version = options.get("version", 1)
@@ -853,7 +853,7 @@ class CanvasWorkshop(Context):
             ready = controls.resets == 1 and fields["generation"] == 4
             return Answer(state="ready" if ready else "failed", generation=fields["generation"],
                           note="Ready" if ready else "no reset was pressed")
-        answer = Context.ask(self, office, shape, fields, **options)
+        answer = Context.ask(self, role, shape, fields, **options)
         if shape == "InjectInput":
             answer = Answer(answer)
             answer.correlation = answer["last_seq"]
@@ -862,7 +862,7 @@ class CanvasWorkshop(Context):
 
 class FollowedSub:
     """Workshop's notices as a scripted desk says them: each wait is told the next of `notices` --
-    (office, pane, rows): that pane's rows changed, so its stamp moved; (office, pane, rows, n):
+    (role, pane, rows): that pane's rows changed, so its stamp moved; (role, pane, rows, n):
     they changed and came back, so its stamp is the one last told, in a notice standing for `n`
     the relay held back -- or nothing, after the wait asked, once none is left."""
     subscription, relay, holder, incarnation, window = 3, "R", 5, 1, 1
@@ -877,11 +877,11 @@ class FollowedSub:
         if not self.workshop.notices:
             time.sleep(timeout or 0.0)
             return None
-        office, pane, rows, held = (tuple(self.workshop.notices.pop(0)) + (0,))[:4]
+        role, pane, rows, held = (tuple(self.workshop.notices.pop(0)) + (0,))[:4]
         if rows is not None:
             self.workshop.panes[pane] = rows
         if not held:
-            self.prints[(office, pane)] = self.prints.get((office, pane), 0) + 1
+            self.prints[(role, pane)] = self.prints.get((role, pane), 0) + 1
         self.told += 1
         return SimpleNamespace(kind="observed", coalesced=held, fields={"desk": 1, "panes": [
             {"provider": o, "pane": q, "holder": 1, "incarnation": 1, "epoch": 1, "fingerprint": f}
@@ -951,7 +951,7 @@ class AimingWorkshop(Context):
                           "row's observe list does not name it" % version)
         return AimedSub(self) if version == 3 else Quiet()
 
-    def ask(self, office, shape, fields, **options):
+    def ask(self, role, shape, fields, **options):
         from loom_session.tool import Refused
         if shape == "PaneViewRequested":
             self.reads += 1
@@ -961,7 +961,7 @@ class AimingWorkshop(Context):
                            [{"word": 0, "text": "ready", "x": 3, "y": 4, "space": 2,
                              "place": {"x": 0, "y": 0, "w": 50, "h": 12}}], [],
                            {"x": 0, "y": 0, "w": 480, "h": 120}, 10, 12, 100 + self.picture)
-        return Context.ask(self, office, shape, fields, **options)
+        return Context.ask(self, role, shape, fields, **options)
 
 
 class ActWorkshop(Context):
@@ -1035,7 +1035,7 @@ class ActWorkshop(Context):
             else:
                 m.keys = False
 
-    def ask(self, office, shape, fields, **options):
+    def ask(self, role, shape, fields, **options):
         from loom_session.tool import Refused
         if shape == "InjectInput":
             for e in fields["events"]:
@@ -1102,16 +1102,16 @@ class ActWorkshop(Context):
                 panes.append({"provider": "zengine.desktop", "pane": "launcher", "name": "Pane Manager",
                               "state": "open" if m.shown else "closed", "front": 1, "selected": m.keys,
                               "keys": m.keys, "visible": place, "resolved": place})
-                for office, pane, label in m.panes:
-                    if (office, pane) != ("zengine.info", "info"):
-                        panes.append({"provider": office, "pane": pane, "name": label,
-                                      "state": "covered" if (office, pane) in m.open else "closed",
-                                      "front": -1, "selected": (office, pane) == m.selected,
+                for role, pane, label in m.panes:
+                    if (role, pane) != ("zengine.info", "info"):
+                        panes.append({"provider": role, "pane": pane, "name": label,
+                                      "state": "covered" if (role, pane) in m.open else "closed",
+                                      "front": -1, "selected": (role, pane) == m.selected,
                                       "keys": False, "visible": {}, "resolved": {}})
             desk = {"desk": 1, "width": 1440, "height": 900, "cell_px": 12, "space": 2,
                     "room": {"x": 0, "y": 24, "w": 1440, "h": 800}, "arranging": False,
                     "panes": panes, "words": [],
-                    "menu": {"open": True, "office": "zengine.files", "pane": "files", "picture": 3,
+                    "menu": {"open": True, "role": "zengine.files", "pane": "files", "picture": 3,
                              "place": {"x": 20, "y": 30, "w": 100, "h": 40},
                              "lines": [{"word": 0, "text": "> Rename", "x": 30, "y": 41, "space": 2},
                                        {"word": 1, "text": "  Delete", "x": 30, "y": 59, "space": 2}],
@@ -1122,7 +1122,7 @@ class ActWorkshop(Context):
                                            {"name": "file.delete", "text": "  Delete", "x": 31, "y": 59,
                                             "space": 2, "place": {"x": 20, "y": 53, "w": 100, "h": 12}})]}}
             return {"desk": desk, "stamps": [], "panes": []}
-        return Context.ask(self, office, shape, fields, **options)
+        return Context.ask(self, role, shape, fields, **options)
 
 
 class SaidSub:
@@ -1196,8 +1196,8 @@ class HearingWorkshop(ActWorkshop):
         self.heard.ended = Told(kind="ended", seq=self.told, how=reply[1], reason="the link's session ended")
         return self.heard.ended
 
-    def ask(self, office, shape, fields, **options):
-        answer = ActWorkshop.ask(self, office, shape, fields, **options)
+    def ask(self, role, shape, fields, **options):
+        answer = ActWorkshop.ask(self, role, shape, fields, **options)
         if shape == "InjectInput":
             self.order.append("press")
             answer = Answer(answer)
@@ -1284,7 +1284,7 @@ def run_checks(tools, runtime):
             # The Pane Manager's row names a pane by its reference, which is what the run presses.
             ctx = Context(steps, panes=json.dumps([{"pane": "pane:zengine.workshop/layouts"},
                                                    {"pane": "Layouts", "x": 0}]))
-            with self.assertRaisesRegex(ValueError, "pane:<office>/<pane>"):
+            with self.assertRaisesRegex(ValueError, "pane:<role>/<pane>"):
                 place.run(ctx)
             self.assertEqual(ctx.contacts, [])
 
@@ -1296,7 +1296,7 @@ def run_checks(tools, runtime):
                 produced = {}
                 ctx.produce = lambda name, value: produced.update({name: value})
                 later = dict(entry, **{field: changed})
-                ctx.ask = lambda office, shape, fields, **kw: entry if shape == "InventoryCaptureAdd" else later
+                ctx.ask = lambda role, shape, fields, **kw: entry if shape == "InventoryCaptureAdd" else later
                 with patch.object(collect, "link_session", link_status):
                     with self.assertRaisesRegex(CheckFailed, "captured entry changed"):
                         collect.run(ctx)
@@ -1325,7 +1325,7 @@ def run_checks(tools, runtime):
                 ctx = Context(steps, target_role="test.target")
                 produced = {}
                 ctx.produce = lambda name, value: produced.update({name: value})
-                ctx.ask = lambda office, shape, fields, **kw: (
+                ctx.ask = lambda role, shape, fields, **kw: (
                     {"pair": b"own capture"} if shape == "InventoryCaptureDescribe"
                     else {"occupied": True, "pair": current})
                 with patch.object(capture_inventory, "link_session", link_status):
@@ -1418,7 +1418,7 @@ def run_checks(tools, runtime):
             self.assertEqual(steps.point("126,42"), (126, 42, steps.SPACE_PIXELS))
             self.assertEqual(steps.point("2,3@console"), (2, 3, steps.SPACE_CELLS))
             self.assertEqual(steps.point("2,3@canvas"), (2, 3, steps.SPACE_CELLS))
-            # ...and in the terminal window, which spends no console row above the canvas.
+            # ...and in the TUI window, which spends no console row above the canvas.
             for bad in ("2,3c", "2,3@screen", "2,3@", "2@canvas"):
                 with self.subTest(bad=bad):
                     with self.assertRaisesRegex(ValueError, "@console"):
@@ -1613,7 +1613,7 @@ def run_checks(tools, runtime):
             for name in ("Files", "pane:zengine.files", "pane:/files", 7):
                 with self.subTest(name=name):
                     ctx = ActWorkshop(steps, [{"open": name}], [], manager=Manager(self.LISTED))
-                    with self.assertRaisesRegex(ValueError, "pane:<office>/<pane>"):
+                    with self.assertRaisesRegex(ValueError, "pane:<role>/<pane>"):
                         self.act(ctx)
                     self.assertEqual(ctx.contacts, [])
 
@@ -1959,10 +1959,10 @@ def run_checks(tools, runtime):
                 FollowedSub(ctx))
             reads, asking = [], ctx.ask
 
-            def counted(office, shape, fields, **options):
+            def counted(role, shape, fields, **options):
                 if shape == "PaneViewRequested":
                     reads.append(fields["pane"])
-                return asking(office, shape, fields, **options)
+                return asking(role, shape, fields, **options)
             ctx.ask = counted
             held = hand.Hand(ctx, "workshop")
             slept = []
@@ -3149,7 +3149,7 @@ def run_checks(tools, runtime):
             ctx = Context(steps, plan=json.dumps({"folder": "Work", "entries": [
                 {"find": {"contains": "Workbench"}, "label": "Workbench 1"}]}))
             asked = []
-            ctx.ask = lambda office, shape, fields, **kw: asked.append(shape)
+            ctx.ask = lambda role, shape, fields, **kw: asked.append(shape)
             with self.assertRaises(CheckFailed) as refused:
                 organize.run(ctx)
             self.assertEqual(asked, [])
@@ -3170,7 +3170,7 @@ def run_checks(tools, runtime):
             produced, asked = {}, []
             ctx.produce = lambda name, value: produced.update({name: value})
 
-            def ask(office, shape, fields, **kw):
+            def ask(role, shape, fields, **kw):
                 asked.append((shape, kw.get("version", 1)))
                 return {"InventoryCaptureAdd": entry, "InventoryRead": entry,
                         "InventoryList": listed}[shape]
@@ -3187,13 +3187,13 @@ def run_checks(tools, runtime):
             """`ctx`'s input owner, held by another run for its first `times` opens."""
             plain, said = ctx.ask, {"n": 0}
 
-            def ask(office, shape, fields, **kw):
+            def ask(role, shape, fields, **kw):
                 if shape == "InputSessionRequested" and said["n"] < times:
                     said["n"] += 1
                     ctx.contacts.append(shape)
                     raise Refused("busy: input session 4 is held by this connection, opened for "
                                   "\"loom session run hold-a\"; it must be closed before another opens")
-                return plain(office, shape, fields, **kw)
+                return plain(role, shape, fields, **kw)
             ctx.ask = ask
             return said
 
@@ -3232,7 +3232,7 @@ def run_checks(tools, runtime):
                 self.assertEqual(ctx.contacts.count("InputSessionRequested"), 1)
                 # Any other refusal is not waited on.
                 ctx = Context(steps, chord="down", wait_for_input=5)
-                ctx.ask = lambda office, shape, fields, **kw: (_ for _ in ()).throw(
+                ctx.ask = lambda role, shape, fields, **kw: (_ for _ in ()).throw(
                     Refused("input is not served here")) if shape == "InputSessionRequested" else None
                 with self.assertRaises(CheckFailed) as failed:
                     self.execute(ctx)
@@ -3260,8 +3260,8 @@ def run_checks(tools, runtime):
             self.assertIn("arm=true", str(failed.exception))
             self.assertIn("changed=false", str(failed.exception))
 
-        def test_the_window_office_is_the_one_the_desk_names(self):
-            for space, office in ((steps.SPACE_CELLS, "zengine.window.terminal"),
+        def test_the_window_role_is_the_one_the_desk_names(self):
+            for space, role in ((steps.SPACE_CELLS, "zengine.window.tui"),
                                   (steps.SPACE_PIXELS, "zengine.window.sdl")):
                 ctx = Context(steps)
                 asked = []
@@ -3270,19 +3270,19 @@ def run_checks(tools, runtime):
                     asked.append((o, shape))
                     return {"desk": {"space": space}, "stamps": [], "panes": []}
                 ctx.ask = ask
-                steps.name_capture_office(ctx, "workshop", {"powers": ["input", "capture"]})
-                self.assertEqual(steps.capture_office(ctx), office)
+                steps.name_capture_role(ctx, "workshop", {"powers": ["input", "capture"]})
+                self.assertEqual(steps.capture_role(ctx), role)
                 self.assertEqual(asked, [("zengine.workshop", "DeskReadRequested")])
-            # A row that may not read the desk asks nothing, and each office is tried in turn.
+            # A row that may not read the desk asks nothing, and each role is tried in turn.
             ctx = Context(steps)
             ctx.ask = lambda *a, **kw: self.fail("asked")
-            steps.name_capture_office(ctx, "workshop", {"powers": ["input"]})
-            self.assertFalse(hasattr(ctx, "_capture_office"))
+            steps.name_capture_role(ctx, "workshop", {"powers": ["input"]})
+            self.assertFalse(hasattr(ctx, "_capture_role"))
             # A desk read refused names nothing.
             ctx = Context(steps)
             ctx.ask = lambda *a, **kw: (_ for _ in ()).throw(Refused("read again in 250 ms"))
-            steps.name_capture_office(ctx, "workshop", {"powers": ["capture"]})
-            self.assertFalse(hasattr(ctx, "_capture_office"))
+            steps.name_capture_role(ctx, "workshop", {"powers": ["capture"]})
+            self.assertFalse(hasattr(ctx, "_capture_role"))
 
         def drag_run(self, said_on_release, hearing=True):
             """`workshop/drag` against a Workshop that says `said_on_release` -- (text, refusal) --
@@ -3297,8 +3297,8 @@ def run_checks(tools, runtime):
                     raise Refused("guest 'agent' may not observe NoticeSaid v1 from zengine.workshop")
                 return sub
 
-            def ask(office, shape, fields, **kw):
-                answer = plain(office, shape, fields, **kw)
+            def ask(role, shape, fields, **kw):
+                answer = plain(role, shape, fields, **kw)
                 if shape == "InjectInput":
                     injects["n"] += 1
                     answer = Answer(answer)
@@ -3361,8 +3361,8 @@ def run_checks(tools, runtime):
             produced, asked = {}, []
             ctx.produce = lambda name, value: produced.update({name: value})
 
-            def ask(office, shape, fields, **kw):
-                asked.append((office, shape, kw.get("version", 1), fields))
+            def ask(role, shape, fields, **kw):
+                asked.append((role, shape, kw.get("version", 1), fields))
                 if shape == "InventoryList":
                     return self.LISTED
                 if shape == "InventoryRead":

@@ -13,7 +13,7 @@ row and column, reckoned from the reading's place and text measure -- a blank ro
 one after a row's last character too.
 
 A picture that takes no press -- the one a managed opening shows, until its pane draws its own, or
-one its office's holder no longer holds -- says its words and parts with no point
+one its role's holder no longer holds -- says its words and parts with no point
 (`takes_no_press`), and refuses a point asked of it; every helper here that presses reads the pane
 again until one does (`pressing`).
 
@@ -59,13 +59,13 @@ def topmost(words):
 
 #: Why a pane's picture took no press, as a tool says it when its wait runs out.
 NO_PRESS = ("Workshop gave its words and parts no point, as it does at the picture a managed opening "
-            "shows until its pane draws its own, or at one its office's holder no longer holds")
+            "shows until its pane draws its own, or at one its role's holder no longer holds")
 
 
 def takes_no_press(view):
     """Whether a pane's picture takes no press now: a pane saying every word and part it shows
     with no point -- 0, 0 in no space -- as Workshop says the picture a managed opening shows until
-    its pane draws its own, or one its office's holder no longer holds. A press there reaches
+    its pane draws its own, or one its role's holder no longer holds. A press there reaches
     nothing; the pane is read again."""
     said = (view["words"] + view.get("parts", [])) if view else []
     return bool(view) and bool(said) and all(s.get("space", 0) == 0 for s in said)
@@ -140,7 +140,7 @@ class Notices:
         self.ctx, self.link = ctx, link
         self.sub = None
         self.why = None      # why notices are not followed, once found: the waits read on a clock
-        self.seen = None     # the newest notice taken: (desk number, {(office, pane): stamp})
+        self.seen = None     # the newest notice taken: (desk number, {(role, pane): stamp})
         self.clock_waits = 0
 
     def follow(self):
@@ -170,7 +170,7 @@ class Notices:
         return before[1].get(pane) != said.get(pane)
 
     def wait(self, seconds, pane=None, unsettled=False):
-        """Until the desk moves -- for `pane` (office, pane), its stamp or the desk number; for
+        """Until the desk moves -- for `pane` (role, pane), its stamp or the desk number; for
         none, any of it -- or `seconds` pass. `unsettled`: the wait is for what a pane shows to
         settle, which moves its stamp."""
         if self.sub is None and self.why is None:
@@ -231,7 +231,7 @@ class Hand:
             self.notices.close()
 
     def wait(self, seconds, pane=None, unsettled=False):
-        """Until the desk moves, for `pane` (office, pane) or for the desk, or `seconds` pass
+        """Until the desk moves, for `pane` (role, pane) or for the desk, or `seconds` pass
         (`Notices.wait`); `unsettled`, for what a pane shows to settle."""
         self.notices.wait(seconds, pane, unsettled)
 

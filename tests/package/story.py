@@ -8,7 +8,7 @@ app, which runs in the package's own `zengine-app` and outlives Workshop.
 With the package's own demo service, `share/zengine/loom-tools/demo.py`, the package in place of a
 build tree and a Loom prefix (`demo.py start --package`):
   1 the tally setup (`examples/tally-app/` of the checkout this script stands in) starts, ready, in
-    the OS window: Workshop says it loaded `zengine-window-sdl`, and nothing stood in its place;
+    the GUI window: Workshop says it loaded `zengine-window-sdl`, and nothing stood in its place;
   2 its walk `export` passes: Flow and the View Builder opened, `tally.view` opened, Export app,
     each step's picture kept in <work folder>/pictures;
   3 the app's launcher (`run.cmd` on Windows, `run.sh` elsewhere) names the package's own
@@ -106,11 +106,11 @@ def main(argv):
                    "--root", str(root), "--wait", str(seconds))
     if started.get("state") != "ready":
         raise Failed("1 the tally setup did not come up ready: %s" % started.get("note", started))
-    # IN THE WINDOW IT MEANS: a fallback to the terminal window never passes for the OS window.
+    # IN THE WINDOW IT MEANS: a fallback to the TUI window never passes for the GUI window.
     log = (root / "workshop" / "process.log").read_text(encoding="utf-8", errors="replace")
     if "loaded: zengine-window-sdl" not in log or "did not load, so" in log:
-        raise Failed("1 Workshop did not start in the OS window; it said:\n%s" % log[-2000:])
-    say(1, "ready in the OS window: %s" % started.get("note", ""))
+        raise Failed("1 Workshop did not start in the GUI window; it said:\n%s" % log[-2000:])
+    say(1, "ready in the GUI window: %s" % started.get("note", ""))
     app = None
     try:
         walked = demo(env, seconds, "walk", "export", "--root", str(root), "--pictures",

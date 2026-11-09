@@ -4,7 +4,7 @@
 #ifndef ZENGINE_INTROSPECTION_VOCABULARY_HPP
 #define ZENGINE_INTROSPECTION_VOCABULARY_HPP
 
-// The Introspection tool's durable names: its office, its pane keys, the lines a weaver reads,
+// The Introspection tool's durable names: its role, its pane keys, the lines a weaver reads,
 // the Powers pane's action ids, and its one shape, `LoadedSelected`. Here rather than only in
 // the .cpp, because a `PaneRef` is a promise to a saved setup and a listener is a stranger to
 // the tool that says the fact.
@@ -16,11 +16,11 @@
 
 namespace zengine::introspection {
 
-/// The office this tool holds, the durable half of its `PaneRef` and the only address anything
-/// reaches it by: a role, so a reloaded provider (another WeaveId) is the same office.
+/// The role this tool holds, the durable half of its `PaneRef` and the only address anything
+/// reaches it by: a role, so a reloaded provider (another WeaveId) is the same role.
 inline constexpr const char* kIntrospectionRole = "zengine.introspection";
 
-/// The pane key, in this office's namespace. It names the facts rather than the tool, so a
+/// The pane key, in this role's namespace. It names the facts rather than the tool, so a
 /// second Introspection pane has somewhere to go.
 inline constexpr const char* kLoadedPane = "loaded";
 
@@ -78,7 +78,7 @@ inline constexpr const char* kIntrospectionStem = "zengine-introspection";
 /// here listens. It carries data and no authority: a listener hearing a library and its role may
 /// not thereby send it anything, load, unload or read it -- values flow, authority does not.
 /// `library` is the name the kernel loaded it under (not a WeaveId, not proof it is alive);
-/// `role` is the office bound at load, empty meaning none; `pane` names the pane. Whose fact it
+/// `role` is the role bound at load, empty meaning none; `pane` names the pane. Whose fact it
 /// is, is `mail.authored_role()`. No previous value, row, timestamp or grant.
 struct LoadedSelected {
     std::string pane;    ///< the pane key this selection happened in -- `loaded`

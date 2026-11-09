@@ -9,7 +9,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `CMakeLists.txt` | target `zengine-attention-pane`, a loadable weave; needs `loom::kernel` |
 | `pane.cpp` | the weave: offers the one `attention` pane, hears `StandingConditions`, says rows, answers its manual |
-| `vocabulary.hpp` | office `zengine.attention`, pane key, stem, action ids, `AttentionPaneState` |
+| `vocabulary.hpp` | role `zengine.attention`, pane key, stem, action ids, `AttentionPaneState` |
 | `docs/zengine.attention.md` | the pane's manual, compiled into the weave and answered when asked |
 
 ## Law
@@ -31,7 +31,7 @@ and `attention/pane.cpp` are also sample artifact and source in `workshop_load`
 
 ## Host side
 
-- Plan row: `workshop/default-load-plan.json` (optional, office `zengine.attention`); staged beside the host and listed as a development pane in
+- Plan row: `workshop/default-load-plan.json` (optional, role `zengine.attention`); staged beside the host and listed as a development pane in
   `workshop/CMakeLists.txt`.
 - The seam it hears: `workshop/attention_seam_vocabulary.hpp` (`StandingConditions`,
   `attention_glance`); Workshop's grant to say it, `workshop/grant.cpp`; counted as the desk a

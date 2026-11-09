@@ -3,7 +3,7 @@
 **Starts an app made in Workshop, or a demo, as a process of its own that goes on after Workshop
 quits.** Only from a catalog fixed when Zengine was configured, and only when the View Builder,
 Files, the palette or the quick setup ask, each after Workshop allowed the hand that pressed. Any
-office may ask what it can start, and whether an app it started still runs.
+role may ask what it can start, and whether an app it started still runs.
 
 ## Pages
 
@@ -14,10 +14,10 @@ office may ask what it can start, and whether an app it started still runs.
 
 | | |
 |---|---|
-| `weave.cpp` | `zengine-launcher`, office `zengine.launcher`: judges a start, starts it, answers |
+| `weave.cpp` | `zengine-launcher`, role `zengine.launcher`: judges a start, starts it, answers |
 | `catalog.hpp` | what may be started: an app in the project's `apps/`, a demo the service lists; the listing |
 | `start.hpp` | a process started detached and kept by nobody, on Windows and on POSIX |
-| `vocabulary.hpp` | the office, the two kinds, `Launch` and `Launched`, and the listing's ask and answer |
+| `vocabulary.hpp` | the role, the two kinds, `Launch` and `Launched`, and the listing's ask and answer |
 | `configured.hpp.in` | the demo service and its setups, written into the build when it is configured |
 | `CMakeLists.txt` | the catalog fixed at configure, and the weave |
 | `docs/` | the manual |

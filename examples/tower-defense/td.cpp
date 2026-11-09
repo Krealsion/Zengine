@@ -4,7 +4,7 @@
 // Tower Defense: a small game played in a Workshop pane, made from inside Workshop. One source file
 // of the installed packages' headers: a single-source recipe links zengine::pane, zengine::graphics,
 // zengine::activation, zengine::input, zengine::timer and loom::switchboard, and a load-plan row
-// loads it under the role "td.game" (kOffice, below). It draws in its pane's area of the
+// loads it under the role "td.game" (kRole, below). It draws in its pane's area of the
 // graphics window that shows it, and publishes what happens in it (TdSeen, TdOccurred) for
 // whoever its host lets observe it.
 
@@ -36,8 +36,8 @@ namespace gfx = zengine::graphics;
 using zengine::timer::TimedWeave;
 using zengine::timer::TimerFired;
 
-constexpr const char* kOffice = "td.game";            // the role its load-plan row gives it
-constexpr const char* kWorkshop = "zengine.workshop"; // the only office it answers
+constexpr const char* kRole = "td.game";            // the role its load-plan row gives it
+constexpr const char* kWorkshop = "zengine.workshop"; // the only role it answers
 constexpr const char* kPane = "td";
 
 // ---- What a reload in place carries -----------------------------------------------------------
@@ -531,7 +531,7 @@ public:
         tell(mail);
         offer(mail);
         if (!window_.shown()) { // a reloaded game draws in its window again
-            (void)mail.as_role(kOffice).send_to_role(gfx::kGraphicsRole,
+            (void)mail.as_role(kRole).send_to_role(gfx::kGraphicsRole,
                                                      gfx::RoomAsked{window_.area()});
         }
     }
@@ -640,7 +640,7 @@ private:
     }
 
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop, ws::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
         namespace scan = zengine::input::scan;
         const std::int64_t none = zengine::input::mod::kNone;
@@ -656,7 +656,7 @@ private:
                         {"td.step", "one step while paused", scan::kPeriod, none},
                         {"td.restart", "new game", scan::kR, none},
                         {"td.check", "check the rules", scan::kC, none}};
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, actions);
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, actions);
     }
 
     /// What an observer is told, before any picture: what the rules said since the last time, in
@@ -693,7 +693,7 @@ private:
 
     Handle tick_;
     Said said_; // what the rules said since the last tell; a report, not state
-    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)}; // told its room afresh
+    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)}; // told its room afresh
 };
 
 } // namespace

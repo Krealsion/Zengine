@@ -35,7 +35,7 @@ endfunction()
 # the Builder pane carries, which the panes suite reloads in place.
 set(ZEN_COMPILED_READS_DOCS workshop/docs/hotkeys.md tests/weavelib/reworded-builder-pane.md)
 
-# ...and every manual, by its name and place rather than a list: a page `<folder>/docs/<office>.md`
+# ...and every manual, by its name and place rather than a list: a page `<folder>/docs/<role>.md`
 # is compiled into the target that carries it (cmake/ZengineManual.cmake), so an edit to one builds
 # that target, and tests/check_manual.cmake refuses a manual no target carries.
 set(ZEN_COMPILED_READS_MANUALS "(^|/)docs/[a-z0-9-]+([.][a-z0-9-]+)+[.]md$")

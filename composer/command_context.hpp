@@ -4,7 +4,7 @@
 #ifndef ZENGINE_COMPOSER_COMMAND_CONTEXT_HPP
 #define ZENGINE_COMPOSER_COMMAND_CONTEXT_HPP
 
-// The context the Message Composer hands a command it composes: the office the message is for.
+// The context the Message Composer hands a command it composes: the role the message is for.
 // Pane law: agents/panes.md
 
 #include <zen/weave/shape.hpp>

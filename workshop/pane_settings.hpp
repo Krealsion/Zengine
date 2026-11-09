@@ -22,7 +22,7 @@
 
 namespace zengine::workshop {
 
-/// THE OFFICE THAT KEEPS EVERY LAYOUT AND WHAT EACH KEEPS -- `zengine.layouts`: a pane declares its
+/// THE ROLE THAT KEEPS EVERY LAYOUT AND WHAT EACH KEEPS -- `zengine.layouts`: a pane declares its
 /// settings here, and every settings door is its.
 inline constexpr const char* kLayoutsRole = "zengine.layouts";
 
@@ -79,16 +79,16 @@ struct PaneSettingRow {
     friend bool operator==(const PaneSettingRow&, const PaneSettingRow&) = default;
 };
 
-/// Provider -> the layouts' owner: the settings one pane takes, judged whole under the office stamp
+/// Provider -> the layouts' owner: the settings one pane takes, judged whole under the role stamp
 /// and refused aloud; a later declaration replaces it. It counts while the weave that sent it holds
-/// the office, and nothing else waits on it.
+/// the role, and nothing else waits on it.
 struct PaneSettingsDeclared {
     std::string pane;
     std::vector<PaneSettingRow> rows;
     ZEN_SHAPE(PaneSettingsDeclared, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
-/// The layouts' owner -> the office's holder, when it accepts this: the settings the live layout
+/// The layouts' owner -> the role's holder, when it accepts this: the settings the live layout
 /// keeps for this pane, in key order, without Workshop's own `workshop.` keys. None is every
 /// setting at its default; a pane reads the ones it declared and passes over the rest, and draws
 /// no room before it holds them.
@@ -98,15 +98,15 @@ struct PaneSettings {
     ZEN_SHAPE(PaneSettings, 1, ZEN_FIELD(pane), ZEN_FIELD(settings));
 };
 
-/// Provider -> the layouts' owner, as the office: hand this pane its row now. Sent once in each
-/// life of the weave that holds the office, after the first message that life delivers, since a
+/// Provider -> the layouts' owner, as the role: hand this pane its row now. Sent once in each
+/// life of the weave that holds the role, after the first message that life delivers, since a
 /// life that has just arrived holds nothing it was handed.
 struct PaneSettingsAsked {
     std::string pane;
     ZEN_SHAPE(PaneSettingsAsked, 1, ZEN_FIELD(pane));
 };
 
-/// Provider -> the layouts' owner, as the office: a setting it was handed at `revision` and cannot
+/// Provider -> the layouts' owner, as the role: a setting it was handed at `revision` and cannot
 /// use, and why.
 struct PaneSettingUnused {
     std::string pane;
@@ -145,7 +145,7 @@ struct PaneSettingsDeclared {
     ZEN_SHAPE(PaneSettingsDeclared, 2, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
-/// The layouts' owner -> the office's holder, when it accepts this version: v1's settings, and the
+/// The layouts' owner -> the role's holder, when it accepts this version: v1's settings, and the
 /// revision of the live layout's row they were handed at, which the pane names when it speaks
 /// about them.
 struct PaneSettings {
@@ -551,7 +551,7 @@ inline bool is_workshop_skin_choice(std::string_view s) noexcept {
     return s == kSkinNight || s == kSkinDay || s == kSkinBlock || s == kSkinClassic;
 }
 
-/// The palette setting, as Workshop's office declares it and a row is judged by.
+/// The palette setting, as Workshop's role declares it and a row is judged by.
 inline v2::PaneSettingRow workshop_skin_setting_row() {
     v2::PaneSettingRow row;
     row.key = kWorkshopSkinKey;

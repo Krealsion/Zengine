@@ -49,8 +49,8 @@ consumer could not tell: a different sender would simply read as a new lineage. 
 provenance comes first and an unattested activation is not a lineage at all.
 
 The sender half still carries weight once provenance holds. A different attested sender is a
-different authorized operator's lineage, and its sequences are compared only with its own: a new
-operator's 1 is not a replay of the previous operator's 2. A bare sequence is a small integer;
+different authorized initiator's lineage, and its sequences are compared only with its own: a new
+initiator's 1 is not a replay of the previous initiator's 2. A bare sequence is a small integer;
 treated as an identity by itself, a replayed number would be indistinguishable from a real
 succession.
 
@@ -75,7 +75,7 @@ different sender is another lineage's traffic, not this one's.
 
 - **That the host's wiring is the right one.** An accepted activation proves the Loom authorized
   the commit. Which infrastructure holds the lifecycle authority is the host's decision, and a
-  host that hands it to two operators has two lineages by its own choice.
+  host that hands it to two initiators has two lineages by its own choice.
 - **Anything across a process boundary.** An out-of-process weave receives no attestation, so a
   cursor there accepts no activation.
 
@@ -112,7 +112,7 @@ public:
 ## Tests
 
 Zengine suite `timer` exercises the cursor through the Timer and its binding: an unattested
-activation, a replay, a newer sequence and a second operator's lineage. A value door is exercised
+activation, a replay, a newer sequence and a second initiator's lineage. A value door is exercised
 where it is accepted: Compose's discovery in `workshop_panes_hand`
 (`tests/test_workshop_panes_input.cpp`) and the discovery door in `workshop_panes_terminal`
 (`tests/test_workshop_panes_powers.cpp`) and `workshop_load`; the installed-package witness compiles

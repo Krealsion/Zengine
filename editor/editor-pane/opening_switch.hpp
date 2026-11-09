@@ -5,7 +5,7 @@
 #define ZENGINE_EDITOR_PANE_OPENING_SWITCH_HPP
 
 // The Editor pane's two open doors and its half of a switch: an open relayed to the opening
-// office or prepared for a managed opening, the candidate that becomes the document when the
+// role or prepared for a managed opening, the candidate that becomes the document when the
 // bus publishes this weave's claim (WL-EDIT-05), and the incumbent's and the sealed candidate's
 // doors (WL-SWITCH-04, WL-SWITCH-05). These are `EditorPaneWeave`'s members, declared in
 // `pane.cpp`, which includes this file after the class; it compiles in no other place.
@@ -14,7 +14,7 @@
 #include "editor/editor-pane/common.hpp"
 
 #include "editor/editor-pane/editor.hpp"
-#include "editor/office_seam.hpp"
+#include "editor/role_seam.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -39,15 +39,15 @@ namespace {
 
 /// The old door (WL-EDIT-05, WL-OPEN-07): the document and its presentation -- seated,
 /// selected, holding the keys -- or a truthful refusal. This weave does not arrange the desk,
-/// so it relays (`office::relay_open_source`): the requester's answer right is kept here, the
+/// so it relays (`role::relay_open_source`): the requester's answer right is kept here, the
 /// opening manager is asked in this weave's own conversation, and its outcome is spent into the
 /// kept right. There is no document-only install behind this door.
 inline void EditorPaneWeave::on(const OpenSourceRequested& asked, loom::Mail& mail) {
-    office::relay_open_source(asked, mail, pane::kEditorPaneRole, holding_, relays_, asked_);
+    role::relay_open_source(asked, mail, pane::kEditorPaneRole, holding_, relays_, asked_);
 }
 
 /// The manager's answer: to a dropped location's own open, settled here; otherwise to a relay,
-/// spent into its requester's kept right (`office::settle_relay`).
+/// spent into its requester's kept right (`role::settle_relay`).
 inline void EditorPaneWeave::on(const SourceOpened& said, loom::Mail& mail) {
     if (mail.answers_ask() && locate_.stage == Locate::Stage::Opening &&
         mail.correlation() == locate_.ask) {
@@ -55,15 +55,15 @@ inline void EditorPaneWeave::on(const SourceOpened& said, loom::Mail& mail) {
         say(mail);
         return;
     }
-    office::settle_relay(said, mail, relays_);
+    role::settle_relay(said, mail, relays_);
 }
 
-/// The bus's word that an ask was refused before any handler ran -- no opening office held, its
+/// The bus's word that an ask was refused before any handler ran -- no opening role held, its
 /// holder does not accept, or it holds behind a claim it could not apply -- matched by exact
 /// attempt: a relay's requester is told in words, and a pickup's or a dropped location's failure
-/// is said (`office::settle_dispatch_refused`).
+/// is said (`role::settle_dispatch_refused`).
 inline void EditorPaneWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-    if (office::settle_dispatch_refused(refused, mail, relays_, pickup_, locate_, noticing())) {
+    if (role::settle_dispatch_refused(refused, mail, relays_, pickup_, locate_, noticing())) {
         say(mail);
     }
 }
@@ -83,7 +83,7 @@ inline void EditorPaneWeave::on(const ws::v3::PrepareSourceRequested& asked, loo
     if (!mail.authored_from_role(ws::kOpeningRole)) {
         return;
     }
-    const ws::RowsRoom room = office::EditorWindow::room_of(asked.room);
+    const ws::RowsRoom room = role::EditorWindow::room_of(asked.room);
     Preparation p = prepare(asked.op, asked.path, room.rows(), room.columns(), mail);
     if (!p.refusal.empty()) {
         (void)mail.answer(not_prepared(asked.op, std::move(p.refusal)));
@@ -424,7 +424,7 @@ inline void EditorPaneWeave::on(const EditorLiveRequested& asked, loom::Mail& ma
     }
 #ifdef ZENGINE_EDITOR_TEST_NOT_LIVE
     // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-not-live`: a successor that
-    // holds the office and says it does not serve, so a case sees a failure after the
+    // holds the role and says it does not serve, so a case sees a failure after the
     // commitment. The normal image never defines this.
     (void)mail.answer(EditorLive{asked.op, false, "test instrumentation: this image never serves"});
     return;

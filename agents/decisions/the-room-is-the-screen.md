@@ -32,7 +32,7 @@ beneath it is ordinary room; a file's `right-column` reads as that word.
   founder in this arc's not-to-do list, and rightly: a pane telling the host where to put it is
   the host's furniture wearing the pane's name, and it would have made every weave's offer a
   negotiation about geometry.
-- *Naming Info's office in host code as the right column's occupant* — refused for the same
+- *Naming Info's role in host code as the right column's occupant* — refused for the same
   reason one step later: the host would still be the party that knows Info is furniture.
 - *Absolute coordinates in the shipped desk* — measured impossible, not merely ugly. A place is
   two numbers in pixels from the room and a size is an amount; `28` and `39` are right for one

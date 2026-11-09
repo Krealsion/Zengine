@@ -103,7 +103,7 @@ needs:
   [the default configuration](build-and-test.md#the-default-an-installed-loom-package-zen_loom_devoff)
   shows. The tests need that Loom's kernel, which on Windows is an opt-in
   ([the population contract](../../AGENTS.md#the-population-contract)).
-- **The network at configure**, unless SDL3 and SDL3_ttf are installed, for the OS window's pinned
+- **The network at configure**, unless SDL3 and SDL3_ttf are installed, for the GUI window's pinned
   fetch; or `-DZENGINE_TUI_ONLY=ON` ([SDL](supported-toolchains.md#sdl)).
 
 Two optional tools each open a gate of the population: Python, beside a Loom installed with its

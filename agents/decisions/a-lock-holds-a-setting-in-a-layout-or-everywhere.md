@@ -9,7 +9,7 @@ need one owner that judges every write against what it would change.
 
 **Decision.** The layouts' owner holds the locks with the rows: a layout's lock freezes that layout's row; an
 everywhere lock on a pane pins the value its layout holds into every row that seats the pane, and
-into each row seated later; an office-wide setting's lock holds everywhere. Every write door refuses
+into each row seated later; a role-wide setting's lock holds everywhere. Every write door refuses
 a locked key, a batch passes it over and says so, and only the weaver's hand unlocks: the Terminal,
 or a pane naming the weaver's own current act. A layout's locks, pin lists and baseline theme are
 its desk's, in the setup file and the session; the everywhere locks and Workshop-wide pin lists stay

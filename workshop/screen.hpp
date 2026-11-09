@@ -810,7 +810,7 @@ struct Session {
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
-    /// THE OS WINDOW'S OWN NORMAL ROOM, as the session file kept it: what a run in another window
+    /// THE GUI WINDOW'S OWN NORMAL ROOM, as the session file kept it: what a run in another window
     /// writes back; 0 by 0 where none was kept.
     // WL-SESSION-20 -- agents/workshop/window-file.md
     std::int64_t window_room_w = 0;
@@ -1335,7 +1335,7 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
 bool pane_window_reads_words(const SetupPane* row);
 
 /// WHAT A `fit` AXIS STANDS ON, where it is not the pane's latest offer: a pane that offered
-/// nothing, or, in the OS window, an offer its latest is within a pixel of; empty otherwise.
+/// nothing, or, in the GUI window, an offer its latest is within a pixel of; empty otherwise.
 std::string pane_fit_note(const Session& s, const PaneRef& ref);
 
 
@@ -1488,7 +1488,7 @@ std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
 
 /// WHAT A PANE'S FRAME SAYS IN ITS BODY, behind the pane's own area: `waiting for <name>` until the
 /// pane draws there and its ground covers the words, or `<name> draws in no window` for a pane
-/// whose office takes no room in a window.
+/// whose role takes no room in a window.
 // WL-PANE-16 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kExternalWaiting = "waiting for ";
 inline constexpr const char* kExternalNoWindow = " draws in no window";
@@ -1915,9 +1915,9 @@ ScreenCanvas paint(const Session& s);
 /// reaches what lies under it.
 inline constexpr const char* kWorkshopOverlayArea = "zengine.workshop.overlay";
 
-/// THE AREA A GRAPHICS WINDOW SHOWS AN OPEN PANE'S BODY IN, by the name its office draws there: an
-/// office seating several panes names each `<office>.<pane>` (`PaneCanvasSeat::area_of`), any
-/// other its office.
+/// THE AREA A GRAPHICS WINDOW SHOWS AN OPEN PANE'S BODY IN, by the name its role draws there: a
+/// role seating several panes names each `<role>.<pane>` (`PaneCanvasSeat::area_of`), any
+/// other its role.
 std::string pane_window_area(const Panes& panes, const RuntimePane& row);
 
 /// WHETHER THE SESSION PUTS WORKSHOP'S OWN AREA IN FRONT OF EVERY PANE'S: while arranging or while a
@@ -1926,7 +1926,7 @@ bool desk_in_front(const Session& s) noexcept;
 
 /// THE AREA OF WORKSHOP'S OWN A GRAPHICS WINDOW SHOWS A PANE'S FRAME IN, at the pane's own depth:
 /// its edge, its header and the words its body says, just behind the pane's own area. It is named
-/// by the pane's reference, `zengine.workshop.frame.<office>.<pane>`, as the pane's own area is.
+/// by the pane's reference, `zengine.workshop.frame.<role>.<pane>`, as the pane's own area is.
 std::string pane_frame_area(const Panes& panes, std::int64_t kind);
 
 /// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT: what stands about the panes -- the arrangement's

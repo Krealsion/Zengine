@@ -16,7 +16,7 @@
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "workshop/log_selection.hpp"
 
 #include "timer/vocabulary.hpp"
@@ -273,7 +273,7 @@ public:
     std::vector<Heard> heard;
 };
 
-/// A READER OF THE OFFICE'S PAGE: it asks what a shape does and keeps each answer.
+/// A READER OF THE ROLE'S PAGE: it asks what a shape does and keeps each answer.
 class DocumentAsker
     : public loom::WeaveBase<DocumentAsker, HeardState,
                              loom::Accept<zengine::manual::ShapeDocumentShown>,
@@ -305,7 +305,7 @@ public:
 /// A stand-in for the Timer service that RECORDS rather than schedules. The runner asks for a
 /// beat when it takes custody of something and gives it back with nothing left to watch -- the
 /// mechanism by which "polling is contained" is true, measured here, which needs somebody in
-/// the Timer's office to hear it. It fires nothing: the cases drive the beat themselves.
+/// the Timer's role to hear it. It fires nothing: the cases drive the beat themselves.
 struct ClerkState {
     std::int64_t asked = 0;
     std::int64_t cancelled = 0;
@@ -329,7 +329,7 @@ public:
     std::vector<std::string> ids;
 };
 
-/// Everything the runner said, held by whoever holds the Builder office.
+/// Everything the runner said, held by whoever holds the Builder role.
 ///
 /// It exists so a case can watch the RUNNER on its own, without a tool folding
 /// four observations into one picture first -- which is exactly what a case about
@@ -380,7 +380,7 @@ public:
     std::vector<BuildNotStarted> never;
 };
 
-/// A READER OF WHAT ONE OPERATION SAID, asking the Builder office by the operation's number as a
+/// A READER OF WHAT ONE OPERATION SAID, asking the Builder role by the operation's number as a
 /// presentation does -- one correlated ask at a time -- and keeping every page it is answered.
 struct ReadPage {
     std::int64_t op = 0;
@@ -507,16 +507,16 @@ private:
     std::string target_;
 };
 
-/// Mount a weave into an office with an explicit grant -- the host's own two
+/// Mount a weave into a role with an explicit grant -- the host's own two
 /// lines (`register_weave` with a role, then wire the self-id), because
 /// `mount_granted` binds no role.
 template <class Weave, class... Args>
-loom::WeaveId mount_office(loom::Switchboard& bus, loom::Grant grant, const char* office,
+loom::WeaveId mount_role(loom::Switchboard& bus, loom::Grant grant, const char* role,
                            Weave** out, Args&&... args) {
     auto weave = std::make_unique<Weave>(std::forward<Args>(args)...);
     Weave* raw = weave.get();
     const loom::WeaveId id =
-        bus.register_weave(std::move(weave), std::move(grant), std::string(office));
+        bus.register_weave(std::move(weave), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     if (out != nullptr) {
         *out = raw;
@@ -537,7 +537,7 @@ loom::WeaveId mount_plain(loom::Switchboard& bus, loom::Grant grant, Weave** out
 }
 
 /// THE RUNNER'S WHOLE REACH, written once so the suite and the host say the same
-/// thing: four observations to the Builder office, two sentences to the Timer, and
+/// thing: four observations to the Builder role, two sentences to the Timer, and
 /// its page's answer to whoever asks what a shape it accepts does. Nothing else.
 loom::Grant runner_grant() {
     loom::Grant g;
@@ -571,7 +571,7 @@ loom::Grant tool_grant() {
     return g;
 }
 
-/// The runner, watched directly by whoever holds the Builder office. THE CATALOG IS THE RIG'S,
+/// The runner, watched directly by whoever holds the Builder role. THE CATALOG IS THE RIG'S,
 /// NOT THE RUNNER'S, and the field order is the lifetime: `catalog` is declared above the bus so
 /// it outlives the weave that reads it, as the host declares its owner. The runner keeps a
 /// reference and no copy, so a fixture that changes what it can build changes `catalog` alone.
@@ -584,10 +584,10 @@ struct Bench {
     loom::WeaveId runner_id{};
 
     explicit Bench(std::vector<Recipe> recipes) : catalog(std::move(recipes)) {
-        runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
+        runner_id = mount_role<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
                                                    catalog, std::string(kCMake));
-        mount_office<Foreman>(bus, loom::Grant{}, kBuilderRole, &foreman);
-        mount_office<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
+        mount_role<Foreman>(bus, loom::Grant{}, kBuilderRole, &foreman);
+        mount_role<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
     }
 
     /// Order a build the way the tool does.
@@ -612,9 +612,9 @@ struct Bench {
     }
 };
 
-/// A live Builder: the tool in its office, the runner in its own, a listener, a
+/// A live Builder: the tool in its role, the runner in its own, a listener, a
 /// bystander to count what the bus carried, and a clerk holding the Timer's
-/// office. The grants are the host's.
+/// role. The grants are the host's.
 struct Live {
     std::vector<Recipe> catalog;
     std::vector<RecipeView> views;
@@ -645,16 +645,16 @@ struct Live {
                 views.push_back(RecipeView{r.id, p.artifact, fixture_path(p.artifact)});
             }
         }
-        runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
+        runner_id = mount_role<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
                                                    catalog, std::string(kCMake));
         tool_id =
-            mount_office<BuilderWeave>(bus, tool_grant(), kBuilderRole, &tool, views, source);
-        mount_office<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
+            mount_role<BuilderWeave>(bus, tool_grant(), kBuilderRole, &tool, views, source);
+        mount_role<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
         mount_plain<Listener>(bus, loom::Grant{}, &ears);
         bystander_id = mount_plain<Bystander>(bus, loom::Grant{}, &bystander);
     }
 
-    /// Speak to the Builder office the way a presentation does -- as a root send,
+    /// Speak to the Builder role the way a presentation does -- as a root send,
     /// ungated, because what this suite is measuring here is the TOOL's answer
     /// and not the host's grant (which has its own case below).
     template <class T>
@@ -722,7 +722,7 @@ TEST_CASE("contract: nothing a build conversation carries is a command") {
     CHECK(schema_of<RunBuild>()->content_id() == order->content_id());
 
     // The ask that opens a pane carries nothing at all: there is one tool at
-    // the office and it has one condition, so the question has no parameters.
+    // the role and it has one condition, so the question has no parameters.
     const auto describe = SchemaBuilder("StatusRequested", 1).build();
     CHECK(schema_of<StatusRequested>()->content_id() == describe->content_id());
 
@@ -1160,7 +1160,7 @@ TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
     loom::Switchboard bus;
 
     Foreman* foreman = nullptr;
-    mount_office<Foreman>(bus, loom::Grant{}, kBuilderRole, &foreman);
+    mount_role<Foreman>(bus, loom::Grant{}, kBuilderRole, &foreman);
 
     loom::Grant may_report;
     may_report.allow_to_role(BuildStarted::zen_name, BuildStarted::zen_version, kBuilderRole);
@@ -1168,7 +1168,7 @@ TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
     may_report.allow_to_role(BuildNotStarted::zen_name, BuildNotStarted::zen_version,
                              kBuilderRole);
     BlockingRunnerWeave* blocking = nullptr;
-    mount_office<BlockingRunnerWeave>(bus, std::move(may_report), kBuildRunnerRole, &blocking,
+    mount_role<BlockingRunnerWeave>(bus, std::move(may_report), kBuildRunnerRole, &blocking,
                                       std::string("slow"), slow(5, "0.15"));
 
     Bystander* bystander = nullptr;
@@ -1260,7 +1260,7 @@ TEST_CASE("a failing build is reported as a failure, with its own exit status") 
     // THE BUILD SYSTEM'S OWN REFUSAL SURVIVED to the tool's bounded tail. The
     // build's INNERMOST last words -- the script's own `asked to fail` -- are
     // several lines further up than a three-row pane can hold once the build
-    // system has added its own; that they reached the office at all is pinned
+    // system has added its own; that they reached the role at all is pinned
     // one layer down, at the Bench, where the whole stream is visible.
     CHECK_FALSE(done.detail.empty());
     CHECK(done.detail.find("Error") != std::string::npos);
@@ -1271,10 +1271,10 @@ TEST_CASE("a failing build is reported as a failure, with its own exit status") 
     CHECK(live.tool->known().offered == 0);
 }
 
-TEST_CASE("a failing build's OWN last words reach the office that asked") {
+TEST_CASE("a failing build's OWN last words reach the role that asked") {
     // "THE DIAGNOSTIC WRITTEN JUST BEFORE THE CHILD EXITED WAS NOT LOST", MEASURED WHERE THE
     // WHOLE STREAM IS: the tool publishes a bounded tail for a three-row pane, while the
-    // `BuildOutput` facts carry everything to the office that receives them, with no row budget.
+    // `BuildOutput` facts carry everything to the role that receives them, with no row budget.
     Bench bench({cmake_recipe("brk", "fixture-broken")});
     bench.order("brk");
     bench.beat_until_idle();
@@ -1339,7 +1339,7 @@ std::vector<std::string> kept_lines_of(const std::string& wrote) {
     return lines;
 }
 
-/// A PAGE OF OPERATION `op`, asked of the rig's Builder office by a reader weave mounted for it
+/// A PAGE OF OPERATION `op`, asked of the rig's Builder role by a reader weave mounted for it
 /// on the first ask -- a correlated ask, as a presentation makes one.
 BuildOutputSaid page_from(Live& live, OutputReader*& reader, std::int64_t op, std::int64_t from,
                           std::int64_t lines) {
@@ -1755,7 +1755,7 @@ TEST_CASE("the tool says where it stands to one asker alone, and that moves noth
     CHECK(answers[1].status.op == live.ears->last().op);
 }
 
-TEST_CASE("the office answers a shape's section from its own page, said against the content id "
+TEST_CASE("the role answers a shape's section from its own page, said against the content id "
           "the asker holds, and its page covers every shape it accepts") {
     namespace manual = zengine::manual;
     Live live({cmake_recipe("alpha", "fixture-slow5")});
@@ -1791,7 +1791,7 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
     CHECK(named.group == "Commands");
     CHECK(named.text == std::string(section->text));
     CHECK(named.text.find("**Refuses:**") != std::string::npos);
-    // ...and asked with none, against the office's own.
+    // ...and asked with none, against the role's own.
     CHECK(ask({BuildRequested::zen_name, BuildRequested::zen_version, ""}).current);
 
     // ANOTHER ID IS ANOTHER DEFINITION: the words are said, and said to be out of date for it.
@@ -1803,7 +1803,7 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
     CHECK(other.said.find("0x0000000000000001") != std::string::npos);
     CHECK(other.text == named.text);
 
-    // A SHAPE THE OFFICE DOES NOT ACCEPT, under that version or at all, is refused with no words.
+    // A SHAPE THE ROLE DOES NOT ACCEPT, under that version or at all, is refused with no words.
     const manual::ShapeDocumentShown old = ask({BuildRequested::zen_name, 1, ""});
     CHECK(old.refusal == "zengine.builder does not accept `BuildRequested` v1");
     CHECK(old.text.empty());
@@ -1811,7 +1811,7 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
     // ...and a heard shape is answered from `Hears`.
     CHECK(ask({BuildFinished::zen_name, BuildFinished::zen_version, ""}).group == "Hears");
 
-    // THE PAGE COVERS THE GATE: every shape the office accepts has a section under Commands or
+    // THE PAGE COVERS THE GATE: every shape the role accepts has a section under Commands or
     // Hears -- Loom's own doors and the document door aside -- and the page names no other.
     std::vector<std::string> accepted;
     for (const auto& schema : live.tool->accepted_schemas()) {
@@ -1835,8 +1835,8 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
         INFO("section ", std::string(s.key));
         CHECK(std::find(accepted.begin(), accepted.end(), std::string(s.key)) != accepted.end());
     }
-    // ...ASKED AS ANY OFFICE'S PAGE IS ASKED: every version the gate accepts, by message.
-    CHECK(check_office_manual(live.bus, kBuilderRole) >= accepted.size());
+    // ...ASKED AS ANY ROLE'S PAGE IS ASKED: every version the gate accepts, by message.
+    CHECK(check_role_manual(live.bus, kBuilderRole) >= accepted.size());
     check_page_names_accepted(page,
                               described_shapes_of(live.bus, live.bus.role_holder(kBuilderRole)));
 }
@@ -1877,7 +1877,7 @@ TEST_CASE("the runner answers a shape's section from its own page, and its page 
     CHECK(reader.ask(timer::TimerFired::zen_name, timer::TimerFired::zen_version).group == "Hears");
 
     // Two commands and the Timer's three shapes; asking moved no build.
-    CHECK(check_office_manual(live.bus, kBuildRunnerRole) >= 5);
+    CHECK(check_role_manual(live.bus, kBuildRunnerRole) >= 5);
     check_page_names_accepted(page,
                               described_shapes_of(live.bus, live.bus.role_holder(kBuildRunnerRole)));
     CHECK(live.runner->ran() == 0);
@@ -1933,7 +1933,7 @@ TEST_CASE("a weave with a presentation's reach cannot make a process start") {
     // THE AUTHORITY MEASUREMENT: Workshop may ASK the Builder for a build by name and may not
     // order the runner, so this gives a weave exactly that reach and has it try what it may not.
     // It asserts the PROPERTY, not a copy of the host's grant list: a rule permitting
-    // `BuildRequested` to the Builder office and nothing else does not permit `RunBuild` to the
+    // `BuildRequested` to the Builder role and nothing else does not permit `RunBuild` to the
     // runner, and a copy of the host's list would go stale the first time the host's changed.
     Live live({cmake_recipe("greet", "fixture-quick")});
 
@@ -1982,10 +1982,10 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
     // -- which stops this line being written the dangling way.
     const std::vector<Recipe> catalog{cmake_recipe("forever", "fixture-forever")};
     auto bus = std::make_unique<loom::Switchboard>();
-    mount_office<Undertaker>(*bus, loom::Grant{}, kBuilderRole,
+    mount_role<Undertaker>(*bus, loom::Grant{}, kBuilderRole,
                              static_cast<Undertaker**>(nullptr), &ledger);
     BuildRunnerWeave* runner = nullptr;
-    mount_office<BuildRunnerWeave>(*bus, runner_grant(), kBuildRunnerRole, &runner, catalog,
+    mount_role<BuildRunnerWeave>(*bus, runner_grant(), kBuildRunnerRole, &runner, catalog,
                                    std::string(kCMake));
 
     (void)bus->send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{"forever"})));
@@ -2302,7 +2302,7 @@ TEST_CASE("Workshop's durable log keeps Loom's defaults and three build facts wh
     const std::string refusal =
         "artifact 'zengine-oven3': weave load refused: load refused: schema 'OvenState' v2 is "
         "already published with a different shape (published schemas are immutable), and the "
-        "incumbent keeps the office it held";
+        "incumbent keeps the role it held";
     {
         loom::Logger journal(bus, zengine::workshop::durable_log_selection(false));
         REQUIRE(journal.open(path));

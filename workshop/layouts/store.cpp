@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The layouts' store: the run and its edits, what each pane and office declares, the revisions,
+// The layouts' store: the run and its edits, what each pane and role declares, the revisions,
 // every settings door's judgement, and the files.
 // Workshop law: agents/workshop/settings.md, agents/workshop/setting-locks.md,
 // agents/workshop/layouts.md, agents/workshop/session-restore.md
@@ -26,7 +26,7 @@ namespace {
 /// What to say when there is no setup file to save to or restore from, said in one place.
 constexpr const char* kNoSetupFile = "no setup file -- start Workshop with --setup <path>";
 
-/// A pane's Workshop-wide pin list target, `<office>/<pane>`.
+/// A pane's Workshop-wide pin list target, `<role>/<pane>`.
 std::string pane_target(const PaneRef& ref) { return ref.provider + "/" + ref.pane; }
 
 /// Whether `key` is in `keys`.
@@ -34,7 +34,7 @@ bool holds(const std::vector<std::string>& keys, const std::string& key) {
     return std::find(keys.begin(), keys.end(), key) != keys.end();
 }
 
-/// The pane a `<office>/<pane>` target names, or none for any other spelling.
+/// The pane a `<role>/<pane>` target names, or none for any other spelling.
 std::optional<PaneRef> pane_of_target(std::string_view target) {
     const std::size_t slash = target.find('/');
     if (slash == std::string_view::npos || slash == 0 || slash + 1 == target.size() ||
@@ -112,9 +112,9 @@ void LayoutStore::moved() {
     effects_.live_moved = true;
 }
 
-void LayoutStore::office_moved(const std::string& office) {
-    if (!holds(effects_.offices, office)) {
-        effects_.offices.push_back(office);
+void LayoutStore::role_moved(const std::string& role) {
+    if (!holds(effects_.roles, role)) {
+        effects_.roles.push_back(role);
     }
 }
 
@@ -144,28 +144,28 @@ bool LayoutStore::presentable(const PaneRef& ref) const {
     return false;
 }
 
-// ---- What each pane and office takes ----------------------------------------------------------
+// ---- What each pane and role takes ----------------------------------------------------------
 
 bool LayoutStore::counts(loom::WeaveId from, std::int64_t incarnation,
-                         std::string_view office) const {
-    // COUNTED WHILE THE INCARNATION THAT SENT IT HOLDS THE OFFICE: a reload in place keeps the id
+                         std::string_view role) const {
+    // COUNTED WHILE THE INCARNATION THAT SENT IT HOLDS THE ROLE: a reload in place keeps the id
     // and moves the incarnation.
-    if (!from.valid() || !host_->role_holder || host_->role_holder(office) != from) {
+    if (!from.valid() || !host_->role_holder || host_->role_holder(role) != from) {
         return false;
     }
     return !host_->incarnation_of || host_->incarnation_of(from) == incarnation;
 }
 
 // WL-SETTING-03 -- agents/workshop/settings.md
-std::string LayoutStore::declare_pane(std::string_view office, const std::string& pane,
+std::string LayoutStore::declare_pane(std::string_view role, const std::string& pane,
                                       std::vector<v2::PaneSettingRow> rows, loom::WeaveId from) {
-    if (const Written o = check_pane_key(office, "provider"); !o.accepted) {
+    if (const Written o = check_pane_key(role, "provider"); !o.accepted) {
         return o.refusal;
     }
     if (const Written p = check_pane_key(pane, "pane key"); !p.accepted) {
         return p.refusal;
     }
-    const PaneRef ref{std::string(office), pane};
+    const PaneRef ref{std::string(role), pane};
     // JUDGED WHOLE BY THE DECLARATION'S OWN RULES; only an accepted one replaces what stands.
     if (const std::string wrong = v2::pane_settings_declared_problem(v2::PaneSettingsDeclared{pane, rows});
         !wrong.empty()) {
@@ -174,7 +174,7 @@ std::string LayoutStore::declare_pane(std::string_view office, const std::string
     auto kept = std::find_if(pane_declarations_.begin(), pane_declarations_.end(),
                              [&](const PaneDeclaration& d) { return d.ref == ref; });
     if (kept == pane_declarations_.end()) {
-        // A DECLARATION THAT NO LONGER COUNTS MAKES ROOM: a pane's office reloaded or gone.
+        // A DECLARATION THAT NO LONGER COUNTS MAKES ROOM: a pane's role reloaded or gone.
         std::erase_if(pane_declarations_, [this](const PaneDeclaration& d) {
             return !counts(d.from, d.incarnation, d.ref.provider);
         });
@@ -216,25 +216,25 @@ const std::vector<PaneSettingRow>* LayoutStore::counted_v1(const PaneRef& ref) c
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-const std::vector<v2::PaneSettingRow>* LayoutStore::office_rows(std::string_view office) const {
-    for (const OfficeDeclaration& d : office_declarations_) {
-        if (d.office == office && counts(d.from, d.incarnation, d.office)) {
+const std::vector<v2::PaneSettingRow>* LayoutStore::role_rows(std::string_view role) const {
+    for (const RoleDeclaration& d : role_declarations_) {
+        if (d.role == role && counts(d.from, d.incarnation, d.role)) {
             return &d.rows;
         }
     }
     // WORKSHOP'S OWN ARE KNOWN HERE TOO, so its settings are judged before its declaration comes.
-    static const std::vector<v2::PaneSettingRow> own = prefs_persist::workshop_office_rows();
-    return office == kWorkshopProvider ? &own : nullptr;
+    static const std::vector<v2::PaneSettingRow> own = prefs_persist::workshop_role_rows();
+    return role == kWorkshopProvider ? &own : nullptr;
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-std::string LayoutStore::declare_office(const std::string& office,
+std::string LayoutStore::declare_role(const std::string& role,
                                         const std::vector<v2::PaneSettingRow>& rows,
                                         loom::WeaveId from) {
-    const std::string at = "office-wide settings of " + office + ": ";
-    if (office == kWorkshopProvider) {
+    const std::string at = "role-wide settings of " + role + ": ";
+    if (role == kWorkshopProvider) {
         // WORKSHOP'S OWN ARE THIS BUILD'S, `workshop.` keys and all: its declaration names them.
-        if (rows != prefs_persist::workshop_office_rows()) {
+        if (rows != prefs_persist::workshop_role_rows()) {
             return at + "refused -- Workshop declares the settings this build keeps for it";
         }
     } else if (const std::string wrong = v2::pane_settings_declared_problem(
@@ -242,26 +242,26 @@ std::string LayoutStore::declare_office(const std::string& office,
                !wrong.empty()) {
         return at + "refused -- " + wrong;
     }
-    auto kept = std::find_if(office_declarations_.begin(), office_declarations_.end(),
-                             [&](const OfficeDeclaration& d) { return d.office == office; });
-    if (kept == office_declarations_.end()) {
+    auto kept = std::find_if(role_declarations_.begin(), role_declarations_.end(),
+                             [&](const RoleDeclaration& d) { return d.role == role; });
+    if (kept == role_declarations_.end()) {
         // ONE PLACE IS WORKSHOP'S OWN, declared or not, so the bound counts it.
         const bool workshop = std::any_of(
-            office_declarations_.begin(), office_declarations_.end(),
-            [](const OfficeDeclaration& d) { return d.office == kWorkshopProvider; });
-        if (office_declarations_.size() + (workshop || office == kWorkshopProvider ? 1 : 2) >
-            kMaxSettingOffices) {
-            return at + "refused -- at most " + std::to_string(kMaxSettingOffices) +
-                   " offices declare office-wide settings, Workshop's own among them";
+            role_declarations_.begin(), role_declarations_.end(),
+            [](const RoleDeclaration& d) { return d.role == kWorkshopProvider; });
+        if (role_declarations_.size() + (workshop || role == kWorkshopProvider ? 1 : 2) >
+            kMaxSettingRoles) {
+            return at + "refused -- at most " + std::to_string(kMaxSettingRoles) +
+                   " roles declare role-wide settings, Workshop's own among them";
         }
-        office_declarations_.push_back(OfficeDeclaration{office, {}, {}, 0, 0});
-        kept = office_declarations_.end() - 1;
+        role_declarations_.push_back(RoleDeclaration{role, {}, {}, 0, 0});
+        kept = role_declarations_.end() - 1;
     }
     kept->rows = rows;
     kept->from = from;
     kept->incarnation = host_->incarnation_of ? host_->incarnation_of(from) : 0;
     kept->handed = 0;
-    office_moved(office);
+    role_moved(role);
     return std::string();
 }
 
@@ -300,21 +300,21 @@ std::int64_t LayoutStore::row_revision(const PaneRef& ref) {
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-std::int64_t LayoutStore::office_revision(const std::string& office) {
-    const std::vector<v2::PaneSettingRow>* rows = office_rows(office);
+std::int64_t LayoutStore::role_revision(const std::string& role) {
+    const std::vector<v2::PaneSettingRow>* rows = role_rows(role);
     if (rows == nullptr) {
         return 0;
     }
-    const prefs_persist::OfficeSettingsKept* kept = prefs_persist::office_kept(prefs_, office);
-    OfficeRevision now{office,
+    const prefs_persist::RoleSettingsKept* kept = prefs_persist::role_kept(prefs_, role);
+    RoleRevision now{role,
                        0,
                        *rows,
                        kept != nullptr ? kept->settings : std::vector<PaneSetting>{},
-                       office == kWorkshopProvider || !host_->role_holder
+                       role == kWorkshopProvider || !host_->role_holder
                            ? loom::WeaveId{}
-                           : host_->role_holder(office)};
-    for (OfficeRevision& r : office_revisions_) {
-        if (r.office != office) {
+                           : host_->role_holder(role)};
+    for (RoleRevision& r : role_revisions_) {
+        if (r.role != role) {
             continue;
         }
         if (r.rows != now.rows || r.settings != now.settings || r.holder != now.holder) {
@@ -324,36 +324,36 @@ std::int64_t LayoutStore::office_revision(const std::string& office) {
         return r.revision;
     }
     now.revision = ++settings_revision_;
-    office_revisions_.push_back(std::move(now));
-    return office_revisions_.back().revision;
+    role_revisions_.push_back(std::move(now));
+    return role_revisions_.back().revision;
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-std::vector<std::pair<std::string, OfficeSettings>> LayoutStore::office_hand_offs() {
-    std::vector<std::pair<std::string, OfficeSettings>> out;
+std::vector<std::pair<std::string, RoleSettings>> LayoutStore::role_hand_offs() {
+    std::vector<std::pair<std::string, RoleSettings>> out;
     if (!host_->holder_accepts || !host_->role_holder) {
         return out;
     }
-    for (OfficeDeclaration& d : office_declarations_) {
-        if (office_rows(d.office) == nullptr ||
-            !host_->holder_accepts(d.office, *loom::schema_of<OfficeSettings>())) {
+    for (RoleDeclaration& d : role_declarations_) {
+        if (role_rows(d.role) == nullptr ||
+            !host_->holder_accepts(d.role, *loom::schema_of<RoleSettings>())) {
             continue;
         }
-        const std::int64_t revision = office_revision(d.office);
+        const std::int64_t revision = role_revision(d.role);
         if (d.handed == revision) {
             continue; // what it holds is what is kept: saying so again is noise
         }
-        const prefs_persist::OfficeSettingsKept* kept = prefs_persist::office_kept(prefs_, d.office);
-        out.emplace_back(d.office,
-                         OfficeSettings{revision, kept != nullptr ? kept->settings
+        const prefs_persist::RoleSettingsKept* kept = prefs_persist::role_kept(prefs_, d.role);
+        out.emplace_back(d.role,
+                         RoleSettings{revision, kept != nullptr ? kept->settings
                                                                   : std::vector<PaneSetting>{}});
     }
     return out;
 }
 
-void LayoutStore::office_handed(const std::string& office, std::int64_t revision) {
-    for (OfficeDeclaration& d : office_declarations_) {
-        if (d.office == office) {
+void LayoutStore::role_handed(const std::string& role, std::int64_t revision) {
+    for (RoleDeclaration& d : role_declarations_) {
+        if (d.role == role) {
             d.handed = revision;
         }
     }
@@ -456,13 +456,13 @@ void LayoutStore::pane_asked(const PaneRef& ref) {
 }
 
 // WL-SETTING-08 -- agents/workshop/settings.md
-void LayoutStore::keep_unused(std::string_view office, loom::WeaveId from,
+void LayoutStore::keep_unused(std::string_view role, loom::WeaveId from,
                               const PaneSettingUnused& unused) {
-    const PaneRef ref{std::string(office), unused.pane};
+    const PaneRef ref{std::string(role), unused.pane};
     const auto at = std::find_if(handed_.begin(), handed_.end(),
                                  [&ref](const RowHanded& h) { return h.ref == ref; });
     // FROM THE HOLDER THE ROW WAS HANDED TO, and from no other: a revision is the row's, so a word
-    // from the office's former holder would otherwise land on its successor's.
+    // from the role's former holder would otherwise land on its successor's.
     if (at == handed_.end() || from != at->holder) {
         return;
     }
@@ -607,7 +607,7 @@ void LayoutStore::load_prefs() {
         return;
     }
     prefs_ = loaded.kept;
-    office_moved(kWorkshopProvider);
+    role_moved(kWorkshopProvider);
 }
 
 // WL-SETTING-11 -- agents/workshop/settings.md
@@ -862,31 +862,31 @@ PaneSettingCommitAnswered LayoutStore::commit_pane(const std::string& refused,
     return PaneSettingCommitAnswered{true, std::string(), row_revision(ref), "stored"};
 }
 
-// ---- Office-wide settings ---------------------------------------------------------------------
+// ---- Role-wide settings ---------------------------------------------------------------------
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-OfficeSettingsAnswered LayoutStore::read_office(const std::string& refused,
-                                             const OfficeSettingsRequested& asked) {
+RoleSettingsAnswered LayoutStore::read_role(const std::string& refused,
+                                             const RoleSettingsRequested& asked) {
     load_prefs();
-    OfficeSettingsAnswered shown;
-    shown.office = asked.office;
+    RoleSettingsAnswered shown;
+    shown.role = asked.role;
     if (!refused.empty()) {
         shown.written = "settings withheld: " + refused;
         return shown;
     }
-    if (const std::vector<v2::PaneSettingRow>* rows = office_rows(asked.office)) {
+    if (const std::vector<v2::PaneSettingRow>* rows = role_rows(asked.role)) {
         shown.rows = *rows;
     }
-    if (const prefs_persist::OfficeSettingsKept* kept =
-            prefs_persist::office_kept(prefs_, asked.office)) {
+    if (const prefs_persist::RoleSettingsKept* kept =
+            prefs_persist::role_kept(prefs_, asked.role)) {
         shown.settings = kept->settings;
     }
     for (const prefs_persist::SettingLock& l : prefs_.locks) {
-        if (l.target == asked.office) {
+        if (l.target == asked.role) {
             shown.locks.push_back(SettingLockShown{l.key, kLockedEverywhere});
         }
     }
-    shown.revision = office_revision(asked.office);
+    shown.revision = role_revision(asked.role);
     if (host_->prefs_path.empty()) {
         shown.written = "isolated run -- no settings file";
     } else if (prefs_bad_) {
@@ -902,26 +902,26 @@ OfficeSettingsAnswered LayoutStore::read_office(const std::string& refused,
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-OfficeSettingCommitAnswered LayoutStore::commit_office(const std::string& refused,
-                                            const OfficeSettingCommitRequested& asked,
+RoleSettingCommitAnswered LayoutStore::commit_role(const std::string& refused,
+                                            const RoleSettingCommitRequested& asked,
                                             bool for_itself) {
     load_prefs();
     const auto refuse = [](std::string why, std::int64_t revision) {
-        return OfficeSettingCommitAnswered{false, std::move(why), revision, std::string()};
+        return RoleSettingCommitAnswered{false, std::move(why), revision, std::string()};
     };
-    // IN ORDER, EACH REFUSAL WRITING NOTHING: the asker, the office, the revision, the file, the
+    // IN ORDER, EACH REFUSAL WRITING NOTHING: the asker, the role, the revision, the file, the
     // key, the lock, then the value.
     if (!refused.empty()) {
         return refuse("settings commit withheld: " + refused, 0);
     }
-    const std::vector<v2::PaneSettingRow>* rows = office_rows(asked.office);
+    const std::vector<v2::PaneSettingRow>* rows = role_rows(asked.role);
     if (rows == nullptr) {
-        return refuse("nothing declares office-wide settings for `" + asked.office + "` here", 0);
+        return refuse("nothing declares role-wide settings for `" + asked.role + "` here", 0);
     }
-    const std::int64_t current = office_revision(asked.office);
+    const std::int64_t current = role_revision(asked.role);
     if (asked.revision != current) {
         return refuse("stale revision " + std::to_string(asked.revision) + " -- the settings of " +
-                          asked.office + " stand at " + std::to_string(current) +
+                          asked.role + " stand at " + std::to_string(current) +
                           "; read them again",
                       current);
     }
@@ -937,12 +937,12 @@ OfficeSettingCommitAnswered LayoutStore::commit_office(const std::string& refuse
         return refuse("a clear takes no value -- name the key alone", current);
     }
     if (declared == nullptr &&
-        !(asked.clear && prefs_persist::office_value(prefs_, asked.office, asked.key) != nullptr)) {
-        return refuse(asked.office + " declares no setting `" + asked.key +
+        !(asked.clear && prefs_persist::role_value(prefs_, asked.role, asked.key) != nullptr)) {
+        return refuse(asked.role + " declares no setting `" + asked.key +
                           "` -- a key no declaration takes is only cleared",
                       current);
     }
-    if (prefs_persist::lock_on(prefs_, asked.office, asked.key) != nullptr) {
+    if (prefs_persist::lock_on(prefs_, asked.role, asked.key) != nullptr) {
         return refuse(locked_setting_refusal(asked.key), current);
     }
     std::optional<PaneSetting> value;
@@ -959,46 +959,46 @@ OfficeSettingCommitAnswered LayoutStore::commit_office(const std::string& refuse
         }
     }
     const prefs_persist::Prefs before = prefs_;
-    (void)prefs_persist::put_office_value(prefs_, asked.office, asked.key, value);
+    (void)prefs_persist::put_role_value(prefs_, asked.role, asked.key, value);
     // WITHIN THE FILE'S BOUNDS, so the file written is one the next launch reads.
-    if (prefs_persist::kept_count(prefs_) > kMaxOfficeSettingsKept ||
-        prefs_persist::office_count(prefs_) > kMaxSettingOffices) {
+    if (prefs_persist::kept_count(prefs_) > kMaxRoleSettingsKept ||
+        prefs_persist::role_count(prefs_) > kMaxSettingRoles) {
         prefs_ = before;
-        return refuse("Workshop keeps at most " + std::to_string(kMaxOfficeSettingsKept) +
-                          " office-wide settings, for at most " +
-                          std::to_string(kMaxSettingOffices) + " offices",
+        return refuse("Workshop keeps at most " + std::to_string(kMaxRoleSettingsKept) +
+                          " role-wide settings, for at most " +
+                          std::to_string(kMaxSettingRoles) + " roles",
                       current);
     }
     if (prefs_ == before) {
         // NOTHING MOVED, so nothing is minted, written or handed.
-        return OfficeSettingCommitAnswered{true, std::string(), current, "unchanged"};
+        return RoleSettingCommitAnswered{true, std::string(), current, "unchanged"};
     }
     // HANDED OR APPLIED BY THE HOLDER, THEN WRITTEN, AND THE TWO SAID APART.
-    office_moved(asked.office);
+    role_moved(asked.role);
     std::string applied;
-    if (asked.office == kWorkshopProvider) {
+    if (asked.role == kWorkshopProvider) {
         applied = "applied";
     } else {
         applied = host_->holder_accepts &&
-                          host_->holder_accepts(asked.office, *loom::schema_of<OfficeSettings>())
+                          host_->holder_accepts(asked.role, *loom::schema_of<RoleSettings>())
                       ? "handed"
-                      : "kept; not handed: " + asked.office + " takes no office-wide settings";
+                      : "kept; not handed: " + asked.role + " takes no role-wide settings";
     }
     const std::string not_written = write_prefs();
     const std::string handed =
         applied + (not_written.empty() ? "; written" : "; not written: " + not_written);
     const bool failed = !not_written.empty() && !host_->prefs_path.empty();
-    // AN OFFICE'S OWN SETTING, KEPT AS ASKED, IS ITS BOOKKEEPING: said only when it was not handed
+    // A ROLE'S OWN SETTING, KEPT AS ASKED, IS ITS BOOKKEEPING: said only when it was not handed
     // or not written; anyone else's commit is said as it landed (WL-NOTE-06).
     if (!for_itself || failed || applied.rfind("kept; not handed", 0) == 0) {
         say((asked.clear ? "cleared " + asked.key
                          : "committed " + asked.key + " = " +
                                setting_value_text(
                                    PaneSetting{asked.key, asked.flag, asked.number, asked.text})) +
-                " of " + asked.office + "; " + handed,
+                " of " + asked.role + "; " + handed,
             failed);
     }
-    return OfficeSettingCommitAnswered{true, std::string(), office_revision(asked.office), handed};
+    return RoleSettingCommitAnswered{true, std::string(), role_revision(asked.role), handed};
 }
 
 // ---- Pins -------------------------------------------------------------------------------------
@@ -1179,18 +1179,18 @@ PaneSettingLockAnswered LayoutStore::lock(const std::string& refused,
     std::vector<std::string> written;
     std::string done;
     if (target.find('/') == std::string::npos) {
-        // AN OFFICE-WIDE SETTING HAS ONE VALUE, so a lock on it holds everywhere and pins nothing.
-        const std::vector<v2::PaneSettingRow>* rows = office_rows(target);
+        // A ROLE-WIDE SETTING HAS ONE VALUE, so a lock on it holds everywhere and pins nothing.
+        const std::vector<v2::PaneSettingRow>* rows = role_rows(target);
         if (rows == nullptr) {
-            return refuse("nothing declares office-wide settings for `" + target + "` here");
+            return refuse("nothing declares role-wide settings for `" + target + "` here");
         }
         if (!everywhere) {
-            return refuse("an office-wide setting has one value in every layout -- lock it "
+            return refuse("a role-wide setting has one value in every layout -- lock it "
                           "everywhere");
         }
         if (locking) {
             if (row_named(rows, key) == nullptr &&
-                prefs_persist::office_value(prefs_, target, key) == nullptr) {
+                prefs_persist::role_value(prefs_, target, key) == nullptr) {
                 return refuse(target + " declares no setting `" + key + "` to lock");
             }
             if (prefs_persist::lock_on(prefs_, target, key) != nullptr) {
@@ -1208,11 +1208,11 @@ PaneSettingLockAnswered LayoutStore::lock(const std::string& refused,
             }
             done = "unlocked " + key + " of " + target;
         }
-        office_moved(target);
+        role_moved(target);
     } else {
         const std::optional<PaneRef> ref = pane_of_target(target);
         if (!ref) {
-            return refuse("a lock's target is `<office>/<pane>`, or `<office>` for an office-wide "
+            return refuse("a lock's target is `<role>/<pane>`, or `<role>` for a role-wide "
                           "setting");
         }
         const SetupLock here{*ref, key};
@@ -1305,7 +1305,7 @@ PaneSettingLockAnswered LayoutStore::lock(const std::string& refused,
             !not_written.empty() && !host_->prefs_path.empty()) {
             prefs_ = prefs_before;
             run_ = run_before;
-            effects_.offices.clear();
+            effects_.roles.clear();
             return refuse("nothing changed: Workshop's settings file was not written -- " +
                           not_written);
         }
@@ -1339,7 +1339,7 @@ LayoutSettingsAnswered LayoutStore::layout_settings_reading() const {
         }
         out.layouts.push_back(std::move(layout));
     }
-    // WHAT EACH PANE TAKES, Workshop's word for its area first, and what each office takes.
+    // WHAT EACH PANE TAKES, Workshop's word for its area first, and what each role takes.
     for (const PaneDeclaration& p : pane_declarations_) {
         const std::vector<v2::PaneSettingRow>* rows = counted(p.ref);
         if (rows == nullptr) {
@@ -1354,10 +1354,10 @@ LayoutSettingsAnswered LayoutStore::layout_settings_reading() const {
         out.declared.push_back(std::move(d));
     }
     out.declared.push_back(
-        DeclaredSettings{kWorkshopProvider, std::string(), *office_rows(kWorkshopProvider)});
-    for (const OfficeDeclaration& d : office_declarations_) {
-        if (const std::vector<v2::PaneSettingRow>* rows = office_rows(d.office)) {
-            out.declared.push_back(DeclaredSettings{d.office, std::string(), *rows});
+        DeclaredSettings{kWorkshopProvider, std::string(), *role_rows(kWorkshopProvider)});
+    for (const RoleDeclaration& d : role_declarations_) {
+        if (const std::vector<v2::PaneSettingRow>* rows = role_rows(d.role)) {
+            out.declared.push_back(DeclaredSettings{d.role, std::string(), *rows});
         }
     }
     for (const SettingLock& l : prefs_.locks) {
@@ -1435,17 +1435,17 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
         }
         const std::optional<PaneRef> ref = pane_of_target(w.target);
         if (wrong.empty() && w.target.find('/') == std::string::npos) {
-            if (office_rows(w.target) == nullptr) {
-                wrong = "nothing declares office-wide settings for `" + w.target + "` here";
+            if (role_rows(w.target) == nullptr) {
+                wrong = "nothing declares role-wide settings for `" + w.target + "` here";
             } else if (prefs_bad_) {
                 wrong = "Workshop's settings file " + host_->prefs_path +
                         " could not be read at launch and is never written over";
-            } else if (const v2::PaneSettingRow* row = row_named(office_rows(w.target), w.key);
+            } else if (const v2::PaneSettingRow* row = row_named(role_rows(w.target), w.key);
                        row != nullptr && !w.clear) {
                 wrong = v2::pane_setting_refused_by(*row, candidate);
             }
         } else if (wrong.empty() && !ref) {
-            wrong = "a write's target is `<office>/<pane>`, or `<office>` for an office-wide "
+            wrong = "a write's target is `<role>/<pane>`, or `<role>` for a role-wide "
                     "setting";
         } else if (wrong.empty() && !place_of(w.layout)) {
             wrong = gone(w.layout);
@@ -1479,7 +1479,7 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
     prefs_persist::Prefs kept = prefs_;
     std::vector<SettingWriteResult> results;
     std::vector<std::string> live_moved;
-    std::vector<std::string> offices_moved;
+    std::vector<std::string> roles_moved;
     const auto note = [](std::vector<std::string>& list, const std::string& s) {
         if (!holds(list, s)) {
             list.push_back(s);
@@ -1490,7 +1490,7 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
         const auto index = static_cast<std::int64_t>(i);
         const PaneSetting candidate{w.key, w.flag, w.number, w.text};
         if (w.target.find('/') == std::string::npos) {
-            const v2::PaneSettingRow* row = row_named(office_rows(w.target), w.key);
+            const v2::PaneSettingRow* row = row_named(role_rows(w.target), w.key);
             if (prefs_persist::lock_on(kept, w.target, w.key) != nullptr) {
                 results.push_back({index, kWriteLocked, locked_setting_refusal(w.key)});
                 continue;
@@ -1504,11 +1504,11 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
             if (!w.clear && !(candidate == PaneSetting{row->key, row->flag, row->number, row->text})) {
                 value = candidate; // THE DEFAULT IS KEPT AS ITS ABSENCE.
             }
-            const bool office_moved_now = prefs_persist::put_office_value(kept, w.target, w.key, value);
-            results.push_back({index, office_moved_now ? kWriteWritten : kWriteUnchanged,
+            const bool role_moved_now = prefs_persist::put_role_value(kept, w.target, w.key, value);
+            results.push_back({index, role_moved_now ? kWriteWritten : kWriteUnchanged,
                                std::string()});
-            if (office_moved_now) {
-                note(offices_moved, w.target);
+            if (role_moved_now) {
+                note(roles_moved, w.target);
             }
             continue;
         }
@@ -1579,9 +1579,9 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
     run_ = std::move(next);
     // HANDED AND APPLIED, and the asker told what was handed.
     std::vector<std::string> handed = live_moved;
-    for (const std::string& office : offices_moved) {
-        office_moved(office);
-        handed.push_back(office);
+    for (const std::string& role : roles_moved) {
+        role_moved(role);
+        handed.push_back(role);
     }
     if (any_desk || baselines_moved) {
         moved();
@@ -2102,7 +2102,7 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
 // WL-SETTING-06 -- agents/workshop/settings.md
 PaneCloseAnswered LayoutStore::close(const PaneRef& ref) {
     PaneCloseAnswered out;
-    out.office = ref.provider;
+    out.role = ref.provider;
     out.pane = ref.pane;
     const std::string name = name_of(ref);
     // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the weaver authored is theirs to take off
@@ -2228,11 +2228,11 @@ std::string LayoutStore::fold_layout_entries() {
             shared.push_back(name);
         }
     };
-    for (const prefs_persist::OfficeSettingsKept& o : prefs_.offices) {
-        if (!prefs_persist::is_layout_theme_entry(o.office)) {
+    for (const prefs_persist::RoleSettingsKept& o : prefs_.roles) {
+        if (!prefs_persist::is_layout_theme_entry(o.role)) {
             continue;
         }
-        const std::string name = o.office.substr(1);
+        const std::string name = o.role.substr(1);
         const LayoutTheme theme = prefs_persist::layout_theme_of(prefs_, name);
         fold(name, "the baseline of layout " + quoted_setup_name(name) + " (" + theme.name + ")",
              [&theme](Setup& desk) {

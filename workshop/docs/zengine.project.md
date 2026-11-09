@@ -1,16 +1,16 @@
-# zengine.project -- the project office
+# zengine.project -- the project role
 
-**Manual.** Workshop's office about the project this run is. It answers where the project began,
+**Manual.** Workshop's role about the project this run is. It answers where the project began,
 where the Files pane keeps its places, what the running project waits on, whether its plan names an
 artifact, and which file a recipe was written from; and it changes the project: which recipe file is
 in force, a recipe added to it, and a row added to the load plan. It is a door inside Workshop,
-answering to the office `zengine.project`; it is not a file you load. A pane reaches it by the
+answering to the role `zengine.project`; it is not a file you load. A pane reaches it by the
 messages below.
 
 ## About
 
 Each reading is derived when it is asked, from the owner of that fact in Workshop: the launch, the
-load plan the realization owner performs, the recipe file in force. The office keeps nothing between
+load plan the realization owner performs, the recipe file in force. The role keeps nothing between
 asks, and a reading runs nobody's code, so asking one changes nothing.
 
 Each act goes to the one owner of what it changes. A *recipe* says how one file is made, and the
@@ -19,13 +19,13 @@ recipe file in force is the list the Builder builds from
 recipe's fields is the recipe owner's. The *load plan* says which artifacts a project runs and as
 what ([choosing what a run is made of](load-plans.md)); a row added to it goes first to the running
 project, whose realization owner, [`zengine.realization`](zengine.realization.md), takes it or
-refuses it, and only a row it took is written to the file. The office passes on what was asked
+refuses it, and only a row it took is written to the file. The role passes on what was asked
 and answers with what came of it, in the owner's own words, never reworded; a refused act leaves
 the project exactly as it was.
 
 ## Use
 
-Ask as an office: a weave that sends as one of the offices it holds is answered, to it alone; an ask
+Ask as a role: a weave that sends as one of the roles it holds is answered, to it alone; an ask
 sent as nobody (personal speech, or a host's root) is counted and answered by no one. The Files
 pane asks where the project is and uses or writes recipes; the Builder pane asks the rest and adds
 plan rows.
@@ -43,7 +43,7 @@ not; then `path`, the recipe file in force after the attempt, and how many `reci
 - **Answers:** `ProjectRoot` v1, to the asker alone: `project_dir`, the directory Workshop was
   launched in (empty for a run that began nowhere), and `marks_path`, the file the Files pane keeps
   its places in (empty for none).
-- **Refuses:** an ask not sent as an office has no answer.
+- **Refuses:** an ask not sent as a role has no answer.
 - **Example:** the Files pane asks it each time Workshop gives it room.
 
 ### `ProjectFrontierRequested`
@@ -55,7 +55,7 @@ whose artifact is not built, which the project waits at.
 - **Answers:** `ProjectFrontierSaid` v1, to the asker alone: `waiting`, the `artifact` it waits on
   (empty when it waits on nothing) and how many authored rows wait behind it (`blocked`). A host
   that performs no plan answers `waiting` false.
-- **Refuses:** an ask not sent as an office has no answer.
+- **Refuses:** an ask not sent as a role has no answer.
 - **Example:** the Builder pane asks it on every `BuildStatus` and shows `waiting tally (tally,
   blocks 0)`.
 
@@ -66,7 +66,7 @@ whose artifact is not built, which the project waits at.
 - **Takes:** `stem`, the artifact's name (`tally`, never `tally.dll`).
 - **Answers:** `PlanNames` v1, to the asker alone: the `stem` asked about and `named`, true when a
   row of the plan in force loads it.
-- **Refuses:** an ask not sent as an office has no answer.
+- **Refuses:** an ask not sent as a role has no answer.
 - **Example:** `{stem: "tally"}`, before the Builder pane opens its role line.
 
 ### `RecipeSourceRequested`
@@ -116,7 +116,7 @@ file and installed.
 `PlanRowRequested` v1 adds the row `{ artifact, role }` to the running project, then to its plan
 file.
 
-- **Takes:** `stem`, the artifact; `role`, the office it is loaded as; `recipe`, the recipe that
+- **Takes:** `stem`, the artifact; `role`, the role it is loaded as; `recipe`, the recipe that
   makes it, so the answer can say whether that is built.
 - **Answers:** `PlanRowWritten` v1, to the asker alone: `accepted`; `detail`, what the running
   project made of the row; `frontier`, true when the new row is what the project now waits on;
@@ -132,7 +132,7 @@ file.
 ## Files
 
 The places file it names is the Files pane's, kept as `workshop-marks.json` in Workshop's state
-folder unless `--marks <path>` names another, and none in an isolated run; the office never reads
+folder unless `--marks <path>` names another, and none in an isolated run; the role never reads
 it. The recipe acts read and write the recipe file in force, or the project's `build-recipes.json`,
 in [the recipe file](../../builder/docs/recipes.md)'s format. A plan row is written to
 `workshop-plan.json` in the directory Workshop was launched in, in

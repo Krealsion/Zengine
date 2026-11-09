@@ -306,8 +306,19 @@ function(zengine_names target)
         _zengine_names_keys("${json}" "${file}" "the pool" format format_version about outline
                             colors sizes fonts)
     else()
-        _zengine_names_keys("${json}" "${file}" "the slots" format format_version about office
-                            colors sizes)
+        # Version 2 names its role `role`; a version-1 file named it `office`, read as the same.
+        string(JSON slots_version ERROR_VARIABLE slots_err GET "${json}" format_version)
+        if(slots_version EQUAL 2)
+            _zengine_names_keys("${json}" "${file}" "the slots" format format_version about role
+                                colors sizes)
+        elseif(slots_version EQUAL 1)
+            _zengine_names_keys("${json}" "${file}" "the slots" format format_version about office
+                                colors sizes)
+        else()
+            _zengine_names_fail("${file}" "it is slots version ${slots_version}; slots are read at "
+                                          "version 2, which names the role `role`, and at 1, "
+                                          "which named it `office`")
+        endif()
     endif()
     _zengine_names_colors(c "${json}" "${file}" TRUE)
     _zengine_names_sizes(c "${json}" "${file}")
@@ -475,7 +486,7 @@ function(zengine_palettes target)
         endforeach()
         string(JOIN ",\n        " body ${entries})
 
-        # Each office's slots, as the theme gives them.
+        # Each role's slots, as the theme gives them.
         set(slot_text "")
         string(JSON slots_type ERROR_VARIABLE no_slots TYPE "${t}" slots)
         if(NOT no_slots)
@@ -484,8 +495,8 @@ function(zengine_palettes target)
                 math(EXPR last "${ns} - 1")
                 foreach(i RANGE ${last})
                     string(JSON s GET "${t}" slots ${i})
-                    _zengine_names_keys("${s}" "${theme_file}" "slots ${i}" office colors)
-                    _zengine_names_get(office "${s}" office "" "${theme_file}")
+                    _zengine_names_keys("${s}" "${theme_file}" "slots ${i}" role colors)
+                    _zengine_names_get(role "${s}" role "" "${theme_file}")
                     _zengine_names_colors(s "${s}" "${theme_file}" TRUE)
                     set(slot_entries "")
                     foreach(n IN LISTS s_names)
@@ -494,8 +505,8 @@ function(zengine_palettes target)
                         list(APPEND slot_entries "${e}")
                     endforeach()
                     string(JOIN ", " slot_body ${slot_entries})
-                    _zengine_names_literal(office "${office}")
-                    string(APPEND slot_text "    p.slots.push_back({${office}, {${slot_body}}, {}});\n")
+                    _zengine_names_literal(role "${role}")
+                    string(APPEND slot_text "    p.slots.push_back({${role}, {${slot_body}}, {}});\n")
                 endforeach()
             endif()
         endif()

@@ -5,9 +5,26 @@ Each entry is a mutant that a comment in
 catch, the comment naming the entry by its path and heading. [The corpus's front page](README.md)
 says how an entry reads and how `tests/mutants/run.py` runs it.
 
+## earlier-read-answered-now
+
+The owner answers a read an earlier vocabulary asked by the current name, which its asker does not
+hear.
+
+In `workshop/layouts/owner.cpp`:
+
+```diff
+-    (void)mail.answer(as_office(read_asked(current(asked), mail)));
++    (void)mail.answer(read_asked(current(asked), mail));
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- a pane built on an earlier vocabulary reads and commits a role's settings by the earlier names,
+  the role named office, and is answered by them
+
 ## hand-off-as-workshop
 
-The layouts' owner hands a pane its row as Workshop's office.
+The layouts' owner hands a pane its row as Workshop's role.
 
 In `workshop/layouts/owner.cpp`:
 

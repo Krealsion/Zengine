@@ -43,16 +43,16 @@ Workshop needs a terminal at least **78 columns by 22 rows**. That is not a pref
 78x22 every piece of its furniture is exactly on screen with nothing overlapping, and it is
 the composition every other size is measured against.
 
-It opens in an OS window where one can open, and in the terminal you started it from where none
+It opens in a GUI window where one can open, and in the terminal you started it from where none
 can (it says why, once, on the desk). In the terminal by choice:
 
 ```sh
 build/workshop/zengine-workshop --tui
 ```
 
-Both are the one shipped plan: its window row loads the OS window, otherwise the terminal window,
-and `--tui` takes the terminal window alone. Workshop's own code is identical in both. See
-[load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window).
+Both are the one shipped plan: its window row loads the GUI window, otherwise the TUI window,
+and `--tui` takes the TUI window alone. Workshop's own code is identical in both. See
+[load plans](load-plans.md#the-window-the-gui-window-else-the-tui-window).
 
 ### Arguments
 
@@ -62,7 +62,7 @@ and `--tui` takes the terminal window alone. Workshop's own code is identical in
 | `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
 | `--session <path>` | `workshop-session.json`, in your **per-user state folder** | every layout you last used, and which one was live — written on close, read on start; the window's size and position are in the window file beside it, `workshop-session.window.json` |
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
-| `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | office-wide settings, such as pane titles (`t`), and the locks and pins that hold in every layout — written by the layouts' owner when you change one |
+| `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | role-wide settings, such as pane titles (`t`), and the locks and pins that hold in every layout — written by the layouts' owner when you change one |
 | `--isolated` | off | this run reads and writes **none** of your per-user config or session state but the files named on its command line (`--session`, `--prefs` and the others still win) — for tests, scratch experiments and clean-start diagnosis |
 | `--load-plan <path>` | `workshop-plan.json` in the directory you launched from when there is one, else `default-load-plan.json` beside the binary | which artifacts this run is made of |
 | `--recipes <path>` | `build-recipes.json` in the directory you launched from when there is one, else `default-build-recipes.json` beside the binary | what this run can build ([the recipe file](../../builder/docs/recipes.md)) |
@@ -135,7 +135,7 @@ zengine-workshop - recipe: snake-world-v2 -> .../snake-world-v2.so
   own sentence, for a pane the plan could not load. Workshop runs without it: see below.
 
 Once the plan has run, Workshop prints the arrangement it made — each artifact `loaded:`, each
-tool `unavailable:` — when standard output is not a terminal held by the terminal window. On a
+tool `unavailable:` — when standard output is not a terminal held by the TUI window. On a
 terminal desk those lines would scroll the picture, so the
 [`Project` pane](../../introspection/docs/zengine.introspection.md#arrangement) shows the live
 arrangement instead.
@@ -213,7 +213,7 @@ again in the Pane Manager as Quick setup and Start here
 ([their manual](zengine.first-run.md)).
 
 **The palette finds anything by name**: <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, or
-in the OS window <!-- key desktop.palette-shift -->`double-shift`<!-- /key -->, opens it at the
+in the GUI window <!-- key desktop.palette-shift -->`double-shift`<!-- /key -->, opens it at the
 room's centre listing every action, every pane and each open pane's manual; type a few letters and
 `Enter` runs the one you mean ([its manual](zengine.palette.md)).
 
@@ -306,16 +306,16 @@ privilege the [snake example](../../examples/snake/README.md) does not.
 
 ## Terminal and window differences
 
-| | terminal window | OS window |
+| | TUI window | GUI window |
 |---|---|---|
 | how much room | the whole terminal; a redirected or captured run, whose terminal cannot be measured, lays the desk out in the room the restored session names, else the 78x22 minimum, and its picture holds that room | the window's own size, and the person may resize it |
 | text in a bounded region | one row per cell row, cut at the region's width | one row per line of the window's face, a character every advance of it, cut at the region's width |
 | colour | each area in its palette: a colour's terminal word, else its nearest ink; a shape filled with its colour's character | each area in its palette: every colour as the palette gives it |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
-![The Pane Manager, Info and Notices in the terminal window, 120 by 30 cells: the Layouts row on the first row, the Pane Manager at the room's centre being placed, its panes listed by name with Attention first and marked, Arranging Mode Active above it, the frames drawn in characters, Notices saying showed Pane Manager and how to place it, the band's keys beneath](images/desk-terminal-window.png)
+![The Pane Manager, Info and Notices in the TUI window, 120 by 30 cells: the Layouts row on the first row, the Pane Manager at the room's centre being placed, its panes listed by name with Attention first and marked, Arranging Mode Active above it, the frames drawn in characters, Notices saying showed Pane Manager and how to place it, the band's keys beneath](images/desk-tui-window.png)
 
-![The Pane Manager, Info and Notices in the OS window, 1444 by 901 pixels: text in the window's face, the Pane Manager at the room's centre being placed, its panes listed by name with Attention first and marked, Arranging Mode Active above it, Info and Notices faded, Notices saying showed Pane Manager and how to place it, each area painted by its skin's painter](images/desk-os-window.png)
+![The Pane Manager, Info and Notices in the GUI window, 1444 by 901 pixels: text in the window's face, the Pane Manager at the room's centre being placed, its panes listed by name with Attention first and marked, Arranging Mode Active above it, Info and Notices faded, Notices saying showed Pane Manager and how to place it, each area painted by its skin's painter](images/desk-gui-window.png)
 
 Neither is a degraded version of the other, and the same published intent produces both.
 

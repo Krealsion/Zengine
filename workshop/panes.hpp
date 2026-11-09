@@ -14,6 +14,7 @@
 
 #include "builder/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -54,9 +55,9 @@ inline constexpr std::int64_t kTopBand = 2;
 /// WHOSE PANES THE BUILT-INS ARE — the provider/service key every catalog row
 /// below carries, and the first half of a durable `PaneRef`.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
-inline constexpr const char* kWorkshopProvider = "zengine.workshop";
+inline constexpr const char* kWorkshopProvider = pane_menu::kWorkshopRole;
 
-/// The Info pane's office, spelled for `default_setup`'s desk and not a catalog row. A literal:
+/// The Info pane's role, spelled for `default_setup`'s desk and not a catalog row. A literal:
 /// this host does not link the weave, and a case checks the two spellings agree.
 // WL-INFO-11 -- agents/workshop/info-body.md
 inline constexpr const char* kInfoPaneProvider = "zengine.info";
@@ -90,7 +91,7 @@ namespace pane_key {
 inline constexpr const char* kLayouts = "layouts";
 } // namespace pane_key
 
-/// The catalog: the one pane this host presents itself. Every other pane is offered by an office.
+/// The catalog: the one pane this host presents itself. Every other pane is offered by a role.
 // WL-FOCUS-02 -- agents/workshop/focus.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr BuiltinPane kBuiltinPanes[] = {
@@ -225,12 +226,12 @@ struct PaneOfferedBody {
     friend bool operator==(const PaneOfferedBody&, const PaneOfferedBody&) = default;
 };
 
-/// One pane an office offered this run: session state, never persisted. `provider` is the office
+/// One pane a role offered this run: session state, never persisted. `provider` is the role
 /// Loom stamped on the offer (`mail.authored_role()`), never a payload field.
 struct RuntimePane {
     std::int64_t kind = kFirstRuntimeKind; ///< the session-local handle; see `is_runtime_kind`
-    std::string provider;                  ///< the Loom-stamped office that offered it
-    std::string pane;                      ///< the pane key, in that office's namespace
+    std::string provider;                  ///< the Loom-stamped role that offered it
+    std::string pane;                      ///< the pane key, in that role's namespace
     std::string name;                      ///< what the Pane Manager lists
     std::string summary;                   ///< one line, beside the name
     /// The actions this pane declared, as admitted; what is in force is `Keymap::panes`.
@@ -245,7 +246,7 @@ struct RuntimePane {
     std::string mode = {};
     std::vector<ModeCauses> elsewhere = {};
     /// WORKSHOP'S NUMBER FOR THE DECLARATION IN `actions` (`ActionsJudged::declaration`), or 0
-    /// when nothing this office declared for the pane is in force. An `ActionsWithdrawn` names it.
+    /// when nothing this role declared for the pane is in force. An `ActionsWithdrawn` names it.
     // WL-DESK-06 -- agents/workshop/desktop.md
     std::int64_t declaration = 0;
     std::int64_t preferred_rows = 0;
@@ -256,8 +257,8 @@ struct RuntimePane {
     std::int64_t preferred_height = 0;
     std::int64_t preferred_text_rows = 0;
     /// WHAT THE PANE ASKS FOR NOW, which `fit` reads while `default` keeps the first offer above:
-    /// the latest offer's body, which the terminal window follows, and the one `fit` stands on in
-    /// the OS window -- the latest, unless that is within one pixel of it on every axis.
+    /// the latest offer's body, which the TUI window follows, and the one `fit` stands on in
+    /// the GUI window -- the latest, unless that is within one pixel of it on every axis.
     // WL-PANE-17 -- agents/workshop/panes-and-windows.md
     PaneOfferedBody latest = {};
     PaneOfferedBody standing = {};
@@ -276,7 +277,7 @@ struct RuntimeCatalog {
     /// distinct `PaneRef`.
     std::int64_t next_kind = kFirstRuntimeKind;
 
-    /// Takes views, so asking about an office not yet judged needs no owned copy of it.
+    /// Takes views, so asking about a role not yet judged needs no owned copy of it.
     const RuntimePane* find(std::string_view provider, std::string_view pane) const {
         for (const RuntimePane& r : entries) {
             if (r.provider == provider && r.pane == pane) {
@@ -302,10 +303,10 @@ struct RuntimeCatalog {
 // WL-PANE-06 -- agents/workshop/panes-and-windows.md
 struct ExternalPane {
     std::int64_t kind = kFirstRuntimeKind;
-    /// Whether its office draws in a graphics window -- its holder takes `graphics::AreaRoom` --
-    /// asked of the live holder before every paint; false while no participant holds the office.
+    /// Whether its role draws in a graphics window -- its holder takes `graphics::AreaRoom` --
+    /// asked of the live holder before every paint; false while no participant holds the role.
     bool in_window = false;
-    /// Whether a participant holds its office now, asked with `in_window`.
+    /// Whether a participant holds its role now, asked with `in_window`.
     bool held = false;
     /// WHERE ITS AREA WAS LAST PLACED in the desk's pixels, and under how many title rows: a press
     /// a window holds there keeps the area where it was while only the title row its keys bring or

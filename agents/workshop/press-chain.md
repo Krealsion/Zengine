@@ -66,7 +66,7 @@ MEANS
 - arrangement leaves on one, consumed whole.
 
 DOES NOT MEAN
-- that a replaced holder is promised its release: the window addresses the area's office, not an incarnation;
+- that a replaced holder is promised its release: the window addresses the area's role, not an incarnation;
 - that the host sees what the pane made of the press: only a pass-back or a menu asked says.
 
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
@@ -81,7 +81,7 @@ MEANS
 - the same element redrawn -- words, colour, hover, a row elsewhere moved -- takes it; a drop is judged likewise.
 
 DOES NOT MEAN
-- that a press waits on a drawing, or that two offices' messages arrive in one order;
+- that a press waits on a drawing, or that two roles' messages arrive in one order;
 - that a pane naming nothing and numbering nothing is guarded: it reads a press against its newest drawing.
 
 WHY — `agents/decisions/a-press-names-the-element-it-landed-on.md`

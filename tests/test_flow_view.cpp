@@ -249,7 +249,7 @@ TEST_CASE("a part carries a run of words only where the run's whole row stands i
     CHECK(carries(group_of["hold:b"]));
 }
 
-TEST_CASE("Flow's slots paint as a palette sets them for Flow's office, else as their defaults, and "
+TEST_CASE("Flow's slots paint as a palette sets them for Flow's role, else as their defaults, and "
           "its other colours as the pool's") {
     const auto at = light_room();
     pane::Drawing d;
@@ -267,7 +267,7 @@ TEST_CASE("Flow's slots paint as a palette sets them for Flow's office, else as 
     d.marks.push_back(wire);
     const auto sketched = pane::sketch_of(d, at);
     REQUIRE(sketched.over.empty());
-    // The colours each node paints in `palette`, as the window resolves them for Flow's office.
+    // The colours each node paints in `palette`, as the window resolves them for Flow's role.
     const auto painted = [&](const gfx::PaletteOffered& palette) {
         std::set<std::int64_t> out;
         for (const gfx::Node& n : sketched.sketch.nodes())
@@ -288,7 +288,7 @@ TEST_CASE("Flow's slots paint as a palette sets them for Flow's office, else as 
     CHECK(plain.count(0x88c0d0ff) == 1);
     CHECK(plain.count(0x8b7e63ff) == 1);
     CHECK(plain.count(0x2e3440ff) == 1);
-    // ...AND ANOTHER OFFICE'S SETTING IS NOT FLOW'S.
+    // ...AND ANOTHER ROLE'S SETTING IS NOT FLOW'S.
     gfx::PaletteOffered other = gfx::themes::night();
     other.slots.push_back(gfx::PaletteSlots{"test.other", {{"wire", 0x0c0d0eff, "", ""}}, {}});
     CHECK(painted(other).count(0x0c0d0eff) == 0);

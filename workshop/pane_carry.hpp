@@ -36,7 +36,7 @@ struct PaneValueCarryRequested {
     ZEN_SHAPE(PaneValueCarryRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(label), ZEN_FIELD(data), ZEN_FIELD(drag));
 };
 // Version 2 keeps the pure copy payload and adds a source-owned transfer token. Workshop
-// stamps the actual source office/pane; receiving code must never infer that from item metadata.
+// stamps the actual source role/pane; receiving code must never infer that from item metadata.
 namespace v2 {
 struct PaneValueCarryRequested {
     std::string pane;
@@ -59,19 +59,19 @@ struct PaneValueCarryRequested {
 // (`graphics::AreaButtonChanged`'s `under`, `part` and `drawing`), which a pane judges a drop by
 // as it judges a press; `under` is "" where the window said nothing of that area.
 
-/// A value copy placed on a pane: where it landed in the pane's area, with the source office and
+/// A value copy placed on a pane: where it landed in the pane's area, with the source role and
 /// pane Workshop stamps and the source's transfer token.
 struct PaneCanvasValueDrop {
     std::string pane;
     std::string area;
     std::int64_t x = 0, y = 0;
     loom::Bytes data;
-    std::string source_office, source_pane, token;
+    std::string source_role, source_pane, token;
     std::string under{};
     std::string part{};
     std::int64_t drawing = 0;
-    ZEN_SHAPE(PaneCanvasValueDrop, 4, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x),
-              ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_office), ZEN_FIELD(source_pane),
+    ZEN_SHAPE(PaneCanvasValueDrop, 5, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_role), ZEN_FIELD(source_pane),
               ZEN_FIELD(token), ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing));
 };
 

@@ -21,6 +21,7 @@
 #include "maker/files.hpp"
 #include "view/description.hpp"
 #include "workshop/load_persist.hpp"
+#include "timer/vocabulary.hpp"
 
 #include <zen/serialize.hpp>
 
@@ -47,7 +48,7 @@ inline constexpr const char* kExportSkin = "day";
 inline constexpr std::size_t kMaxAppName = 64;
 
 /// THE PLAN AN EXPORTED APP LOADS: the operators its flow folds with, the app's own weave, the
-/// graphics directory, the OS window and the timer, in that order.
+/// graphics directory, the GUI window and the timer, in that order.
 inline workshop::load::LoadPlan export_plan() {
     namespace load = workshop::load;
     const auto provider = load::ProviderIntent{op::MountMode::Ordinary};
@@ -55,9 +56,9 @@ inline workshop::load::LoadPlan export_plan() {
     load::LoadPlan plan;
     plan.artifacts = {{"zengine-operators-basic", provider, std::nullopt},
                       {"zengine-app-weave", std::nullopt, weave(kAppRole)},
-                      {"zengine-graphics", std::nullopt, weave("zengine.graphics")},
+                      {"zengine-graphics", std::nullopt, weave(zengine::graphics::kGraphicsRole)},
                       {"zengine-window-sdl", std::nullopt, weave("zengine.window.sdl")},
-                      {"zengine-timer", provider, weave("zengine.timer")}};
+                      {"zengine-timer", provider, weave(zengine::timer::kTimerRole)}};
     return plan;
 }
 

@@ -3,7 +3,7 @@
 #ifndef ZENGINE_TESTS_BUILDER_RIG_HPP
 #define ZENGINE_TESTS_BUILDER_RIG_HPP
 // A LIVE WORKSHOP WITH THE REAL BUILDER PANE LOADED INTO IT: a stand-in for the Builder tool in its
-// office, the project door, and the real `zengine-builder-pane` image
+// role, the project door, and the real `zengine-builder-pane` image
 // over the real pane protocol, with the shipped presenter, desktop or Editor beside it when a case
 // asks. The Builder suite's cases and every case about a guest teaching on the Builder start here.
 #include "workshop_support.hpp"
@@ -26,13 +26,13 @@ namespace builder_rig {
 namespace pane = zengine::builder_pane;
 namespace bld = zengine::builder;
 
-/// The office and pane a saved setup names, spelled through the package's own header --
+/// The role and pane a saved setup names, spelled through the package's own header --
 /// the durable names, not literals, so a case cannot agree with a typo.
 inline PaneRef builder_ref() {
     return PaneRef{pane::kBuilderPaneRole, pane::kBuilderPane};
 }
 
-/// A STAND-IN FOR THE BUILDER TOOL, holding its office and answering as the real one does. These
+/// A STAND-IN FOR THE BUILDER TOOL, holding its role and answering as the real one does. These
 /// cases measure what the PANE asks for and makes of an answer, so the answering side is one a
 /// case can set and count; the real tool is `test_builder.cpp`'s, against a real compiler.
 struct ToolState {
@@ -139,12 +139,12 @@ struct BuilderRig {
         // THE TOOL IS SEATED BEFORE ANYTHING ELSE, so a case can set the catalog it will
         // answer with before the pane exists to ask for it -- which is the order a real run
         // has: the tool is mounted in the host's `main` and the pane arrives by a plan row.
-        mount_tool_office();
+        mount_tool_role();
     }
 
     /// `with_editor` loads the real Editor image, so the second door `e` walks has an answerer;
     /// `with_manager` mounts the opening manager (WL-OPEN-01) and `with_project_door` the
-    /// read-only project office, each left out a door that reaches nobody -- the
+    /// read-only project role, each left out a door that reaches nobody -- the
     /// refusal-at-dispatch cases' subject. `with_presenter` puts the shipped presenter in the plan,
     /// as a plan row, and `with_desktop` the shipped desktop, whose Manual a pane's `?` shows.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
@@ -236,12 +236,12 @@ struct BuilderRig {
     DoorAsker* stranger = nullptr;
     loom::WeaveId stranger_id{};
     void mount_stranger() {
-        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerRole));
         stranger = held.get();
         loom::Grant grant;
         grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
         stranger_id = r.bus.register_weave(std::move(held), std::move(grant),
-                                           std::string(kDoorAskerOffice));
+                                           std::string(kDoorAskerRole));
         stranger->zen_set_self(stranger_id);
         stranger->id = stranger_id;
     }
@@ -255,7 +255,7 @@ struct BuilderRig {
             forged.shape = shape;
             forged.version = 1;
             forged.reason = "NoSuchTarget";
-            (void)mail.as_role(kDoorAskerOffice).send(to, forged);
+            (void)mail.as_role(kDoorAskerRole).send(to, forged);
         };
         (void)r.bus.send(stranger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
@@ -344,7 +344,7 @@ struct BuilderRig {
 
     loom::WeaveId tool_id{};
 
-    void mount_tool_office() {
+    void mount_tool_role() {
         auto held = std::make_unique<Tool>();
         Tool* raw = held.get();
         loom::Grant say;
@@ -356,7 +356,7 @@ struct BuilderRig {
         tool = raw;
     }
 
-    /// The project office `mount_doors` seated, when it seated one.
+    /// The project role `mount_doors` seated, when it seated one.
     loom::WeaveId project_id{};
 
     void mount_doors(bool with_project_door = true) {

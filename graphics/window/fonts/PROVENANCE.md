@@ -1,4 +1,4 @@
-# `graphics/window/fonts/` — the faces the OS window sets its text in
+# `graphics/window/fonts/` — the faces the GUI window sets its text in
 
 Four files, two licences' texts, one reason: every character drawn.
 
@@ -32,7 +32,7 @@ checkout.
 
 ## Why these faces
 
-The OS window shows every pixel, so it sets text in faces it measures: a column's advance and a
+The GUI window shows every pixel, so it sets text in faces it measures: a column's advance and a
 line's height in pixels at each size, which it offers with its room so every owner places its
 text by them. JetBrains Mono was drawn for reading code at small sizes, and its advance is uniform
 at every point size measured, so a row holds exactly as many columns as its width over the

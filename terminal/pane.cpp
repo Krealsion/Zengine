@@ -75,7 +75,7 @@ using ws::TerminalCompletionRequested;
 using ws::TranscriptShown;
 using zengine::workshop::pane_text::admissible;
 
-constexpr const char* kWorkshopRole = "zengine.workshop";
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// THE PROMPT, in columns: its mark and a space before the editable text -- a fact about a ROW this
 /// pane composes rather than about any screen. Every mark the `prompt` setting takes is one column.
@@ -594,7 +594,7 @@ private:
         paste_.epoch = line_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(room().clipboard_office(), gfx::ClipboardTextRequested{},
+            .send_to_role(room().clipboard_role(), gfx::ClipboardTextRequested{},
                           paste_.pending);
     }
 

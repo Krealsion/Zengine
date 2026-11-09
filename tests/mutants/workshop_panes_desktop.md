@@ -77,8 +77,8 @@ The Hotkeys pane asks the graphics directory for a paste, not the window showing
 In `workshop/desktop-pane/hotkeys_view.hpp`:
 
 ```diff
--        paste_.office = keys_canvas_.clipboard_office();
-+        paste_.office = "zengine.graphics";
+-        paste_.role = keys_canvas_.clipboard_role();
++        paste_.role = "zengine.graphics";
 ```
 
 Red in `zengine-workshop-panes-tests`:

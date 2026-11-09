@@ -21,7 +21,7 @@
 
 namespace zengine::workshop {
 
-/// The office that manages openings -- a role, so its holder can move.
+/// The role that manages openings -- a role, so its holder can move.
 inline constexpr const char* kOpeningRole = "zengine.opening";
 
 // ---- The two jointly published claims ----------------------------------------------------
@@ -156,14 +156,14 @@ struct ManagedOpenSettled {
               ZEN_FIELD(refusal), ZEN_FIELD(path));
 };
 
-/// What the manager is waiting on -- the stage and the office addressed -- so a weaver can read it;
+/// What the manager is waiting on -- the stage and the role addressed -- so a weaver can read it;
 /// a standing condition until it settles. At `apply` it is said to both owners: that delivery
 /// is what shows each its published claim.
 struct ManagedOpenProgress {
     std::int64_t op = 0;
     std::string path;
     std::string stage;    ///< trial | prepare | admit | apply
-    std::string awaiting; ///< the office addressed -- at `apply`, both owners -- or empty
+    std::string awaiting; ///< the role addressed -- at `apply`, both owners -- or empty
     bool pending = true;  ///< false retracts the condition
     ZEN_SHAPE(ManagedOpenProgress, 1, ZEN_FIELD(op), ZEN_FIELD(path), ZEN_FIELD(stage),
               ZEN_FIELD(awaiting), ZEN_FIELD(pending));

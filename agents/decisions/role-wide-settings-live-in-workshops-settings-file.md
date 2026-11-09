@@ -1,4 +1,4 @@
-# Office-wide settings live in Workshop's settings file
+# Role-wide settings live in Workshop's settings file
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [settings](../workshop/settings.md).
@@ -8,10 +8,10 @@ list an editor edits, the palette Workshop's own area wears. They need one value
 write them like a pane's row, and a file that keeps them across runs without becoming a second,
 silent writer.
 
-**Decision.** An office declares its office-wide settings by message, judged by a pane
+**Decision.** A role declares its role-wide settings by message, judged by a pane
 declaration's rules; Workshop declares its own in code. Both are read and written by the settings
 doors' askers at a revision, and kept in Workshop's preferences file, which grows to version 3:
-office settings, pin lists and locks as typed key-values, a default kept as its absence.
+role settings, pin lists and locks as typed key-values, a default kept as its absence.
 Versions 1 and 2 are read as Workshop's own three settings. The file is read once and written by
 the edit doors only while its bytes are the ones this host read or wrote; a file it could not read
 refuses every edit and is never written.
@@ -19,7 +19,7 @@ refuses every edit and is never written.
 **Alternatives considered.**
 - *Argued: a field per preference, as version 2 had* — refused: every new Workshop setting would be
   a format version.
-- *Argued: office settings in the session* — refused: they follow the weaver, not the desk, and the
+- *Argued: role settings in the session* — refused: they follow the weaver, not the desk, and the
   session's decode budget is spent.
 - *Argued: writing on every edit whatever the file holds* — refused: two Workshops, or a hand
   editing the file, would lose each other's settings without a word.

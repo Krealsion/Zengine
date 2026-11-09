@@ -38,8 +38,8 @@ loom::WeaveId load_real_desktop(PaneRig& r) {
     return id;
 }
 
-std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
-    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
+std::int64_t kind_of(PaneRig& r, const char* role, const char* pane) {
+    const RuntimePane* row = r.session().panes.runtime.find(role, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -542,7 +542,7 @@ void swap_in_inventory(Desk& d, const char* one, const char* other) {
     std::size_t a = inventory.panes.size();
     std::size_t b = inventory.panes.size();
     for (std::size_t i = 0; i < inventory.panes.size(); ++i) {
-        if (inventory.panes[i].office == "zengine.test.tools") {
+        if (inventory.panes[i].role == "zengine.test.tools") {
             if (inventory.panes[i].pane == one) a = i;
             if (inventory.panes[i].pane == other) b = i;
         }
@@ -550,7 +550,7 @@ void swap_in_inventory(Desk& d, const char* one, const char* other) {
     REQUIRE(a < inventory.panes.size());
     REQUIRE(b < inventory.panes.size());
     std::swap(inventory.panes[a].name, inventory.panes[b].name);
-    REQUIRE(d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider, kDesktopRole,
+    REQUIRE(d.r.bus.role_send_to_role_as(d.r.workshop_id, kWorkshopProvider, kDesktopRole,
         loom::Message(loom::to_value(inventory), d.r.workshop_id, d.r.workshop_id, 0)).valid());
 }
 
@@ -938,7 +938,7 @@ struct Keys {
 /// reach a pane; the Pane Manager's list; the Hotkeys pane's table, a key being captured and a
 /// spelling being typed, each entered by a binding's menu and left by Escape; and the Manual's.
 const CensusDriverOf kDesktopCensus{kDesktopRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     Keys k("desktop-census");
     REQUIRE_FALSE(k.r.session().keymap.app.empty());
     for (const AppRow& a : k.r.session().keymap.app) {
@@ -1070,7 +1070,7 @@ TEST_CASE("the manual the desk answers for each of its panes names exactly the c
         CAPTURE(pane_key);
         check_answered_manual(reader, pane_key, declared);
     }
-    // ...AND A PANE IT DOES NOT OFFER IS REFUSED, naming the office.
+    // ...AND A PANE IT DOES NOT OFFER IS REFUSED, naming the role.
     const PaneDocumentShown other = reader.ask("elsewhere", "");
     CHECK(other.refusal == "zengine.desktop offers no pane `elsewhere`");
     CHECK(other.sections.empty());
@@ -1443,7 +1443,7 @@ TEST_CASE("WL-DESK-14: a press the window landed on a Hotkeys row where another 
         gfx::AreaButtonChanged landed = *said;
         landed.pressed = down;
         landed.part = other;
-        REQUIRE(k.r.bus.office_send_to_role_as(k.r.windows.id(), k.r.windows.office(),
+        REQUIRE(k.r.bus.role_send_to_role_as(k.r.windows.id(), k.r.windows.role(),
                     kDesktopRole, loom::Message(loom::to_value(landed), k.r.windows.id(),
                                                 k.r.windows.id(), 9201)).valid());
         k.r.bus.drain_until_idle();
@@ -1477,7 +1477,7 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name as written,
     // character as written; a spelling is the keymap file's grammar, plain ASCII, so text outside
     // it is never typed.
     Keys k("hotkeys-undrawable");
-    k.r.on_os_window(); // the medium a paste asks
+    k.r.on_gui_window(); // the medium a paste asks
     ProviderSeat* tools = k.r.mount_provider("zengine.test.tools");
     k.r.drive(tools, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"cafe", "Caf\xC3\xA9", "a fixture"});
@@ -1553,11 +1553,11 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name as written,
 
 TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spelling") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_desktop.md#hotkeys-paste-asked-elsewhere): the
-    // Hotkeys pane's paste asked of another office than the window showing it.
+    // Hotkeys pane's paste asked of another role than the window showing it.
     // THE WINDOW SHOWING THE DESK SHOWS THE PANE, so the pane has a room to compose its spelling
-    // in, and the paste is that window's: the OS window's platform clipboard.
+    // in, and the paste is that window's: the GUI window's platform clipboard.
     Keys k("hotkeys-paste-window");
-    k.r.on_os_window();
+    k.r.on_gui_window();
     k.r.windows.set_clipboard("ctrl+q");
     const std::int64_t quit = k.row_of("workshop.quit");
     REQUIRE(quit >= 0);
@@ -1688,10 +1688,10 @@ void queue_digit(PaneRig& r, std::int64_t scancode, const char* text) {
 }
 
 /// SAY SOMETHING TO THE DESKTOP AS `role`, from the weave that holds it -- a host-root forgery of
-/// office speech, so a case can put an AUTHENTICATED but wrong answer in front of the requester.
+/// role speech, so a case can put an AUTHENTICATED but wrong answer in front of the requester.
 void say_as(PaneRig& r, loom::WeaveId as, const char* role, const ws::PaneMenuAnswered& a,
             std::uint64_t number) {
-    REQUIRE(r.bus.office_send_to_role_as(as, role, kDesktopRole,
+    REQUIRE(r.bus.role_send_to_role_as(as, role, kDesktopRole,
                                          loom::Message(loom::to_value(a), as, as, number))
                 .valid());
     r.bus.drain_until_idle();
@@ -1737,7 +1737,7 @@ TEST_CASE("WL-CTX-10: the desktop acts only on the presenter's answer to an ask 
     const std::string alpha = d.r.session().presented.subject;
     REQUIRE(alpha == std::string("zengine.test.tools\x1f") + "alpha");
     const ws::PaneMenuAnswered open_alpha{dp::kLauncherPane, alpha, true, dp::kMenuOpen, ""};
-    // PROVENANCE: the host's office cannot choose, however well the answer is shaped.
+    // PROVENANCE: the host's role cannot choose, however well the answer is shaped.
     say_as(d.r, d.r.workshop_id, kWorkshopProvider, open_alpha, asked);
     CHECK_FALSE(d.open("alpha"));
     // THE SUBJECT: an answer about a subject this ask was not about acts on nothing.
@@ -1749,7 +1749,7 @@ TEST_CASE("WL-CTX-10: the desktop acts only on the presenter's answer to an ask 
     // THE LIFETIME: a number this image never asked under settles nothing.
     say_as(d.r, d.presenter, kPresenterRole, open_alpha, asked + 1000);
     CHECK_FALSE(d.open("alpha"));
-    // THE GENUINE ANSWER, from the presenter's office, under this image's own number: it acts.
+    // THE GENUINE ANSWER, from the presenter's role, under this image's own number: it acts.
     say_as(d.r, d.presenter, kPresenterRole, open_alpha, asked);
     CHECK(d.open("alpha"));
     // ONCE: the same answer again finds the ask settled -- close Alpha, and a duplicate does not
@@ -1759,7 +1759,7 @@ TEST_CASE("WL-CTX-10: the desktop acts only on the presenter's answer to an ask 
     say_as(d.r, d.presenter, kPresenterRole, open_alpha, asked);
     CHECK_FALSE(d.open("alpha"));
     // A PREDECESSOR'S ASK: a fresh ask, the desktop reloaded, and that ask's number answered by the
-    // presenter's office -- the successor never asked it, so the choice is cancelled.
+    // presenter's role -- the successor never asked it, so the choice is cancelled.
     d.r.key(input::scan::kEscape); // the real presenter's menu, still open from above, answered
     d.right(d.row_of("Beta"), kNameCol);
     REQUIRE(menu_shown(d.r.session()));
@@ -1774,7 +1774,7 @@ TEST_CASE("WL-CTX-10: the desktop acts only on the presenter's answer to an ask 
     CHECK_FALSE(d.open("beta"));
 }
 
-TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the Pane Manager and Hotkeys keep their own operations while it presents their menus its way: numbered, a digit chooses, a release chooses") {
+TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the role -- the Pane Manager and Hotkeys keep their own operations while it presents their menus its way: numbered, a digit chooses, a release chooses") {
     bool by_mouse = false;
     bool slide_off = false;
     SUBCASE("Hotkeys, from another focused pane: a digit and the text it made, batched") {}
@@ -1999,7 +1999,7 @@ TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a m
     CHECK(bound->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
 }
 
-TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the host; with none in the office a menu is refused in words and the host's own menu still opens; one loaded afresh does not carry the old menu, which ends answered") {
+TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the host; with none in the role a menu is refused in words and the host's own menu still opens; one loaded afresh does not carry the old menu, which ends answered") {
     Keys k("presenter-lost");
     const auto row = k.row_of("desktop.terminal");
     REQUIRE(row >= 0);
@@ -2012,7 +2012,7 @@ TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the hos
     CHECK_FALSE(k.r.session().presented.open);
     CHECK(k.text().find("press the key for") == std::string::npos); // nothing was chosen
     CHECK(k.r.session().notice.find("the menu closed -- the presenter") != std::string::npos);
-    // NOBODY IN THE OFFICE: the next menu is refused where it would open, nothing opens, and the
+    // NOBODY IN THE ROLE: the next menu is refused where it would open, nothing opens, and the
     // band says why -- a right-click that opened nothing unexplained would read as a dead mouse.
     k.right(row_containing(k.rows(), "desktop.terminal"));
     CHECK_FALSE(k.r.session().presented.open);
@@ -2020,7 +2020,7 @@ TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the hos
     CHECK(k.r.session().notice.find("menu did not open -- no presenter holds `zengine.presenter`") !=
           std::string::npos);
     // ...AND THE HOST'S OWN MANAGEMENT ROUTE NEEDS NONE: the pane's title row still opens
-    // Workshop's menu on that pane with nobody in the presenter's office (WL-CTX-09).
+    // Workshop's menu on that pane with nobody in the presenter's role (WL-CTX-09).
     const CellRect chrome = body_of(k.r, k.hotkeys);
     button_cell(k.r, 3, true, chrome.x + 1, chrome.y);
     button_cell(k.r, 3, false, chrome.x + 1, chrome.y);

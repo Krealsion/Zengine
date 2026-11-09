@@ -33,7 +33,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.timer.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.timer.hpp" // this role's manual, compiled in from its page
 #include "operator/catalog.hpp"
 
 #include <zen/weave.hpp>
@@ -700,7 +700,7 @@ private:
         return std::max<std::int64_t>(wait, 0);
     }
 
-    /// Say, as the office, how long the bus may rest before this chain needs its next turn: the
+    /// Say, as the role, how long the bus may rest before this chain needs its next turn: the
     /// beat just seeded, and the clock reading when something next falls due. A claim, so nothing
     /// is queued and nothing waits here (`timer/rest.hpp` is the reader).
     void claim_rest(std::int64_t now, loom::Mail& mail) {

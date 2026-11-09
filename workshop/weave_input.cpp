@@ -11,7 +11,7 @@ namespace zengine::workshop {
 
 // The presentation preferences, each one session value the repaint spends: pane titles
 // (`refresh_external_rooms` re-grants the rooms whose capacity moved) and how the band and the
-// Hotkeys view spell a key. A toggle states one, and asks the office that keeps it to write it:
+// Hotkeys view spell a key. A toggle states one, and asks the role that keeps it to write it:
 // the answer says whether the file holds it.
 // WL-KEY-16 -- agents/workshop/key-spelling.md
 void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
@@ -45,10 +45,10 @@ void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
                      "writes them"
                    : "the Hotkeys view and a pane's manual spell keys short";
     }
-    // THE TOGGLE IS WORKSHOP'S OWN SETTING STATED: written by the office that keeps it, so the
-    // file holds one truth; it stands for the run whatever that office answers.
-    OfficeSettingCommitRequested commit;
-    commit.office = kWorkshopProvider;
+    // THE TOGGLE IS WORKSHOP'S OWN SETTING STATED: written by the role that keeps it, so the
+    // file holds one truth; it stands for the run whatever that role answers.
+    RoleSettingCommitRequested commit;
+    commit.role = kWorkshopProvider;
     if (a == Act::kPaneTitles) {
         commit.key = prefs_persist::kPaneTitlesKey;
         commit.flag = session_.pane_titles;

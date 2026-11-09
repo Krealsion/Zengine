@@ -30,14 +30,14 @@ WHY — `agents/decisions/a-pane-made-from-data-is-a-view.md`
 
 ## Do not assume
 
-- That a pane made from data is Workshop's: it is a view the view host runs in the office its
+- That a pane made from data is Workshop's: it is a view the view host runs in the role its
   description names, and Workshop seats it as it seats any provider's pane (WL-MAKER-11).
 
 ## Proven by
 
 ### WL-MAKER-11
 `workshop/desktop-pane/vocabulary.hpp` kActionNew
-`workshop/desktop-pane/desktop_common.hpp` kViewBuilderOffice kViewBuilderPane launch
+`workshop/desktop-pane/desktop_common.hpp` kViewBuilderRole kViewBuilderPane launch
 `workshop/desktop-pane/launcher_view.hpp` pane_rows launcher_action
 `tests/test_workshop_panes_actions.cpp` "WL-MAKER-11: the shipped Pane Manager's `n` shows the View
 Builder through the host's launch door, and a Workshop without one says so in the door's words"

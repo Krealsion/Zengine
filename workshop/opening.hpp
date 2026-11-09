@@ -14,7 +14,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.opening.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.opening.hpp" // this role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
@@ -32,14 +32,14 @@ struct OpeningState {
     std::int64_t op = 0;         ///< the live operation, or 0
     std::string path;            ///< what the live operation opens
     std::string stage;           ///< idle | trial | prepare | admit | apply
-    std::string awaiting;        ///< the office the outstanding attempt is addressed to
+    std::string awaiting;        ///< the role the outstanding attempt is addressed to
     std::int64_t attempt = 0;    ///< the queued attempt (Loom's sequence) awaited, or 0
     std::int64_t requester = 0;  ///< who asked for the live operation (a WeaveId, diagnostic)
     std::string last_path;       ///< what the latest answered request asked to open
     std::int64_t last_requester = 0; ///< who asked it (a WeaveId, diagnostic only)
     /// committed | committed, application failed | committed, not applied | committed,
     /// owner removed | committed, answer lost | committed, applied after repair |
-    /// committed, not applied after repair -- <office> kept its own state | refused |
+    /// committed, not applied after repair -- <role> kept its own state | refused |
     /// superseded | ''
     std::string last_outcome;
     std::string last_refusal;    ///< the weaver's sentence for it, when it was not opened
@@ -69,11 +69,11 @@ class OpeningManager
                      v3::PresentationAdmitRequested, ManagedOpenSettled, ManagedOpenProgress,
                      SourceOpened>> {
 public:
-    /// HOST WIRING, AND ALL OF IT: the two offices it coordinates and the pane the
+    /// HOST WIRING, AND ALL OF IT: the two roles it coordinates and the pane the
     /// presentation owner presents the document through; the authority the host mints for
     /// this weave's own id arrives through `set_authority` once the id exists. Nothing else
     /// reaches this class from the host.
-    OpeningManager(std::string editor_office, std::string presentation_office, PaneRef pane);
+    OpeningManager(std::string editor_role, std::string presentation_role, PaneRef pane);
     void set_authority(loom::JointAuthority authority) { authority_ = std::move(authority); }
 
     void on(const OpenSourceRequested& asked, loom::Mail& mail);
@@ -99,10 +99,10 @@ private:
         std::string awaiting;
     };
 
-    /// Address one office as this manager's own office, remember the attempt, and say
+    /// Address one role as this manager's own role, remember the attempt, and say
     /// where the operation now stands. Answers whether anything was queued at all.
     template <class Shape>
-    bool ask(loom::Mail& mail, const std::string& office, const Shape& shape,
+    bool ask(loom::Mail& mail, const std::string& role, const Shape& shape,
              const char* stage);
     /// End the flight: tell both owners, retract the standing condition, answer the
     /// requester if the right still stands, record what came of it, and release the
@@ -127,8 +127,8 @@ private:
     std::string refusal_of(const std::string& said, loom::Mail& mail) const;
 
     loom::JointAuthority authority_;
-    std::string editor_office_;
-    std::string presentation_office_;
+    std::string editor_role_;
+    std::string presentation_role_;
     PaneRef pane_;
     Flight flight_;
     /// The retained record's operation, path and requester (`OpeningState::retained` mirrors

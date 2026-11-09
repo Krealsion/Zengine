@@ -200,10 +200,10 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
             if (!entry && name.rfind("entry:", 0) == 0) entry = part;
         }
         REQUIRE(entry.has_value());
-        const loom::WeaveId office = s.r.bus.role_holder(slots::kRole);
+        const loom::WeaveId role = s.r.bus.role_holder(slots::kRole);
         std::size_t reads = 0;
         const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
-            if (e.kind == loom::EventKind::Delivered && e.sender == office &&
+            if (e.kind == loom::EventKind::Delivered && e.sender == role &&
                 (e.schema_name == PaneOperationRequested::zen_name ||
                  e.schema_name == inv::InventoryRead::zen_name ||
                  e.schema_name == v2::PaneValueCarryRequested::zen_name)) {
@@ -235,10 +235,10 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
             if (!entry && name.rfind("entry:", 0) == 0) entry = part;
         }
         REQUIRE(entry.has_value());
-        const loom::WeaveId office = s.r.bus.role_holder(slots::kRole);
+        const loom::WeaveId role = s.r.bus.role_holder(slots::kRole);
         std::vector<std::int64_t> gestures;
         const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
-            if (e.kind != loom::EventKind::Delivered || e.sender != office ||
+            if (e.kind != loom::EventKind::Delivered || e.sender != role ||
                 e.schema_name != PaneOperationRequested::zen_name || e.payload == nullptr) {
                 return;
             }

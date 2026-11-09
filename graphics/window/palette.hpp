@@ -75,8 +75,8 @@ inline PaintInk own_ink(std::int64_t rgba, std::string_view like, const PaletteO
     return ink;
 }
 
-/// A COLOUR A DRAW NAMES, AS PAINTED in `palette` in an area `office` owns.
-inline PaintInk resolve(const Color& c, const PaletteOffered& palette, const std::string& office) {
+/// A COLOUR A DRAW NAMES, AS PAINTED in `palette` in an area `role` owns.
+inline PaintInk resolve(const Color& c, const PaletteOffered& palette, const std::string& role) {
     switch (c.from) {
     case color_from::kExact:
         return own_ink(c.rgba, c.like, palette);
@@ -90,7 +90,7 @@ inline PaintInk resolve(const Color& c, const PaletteOffered& palette, const std
         return own_ink(0xffffffff, {}, palette);
     case color_from::kSlot:
         for (const PaletteSlots& s : palette.slots) {
-            if (s.office == office) {
+            if (s.role == role) {
                 if (const PaletteColor* p = find_color(s.colors, c.name)) {
                     return ink_of(*p, palette);
                 }
@@ -102,13 +102,13 @@ inline PaintInk resolve(const Color& c, const PaletteOffered& palette, const std
     }
 }
 
-/// The colours a node's operands name, as painted in `palette` in an area `office` owns, in the
+/// The colours a node's operands name, as painted in `palette` in an area `role` owns, in the
 /// order a painter takes them (`colors_of`).
 inline std::vector<PaintInk> inks_of(const std::string& op, const loom::Bytes& args,
-                                     const PaletteOffered& palette, const std::string& office) {
+                                     const PaletteOffered& palette, const std::string& role) {
     std::vector<PaintInk> out;
     for (const Color& c : colors_of(op, args)) {
-        out.push_back(resolve(c, palette, office));
+        out.push_back(resolve(c, palette, role));
     }
     return out;
 }
@@ -137,15 +137,15 @@ inline std::int64_t body_points(const PaletteOffered& palette) {
     return s != nullptr && s->points > 0 ? s->points : 13;
 }
 
-/// A TEXT SIZE A DRAW NAMES, AS SET in `palette` in an area `office` owns: a pool size as the
+/// A TEXT SIZE A DRAW NAMES, AS SET in `palette` in an area `role` owns: a pool size as the
 /// palette says, else as the pool's own default, else as `body`; a slot as the palette says for the
 /// area's owner, else at the points the drawing carries, else as `body`. Its name is the pool's, or
 /// the slot's.
 inline PaletteSize resolve_size(const TextSize& size, const PaletteOffered& palette,
-                                const std::string& office) {
+                                const std::string& role) {
     if (size.from == size_from::kSlot) {
         for (const PaletteSlots& s : palette.slots) {
-            if (s.office != office) {
+            if (s.role != role) {
                 continue;
             }
             for (const PaletteSize& z : s.sizes) {
@@ -185,11 +185,11 @@ inline std::string resolve_face(const std::string& font, const PaletteOffered& p
     return {};
 }
 
-/// A task's own colours and outline, as `palette` gives them for an area `office` owns: its text,
+/// A task's own colours and outline, as `palette` gives them for an area `role` owns: its text,
 /// its quiet, and a terminal's corner, across and down.
-inline void dress(PaintTask& task, const PaletteOffered& palette, const std::string& office) {
-    task.plain = resolve(colors::text, palette, office);
-    task.quiet = resolve(colors::quiet, palette, office);
+inline void dress(PaintTask& task, const PaletteOffered& palette, const std::string& role) {
+    task.plain = resolve(colors::text, palette, role);
+    task.quiet = resolve(colors::quiet, palette, role);
     task.outline = palette.outline;
 }
 

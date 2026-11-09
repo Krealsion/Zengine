@@ -62,7 +62,7 @@ inline InventoryViews edited(InventoryViews s, const InventoryViewEdit& op) {
         else throw std::invalid_argument("That inventory view is unavailable");
     } else if (op.operation == "bind") {
         if (op.text.empty() || op.text.size() > 128 || op.scancode <= 0)
-            throw std::invalid_argument("A binding needs an explicit target office and key");
+            throw std::invalid_argument("A binding needs an explicit target role and key");
         auto it = std::find_if(s.bindings.begin(), s.bindings.end(), [&](const auto& b) { return same(b.reference, op.entry); });
         if (it == s.bindings.end()) {
             if (s.bindings.size() >= kMaxConfiguredHotkeys)

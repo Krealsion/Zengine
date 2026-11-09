@@ -202,7 +202,7 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
 
 void WorkshopWeave::on(const PresentationTrialRequested& asked, loom::Mail& mail) {
     if (!mail.authored_from_role(kOpeningRole)) {
-        return; // a trial is a desk question, and only the manager's office asks it
+        return; // a trial is a desk question, and only the manager's role asks it
     }
     const RuntimePane* row = session_.panes.runtime.find(asked.provider, asked.pane);
     if (row == nullptr) {

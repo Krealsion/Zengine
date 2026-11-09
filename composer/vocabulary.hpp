@@ -13,14 +13,14 @@
 
 namespace zengine::composer {
 
-/// THE OFFICE THIS TOOL HOLDS -- the durable half of its `PaneRef`, and the only
+/// THE ROLE THIS TOOL HOLDS -- the durable half of its `PaneRef`, and the only
 /// address by which anything reaches it.
 ///
 /// A ROLE, so the window's room and pointer, and Workshop's `PaneKey` and `PaneTextInput`,
 /// find whoever holds it rather than the incarnation that happened to offer first.
 inline constexpr const char* kComposerRole = "zengine.composer";
 
-/// THE PANE KEY, in this office's namespace and nobody else's.
+/// THE PANE KEY, in this role's namespace and nobody else's.
 ///
 /// It names the ACT rather than the tool, for `loaded`'s reason: a second Composer
 /// pane (a reply inspector, a history of what this pane submitted) is plausible,
@@ -28,7 +28,7 @@ inline constexpr const char* kComposerRole = "zengine.composer";
 inline constexpr const char* kComposePane = "compose";
 
 /// The two lines a weaver reads about the pane: its name in the Pane Manager's list and its
-/// summary in Info, also what Workshop's pane header says after the office (`Compose
+/// summary in Info, also what Workshop's pane header says after the role (`Compose
 /// @zengine.composer`). Short, for a thirty-two-byte admission bound and a narrow column;
 /// `Compose` rather than `Messages`: this is where a message is written, not where one is shown.
 inline constexpr const char* kComposePaneName = "Compose";

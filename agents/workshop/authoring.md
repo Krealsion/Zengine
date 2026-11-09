@@ -92,8 +92,8 @@ catalog, which is installed, and the shipped file keeps its bytes"
 keeps working" "`o` asks for a role in the pane's own room, and authors it" "Escape abandons the
 line, and nothing is written" "an artifact the plan already names is refused before the line" "a
 refused row is said in the owner's own words" "a row whose product is built finishes with the
-button's act" "`o` and the frontier action asked of a project office nobody holds are each refused
-at dispatch, in words" "a role line's row refused at dispatch by the project office is said,
+button's act" "`o` and the frontier action asked of a project role nobody holds are each refused
+at dispatch, in words" "a role line's row refused at dispatch by the project role is said,
 and nothing is written or built"
 `tests/test_workshop_load.cpp` "the project plan `load it` writes carries the window row as it was
 read, `otherwise` and all, never the window that opened" "the minimum row is written as authored, the plan round-trips byte

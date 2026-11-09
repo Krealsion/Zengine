@@ -27,6 +27,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "manuals/zengine.view.builder.hpp" // this pane's manual, compiled in from its page
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/kernel/schema_codec.hpp>
@@ -53,7 +54,7 @@ namespace view = zengine::view;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
 namespace gfx = zengine::graphics;
-constexpr const char* workshop_role = "zengine.workshop";
+constexpr const char* workshop_role = ws::pane_menu::kWorkshopRole;
 
 /// The shape a carried value names, and the field when the carry was one field: a description's
 /// shape, decoded with the shapes it carries; a field's root shape and its top-level name; or a
@@ -102,7 +103,7 @@ auto of_kind(ViewBuilderAsk::Kind kind) {
     return [kind](const ViewBuilderAsk& a) { return a.kind == kind; };
 }
 
-/// The view host's words when this office's session already runs a view: a resume asked to learn
+/// The view host's words when this role's session already runs a view: a resume asked to learn
 /// whether it still runs hears them as yes.
 constexpr std::string_view kAlreadyRuns = "this session already runs a view";
 
@@ -329,7 +330,7 @@ public:
         else box.type(text.text);
         show(mail);
     }
-    /// THE POINTER IN THE WINDOW, given by the window that shows the builder's area as its office:
+    /// THE POINTER IN THE WINDOW, given by the window that shows the builder's area as its role:
     /// read against the picture last drawn there and the room it was drawn in, a press's moves and
     /// release under the window's number for it, a hold the window ended a lost press. A move with
     /// no press held marks what the pointer rests on, and the pointer leaving the area puts the
@@ -405,7 +406,7 @@ public:
         shown_.landing = landing;
         show(mail);
     }
-    /// THE ROOM, from the graphics window that shows the builder's area, as that window's office: a
+    /// THE ROOM, from the graphics window that shows the builder's area, as that window's role: a
     /// window, an incarnation or a size it has not drawn in holds none of its picture, so it goes
     /// whole. A fresh room ends whatever the old one held: a drag, a hover, a mark. The pan stays,
     /// held within what the new room reaches.

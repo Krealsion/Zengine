@@ -136,7 +136,7 @@ implies the whole sequence.
 (`| held: ...`, `Kernel::containment` of its stem: a library's is the startup containment line,
 a module's its box's), a waiting row as `waiting to be built: ...`, each unavailable row
 as `unavailable: ...` and the operators it can resolve as `operators: ...`. It prints these lines
-to standard output when no terminal medium holds a measured terminal there — the terminal window,
+to standard output when no terminal medium holds a measured terminal there — the TUI window,
 or a terminal skin, whose picture the lines would scroll. A refused startup's lines and its refusal
 are always printed: where a terminal medium held the terminal, last, once Workshop has unloaded it
 and the terminal is yours again. The
@@ -280,11 +280,11 @@ build is a retry, and the host keeps running.
 
 | | |
 |---|---|
-| shipped default | `workshop/default-load-plan.json`, the OS window, else the terminal window, staged beside the host binary in every build |
+| shipped default | `workshop/default-load-plan.json`, the GUI window, else the TUI window, staged beside the host binary in every build |
 | project plan | `<project>/workshop-plan.json`, written by `o` in the Builder; the plan in force when it exists and no `--load-plan` is given |
 | default lookup | `<directory of the executable>/default-load-plan.json`, when there is no project plan |
 | override | `--load-plan <path>`, used exactly as given |
-| retired | `graphical-load-plan.json`, named where no such file is: refused with its fix ([load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window)) |
+| retired | `graphical-load-plan.json`, named where no such file is: refused with its fix ([load plans](load-plans.md#the-window-the-gui-window-else-the-tui-window)) |
 | missing | refused by path, and the host exits without mounting or loading anything |
 
 There is **no compiled-in fallback plan**. A host that could manufacture an arrangement when the
@@ -297,9 +297,9 @@ experiment nobody else can repeat — which is exactly what a plan file makes re
 window the desk opens in is therefore a row of the plan, and presentation and input remain two
 independent rows rather than one deduced from the other. The default puts two rows before the
 input row: the graphics directory, `zengine-graphics`, and the window: `zengine-window-sdl`, the
-OS window, which reads SDL's queue itself, **otherwise** `zengine-window-terminal`, which shows the
+GUI window, which reads SDL's queue itself, **otherwise** `zengine-window-tui`, which shows the
 desk in its own terminal and reads that terminal's keys. The input row, `zengine-input`, follows
-them and serves input sessions beside either. `--tui` takes the terminal window alone among the
+them and serves input sessions beside either. `--tui` takes the TUI window alone among the
 windows the plan offers, and refuses a plan offering none, before anything opens. A plan naming a
 retired Skin or `zengine-input-sdl` is refused by name before anything opens
 ([load plans](load-plans.md#a-project-plan-that-names-a-skin)).
@@ -344,8 +344,8 @@ something hand-written. One codec; no JSON is read anywhere else in Workshop's s
 }
 ```
 
-**Version 2 adds `choices`**, and nothing else: the artifacts an office may be switched between,
-each under a name a weaver switches to it by. Exactly one row of `artifacts` loads the office and is
+**Version 2 adds `choices`**, and nothing else: the artifacts a role may be switched between,
+each under a name a weaver switches to it by. Exactly one row of `artifacts` loads the role and is
 one of its choices; every other choice is loaded only when a switch asks for it. The shipped plan
 authors `standard` and `neovim` for `zengine.editor` (and is version 4, below). The choices' law, the
 switch and what crosses it are [editor/docs/editor-switch.md](../../editor/docs/editor-switch.md).
@@ -386,15 +386,15 @@ written as version 1 or 2, byte for byte, and those files are read exactly as be
 
 **Version 4 adds a row's `otherwise`** — on every artifact row, empty where the row names nothing
 in its place: the artifacts loaded where the row's own cannot be, in the order tried, each a weave
-named once (`"weave": [ { "role": ... } ]`) in an office of its own. An artifact whose load is
+named once (`"weave": [ { "role": ... } ]`) in a role of its own. An artifact whose load is
 refused gives way to the next, said once (its weaver's words beside the refusing layer's); one
 this installation does not hold gives way unsaid; the first that loads stands in the row for the
 run, and is the row the projection, a reload and a promotion name. Where none loads, the row
 refuses as any row does, naming the last tried. A row with `otherwise` loads a weave and supplies
 no operators; an alternative names no artifact another row or alternative names, loads into no
-office another row or another row's alternative may load into, and none is a choice or in an
-office with choices. The shipped plan is version 4, its window row the one with an `otherwise`
-([load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window)). A plan naming no
+role another row or another row's alternative may load into, and none is a choice or in a
+role with choices. The shipped plan is version 4, its window row the one with an `otherwise`
+([load plans](load-plans.md#the-window-the-gui-window-else-the-tui-window)). A plan naming no
 row's alternatives is still written as version 1, 2 or 3, byte for byte, and a version-4 file
 naming none is refused.
 
@@ -403,8 +403,8 @@ naming none is refused.
   "provider": [],
   "weave":    [ { "role": "zengine.window.sdl" } ],
   "optional": false,
-  "otherwise": [ { "artifact": "zengine-window-terminal",
-                   "weave": [ { "role": "zengine.window.terminal" } ] } ] }
+  "otherwise": [ { "artifact": "zengine-window-tui",
+                   "weave": [ { "role": "zengine.window.tui" } ] } ] }
 ```
 
 Two things a hand-author needs to know:

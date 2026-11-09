@@ -5,9 +5,9 @@
 #define ZENGINE_TESTS_CENSUS_HPP
 
 // The action census, the press witness and the manual witness, shared by the pane suites: each
-// suite registers per office a census driver (`CensusDriverOf`), a press driver (`PressDriverOf`)
+// suite registers per role a census driver (`CensusDriverOf`), a press driver (`PressDriverOf`)
 // pressing each row and its press witness cases (`ZEN_PRESS_WITNESS_CASE`). The Builder's suite
-// holds each office's lines to `tests/actions.txt` or `tests/actions/<office>.txt`, and each press
+// holds each role's lines to `tests/actions.txt` or `tests/actions/<role>.txt`, and each press
 // to its row's causes; a pane's manual is held to the ids its rows declare.
 // Reference: manual/docs/manual.md.
 
@@ -31,7 +31,7 @@
 #include <vector>
 
 /// ONE CAUSE AS THE CENSUS SPELLS IT: `<shape>/<version>`, then its subject -- `@<prefix>` for the
-/// part a press lands on, `><office>/<pane>` for one pane.
+/// part a press lands on, `><role>/<pane>` for one pane.
 inline std::string census_cause(const ActionCause& c) {
     std::string out = c.shape + "/" + std::to_string(c.version);
     if (c.subject.rfind(kCauseOnPart, 0) == 0) out += "@" + c.subject.substr(kCauseOnPart.size());
@@ -46,17 +46,17 @@ inline std::string census_causes(const std::vector<ActionCause>& causes) {
     return out.empty() ? std::string("-") : out;
 }
 
-/// ONE CENSUS LINE: `<office> <mode> <id> <default key, as a keymap file spells it> <causes>
+/// ONE CENSUS LINE: `<role> <mode> <id> <default key, as a keymap file spells it> <causes>
 /// <enters> <label>`, the mode `-` for a pane that declares none, and a row's key for a POSIX
 /// terminal after its default, joined by `~` (no key's name holds one).
-inline std::string census_line(const std::string& office, const std::string& mode,
+inline std::string census_line(const std::string& role, const std::string& mode,
                                const std::string& id, std::int64_t scancode,
                                std::int64_t modifiers, const std::vector<ActionCause>& causes,
                                const std::string& enters, const std::string& label,
                                std::int64_t posix_scancode = 0, std::int64_t posix_modifiers = 0) {
     const Gesture g{scancode, modifiers};
     const Gesture posix{posix_scancode, posix_modifiers};
-    return office + " " + (mode.empty() ? std::string("-") : mode) + " " + id + " " +
+    return role + " " + (mode.empty() ? std::string("-") : mode) + " " + id + " " +
            (is_bound(g) ? gesture_word(g) : std::string("unbound")) +
            (is_bound(posix) ? "~" + gesture_word(posix) : std::string()) + " " +
            census_causes(causes) + " " + (enters.empty() ? std::string("-") : enters) + " " +
@@ -64,9 +64,9 @@ inline std::string census_line(const std::string& office, const std::string& mod
 }
 
 /// ...A HELD ROW'S, read from what Workshop holds of the declaration.
-inline std::string census_line(const std::string& office, const std::string& mode,
+inline std::string census_line(const std::string& role, const std::string& mode,
                                const v4::PaneActionRow& a) {
-    return census_line(office, mode, a.id, a.scancode, a.modifiers, a.causes, a.enters, a.label,
+    return census_line(role, mode, a.id, a.scancode, a.modifiers, a.causes, a.enters, a.label,
                        a.posix_scancode, a.posix_modifiers);
 }
 
@@ -77,12 +77,12 @@ inline std::vector<std::string> census_keys(const std::string& word) {
     return {word.substr(0, tilde), word.substr(tilde + 1)};
 }
 
-/// THE OFFICE A CENSUS LINE IS ABOUT: its first word.
-inline std::string census_office(const std::string& line) {
+/// THE ROLE A CENSUS LINE IS ABOUT: its first word.
+inline std::string census_role(const std::string& line) {
     return line.substr(0, line.find(' '));
 }
 
-/// EVERY PINNED CENSUS FILE: `tests/actions.txt`, then each `tests/actions/<office>.txt` by name.
+/// EVERY PINNED CENSUS FILE: `tests/actions.txt`, then each `tests/actions/<role>.txt` by name.
 inline std::vector<std::filesystem::path> census_files() {
     namespace fs = std::filesystem;
     const fs::path pinned = ZENGINE_ACTIONS;
@@ -120,25 +120,25 @@ inline std::vector<std::string> census_pinned() {
     return out;
 }
 
-/// ...AND ONE OFFICE'S, in the order its file holds them.
-inline std::vector<std::string> census_pinned_of(const std::string& office) {
+/// ...AND ONE ROLE'S, in the order its file holds them.
+inline std::vector<std::string> census_pinned_of(const std::string& role) {
     std::vector<std::string> out;
     for (std::string& line : census_pinned()) {
-        if (census_office(line) == office) out.push_back(std::move(line));
+        if (census_role(line) == role) out.push_back(std::move(line));
     }
     return out;
 }
 
-/// EACH MODE'S CAUSES AS THE CENSUS LINES SAY THEM: of `lines` for `office`, by mode, every cause
+/// EACH MODE'S CAUSES AS THE CENSUS LINES SAY THEM: of `lines` for `role`, by mode, every cause
 /// token once.
 inline std::map<std::string, std::set<std::string>> census_causes_by_mode(
-    const std::vector<std::string>& lines, const std::string& office) {
+    const std::vector<std::string>& lines, const std::string& role) {
     std::map<std::string, std::set<std::string>> out;
     for (const std::string& line : lines) {
         std::istringstream in(line);
         std::string who, mode, id, key, causes;
         in >> who >> mode >> id >> key >> causes;
-        if (who != office) continue;
+        if (who != role) continue;
         std::set<std::string>& into = out[mode];
         if (causes == "-") continue;
         std::size_t from = 0;
@@ -156,11 +156,11 @@ inline std::map<std::string, std::set<std::string>> census_causes_by_mode(
 /// WHAT EACH MODE OF ONE PANE SAID OF THE OTHERS, AGAINST THE CENSUS: in every mode the pane was
 /// driven into, its `elsewhere` names exactly its other modes driven, each with the union of that
 /// mode's census causes.
-inline void check_elsewhere(const std::string& office,
+inline void check_elsewhere(const std::string& role,
                             const std::map<std::string, std::vector<ModeCauses>>& said,
                             const std::vector<std::string>& census) {
     std::map<std::string, std::set<std::string>> by_mode;
-    for (auto& [mode, causes] : census_causes_by_mode(census, office)) {
+    for (auto& [mode, causes] : census_causes_by_mode(census, role)) {
         if (said.count(mode) == 1) by_mode[mode] = std::move(causes);
     }
     for (const auto& [mode, elsewhere] : said) {
@@ -169,43 +169,43 @@ inline void check_elsewhere(const std::string& office,
             named.insert(other.mode);
             const auto expected = by_mode.find(other.mode);
             REQUIRE_MESSAGE(expected != by_mode.end(),
-                            office << " in `" << mode << "` names the mode `" << other.mode
+                            role << " in `" << mode << "` names the mode `" << other.mode
                                    << "`, which the census never drove");
             std::set<std::string> causes;
             for (const ActionCause& c : other.causes) causes.insert(census_cause(c));
             CHECK_MESSAGE(causes == expected->second,
-                          office << " in `" << mode << "` says `" << other.mode
+                          role << " in `" << mode << "` says `" << other.mode
                                  << "` causes other than its census rows do");
         }
         for (const auto& [other, causes] : by_mode) {
             (void)causes;
             if (other != mode) {
                 CHECK_MESSAGE(named.count(other) == 1,
-                              office << " in `" << mode << "` does not say what `" << other
+                              role << " in `" << mode << "` does not say what `" << other
                                      << "` may cause");
             }
         }
     }
 }
 
-/// ONE OFFICE'S CENSUS AS ITS SUITE DROVE IT: its lines, in the order its panes declare their rows
+/// ONE ROLE'S CENSUS AS ITS SUITE DROVE IT: its lines, in the order its panes declare their rows
 /// in each mode driven, and, by pane, what each mode it was driven into said of its others.
-struct OfficeCensus {
+struct RoleCensus {
     std::vector<std::string> lines;
     std::map<std::string, std::map<std::string, std::vector<ModeCauses>>> elsewhere;
 };
 
 /// ...AND A HELD PANE'S ROWS ADDED IN ITS MODE, with what that mode says of the pane's others.
-inline void census_take(OfficeCensus& into, const std::string& office, const RuntimePane& held) {
+inline void census_take(RoleCensus& into, const std::string& role, const RuntimePane& held) {
     for (const v4::PaneActionRow& a : held.actions) {
-        into.lines.push_back(census_line(office, held.mode, a));
+        into.lines.push_back(census_line(role, held.mode, a));
     }
     into.elsewhere[held.pane][held.mode] = held.elsewhere;
 }
 
-/// THE DRIVERS, one per office, registered by the suites that drive its panes; and every office
+/// THE DRIVERS, one per role, registered by the suites that drive its panes; and every role
 /// registered twice, which the census case refuses.
-using CensusDriver = std::function<OfficeCensus()>;
+using CensusDriver = std::function<RoleCensus()>;
 inline std::map<std::string, CensusDriver>& census_drivers() {
     static std::map<std::string, CensusDriver> drivers;
     return drivers;
@@ -215,17 +215,17 @@ inline std::vector<std::string>& census_registered_twice() {
     return twice;
 }
 
-/// REGISTERS ONE OFFICE'S DRIVER, at namespace scope in the suite that drives its panes:
+/// REGISTERS ONE ROLE'S DRIVER, at namespace scope in the suite that drives its panes:
 /// `const CensusDriverOf kFilesCensus{"zengine.files", [] { ...; return census; }};`
 struct CensusDriverOf {
-    CensusDriverOf(const std::string& office, CensusDriver drive) {
-        if (!census_drivers().emplace(office, std::move(drive)).second) {
-            census_registered_twice().push_back(office);
+    CensusDriverOf(const std::string& role, CensusDriver drive) {
+        if (!census_drivers().emplace(role, std::move(drive)).second) {
+            census_registered_twice().push_back(role);
         }
     }
 };
 
-/// A READER OF A PANE'S MANUAL: it asks the pane's office and keeps each answer with Loom's word
+/// A READER OF A PANE'S MANUAL: it asks the pane's role and keeps each answer with Loom's word
 /// on whether it answered this asker.
 struct ManualAskerState {
     std::int64_t heard = 0;
@@ -243,25 +243,25 @@ public:
     std::vector<bool> answers;
 };
 
-/// ASK ONE OFFICE FOR A PANE'S MANUAL, as a weave would, and return its one answer.
+/// ASK ONE ROLE FOR A PANE'S MANUAL, as a weave would, and return its one answer.
 struct ManualReader {
     PaneRig& r;
-    std::string office;
+    std::string role;
     ManualAsker* asker = nullptr;
     loom::WeaveId id{};
-    ManualReader(PaneRig& rig, std::string office_of) : r(rig), office(std::move(office_of)) {
+    ManualReader(PaneRig& rig, std::string role_of) : r(rig), role(std::move(role_of)) {
         auto held = std::make_unique<ManualAsker>();
         asker = held.get();
         loom::Grant grant;
         grant.allow_to_role(PaneDocumentRequested::zen_name, PaneDocumentRequested::zen_version,
-                            office);
+                            role);
         id = r.bus.register_weave(std::move(held), std::move(grant));
         asker->zen_set_self(id);
     }
     PaneDocumentShown ask(const std::string& pane_key, const std::string& section) {
         asker->heard.clear();
         asker->answers.clear();
-        (void)r.bus.send_as_to_role(id, office,
+        (void)r.bus.send_as_to_role(id, role,
                                     loom::Message(loom::to_value(PaneDocumentRequested{pane_key,
                                                                                        section}),
                                                   id, loom::WeaveId{}, 9));
@@ -273,7 +273,7 @@ struct ManualReader {
 };
 
 /// THE MANUAL A PANE ANSWERS, HELD TO ITS ROWS: asked whole, it answers with no refusal and its
-/// commands are exactly `declared`, the ids the office's panes declare in every mode driven; asked
+/// commands are exactly `declared`, the ids the role's panes declare in every mode driven; asked
 /// for one, each declared id is answered by its own section, under a command group.
 inline void check_answered_manual(ManualReader& reader, const std::string& pane,
                                   const std::set<std::string>& declared) {
@@ -308,8 +308,8 @@ inline std::set<std::string> census_ids(const std::vector<std::string>& lines) {
     std::set<std::string> out;
     for (const std::string& line : lines) {
         std::istringstream in(line);
-        std::string office, mode, id;
-        in >> office >> mode >> id;
+        std::string role, mode, id;
+        in >> role >> mode >> id;
         out.insert(id);
     }
     return out;
@@ -335,7 +335,7 @@ inline bool pane_protocol(const std::string& shape) {
 }
 
 /// EVERY SEND ONE PARTICIPANT MAKES OUTSIDE THE PANE PROTOCOL while this is held, as
-/// `<shape>/<version>`: delivered or refused, to an office, a weave or anyone.
+/// `<shape>/<version>`: delivered or refused, to a role, a weave or anyone.
 class SendsOf {
 public:
     SendsOf(loom::Switchboard& bus, loom::WeaveId who) : bus_(bus) {
@@ -369,7 +369,7 @@ inline std::string press_key(const std::string& mode, const std::string& id) {
 }
 
 /// THE SHARE A ROW'S PRESS FALLS IN, of `shares`: its key's FNV-1a hash, so a row's share is the
-/// same in every process and on every platform, whatever else the office declares.
+/// same in every process and on every platform, whatever else the role declares.
 inline std::size_t press_share_of(const std::string& key, std::size_t shares) {
     std::uint64_t hash = 14695981039346656037ULL;
     for (const char c : key) {
@@ -379,13 +379,13 @@ inline std::size_t press_share_of(const std::string& key, std::size_t shares) {
     return static_cast<std::size_t>(hash % shares);
 }
 
-/// ONE OFFICE'S PRESSES, JUDGED: every press `judge` is handed in its share of the office's rows is
+/// ONE ROLE'S PRESSES, JUDGED: every press `judge` is handed in its share of the role's rows is
 /// held to its row's causes, and the rows pressed, what each declares and what each sent are kept,
 /// by `<mode> <id>`. A row outside the share is not pressed: another case presses it.
 class PressWitness {
 public:
-    explicit PressWitness(std::string office, std::size_t share = 0, std::size_t shares = 1)
-        : office_(std::move(office)), share_(share), shares_(shares) {}
+    explicit PressWitness(std::string role, std::size_t share = 0, std::size_t shares = 1)
+        : role_(std::move(role)), share_(share), shares_(shares) {}
 
     /// WHETHER THE ROW KEYED `key` IS THIS WITNESS'S TO PRESS.
     bool mine(const std::string& key) const { return press_share_of(key, shares_) == share_; }
@@ -397,7 +397,7 @@ public:
                const std::function<void()>& press) {
         const std::string key = press_key(mode, id);
         if (!mine(key)) return;
-        CAPTURE(office_);
+        CAPTURE(role_);
         CAPTURE(key);
         REQUIRE(who.valid());
         declared[key] = causes;
@@ -413,12 +413,12 @@ public:
         }
     }
 
-    /// ...PRESSED AS WORKSHOP SAYS A RESOLVED KEY: the row's id, to `pane` of this office, as
-    /// Workshop's own office -- the press a pane hears whatever gesture made it.
+    /// ...PRESSED AS WORKSHOP SAYS A RESOLVED KEY: the row's id, to `pane` of this role, as
+    /// Workshop's own role -- the press a pane hears whatever gesture made it.
     void judge(PaneRig& r, const std::string& pane, const std::string& mode,
                const v4::PaneActionRow& row) {
-        judge(r.bus, r.bus.role_holder(office_), mode, row.id, row.causes, [&] {
-            CHECK(r.workshop_action(office_, pane, row.id).delivered);
+        judge(r.bus, r.bus.role_holder(role_), mode, row.id, row.causes, [&] {
+            CHECK(r.workshop_action(role_, pane, row.id).delivered);
         });
     }
 
@@ -427,14 +427,14 @@ public:
     std::set<std::string> pressed;
 
 private:
-    std::string office_;
+    std::string role_;
     std::size_t share_ = 0;
     std::size_t shares_ = 1;
 };
 
-/// THE PRESS DRIVERS, one per office, registered beside its census driver by the suite that drives
+/// THE PRESS DRIVERS, one per role, registered beside its census driver by the suite that drives
 /// its panes: each presses every row its panes declare in every mode, a pane made afresh for each
-/// press, so no press is judged by what an earlier one left. An office whose presses are long gives
+/// press, so no press is judged by what an earlier one left. A role whose presses are long gives
 /// them to `shares` cases, each pressing its share of the rows.
 using PressDriver = std::function<void(PressWitness&)>;
 inline std::map<std::string, PressDriver>& press_drivers() {
@@ -450,37 +450,37 @@ inline std::vector<std::string>& press_registered_twice() {
     return twice;
 }
 struct PressDriverOf {
-    PressDriverOf(const std::string& office, PressDriver drive, std::size_t shares = 1) {
-        if (!press_drivers().emplace(office, std::move(drive)).second) {
-            press_registered_twice().push_back(office);
+    PressDriverOf(const std::string& role, PressDriver drive, std::size_t shares = 1) {
+        if (!press_drivers().emplace(role, std::move(drive)).second) {
+            press_registered_twice().push_back(role);
         }
-        press_shares()[office] = shares;
+        press_shares()[role] = shares;
     }
 };
 
 /// THE PRESS WITNESS'S CASES, registered as each is defined, in every process of the program
-/// whatever it runs: for each office, the shares its cases press. The census case holds every
-/// office's shares to one case each.
+/// whatever it runs: for each role, the shares its cases press. The census case holds every
+/// role's shares to one case each.
 inline std::map<std::string, std::vector<std::size_t>>& press_cases() {
     static std::map<std::string, std::vector<std::size_t>> cases;
     return cases;
 }
 struct PressCaseOf {
-    PressCaseOf(const std::string& office, std::size_t share) {
-        press_cases()[office].push_back(share);
+    PressCaseOf(const std::string& role, std::size_t share) {
+        press_cases()[role].push_back(share);
     }
 };
 
-/// ONE SHARE OF ONE OFFICE'S PRESS WITNESS, RUN (the Builder's suite holds it).
-void witness_presses(const std::string& office, std::size_t share);
+/// ONE SHARE OF ONE ROLE'S PRESS WITNESS, RUN (the Builder's suite holds it).
+void witness_presses(const std::string& role, std::size_t share);
 
-/// AN OFFICE'S PRESS WITNESS CASE: share `share` of the office's rows, pressed; `who` names the
+/// A ROLE'S PRESS WITNESS CASE: share `share` of the role's rows, pressed; `who` names the
 /// rows in the case's name.
-#define ZEN_PRESS_WITNESS_CASE(office, share, who)                                                 \
-    static const PressCaseOf DOCTEST_ANONYMOUS(zen_press_case_){office, share};                    \
+#define ZEN_PRESS_WITNESS_CASE(role, share, who)                                                 \
+    static const PressCaseOf DOCTEST_ANONYMOUS(zen_press_case_){role, share};                    \
     TEST_CASE("the press witness: " who ", each pressed in each mode its suite drives, sends "     \
               "nothing beside the pane protocol that its row does not declare") {                  \
-        witness_presses(office, share);                                                            \
+        witness_presses(role, share);                                                            \
     }
 
 /// THE HOST A SUITE'S RIG DRIVES: the rig itself, or the `PaneRig` it holds as `r`.

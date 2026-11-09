@@ -7,11 +7,11 @@
 // A terminal's output side and its size, as whoever paints it claims it: the one place this
 // repository asks an operating system how big a terminal is (the only `#if defined(_WIN32)` the
 // terminal medium needs), the modes a painter takes and gives back, the ink it shows a colour in, the
-// copy sequence, and the claim itself, held for exactly its owner's lifetime. Read by the terminal
+// copy sequence, and the claim itself, held for exactly its owner's lifetime. Read by the TUI
 // window, which asks the size each time it looks. On POSIX a resize also writes a pipe
 // (`ResizeWatch`) that a host's one wait holds, so a resize wakes the painter that asks; on Windows
 // a resize is a console input record, which wakes it the same way. Reference:
-// graphics/docs/zengine.window.terminal.md.
+// graphics/docs/zengine.window.tui.md.
 
 #include <array>
 #include <cstdlib>

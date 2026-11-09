@@ -91,8 +91,8 @@ class ReadCanvasSeat
                                           PaneCanvasHover, PaneKey, SeatDo>,
                              loom::Emit<v3::PaneOffered, gfx::Drawn>> {
 public:
-    explicit ReadCanvasSeat(const std::string& office)
-        : window_(office, pane_area(office, kReadPane)) {}
+    explicit ReadCanvasSeat(const std::string& role)
+        : window_(role, pane_area(role, kReadPane)) {}
     std::vector<gfx::AreaRoom> rooms;
     std::vector<gfx::DrawnRefused> rejected;
     int drawn = 0;
@@ -143,16 +143,16 @@ private:
     std::optional<CanvasPicture> last_;
 };
 
-/// ONE CANVAS PANE ON THE DESK: its seat, its office and kind.
+/// ONE CANVAS PANE ON THE DESK: its seat, its role and kind.
 struct ReadCanvas {
     ReadCanvasSeat* seat = nullptr;
     loom::WeaveId id{};
-    std::string office;
+    std::string role;
     std::int64_t kind = kNoPaneKind;
 };
 
 /// A FRESH DESK WITH NO PANE OF A CASE'S OWN YET, the asker beside it, and the canvas panes a case
-/// opens on it, each in an office of its own.
+/// opens on it, each in a role of its own.
 struct ReadRig {
     PaneRig r;
     ReadAsker* asker = nullptr;
@@ -196,26 +196,26 @@ struct ReadRig {
     }
 
     /// A CANVAS PANE OFFERING A BODY `across` BY `down` CELLS, opened on the desk.
-    std::size_t open_canvas(const std::string& office, std::int64_t across, std::int64_t down) {
-        auto made = std::make_unique<ReadCanvasSeat>(office);
+    std::size_t open_canvas(const std::string& role, std::int64_t across, std::int64_t down) {
+        auto made = std::make_unique<ReadCanvasSeat>(role);
         ReadCanvas c;
         c.seat = made.get();
-        c.office = office;
+        c.role = role;
         loom::Grant grant;
         grant.allow_to_any(v3::PaneOffered::zen_name, v3::PaneOffered::zen_version);
         grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
-        c.id = r.bus.register_weave(std::move(made), std::move(grant), office);
+        c.id = r.bus.register_weave(std::move(made), std::move(grant), role);
         c.seat->zen_set_self(c.id);
         canvases.push_back(c);
         const std::size_t at = canvases.size() - 1;
-        drive(at, [office, across, down](loom::Mail& m) {
-            (void)m.as_role(office).send_to_role(
+        drive(at, [role, across, down](loom::Mail& m) {
+            (void)m.as_role(role).send_to_role(
                 kWorkshopProvider, v3::PaneOffered{kReadPane, "Page", "a picture read whole",
                                                    across * kPaneCanvasUnit,
                                                    down * kPaneCanvasUnit, 0});
         });
-        r.pick(PaneRef{office, kReadPane});
-        const auto* row = r.session().panes.runtime.find(office, kReadPane);
+        r.pick(PaneRef{role, kReadPane});
+        const auto* row = r.session().panes.runtime.find(role, kReadPane);
         REQUIRE(row != nullptr);
         canvases[at].kind = row->kind;
         return at;
@@ -226,7 +226,7 @@ struct ReadRig {
         std::size_t placed = 0;
         stage_desk(r, [&](Setup& staged) {
             for (SetupPane& p : staged.panes) {
-                if (p.ref.provider != canvases.at(at).office || p.ref.pane != kReadPane) continue;
+                if (p.ref.provider != canvases.at(at).role || p.ref.pane != kReadPane) continue;
                 p.place = {pane_unit::kPixels, x * gfx::kCellPx, y * gfx::kCellPx};
                 p.width = {pane_unit::kPixels, w * gfx::kCellPx};
                 p.height = {pane_unit::kPixels, h * gfx::kCellPx};
@@ -452,19 +452,19 @@ CanvasPicture high_text_picture() {
 
 /// A DESK LARGE ENOUGH FOR A HIGH-TEXT PICTURE, and its one canvas pane, offered at the largest
 /// body a pane may ask and placed at the size the picture needs.
-void seat_high_text(ReadRig& d, const std::string& office) {
+void seat_high_text(ReadRig& d, const std::string& role) {
     const auto across = static_cast<std::int64_t>(kHighTextBytes);
     const auto down = static_cast<std::int64_t>(kHighWords);
     d.size(across + 20, down + 20);
-    (void)d.open_canvas(office, (std::min)(across + 2, kMaxPaneComfort),
+    (void)d.open_canvas(role, (std::min)(across + 2, kMaxPaneComfort),
                         (std::min)(down + 2, kMaxPaneComfort));
     d.place(0, 2, 2, across + 8, down + 8);
     d.reseat();
 }
 
 /// ...and the pane drawing it.
-void open_high_text(ReadRig& d, const std::string& office) {
-    seat_high_text(d, office);
+void open_high_text(ReadRig& d, const std::string& role) {
+    seat_high_text(d, role);
     d.draw(0, high_text_picture());
 }
 
@@ -629,8 +629,8 @@ TEST_CASE("a desk past one value's budget reads whole: the panes past it are nam
     // EACH CANVAS PANE IS NAMED ONCE, by its holder and that holder's incarnation, the room it drew
     // for and the picture it drew.
     for (const ReadCanvas& c : d.canvases) {
-        CAPTURE(c.office);
-        const auto named = [&c](const PaneStamp& s) { return s.provider == c.office && s.pane == kReadPane; };
+        CAPTURE(c.role);
+        const auto named = [&c](const PaneStamp& s) { return s.provider == c.role && s.pane == kReadPane; };
         REQUIRE(std::count_if(desk_read.stamps.begin(), desk_read.stamps.end(), named) == 1);
         const PaneStamp& s = *std::find_if(desk_read.stamps.begin(), desk_read.stamps.end(), named);
         CHECK(s.holder == static_cast<std::int64_t>(c.id.value));
@@ -678,10 +678,10 @@ TEST_CASE("a desk past one value's budget reads whole: the panes past it are nam
     // EVERY WORD OF EVERY CANVAS PANE IS READ, in the order the pane drew them, and none is covered.
     for (std::size_t k = 0; k < kPanes; ++k) {
         CAPTURE(k);
-        const std::string& office = d.canvases[k].office;
+        const std::string& role = d.canvases[k].role;
         const auto it = std::find_if(wholes.begin(), wholes.end(),
-                                     [&office](const PaneView& v) { return v.stamp.provider == office; });
-        REQUIRE_MESSAGE(it != wholes.end(), office << " was read neither in the desk read nor alone");
+                                     [&role](const PaneView& v) { return v.stamp.provider == role; });
+        REQUIRE_MESSAGE(it != wholes.end(), role << " was read neither in the desk read nor alone");
         CHECK_FALSE(it->in_flight);
         CHECK_MESSAGE(it->covered.words == 0, it->covered.words << " words covered");
         REQUIRE(it->words.size() == kReadWords);
@@ -696,8 +696,8 @@ TEST_CASE("a desk past one value's budget reads whole: the panes past it are nam
 TEST_CASE("a pane at a window's budgets reads whole under one stamp, and from any index of it, and a page asked after its picture moved is refused as stale") {
     ReadRig d;
     d.size(140, 124);
-    const std::string office = "zengine.test.read-full";
-    (void)d.open_canvas(office, 120, 106);
+    const std::string role = "zengine.test.read-full";
+    (void)d.open_canvas(role, 120, 106);
     d.place(0, 2, 2, 126, 116);
     d.reseat();
     // ROOM FOR THE WHOLE PICTURE: its words a run each, and each part over one of them.
@@ -706,7 +706,7 @@ TEST_CASE("a pane at a window's budgets reads whole under one stamp, and from an
 
     // THE WHOLE, asked under no stamp: what one area shows is no more than one decoded value.
     PaneView first;
-    const std::string unread = d.page(PaneViewRequested{office, kReadPane, 0, PaneStamp{}}, first);
+    const std::string unread = d.page(PaneViewRequested{role, kReadPane, 0, PaneStamp{}}, first);
     REQUIRE_MESSAGE(unread.empty(), unread);
     REQUIRE_FALSE(first.in_flight);
     CHECK_MESSAGE(first.covered.words == 0, first.covered.words << " words covered");
@@ -720,7 +720,7 @@ TEST_CASE("a pane at a window's budgets reads whole under one stamp, and from an
     // FROM AN INDEX, under its stamp: the rest of it.
     const std::int64_t half = first.total / 2;
     PaneView rest;
-    const std::string why = d.page(PaneViewRequested{office, kReadPane, half, stamp}, rest);
+    const std::string why = d.page(PaneViewRequested{role, kReadPane, half, stamp}, rest);
     REQUIRE_MESSAGE(why.empty(), why);
     CHECK(rest.from == half);
     CHECK(rest.total == first.total);
@@ -748,11 +748,11 @@ TEST_CASE("a pane at a window's budgets reads whole under one stamp, and from an
     changed.labels.front().text = "other";
     d.draw(0, changed);
     PaneView late;
-    const std::string stale = d.page(PaneViewRequested{office, kReadPane, half, stamp}, late);
+    const std::string stale = d.page(PaneViewRequested{role, kReadPane, half, stamp}, late);
     CHECK_MESSAGE(stale.find("stale") != std::string::npos, "the late page was answered: [" << stale << "]");
     // ...AND READ AGAIN FROM THE START, the pane stands on its new picture.
     PaneView again;
-    REQUIRE(d.page(PaneViewRequested{office, kReadPane, 0, PaneStamp{}}, again).empty());
+    REQUIRE(d.page(PaneViewRequested{role, kReadPane, 0, PaneStamp{}}, again).empty());
     CHECK(again.stamp.fingerprint != stamp.fingerprint);
 }
 
@@ -829,7 +829,7 @@ scope::GuestRowFacts admitted_row(std::vector<std::string> powers) {
 }
 
 /// WHAT `capture` GRANTS A GUEST SESSION, as the guests file's policy writes it
-/// (`guests::grant_for`): every reading of the desk asked of Workshop's office, and the medium's
+/// (`guests::grant_for`): every reading of the desk asked of Workshop's role, and the medium's
 /// capture. This suite does not link that policy; the guests suite pins the same list against it.
 loom::Grant capture_grant() {
     loom::Grant grant;
@@ -839,7 +839,7 @@ loom::Grant capture_grant() {
           loom::schema_of<KeymapRequested>()}) {
         grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
     }
-    const std::string window = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+    const std::string window = std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
     grant.allow_to_role(gfx::SurfaceCaptureRequested::zen_name,
                         gfx::SurfaceCaptureRequested::zen_version, window);
     grant.allow_to_role(gfx::SurfaceCaptureChunkRequested::zen_name,
@@ -868,16 +868,16 @@ TEST_CASE("a capture guest's asks for the desk, a pane's page, the inventory and
         const auto it = rows.find(who.value);
         return it == rows.end() ? scope::GuestRowFacts{} : it->second;
     };
-    const std::string office = "zengine.test.read-guest";
-    (void)d.open_canvas(office, 30, 8);
+    const std::string role = "zengine.test.read-guest";
+    (void)d.open_canvas(role, 30, 8);
     d.place(0, 4, 4, 32, 12);
     d.reseat();
     CanvasPicture picture;
     picture.labels.push_back(CanvasLabel{0, 0, "guest words", gfx::colors::text});
     d.draw(0, picture);
-    const auto ask_all = [office](loom::Mail& m) {
+    const auto ask_all = [role](loom::Mail& m) {
         (void)m.send_to_role(kWorkshopProvider, DeskReadRequested{});
-        (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{office, kReadPane, 0, PaneStamp{}});
+        (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{role, kReadPane, 0, PaneStamp{}});
         (void)m.send_to_role(kWorkshopProvider, PaneInventoryRequested{});
         (void)m.send_to_role(kWorkshopProvider, KeymapRequested{});
     };
@@ -903,7 +903,7 @@ TEST_CASE("a capture guest's asks for the desk, a pane's page, the inventory and
     CHECK(count_of(bystander->heard, "PaneView") == 0);
     REQUIRE(guest->reads.size() == 1);
     CHECK(std::any_of(guest->reads[0].stamps.begin(), guest->reads[0].stamps.end(),
-                      [&office](const PaneStamp& s) { return s.provider == office; }));
+                      [&role](const PaneStamp& s) { return s.provider == role; }));
 
     // A GUEST ADMITTED WITHOUT `capture` IS GRANTED NONE OF THOSE ASKS: Loom refuses each before
     // Workshop hears it, and tells the asker which and why.
@@ -946,8 +946,8 @@ TEST_CASE("a capture guest's asks for the desk, a pane's page, the inventory and
 
 TEST_CASE("a picture of long words under a part a row, as many as a window keeps, reads whole, each page and the desk read inside one reply's bytes") {
     ReadRig d;
-    const std::string office = "zengine.test.read-high";
-    seat_high_text(d, office);
+    const std::string role = "zengine.test.read-high";
+    seat_high_text(d, role);
     // A SMALL PICTURE FIRST: the desk read carries its reading whole, in the one turn.
     CanvasPicture small;
     small.labels.push_back(CanvasLabel{0, 0, "small", gfx::colors::text});
@@ -956,7 +956,7 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
     REQUIRE(d.read(desk).empty());
     const auto carried = [&] {
         return std::find_if(desk.panes.begin(), desk.panes.end(), [&](const PaneView& v) {
-            return v.stamp.provider == office && v.stamp.pane == kReadPane;
+            return v.stamp.provider == role && v.stamp.pane == kReadPane;
         });
     };
     REQUIRE(carried() != desk.panes.end());
@@ -969,7 +969,7 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
     CHECK(reply_bytes(loom::to_value(desk)) <= kReplyByteBudget);
     CHECK(decoded_cells(loom::to_value(desk)) <= kDecodedCellBudget);
     const auto stamp = std::find_if(desk.stamps.begin(), desk.stamps.end(), [&](const PaneStamp& s) {
-        return s.provider == office && s.pane == kReadPane;
+        return s.provider == role && s.pane == kReadPane;
     });
     REQUIRE(stamp != desk.stamps.end());
 
@@ -1001,12 +1001,12 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
     CHECK(reply_bytes(loom::to_value(second)) <= kReplyByteBudget);
     CHECK(decoded_cells(loom::to_value(second)) <= kDecodedCellBudget);
     const auto named = std::find_if(second.stamps.begin(), second.stamps.end(),
-                                    [&](const PaneStamp& s) { return s.provider == office; });
+                                    [&](const PaneStamp& s) { return s.provider == role; });
     REQUIRE(named != second.stamps.end());
     std::vector<PaneView> fifth;
     for (std::int64_t from = 0;;) {
         PaneView one;
-        const std::string refused = d.page(PaneViewRequested{office, kReadPane, from, *named}, one);
+        const std::string refused = d.page(PaneViewRequested{role, kReadPane, from, *named}, one);
         REQUIRE_MESSAGE(refused.empty(), refused);
         CHECK(reply_bytes(loom::to_value(one)) <= kReplyByteBudget);
         CHECK(decoded_cells(loom::to_value(one)) <= kDecodedCellBudget);
@@ -1019,8 +1019,8 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
 
 TEST_CASE("a capture guest reads a high-text picture whole over the bridge, page by page, and its connection answers the next ask") {
     ReadRig d;
-    const std::string office = "zengine.test.read-high";
-    open_high_text(d, office);
+    const std::string read_role = "zengine.test.read-high";
+    open_high_text(d, read_role);
 
     // WORKSHOP'S OWN DOOR on the rig's bus, a row of the guests file holding `capture`.
     guests::GuestsFile file;
@@ -1075,14 +1075,14 @@ TEST_CASE("a capture guest reads a high-text picture whole over the bridge, page
     REQUIRE(read.ok());
     const DeskRead desk = loom::from_value<DeskRead>(read.value());
     const auto stamp = std::find_if(desk.stamps.begin(), desk.stamps.end(), [&](const PaneStamp& st) {
-        return st.provider == office && st.pane == kReadPane;
+        return st.provider == read_role && st.pane == kReadPane;
     });
     REQUIRE(stamp != desk.stamps.end());
     std::vector<PaneView> pages;
     std::uint64_t correlation = 2;
     for (std::int64_t from = 0;; ++correlation) {
         REQUIRE_MESSAGE(ask("zengine.workshop", correlation,
-                            loom::to_value(PaneViewRequested{office, kReadPane, from, *stamp})),
+                            loom::to_value(PaneViewRequested{read_role, kReadPane, from, *stamp})),
                         "the page from " << from << " never came; the connection "
                                          << (guest.disconnected() ? "ended" : "is still open"));
         const std::string& payload = answers[correlation];
@@ -1136,10 +1136,10 @@ TEST_CASE("the desk's own menu opened on a window is answered as tests/session/d
 
 namespace {
 
-constexpr const char* kTypingOffice = "zengine.test.desk-typing";
-constexpr const char* kLeftOffice = "zengine.test.desk-left";
-constexpr const char* kRightOffice = "zengine.test.desk-right";
-constexpr const char* kProseOffice = "zengine.test.desk-prose";
+constexpr const char* kTypingRole = "zengine.test.desk-typing";
+constexpr const char* kLeftRole = "zengine.test.desk-left";
+constexpr const char* kRightRole = "zengine.test.desk-right";
+constexpr const char* kProseRole = "zengine.test.desk-prose";
 constexpr const char* kProsePane = "board";
 
 bool same_stamp(const PaneStamp& a, const PaneStamp& b) {
@@ -1152,13 +1152,13 @@ bool same_stamps(const std::vector<PaneStamp>& a, const std::vector<PaneStamp>& 
                       [](const PaneStamp& x, const PaneStamp& y) { return same_stamp(x, y); });
 }
 
-/// The stamp `stamps` names for `office`'s `pane`; a case requires it is there.
-PaneStamp stamp_for(const std::vector<PaneStamp>& stamps, const std::string& office,
+/// The stamp `stamps` names for `role`'s `pane`; a case requires it is there.
+PaneStamp stamp_for(const std::vector<PaneStamp>& stamps, const std::string& role,
                         const std::string& pane = kReadPane) {
     for (const PaneStamp& s : stamps) {
-        if (s.provider == office && s.pane == pane) return s;
+        if (s.provider == role && s.pane == pane) return s;
     }
-    FAIL("no stamp for " << office << "/" << pane);
+    FAIL("no stamp for " << role << "/" << pane);
     return {};
 }
 
@@ -1194,8 +1194,8 @@ void queue_draw(ReadRig& d, std::size_t at, const CanvasPicture& picture) {
 
 /// Two canvas panes side by side, each drawn once, and nothing holding the keys.
 void two_panes(ReadRig& d, std::size_t& left, std::size_t& right) {
-    left = d.open_canvas(kLeftOffice, 20, 6);
-    right = d.open_canvas(kRightOffice, 20, 6);
+    left = d.open_canvas(kLeftRole, 20, 6);
+    right = d.open_canvas(kRightRole, 20, 6);
     d.place(left, 2, 2, 20, 6);
     d.place(right, 40, 2, 20, 6);
     d.reseat();
@@ -1207,8 +1207,8 @@ void two_panes(ReadRig& d, std::size_t& left, std::size_t& right) {
 
 /// A PROSE PANE, as the tower-defense game draws one: rows said with no picture number.
 ProviderSeat* prose_pane(ReadRig& d) {
-    ProviderSeat* seat = d.r.mount_provider(kProseOffice);
-    REQUIRE(seat_pane_open(d.r, seat, kProseOffice, kProsePane) != kNoPaneKind);
+    ProviderSeat* seat = d.r.mount_provider(kProseRole);
+    REQUIRE(seat_pane_open(d.r, seat, kProseRole, kProsePane) != kNoPaneKind);
     return seat;
 }
 
@@ -1224,7 +1224,7 @@ void say_rows(ReadRig& d, ProviderSeat* seat, std::vector<std::string> rows) {
 // notice follows the pane's own drawing and not Workshop's next delivery.
 TEST_CASE("a keystroke gives at least one notice, the last naming the pane's final picture, with no ask between") {
     ReadRig d;
-    const std::size_t at = d.open_canvas(kTypingOffice, 40, 6);
+    const std::size_t at = d.open_canvas(kTypingRole, 40, 6);
     d.place(at, 2, 2, 40, 6);
     d.reseat();
     d.draw(at, typed("", true));
@@ -1248,12 +1248,12 @@ TEST_CASE("a keystroke gives at least one notice, the last naming the pane's fin
     REQUIRE(d.read(after).empty());
     CHECK(last.desk == after.desk.desk);
     CHECK(same_stamps(last.panes, after.stamps));
-    const PaneStamp now = stamp_for(last.panes, kTypingOffice);
-    CHECK(now.fingerprint != stamp_for(before.stamps, kTypingOffice).fingerprint);
+    const PaneStamp now = stamp_for(last.panes, kTypingRole);
+    CHECK(now.fingerprint != stamp_for(before.stamps, kTypingRole).fingerprint);
     // ...THE FINAL PICTURE: read at the stamp the notice names, the pane says the line and is not in
     // flight, and stands on the pane's last number.
     PaneView reading;
-    REQUIRE(d.page(PaneViewRequested{kTypingOffice, kReadPane, 0, now}, reading).empty());
+    REQUIRE(d.page(PaneViewRequested{kTypingRole, kReadPane, 0, now}, reading).empty());
     CHECK_FALSE(reading.in_flight);
     CHECK(reading.stamp.fingerprint == now.fingerprint);
     REQUIRE(reading.words.size() == 1);
@@ -1291,7 +1291,7 @@ TEST_CASE("moving only the selection, closing a pane or opening arranging gives 
         REQUIRE(d.r.session().panes.selected == d.canvases[right].kind);
     }
     SUBCASE("closing a pane") {
-        d.r.pick(PaneRef{kRightOffice, kReadPane});
+        d.r.pick(PaneRef{kRightRole, kReadPane});
         REQUIRE_FALSE(d.r.session().panes.has(d.canvases[right].kind));
     }
     SUBCASE("opening arranging") {
@@ -1319,10 +1319,10 @@ TEST_CASE("two panes changing in one turn both reach the follower: the newest no
     d.r.bus.drain_until_idle();
     REQUIRE_FALSE(d.ear->heard.empty());
     const DeskStamps& newest = d.ear->heard.back();
-    CHECK(stamp_for(newest.panes, kLeftOffice).fingerprint !=
-          stamp_for(before.stamps, kLeftOffice).fingerprint);
-    CHECK(stamp_for(newest.panes, kRightOffice).fingerprint !=
-          stamp_for(before.stamps, kRightOffice).fingerprint);
+    CHECK(stamp_for(newest.panes, kLeftRole).fingerprint !=
+          stamp_for(before.stamps, kLeftRole).fingerprint);
+    CHECK(stamp_for(newest.panes, kRightRole).fingerprint !=
+          stamp_for(before.stamps, kRightRole).fingerprint);
     DeskRead after;
     REQUIRE(d.read(after).empty());
     CHECK(same_stamps(newest.panes, after.stamps));
@@ -1331,7 +1331,7 @@ TEST_CASE("two panes changing in one turn both reach the follower: the newest no
 TEST_CASE("a stamp names what a pane shows: the same picture drawn again keeps it and sends no notice, and every change moves it, rows included") {
     ReadRig d;
     SUBCASE("a canvas picture drawn again") {
-        const std::size_t at = d.open_canvas(kTypingOffice, 30, 6);
+        const std::size_t at = d.open_canvas(kTypingRole, 30, 6);
         d.place(at, 2, 2, 30, 6);
         d.reseat();
         d.draw(at, saying("same"));
@@ -1342,11 +1342,11 @@ TEST_CASE("a stamp names what a pane shows: the same picture drawn again keeps i
         CHECK(d.ear->heard.empty());
         DeskRead again;
         REQUIRE(d.read(again).empty());
-        CHECK(same_stamp(stamp_for(again.stamps, kTypingOffice), stamp_for(was.stamps, kTypingOffice)));
+        CHECK(same_stamp(stamp_for(again.stamps, kTypingRole), stamp_for(was.stamps, kTypingRole)));
         d.draw(at, saying("changed"));
         REQUIRE(d.ear->heard.size() == 1);
-        CHECK(stamp_for(d.ear->heard.back().panes, kTypingOffice).fingerprint !=
-              stamp_for(was.stamps, kTypingOffice).fingerprint);
+        CHECK(stamp_for(d.ear->heard.back().panes, kTypingRole).fingerprint !=
+              stamp_for(was.stamps, kTypingRole).fingerprint);
     }
     SUBCASE("rows, as the tower-defense game draws them") {
         ProviderSeat* seat = prose_pane(d);
@@ -1358,24 +1358,24 @@ TEST_CASE("a stamp names what a pane shows: the same picture drawn again keeps i
         CHECK(d.ear->heard.empty());
         say_rows(d, seat, {"wave 1", "enemy at 4"});
         REQUIRE(d.ear->heard.size() == 1);
-        const PaneStamp moved = stamp_for(d.ear->heard.back().panes, kProseOffice, kProsePane);
-        CHECK(moved.fingerprint != stamp_for(was.stamps, kProseOffice, kProsePane).fingerprint);
+        const PaneStamp moved = stamp_for(d.ear->heard.back().panes, kProseRole, kProsePane);
+        CHECK(moved.fingerprint != stamp_for(was.stamps, kProseRole, kProsePane).fingerprint);
     }
     SUBCASE("rows drawn at last saying nothing: the pane no longer waits for its provider") {
         ProviderSeat* seat = prose_pane(d);
         DeskRead was;
         REQUIRE(d.read(was).empty());
-        const PaneStamp waiting = stamp_for(was.stamps, kProseOffice, kProsePane);
+        const PaneStamp waiting = stamp_for(was.stamps, kProseRole, kProsePane);
         PaneView unheard;
-        REQUIRE(d.page(PaneViewRequested{kProseOffice, kProsePane, 0, waiting}, unheard).empty());
+        REQUIRE(d.page(PaneViewRequested{kProseRole, kProsePane, 0, waiting}, unheard).empty());
         REQUIRE(unheard.in_flight);
         d.ear->heard.clear();
         say_rows(d, seat, {});
         REQUIRE_FALSE(d.ear->heard.empty());
-        const PaneStamp heard = stamp_for(d.ear->heard.back().panes, kProseOffice, kProsePane);
+        const PaneStamp heard = stamp_for(d.ear->heard.back().panes, kProseRole, kProsePane);
         CHECK(heard.fingerprint != waiting.fingerprint);
         PaneView settled;
-        REQUIRE(d.page(PaneViewRequested{kProseOffice, kProsePane, 0, heard}, settled).empty());
+        REQUIRE(d.page(PaneViewRequested{kProseRole, kProsePane, 0, heard}, settled).empty());
         CHECK_FALSE(settled.in_flight);
         CHECK(settled.words.empty());
     }
@@ -1384,19 +1384,19 @@ TEST_CASE("a stamp names what a pane shows: the same picture drawn again keeps i
 TEST_CASE("a page under a stamp naming its picture by fingerprint is stale only when the holder, the incarnation, the room or what the pane shows moved: the same picture sent again keeps it") {
     ReadRig d;
     d.size(140, 124);
-    const std::size_t at = d.open_canvas(kTypingOffice, 120, 106);
+    const std::size_t at = d.open_canvas(kTypingRole, 120, 106);
     d.place(at, 2, 2, 126, 116);
     d.reseat();
     d.draw(at, full_picture(d.room(at)));
     PaneView first;
-    REQUIRE(d.page(PaneViewRequested{kTypingOffice, kReadPane, 0, {}}, first).empty());
+    REQUIRE(d.page(PaneViewRequested{kTypingRole, kReadPane, 0, {}}, first).empty());
     REQUIRE_FALSE(first.in_flight);
     const PaneStamp stamp = first.stamp;
     const std::int64_t from = first.total / 2;
     // THE SAME PICTURE AGAIN: the reading from an index of it, under its stamp, still stands.
     d.draw(at, full_picture(d.room(at)));
     PaneView next;
-    CHECK(d.page(PaneViewRequested{kTypingOffice, kReadPane, from, stamp}, next).empty());
+    CHECK(d.page(PaneViewRequested{kTypingRole, kReadPane, from, stamp}, next).empty());
     CHECK(next.from == from);
     SUBCASE("what the pane shows moved") {
         CanvasPicture changed = full_picture(d.room(at));
@@ -1408,13 +1408,13 @@ TEST_CASE("a page under a stamp naming its picture by fingerprint is stale only 
         d.reseat();
     }
     PaneView stale;
-    CHECK(d.page(PaneViewRequested{kTypingOffice, kReadPane, from, stamp}, stale)
+    CHECK(d.page(PaneViewRequested{kTypingRole, kReadPane, from, stamp}, stale)
               .find("stale") != std::string::npos);
 }
 
 TEST_CASE("a canvas pane moved and drawn again the same ends on a notice naming its stamp in its new place, read with its words") {
     ReadRig d;
-    const std::size_t at = d.open_canvas(kTypingOffice, 30, 6);
+    const std::size_t at = d.open_canvas(kTypingRole, 30, 6);
     d.place(at, 2, 2, 30, 6);
     d.reseat();
     d.draw(at, saying("kept"));
@@ -1425,15 +1425,15 @@ TEST_CASE("a canvas pane moved and drawn again the same ends on a notice naming 
     d.place(at, 4, 2, 30, 6);
     d.reseat();
     REQUIRE_FALSE(d.ear->heard.empty());
-    CHECK(stamp_for(d.ear->heard.back().panes, kTypingOffice).fingerprint !=
-          stamp_for(was.stamps, kTypingOffice).fingerprint);
+    CHECK(stamp_for(d.ear->heard.back().panes, kTypingRole).fingerprint !=
+          stamp_for(was.stamps, kTypingRole).fingerprint);
     // ...AND THE PANE DRAWS THE SAME PICTURE THERE: the newest notice names that picture, settled.
     d.draw(at, saying("kept"));
-    const PaneStamp settled = stamp_for(d.ear->heard.back().panes, kTypingOffice);
+    const PaneStamp settled = stamp_for(d.ear->heard.back().panes, kTypingRole);
     CHECK(settled.fingerprint != 0);
-    CHECK(settled.fingerprint != stamp_for(was.stamps, kTypingOffice).fingerprint); // another place
+    CHECK(settled.fingerprint != stamp_for(was.stamps, kTypingRole).fingerprint); // another place
     PaneView reading;
-    REQUIRE(d.page(PaneViewRequested{kTypingOffice, kReadPane, 0, settled}, reading).empty());
+    REQUIRE(d.page(PaneViewRequested{kTypingRole, kReadPane, 0, settled}, reading).empty());
     CHECK_FALSE(reading.in_flight);
     REQUIRE(reading.words.size() == 1);
     CHECK(reading.words[0].text == "kept");

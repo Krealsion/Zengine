@@ -5,7 +5,7 @@
 
 // Wire shapes for independent typed entries and the legacy replacement slot. Pair bytes own
 // their schema closure and values (codec.hpp). Entry identity is independent of list position;
-// references confer no authority. inventory/docs/zengine.inventory.md is the office's manual.
+// references confer no authority. inventory/docs/zengine.inventory.md is the role's manual.
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
@@ -16,7 +16,7 @@
 
 namespace zengine::inventory {
 
-/// The office this weave holds, so a caller addresses it by role rather than by WeaveId --
+/// The role this weave holds, so a caller addresses it by role rather than by WeaveId --
 /// `zengine.input` and `zengine.guests`' own convention.
 inline constexpr const char* kInventoryRole = "zengine.inventory";
 

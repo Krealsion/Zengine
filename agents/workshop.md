@@ -29,16 +29,16 @@ consumer-specific behavior of its extracted panes.
 | semantic text in a pane, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
 | the Editor, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
-| switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
+| switching the Editor: a plan's choices for a role, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
 | the quick setup a first start shows: its one setting, Done and Skip, the Neovim box | [first-run](workshop/first-run.md) `WL-FIRST` |
 | the Neovim-backed Editor: screen, keys, switch transfer and losses, second terminal, carry | [neovim](workshop/neovim.md) · [transfers](workshop/neovim-transfers.md) `WL-NVIM` |
-| a pane's code: the join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
+| a pane's code: the join from a role to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
 | what Workshop said: each notice published, the notices record and its `keep`, the Notices pane | [notices](workshop/notices.md) `WL-NOTE` |
 | several desks, the tab run, the durable files, the session and the window file, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) · [window-file](workshop/window-file.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
-| the application's defaults: their office, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
+| the application's defaults: their role, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
 | a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [weaver-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the typed rows a property is edited through, the file doors, an old object document | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the terminal participant, its pane's seam, the completer; the pane's history and view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |

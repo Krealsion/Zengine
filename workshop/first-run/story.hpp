@@ -5,12 +5,14 @@
 #define ZENGINE_WORKSHOP_FIRST_RUN_STORY_HPP
 
 // "Start here", pure: the story's five steps, each step's tick and who made it, the ticks as the
-// text of one office-wide setting, and the lines the pane draws for a given moment, each line with
+// text of one role-wide setting, and the lines the pane draws for a given moment, each line with
 // the item a press on it chooses. The weave (first_run.cpp) hears the facts that tick a step; a
 // suite reads the lines without a bus.
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
 
 #include "workshop/first-run/setup.hpp"
+#include "view/view-builder/vocabulary.hpp"
+#include "flow/flow-pane/vocabulary.hpp"
 
 #include <array>
 #include <cstddef>
@@ -36,7 +38,7 @@ inline constexpr std::size_t kSteps = 5;
 struct Step {
     const char* title;
     const char* what;
-    const char* office; ///< the pane Show me opens: its office and pane
+    const char* role; ///< the pane Show me opens: its role and pane
     const char* pane;
     const char* move;   ///< the step's next move, said when Show me opened its pane
     const char* by;     ///< whose fact ticks it, as the line says it
@@ -45,26 +47,26 @@ struct Step {
 // WL-FIRST-04 -- agents/workshop/first-run.md
 inline const std::array<Step, kSteps>& steps() {
     static const std::array<Step, kSteps> all{{
-        {"Make a view", "lay out a panel in the View Builder and run it", "zengine.view.builder",
+        {"Make a view", "lay out a panel in the View Builder and run it", zengine::view_builder::kRole,
          "view-builder",
          "place a number field, a button and a label, save the view, then press Run",
          "a running view is on the desk"},
         {"Wire its button into Flow", "drag the button's intent onto Flow and run the flow",
-         "zengine.flow", "flow",
+         zengine::flow_pane::kRole, "flow",
          "drag the running view's button onto Flow, author what it does, then run the flow",
-         "an office accepted what the button said"},
+         "a role accepted what the button said"},
         {"Show Flow's answer in the view", "drag the field Flow emits onto the view's label",
-         "zengine.flow", "flow", "drag the field the flow emits onto the view's label",
+         zengine::flow_pane::kRole, "flow", "drag the field the flow emits onto the view's label",
          "the view was told a field it shows"},
         {"Make it an app",
          "save the view, export its flow beside it under the view's name, then the View Builder's "
          "Export app",
-         "zengine.view.builder", "view-builder",
+         zengine::view_builder::kRole, "view-builder",
          "save the view, export its flow from Flow beside it under the view's name (my.view, "
          "my.flow), then press Export app: the app is written in the project's apps/",
          "the launcher lists the app"},
         {"Start it, and close Workshop", "the View Builder's Run app, then quit",
-         "zengine.view.builder", "view-builder",
+         zengine::view_builder::kRole, "view-builder",
          "press Run app; the app goes on when you quit Workshop",
          "the launcher started the app, or says it runs"},
     }};

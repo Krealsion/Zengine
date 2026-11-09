@@ -4,7 +4,7 @@
 #ifndef ZENGINE_DESKTOP_PANE_DESKTOP_COMMON_HPP
 #define ZENGINE_DESKTOP_PANE_DESKTOP_COMMON_HPP
 
-// What the Desktop's three panes and the weave that routes to them share: the offices they speak
+// What the Desktop's three panes and the weave that routes to them share: the roles they speak
 // to, the tools a launch points at, the sentences they print, the subject a menu carries, and the
 // records of a press, a declaration and a pane's canvas. Private to `zengine-desktop-pane`.
 // Workshop law: agents/workshop/desktop.md
@@ -17,6 +17,7 @@
 #include "workshop/pane_text.hpp"
 
 #include "component/list_window.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -35,21 +36,20 @@ using ws::pane_text::fit;
 using ws::pane_text::pad;
 using ws::pane_text::printable;
 
-/// WHO THIS WEAVE IS TALKING TO -- the host's office, spelled as a literal exactly as every
-/// other provider spells it. A provider is a stranger to Workshop's internals and says who it
-/// is talking to the way a third party would.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS WEAVE IS TALKING TO -- the host's role, read from the installed pane protocol as
+/// every other provider reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// THE TOOL THE TERMINAL LAUNCH POINTS AT, as a `PaneRef`'s two durable halves. (!) THESE ARE
 /// SPELLED HERE, IN THE DESKTOP, AND THAT IS THE POINT: which tool `Ctrl+t` opens is an
 /// application's choice, so it is written in the weave a weaver replaces rather than in the host
 /// they cannot. A desktop that pointed it at a different terminal would change one line here.
-inline constexpr const char* kTerminalOffice = "zengine.terminal";
+using zengine::workshop::kTerminalRole;
 inline constexpr const char* kTerminalPane = "terminal";
 
 /// ...AND THE TOOL `n` POINTS AT, on the same terms: a pane of the weaver's own is a described
 /// view, made and saved in the View Builder, and which tool makes one is the application's choice.
-inline constexpr const char* kViewBuilderOffice = "zengine.view.builder";
+inline constexpr const char* kViewBuilderRole = "zengine.view.builder";
 inline constexpr const char* kViewBuilderPane = "view-builder";
 
 
@@ -84,9 +84,9 @@ inline std::vector<std::string> split_subject(const std::string& subject) {
     }
 }
 
-/// DID THE HOST SAY THIS? Either as its office, or as Loom's answer to an ask this image sent
-/// to that office -- an answer carries answer provenance, not office authorship, and only the
-/// office's holder at delivery could have given it.
+/// DID THE HOST SAY THIS? Either as its role, or as Loom's answer to an ask this image sent
+/// to that role -- an answer carries answer provenance, not role authorship, and only the
+/// role's holder at delivery could have given it.
 inline bool from_workshop(const loom::Mail& mail) {
     return mail.authored_from_role(kWorkshopRole) || mail.answers_ask();
 }
@@ -97,7 +97,7 @@ inline std::int64_t take_notches(double& carried, double dy) {
 }
 
 /// DOES THIS NOTICE NAME THE ASK A RECORD IS WAITING ON -- the same queued attempt, under the
-/// same correlation, of the shape it sent, to the office it addressed? Every half, because a
+/// same correlation, of the shape it sent, to the role it addressed? Every half, because a
 /// sequence alone is a number and the rest is what this pane asked (Info's `refused_ask`).
 inline bool refused_ask(bool awaiting, loom::Ticket sent, std::uint64_t pending,
                         const loom::DispatchRefused& refused, const loom::Mail& mail,
@@ -112,18 +112,18 @@ inline bool refused_ask(bool awaiting, loom::Ticket sent, std::uint64_t pending,
 /// ASK THE HOST TO OPEN OR FOCUS A PANE, under a number of this image's own, so the answer
 /// that comes back can be read against the launch it answers. `launches` is the weave's one
 /// counter for every launch, close and toggle it asks for.
-inline void launch(loom::Mail& mail, const std::string& office, const std::string& pane_key,
+inline void launch(loom::Mail& mail, const std::string& role, const std::string& pane_key,
                    std::uint64_t& launches) {
     (void)mail.as_role(kDesktopRole)
-        .send_to_role(kWorkshopRole, ws::PaneLaunchRequested{office, pane_key}, ++launches);
+        .send_to_role(kWorkshopRole, ws::PaneLaunchRequested{role, pane_key}, ++launches);
 }
 
 /// ...AND TO TAKE ONE OFF THE DESK, asked of the layouts' owner, which judges whether its row is
 /// there, because participation is the live layout's fact and not this list's copy of it.
-inline void close(loom::Mail& mail, const std::string& office, const std::string& pane_key,
+inline void close(loom::Mail& mail, const std::string& role, const std::string& pane_key,
                   std::uint64_t& launches) {
     (void)mail.as_role(kDesktopRole)
-        .send_to_role(ws::kLayoutsRole, ws::PaneCloseRequested{office, pane_key}, ++launches);
+        .send_to_role(ws::kLayoutsRole, ws::PaneCloseRequested{role, pane_key}, ++launches);
 }
 
 /// WHERE A PRESS LANDED in one of this weave's panes: the row and column of the rows drawn there,

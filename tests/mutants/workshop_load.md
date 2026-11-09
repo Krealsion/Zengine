@@ -24,7 +24,7 @@ Red in `zengine-workshop-load-tests`:
 
 ## window-kept-without-opening
 
-The OS window's backend goes on as a window when SDL cannot start its video.
+The GUI window's backend goes on as a window when SDL cannot start its video.
 
 In `graphics/window/window_sdl_backend.hpp`:
 
@@ -41,8 +41,8 @@ In `graphics/window/window_sdl_backend.hpp`:
 
 Red in `zengine-workshop-load-tests`:
 
-- the shipped window row in the OS window's absence: told a driver it lacks, the OS window gives way
-  to the terminal window, said once, and leaves nothing loaded; in a build without it, the terminal
+- the shipped window row in the GUI window's absence: told a driver it lacks, the GUI window gives way
+  to the TUI window, said once, and leaves nothing loaded; in a build without it, the TUI
   window loads unsaid
 
 ## retired-row-opened
@@ -127,9 +127,9 @@ Red in `zengine-workshop-load-tests`:
 - an optional row that refused stays `unavailable` in the owner's own answers -- never `authored` --
   with its reason, the next step and its optional flag
 
-## office-never-pending
+## role-never-pending
 
-`office_pending` answers false whatever the rows' states.
+`role_pending` answers false whatever the rows' states.
 
 In `workshop/load_execute.hpp`:
 
@@ -142,5 +142,5 @@ In `workshop/load_execute.hpp`:
 
 Red in `zengine-workshop-load-tests`:
 
-- an office is still to come while a plan row loading it has not settled, and is owed nothing once
+- a role is still to come while a plan row loading it has not settled, and is owed nothing once
   every such row resolved or was stepped over

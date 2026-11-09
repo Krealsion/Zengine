@@ -6,7 +6,7 @@
 // where it puts it, its words as rows inside -- in its pane's area of the window that shows it.
 // Walkthrough: builder/docs/edit-a-running-pane.md. One source file of the installed packages'
 // headers: a single-source recipe links zengine::pane, zengine::graphics, zengine::activation,
-// zengine::input and loom::switchboard; a load-plan row loads it as "example.tally" (kOffice).
+// zengine::input and loom::switchboard; a load-plan row loads it as "example.tally" (kRole).
 
 #include "workshop/pane_drawing.hpp"
 #include "workshop/pane_rows.hpp"
@@ -45,13 +45,13 @@ std::vector<ws::TextRow> rows_for(std::int64_t count) {
     };
 }
 
-// The office this weave speaks as. It must be the role its load-plan row gives it: Workshop
-// knows a pane by the office that offered it, and a weave can only speak as an office it holds.
+// The role this weave speaks as. It must be the role its load-plan row gives it: Workshop
+// knows a pane by the role that offered it, and a weave can only speak as a role it holds.
 // If the pane never appears in the Pane Manager, compare this string with the role in the plan.
-// Its one pane, kPane below, draws in the area `<office>.<pane>`: "example.tally.tally".
-constexpr const char* kOffice = "example.tally";
+// Its one pane, kPane below, draws in the area `<role>.<pane>`: "example.tally.tally".
+constexpr const char* kRole = "example.tally";
 
-// The office Workshop holds. This pane answers Workshop and nobody else.
+// The role Workshop holds. This pane answers Workshop and nobody else.
 constexpr const char* kWorkshop = "zengine.workshop";
 
 constexpr const char* kPane = "tally";
@@ -144,20 +144,20 @@ public:
     void after_delivery(loom::Mail& mail) {
         if (!asked_ && !window_.shown()) {
             asked_ = true;
-            (void)mail.as_role(kOffice).send_to_role(gfx::kGraphicsRole,
+            (void)mail.as_role(kRole).send_to_role(gfx::kGraphicsRole,
                                                      gfx::RoomAsked{window_.area()});
         }
     }
 
 private:
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop, ws::PaneOffered{kPane, "Tally", "a count that survives a reload"});
         ws::PaneActions actions;
         actions.pane = kPane;
         actions.rows.push_back(ws::PaneActionRow{kAddOne, "add one", zengine::input::scan::kSpace,
                                                  zengine::input::mod::kNone});
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, actions);
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, actions);
     }
 
     void add(loom::Mail& mail) {
@@ -209,7 +209,7 @@ private:
         window_.draw(sketch, mail);
     }
 
-    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)}; // told its room afresh
+    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)}; // told its room afresh
     bool asked_ = false;
     zengine::ActivationCursor activation_;
 };

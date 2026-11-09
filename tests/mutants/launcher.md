@@ -126,14 +126,14 @@ The launcher takes a start from the View Builder and Files alone.
 In `launcher/weave.cpp`:
 
 ```diff
--constexpr const char* kAskers[] = {"zengine.view.builder", "zengine.files", "zengine.palette",
--                                   "zengine.first-run"};
-+constexpr const char* kAskers[] = {"zengine.view.builder", "zengine.files"};
+-constexpr const char* kAskers[] = {zengine::view_builder::kRole, zengine::files::kFilesRole,
+-                                   ws::kPaletteRole, zengine::first_run::kFirstRunRole};
++constexpr const char* kAskers[] = {zengine::view_builder::kRole, zengine::files::kFilesRole};
 ```
 
 Red in `zengine-launcher-tests`:
 
-- the launcher answers a listing to any office, and takes a start from the palette and the quick
+- the launcher answers a listing to any role, and takes a start from the palette and the quick
   setup as from the View Builder and Files
 
 ## start-not-published
@@ -151,5 +151,5 @@ In `launcher/weave.cpp`:
 
 Red in `zengine-launcher-tests`:
 
-- each start is said to any as it is answered, as the launcher's office, so an office that did not
+- each start is said to any as it is answered, as the launcher's role, so a role that did not
   ask hears it; a refusal is answered to its asker alone

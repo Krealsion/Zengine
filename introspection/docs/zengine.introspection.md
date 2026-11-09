@@ -3,7 +3,7 @@
 **Manual.** The panes that show what the running program is made of: `Loaded`, which weaves the
 kernel has loaded; `Project`, what your project asked for and what came of it; and `Powers`, which
 powers the program can use and who supplies each. One weave offers all of them, built as
-`zengine-introspection`; other weaves reach it by its *office*, the name it answers to,
+`zengine-introspection`; other weaves reach it by its *role*, the name it answers to,
 `zengine.introspection`. Its pane keys are `loaded`, `arrangement` (the pane named `Project`) and
 `powers`, and this page is the manual of each.
 
@@ -34,7 +34,7 @@ only while a pane holds your keys: press into it first.
 - **Loaded**: press a weave's row to select it. The row is marked `> `, and the pane says which
   weave you chose ([Follow](#follow)); the Composer takes it as its target. The wheel scrolls the
   list without moving your choice. Type to search: the rows narrow to the weaves whose name or
-  office holds it, ignoring case, and Backspace widens them; a choice the search hides stays
+  role holds it, ignoring case, and Backspace widens them; a choice the search hides stays
   chosen. Escape lets the choice go; with nothing chosen, Escape puts the pane down.
 - **Project**: read it. The wheel moves its list an artifact a notch, and so do
   [`project.up`](#projectup) and [`project.down`](#projectdown) once it holds your keys; a press
@@ -184,11 +184,11 @@ Moves Project's list down an artifact. Otherwise as [`project.up`](#projectup).
 
 A press on a weave's row of `Loaded` publishes `LoadedSelected` v1 as `zengine.introspection`:
 `pane`, the pane key `loaded`; `library`, the name the kernel loaded the weave under; `role`, the
-office it was bound to at load, empty when none. An observer accepts the shape and reads whose fact
-it is from the authored office. It is said once a press, again when the same row is pressed again,
+role it was bound to at load, empty when none. An observer accepts the shape and reads whose fact
+it is from the authored role. It is said once a press, again when the same row is pressed again,
 and never when a selection clears. The name is not a weave id and not proof the weave runs now, and
 hearing it grants no reach to the weave it names. Nothing else is said unasked but
-`PaneSettingsAsked`, to the layouts' owner, for Powers' row when the office arrives, and
+`PaneSettingsAsked`, to the layouts' owner, for Powers' row when the role arrives, and
 `PaneSettingUnused`, to it, when a layout hands a pane a setting it cannot use.
 
 ## Shows
@@ -213,7 +213,7 @@ artifacts`, and `plan: <the file the host read>` when there is room.
 ### `authored`
 
 `    authored  provider normal, weave zengine.timer`: what the plan file says of the artifact, its
-provider's mount mode (`normal` or `overlay`) and the office its weave is to hold. What a person
+provider's mount mode (`normal` or `overlay`) and the role its weave is to hold. What a person
 wrote, and would be true again tomorrow.
 
 ### `resolved`
@@ -221,12 +221,12 @@ wrote, and would be true again tomorrow.
 `    resolved  provider zengine.operators.basic, 2 powers`: the identity the artifact declared for
 itself and how many powers it installed. `    resolved  weave #11, operator host offered`: the
 weave id this kernel minted this run, and how the operator handoff around its load ended. No
-resolved office: `Loaded` shows it.
+resolved role: `Loaded` shows it.
 
 ### `state`
 
 A row not running says where realization has got with it: `(loading)` and `(not reached)`, a
-project coming up; `(refused)`; `(switched: its office is held by another choice)`; `(unavailable:
+project coming up; `(refused)`; `(switched: its role is held by another choice)`; `(unavailable:
 optional, and this run stepped over it)`. Then `    why   ` the refusing layer's sentence and
 `    next  ` what you can do, from [`zengine.arrangement`](zengine.arrangement.md#arrangementrequested).
 
@@ -270,7 +270,7 @@ The panes read and write no file. `Project`'s last row names the plan file the h
 ## See also
 
 - [`zengine.arrangement`](zengine.arrangement.md), [`zengine.powers`](zengine.powers.md) and
-  [`zengine.sources`](zengine.sources.md), the offices the panes ask.
+  [`zengine.sources`](zengine.sources.md), the roles the panes ask.
 - [A picture of `Powers`](images/powers-find.png), searching the Operators for `larger`.
 - [Sources and Operators](../../operator/docs/operator-sources.md), and
   [what a contribution says about itself](../../operator/docs/operator-providers.md#what-a-contribution-says-about-itself).

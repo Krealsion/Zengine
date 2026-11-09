@@ -20,7 +20,7 @@
 namespace zengine::workshop {
 
 /// THE TERMINAL'S WHOLE SPEECH: the discovery door's two questions, its ordinary verb; the editor
-/// switch's four; a pane's settings; each known and granted to its own office alone, and Loom's
+/// switch's four; a pane's settings; each known and granted to its own role alone, and Loom's
 /// three answers accepted. `Drawn` is known, so the completer describes what drawing takes, and
 /// granted to no one; its lists cannot be typed on a line, so a line naming it is never sent.
 /// Being a terminal confers nothing else.

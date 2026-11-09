@@ -1,7 +1,7 @@
 # zengine.inventory -- Inventory
 
 **Manual.** Inventory: the weave that keeps the values you want to use again, answering to the
-office `zengine.inventory` (an office is the name a weave answers to). Each value is an *entry*,
+role `zengine.inventory` (a role is the name a weave answers to). Each value is an *entry*,
 an item with its own record of how it was captured, filed in named folders. It is a loadable
 weave, built as `zengine-inventory`; Workshop's default plans load it. Its pane is
 [`zengine.inventory-pane`](zengine.inventory-pane.md); another weave, or an agent, reaches it by
@@ -35,7 +35,7 @@ nothing here.
 
 ## Use
 
-Send to the office `zengine.inventory`. Each request is answered to its sender alone, with the
+Send to the role `zengine.inventory`. Each request is answered to its sender alone, with the
 shape its section names or `zen.Refused` and the reason in its words; a change also publishes
 [`InventoryChanged`](#follow). To read the collection, ask [`InventoryList`](#inventorylist) v2;
 to keep a value, [`InventoryAdd`](#inventoryadd); to change one, read it with
@@ -45,7 +45,7 @@ revision you read.
 Who may send: in Workshop, a pane asks Workshop for the current actor's permission first, so the
 Inventory pane, Info and Compose act with your authority. A guest of the external host needs its
 `inventory` power, which reaches every request here but the snapshot and restore; those stay
-behind the pane's toolbox, under the `toolbox` power. Workshop admits this office with the bounded
+behind the pane's toolbox, under the `toolbox` power. Workshop admits this role with the bounded
 `inventory_grant()` ([`inventory/grant.hpp`](../grant.hpp)), to which it adds the answer to
 `ShapeDocumentRequested`; the artifact cannot widen its own grant.
 
@@ -247,8 +247,8 @@ snapshot you name. v1 restores a flat archive at the root.
 
 `InventoryCaptureAdd` v1 captures a weave's description into a new saved entry.
 
-- **Takes:** `target_role`, the office to describe; `label`.
-- **Answers:** asks the office's holder `zen.PokeDescribe`, the description every weave gives of
+- **Takes:** `target_role`, the role to describe; `label`.
+- **Answers:** asks the role's holder `zen.PokeDescribe`, the description every weave gives of
   itself, then stores its `zen.PokeStructure` as the item, with `CaptureContext` v1 and
   `CaptureAddRequest` v1 as metadata; answers the new entry's `InventoryEntry` v1.
 - **Refuses:** as [`InventoryCaptureDescribe`](#inventorycapturedescribe), and `entry names must

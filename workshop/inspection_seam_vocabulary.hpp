@@ -29,11 +29,11 @@ struct ShownProperty {
 };
 
 /// Make this pane the inspector's subject -- the one writer of it. Refused in words when the
-/// reference is in neither this build's vocabulary nor the live desk; only an office is answered.
+/// reference is in neither this build's vocabulary nor the live desk; only a role is answered.
 struct InspectPaneRequested {
-    std::string office;
+    std::string role;
     std::string pane;
-    ZEN_SHAPE(InspectPaneRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
+    ZEN_SHAPE(InspectPaneRequested, 2, ZEN_FIELD(role), ZEN_FIELD(pane));
 };
 
 /// Ask for the subject as it is now, answered to the asking incarnation alone.
@@ -42,14 +42,14 @@ struct PaneSubjectRequested {
 };
 
 /// THE SUBJECT, AS THIS HOST READS IT: which pane, what the inventory calls it, the name of what
-/// the rows address, and the rows. `office` and `pane` both empty is "no subject yet".
+/// the rows address, and the rows. `role` and `pane` both empty is "no subject yet".
 struct PaneSubjectShown {
-    std::string office;
+    std::string role;
     std::string pane;
     std::string name;         ///< the inventory's name for it, or its key when nothing offers it
     std::int64_t subject = 0; ///< what `properties` address, named by the host; 0 is none
     std::vector<ShownProperty> properties;
-    ZEN_SHAPE(PaneSubjectShown, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(name),
+    ZEN_SHAPE(PaneSubjectShown, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
               ZEN_FIELD(subject), ZEN_FIELD(properties));
 };
 

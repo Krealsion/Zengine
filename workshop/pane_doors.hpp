@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_DOORS_HPP
 
 // The host's side of the pane seam: the project door a pane weave asks, which reads four facts
-// and spends three acts. It derives and calls and remembers nothing. Only an office may ask, which
+// and spends three acts. It derives and calls and remembers nothing. Only a role may ask, which
 // names nobody and is not containment: the loader binds `allow_any()` to every library it opens.
 
 #include "builder_seam_vocabulary.hpp"
@@ -14,7 +14,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.project.hpp" // the office's manual, compiled in from its page
+#include "manuals/zengine.project.hpp" // the role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 
@@ -37,14 +37,14 @@ struct ProjectDoorState {
     std::int64_t authored = 0;  ///< recipe rows asked to be written
     std::int64_t planned = 0;   ///< plan rows asked to be added
     std::int64_t refusals = 0;  ///< acts the owner refused, in its own words
-    std::int64_t refused = 0;   ///< asks that were not authored as any office
+    std::int64_t refused = 0;   ///< asks that were not authored as any role
     ZEN_EXPOSE();
     ZEN_SHAPE(ProjectDoorState, 3, ZEN_FIELD(answers), ZEN_FIELD(frontiers),
               ZEN_FIELD(lookups), ZEN_FIELD(sources), ZEN_FIELD(used), ZEN_FIELD(authored),
               ZEN_FIELD(planned), ZEN_FIELD(refusals), ZEN_FIELD(refused));
 };
 
-/// The project office: where this run began, what realization is waiting on, whether the plan
+/// The project role: where this run began, what realization is waiting on, whether the plan
 /// names an artifact and which file a recipe names, read; and which recipes the project means and
 /// which artifacts it loads, changed. The reads run nobody's code. Each act spends the one closure
 /// the host wired for it, so a recipe and a plan row stay two acts with two owners, and the door

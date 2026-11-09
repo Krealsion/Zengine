@@ -7,12 +7,12 @@ an entry reads and how `tests/mutants/run.py` runs it.
 
 ## reveal-seats-by-name
 
-A reveal seats the first offered pane of its name, whichever office offered it.
+A reveal seats the first offered pane of its name, whichever role offered it.
 
 In `workshop/weave_seam.cpp`:
 
 ```diff
--    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
+-    const RuntimePane* row = session_.panes.runtime.find(role, asked.pane);
 -    if (row == nullptr) {
 -        return;
 -    }
@@ -31,7 +31,7 @@ In `workshop/weave_seam.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- a reveal from an office that offered no such pane is dropped
+- a reveal from a role that offered no such pane is dropped
 
 ## tab-stop-fixed
 

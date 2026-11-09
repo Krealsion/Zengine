@@ -68,18 +68,18 @@ struct DeskPane {
               ZEN_FIELD(keys));
 };
 
-/// The menu on the screen, if one is: Workshop's own (`office` is Workshop's) or a pane's, shown by
+/// The menu on the screen, if one is: Workshop's own (`role` is Workshop's) or a pane's, shown by
 /// its presenter, the lines it shows, and the lines it names -- a pane's by its row's id, as its
 /// presenter said it, Workshop's own by the action or group each shows. `picture` is the
 /// presenter's number for those lines.
 struct DeskMenu {
     bool open = false;
-    std::string office, pane;
+    std::string role, pane;
     std::int64_t picture = 0;
     DeskRect place;
     std::vector<PaneWord> lines;
     std::vector<PanePart> parts;
-    ZEN_SHAPE(DeskMenu, 3, ZEN_FIELD(open), ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(picture),
+    ZEN_SHAPE(DeskMenu, 4, ZEN_FIELD(open), ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(picture),
               ZEN_FIELD(place), ZEN_FIELD(lines), ZEN_FIELD(parts));
 };
 
@@ -106,14 +106,14 @@ struct DeskView {
     bool arranging = false;
     DeskMenu menu;
     std::vector<PaneWord> words;
-    ZEN_SHAPE(DeskView, 4, ZEN_FIELD(desk), ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(cell_px),
+    ZEN_SHAPE(DeskView, 5, ZEN_FIELD(desk), ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(cell_px),
               ZEN_FIELD(space), ZEN_FIELD(room), ZEN_FIELD(panes), ZEN_FIELD(arranging),
               ZEN_FIELD(menu), ZEN_FIELD(words));
 };
 
 // ---- A PANE'S READING, AND WHAT IT STANDS ON ------------------------------------------------------
 
-/// WHAT ONE PANE'S READING STANDS ON: its office's holder (a `WeaveId`) and that holder's
+/// WHAT ONE PANE'S READING STANDS ON: its role's holder (a `WeaveId`) and that holder's
 /// incarnation, the incarnation of the window that shows it (`epoch`), and the fingerprint of what
 /// it shows there -- the window's reading of the pane's area, or Workshop's of what it draws for a
 /// pane that draws in no window. A reading is stale when any of them moved.
@@ -183,7 +183,7 @@ struct DeskRead {
     DeskView desk;
     std::vector<PaneStamp> stamps;
     std::vector<PaneView> panes;
-    ZEN_SHAPE(DeskRead, 3, ZEN_FIELD(desk), ZEN_FIELD(stamps), ZEN_FIELD(panes));
+    ZEN_SHAPE(DeskRead, 4, ZEN_FIELD(desk), ZEN_FIELD(stamps), ZEN_FIELD(panes));
 };
 
 /// THE DESK MOVED: its number and every presented pane's stamp front to back, as a desk read would

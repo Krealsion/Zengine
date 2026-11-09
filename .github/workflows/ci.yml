@@ -472,7 +472,7 @@ jobs:
   # readable on its own: `verify.cmake` asks whether the intended population ran and passed,
   # not whether it read freed memory or overflowed a signed int, where NO answer changes --
   # defects of that kind, in test code and on the press path, the lane above had called
-  # green. It runs the SAME population, no subset, no lowered floor, no gate off, the OS window
+  # green. It runs the SAME population, no subset, no lowered floor, no gate off, the GUI window
   # included, so a red here is about the code and never about a lane that quietly shrank.
   # TWO RUNNERS, BY PROGRAM (VM-LANE-27): each builds only what it runs and runs its share of the
   # entries, tests/sanitizer_lane.cmake the home of both shares, and every entry is in one.

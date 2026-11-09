@@ -61,10 +61,10 @@
         "optional": false,
         "otherwise": [
           {
-            "artifact": "zengine-window-terminal",
+            "artifact": "zengine-window-tui",
             "weave": [
               {
-                "role": "zengine.window.terminal"
+                "role": "zengine.window.tui"
               }
             ]
           }

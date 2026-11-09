@@ -16,7 +16,7 @@ namespace zengine::workshop {
 
 // WL-DESK-18 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
-    // FROM THE PALETTE'S OFFICE, AS ITS HOLDER, and from nobody else.
+    // FROM THE PALETTE'S ROLE, AS ITS HOLDER, and from nobody else.
     if (mail.authored_role() != kPaletteRole || !host_->role_holder ||
         host_->role_holder(kPaletteRole) != mail.sender()) {
         return;
@@ -107,10 +107,10 @@ void WorkshopWeave::run_command(const CommandRunRequested& asked, const InputAct
         return;
     }
     if (asked.kind == kCommandPane) {
-        const PaneRef ref{asked.office, asked.pane};
+        const PaneRef ref{asked.role, asked.pane};
         const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
         if (!kind.has_value()) {
-            answer(asked.pane + " @" + asked.office + " is not a pane this Workshop has");
+            answer(asked.pane + " @" + asked.role + " is not a pane this Workshop has");
             return;
         }
         if (const std::string why = refused_toward(by->actor, *kind); !why.empty()) {
@@ -142,11 +142,11 @@ void WorkshopWeave::run_command(const CommandRunRequested& asked, const InputAct
     // A PANE'S MANUAL: asked of the desktop as the pane's `?` asks it, while the pane is on the
     // desk and the application shows manuals.
     if (asked.kind == kCommandManual) {
-        const RuntimePane* row = session_.panes.runtime.find(asked.office, asked.pane);
+        const RuntimePane* row = session_.panes.runtime.find(asked.role, asked.pane);
         const bool manuals = std::any_of(session_.keymap.app.begin(), session_.keymap.app.end(),
                                          [](const AppRow& a) { return a.id == kManualAction; });
         if (row == nullptr || !session_.panes.has(row->kind)) {
-            answer(asked.pane + " @" + asked.office + " is not on the desk: its manual opens from it");
+            answer(asked.pane + " @" + asked.role + " is not on the desk: its manual opens from it");
             return;
         }
         if (!manuals) {
@@ -165,7 +165,7 @@ void WorkshopWeave::run_command(const CommandRunRequested& asked, const InputAct
     }
     // WORKSHOP'S OWN ROW: the keys are Workshop's, as `focus.leave` gives them, and the row is
     // dispatched by its key in force, as that key in command mode would be.
-    if (asked.office == kWorkshopProvider) {
+    if (asked.role == kWorkshopProvider) {
         const ActionRow* row = row_of_id(asked.id);
         if (row == nullptr) {
             answer("`" + asked.id + "` is not an action of Workshop's");
@@ -194,7 +194,7 @@ void WorkshopWeave::run_command(const CommandRunRequested& asked, const InputAct
     // AN APPLICATION ROW, asked of the desktop as its key asks it, on the pane holding the keys.
     if (asked.pane.empty()) {
         const AppRow* row = session_.keymap.app_row_of_id(asked.id);
-        if (row == nullptr || asked.office != kDesktopRole) {
+        if (row == nullptr || asked.role != kDesktopRole) {
             answer("`" + asked.id + "` is not one of the application's rows");
             return;
         }
@@ -204,8 +204,8 @@ void WorkshopWeave::run_command(const CommandRunRequested& asked, const InputAct
     }
     // A PANE'S ROW: the pane seated and given the keys as a launch gives them, then the row sent
     // under a number recorded as this hand's act, so the pane's next ask is approved as for a key.
-    const PaneRef ref{asked.office, asked.pane};
-    const RuntimePane* pane = session_.panes.runtime.find(asked.office, asked.pane);
+    const PaneRef ref{asked.role, asked.pane};
+    const RuntimePane* pane = session_.panes.runtime.find(asked.role, asked.pane);
     const auto* rows = pane != nullptr ? session_.keymap.pane_rows(pane->kind) : nullptr;
     bool declared = false;
     if (rows != nullptr) {

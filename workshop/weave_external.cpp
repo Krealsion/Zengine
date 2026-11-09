@@ -193,7 +193,7 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
     // answers the requester unchosen, in these words.
     if (session_.presented.open) {
         const RuntimePane* row =
-            session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+            session_.panes.runtime.find(session_.presented.role, session_.presented.pane);
         if (row == nullptr || !session_.panes.has(row->kind)) {
             withdraw_menu("the pane left the desk", mail);
         }
@@ -206,13 +206,13 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
 
 // WL-CTX-08 -- agents/workshop/contextual.md
 void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panes.runtime.find(office, said.pane);
+    const RuntimePane* row = session_.panes.runtime.find(role, said.pane);
     if (row == nullptr) {
-        return; // a pane this office never offered is no pane of the desk's
+        return; // a pane this role never offered is no pane of the desk's
     }
     if (mail.correlation() == 0) {
         return; // an answer echoing nothing answers nothing
@@ -289,13 +289,13 @@ PointedAt WorkshopWeave::cell_of_body_place(std::int64_t kind, std::int64_t row,
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
-        return; // an office asks; personal speech is answered by nobody
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
+        return; // a role asks; personal speech is answered by nobody
     }
-    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(role, asked.pane);
     if (row == nullptr) {
-        return; // a pane this office never offered
+        return; // a pane this role never offered
     }
     // THE HOST ANSWERS ONLY WHAT IT REFUSES HERE: an ask it never grants reaches no presenter, so
     // nobody else could answer it. What the rows say -- how many, how long, whether any -- is the
@@ -356,7 +356,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     // THE OPENING ACT IS SPENT ON THE MENU: its choice, made under the same number, is the
     // chooser's own record (`on(MenuClosed)`).
     drop_kept(mail.correlation());
-    // ...AND SOMEBODY TO PRESENT IT. The office's holder is read off the bus now; the role is
+    // ...AND SOMEBODY TO PRESENT IT. The role's holder is read off the bus now; the role is
     // resolved again at delivery, and a presenter that left in between is Loom's refusal to
     // settle (`on(DispatchRefused)`), answered then.
     if (!host_->holder_accepts ||
@@ -395,7 +395,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     PresentedMenu next;
     next.open = true;
     next.menu = ++menus_;
-    next.office = row.provider;
+    next.role = row.provider;
     next.pane = row.pane;
     next.subject = asked.subject;
     next.correlation = correlation;
@@ -418,12 +418,12 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
             PaneMenuRow{entry.is_group ? entry.group : entry.row->id, context_entry_text(entry)});
     }
     session_.presented = next;
-    // TO THE ROLE, AS THIS OFFICE, UNDER THE REQUEST'S NUMBER: the presenter answers the requester
+    // TO THE ROLE, AS THIS ROLE, UNDER THE REQUEST'S NUMBER: the presenter answers the requester
     // under the same number, and authenticates this grant the way a pane authenticates a room.
     const loom::Ticket sent =
         mail.as_role(kWorkshopProvider)
             .send_to_role(kPresenterRole,
-                          MenuGranted{next.menu, next.office, next.pane, next.subject, asked.rows,
+                          MenuGranted{next.menu, next.role, next.pane, next.subject, asked.rows,
                                       next.room_rows, next.room_columns, std::move(standard),
                                       inventory_name(PaneRef{row.provider, row.pane}), next.area},
                           correlation);
@@ -431,7 +431,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
         end_menu_unanswered("the menu could not be handed to a presenter", mail);
         return;
     }
-    // ...AND FROM THIS ATTEMPT ON, what this host says to the presenter's office is about this
+    // ...AND FROM THIS ATTEMPT ON, what this host says to the presenter's role is about this
     // menu until it ends: a refusal Loom names by an attempt this late is this menu's own.
     session_.presented.first_attempt = sent.seq;
 }
@@ -450,7 +450,7 @@ void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
         mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, MenuWithdrawn{ended.menu, why});
     WithdrawnMenu withdrawn;
     withdrawn.menu = ended.menu;
-    withdrawn.office = ended.office;
+    withdrawn.role = ended.role;
     withdrawn.pane = ended.pane;
     withdrawn.subject = ended.subject;
     withdrawn.correlation = ended.correlation;
@@ -474,10 +474,10 @@ void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
 // WL-CTX-10 -- agents/workshop/pane-menu.md
 void WorkshopWeave::answer_withdrawn(const WithdrawnMenu& menu, const std::string& why,
                                      loom::Mail& mail) {
-    // THE HOST ANSWERS WHAT NO PRESENTER CAN -- unchosen, as its office, about the pane and subject
+    // THE HOST ANSWERS WHAT NO PRESENTER CAN -- unchosen, as its role, about the pane and subject
     // asked, under the ask's own number, so the requester's record settles and nothing is chosen.
     (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(menu.office,
+        .send_to_role(menu.role,
                       PaneMenuAnswered{menu.pane, menu.subject, false, std::string(), why},
                       menu.correlation);
 }
@@ -526,7 +526,7 @@ void WorkshopWeave::forget_withdrawn(std::int64_t menu) {
 // WL-CTX-10 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const WithdrawalFence& fence, loom::Mail& mail) {
     if (!mail.authored_from_role(kWorkshopProvider) || fence.menu <= 0 || fence.menu > menus_) {
-        return; // only this office's own fence, about a menu it granted, forgets anything
+        return; // only this role's own fence, about a menu it granted, forgets anything
     }
     if (fence.hop == 1) {
         (void)mail.as_role(kWorkshopProvider)
@@ -550,11 +550,11 @@ void WorkshopWeave::end_menu_unanswered(const std::string& why, loom::Mail& mail
     }
     const PresentedMenu ended = session_.presented;
     session_.presented = PresentedMenu{};
-    // NO PRESENTER CAN ANSWER THIS ONE, SO THIS HOST DOES -- unchosen, as its office, under the
+    // NO PRESENTER CAN ANSWER THIS ONE, SO THIS HOST DOES -- unchosen, as its role, under the
     // request's number: the requester settles its ask and nothing more happens. A choice never
     // comes from here. The weaver is told the menu closed and why, on the host's own line.
     (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(ended.office,
+        .send_to_role(ended.role,
                       PaneMenuAnswered{ended.pane, ended.subject, false, std::string(), why},
                       ended.correlation);
     say("the menu closed -- " + why, true);
@@ -596,7 +596,7 @@ void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-    if (const RuntimePane* row = session_.panes.runtime.find(session_.presented.office, session_.presented.pane)) {
+    if (const RuntimePane* row = session_.panes.runtime.find(session_.presented.role, session_.presented.pane)) {
         if (const std::string why = refused_toward(input_actor_, row->kind); !why.empty()) {
             say(why, true);
             return;
@@ -625,7 +625,7 @@ void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& ma
 bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Mail& mail) {
     // A MENU ABOUT A PLACE ONLY THE WEAVER'S HAND REACHES takes no press of a guest's; its
     // releases still end the custody they end, and reach no presenter.
-    const RuntimePane* about = session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+    const RuntimePane* about = session_.panes.runtime.find(session_.presented.role, session_.presented.pane);
     const std::string refused = about != nullptr ? refused_toward(input_actor_, about->kind) : std::string();
     if (!b.pressed && (b.button == 2 || b.button == 3)) {
         return true; // a secondary release on Workshop's own area ends nothing of a pane's
@@ -758,7 +758,7 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     // still its latest. An act the book no longer holds is no hand's latest.
     Hand* chooser = act != 0 ? hand_of_act(act) : nullptr;
     if (chooser != nullptr && closed.chosen && act >= ended.first_input && act <= ended.last_input) {
-        if (const RuntimePane* row = session_.panes.runtime.find(ended.office, ended.pane)) {
+        if (const RuntimePane* row = session_.panes.runtime.find(ended.role, ended.pane)) {
             ChoiceAnswered c;
             c.kind = row->kind;
             c.gesture = act;
@@ -791,7 +791,7 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
 void WorkshopWeave::spend_standard_row(const PresentedMenu& ended, const std::string& id,
                                        loom::Mail& mail) {
     // THE CATALOG'S OWN PANE ROWS, the ones every grant carries: an id naming none spends nothing.
-    const PaneRef pane{ended.office, ended.pane};
+    const PaneRef pane{ended.role, ended.pane};
     for (const ContextEntry& entry : context_population(context_subject::kPane, "")) {
         if (entry.is_group && id == entry.group) {
             // A GROUP OPENS THE HOST'S OWN MENU AT THAT GROUP, beside the menu it was chosen on.
@@ -820,9 +820,9 @@ void WorkshopWeave::spend_standard_row(const PresentedMenu& ended, const std::st
 void WorkshopWeave::on(const MenuReturned& returned, loom::Mail& mail) {
     if (!mail.authored_from_role(kPresenterRole) || returned.menu <= 0 ||
         returned.menu > menus_) {
-        return; // the office that presents, about a menu this host granted, and nobody else
+        return; // the role that presents, about a menu this host granted, and nobody else
     }
-    // AN INTERACTION HANDED BACK UNANSWERED. The office that presents says it cannot answer this
+    // AN INTERACTION HANDED BACK UNANSWERED. The role that presents says it cannot answer this
     // requester, and no other party can: so this host does -- for the menu still on the screen...
     if (session_.presented.open && session_.presented.menu == returned.menu) {
         end_menu_unanswered("the presenter could not answer it -- " + returned.why, mail);
@@ -864,11 +864,11 @@ void WorkshopWeave::on(const PresenterReady& ready, loom::Mail& mail) {
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(role, asked.pane);
     if (row == nullptr || mail.correlation() == 0) {
         return;
     }
@@ -886,7 +886,7 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
     }
     choice->spent = true;
     const ChoiceAnswered& chosen = *choice;
-    const PaneRef subject{asked.office, asked.target};
+    const PaneRef subject{asked.role, asked.target};
     bool named = false;
     for (const CatalogRow& r : inventory_rows(session_.setup.active, session_.panes)) {
         if (r.ref == subject) {
@@ -913,11 +913,11 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(role, asked.pane);
     if (row == nullptr || mail.correlation() == 0) {
         return;
     }
@@ -947,13 +947,13 @@ void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
 
 // WL-ARR-15 -- agents/workshop/arrangement.md
 void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panes.runtime.find(office, said.pane);
+    const RuntimePane* row = session_.panes.runtime.find(role, said.pane);
     if (row == nullptr) {
-        return; // a pane this office never offered is no pane of the desk's
+        return; // a pane this role never offered is no pane of the desk's
     }
     const std::int64_t kind = row->kind;
     // The particular Escape this answers, first: current state cannot identify it, since a second

@@ -3,7 +3,7 @@
 
 // The Hello pane provider: a real dynamic weave offering Workshop one read-only pane, the smallest
 // complete witness of the external pane seam (workshop/docs/panes.md), drawing its rows in its
-// office's area of the graphics window that shows it. A fixture loaded only by the Workshop
+// role's area of the graphics window that shows it. A fixture loaded only by the Workshop
 // suites, through the real ABI and Kernel; it writes no file, starts no process, opens no socket.
 // Its bus grant is Loom's in-process default, `allow_any`: the protocol's narrowness is the
 // protocol's, not a containment claim about the loader.
@@ -32,13 +32,13 @@ namespace gfx = zengine::graphics;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneOffered;
 
-/// THIS PROVIDER'S OFFICE — the durable half of the `PaneRef` a weaver's setup
+/// THIS PROVIDER'S ROLE — the durable half of the `PaneRef` a weaver's setup
 /// will name it by, and the area its one pane draws in. Hard-coded, because a fixture that could
 /// be configured into several identities would be testing its own configuration rather than the
 /// seam.
 constexpr const char* kHelloRole = "zengine.test.workshop-hello";
 
-/// The office Workshop holds. Named here rather than reached through
+/// The role Workshop holds. Named here rather than reached through
 /// `workshop/panes.hpp` on purpose: a provider is a stranger to Workshop's
 /// internals and must be able to say who it is talking to with a string, which is
 /// exactly what a real third party would have.
@@ -53,7 +53,7 @@ struct HelloState {
     /// duplicate `AreaRoom` visible if one is ever sent.
     std::int64_t rooms = 0;
     std::int64_t offers = 0;
-    std::int64_t refused = 0; ///< asks and rooms not authored by the office they claim
+    std::int64_t refused = 0; ///< asks and rooms not authored by the role they claim
     ZEN_EXPOSE();
     ZEN_SHAPE(HelloState, 1, ZEN_FIELD(rooms), ZEN_FIELD(offers), ZEN_FIELD(refused));
 };
@@ -79,7 +79,7 @@ public:
     /// Workshop asking who has panes, answered only when Workshop asked: `authored_from_role`, not
     /// `sender()`. The ask is a publication reaching every weave that accepts the shape, so Loom's
     /// stamp on its authorship is what says it was Workshop; a provider answering any
-    /// `PaneCatalogRequested` would hand its catalog to whoever asked, even a weave with no office.
+    /// `PaneCatalogRequested` would hand its catalog to whoever asked, even a weave with no role.
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
@@ -96,7 +96,7 @@ public:
         if (room.area != window_.area()) {
             return; // a room for an area this provider does not draw in
         }
-        if (!mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + room.window)) {
+        if (!mail.authored_from_role(std::string(gfx::kWindowRolePrefix) + room.window)) {
             ++state_.refused;
             return; // a forged room gives nothing and draws nothing
         }
@@ -119,7 +119,7 @@ public:
             said.push_back(ws::TextRow{fitted("row " + std::to_string(i), columns),
                                        gfx::colors::quiet});
         }
-        // DELIBERATELY AS THIS OFFICE: the window takes a drawing only from the office its area
+        // DELIBERATELY AS THIS ROLE: the window takes a drawing only from the role its area
         // is named by, and holding is never speaking-for (MSG-07).
         window_.draw(
             ws::rows_drawing(said, std::vector<ws::RowPart>{}, fit, columns, {}, rows).sketch,
@@ -142,7 +142,7 @@ public:
     }
 
 private:
-    /// One offer, authored as this office and addressed to the Workshop office.
+    /// One offer, authored as this role and addressed to the Workshop role.
     ///
     /// DIRECTED RATHER THAN PUBLISHED. Workshop is the only party this concerns,
     /// and a broadcast catalog entry would be an announcement to a room that did

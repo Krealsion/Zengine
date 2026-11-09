@@ -5,11 +5,13 @@
 #define ZENGINE_WORKSHOP_PANE_MIGRATION_HPP
 
 // A pane that changed hands, and the one rewrite that says so: a saved file naming a pane by the
-// office that offered it before it moved is converted at load, in memory, before the setup's law.
+// role that offered it before it moved is converted at load, in memory, before the setup's law.
 // Not a format version (a `PaneRef` is opaque data, and a version gate would refuse older files),
 // not an alias (one name per pane, WL-CAT-03), and not a general mechanism: a hand-written table.
 
 #include "setup.hpp"
+#include "workshop/desktop_seam_vocabulary.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -17,41 +19,41 @@
 
 namespace zengine::workshop::pane_migration {
 
-/// The office the browser was offered from before it became a weave, spelled as a literal: a fact
-/// about files already written, which must stay true if this host renames its own office.
+/// The role the browser was offered from before it became a weave, spelled as a literal: a fact
+/// about files already written, which must stay true if this host renames its own role.
 inline constexpr const char* kRetiredFilesProvider = "zengine.workshop";
 
-/// The office it is offered from now, spelled here because this host does not link the weave
+/// The role it is offered from now, spelled here because this host does not link the weave
 /// (`files/vocabulary.hpp`); a case checks that the two spellings agree.
 inline constexpr const char* kFilesProvider = "zengine.files";
 
-/// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands; the pane a weaver
+/// THE PANE KEY, WHICH DID NOT MOVE. Only the role changed hands; the pane a weaver
 /// arranged is the same pane, so its key is the same key and the conversion is not a
 /// rename.
 inline constexpr const char* kFilesPane = "project-files";
 
-/// The office the Builder pane was offered from, spelled a second time rather than aliased: two
+/// The role the Builder pane was offered from, spelled a second time rather than aliased: two
 /// independent facts about two sets of files.
 inline constexpr const char* kRetiredBuilderProvider = "zengine.workshop";
 
-/// The office it is offered from now, for `kFilesProvider`'s reason
+/// The role it is offered from now, for `kFilesProvider`'s reason
 /// (`builder/builder-pane/vocabulary.hpp`).
 inline constexpr const char* kBuilderProvider = "zengine.builder-pane";
 
-/// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands.
+/// THE PANE KEY, WHICH DID NOT MOVE. Only the role changed hands.
 inline constexpr const char* kBuilderPane = "builder";
 
-/// The Info pane's old office and its office now, for `kFilesProvider`'s reasons on both sides.
+/// The Info pane's old role and its role now, for `kFilesProvider`'s reasons on both sides.
 inline constexpr const char* kRetiredInfoProvider = "zengine.workshop";
 inline constexpr const char* kInfoProvider = "zengine.info";
 
 /// THE PANE KEY, WHICH DID NOT MOVE.
 inline constexpr const char* kInfoPane = "info";
 
-/// The source editor's old office and its office now, for `kFilesProvider`'s reasons
+/// The source editor's old role and its role now, for `kFilesProvider`'s reasons
 /// (`editor/editor-pane/vocabulary.hpp`).
 inline constexpr const char* kRetiredEditorProvider = "zengine.workshop";
-inline constexpr const char* kEditorProvider = "zengine.editor";
+inline constexpr const char* kEditorProvider = kEditorRole;
 
 /// THE PANE KEY, WHICH DID NOT MOVE. Its place is the overlay stack on both sides, so the
 /// row's `default` goes on meaning what it always meant and nothing is written.
@@ -62,11 +64,11 @@ inline constexpr const char* kEditorPane = "editor";
 /// checked against `workshop/desktop-pane/vocabulary.hpp` by a case.
 inline constexpr const char* kRetiredManagerProvider = "zengine.workshop";
 inline constexpr const char* kRetiredManagerPane = "pane-editor";
-inline constexpr const char* kManagerProvider = "zengine.desktop";
+inline constexpr const char* kManagerProvider = kDesktopRole;
 inline constexpr const char* kManagerPane = "launcher";
 
 // ---- The table -------------------------------------------------------------------------
-// Info made it a table: its place moved with its office. A saved `default` place meant the room's
+// Info made it a table: its place moved with its role. A saved `default` place meant the room's
 // top-right because the host's catalog put it there, so the conversion rewrites that place too.
 
 /// One pane that changed hands: what a saved file wrote, what it means now, and the place the
@@ -133,9 +135,9 @@ struct Converted {
     bool held(std::size_t which) const { return which < kRetiredCount && rows[which] > 0; }
 };
 
-/// HOW MANY ROWS OF ONE SETUP HELD ONE PARTICULAR RETIRED REFERENCE -- named by the office the
+/// HOW MANY ROWS OF ONE SETUP HELD ONE PARTICULAR RETIRED REFERENCE -- named by the role the
 /// pane is offered from NOW, so a caller says which pane it means rather than an index into a
-/// table it did not write. Total over the string: an office no row names answers zero.
+/// table it did not write. Total over the string: a role no row names answers zero.
 inline std::int64_t held_count(const Converted& converted, const char* now_provider) {
     if (now_provider == nullptr) {
         return 0;
@@ -174,7 +176,7 @@ inline Converted convert_retired_panes(Setup& s) {
 /// What a weaver is told, once per run, when a file named a pane that changed hands: in the panes'
 /// durable names, and only for what this run's file held (`converted` counts rows).
 inline std::string converted_note(const Converted& converted) {
-    std::string said = "panes moved to their own offices";
+    std::string said = "panes moved to their own roles";
     std::int64_t named = 0;
     for (std::size_t i = 0; i < kRetiredCount; ++i) {
         if (!converted.held(i)) {

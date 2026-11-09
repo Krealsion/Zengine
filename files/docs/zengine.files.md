@@ -5,7 +5,7 @@ in and goes anywhere your system lets Workshop read. It opens a file in the Edit
 you mark, hands a file to the Builder as your recipe file, and writes a new recipe for something in
 the folder you are looking at. It is a *weave*: a piece of Workshop that is loaded, replaced and
 spoken to by messages, built as `zengine-files` and loaded at startup by a row of the load plan.
-Other weaves reach it by its *office*, the name it answers to, `zengine.files`; its one pane is
+Other weaves reach it by its *role*, the name it answers to, `zengine.files`; its one pane is
 `zengine.files/project-files`, the name a saved desk and a keymap file use.
 
 ## About
@@ -101,15 +101,15 @@ opens like any other.
   control `[enter]` or `[open]`; a press on the selected row while Files holds your keys.
 - **Answers:** a folder: its listing, and `in <path>`, with `(origin)`, `(marked)` or `(filesystem
   root)` when the place is one. A file: asked of Workshop as an `open` of its path, then sent to the
-  opening office, `zengine.opening`
+  opening role, `zengine.opening`
   ([`OpenSourceRequested`](../../workshop/docs/zengine.opening.md#opensourcerequested)). The Editor
   shows it and takes your keys, and Files says nothing. The Editor judges the file: one it cannot
   edit is refused in its words, which Files shows on its first row.
 - **Refuses:** `no row is selected -- nothing was opened`; `` `name` has bytes this Workshop cannot
   carry in a path -- it cannot be opened ``; `this run began nowhere -- there is no location to act
   in`; `` `name` cannot be reached from here ``; `` `name` was not opened -- nothing was queued to the
-  opening office ``; `` `name` was not opened -- the open could not reach zengine.opening (<the bus's
-  reason>) ``; the opening office's own words, as when no Editor is loaded or it holds unsaved edits;
+  opening role ``; `` `name` was not opened -- the open could not reach zengine.opening (<the bus's
+  reason>) ``; the opening role's own words, as when no Editor is loaded or it holds unsaved edits;
   and the refusals every act shares ([Use](#use)).
 - **Example:** move to `alpha.cpp`, press <!-- key files.open -->`return`<!-- /key -->.
 
@@ -139,12 +139,12 @@ Lists where you are again, the cursor back on the first row.
 ### `files.use-recipes`
 
 Makes the file under the cursor the recipe file the Builder builds from, until Workshop quits.
-Nothing judges the file by its name: the project office reads it, and answers
+Nothing judges the file by its name: the project role reads it, and answers
 ([choosing another recipe file](../../builder/docs/recipes.md#choosing-another-recipe-file-while-workshop-runs)).
 
 - **Takes:** the selected file. Default key <!-- key files.use-recipes -->`u`<!-- /key -->; the
   control `[use as recipes]`.
-- **Answers:** asked of Workshop as a `write`, then sent to the project office, `zengine.project`
+- **Answers:** asked of Workshop as a `write`, then sent to the project role, `zengine.project`
   ([`RecipeUseRequested`](../../workshop/docs/zengine.project.md#recipeuserequested)). Its answer is
   the notice, `build recipes: recipes.json (3 recipes) in /home/you/game`, and Files then asks the
   Builder to say its recipes again
@@ -153,7 +153,7 @@ Nothing judges the file by its name: the project office reads it, and answers
 - **Refuses:** `` `src` is a directory -- a recipe catalog is one authored file ``; `no row is
   selected -- the recipes in force are unchanged`; a name Workshop cannot carry, `... -- the recipes
   in force are unchanged`; `this run began nowhere -- the recipes in force are unchanged`; the
-  office's refusal, `not a recipe catalog -- the recipes in force are unchanged: <its reason>; still
+  role's refusal, `not a recipe catalog -- the recipes in force are unchanged: <its reason>; still
   using <the file in force>` (`no catalog` when none is); and the refusals every act shares.
 - **Example:** on `build-recipes.json`, press <!-- key files.use-recipes -->`u`<!-- /key -->.
 
@@ -356,13 +356,13 @@ Writes the whole draft from whichever field you stand on.
 
 - **Takes:** the draft. No default key; the control `[write the recipe]`, drawn `(write the
   recipe)` while a required field is empty; the menu line `` write the recipe for `oven.cpp` ``.
-- **Answers:** asked of Workshop as a `write`, then sent to the project office, `zengine.project`
+- **Answers:** asked of Workshop as a `write`, then sent to the project role, `zengine.project`
   ([`RecipeAuthorRequested`](../../workshop/docs/zengine.project.md#recipeauthorrequested)), and the
   fields close. Its answer is the notice, `` authored recipe `oven` -> zengine-oven in
   /home/you/game/build-recipes.json (2 recipes) ``, and Files then asks the Builder to say its
   recipes again ([`StatusRequested`](../../builder/docs/zengine.builder.md#statusrequested)).
 - **Refuses:** `<field> is required -- nothing was written`, naming the first one left empty; the
-  office's refusal, `no recipe was written: <its reason>; still using <the file in force>`; `that
+  role's refusal, `no recipe was written: <its reason>; still using <the file in force>`; `that
   draft is not open any more -- no recipe was written`, when you abandoned it before Workshop
   answered; and the refusals every act shares. Refused by Workshop, the draft stays open.
 - **Example:** press the control `[write the recipe]`.
@@ -446,7 +446,7 @@ brackets. A strip too narrow for all of them ends `+3 in menu`.
   an absolute location this Workshop can carry, and `docs` is not one ``.
 - **What is not kept.** Where you browsed lasts through a reload of the pane, not through a restart:
   a new Workshop starts at its origin. A reload drops a recipe half written.
-- **The recipe file** is written by the project office, never by Files:
+- **The recipe file** is written by the project role, never by Files:
   [`files.write-recipe`](#fileswrite-recipe) appends to the file in force, or, while the shipped
   default is in force, to a new `build-recipes.json` in your project
   ([the recipe file](../../builder/docs/recipes.md)).
@@ -459,5 +459,5 @@ brackets. A strip too narrow for all of them ends `+3 in menu`.
   author here.
 - The shapes Files speaks, in the headers declaring them: [the pane protocol](../../workshop/pane_vocabulary.hpp),
   [the host's doors](../../workshop/pane_seam_vocabulary.hpp),
-  [the opening office](../../workshop/open_seam_vocabulary.hpp) and
+  [the opening role](../../workshop/open_seam_vocabulary.hpp) and
   [Workshop's word on an act](../../workshop/pane_operation.hpp).

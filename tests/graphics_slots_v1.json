@@ -1,0 +1,9 @@
+{
+  "format": "zengine-slots",
+  "format_version": 1,
+  "about": "Slots as a version-1 file says them, the role named office: read as the role.",
+  "office": "test.slotted-v1",
+  "colors": [
+    { "name": "plate", "color": "#3a4b62", "like": "background", "about": "a plate's ground" }
+  ]
+}

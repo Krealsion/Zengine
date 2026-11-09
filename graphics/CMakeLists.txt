@@ -1,6 +1,6 @@
 # The Graphics package: the vocabulary an owner draws with (a node, an element record, seven
-# operators, a canvas, a colour by name), the windows that show what owners draw -- the terminal
-# window and the OS window -- and the directory that introduces an area to its window and passes it
+# operators, a canvas, a colour by name), the windows that show what owners draw -- the TUI
+# window and the GUI window -- and the directory that introduces an area to its window and passes it
 # the palettes offered. The pool's names and the shipped themes are JSON, generated into C++ here.
 
 # The vocabulary and its helpers travel as a header-only interface target, and install with the
@@ -47,17 +47,17 @@ endif()
 zengine_weave(zengine-graphics directory.cpp MANUAL docs/zengine.graphics.md)
 target_link_libraries(zengine-graphics PRIVATE zengine-graphics-vocabulary zengine-activation)
 
-# The terminal window: it reads its own terminal on its own beat, paints with its own painter, and
+# The TUI window: it reads its own terminal on its own beat, paints with its own painter, and
 # opens element code as operator providers are opened (operator/image.hpp), so it needs the dynamic
 # loader too. Its manual is compiled in, and answered as the directory's is.
-zengine_weave(zengine-window-terminal window/window.cpp MANUAL docs/zengine.window.terminal.md)
-target_link_libraries(zengine-window-terminal PRIVATE zengine-graphics-vocabulary
+zengine_weave(zengine-window-tui window/window.cpp MANUAL docs/zengine.window.tui.md)
+target_link_libraries(zengine-window-tui PRIVATE zengine-graphics-vocabulary
                                                       zengine-input-vocabulary
                                                       zengine-timer-vocabulary
                                                       zengine-activation zengine-operator)
 
-# The OS window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), as
-# it is by default. Its manual is compiled in, as the terminal window's is, and so are its faces:
+# The GUI window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), as
+# it is by default. Its manual is compiled in, as the TUI window's is, and so are its faces:
 # each font's bytes become a translation unit in the build tree, nothing installed, staged or
 # discovered at runtime (graphics/window/fonts/PROVENANCE.md) -- JetBrains Mono, regular and bold,
 # and GNU Unifont and Unifont Upper, the last resort for every character the others lack.

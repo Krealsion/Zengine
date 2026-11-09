@@ -4,7 +4,7 @@
 #ifndef ZENGINE_GRAPHICS_WINDOW_WINDOW_SDL_BACKEND_HPP
 #define ZENGINE_GRAPHICS_WINDOW_WINDOW_SDL_BACKEND_HPP
 
-// The OS window's pixel backend, through SDL3: the window it opens, centred and kept whole on a
+// The GUI window's pixel backend, through SDL3: the window it opens, centred and kept whole on a
 // display; each picture drawn, in its face (graphics/window/window_sdl_face.hpp), and presented or
 // read back; SDL's queue emptied and translated by input/translate_sdl_core.hpp under its claim on
 // the queue (input/window_claim.hpp); and the clipboard, read only when asked. Reloaded, it leaves
@@ -87,7 +87,7 @@ static_assert(scan::kDown == SDL_SCANCODE_DOWN);
 
 namespace zengine::graphics::window {
 
-/// The backend `zengine-window-sdl` runs over: one OS window and its renderer, for its life.
+/// The backend `zengine-window-sdl` runs over: one GUI window and its renderer, for its life.
 class ProcessSdlBackend {
 public:
     /// SDL's queue claimed from the start, so a reload in place never leaves it unclaimed. With
@@ -469,9 +469,9 @@ private:
     static constexpr const char* kLiving = "zengine.window.sdl.instances";
 
     static constexpr const char* kRefused =
-        "the OS window does not open, and its weave does not load.";
+        "the GUI window does not open, and its weave does not load.";
     static constexpr const char* kNoWindow =
-        "no OS window is shown; the window keeps and composes its picture.";
+        "no GUI window is shown; the window keeps and composes its picture.";
     static constexpr const char* kNoPicture = "no picture is read back.";
 
     /// What went wrong, in SDL's own words, and what it costs, on standard error; the first line,

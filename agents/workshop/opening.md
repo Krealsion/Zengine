@@ -58,7 +58,7 @@ WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-05 — Delivered silence stays pending, bounded and inspectable
 
-LAW — No timeout, retry or forced recovery: an owner that never answers leaves the one flight pending, its operation, requester, stage, awaited office and attempt readable in `OpeningState` and on the desk.
+LAW — No timeout, retry or forced recovery: an owner that never answers leaves the one flight pending, its operation, requester, stage, awaited role and attempt readable in `OpeningState` and on the desk.
 
 MEANS
 - queue emptiness and elapsed time prove nothing; a newer request supersedes a preparation;
@@ -98,7 +98,7 @@ WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-08 — The authority is the host's, minted for the manager's exact incarnation
 
-LAW — The host mints `JointAuthority` for the mounted manager over the two offices; it names that incarnation, a replaced manager's retained copy is refused `NotOperator`, and only the host re-mints.
+LAW — The host mints `JointAuthority` for the mounted manager over the two roles; it names that incarnation, a replaced manager's retained copy is refused `NotInitiator`, and only the host re-mints.
 
 MEANS
 - no operation id, role spelling, correlation or payload is authority;
@@ -137,7 +137,7 @@ WHY — `agents/decisions/the-opening-carries-a-picture.md`
 
 ## Do not assume
 
-- That a refused open through the Editor's own office ever installed a document alone: the
+- That a refused open through the Editor's own role ever installed a document alone: the
   relay is refused in words or answered by the manager (WL-OPEN-07).
 - That a live SDL or terminal run was measured for every law here; the register's witnesses
   are model rigs over the real weaves, and none of them drives a live medium.
@@ -149,7 +149,7 @@ WHY — `agents/decisions/the-opening-carries-a-picture.md`
 `workshop/open_seam_vocabulary.hpp` kOpeningRole PresentationTrialRequested PrepareSourceRequested
 PresentationAdmitRequested
 `workshop/weave_opening.cpp` ask answers_flight
-`workshop/workshop.cpp` mount_in_office
+`workshop/workshop.cpp` mount_in_role
 `files/files.cpp` open
 `tests/test_workshop_panes_editor.cpp` "a managed open has one commitment -- the published claims,
 the pane's reads, its snapshot and the desk agree at it, and A is current before it"
@@ -213,13 +213,13 @@ coordination begun on the same bus before its application notice was consumed"
 `editor/editor-pane/pane.cpp` on(DispatchRefused) Relay
 `workshop/weave_opening.cpp` on(DispatchRefused)
 `tests/test_workshop_panes_files.cpp` "an open refused at dispatch is said by that exact attempt,
-and a fresh attempt takes once an opening office is present" "a forged refusal naming the pane's own
+and a fresh attempt takes once an opening role is present" "a forged refusal naming the pane's own
 live attempt settles nothing, and the open completes"
-`tests/test_workshop_panes_builder.cpp` "a lookup queued to a project office nobody holds and an
-open queued to an opening office nobody holds are each refused at dispatch by that attempt, in
-words, and a fresh e takes once each office is present" "a lookup queued to the project office and
-refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the
-lookup stage, opens nothing, and a fresh e takes once the office is back" "a forged refusal naming
+`tests/test_workshop_panes_builder.cpp` "a lookup queued to a project role nobody holds and an
+open queued to an opening role nobody holds are each refused at dispatch by that attempt, in
+words, and a fresh e takes once each role is present" "a lookup queued to the project role and
+refused at dispatch -- the role gone before delivery -- is said by that exact attempt at the
+lookup stage, opens nothing, and a fresh e takes once the role is back" "a forged refusal naming
 the pane's own live attempt settles nothing at either stage, and the open completes"
 `tests/test_workshop_panes_editor.cpp` "the old door still opens and shows, or refuses truthfully,
 by a kept answer right"

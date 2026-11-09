@@ -101,7 +101,7 @@ using pane::Declared;
 using pane::PaneCanvas;
 using pane::PanePress;
 using pane::from_workshop;
-using pane::kTerminalOffice;
+using pane::kTerminalRole;
 using pane::kTerminalPane;
 using pane::kWorkshopRole;
 
@@ -109,21 +109,21 @@ using pane::kWorkshopRole;
 // The weave
 // =============================================================================
 
-/// THE OFFICE OF THE THREE PANES: its activation, its offers on Workshop's catalog request, the
+/// THE ROLE OF THE THREE PANES: its activation, its offers on Workshop's catalog request, the
 /// manual of any of the three, the whole page the weave's, and the pointer resting on them, which
 /// the Hotkeys pane's sections peek under.
-using Office = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
+using Role = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
                                   zengine::manual::pages::zengine_desktop::kManual, ws::kHearsRest>;
 /// Hotkeys' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
 using Settings = ws::PaneSettingsFacet<pane::kHotkeysPane, pane::kDesktopRole>;
 
-// (!) WHAT IT ACCEPTS, ITS OFFICE'S DOORS WITH IT, IS ITS RELOAD CONTRACT. A reload replaces this
+// (!) WHAT IT ACCEPTS, ITS ROLE'S DOORS WITH IT, IS ITS RELOAD CONTRACT. A reload replaces this
 // weave only with an image accepting exactly these shapes (Loom's accepted-contract match), so
 // the doors added for the mouse -- the area's room and pointer, the menu and toggle answers, the
 // edit answer -- make an image built without them a relaunch from a runtime made from one build,
 // never a reload (workshop/docs/develop-workshop.md). Images that both accept them reload.
 class DesktopWeave
-    : public zengine::With<Office, Settings>::Weave<
+    : public zengine::With<Role, Settings>::Weave<
           DesktopWeave, pane::DesktopState,
           loom::Accept<ws::PaneShortcuts, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
@@ -141,7 +141,7 @@ class DesktopWeave
                      gfx::ClipboardCopy, gfx::ClipboardTextRequested,
                      ws::v2::PaneSettingsDeclared>> {
 public:
-    // ---- What its office calls --------------------------------------------------------------
+    // ---- What its role calls --------------------------------------------------------------
 
     /// THE THREE PANES IT OFFERS, any of whose manual is the one page this image was built with.
     static bool known_pane(const std::string& pane_key) {
@@ -207,7 +207,7 @@ public:
     }
 
 
-    // ---- Its panes in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+    // ---- Its panes in graphics windows (its role's `MultiPaneFacet` calls these) ------------
 
     /// EACH PANE'S SEAT, where a window that shows the pane's area finds it.
     template <class F>
@@ -279,7 +279,7 @@ public:
             return;
         }
         if (asked.id == pane::kActionTerminal) {
-            pane::launch(mail, kTerminalOffice, kTerminalPane, launches_);
+            pane::launch(mail, kTerminalRole, kTerminalPane, launches_);
             return;
         }
         if (asked.id == pane::kActionPanes) {
@@ -305,7 +305,7 @@ public:
             return;
         }
         if (asked.id == pane::kActionManual) {
-            manual_.show_manual(asked.office, asked.pane, hotkeys_.keys_heard(), hotkeys_.keymap(),
+            manual_.show_manual(asked.role, asked.pane, hotkeys_.keys_heard(), hotkeys_.keymap(),
                                 mail, launches_);
             return;
         }
@@ -482,7 +482,7 @@ public:
     /// image's to show.
     void on(const ActionsWithdrawn& said, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
-            return; // ordinary speech: only the host's office may say it
+            return; // ordinary speech: only the host's role may say it
         }
         Declared& d = declared_for(said.pane);
         if (said.declaration == 0 || said.declaration != d.in_force) {
@@ -496,7 +496,7 @@ public:
     }
 
     /// What a menu came to, if it answers one of this image's own asks (`Asked::take`: from the
-    /// presenter's office, under an unanswered ask's number, about the pane and subject asked,
+    /// presenter's role, under an unanswered ask's number, about the pane and subject asked,
     /// once). A reloaded desktop asked nothing, so its predecessor's menus act on nothing -- they
     /// were about rows the predecessor showed. The row is judged against what this weave holds now.
     void on(const PaneMenuAnswered& a, loom::Mail& mail) {
@@ -590,13 +590,13 @@ private:
     /// `Escape` in the DEFAULT class, so every pane's own Escape stays its own; `Ctrl+f` a pane's
     /// manual, above every mode, since only a chord reaches past a pane holding the keys;
     /// `Ctrl+Space` the palette, a chord every window says, typing nothing where it opens; and
-    /// double Shift, its second key, which the OS window says.
+    /// double Shift, its second key, which the GUI window says.
     static std::vector<AppActionRow> app_rows() {
         return {
             AppActionRow{pane::kActionTerminal, "terminal", input::scan::kT, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
                          {ws::cause_of<PaneLaunchRequested>(
-                             ws::to_pane(kTerminalOffice, kTerminalPane))}},
+                             ws::to_pane(kTerminalRole, kTerminalPane))}},
             AppActionRow{pane::kActionPanes, "panes", input::scan::kP, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
                          {ws::cause_of<PaneToggleRequested>(
@@ -608,7 +608,7 @@ private:
             AppActionRow{pane::kActionDeselect, "put down", input::scan::kEscape,
                          input::mod::kNone, ws::app_precedence::kDefault,
                          {ws::cause_of<DeselectRequested>()}},
-            // THE MANUAL OF THE PANE THE ACT WAS PERFORMED ON, asked of its office, and the
+            // THE MANUAL OF THE PANE THE ACT WAS PERFORMED ON, asked of its role, and the
             // Manual shown: the ask's subject is the act's own pane, which the request names.
             AppActionRow{pane::kActionManual, "manual", input::scan::kF, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,

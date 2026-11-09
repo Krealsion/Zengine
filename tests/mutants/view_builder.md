@@ -127,7 +127,7 @@ The export's plan holds the timer as a provider alone.
 In `app/folder.hpp`:
 
 ```diff
--                      {"zengine-timer", provider, weave("zengine.timer")}};
+-                      {"zengine-timer", provider, weave(zengine::timer::kTimerRole)}};
 +                      {"zengine-timer", provider, std::nullopt}};
 ```
 

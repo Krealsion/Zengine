@@ -7,7 +7,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | | |
 |---|---|
-| `manual.hpp` | `Manual` and `Section`, the view a generated `manuals/<office>.hpp` defines; the bounds |
+| `manual.hpp` | `Manual` and `Section`, the view a generated `manuals/<role>.hpp` defines; the bounds |
 | `vocabulary.hpp` | `ShapeDocumentRequested`, `ShapeDocumentShown`, `shape_document`, `content_id_text` |
 | `CMakeLists.txt` | `zengine-manual`, INTERFACE, over `loom::core`; not a weave, not installed |
 
@@ -25,7 +25,7 @@ holds one.
 No CTest entry of its own. Its cases in shared suites: `workshop_panes_project`
 (`tests/test_workshop_panes_builder.cpp`: the action census, the Builder's answered manual against
 its declared ids in every mode, a section or a pane it does not have refused, a reload in place with
-other words) and `builder` (`tests/test_builder.cpp`: the office's answer by content id, and its page
+other words) and `builder` (`tests/test_builder.cpp`: the role's answer by content id, and its page
 against its accepted shapes). The page form and the key markers are the `manual` text check's,
 routed by the root.
 
@@ -33,7 +33,7 @@ routed by the root.
 
 `workshop/pane_document.hpp` is the pane protocol's side: `PaneDocumentRequested`,
 `PaneDocumentShown` and `pane_document`, the answer a pane gives. Workshop holds none of it; it grants
-the Builder office its answer in `workshop/workshop.cpp`.
+the Builder role its answer in `workshop/workshop.cpp`.
 
 ## Pages
 

@@ -3,7 +3,7 @@
 #ifndef ZENGINE_WORKSHOP_PANE_FACETS_HPP
 #define ZENGINE_WORKSHOP_PANE_FACETS_HPP
 
-// The conversations every pane office holds with Workshop and the graphics window that shows its
+// The conversations every pane role holds with Workshop and the graphics window that shows its
 // area, as facets composed with `zengine::With` (activation/activation.hpp): its offer and manual
 // (`PaneFacet`), its rows (`PaneRowsFacet`) or its one drawing (`PaneDrawingFacet`), drawn in its
 // area, and the presses on them, its asks (`AskFacet`), declared actions (`PaneActionFacet`) and
@@ -44,11 +44,11 @@
 
 namespace zengine::workshop {
 
-/// THE PANE ITS OFFICE OFFERS, ITS ROOM AND ITS MANUAL: the activation the office lives under,
+/// THE PANE ITS ROLE OFFERS, ITS ROOM AND ITS MANUAL: the activation the role lives under,
 /// the offer (`Offer`, from the weave's `offering()`) on each one and on Workshop's catalog
 /// request, the manual from `Page`, and the room the graphics window that shows its area gives it,
 /// with the rows and columns the pane composes for. The weave draws in `on_room`.
-template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
+template <const char* const& Pane, const char* const& Role, const manual::Manual& Page,
           class Offer = v2::PaneOffered>
 class PaneFacet {
 public:
@@ -80,17 +80,17 @@ public:
         (void)mail.answer(pane_document(ask, Pane, Page));
     }
 
-    /// THE OFFER, from the office to Workshop, then the weave's own `offered` (its rows, its
+    /// THE OFFER, from the role to Workshop, then the weave's own `offered` (its rows, its
     /// settings), when it has one.
     template <class Self>
     void announce(Self& self, loom::Mail& mail) {
-        (void)mail.as_role(Office).send_to_role(pane_menu::kWorkshopRole, self.offering());
+        (void)mail.as_role(Role).send_to_role(pane_menu::kWorkshopRole, self.offering());
         if constexpr (requires { self.offered(mail); }) {
             self.offered(mail);
         }
     }
 
-    /// Whether this delivery is Workshop's own word about this office's pane.
+    /// Whether this delivery is Workshop's own word about this role's pane.
     static bool from_workshop(const loom::Mail& mail, const std::string& pane) {
         return pane == Pane && mail.authored_from_role(pane_menu::kWorkshopRole);
     }
@@ -135,13 +135,13 @@ struct RowPress {
 
 /// A PANE THAT SAYS ROWS: `PaneFacet`, the rows being composed, what each row and run of columns
 /// means (`component::RowMap<Meaning>`), the caret, and the presses on them. Its rows go to the
-/// graphics window that shows the area named `Office` as a drawing, the caret in it
+/// graphics window that shows the area named `Role` as a drawing, the caret in it
 /// (`rows_drawing`). A press is read against the rows last drawn there; a third-button press that
 /// means nothing to the pane is passed back to Workshop.
-template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
+template <const char* const& Pane, const char* const& Role, const manual::Manual& Page,
           class Meaning, class Offer = v2::PaneOffered, bool HearsRest = false>
-class PaneRowsFacet : public PaneFacet<Pane, Office, Page, Offer> {
-    using Room = PaneFacet<Pane, Office, Page, Offer>;
+class PaneRowsFacet : public PaneFacet<Pane, Role, Page, Offer> {
+    using Room = PaneFacet<Pane, Role, Page, Offer>;
 
 public:
     using Accept = std::conditional_t<
@@ -158,7 +158,7 @@ public:
                             graphics::RoomAsked>;
     using Room::on;
 
-    /// The room, from the window that shows the area, as that window's office. When the window,
+    /// The room, from the window that shows the area, as that window's role. When the window,
     /// its incarnation, its size or its measure changed or the area is empty, the window holds none
     /// of the pane's rows, so the weave's `on_room` says them, and the window is sent them whole:
     /// a row a line of the window's text, a character an advance of it.
@@ -179,7 +179,7 @@ public:
         (void)window_.refused(refused, mail);
     }
 
-    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: for a
+    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: for a
     /// part of the rows last sent there, the weave's `press` at the part's place -- a cell only it
     /// holds, else the first a press reaches it at -- else
     /// the weave's `on_action` for an id its `answers(id)` admits. Any other is no act and spends
@@ -207,7 +207,7 @@ public:
         }
     }
 
-    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office: a press
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its role: a press
     /// of the first button on a shown cell of the rows last sent there is the weave's `press`, read
     /// against whether the keys were already the pane's (`PaneKeys`); one of the third is its
     /// `right_press` on what the cell means, else passed back under the window's number for the
@@ -312,13 +312,13 @@ public:
     void after_delivery(Self&, loom::Mail& mail) {
         if (!asked_ && !window_.shown()) {
             asked_ = true;
-            (void)mail.as_role(Office).send_to_role(graphics::kGraphicsRole,
+            (void)mail.as_role(Role).send_to_role(graphics::kGraphicsRole,
                                                     graphics::RoomAsked{window_.area()});
         }
     }
 
     /// THAT PRESS WAS NOT THE PANE'S: Workshop's own pane menu opens where it was made.
-    void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Office, Pane); }
+    void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Role, Pane); }
 
     /// BEGIN A PICTURE: no rows, no meanings, no caret, in the room the window gave. What the last
     /// picture meant is kept aside until `publish` compares the two. The row tools are a
@@ -400,8 +400,8 @@ public:
         }
     }
 
-    /// The office a paste is asked of: the window showing the area, none while no window does.
-    std::string clipboard_office() const { return window_.clipboard_office(); }
+    /// The role a paste is asked of: the window showing the area, none while no window does.
+    std::string clipboard_role() const { return window_.clipboard_role(); }
     /// The area the pane draws its rows in, and where a point of it falls on the rows last drawn
     /// there: a drop's place.
     const std::string& area() const noexcept { return window_.area(); }
@@ -418,7 +418,7 @@ public:
 private:
     RowsBlock<Meaning> block_;
     std::uint64_t published_ = 0;
-    WindowDrawing window_{Office, pane_area(Office, Pane)};
+    WindowDrawing window_{Role, pane_area(Role, Pane)};
     std::map<std::string, RowCell> window_places_; ///< where each part of the rows last sent lands
     std::int64_t window_rows_ = 0;                 ///< how many rows were last sent there
     bool keys_here_ = false;                       ///< the keys reach the pane, as Workshop last said
@@ -427,13 +427,13 @@ private:
 };
 
 /// A PANE THAT DRAWS ONE PICTURE: `PaneFacet`, and the weave's `picture(graphics::Sketch&)` shown
-/// in the graphics window that shows the area named by its office, as what changed there. Each
+/// in the graphics window that shows the area named by its role, as what changed there. Each
 /// element record is a part named by its action, and a press anywhere on the element's face asks
 /// that action of the weave's `on_action(id, mail)`: the owner never reads a place.
-template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
+template <const char* const& Pane, const char* const& Role, const manual::Manual& Page,
           class Offer = v2::PaneOffered, bool HearsRest = false>
-class PaneDrawingFacet : public PaneFacet<Pane, Office, Page, Offer> {
-    using Room = PaneFacet<Pane, Office, Page, Offer>;
+class PaneDrawingFacet : public PaneFacet<Pane, Role, Page, Offer> {
+    using Room = PaneFacet<Pane, Role, Page, Offer>;
 
 public:
     using Accept = std::conditional_t<
@@ -450,7 +450,7 @@ public:
                             graphics::RoomAsked>;
     using Room::on;
 
-    /// The room, from the window that shows the area, as that window's office. When the window,
+    /// The room, from the window that shows the area, as that window's role. When the window,
     /// its incarnation, its size or its measure changed or the area is empty, the window holds none
     /// of the pane's drawing, so the weave's `on_room` draws, and the window is sent the picture
     /// whole.
@@ -471,7 +471,7 @@ public:
         (void)window_.refused(refused, mail);
     }
 
-    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: the
+    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: the
     /// weave's `on_action` for an action the picture last shown there names, or one the weave's
     /// `answers(id)` admits where it has one. Any other is no act and spends nothing.
     template <class Self>
@@ -490,7 +490,7 @@ public:
         }
     }
 
-    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office: the first
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its role: the first
     /// button pressed anywhere on a part's face in the picture last sent there asks the part's
     /// action (`graphics::part_at`); one the window drew on another element than that picture
     /// shows there acts on nothing, and is the weave's `fenced` where it has one, to say so; the
@@ -569,16 +569,16 @@ public:
     void after_delivery(Self&, loom::Mail& mail) {
         if (!asked_ && !window_.shown()) {
             asked_ = true;
-            (void)mail.as_role(Office).send_to_role(graphics::kGraphicsRole,
+            (void)mail.as_role(Role).send_to_role(graphics::kGraphicsRole,
                                                     graphics::RoomAsked{window_.area()});
         }
     }
 
     /// THAT PRESS WAS NOT THE PANE'S: Workshop's own pane menu opens where it was made.
-    void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Office, Pane); }
+    void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Role, Pane); }
 
-    /// The office a paste is asked of: the window showing the area, none while no window does.
-    std::string clipboard_office() const { return window_.clipboard_office(); }
+    /// The role a paste is asked of: the window showing the area, none while no window does.
+    std::string clipboard_role() const { return window_.clipboard_role(); }
 
     /// How the picture being drawn sets its text: the window's measure for the window that shows
     /// the area. The weave's `picture` stands its rows a line apart.
@@ -615,7 +615,7 @@ private:
         }
     }
 
-    WindowDrawing window_{Office, pane_area(Office, Pane)};
+    WindowDrawing window_{Role, pane_area(Role, Pane)};
     std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
     graphics::TextMeasure text_;           ///< how the picture being drawn sets its text
     bool asked_ = false;                   ///< the room asked in this life
@@ -623,10 +623,10 @@ private:
 };
 
 /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY ID: Workshop resolved the keystroke against
-/// the effective keymap, so what arrives is the id. Only Workshop's word about this office's pane
+/// the effective keymap, so what arrives is the id. Only Workshop's word about this role's pane
 /// counts, and only an id the weave's public `answers(id)` admits, where it has one: an id the
 /// pane does not answer to is no act and spends nothing. The weave's `on_action(id, mail)` acts.
-template <const char* const& Pane, const char* const& Office>
+template <const char* const& Pane, const char* const& Role>
 class PaneActionFacet {
 public:
     using Accept = loom::Accept<PaneActionRequested>;
@@ -651,7 +651,7 @@ public:
     /// has modes, beside what each other mode's rows may cause.
     void declare(loom::Mail& mail, std::vector<v3::PaneActionRow> rows, std::string mode = {},
                  std::vector<ModeCauses> elsewhere = {}) const {
-        (void)mail.as_role(Office).send_to_role(
+        (void)mail.as_role(Role).send_to_role(
             pane_menu::kWorkshopRole,
             v3::PaneActions{Pane, std::move(mode), std::move(rows), std::move(elsewhere)});
     }
@@ -661,7 +661,7 @@ public:
 /// answer settles it only as that ask's (`pane_menu::Asked::take`), and a chosen row goes to the
 /// weave's `on_menu(id, subject, mail)`. Image-local: a successor asked nothing, so its
 /// predecessor's menus act on nothing.
-template <const char* const& Pane, const char* const& Office>
+template <const char* const& Pane, const char* const& Role>
 class PaneMenuFacet {
 public:
     using Accept = loom::Accept<PaneMenuAnswered>;
@@ -684,12 +684,12 @@ public:
     pane_menu::Offer offer(std::string subject) const {
         return pane_menu::Offer(Pane, std::move(subject));
     }
-    /// SEND `menu` AS THE PANE'S OFFICE, and wait on it in place of any earlier one...
-    void send(loom::Mail& mail, const pane_menu::Offer& menu) { asked_ = menu.send(mail, Office); }
+    /// SEND `menu` AS THE PANE'S ROLE, and wait on it in place of any earlier one...
+    void send(loom::Mail& mail, const pane_menu::Offer& menu) { asked_ = menu.send(mail, Role); }
     /// ...or continuing the gesture numbered `correlation`.
     void send_continuing(loom::Mail& mail, const pane_menu::Offer& menu,
                          std::uint64_t correlation) {
-        asked_ = menu.continuing(mail, Office, correlation);
+        asked_ = menu.continuing(mail, Role, correlation);
     }
 
 private:
@@ -702,7 +702,7 @@ private:
 /// other request the pane expects one answer to, or a send whose refusal it must hear. Workshop's
 /// answer goes to the weave's `on_approval`, Loom's refusal of exactly that send to its
 /// `on_refused`. Image-local: a successor asked nothing, so no earlier answer settles anything.
-template <const char* const& Pane, const char* const& Office, class Act,
+template <const char* const& Pane, const char* const& Role, class Act,
           std::size_t Approvals = 8, std::size_t Capacity = 32>
 class AskFacet {
     static_assert(Approvals > 0 && Approvals <= Capacity, "AskFacet: the approvals fit the table");
@@ -733,7 +733,7 @@ public:
         return ask(mail, pane_menu::kWorkshopRole, asked, std::move(act), /*approval=*/true);
     }
 
-    /// SEND `request` TO THE OFFICE `role`, as the pane's office, under a fresh correlation, and
+    /// SEND `request` TO THE ROLE `role`, as the pane's role, under a fresh correlation, and
     /// hold `act` until its answer or its refusal.
     template <class Request>
     Asked ask(loom::Mail& mail, const char* role, const Request& request, Act act,
@@ -744,7 +744,7 @@ public:
             return Asked::kFull;
         }
         const loom::Ticket attempt =
-            mail.as_role(Office).send_to_role(role, request, opened.correlation);
+            mail.as_role(Role).send_to_role(role, request, opened.correlation);
         return keep(opened, attempt, std::move(act), approval);
     }
 
@@ -838,7 +838,7 @@ public:
     }
 
     /// LOOM'S WORD THAT ONE OF THE PANE'S SENDS WAS REFUSED BEFORE ANY HANDLER RAN. Provenance
-    /// first, then the exact attempt, office and shape against the asks held, and only the matched
+    /// first, then the exact attempt, role and shape against the asks held, and only the matched
     /// one is taken. A forged, stale, duplicate or unmatched notice settles nothing; delivered
     /// silence is not a refusal, and the ask stays held.
     template <class Self>

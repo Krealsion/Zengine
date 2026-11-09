@@ -1,11 +1,11 @@
 # zengine.presenter -- the menu presenter
 
-**Manual.** The menu presenter shows a pane's menu. It is the weave in the office
-`zengine.presenter` (an office is the name a weave answers to), built as `zengine-menu-presenter`
+**Manual.** The menu presenter shows a pane's menu. It is the weave in the role
+`zengine.presenter` (a role is the name a weave answers to), built as `zengine-menu-presenter`
 and loaded by a row of the load plan like any weave. It has no pane of its own: when a pane asks
 Workshop for a menu, Workshop hands the menu here, and this presenter draws its lines in an area
 of its own of the window, moves the cursor and tells the pane which row you chose. You can reload
-it in place, or load another presenter in its office
+it in place, or load another presenter in its role
 ([replacing it](panes.md#replacing-the-menu-presenter)).
 
 ## About
@@ -20,11 +20,11 @@ shown -- it draws it in that area and hears your presses there -- and how long i
 and answers the pane exactly once for each menu: chosen, dismissed, withdrawn by Workshop, or
 refused. It performs nothing a row means, reads no pane's subject and holds no pane's authority.
 
-The menu it has open is its state, `HeldMenu` v3: the menu's number, who asked, the rows, the
+The menu it has open is its state, `HeldMenu` v4: the menu's number, who asked, the rows, the
 cursor, the room, the standard rows and the area it stands in. A reload keeps it, so a reloaded
 presenter shows the open menu again and answers it under the same number. How it laid the lines out
 is not state: a new image lays them out afresh. The seam between Workshop and whatever holds this
-office is [`workshop/presenter_vocabulary.hpp`](../presenter_vocabulary.hpp), installed with the
+role is [`workshop/presenter_vocabulary.hpp`](../presenter_vocabulary.hpp), installed with the
 pane protocol.
 
 ## Use
@@ -49,9 +49,9 @@ choose is spent by Workshop on the pane, and the pane is told nothing was chosen
 
 ### `MenuGranted`
 
-`MenuGranted` v3 asks the presenter to present one pane's menu, as menu number `menu`.
+`MenuGranted` v4 asks the presenter to present one pane's menu, as menu number `menu`.
 
-- **Takes:** `menu`, Workshop's number for this menu; `office` and `pane`, the pane that asked, as
+- **Takes:** `menu`, Workshop's number for this menu; `role` and `pane`, the pane that asked, as
   Loom authenticated it; `subject`, the pane's own word, echoed back; `rows`, the pane's rows;
   `room_rows` and `room_columns`, the most the popup can show now; `standard`, Workshop's standard
   rows for that pane; `pane_name`, the pane's name as you know it, for the rule; `area`, the area
@@ -71,37 +71,37 @@ choose is spent by Workshop on the pane, and the pane is told nothing was chosen
 
 ## Hears
 
-On every activation, Loom's `zen.Activated`, it tells Workshop it holds the office and which menu
+On every activation, Loom's `zen.Activated`, it tells Workshop it holds the role and which menu
 it carries (`PresenterReady`), and shows that menu again if it carries one. Every other word it
 heeds comes from Workshop, `zengine.workshop`, about a menu with a number; anyone else's is
 ignored.
 
 ### `MenuInput`
 
-`MenuInput` v1, from Workshop: you did something to menu `menu`: a key (its verb: up, down, choose
+`MenuInput` v1, from `zengine.workshop`: you did something to menu `menu`: a key (its verb: up, down, choose
 or back), or a press outside. For a menu it does not hold, it hands the act back: `this image does
 not hold that menu`.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the window that shows the menu's area: the area's size and how the window sets
+`AreaRoom` v4, from `zengine.window.*`, the window that shows the menu's area: the area's size and how the window sets
 text. The presenter draws the menu there whole whenever the window holds none of it.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v4, from that window: a button pressed or let go in the menu's area, under the
+`AreaButtonChanged` v4, from `zengine.window.*`, that window: a button pressed or let go in the menu's area, under the
 press's number. A primary press on a row's line chooses the row, said under that number; one the
 window landed on another line than the menu shows there now, or in another menu's area, means
 nothing here.
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: it refused a drawing. A refused change is drawn again whole at
+`DrawnRefused` v1, from `zengine.window.*`, that window: it refused a drawing. A refused change is drawn again whole at
 once; a refused whole drawing waits for other lines.
 
 ### `MenuWithdrawn`
 
-`MenuWithdrawn` v1, from Workshop: Workshop ended menu `menu`, and `why` says how. The presenter
+`MenuWithdrawn` v1, from `zengine.workshop`: Workshop ended menu `menu`, and `why` says how. The presenter
 answers the pane unchosen in those words. For a menu it does not hold, it hands it back as it does
 an act.
 

@@ -131,13 +131,13 @@ void WorkshopWeave::release_held_input(loom::Mail& mail) {
 // shows, since the version it last said.
 bool WorkshopWeave::send_key_fence(loom::Mail& mail) {
     if (!window_.shown()) return false;
-    const std::string office = std::string(graphics::kWindowOfficePrefix) + window_name_;
+    const std::string role = std::string(graphics::kWindowRolePrefix) + window_name_;
     const loom::AskOpened opened = area_asks_.open_to_role(
-        office, graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version);
+        role, graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version);
     if (!opened) return false;
     const loom::Ticket sent =
         mail.as_role(kWorkshopProvider)
-            .send_to_role(office, graphics::AreaShowAsked{kWorkshopOverlayArea, fence_since_},
+            .send_to_role(role, graphics::AreaShowAsked{kWorkshopOverlayArea, fence_since_},
                           opened.correlation);
     if (!sent.valid()) {
         (void)area_asks_.forget(opened.id);
@@ -194,7 +194,7 @@ void WorkshopWeave::apply_attributed(const input::AttributedInput& event, loom::
         carried_ = {}; value_drag_ = {};
         say("Value drag cancelled by a new gesture", false);
     }
-    // A PARTICIPANT'S POINTER IS THE WINDOW'S TO LAND: it takes the input office's moments as the
+    // A PARTICIPANT'S POINTER IS THE WINDOW'S TO LAND: it takes the input role's moments as the
     // hand they name, and says the hand on every moment it gives. Workshop takes its keys.
     if (e.kind == "KeyPressed") on(input::KeyPressed{e.scancode, e.name, e.modifiers}, mail);
     else if (e.kind == "KeyReleased") on(input::KeyReleased{e.scancode, e.name, e.modifiers}, mail);
@@ -209,12 +209,12 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
     });
     if (by == nullptr) return;
     by->app_asked = {};
-    const auto* pane = session_.panes.runtime.find(asked.office, asked.pane);
+    const auto* pane = session_.panes.runtime.find(asked.role, asked.pane);
     const auto* rows = pane ? session_.keymap.pane_rows(pane->kind) : nullptr;
     bool declared = false;
     if (rows) for (const auto& row : rows->rows) if (row.id == asked.action) declared = true;
     if (!pane || !declared || asked.holder <= 0 || !host_->role_holder ||
-        host_->role_holder(asked.office).value != static_cast<std::uint64_t>(asked.holder)) {
+        host_->role_holder(asked.role).value != static_cast<std::uint64_t>(asked.holder)) {
         say("Shortcut unavailable: its pane, action or provider has changed", true); repaint(mail); return;
     }
     if (const std::string why = refused_toward(by->actor, pane->kind); !why.empty()) {
@@ -222,14 +222,14 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
         return;
     }
     const auto correlation = ++gesture_asks_;
-    const auto sent = mail.as_role(kWorkshopProvider).send_to_role(asked.office,
+    const auto sent = mail.as_role(kWorkshopProvider).send_to_role(asked.role,
         PaneActionRequested{asked.pane, asked.action}, correlation);
     if (sent.valid()) keep_act(*by, by->shortcut_sent = {pane->kind, by->latest, correlation});
     else { say("Shortcut invocation could not be queued", true); repaint(mail); }
 }
 
 // ONE CURRENT GESTURE APPROVES ONE OPERATION FOR THE PANE IT WAS DELIVERED TO, ONCE: the requester
-// holds the office that offered the pane, the pane is on the desk (or a shortcut sent this action),
+// holds the role that offered the pane, the pane is on the desk (or a shortcut sent this action),
 // the correlation is that pane's unspent press, action, menu choice or shortcut still its hand's
 // latest, a guest's live Loom authority permits the send it names, and its admitted row holds every
 // action class the act is. The gesture is spent, and `approved` says whose it was.
@@ -338,7 +338,7 @@ scope::GuestRowFacts WorkshopWeave::guest_of(const InputActor& actor) const {
     return host_->guest_row(actor.participant);
 }
 
-// ON A WEAVER'S HOST, THE PLACES ONLY THE WEAVER'S HAND REACHES: the editor office, whichever
+// ON A WEAVER'S HOST, THE PLACES ONLY THE WEAVER'S HAND REACHES: the editor role, whichever
 // implementation holds it, the Terminal, the Hotkeys pane, whose every act edits the keymap file,
 // and the quick setup, which asks the editor switch and writes Workshop's settings file. A guest's
 // keys, text and presses bound there are refused in words at the dispatch.
@@ -446,39 +446,40 @@ void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) 
                                   {}, {}, &actor);
     if (reason.empty() && (asked.subject.empty() || asked.subject.size() > 256))
         reason = "the observation must name its subject";
-    const std::string office(mail.authored_role());
+    const std::string role(mail.authored_role());
     if (reason.empty()) {
-        // A LEASE WHOSE HOLDER NO LONGER HOLDS ITS OFFICE can never be continued: forget it
+        // A LEASE WHOSE HOLDER NO LONGER HOLDS ITS ROLE can never be continued: forget it
         // before counting, so a departed provider's approvals cannot fill the book.
         std::erase_if(leases_, [&](const ObservationLease& l) {
-            return (l.office == office && l.pane == asked.pane) ||
-                   !host_->role_holder || host_->role_holder(l.office) != l.holder;
+            return (l.holder_role == role && l.pane == asked.pane) ||
+                   !host_->role_holder || host_->role_holder(l.holder_role) != l.holder;
         });
         if (leases_.size() >= kMaxObservationLeases)
             reason = "too many observations are active; pause one first";
     }
     if (!reason.empty()) { (void)mail.answer(PaneObservationAnswered{false, reason, 0}); return; }
-    leases_.push_back({++next_lease_, mail.sender(), office, asked.pane, asked.role, asked.shape,
+    leases_.push_back({++next_lease_, mail.sender(), role, asked.pane, asked.role, asked.shape,
                        asked.subject, asked.version, actor});
     (void)mail.answer(PaneObservationAnswered{true, {}, leases_.back().id});
 }
 
-// ONE MORE OBSERVATION UNDER A LEASE: its holder still holds the office, the pane is still on the
+// ONE MORE OBSERVATION UNDER A LEASE: its holder still holds the role, the pane is still on the
 // desk, the subject is the one approved, and a guest actor is still present with the authority.
 // Any lapse refuses AND forgets the lease; a request from anyone but its holder forgets nothing.
 void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) {
-    const std::string office(mail.authored_role());
+    const std::string role(mail.authored_role());
     const auto it = std::find_if(leases_.begin(), leases_.end(), [&](const ObservationLease& l) {
-        return l.id == asked.lease && l.office == office && l.pane == asked.pane && l.holder == mail.sender();
+        return l.id == asked.lease && l.holder_role == role && l.pane == asked.pane &&
+               l.holder == mail.sender();
     });
-    if (office.empty() || it == leases_.end()) {
+    if (role.empty() || it == leases_.end()) {
         (void)mail.answer(PaneObservationAnswered{false, "this observation is not current; start it again with a gesture", 0});
         return;
     }
     std::string reason;
-    const auto* pane = session_.panes.runtime.find(office, asked.pane);
-    if (!host_->role_holder || host_->role_holder(office) != mail.sender()) {
-        reason = "the observing pane's office changed hands";
+    const auto* pane = session_.panes.runtime.find(role, asked.pane);
+    if (!host_->role_holder || host_->role_holder(role) != mail.sender()) {
+        reason = "the observing pane's role changed hands";
     } else if (asked.subject != it->subject) {
         reason = "the observation's subject changed; start it again";
     } else if (!pane || !session_.panes.has(pane->kind)) {
@@ -502,9 +503,9 @@ void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) 
 // which is what an arriving image says: a reload keeps the WeaveId, so this book cannot tell the
 // predecessor's leases from the successor's. Ending only removes approvals; it grants nothing.
 void WorkshopWeave::on(const PaneObservationEnded& asked, loom::Mail& mail) {
-    const std::string office(mail.authored_role());
+    const std::string role(mail.authored_role());
     std::erase_if(leases_, [&](const ObservationLease& l) {
-        return (asked.lease == 0 || l.id == asked.lease) && l.office == office && l.pane == asked.pane &&
+        return (asked.lease == 0 || l.id == asked.lease) && l.holder_role == role && l.pane == asked.pane &&
                l.holder == mail.sender();
     });
 }
@@ -626,7 +627,7 @@ bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
     const auto sent = value
         ? mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
               PaneCanvasValueDrop{pane->pane, at.area, at.x, at.y, carried_.data,
-                                  carried_.source_office, carried_.source_pane, carried_.token,
+                                  carried_.source_role, carried_.source_pane, carried_.token,
                                   under, part, drawing},
               correlation)
         : mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
@@ -638,9 +639,9 @@ bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
     }
     // WHAT WAS CARRIED, FROM WHERE AND TO WHERE: its before and its after alone (WL-NOTE-06).
     const RuntimePane* from =
-        session_.panes.runtime.find(carried_.source_office, carried_.source_pane);
+        session_.panes.runtime.find(carried_.source_role, carried_.source_pane);
     const std::string moved = carried_.label + ": " +
-                              (from != nullptr ? from->name : carried_.source_office) + " -> " +
+                              (from != nullptr ? from->name : carried_.source_role) + " -> " +
                               pane->name;
     carried_ = {};
     leave_carry_hover(mail);

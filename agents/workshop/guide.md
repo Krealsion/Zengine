@@ -12,7 +12,7 @@ host](../../external-host/docs/external-host.md). One law per heading; cite by I
 LAW — A version-3 file may name a row's `role`, the powers `guide`, `keystrokes` and `settings`, and its `capture` and `guide` doors; a role expands to its powers at launch, its reach said beside it.
 
 MEANS
-- a door is `<office>/<pane>`, `<office>/*` or `*` alone; a guide door lies within a capture door;
+- a door is `<role>/<pane>`, `<role>/*` or `*` alone; a guide door lies within a capture door;
 - a field needs its power; a power without its field reaches no pane; no door names Connections or Hotkeys;
 - the role, its powers and the doors are said at launch, on Attention, in Connections and to the row.
 
@@ -27,7 +27,7 @@ LAW — A row of version 3 whose `capture` is not `*` reads a pane's words only 
 
 MEANS
 - the doors are door rules on `DeskReadRequested`, so a later grant widens the read with no relaunch;
-- it is granted the desk read, the newest pages, the inventory, the keymap and its offices' manuals;
+- it is granted the desk read, the newest pages, the inventory, the keymap and its roles' manuals;
 - it hears no band, desk number or `DeskStamps`, no older read, no window picture or desk publication.
 
 WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
@@ -37,7 +37,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 LAW — On every host every guest is refused the words of Connections, the Hotkeys pane and an editor showing the guests file, every observation of the connections, and the weaver's input without `keystrokes`.
 
 MEANS
-- the weaver's input is `AttributedInput`, `KeyPressed`, `KeyReleased` and `TextEntered`, and a window's `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered`, from any office;
+- the weaver's input is `AttributedInput`, `KeyPressed`, `KeyReleased` and `TextEntered`, and a window's `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered`, from any role;
 - a refusal names the pane and why, never what it shows.
 
 DOES NOT MEAN
@@ -61,7 +61,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 LAW — A mark is refused on Connections, the Hotkeys pane and any part whose press opens either, on a pane another guest already marks, past 16 marks, and on words past 60 bytes of printable ASCII.
 
 MEANS
-- a part opens a pane by its subject (`pane:<office>/<pane>`) or by a cause `to <office>/<pane>`;
+- a part opens a pane by its subject (`pane:<role>/<pane>`) or by a cause `to <role>/<pane>`;
 - one mark a session: a newer one replaces it.
 
 WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
@@ -113,7 +113,7 @@ its role and doors beneath its connection"
 the inventory and its doors' manuals as Loom door rules, and never the older reads or the window's picture"
 `tests/test_workshop_panes_guide.cpp` "a row that reads by pane reads the Builder's words and the Editor's
 place, never the Editor's words, and hears the keymap of its own panes and the rows above every pane" "a
-pane's manual is answered to a guest under its capture doors, and another office's manual is refused at the
+pane's manual is answered to a guest under its capture doors, and another role's manual is refused at the
 bus"
 
 ### WL-GUIDE-03

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The notices record: a loadable weave that keeps what Workshop said, as Workshop said it
-// (`NoticeSaid`), up to its office-wide `keep` setting, the oldest let go past it; says when the
+// (`NoticeSaid`), up to its role-wide `keep` setting, the oldest let go past it; says when the
 // record moved (`NoticesMoved`); and answers a page of it to whoever asks (`NoticesRequested`).
 // It shows nothing: the Notices pane walks it. It lasts the run, and a reload in place keeps it.
 // Workshop law: agents/workshop/notices.md
@@ -16,7 +16,8 @@
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 
-#include "manuals/zengine.notices.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.notices.hpp" // this role's manual, compiled in from its page
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -34,8 +35,8 @@ namespace {
 namespace ws = zengine::workshop;
 namespace nt = zengine::notices;
 
-/// WHO SAYS THE NOTICES: Workshop's office, spelled as a stranger spells it.
-constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO SAYS THE NOTICES: Workshop's role, read from the installed pane protocol.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// THE WORDS AS KEPT: cut at `kMaxNoticeBytes`, never inside a character, ending `...`.
 std::string kept_text(std::string text) {
@@ -55,17 +56,17 @@ using Manual = zengine::manual::ManualFacet<zengine::manual::pages::zengine_noti
 class NoticesWeave
     : public zengine::With<Manual>::Weave<
           NoticesWeave, nt::NoticesState,
-          loom::Accept<loom::Activated, ws::NoticeSaid, nt::NoticesRequested, ws::OfficeSettings>,
-          loom::Emit<nt::NoticesMoved, nt::NoticesShown, ws::OfficeSettingsDeclared>> {
+          loom::Accept<loom::Activated, ws::NoticeSaid, nt::NoticesRequested, ws::RoleSettings>,
+          loom::Emit<nt::NoticesMoved, nt::NoticesShown, ws::RoleSettingsDeclared>> {
     using Base = zengine::With<Manual>::Weave<
         NoticesWeave, nt::NoticesState,
-        loom::Accept<loom::Activated, ws::NoticeSaid, nt::NoticesRequested, ws::OfficeSettings>,
-        loom::Emit<nt::NoticesMoved, nt::NoticesShown, ws::OfficeSettingsDeclared>>;
+        loom::Accept<loom::Activated, ws::NoticeSaid, nt::NoticesRequested, ws::RoleSettings>,
+        loom::Emit<nt::NoticesMoved, nt::NoticesShown, ws::RoleSettingsDeclared>>;
 
 public:
     using Base::on;
 
-    /// EVERY ACTIVATION: the setting declared to the office that keeps it, which hands it back, and
+    /// EVERY ACTIVATION: the setting declared to the role that keeps it, which hands it back, and
     /// the record said to have moved, so a reader that asked of an earlier life asks again.
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) {
@@ -79,7 +80,7 @@ public:
         keep.tags = {"history"};
         keep.summary = "how many of Workshop's notices are kept";
         (void)mail.as_role(nt::kNoticesRole)
-            .send_to_role(ws::kLayoutsRole, ws::OfficeSettingsDeclared{{keep}});
+            .send_to_role(ws::kLayoutsRole, ws::RoleSettingsDeclared{{keep}});
         moved(mail);
     }
 
@@ -98,7 +99,7 @@ public:
 
     /// THE SETTING AS THE LAYOUTS' OWNER KEEPS IT: a default is kept as its absence, so none is
     /// `kDefaultKept`. Fewer than the record holds lets the oldest go now.
-    void on(const ws::OfficeSettings& kept, loom::Mail& mail) {
+    void on(const ws::RoleSettings& kept, loom::Mail& mail) {
         if (!mail.authored_from_role(ws::kLayoutsRole)) {
             return;
         }

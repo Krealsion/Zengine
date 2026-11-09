@@ -16,7 +16,7 @@ Workshop's working directory unless you enter an absolute path. Parent directori
 Restored item hotkeys and every activation context start **OFF**. Folders, their nesting and
 each entry's folder come back as saved, and browsing starts at Root. A file saved before folders
 existed restores with every entry at Root. Check each command's target, enable the item and
-enable its view when ready. A target is resolved as its current office at
+enable its view when ready. A target is resolved as its current role at
 invocation; restoring a file never loads a provider, runs a command or supplies permission.
 Commands containing old live references may need fresh fields before they can run.
 

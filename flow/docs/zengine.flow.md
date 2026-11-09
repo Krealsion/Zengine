@@ -4,7 +4,7 @@
 already has: the messages it accepts, the state it keeps, the steps a message runs and the messages
 it sends. You run it without compiling anything, change it while it runs and keep its state, and
 write it out as C++. It is a *weave*: a piece of Workshop that is loaded, replaced and spoken to by
-messages, built as `zengine-flow-pane`. Other weaves reach it by its *office*, the name it answers
+messages, built as `zengine-flow-pane`. Other weaves reach it by its *role*, the name it answers
 to, `zengine.flow`. New to it? Start with [Author a running graph in Workshop](flow.md).
 
 ## About
@@ -15,7 +15,7 @@ messages it emits after that write. The pane keeps the definition you are editin
 with its layout, your examples and your unfinished forms, in one *workspace*.
 
 The pane runs nothing itself. A run, an apply, a send, a stop, an inspection and a catalog read
-are each asked of the Flow host, the office [`zengine.flow.host`](zengine.flow.host.md), as one
+are each asked of the Flow host, the role [`zengine.flow.host`](zengine.flow.host.md), as one
 request answered once ([its vocabulary](../flow-host/vocabulary.hpp),
 [the Flow host](flow-runtime.md)); the pane shows what it answered. The pane always names one
 session there, `workshop`. The operators you can add are found through the host's discovery door, `zengine.powers`
@@ -631,7 +631,7 @@ Closes the dialog; nothing is done, and a write it was waiting for is not made.
 
 ### `FlowEdit`
 
-`FlowEdit` v1 `{action, arguments}`, from a weave granted it: one edit the pane's controls make,
+`FlowEdit` v1 `{action, arguments}`, from any weave granted it: one edit the pane's controls make,
 its arguments separate strings, answered to the asker with `FlowEdited` v1 `{ok, reason,
 workspace, problems}` ([the vocabulary](../flow-pane/vocabulary.hpp)). The action `describe`
 answers the grammar in `reason`. While a dialog is open every `FlowEdit` is refused, `Confirm or
@@ -645,14 +645,14 @@ again ([`inspect`](#inspect)) unless an inspection is already asked.
 
 ### `ViewWiring`
 
-`ViewWiring` v1, from a running view, as its own office ([the view
+`ViewWiring` v1, from any running view, as its own role ([the view
 vocabulary](../../view/vocabulary.hpp)): the messages its buttons say and its labels show. The pane
 keeps the names each view said last, and offers them as a message is named; it asks every view
 afresh, `ViewWiringRequested` v1, as [`ask-message`](#ask-message) or [`ask-say`](#ask-say) opens.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the graphics window that shows the area `zengine.flow`, as that window's office
+`AreaRoom` v4, from `zengine.window.*`, the window that shows the area `zengine.flow`, as its role
 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room there, in the
 window's unit and text. It draws its picture for that room on its ground, whole in a new window,
 incarnation, size or measure, or an empty area, then only what changed; one more than a window
@@ -661,13 +661,13 @@ keeps says `View limit reached`. Each time it starts it asks `zengine.graphics` 
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was.
+`DrawnRefused` v1, from `zengine.window.*`, that window: a drawing it refused, and why. What it shows stays as it was.
 A refused change is drawn again whole at once; a refused whole picture is said, `The graphics window
 refused Flow's picture: <the reason>`, and the pane draws there again at its next change.
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window, where it shows Flow's area deaf to the pointer: a press on
+`ActionRequested` v1, from `zengine.window.*`, that window, where it shows Flow's area deaf to the pointer: a press on
 one of the pane's places there, by the name its Workshop picture gives that place -- `node:<id>`,
 `port:<id>.<n>`, `control:<action>` -- which is a click on that place: a node is selected and
 anything else is done. It begins no drag and carries nothing, and a write it confirms waits, since
@@ -675,7 +675,7 @@ Workshop numbered no gesture for it.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v4, from that window: a button pressed or let go in Flow's area, on the part the
+`AreaButtonChanged` v4, from `zengine.window.*`: a button pressed or let go in Flow's area, on the part the
 window drew there: a node held for a drag, a wire's end held, a control done, a message offered to
 carry out, the graph panned by a press on nothing, a right press handed back. One on another part
 than Flow shows now, or another dialog's, is refused in words; on nothing, where Flow shows none, it
@@ -683,7 +683,7 @@ is a press on nothing. Its moves and release carry the press's number, which a c
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v2, from that window: the pointer moved in Flow's area. While a press there is
+`AreaPointerMoved` v2, from `zengine.window.*`, that window: the pointer moved in Flow's area. While a press there is
 held it moves the held node, pans the graph or draws the held wire to the hand, as on Workshop's
 canvas, a port it does not fit saying why under the hand; with none held, what it rests on -- a
 part of the rule's sentence, a card, a step, a port, a wire -- is lit with what goes with it, and a
@@ -691,17 +691,17 @@ port or a wire says what it is beside it, drawn again only when that changes.
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v2, from that window: the wheel over Flow's area, which scrolls the graph or the
+`AreaWheelTurned` v2, from `zengine.window.*`, that window: the wheel over Flow's area, which scrolls the graph or the
 page as on Workshop's canvas.
 
 ### `AreaHoldEnded`
 
-`AreaHoldEnded` v1, from that window, about Flow's area: the press held there ended with no
+`AreaHoldEnded` v1, from `zengine.window.*`, that window, about Flow's area: the press held there ended with no
 release, and the drag ends where it stands.
 
 ### `AreaPointerLeft`
 
-`AreaPointerLeft` v1, from that window, about Flow's area: the pointer left it, so it rests on
+`AreaPointerLeft` v1, from `zengine.window.*`, that window, about Flow's area: the pointer left it, so it rests on
 nothing there, and what was lit for it goes out.
 
 ## Follow

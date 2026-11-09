@@ -203,7 +203,7 @@ struct Rig {
         return loom::mount_granted<Probe>(bus, std::move(reach), rec);
     }
 
-    /// Land whoever holds `role` as the playable host's operator does: by its role, at the
+    /// Land whoever holds `role` as the playable host's console does: by its role, at the
     /// kernel's door.
     Recorded::Answer unload_role(const char* role) {
         const std::uint64_t corr = next_corr++;
@@ -634,7 +634,7 @@ TEST_CASE("moment 1: another skin is chosen while the game continues, and nothin
     namespace rig = zengine::testing::graphics_rig;
     rig::Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_office()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
     REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
     r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole, "night");
 
@@ -706,7 +706,7 @@ TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration"
     REQUIRE(before.snake.size() == 4);
 
     // The ceremony: ask the incumbent for its letter, replace it, let the heir
-    // claim. One command from the operator's seat.
+    // claim. One command from the console's seat.
     const Recorded::Answer grown = r.command(
         loom::SwapWeave{kWorldRole, "snake-world-v2", SNAKE_SO_WORLD_V2, /*graceful=*/true});
     REQUIRE(grown.kind == 0);
@@ -899,7 +899,7 @@ TEST_CASE("snake draws into its window, never onto the terminal: with no termina
         namespace rig = zengine::testing::graphics_rig;
         rig::Rig r;
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_office()).valid());
+        REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
         const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, kScoreRole);
         REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
         r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole,
@@ -1021,7 +1021,7 @@ TEST_CASE("the world draws its new-game button as a part: a ButtonFace at new-ga
     namespace gfx = zengine::graphics;
     rig::Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_office()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
     REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
     r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole, "night");
     r.tick();
@@ -1354,7 +1354,7 @@ TEST_CASE("while the pilot flies the world's keys steer nothing, and once it lan
         REQUIRE(same_visual(r.rec.visuals.back(), visual_of(local)));
     }
 
-    // Landed by its role, as the operator lands it. Loom tells no weave it is unloaded, so the
+    // Landed by its role, as the console lands it. Loom tells no weave it is unloaded, so the
     // keys stay off until the hand that landed the pilot gives them back.
     CHECK(r.unload_role(kPilotRole).kind == 1);
     CHECK(r.command(loom::ListLoaded{}).text.find("snake-pilot") == std::string::npos);

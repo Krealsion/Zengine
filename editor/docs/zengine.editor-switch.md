@@ -1,28 +1,28 @@
 # zengine.editor-switch -- the editor switch
 
-**Manual.** The editor switch: the weave that moves the Editor's office, `zengine.editor`, from the
+**Manual.** The editor switch: the weave that moves the Editor's role, `zengine.editor`, from the
 editor holding it to another the load plan authors, carrying the document across, answering to the
-office `zengine.editor-switch` (an office is the name a weave answers to). Workshop mounts it; it is
+role `zengine.editor-switch` (a role is the name a weave answers to). Workshop mounts it; it is
 not a file you load. A weaver asks it from Workshop's Terminal; another weave reaches it by the
 messages below. The Editor it switches is [`zengine.editor`](zengine.editor.md).
 
 ## About
 
-The load plan authors the *choices* an office may be switched between, each an artifact under a
-name, and which one holds the office at the start ([the load plan's
+The load plan authors the *choices* a role may be switched between, each an artifact under a
+name, and which one holds the role at the start ([the load plan's
 choices](../../workshop/docs/load-plan.md)). Both shipped plans author `standard`, the standard
 Editor, which starts, and `neovim`, the Neovim-backed Editor. Every other choice is loaded only when
 a switch asks for it.
 
-A switch replaces the weave holding the office through Loom's prepared replacement, and carries the
-document through a handoff every editor speaks: the editor in office judges what a switch would
-lose, the destination is loaded sealed and started, the editor in office hands over the exact
-document and holds still, the destination adopts it, the office moves, the successor proves it
+A switch replaces the weave holding the role through Loom's prepared replacement, and carries the
+document through a handoff every editor speaks: the editor in role judges what a switch would
+lose, the destination is loaded sealed and started, the editor in role hands over the exact
+document and holds still, the destination adopts it, the role moves, the successor proves it
 serves, and the retired editor is unloaded. What crosses exactly, what is reset and what needs your
 consent is [what crosses a switch](editor-switch.md).
 
-Before the office moves, every ending moves nothing: the destination is discarded, and the editor in
-office is told, resumes and says so on its pane. After it, nothing is rolled back. One switch runs
+Before the role moves, every ending moves nothing: the destination is discarded, and the editor in
+role is told, resumes and says so on its pane. After it, nothing is rolled back. One switch runs
 at a time, and nothing times out: a participant that never answers leaves the switch pending and
 cancellable.
 
@@ -35,7 +35,7 @@ Attention pane keeps it standing, with the line that cancels it. When a switch w
 something, the notice gives the exact line that confirms it, `op` and `consent` filled in; type it,
 or cancel. [`EditorSwitchStatusRequested`](#editorswitchstatusrequested) says where you are.
 
-Who may send: Workshop's Terminal is granted the first four commands to this office and the
+Who may send: Workshop's Terminal is granted the first four commands to this role and the
 answer, and nothing else of it; the quick setup is granted the same with
 [`EditorSwitchQuietStatusRequested`](#editorswitchquietstatusrequested) in place of the status.
 Every command is an ask, answered with `EditorSwitchAnswered` v1 to the asker.
@@ -53,13 +53,13 @@ Every command is an ask, answered with `EditorSwitchAnswered` v1 to the asker.
   said), `already-active` (`` `neovim` already holds zengine.editor; nothing was loaded ``),
   `needs-confirmation` (`` switching to `standard` would lose <the losses>; confirm with op 3 and
   consent <the digest>, or cancel ``, its `losses` and `consent` filled in), `refused` or
-  `failed-after-commit`; with `active`, the choice holding the office, and `choices`, every authored
+  `failed-after-commit`; with `active`, the choice holding the role, and `choices`, every authored
   name.
 - **Refuses:** with `outcome` `refused`, nothing moved: `name the choice to switch to`; `` this
   project authors no editor choice named `vim` ``; `nobody holds zengine.editor -- there is no
   editor to switch from`; `` switch 2 to `neovim` is under way (warming) -- ask again once it has
   settled ``; and the words of whatever refused, as `` `neovim` could not start: Neovim is not
-  available: ... `` or `the editor in office refused: <its words>`; `the editor in office does not
+  available: ... `` or `the editor in role refused: <its words>`; `the editor in role does not
   take part in switches: ...` when it cannot be asked. A request while another only awaits
   confirmation replaces it; a confirmation or cancel of that one is answered `superseded`.
 - **Example:** in the Terminal,
@@ -72,7 +72,7 @@ goes on.
 
 - **Takes:** `op`, the switch; `consent`, the digest its `needs-confirmation` answer carried.
 - **Answers:** `EditorSwitchAnswered` as [`EditorSwitchRequested`](#editorswitchrequested) once the
-  switch ends. When what would be lost changed before the editor in office held still, the answer is
+  switch ends. When what would be lost changed before the editor in role held still, the answer is
   `needs-confirmation` again, with a new consent, and nothing crosses on the old one.
 - **Refuses:** `switch 3 is not awaiting confirmation`; `` that consent is not the one this switch
   asked for -- confirm with `<the digest>` ``, as `needs-confirmation`; `switch 3 was replaced by
@@ -86,14 +86,14 @@ goes on.
 
 - **Takes:** `op`, the switch.
 - **Answers:** `` switch 3 to `standard` was cancelled; nothing moved ``, as `cancelled`; the
-  destination is discarded and the editor in office resumes.
+  destination is discarded and the editor in role resumes.
 - **Refuses:** `switch 3 is not under way`; `switch 3 has already committed and cannot be
   cancelled`; `switch 3 was replaced by switch 4 before it was confirmed`, as `superseded`.
 - **Example:** `ask @zengine.editor-switch EditorSwitchCancelled 1 op=3`.
 
 ### `EditorSwitchStatusRequested`
 
-`EditorSwitchStatusRequested` v1 asks which choice holds the office, which are authored, and what
+`EditorSwitchStatusRequested` v1 asks which choice holds the role, which are authored, and what
 is under way.
 
 - **Takes:** nothing.
@@ -115,57 +115,57 @@ answer itself: it is answered to the asker alone, and nothing of it is said in N
   `EditorSwitchStatusRequested` answers with. It ends nothing.
 - **Refuses:** nothing.
 - **Example:** the quick setup's `Edit text with Neovim` box asks it at each activation and when
-  its pane opens, and shows which choice holds the office. The Terminal is not granted it.
+  its pane opens, and shows which choice holds the role. The Terminal is not granted it.
 
 ## Hears
 
 ### `EditorHandoffJudged`
 
-`EditorHandoffJudged` v1, from the editor in office: what a switch away would lose, reset or
-refuse, and the room the document is shown in. A refusal ends the switch, `the editor in office
+`EditorHandoffJudged` v1, from `zengine.editor`, the editor in the role: what a switch away would lose, reset or
+refuse, and the room the document is shown in. A refusal ends the switch, `the editor in role
 refused: <its words>`; losses ask for your consent first. The handoff's shapes are
 [`workshop/editor_handoff_vocabulary.hpp`](../../workshop/editor_handoff_vocabulary.hpp).
 
 ### `EditorWarmed`
 
-`EditorWarmed` v1, from the destination, loaded sealed: it started what it needs, in the room the
-editor in office had, or why not, `` `neovim` could not start: <its words> ``.
+`EditorWarmed` v1, from any weave the switch loaded sealed as its destination: it started what it needs, in the room the
+editor in role had, or why not, `` `neovim` could not start: <its words> ``.
 
 ### `EditorHandoffOffered`
 
-`EditorHandoffOffered` v1, from the editor in office: the exact document, and that it holds still,
-taking no input until the outcome. A refusal ends the switch, `the editor in office refused at the
+`EditorHandoffOffered` v1, from `zengine.editor`, the editor in the role: the exact document, and that it holds still,
+taking no input until the outcome. A refusal ends the switch, `the editor in role refused at the
 boundary: <its words>`.
 
 ### `EditorAdopted`
 
-`EditorAdopted` v1, from the destination, Loom's preparation answer: it adopted the document, and
-the office moves; or `` `neovim` could not adopt the document: <its words> ``, and nothing moves.
+`EditorAdopted` v1, from any weave the switch loaded sealed as its destination, Loom's preparation answer: it adopted the document, and
+the role moves; or `` `neovim` could not adopt the document: <its words> ``, and nothing moves.
 
 ### `EditorLive`
 
-`EditorLive` v1, from the successor holding the office: it serves. When it does not, the outcome is
+`EditorLive` v1, from `zengine.editor`, the successor holding the role: it serves. When it does not, the outcome is
 `failed-after-commit`, `` `neovim` holds zengine.editor and did not prove it serves: ... -- the
 retired `standard` was kept ``, and the next switch releases the retired editor.
 
 ### `EditorRetired`
 
-`EditorRetired` v1, from the retired editor: how many inputs it refused while it held still, said
+`EditorRetired` v1, from any weave that held the role and was retired: how many inputs it refused while it held still, said
 among the answer's notes before it is unloaded.
 
 ### `TimerReady`
 
-`TimerReady` v1, from the Timer, `zengine.timer`: a Timer is there, and the switch orders its beat
+`TimerReady` v1, from `zengine.timer`, the Timer: a Timer is there, and the switch orders its beat
 from it again.
 
 ### `TimerFired`
 
-`TimerFired` v1, the switch's beat, `zengine.editor-switch.beat`: while the destination starts or
+`TimerFired` v1, from `zengine.timer`, the switch's beat, `zengine.editor-switch.beat`: while the destination starts or
 adopts, each beat is handed on to it; idle, the beat stops itself.
 
 ### `TimerResolution`
 
-`TimerResolution` v1, from the Timer: what became of the switch's order for its beat.
+`TimerResolution` v1, from `zengine.timer`, the Timer: what became of the switch's order for its beat.
 
 ## Follow
 

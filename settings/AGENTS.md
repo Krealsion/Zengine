@@ -8,7 +8,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | | |
 |---|---|
 | `theme_persist.hpp` | the `zengine-theme` file (`ThemeSetting`, `ThemeKey`, `ThemeFile`), its form, `from_text`/`to_text`, `load_file`/`save_file`, `resolve_theme` and its fingerprint, `list_themes` |
-| `vocabulary.hpp` | office `zengine.settings` (`kSettingsRole`), its apply modes and its doors' shapes |
+| `vocabulary.hpp` | role `zengine.settings` (`kSettingsRole`), its apply modes and its doors' shapes |
 | `CMakeLists.txt` | `zengine-settings-vocabulary`: INTERFACE, over `loom::core` and `zengine-workshop-vocabulary` |
 
 ## Law

@@ -69,14 +69,14 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
     out.word = word;
     const KeySpelling spelling = s.hotkeys_keys;
     out.spelling = spelling_word(spelling);
-    // EACH ROW WITH ITS ADDRESS -- the office that declared it, the pane for a pane's row, the id --
+    // EACH ROW WITH ITS ADDRESS -- the role that declared it, the pane for a pane's row, the id --
     // and what a press of it may cause, as its declarer said it.
-    const auto add = [&out, spelling](std::string group, std::string office, std::string pane,
+    const auto add = [&out, spelling](std::string group, std::string role, std::string pane,
                                       std::string id, std::string label, const Gesture& g,
                                       bool authored, bool remappable,
                                       std::vector<ActionCause> causes = {},
                                       std::string enters = {}) {
-        out.rows.push_back(ShownBinding{std::move(group), std::move(office), std::move(pane),
+        out.rows.push_back(ShownBinding{std::move(group), std::move(role), std::move(pane),
                                         std::move(id), std::move(label), spelled(g),
                                         shown_as(g, spelling), authored, remappable,
                                         std::move(causes), std::move(enters)});
@@ -124,13 +124,13 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             }
         }
     }
-    // ...THEN EVERY PANE'S ROWS IN FORCE, under the name its office offered it by, each with the
+    // ...THEN EVERY PANE'S ROWS IN FORCE, under the name its role offered it by, each with the
     // causes its declaration gave it, and each pane's modes.
     for (const PaneRows& p : k.panes) {
         const RuntimePane* named = s.panes.runtime.of_kind(p.pane);
         const std::string group =
             named != nullptr ? "pane " + named->name + " @" + named->provider : "a pane";
-        const std::string office = named != nullptr ? named->provider : std::string();
+        const std::string role = named != nullptr ? named->provider : std::string();
         const std::string pane = named != nullptr ? named->pane : std::string();
         std::map<std::string_view, const v4::PaneActionRow*> by_id;
         if (named != nullptr) {
@@ -139,7 +139,7 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
         for (const PaneRow& row : p.rows) {
             const auto found = by_id.find(row.id);
             const v4::PaneActionRow* declared = found != by_id.end() ? found->second : nullptr;
-            add(group, office, pane, row.id, row.label, row.gesture, authored_for(k, row.id),
+            add(group, role, pane, row.id, row.label, row.gesture, authored_for(k, row.id),
                 true, declared != nullptr ? declared->causes : std::vector<ActionCause>{},
                 declared != nullptr ? declared->enters : std::string());
             // ...AND A ROW'S POSIX KEY BESIDE ITS DEFAULT, whichever of them is in force.
@@ -152,7 +152,7 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             }
         }
         if (named != nullptr && !named->mode.empty()) {
-            out.modes.push_back(ShownModes{office, pane, named->mode, named->elsewhere});
+            out.modes.push_back(ShownModes{role, pane, named->mode, named->elsewhere});
         }
     }
     // ...AND THE TEXT BOX'S OWN KEYS, listed for discovery and marked: no file moves them.

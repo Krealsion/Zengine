@@ -1,15 +1,15 @@
-# Neovim holds the Editor's office
+# Neovim holds the Editor's role
 
 **Decision record.** One decision, its alternatives, and why this one. The law it supports is in
 [neovim](../workshop/neovim.md).
 
 **Context.** A weaver wants to edit in Neovim inside a running Workshop, and from a Loom that has
-no Workshop, without losing what the Editor's office promises: that Files, the Builder and Edit
+no Workshop, without losing what the Editor's role promises: that Files, the Builder and Edit
 Code reach the editor, that an open is one commitment, that the quit asks, and that a switch
 carries the document.
 
 **Decision.** Neovim is another implementation of the Editor, authored as a load plan choice for
-`zengine.editor` and loaded as its own weave. It holds the office and the Editor's pane key, runs
+`zengine.editor` and loaded as its own weave. It holds the role and the Editor's pane key, runs
 one Neovim per incarnation, and speaks every door the standard Editor speaks. Its screen is drawn
 as the pane's own rows -- ASCII under one status row, one caret, one range, on its canvas as every
 shipped pane draws -- and a weaver's keys and text cross back as Neovim input; `^s` and `^o` stand in for Workshop's own
@@ -18,7 +18,7 @@ mode; the flow is never waited on. From a Loom with no Workshop the same weave s
 listening, and Neovim's own interface attaches from a second terminal.
 
 **Alternatives considered.**
-- *A terminal emulator pane running `nvim`* -- refused: the office's facts (the document, its
+- *A terminal emulator pane running `nvim`* -- refused: the role's facts (the document, its
   identity, a transfer) would be scraped from a picture rather than asked.
 - *New Surface vocabulary for semantic spans* -- deferred: the existing protocol carries a usable
   editor now, and spans are the named next seam.

@@ -282,7 +282,7 @@ inline std::string field_row_text(const MessageDraft& draft, std::size_t which, 
 struct Composing {
     std::int64_t stage = stage::kNoTarget;
     std::string library; ///< the loaded-library name the weaver pressed -- DIAGNOSTIC identity
-    std::string role;    ///< the office a message would be addressed to -- MESSAGING identity
+    std::string role;    ///< the role a message would be addressed to -- MESSAGING identity
     Snapshot snapshot;
     MessageDraft draft;
     std::int64_t cursor = 0;   ///< into the roots in the catalog, into `form_items` in the form
@@ -332,7 +332,7 @@ inline std::vector<zengine::workshop::TextRow> rows_of(const ComposerView& view)
 }
 
 /// The target, in the pane's own words, with two identities kept apart: `to @zengine.timer` is
-/// the messaging address, resolved at delivery (whoever holds the office then; no `WeaveId` is
+/// the messaging address, resolved at delivery (whoever holds the role then; no `WeaveId` is
 /// pinned), and `from zengine-timer` is the diagnostic identity -- the library the kernel
 /// loaded, which addresses nothing.
 inline std::string target_row_text(const Composing& c, std::int64_t columns) {

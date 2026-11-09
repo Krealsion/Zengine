@@ -21,10 +21,10 @@ rule: `build-recipes.json` there, else the shipped one
 That is why there is no `--skin` flag and no `--input` flag: a plan is repeatable, diffable and
 durable, so which window the desk opens in is a row of it rather than a second code path. The one
 flag about the window, `--tui`, chooses among the windows the plan offers
-([below](#the-window-the-os-window-else-the-terminal-window)); it adds none.
+([below](#the-window-the-gui-window-else-the-tui-window)); it adds none.
 
 Workshop prints the whole executed arrangement on the way up when its standard output is not a
-terminal that a terminal skin or the terminal window holds, and on a terminal desk the
+terminal that a terminal skin or the TUI window holds, and on a terminal desk the
 [`Project` pane](../../introspection/docs/zengine.introspection.md#arrangement) shows the live
 arrangement, so what a run is actually made of is on your screen rather than inferred from which
 flags you passed.
@@ -44,29 +44,29 @@ one that draws your screen.
 ## The shipped plan
 
 [`workshop/default-load-plan.json`](../default-load-plan.json) is the one plan Workshop ships:
-the desk drawn through the [graphics directory](../../graphics/docs/zengine.graphics.md), in the OS
-window where one can open, else in the terminal window. Its third, fourth and fifth rows are the
+the desk drawn through the [graphics directory](../../graphics/docs/zengine.graphics.md), in the GUI
+window where one can open, else in the TUI window. Its third, fourth and fifth rows are the
 medium and the input beside it:
 
 | row | loads |
 |---|---|
 | third | `zengine-graphics`, as `zengine.graphics` |
-| fourth | `zengine-window-sdl`, as `zengine.window.sdl`; **otherwise** `zengine-window-terminal`, as `zengine.window.terminal` |
+| fourth | `zengine-window-sdl`, as `zengine.window.sdl`; **otherwise** `zengine-window-tui`, as `zengine.window.tui` |
 | fifth | `zengine-input`, as `zengine.input` |
 
 The directory introduces each pane's area and Workshop's own to the window that loaded: the
-[OS window](../../graphics/docs/zengine.window.sdl.md), which reads SDL's one event queue itself,
-or the [terminal window](../../graphics/docs/zengine.window.terminal.md), which takes the process's
+[GUI window](../../graphics/docs/zengine.window.sdl.md), which reads SDL's one event queue itself,
+or the [TUI window](../../graphics/docs/zengine.window.tui.md), which takes the process's
 terminal and sends its keys to their owners. No skin is loaded.
 [`zengine-input`](../../input/docs/zengine.input.md) follows either and serves input sessions, a
 guest's or a session tool's keys.
 
 The plan also carries `zengine-operators-basic` (a provider only), `zengine-timer` (a provider
 **and** a weave), `zengine-introspection` and `zengine-composer`. And it authors two **choices**
-for the Editor's office: `standard`, the row that loads, and `neovim`, loaded only when you switch
+for the Editor's role: `standard`, the row that loads, and `neovim`, loaded only when you switch
 to it ([Neovim in Workshop](../../editor/docs/neovim.md)).
 
-## The window: the OS window, else the terminal window
+## The window: the GUI window, else the TUI window
 
 The window row names, under `otherwise`, what loads where its own artifact cannot (plan format
 version 4):
@@ -78,34 +78,34 @@ version 4):
   "weave": [ { "role": "zengine.window.sdl" } ],
   "optional": false,
   "otherwise": [
-    { "artifact": "zengine-window-terminal", "weave": [ { "role": "zengine.window.terminal" } ] }
+    { "artifact": "zengine-window-tui", "weave": [ { "role": "zengine.window.tui" } ] }
   ]
 }
 ```
 
-Read it as: the OS window, otherwise the terminal window. At each launch:
+Read it as: the GUI window, otherwise the TUI window. At each launch:
 
-- **The OS window opens** where it can, and the desk is there.
+- **The GUI window opens** where it can, and the desk is there.
 - **Where it cannot open** -- no display, no video driver SDL can use, its library missing -- its
-  load is refused, nothing of it stays loaded, and the terminal window loads in its place. The
+  load is refused, nothing of it stays loaded, and the TUI window loads in its place. The
   desk is in the terminal Workshop was started from; Workshop says why, once, in the Notices pane,
   and Attention keeps it for the run:
 
   ```text
-  `zengine-window-sdl` did not load, so `zengine-window-terminal` stands in its row -- it would not start here: zengine-window-sdl: SDL_Init(SDL_INIT_VIDEO) failed: No available video device
+  `zengine-window-sdl` did not load, so `zengine-window-tui` stands in its row -- it would not start here: zengine-window-sdl: SDL_Init(SDL_INIT_VIDEO) failed: No available video device
   ```
 
-  The words after `start here:` are SDL's own, which the OS window refused to be made in. It says
-  them on standard error too, which the terminal window covers while it runs and gives back when
+  The words after `start here:` are SDL's own, which the GUI window refused to be made in. It says
+  them on standard error too, which the TUI window covers while it runs and gives back when
   Workshop ends.
-- **A build without the OS window** (configured with `ZENGINE_TUI_ONLY=ON`) holds no
-  `zengine-window-sdl`, and the terminal window loads with nothing said.
-- **`--tui`** opens the terminal window, of the windows the plan offers, and tries no other: the
-  row naming it in its place loads it alone. A plan offering no terminal window -- one naming the
-  OS window alone -- is refused before anything opens, with its fix:
+- **A build without the GUI window** (configured with `ZENGINE_TUI_ONLY=ON`) holds no
+  `zengine-window-sdl`, and the TUI window loads with nothing said.
+- **`--tui`** opens the TUI window, of the windows the plan offers, and tries no other: the
+  row naming it in its place loads it alone. A plan offering no TUI window -- one naming the
+  GUI window alone -- is refused before anything opens, with its fix:
 
   ```text
-  zengine-workshop - load plan refused: --tui opens the terminal window, and <plan> offers none (no row of this plan loads anything into `zengine.window.terminal`): add zengine-window-terminal under its window row's `otherwise`, or start without --tui (workshop/docs/load-plans.md)
+  zengine-workshop - load plan refused: --tui opens the TUI window, and <plan> offers none (no row of this plan loads anything into `zengine.window.tui`): add zengine-window-tui under its window row's `otherwise`, or start without --tui (workshop/docs/load-plans.md)
   ```
 
 The choice is the launch's: nothing switches a running Workshop to the other window, and no
@@ -117,7 +117,7 @@ A plan naming one window reads, loads and writes as it always has.
 it is gone is refused with the fix, and a file of yours by that name is a plan like any other:
 
 ```text
-zengine-workshop - load plan refused: graphical-load-plan.json is retired: the shipped default-load-plan.json opens the OS window, else the terminal window -- start without --load-plan, or with --tui for the terminal window (workshop/docs/load-plans.md)
+zengine-workshop - load plan refused: graphical-load-plan.json is retired: the shipped default-load-plan.json opens the GUI window, else the TUI window -- start without --load-plan, or with --tui for the TUI window (workshop/docs/load-plans.md)
 ```
 
 ## Reading a record
@@ -158,14 +158,14 @@ Copy a shipped plan and change rows. Two things to know:
 - **Adding a native artifact to a plan is an execution-authority decision, not configuration.**
   A plan row causes code to be loaded into this process. Treat editing one the way you would
   treat editing a list of shared libraries a program will `dlopen` — because that is what it is.
-- **What a row loads in its place is `otherwise`** (plan format version 4): weaves, each in an
-  office of its own, tried in order when the row's own artifact cannot load. An office with
+- **What a row loads in its place is `otherwise`** (plan format version 4): weaves, each in a
+  role of its own, tried in order when the row's own artifact cannot load. A role with
   choices takes no row's alternatives.
-- **Alternatives for an office are `choices`** (plan format version 2): each names an artifact that
-  may hold the office and the word a weaver switches to it by, and exactly one of them is also the
+- **Alternatives for a role are `choices`** (plan format version 2): each names an artifact that
+  may hold the role and the word a weaver switches to it by, and exactly one of them is also the
   row that loads it. Keep both of a shipped plan's Editor choices if you want to switch editors;
   the format is [the reference's](load-plan.md#the-file-format), the law
-  [editor-switch.md](../../editor/docs/editor-switch.md). The choice holding an office at quit is
+  [editor-switch.md](../../editor/docs/editor-switch.md). The choice holding a role at quit is
   remembered in your session, not in the plan, and the next start loads it while the plan still
   authors it ([Neovim in Workshop](../../editor/docs/neovim.md#switch-while-you-work)).
 
@@ -179,8 +179,8 @@ Skins and SDL's reader are retired, and Workshop refuses such a plan by the row'
 opens anything, saying what to put there:
 
 ```text
-artifact 'zengine-skin-tui-classic' is retired: put the default plan's zengine-graphics row and its window row, zengine-window-sdl otherwise zengine-window-terminal, where it stands (workshop/docs/load-plans.md)
-artifact 'zengine-skin-sdl' is retired: put the default plan's zengine-graphics row and its window row, zengine-window-sdl otherwise zengine-window-terminal, where it stands (workshop/docs/load-plans.md)
+artifact 'zengine-skin-tui-classic' is retired: put the default plan's zengine-graphics row and its window row, zengine-window-sdl otherwise zengine-window-tui, where it stands (workshop/docs/load-plans.md)
+artifact 'zengine-skin-sdl' is retired: put the default plan's zengine-graphics row and its window row, zengine-window-sdl otherwise zengine-window-tui, where it stands (workshop/docs/load-plans.md)
 artifact 'zengine-input-sdl' is retired: put zengine-input where it stands (workshop/docs/load-plans.md)
 ```
 
@@ -190,8 +190,8 @@ as it is, the rows `o` added included; `zengine-input`, as `zengine.input`, stan
 `zengine-input-sdl` stood. The two rows are copied as they stand in
 [`default-load-plan.json`](../default-load-plan.json), the window row with its `otherwise`, and the
 plan becomes version 4 (`"version": 4` and `"format_version": "4"`), every row saying
-`"otherwise"`, empty but the window's. For the terminal window alone, `zengine-window-terminal`, as
-`zengine.window.terminal`, may stand in the window row with no `otherwise`, and the plan keeps its
+`"otherwise"`, empty but the window's. For the TUI window alone, `zengine-window-tui`, as
+`zengine.window.tui`, may stand in the window row with no `otherwise`, and the plan keeps its
 version.
 
 ## When a record fails

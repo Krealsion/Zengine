@@ -43,7 +43,7 @@ inline constexpr const char* kPowerBuild = "build";
 /// and nothing else: a pointer, never a press. A version-3 word.
 inline constexpr const char* kPowerGuide = "guide";
 /// Hearing the weaver's input as it happens: an `observe` entry naming `AttributedInput`,
-/// `KeyPressed` or `TextEntered`, from any office, needs it. It grants nothing to say. A version-3
+/// `KeyPressed` or `TextEntered`, from any role, needs it. It grants nothing to say. A version-3
 /// word.
 inline constexpr const char* kPowerKeystrokes = "keystrokes";
 /// Reading and writing one pane's settings on the live layout by message (`PaneSettingsRequested`,
@@ -84,7 +84,7 @@ inline constexpr const char* kHostWeaver = "weaver";
 inline constexpr const char* kHostDevelopment = "development";
 
 /// ONE THING A GUEST MAY OBSERVE: publications of one shape, at its exact version, by whoever
-/// holds one office. Observation is its own decision (loom's zen/observe/relay.hpp): no power in
+/// holds one role. Observation is its own decision (loom's zen/observe/relay.hpp): no power in
 /// `may` implies it, and it grants nothing to say but one read -- observing the Builder's
 /// `BuildStatus` at the version it publishes lets the guest ask for the current one
 /// (`BuildStatusRequested`), answered to it alone, which is what it may already see.
@@ -105,7 +105,7 @@ struct GuestRow {
     /// the panes `capture` names and `guide` marks only within `guide`; a row of an earlier version
     /// reads the desk whole and points nowhere.
     bool by_door = false;
-    std::vector<std::string> capture;  ///< `<office>/<pane>`, an office's every pane, or `*` alone
+    std::vector<std::string> capture;  ///< `<role>/<pane>`, a role's every pane, or `*` alone
     std::vector<std::string> guide;    ///< the same, each within `capture`
 
     /// Reads by door and not every pane: judged pane by pane, refused the reads that carry every pane.

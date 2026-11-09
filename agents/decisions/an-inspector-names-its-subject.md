@@ -31,9 +31,9 @@ answer's accounting are Info's, carried from the object inspector unchanged.
 - *A general property or component editor* — out of scope: the rows are the ones the Pane
   Manager already showed; a new kind of row is a new decision, as a pane's settings rows are
   ([theirs](settings-are-rows-of-a-panes-subject.md)).
-- *One subject per inspecting office* — not needed with one inspector; recorded as the limit.
+- *One subject per inspecting role* — not needed with one inspector; recorded as the limit.
 
-**Consequences.** One subject slot: an office that asks moves it. A restore or a layout switch
+**Consequences.** One subject slot: a role that asks moves it. A restore or a layout switch
 abandons a live draft and says so; a commit queued behind one is refused with nothing written.
 A write the setter refuses (a unit the face does not read, a pane with no room) is the owner's
 sentence, and the draft stands. A replaced Info loses its draft and is told nothing about a

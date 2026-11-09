@@ -29,9 +29,9 @@ using zengine::workshop::ManagedOpenSettled;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneOffered;
 
-/// The office and pane the real Editor holds, spelled as strings: a stand-in is a stranger
+/// The role and pane the real Editor holds, spelled as strings: a stand-in is a stranger
 /// to the Editor's own headers, exactly as any other image would be.
-constexpr const char* kOffice = "zengine.editor";
+constexpr const char* kRole = "zengine.editor";
 constexpr const char* kPane = "editor";
 constexpr const char* kWorkshopRole = "zengine.workshop";
 constexpr const char* kOpeningRole = "zengine.opening";
@@ -113,7 +113,7 @@ public:
 
 private:
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshopRole, PaneOffered{kPane, "Editor", "a stand-in that cannot apply"});
     }
 

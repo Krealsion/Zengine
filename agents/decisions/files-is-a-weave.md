@@ -1,7 +1,7 @@
 # Files is a weave
 
 The project browser was a built-in pane of the Workshop host. It is `Zengine/files/` now: a
-shared library, loaded from a row in an editable plan, holding the office `zengine.files` and
+shared library, loaded from a row in an editable plan, holding the role `zengine.files` and
 offering the pane `project-files` across the external pane protocol. Workshop compiles nothing
 for it, mints no kind for it, and learns its row from a live offer.
 
@@ -17,16 +17,16 @@ the one whose seam is worth designing carefully.
 ## What crosses, and what does not
 
 Four facts the browser read straight off `HostContext` cannot travel into a loaded image as
-anything but values, so each became an ask to an office and an answer back:
+anything but values, so each became an ask to a role and an answer back:
 
     zengine.project    reads, ACTS  ProjectRootRequested  -> ProjectRoot
                                     RecipeUseRequested     -> RecipeOutcome
                                     RecipeAuthorRequested  -> RecipeOutcome
     zengine.workshop   ACTS         OpenSourceRequested    -> SourceOpened
 
-ONE OFFICE FOR THE PROJECT, AND ONE OWNER PER ACT: where the project is and which recipes it
+ONE ROLE FOR THE PROJECT, AND ONE OWNER PER ACT: where the project is and which recipes it
 means answer at `zengine.project`, and each act there spends the one closure the host wired for
-it, so "which office can write a recipe catalog" keeps a one-word answer and the reading still
+it, so "which role can write a recipe catalog" keeps a one-word answer and the reading still
 runs nobody's code. The Editor's door is addressed at `zengine.workshop` because Workshop still
 holds the Editor; when the Editor migrates, the same sentence goes to `zengine.editor` and only
 the address moves.

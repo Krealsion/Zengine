@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_FLOW_PANE_GESTURE_HPP
 #define ZENGINE_FLOW_PANE_GESTURE_HPP
-// Two presses Flow reads as one gesture: the window counts a press's clicks by the input office's
+// Two presses Flow reads as one gesture: the window counts a press's clicks by the input role's
 // double-click time, and Flow reads the count with the place, never timing a press itself.
 #include <cstdint>
 #include <string>

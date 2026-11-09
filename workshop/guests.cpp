@@ -13,7 +13,7 @@
 #include "settings_seam_vocabulary.hpp"
 #include "open_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
-#include "pane_menu.hpp" // kWorkshopRole, the office Workshop holds
+#include "pane_menu.hpp" // kWorkshopRole, the role Workshop holds
 #include "pane_view.hpp"
 #include "pane_carry.hpp"
 #include "pane_document.hpp"
@@ -28,6 +28,8 @@
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
 #include "notices/vocabulary.hpp"
+#include "info/vocabulary.hpp"
+#include "composer/vocabulary.hpp"
 
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
@@ -95,7 +97,7 @@ bool row_may(const GuestRow& row, const char* power) {
     return std::find(row.may.begin(), row.may.end(), power) != row.may.end();
 }
 
-// WHAT CARRIES A PANE'S OR WORKSHOP'S WORDS, OR THE PICTURE, by its name and from any office: a
+// WHAT CARRIES A PANE'S OR WORKSHOP'S WORDS, OR THE PICTURE, by its name and from any role: a
 // row observes it only with `capture`, whatever its observe list names.
 bool carries_the_desk(const std::string& shape) {
     for (const char* name : {graphics::WindowShown::zen_name, graphics::AreaShown::zen_name,
@@ -115,7 +117,7 @@ bool follows_the_desk(const std::string& shape) {
     return shape == DeskStamps::zen_name || shape == notices::NoticesMoved::zen_name;
 }
 
-// THE WEAVER'S INPUT AS IT HAPPENS, from whichever office says it: every key, its release, typed
+// THE WEAVER'S INPUT AS IT HAPPENS, from whichever role says it: every key, its release, typed
 // text and press, a window's keys among them, heard only with `keystrokes`.
 bool carries_the_keys(const std::string& shape) {
     for (const char* name : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
@@ -135,8 +137,8 @@ const RoleBundle* role_named(const std::string& name) {
     return nullptr;
 }
 
-// ONE `capture` OR `guide` ENTRY, judged: `*` (every pane, alone), an office's every pane, or
-// `<office>/<pane>` as Loom parses a door, never a control's or a root's, and never a pane only the
+// ONE `capture` OR `guide` ENTRY, judged: `*` (every pane, alone), a role's every pane, or
+// `<role>/<pane>` as Loom parses a door, never a control's or a root's, and never a pane only the
 // weaver's hand reads. Empty when it stands; else why not.
 std::string door_problem(const std::string& entry) {
     if (entry == kEveryPane) return {};
@@ -145,15 +147,15 @@ std::string door_problem(const std::string& entry) {
     if (!door) return why;
     const std::size_t slash = entry.find('/');
     if (slash == std::string::npos) {
-        return "'" + entry + "' is a root's door; a read and a mark name a pane, <office>/<pane> or <office>/" "*";
+        return "'" + entry + "' is a root's door; a read and a mark name a pane, <role>/<pane> or <role>/" "*";
     }
-    const std::string office = entry.substr(0, slash);
+    const std::string role = entry.substr(0, slash);
     const std::string pane = entry.substr(slash + 1);
     if (pane.find(':') != std::string::npos) {
-        return "'" + entry + "' names a control; a read and a mark name a pane, <office>/<pane> or <office>/" "*";
+        return "'" + entry + "' names a control; a read and a mark name a pane, <role>/<pane> or <role>/" "*";
     }
-    if (std::string only = scope::weaver_only_pane(office, pane == "*" ? std::string() : pane);
-        !only.empty() && (pane != "*" || office == kConnectionsRole)) {
+    if (std::string only = scope::weaver_only_pane(role, pane == "*" ? std::string() : pane);
+        !only.empty() && (pane != "*" || role == kConnectionsRole)) {
         return "'" + entry + "' names a pane only the weaver's hand reads: " + only;
     }
     return {};
@@ -370,7 +372,7 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
                 scope.version = o.get("version")->as_int();
                 if (scope.producer.empty() || scope.shape.empty() || scope.version <= 0) {
                     *error = "guests file '" + path + "': guest '" + row.name +
-                             "' observes an entry without a producer office, a shape and a "
+                             "' observes an entry without a producer role, a shape and a "
                              "version above 0";
                     return false;
                 }
@@ -445,7 +447,7 @@ loom::Grant grant_for(const GuestRow& row) {
         } else if (power == kPowerCapture && row.reads_by_pane()) {
             // A READ BY PANE: the desk said whole, a pane's page and a point in it, the inventory
             // and the keymap, each answered over the panes Loom says the row may read -- one door
-            // rule on `DeskReadRequested` for each door -- and a pane's manual from the offices those
+            // rule on `DeskReadRequested` for each door -- and a pane's manual from the roles those
             // doors name. No picture: a picture carries every pane.
             g.allow_to_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
                             pane_menu::kWorkshopRole);
@@ -456,38 +458,38 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
                             pane_menu::kWorkshopRole);
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version, pane_menu::kWorkshopRole);
-            std::vector<std::string> offices;
+            std::vector<std::string> roles;
             for (const std::string& entry : row.capture) {
                 if (std::optional<loom::Door> door = loom::Door::parse(entry)) {
                     g.allow_to_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
                                     pane_menu::kWorkshopRole, *door);
                 }
-                const std::string office = entry.substr(0, entry.find('/'));
-                if (std::find(offices.begin(), offices.end(), office) == offices.end()) {
-                    offices.push_back(office);
+                const std::string role = entry.substr(0, entry.find('/'));
+                if (std::find(roles.begin(), roles.end(), role) == roles.end()) {
+                    roles.push_back(role);
                     g.allow_to_role(PaneDocumentRequested::zen_name, PaneDocumentRequested::zen_version,
-                                    office);
+                                    role);
                 }
             }
         } else if (power == kPowerCapture) {
-            // EVERY PANE'S MANUAL, from whichever office answers it: the desk read whole reads them all.
+            // EVERY PANE'S MANUAL, from whichever role answers it: the desk read whole reads them all.
             g.allow_to_any(PaneDocumentRequested::zen_name, PaneDocumentRequested::zen_version);
             // THE DESK SAID WHOLE: the desk and its panes in one turn, a pane's page and a point in
-            // it, the inventory of panes and the keymap, each asked of Workshop's office.
+            // it, the inventory of panes and the keymap, each asked of Workshop's role.
             g.allow_to_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             // THE PICTURE, read from the window that shows the desk.
             for (const std::string& medium :
-                 {std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
-                  std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow}) {
+                 {std::string(graphics::kWindowRolePrefix) + graphics::kTuiWindow,
+                  std::string(graphics::kWindowRolePrefix) + graphics::kSdlWindow}) {
                 g.allow_to_role(graphics::SurfaceCaptureRequested::zen_name,
                                 graphics::SurfaceCaptureRequested::zen_version, medium);
                 g.allow_to_role(graphics::SurfaceCaptureChunkRequested::zen_name,
@@ -508,8 +510,9 @@ loom::Grant grant_for(const GuestRow& row) {
                                       "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
                 g.allow_to_role(shape, 1, zengine::demo::kRole);
             g.allow_to_role(SetupApplyRequested::zen_name, 1, kLayoutsRole);
-            g.allow_to_role(WorkshopQuitRequested::zen_name, 1, "zengine.workshop");
-            for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
+            g.allow_to_role(WorkshopQuitRequested::zen_name, 1, pane_menu::kWorkshopRole);
+            for (const char* role : {zengine::info_pane::kInfoPaneRole, zengine::composer::kComposerRole,
+                                      zengine::inventory_pane::kRole})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
         } else if (power == kPowerOpen) {
             // THE MANAGED OPENING, and nothing beside it: no document door, no save, no build.
@@ -527,17 +530,17 @@ loom::Grant grant_for(const GuestRow& row) {
                 }
             }
         } else if (power == kPowerSettings) {
-            // ONE PANE'S SETTINGS ON THE LIVE LAYOUT AND ONE OFFICE'S, read and written, a pane's
+            // ONE PANE'S SETTINGS ON THE LIVE LAYOUT AND ONE ROLE'S, read and written, a pane's
             // pin list edited, a setting locked (an unlock is the weaver's, refused by the owner),
             // and every layout's rows read and written in one batch, asked of the layouts' owner.
             g.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
                             kLayoutsRole);
             g.allow_to_role(PaneSettingCommitRequested::zen_name,
                             PaneSettingCommitRequested::zen_version, kLayoutsRole);
-            g.allow_to_role(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version,
+            g.allow_to_role(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version,
                             kLayoutsRole);
-            g.allow_to_role(OfficeSettingCommitRequested::zen_name,
-                            OfficeSettingCommitRequested::zen_version, kLayoutsRole);
+            g.allow_to_role(RoleSettingCommitRequested::zen_name,
+                            RoleSettingCommitRequested::zen_version, kLayoutsRole);
             g.allow_to_role(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version,
                             kLayoutsRole);
             g.allow_to_role(PaneSettingLockRequested::zen_name,
@@ -556,8 +559,8 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxSave::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxRestore::zen_name, 1, zengine::inventory_pane::kRole);
         } else if (power == kPowerInventory) {
-            g.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
-            g.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
+            g.allow_to_role(TerminalValueRequested::zen_name, 1, pane_menu::kWorkshopRole);
+            g.allow_to_role(PaneValueCarryRequested::zen_name, 1, pane_menu::kWorkshopRole);
             g.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryViewsRequested::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory::InventoryAdd::zen_name, 1, zengine::inventory::kInventoryRole);
@@ -748,7 +751,7 @@ loom::observe::ObservePolicy observation_of(
                     "your own row with GuestRowDescribedRequested");
             }
             // THE WEAVER'S INPUT AS IT HAPPENS -- every key, typed text and press -- is heard only
-            // with `keystrokes`, from whichever office says it.
+            // with `keystrokes`, from whichever role says it.
             if (carries_the_keys(asked.name) && !row_may(*row, kPowerKeystrokes)) {
                 return loom::observe::ObserveVerdict::refuse(
                     "guest '" + row->name + "' may not observe " + asked.name + " v" +
@@ -766,7 +769,7 @@ loom::observe::ObservePolicy observation_of(
                     "its `capture` names; it asks for them");
             }
             // THE DESK'S WORDS AND ITS PICTURE are observed only under `capture`, from whichever
-            // office publishes them; the weaver's copied text needs a power of its own.
+            // role publishes them; the weaver's copied text needs a power of its own.
             if (carries_the_desk(asked.name) && !row_may(*row, kPowerCapture)) {
                 return loom::observe::ObserveVerdict::refuse(
                     "guest '" + row->name + "' may not observe " + asked.name + " v" +

@@ -4,7 +4,7 @@
 // The app host as `zengine-app` composes it (app/docs/app.md), over the tally app's folder: each
 // plan row waiting on the console until decided in Loom's `authority` grammar, a provider among
 // them; the panel drawn in the window the app's weave arranges, typed into and pressed there, its
-// flow answering; the window's close ending the run, no other office's. The suites' pixel window
+// flow answering; the window's close ending the run, no other role's. The suites' pixel window
 // (`window_backends.hpp`) stands for the plan's window row and the suite turns its beat for the
 // Timer, so the plan here is the probe's without those two rows.
 
@@ -112,7 +112,7 @@ struct AppHostSuiteCloser {
     ZEN_SHAPE(AppHostSuiteCloser, 1, ZEN_FIELD(said));
 };
 
-/// Says a close as whatever office it holds, and hears nothing it acts on.
+/// Says a close as whatever role it holds, and hears nothing it acts on.
 class Stranger : public loom::WeaveBase<Stranger, AppHostSuiteCloser, loom::Accept<gfx::WindowShown>,
                                         loom::Emit<gfx::SurfaceCloseRequested>> {
 public:
@@ -169,14 +169,14 @@ struct Run {
 
     std::string waiting_on() const { return host->executor().waiting_on(); }
 
-    /// The OS window over the suite's pixel backend, at its office, activated as Loom's control
+    /// The GUI window over the suite's pixel backend, at its role, activated as Loom's control
     /// door activates a loaded weave: it offers itself.
     void mount_window() {
         auto w = std::make_unique<FakeSdlWindow>(FakeSdlBackend{&light});
         FakeSdlWindow* raw = w.get();
         loom::Grant g = loom::emit_default_grant(*raw);
         window = bus.register_weave(std::move(w), std::move(g),
-                                    std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow);
+                                    std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow);
         raw->zen_set_self(window);
         const loom::WeaveId door = zengine::testing::mount_door(bus);
         zengine::testing::order_activation(bus, door, window, 1);
@@ -201,7 +201,7 @@ struct Run {
 
     /// What the window shows now, row by row.
     std::string shown() {
-        bus.send_as_to_role(ears_id, std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow,
+        bus.send_as_to_role(ears_id, std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow,
                             loom::Message(loom::to_value(gfx::WindowShowAsked{}), ears_id, ears_id));
         turn();
         std::string out;
@@ -593,7 +593,7 @@ TEST_CASE("the app's window tells the app's weave and its views nothing they do 
     REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
     std::vector<std::string> refused;
     const loom::ObserverId tap = run.bus.add_observer([&](const loom::BusEvent& ev) {
-        // The suite loads no Timer and no input office, so the window's ask for its beat and for
+        // The suite loads no Timer and no input role, so the window's ask for its beat and for
         // the double-click time find no taker there.
         if (ev.kind == loom::EventKind::Refused && run.window.valid() && ev.sender == run.window &&
             ev.addressed_role != zengine::timer::kTimerRole &&
@@ -611,7 +611,7 @@ TEST_CASE("the app's window tells the app's weave and its views nothing they do 
     CHECK_MESSAGE(refused.empty(), said);
 }
 
-TEST_CASE("the close of the app's own window ends the run, exit 0; a close any other office says ends nothing") {
+TEST_CASE("the close of the app's own window ends the run, exit 0; a close any other role says ends nothing") {
     AppFolder folder("close");
     Run run(folder);
     REQUIRE(run.open());
@@ -621,11 +621,11 @@ TEST_CASE("the close of the app's own window ends the run, exit 0; a close any o
     run.mount_window();
     REQUIRE_FALSE(run.host->ended());
 
-    // ANOTHER OFFICE'S CLOSE, and one with no office, end nothing.
+    // ANOTHER ROLE'S CLOSE, and one with no role, end nothing.
     auto s = std::make_unique<Stranger>();
     const loom::WeaveId stranger =
         run.bus.register_weave(std::move(s), loom::Grant{}.allow_any(), "zengine.window.stranger");
-    (void)run.bus.office_publish_as(stranger, "zengine.window.stranger",
+    (void)run.bus.role_publish_as(stranger, "zengine.window.stranger",
                                     loom::Message(loom::to_value(gfx::SurfaceCloseRequested{}), stranger));
     (void)run.bus.publish(loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
     run.turn();

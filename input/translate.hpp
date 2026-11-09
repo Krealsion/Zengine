@@ -24,7 +24,7 @@
 //     Alt            not for ordinary keys (the ESC prefix is byte-identical to Escape then a
 //                    key, and Escape is load-bearing); measured on the CSI keys.
 //     Super          never: xterm's Meta bit is not read as kSuper.
-//     pointer        once the terminal window turns reporting on
+//     pointer        once the TUI window turns reporting on
 //                    (graphics/window/terminal_io.hpp): SGR reports (ESC [ < b ; x ; y M/m)
 //                    with position and modifiers, 1-based on the wire.
 //

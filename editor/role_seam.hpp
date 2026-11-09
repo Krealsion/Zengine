@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_EDITOR_OFFICE_SEAM_HPP
-#define ZENGINE_EDITOR_OFFICE_SEAM_HPP
+#ifndef ZENGINE_EDITOR_ROLE_SEAM_HPP
+#define ZENGINE_EDITOR_ROLE_SEAM_HPP
 
-// What both implementations of the Editor's office keep and say alike: the records of their
-// conversations with the opening office and with Workshop -- an open relayed through the old door,
+// What both implementations of the Editor's role keep and say alike: the records of their
+// conversations with the opening role and with Workshop -- an open relayed through the old door,
 // a switch's hold, a copy carried out, a dropped location opened -- the steps those take, and the
 // sentences they end in; and the graphics window that shows the Editor (`EditorWindow`).
 // Header-only, and read by the two Editor weaves alone (`editor-pane/`, `neovim-editor/`); each
@@ -26,6 +26,7 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "persist/file.hpp"
 #include "workshop/property.hpp" // `Written`
+#include "workshop/pane_menu.hpp"
 
 #include <zen/weave.hpp>
 
@@ -39,14 +40,14 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::editor_office {
+namespace zengine::editor_role {
 
 namespace st = zengine::source_transfer;
 namespace ws = zengine::workshop;
 
-/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: an
-/// Editor is a stranger to Workshop's internals.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// The role Workshop holds, read from the installed pane protocol (`workshop/pane_menu.hpp`) as
+/// a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// One column of every document row the text may not use: the caret's own, so a caret after the
 /// end of a full row stays inside the room (WL-EDIT-08).
@@ -58,10 +59,10 @@ inline constexpr std::size_t kMaxRelays = 4;
 /// The subject a dropped command's menu is told apart by.
 inline constexpr const char* kDropSubject = "drop";
 
-// ---- The records of the office's conversations ---------------------------------------------
+// ---- The records of the role's conversations ---------------------------------------------
 
 /// An open relayed through the old door: the requester's kept answer right, and the Editor's own
-/// conversation with the opening office (its correlation and exact attempt), so the answer or the
+/// conversation with the opening role (its correlation and exact attempt), so the answer or the
 /// bus's refusal finds its requester. Bounded by `kMaxRelays`, and not reload state: the rights die
 /// with the incarnation that kept them (ANS-02), and an answer to a predecessor's relay is refused.
 struct Relay {
@@ -172,20 +173,20 @@ inline ws::v3::SourcePrepared not_prepared(std::int64_t op, std::string refusal)
 // ---- The old door, relayed (WL-OPEN-07) ----------------------------------------------------
 
 /// THE OLD DOOR: an Editor does not arrange the desk, so an open asked of it is asked of the
-/// opening office in the Editor's own conversation, as `office`, the requester's answer right kept
+/// opening role in the Editor's own conversation, as `role`, the requester's answer right kept
 /// in `relays`. An unauthored ask is dropped. Refused now, in words -- never silence, and never a
-/// document-only success: the opening office itself (it would be asking the Editor to ask it
+/// document-only success: the opening role itself (it would be asking the Editor to ask it
 /// back), a switch holding the Editor still (counted in `holding`), a full relay table, and an ask
 /// that queued nothing.
 inline void relay_open_source(const ws::OpenSourceRequested& asked, loom::Mail& mail,
-                              const char* office, Holding& holding, std::vector<Relay>& relays,
+                              const char* role, Holding& holding, std::vector<Relay>& relays,
                               std::uint64_t& asked_seq) {
     if (mail.authored_role().empty()) {
         return;
     }
     if (mail.authored_from_role(ws::kOpeningRole)) {
         (void)mail.answer(ws::SourceOpened{
-            false, "the opening office asks the Editor to prepare a source, not to open "
+            false, "the opening role asks the Editor to prepare a source, not to open "
                    "one -- nothing was relayed for " +
                        asked.path});
         return;
@@ -205,11 +206,11 @@ inline void relay_open_source(const ws::OpenSourceRequested& asked, loom::Mail& 
     }
     const std::uint64_t correlation = ++asked_seq;
     const loom::Ticket attempt =
-        mail.as_role(office).send_to_role(ws::kOpeningRole, ws::OpenSourceRequested{asked.path},
+        mail.as_role(role).send_to_role(ws::kOpeningRole, ws::OpenSourceRequested{asked.path},
                                           correlation);
     if (!attempt.valid()) {
         (void)mail.answer(ws::SourceOpened{
-            false, "nothing was queued: the Editor could not ask the opening office to show " +
+            false, "nothing was queued: the Editor could not ask the opening role to show " +
                        asked.path});
         return;
     }
@@ -221,7 +222,7 @@ inline void relay_open_source(const ws::OpenSourceRequested& asked, loom::Mail& 
     relays.push_back(std::move(relay));
 }
 
-/// The opening office's answer to a relay, matched by the Editor's own correlation and spent into
+/// The opening role's answer to a relay, matched by the Editor's own correlation and spent into
 /// the requester's kept right. An answer to nothing relayed is dropped; a right whose requester
 /// was replaced spends into nobody, which the bus refuses.
 inline void settle_relay(const ws::SourceOpened& said, loom::Mail& mail,
@@ -240,7 +241,7 @@ inline void settle_relay(const ws::SourceOpened& said, loom::Mail& mail,
 }
 
 /// THE BUS'S WORD THAT AN ASK NEVER ARRIVED, matched by its exact attempt: a relay's requester is
-/// told the opening office could not be reached; a pickup's or a dropped location's failure is
+/// told the opening role could not be reached; a pickup's or a dropped location's failure is
 /// said through `notice(text, bad)` and its record released. Delivered silence stays pending.
 /// True when the pane has a notice to say.
 template <class SnapshotT, class NoticeFn>
@@ -284,13 +285,13 @@ bool settle_dispatch_refused(const loom::DispatchRefused& refused, loom::Mail& m
 
 // ---- A copy carried out, and a dropped location opened: Workshop approves the gesture first --
 
-/// ONE ACQUISITION BEGUN: the pair's bytes kept in `pickup`, and Workshop asked, as `office` for
+/// ONE ACQUISITION BEGUN: the pair's bytes kept in `pickup`, and Workshop asked, as `role` for
 /// `pane`, to approve a carry for the gesture that caused it; the carry follows the approval
 /// (`answer_operation`). A refused pair, a pickup already in flight and an ask that queued
 /// nothing are said through `notice(text, bad)`, and nothing is kept.
 template <class NoticeFn>
 void begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture, const std::string& label,
-                  std::string what, loom::Mail& mail, const char* office, const char* pane,
+                  std::string what, loom::Mail& mail, const char* role, const char* pane,
                   std::uint64_t& asked_seq, Pickup& pickup, NoticeFn&& notice) {
     if (!pair.ok) {
         notice("nothing was carried -- " + pair.refusal, true);
@@ -307,7 +308,7 @@ void begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture, const 
     pickup.bytes.assign(pair.bytes.begin(), pair.bytes.end());
     pickup.label = label.substr(0, ws::kMaxCarryLabelBytes);
     pickup.what = std::move(what);
-    pickup.ticket = mail.as_role(office).send_to_role(
+    pickup.ticket = mail.as_role(role).send_to_role(
         kWorkshopRole,
         ws::PaneOperationRequested{pane, kWorkshopRole, ws::PaneValueCarryRequested::zen_name,
                                    ws::PaneValueCarryRequested::zen_version,
@@ -332,19 +333,19 @@ std::string location_refusal(const st::SourceLocation& loc, const LocateOf<Snaps
     return std::string();
 }
 
-/// A DROPPED LOCATION ASKED FOR: Workshop is asked, as `office` for `pane`, whether this gesture's
+/// A DROPPED LOCATION ASKED FOR: Workshop is asked, as `role` for `pane`, whether this gesture's
 /// actor may open a file; the managed open follows the approval (`answer_operation`). Its path is
 /// kept as both Editors spell one -- absolute, lexically normal, forward slashes. An ask that
 /// queued nothing is said through `notice(text, bad)`, and nothing is kept.
 template <class SnapshotT, class NoticeFn>
-void ask_location(const st::Material& m, loom::Mail& mail, const char* office, const char* pane,
+void ask_location(const st::Material& m, loom::Mail& mail, const char* role, const char* pane,
                   std::uint64_t& asked_seq, LocateOf<SnapshotT>& locate, NoticeFn&& notice) {
     locate.stage = LocateOf<SnapshotT>::Stage::Permission;
     locate.loc = m.location;
     locate.loc.path = zengine::persist::resolved_against(std::string(), m.location.path);
     locate.ctx = m.location_context;
     locate.ask = ++asked_seq;
-    locate.ticket = mail.as_role(office).send_to_role(
+    locate.ticket = mail.as_role(role).send_to_role(
         kWorkshopRole,
         ws::PaneOperationRequested{pane, ws::kOpeningRole, ws::OpenSourceRequested::zen_name,
                                    ws::OpenSourceRequested::zen_version,
@@ -358,12 +359,12 @@ void ask_location(const st::Material& m, loom::Mail& mail, const char* office, c
 
 /// WORKSHOP'S WORD ON AN ASK THE EDITOR MADE FOR A GESTURE, Loom's answer to its own ask or
 /// nothing: an approved pickup's copy is handed to Workshop, and an approved location is asked of
-/// the opening office as `office`, once `stamp(locate)` has written what the open is judged
+/// the opening role as `role`, once `stamp(locate)` has written what the open is judged
 /// against when it settles. A refusal, or an ask that queued nothing, is said through
 /// `notice(text, bad)` and its record released. True when the pane has a notice to say.
 template <class SnapshotT, class StampFn, class NoticeFn>
 bool answer_operation(const ws::PaneOperationAnswered& answer, loom::Mail& mail,
-                      const char* office, const char* pane, std::uint64_t& asked_seq,
+                      const char* role, const char* pane, std::uint64_t& asked_seq,
                       Pickup& pickup, LocateOf<SnapshotT>& locate, StampFn&& stamp,
                       NoticeFn&& notice) {
     if (!mail.answers_ask()) {
@@ -376,7 +377,7 @@ bool answer_operation(const ws::PaneOperationAnswered& answer, loom::Mail& mail,
             return true;
         }
         pickup.stage = Pickup::Stage::Carry;
-        pickup.ticket = mail.as_role(office).send_to_role(
+        pickup.ticket = mail.as_role(role).send_to_role(
             kWorkshopRole, ws::PaneValueCarryRequested{pane, pickup.label, pickup.bytes, pickup.drag},
             pickup.gesture);
         if (!pickup.ticket.valid()) {
@@ -392,17 +393,17 @@ bool answer_operation(const ws::PaneOperationAnswered& answer, loom::Mail& mail,
             notice("nothing was opened -- " + answer.reason, true);
             return true;
         }
-        // THE OPEN IS THE MANAGED ONE, asked as the Editor's office (the relay's own route): the
+        // THE OPEN IS THE MANAGED ONE, asked as the Editor's role (the relay's own route): the
         // unsaved-work floor, the desk and a refusal's attribution are the opening's, unchanged.
         locate.stage = LocateOf<SnapshotT>::Stage::Opening;
         stamp(locate);
         locate.ask = ++asked_seq;
-        locate.ticket = mail.as_role(office).send_to_role(
+        locate.ticket = mail.as_role(role).send_to_role(
             ws::kOpeningRole, ws::OpenSourceRequested{locate.loc.path}, locate.ask);
         if (!locate.ticket.valid()) {
             const std::string path = locate.loc.path;
             locate = LocateOf<SnapshotT>{};
-            notice("nothing was opened -- the Editor could not ask the opening office for " + path,
+            notice("nothing was opened -- the Editor could not ask the opening role for " + path,
                    true);
             return true;
         }
@@ -515,33 +516,33 @@ inline std::string generated_cpp_words(const st::GeneratedCpp& g, const std::str
 
 // ---- The graphics window that shows the Editor ---------------------------------------------
 
-/// THE GRAPHICS WINDOW THAT SHOWS THE EDITOR, as the weave holding the office keeps it: the window
-/// drawing the area the office names (`ws::WindowDrawing`), the room it gives, and where a press
+/// THE GRAPHICS WINDOW THAT SHOWS THE EDITOR, as the weave holding the role keeps it: the window
+/// drawing the area the role names (`ws::WindowDrawing`), the room it gives, and where a press
 /// on each named part of the rows last drawn there lands. Transient, as every room is: an Editor
 /// reloaded or admitted by a switch asks for it again.
 class EditorWindow {
 public:
-    EditorWindow(const char* office, const char* pane)
-        : office_(office), window_(office, ws::pane_area(office, pane)) {}
+    EditorWindow(const char* role, const char* pane)
+        : role_(role), window_(role, ws::pane_area(role, pane)) {}
 
     const std::string& area() const noexcept { return window_.area(); }
     /// A graphics window shows the area.
     bool in_window() const noexcept { return window_.shown(); }
-    /// The office a paste is asked of: the window showing the area.
-    std::string clipboard_office() const { return window_.clipboard_office(); }
+    /// The role a paste is asked of: the window showing the area.
+    std::string clipboard_role() const { return window_.clipboard_role(); }
     /// The window's room in rows and columns: a line of its text and an advance of it.
     std::int64_t rows() const noexcept { return window_.rows_room().rows(); }
     std::int64_t columns() const noexcept { return window_.rows_room().columns(); }
 
-    /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the office, while no window has said it.
+    /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the role, while no window has said it.
     void ask_room(loom::Mail& mail) const {
         if (!in_window()) {
-            (void)mail.as_role(office_).send_to_role(graphics::kGraphicsRole,
+            (void)mail.as_role(role_).send_to_role(graphics::kGraphicsRole,
                                                      graphics::RoomAsked{area()});
         }
     }
 
-    /// THE ROOM, said by the window that shows the area as that window's office: true when the
+    /// THE ROOM, said by the window that shows the area as that window's role: true when the
     /// window, its incarnation, its size or its measure changed or the area is empty, so the window
     /// holds none of the drawing and the next goes whole.
     bool room(const graphics::AreaRoom& r, const loom::Mail& mail) { return window_.room(r, mail); }
@@ -554,7 +555,7 @@ public:
         return window_.refused(r, mail);
     }
 
-    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: the
+    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: the
     /// place of the part `asked.action` names in the rows last drawn there. None for another area
     /// or speaker, or an action those rows name no part by.
     std::optional<ws::RowCell> part(const graphics::ActionRequested& asked,
@@ -581,7 +582,7 @@ public:
                             !type};
     }
 
-    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto
+    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's role, read onto
     /// the rows drawn there (`ws::WindowDrawing::pointer`). None for another area or speaker.
     template <class Moment>
     std::optional<ws::WindowPointer> pointer(const Moment& moment, const loom::Mail& mail) const {
@@ -616,12 +617,12 @@ public:
     }
 
 private:
-    const char* office_;
+    const char* role_;
     ws::WindowDrawing window_;
     /// Where a press in the window reaches each named part of the rows last drawn there.
     std::map<std::string, ws::RowCell> places_;
 };
 
-} // namespace zengine::editor_office
+} // namespace zengine::editor_role
 
-#endif // ZENGINE_EDITOR_OFFICE_SEAM_HPP
+#endif // ZENGINE_EDITOR_ROLE_SEAM_HPP

@@ -17,12 +17,12 @@
 
 namespace {
 
-constexpr const char* kTallyOffice = "example.tally";
+constexpr const char* kTallyRole = "example.tally";
 constexpr const char* kNativeStem = "zengine-example-tally";
 /// The same pane as a module: a stem spelled with WebAssembly's suffix, which the host keeps.
 constexpr const char* kBoxedStem = "zengine-example-tally.wasm";
 
-inline PaneRef tally_ref() { return PaneRef{kTallyOffice, "tally"}; }
+inline PaneRef tally_ref() { return PaneRef{kTallyRole, "tally"}; }
 
 /// A LIVE WORKSHOP WITH TALLY LOADED BY ONE PLAN ROW naming `stem`, its pane on the desk.
 struct TallyRig {
@@ -36,13 +36,13 @@ struct TallyRig {
         load::LoadPlan plan;
         load::ArtifactIntent row;
         row.stem = stem;
-        row.weave = load::WeaveIntent{kTallyOffice};
+        row.weave = load::WeaveIntent{kTallyRole};
         plan.artifacts.push_back(row);
         done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
         r.extent(120, 40);
-        REQUIRE_MESSAGE(r.session().panes.runtime.find(kTallyOffice, "tally") != nullptr,
+        REQUIRE_MESSAGE(r.session().panes.runtime.find(kTallyRole, "tally") != nullptr,
                         std::string(stem + " offered no `tally` pane"));
         r.pick(tally_ref());
         REQUIRE(r.session().panes.has(kind()));
@@ -204,7 +204,7 @@ TEST_CASE("boxed: a native Tally reloads into its boxed build and back, its coun
     REQUIRE(t.text().find("Tally: 1") != std::string::npos);
     CHECK(t.r.kernel.containment(t.stem) == loom::Kernel::containment_note());
 
-    // INTO THE MODULE: the same office, the same weave, the count carried; the kernel now holds it
+    // INTO THE MODULE: the same role, the same weave, the count carried; the kernel now holds it
     // in a box, and Workshop's words for the row say so.
     t.reload_from(t.copy_of(WORKSHOP_WASM_TALLY, "boxed-"));
     CHECK_MESSAGE(t.text().find("Tally: 1") != std::string::npos, t.text());

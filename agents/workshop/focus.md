@@ -88,7 +88,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-10 — The title's mark and the band's first row, in characters
 
-LAW — The pane the keys point at wears the `> ` mark in its header; while ordinary keys reach it, the band's first legend row says `typing goes to <name> @<office> -- press elsewhere for Workshop's keys`.
+LAW — The pane the keys point at wears the `> ` mark in its header; while ordinary keys reach it, the band's first legend row says `typing goes to <name> @<role> -- press elsewhere for Workshop's keys`.
 
 MEANS
 - two facts, not one twice: the mark names the pane the keys return to, the band where a key goes;

@@ -780,7 +780,7 @@ endfunction()
 # clock, or the page's own history in the forms that narrated a change every time they were read
 # by hand -- a heading marked RETIRED or *retired*, "used to be", "was renamed", "formerly", and a
 # bold note opening "It used to" or "Retired with". A behaviour that ends ("a holder that no longer
-# holds its office") and a technical phase ("the two-phase shutdown") are neither. The same
+# holds its role") and a technical phase ("the two-phase shutdown") are neither. The same
 # grammar as Loom's `doc_standard`. Sets ${out} to the words found, or "".
 function(zen_plan_document_told line out)
     set(${out} "" PARENT_SCOPE)
@@ -1177,7 +1177,7 @@ foreach(told_line
     endif()
 endforeach()
 foreach(plain_line
-        "A holder that no longer holds its office is forgotten, and its lease with it."
+        "A holder that no longer holds its role is forgotten, and its lease with it."
         "The two-phase shutdown observes the whole group before it claims the end."
         "Each phase of the shutdown has its own bound, and in that phase nothing is sent."
         "A retired spelling may appear in exactly one file, the checker that declares it."
@@ -1266,8 +1266,8 @@ endif()
 
 # A `/*` in a line comment, and one in a string literal, opens no block comment: with no `*/`
 # after it in the file, and with one later and code between.
-set(slash_line "// a door: <office>/* kNoLine\nint kDelta${ZEN_SOH}\n")
-set(slash_literal "const char* const kProbe = \"<office>/*\"${ZEN_SOH}\nint kDelta${ZEN_SOH}\n")
+set(slash_line "// a door: <role>/* kNoLine\nint kDelta${ZEN_SOH}\n")
+set(slash_literal "const char* const kProbe = \"<role>/*\"${ZEN_SOH}\nint kDelta${ZEN_SOH}\n")
 set(slash_later "/* kNoBlock */ int kEpsilon${ZEN_SOH}\n")
 foreach(slash_case line literal)
     foreach(slash_tail "" "${slash_later}")

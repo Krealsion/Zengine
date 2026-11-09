@@ -52,7 +52,7 @@ add_executable(witness-pane-menu pane_menu_consumer.cpp)
 target_link_libraries(witness-pane-menu PRIVATE zengine::pane zengine::component loom::switchboard)
 
 # ---- a stranger's pane declares its settings and takes its row, live ----------------------
-# pane_settings_consumer.cpp declares through the installed judge, asks a stand-in layouts' office
+# pane_settings_consumer.cpp declares through the installed judge, asks a stand-in layouts' role
 # for its row on the installed settings facet and reads what it is handed, from `zengine::pane`,
 # `zengine::activation` and the Loom bus alone, out of tree.
 add_executable(witness-pane-settings pane_settings_consumer.cpp)
@@ -102,7 +102,7 @@ add_dependencies(kitchen-host oven)
 # noun true of every member is `artifact`, and a variable renamed after one surface goes red here.
 foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
                  zengine-guest-vocabulary zengine-inventory zengine-graphics
-                 zengine-window-terminal)
+                 zengine-window-tui)
     if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
         message(FATAL_ERROR
             "kitchen: '${expected}' is not in ZENGINE_RUNTIME_ARTIFACTS "

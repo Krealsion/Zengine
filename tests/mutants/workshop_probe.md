@@ -5,43 +5,43 @@ Each entry is a mutant that a comment in
 naming the entry by its path and heading. [The corpus's front page](README.md) says how an entry
 reads and how `tests/mutants/run.py` runs it.
 
-## capture-of-the-os-window-alone
+## capture-of-the-gui-window-alone
 
-The probe asks the OS window alone for a picture.
+The probe asks the GUI window alone for a picture.
 
 In `examples/workshop-probe/probe.hpp`:
 
 ```diff
--            if (capture_office_at_ + 1 < kCaptureOffices.size()) {
+-            if (capture_role_at_ + 1 < kCaptureRoles.size()) {
 +            if (false) {
 ```
 
 Red in `zengine-workshop-probe-tests`:
 
-- probe: a picture is asked of the OS window, then the terminal window, and fetched from the office
+- probe: a picture is asked of the GUI window, then the TUI window, and fetched from the role
   that described it
 
-## chunks-of-the-os-window
+## chunks-of-the-gui-window
 
-The probe asks the OS window for each chunk, whichever office described the picture.
+The probe asks the GUI window for each chunk, whichever role described the picture.
 
 In `examples/workshop-probe/probe.hpp`:
 
 ```diff
--        ask(mail, capture_office(),
+-        ask(mail, capture_role(),
 -            zengine::graphics::SurfaceCaptureChunkRequested{capture_, fetched_});
-+        ask(mail, kCaptureOffices[0],
++        ask(mail, kCaptureRoles[0],
 +            zengine::graphics::SurfaceCaptureChunkRequested{capture_, fetched_});
 ```
 
 Red in `zengine-workshop-probe-tests`:
 
-- probe: a picture is asked of the OS window, then the terminal window, and fetched from the office
+- probe: a picture is asked of the GUI window, then the TUI window, and fetched from the role
   that described it
 
 ## stopped-on-the-last-refusal
 
-The run stops on the last office's refusal rather than the first.
+The run stops on the last role's refusal rather than the first.
 
 In `examples/workshop-probe/probe.hpp`:
 
@@ -52,12 +52,12 @@ In `examples/workshop-probe/probe.hpp`:
 
 Red in `zengine-workshop-probe-tests`:
 
-- probe: when no office holds the picture the run stops on the first refusal, and a refusal while
-  fetching asks no other office
+- probe: when no role holds the picture the run stops on the first refusal, and a refusal while
+  fetching asks no other role
 
 ## falls-back-mid-fetch
 
-A refusal while fetching sends the run on to the next office, as one while capturing does.
+A refusal while fetching sends the run on to the next role, as one while capturing does.
 
 In `examples/workshop-probe/probe.hpp`:
 
@@ -69,5 +69,5 @@ In `examples/workshop-probe/probe.hpp`:
 
 Red in `zengine-workshop-probe-tests`:
 
-- probe: when no office holds the picture the run stops on the first refusal, and a refusal while
-  fetching asks no other office
+- probe: when no role holds the picture the run stops on the first refusal, and a refusal while
+  fetching asks no other role

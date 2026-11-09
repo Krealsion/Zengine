@@ -189,7 +189,7 @@ bool WorkshopWeave::capture_guest(loom::WeaveId who) const {
     return row.admitted && row.may(scope::kPowerCapture);
 }
 
-// THE STAMP A PANE OF `provider` STANDS ON, but for what it shows: its office's holder and that
+// THE STAMP A PANE OF `provider` STANDS ON, but for what it shows: its role's holder and that
 // holder's incarnation, and the incarnation of the window that shows the desk.
 PaneStamp WorkshopWeave::stamp_of(const std::string& provider, const std::string& pane) const {
     PaneStamp out{provider, pane, 0, 0, window_epoch_, 0};
@@ -310,7 +310,7 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out,
     std::vector<PanePart> parts;
     shown_words_and_parts(shown, rect, words, parts);
     cover_reading(covers_of(row.kind, rect, laid), rect, words, parts, out.covered);
-    // NO POINT WHILE A MENU IS OPEN, nor while nobody holds the office a press there is told.
+    // NO POINT WHILE A MENU IS OPEN, nor while nobody holds the role a press there is told.
     const bool unheld = host_->role_holder && !host_->role_holder(row.provider).valid();
     if (session_.presented.open || session_.context.open || unheld) without_points(words, parts);
     out.total = static_cast<std::int64_t>(words.size() + parts.size());
@@ -320,7 +320,7 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out,
 }
 
 // EVERY POINT IN THE SPACE THE MEDIUM READS, as Workshop's own words say theirs: the window's
-// pixel, or the terminal window's cell; a part's where the window's own judge lands a press on it.
+// pixel, or the TUI window's cell; a part's where the window's own judge lands a press on it.
 void WorkshopWeave::shown_words_and_parts(const graphics::AreaShown& shown, const PixelRect& rect,
                                           std::vector<PaneWord>& words,
                                           std::vector<PanePart>& parts) const {
@@ -386,7 +386,7 @@ void WorkshopWeave::presented_menu_reading(DeskMenu& menu) const {
     }
 }
 
-// A PANE NO WINDOW SHOWS: the frame's own words for why, where its office draws in no window,
+// A PANE NO WINDOW SHOWS: the frame's own words for why, where its role draws in no window,
 // else that no window shows it.
 // WL-READ-02 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::unshown_reading(const RuntimePane& row) const {
@@ -395,7 +395,7 @@ std::string WorkshopWeave::unshown_reading(const RuntimePane& row) const {
         return "pane view unavailable: " + external_body_words(*pane, row.name);
     }
     if (pane != nullptr && !pane->held) {
-        return "pane view unavailable: waiting for the provider -- no participant holds its office";
+        return "pane view unavailable: waiting for the provider -- no participant holds its role";
     }
     return "pane view unavailable: the pane is not placed in a window";
 }
@@ -473,9 +473,9 @@ std::string WorkshopWeave::layouts_reading(PaneView& out, const DeskBounds& laid
 // or the send was refused.
 std::uint64_t WorkshopWeave::ask_area(loom::Mail& mail, const std::string& area) {
     if (!window_.shown()) return 0;
-    const std::string office = std::string(graphics::kWindowOfficePrefix) + window_name_;
+    const std::string role = std::string(graphics::kWindowRolePrefix) + window_name_;
     const loom::AskOpened opened = area_asks_.open_to_role(
-        office, graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version);
+        role, graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version);
     if (!opened) return 0;
     const auto taken = area_readings_.find(area);
     const std::int64_t since = taken != area_readings_.end() && taken->second.number != 0 &&
@@ -483,7 +483,7 @@ std::uint64_t WorkshopWeave::ask_area(loom::Mail& mail, const std::string& area)
                                    ? taken->second.shown.version
                                    : 0;
     const loom::Ticket sent = mail.as_role(kWorkshopProvider)
-                                  .send_to_role(office, graphics::AreaShowAsked{area, since},
+                                  .send_to_role(role, graphics::AreaShowAsked{area, since},
                                                 opened.correlation);
     if (!sent.valid()) {
         (void)area_asks_.forget(opened.id);
@@ -629,7 +629,7 @@ bool WorkshopWeave::wait_on_areas(loom::Mail& mail, DeskWait wait, const std::ve
 // WL-READ-06 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const graphics::AreaSettled& settled, loom::Mail& mail) {
     if (settled.window != window_name_ || !window_.shown() ||
-        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + window_name_)) {
+        !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + window_name_)) {
         return;
     }
     bool presented = settled.area == presented_area();
@@ -776,7 +776,7 @@ std::string WorkshopWeave::take_desk_read(loom::WeaveId asker) {
     return {};
 }
 
-// EVERY PRESENTED PANE, FRONT TO BACK, by office and pane: the order a desk read and a notice say
+// EVERY PRESENTED PANE, FRONT TO BACK, by role and pane: the order a desk read and a notice say
 // their stamps in.
 std::vector<PaneRef> WorkshopWeave::presented_refs(const DeskBounds& laid) const {
     std::vector<std::int64_t> order = effective_pane_order(session_.setup.active, session_.panes);
@@ -875,7 +875,7 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
     (void)wait_on_areas(mail, std::move(wait), areas);
 }
 
-// THE DESK MOVED: its number and every presented pane's stamp front to back, published as the office
+// THE DESK MOVED: its number and every presented pane's stamp front to back, published as the role
 // when any differs from what was last published, so the desk number never moves without a notice
 // and an unchanged desk sends none.
 // WL-READ-06 -- agents/workshop/desk-read.md

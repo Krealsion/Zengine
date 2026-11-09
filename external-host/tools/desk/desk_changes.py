@@ -5,7 +5,7 @@ writes to `changes.txt`. Pure functions of readings and text: no asks and no fil
 
 A READING IN SECTIONS. The desk's own lines (its first line and notes, Workshop's words, the menu)
 are one section; each pane's lines -- its header, then its words and parts -- are another, keyed
-by its office and pane. A change names each section that moved: one that came, one that left,
+by its role and pane. A change names each section that moved: one that came, one that left,
 and one that changed, said as the smaller of its changed lines (`- ` gone, `+ ` come) and its
 lines as they now stand. A section whose header's stamp alone moved -- a caret, a colour, which no
 line says -- did not change. A watch of some panes writes only theirs, never the desk's own lines.
@@ -38,7 +38,7 @@ DESK = "desk"
 
 
 def sections(reading):
-    """`[(key, lines)]`: the desk's own lines under DESK, then each pane's under (office, pane),
+    """`[(key, lines)]`: the desk's own lines under DESK, then each pane's under (role, pane),
     front to back, as `desk.txt` writes them."""
     if reading.get("desk") is None:
         return [(DESK, ["(desk not read: %s)" % render.clean(reading.get("refused"))])]
@@ -81,7 +81,7 @@ def name_of(key):
 
 def change(old_reading, new_reading, watched=None):
     """What moved between two readings, as `[line]`, or `[]` when nothing a watch writes moved.
-    `watched`: the (office, pane) keys a watch of some panes writes; None for every section."""
+    `watched`: the (role, pane) keys a watch of some panes writes; None for every section."""
     old = dict(sections(old_reading))
     new = sections(new_reading)
     new_keys = set(key for key, _ in new)

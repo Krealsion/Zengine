@@ -2,7 +2,7 @@
 
 **Reference.** The vocabulary a weave includes to hear a person, and the pieces the Input weaves
 are made of: what each shape preserves, the key, modifier and space numbers, how each platform's
-events become those shapes, and the weave a reader is wrapped in. The office that publishes them,
+events become those shapes, and the weave a reader is wrapped in. The role that publishes them,
 its input sessions and its timed pointer motion are [its manual, `zengine.input`](zengine.input.md).
 
 Source: [`input/vocabulary.hpp`](../vocabulary.hpp) ·
@@ -24,13 +24,13 @@ application meaning and is not spoken here at any version.
 | `PointerWheel` v1 | notches, position, space, modifiers. |
 
 Positions are int64 and carry a `space` (`kCells` on the two terminal backends, `kPixels` where the
-OS window reads SDL's events) so a terminal cell can never be mistaken for a window pixel. Editing
+GUI window reads SDL's events) so a terminal cell can never be mistaken for a window pixel. Editing
 controls are keys, never text: Backspace, Enter and Escape arrive as transitions, and what they
 *mean* is the application's.
 
-**A double click is counted by the window, by the office's time.** `PointerButton` carries no count
+**A double click is counted by the window, by the role's time.** `PointerButton` carries no count
 and no time on any backend: SDL's own count and the console's double-click record follow the
-desktop's time, and a POSIX terminal reports none. The office owns the double-click time,
+desktop's time, and a POSIX terminal reports none. The role owns the double-click time,
 `kSettingDoubleClickMs` (`kDefaultDoubleClickMs`, held to `kLeastDoubleClickMs`..
 `kMostDoubleClickMs`), and says it in `PointerTimingSaid`; a window counts the weaver's presses by
 it and says the count with each press (`graphics::AreaButtonChanged::clicks`), so the console's
@@ -48,7 +48,7 @@ keys are named too: the arrows, Home, End and Delete in their bare, tilde-number
 bitmask; the Meta bit is deliberately not claimed). A control byte is Ctrl with its letter, and byte
 0 is Ctrl+Space, which Ctrl+@ and Ctrl+2 send too. The **Win32 console** reads `INPUT_RECORD`s:
 `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers, `dwMousePosition` the position —
-all present on the record and all preserved — and its VK table names Home, End and Delete. The OS
+all present on the record and all preserved — and its VK table names Home, End and Delete. The GUI
 window reads SDL's one process-global event queue itself, with this package's translation
 (`input/translate_sdl_core.hpp`): SDL scancodes pass through as the wire identity they already are.
 The platform's clipboard events are ignored there deliberately, not from disinterest: clipboard read
@@ -56,10 +56,10 @@ follows paste intent, so the clipboard is read through the window when a paste a
 `ClipboardTextRequested` ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), and
 never watched; no moment carries clipboard text. Each backend's exact honest reach — which modifiers
 it can vouch for on which keys — stays documented in `input/translate.hpp`. The terminal readers
-(`input/terminal_reader.hpp`) serve any program reading a terminal, a terminal window among them,
+(`input/terminal_reader.hpp`) serve any program reading a terminal, a TUI window among them,
 not only the Input weave.
 
-**Who turns the terminal's pointer on:** the **terminal window**, because terminal modes are
+**Who turns the terminal's pointer on:** the **TUI window**, because terminal modes are
 output and the output stream is already claimed and released on the window's own lifetime
 (`graphics/window/terminal_io.hpp`). Input never writes a byte to the terminal; it parses SGR
 reports whenever they arrive, and they only arrive because the window asked. The two packages need
@@ -68,7 +68,7 @@ no coordination surface between them.
 ## Scan names are names for values that already arrive
 
 `scan::kHome`, `kDelete` and `kEnd` are names, not new reach. SDL's scancode passes through
-untranslated (`input/translate_sdl_core.hpp`), so the OS window has always delivered them unnamed;
+untranslated (`input/translate_sdl_core.hpp`), so the GUI window has always delivered them unnamed;
 the POSIX terminal backend names their CSI sequences and the Win32 console backend their VKs. A
 constant here is not a claim that every backend can produce one: `translate.hpp` remains where each
 backend's honest reach is written.
@@ -78,7 +78,7 @@ backend's honest reach is written.
 `InputWeaveT<Reader, Facets...>` (`input/input_weave.hpp`) is the whole Input weave around a
 reader: anything with `poll()` returning a vector of a variant of the shapes it publishes. Its Emit
 set is derived from that variant, so a reader that can hand it a further shape declares it and no
-other weave does. It keeps the office's beat, its sessions and its timed motion, as
-[the manual](zengine.input.md) says. `Facets` compose onto it: the shipped weave names its office's
-page, `OfficePage`, a `manual::ManualFacet` that adds the door answering what each accepted shape
+other weave does. It keeps the role's beat, its sessions and its timed motion, as
+[the manual](zengine.input.md) says. `Facets` compose onto it: the shipped weave names its role's
+page, `RolePage`, a `manual::ManualFacet` that adds the door answering what each accepted shape
 does; with none there is no such door, as a suite's weave over a scripted reader is built.

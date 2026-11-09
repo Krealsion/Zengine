@@ -2,10 +2,10 @@
 
 **Manual.** The palette lists everything you can do by name -- every action in force, every pane,
 each layout, each open pane's manual, and each setup and app you can start -- and runs the one you
-choose. It is the weave in the office `zengine.palette`, built as
+choose. It is the weave in the role `zengine.palette`, built as
 `zengine-palette` and loaded by a row of the shipped plans that load a window. Open it from
 anywhere with <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, the desktop's
-[`desktop.palette`](zengine.desktop.md#desktoppalette); in the OS window by tapping Shift twice,
+[`desktop.palette`](zengine.desktop.md#desktoppalette); in the GUI window by tapping Shift twice,
 <!-- key desktop.palette-shift -->`double-shift`<!-- /key -->; or as any pane from the Pane
 Manager.
 
@@ -113,38 +113,38 @@ Puts the palette down with nothing run.
 
 ### `KeymapShown`
 
-[`KeymapShown`](../desktop_seam_vocabulary.hpp), from Workshop: the keymap in force, which the
+[`KeymapShown`](../desktop_seam_vocabulary.hpp), from `zengine.workshop`: the keymap in force, which the
 action entries are read from again. Asked when the palette starts and each time it opens.
 
 ### `PaneInventory`
 
-[`PaneInventory`](../desktop_seam_vocabulary.hpp), from Workshop: the panes, which the pane
+[`PaneInventory`](../desktop_seam_vocabulary.hpp), from `zengine.workshop`: the panes, which the pane
 entries are read from again, and which panes are open, whose rows are listed.
 
 ### `LayoutSettingsAnswered`
 
-[`LayoutSettingsAnswered`](../settings_seam_vocabulary.hpp), from the layouts' owner: the layouts on
+[`LayoutSettingsAnswered`](../settings_seam_vocabulary.hpp), from `zengine.layouts`, the layouts' owner: the layouts on
 the shelf, by name. Asked when the palette starts and each time it opens.
 
 ### `LaunchCatalog`
 
-[`LaunchCatalog`](../../launcher/vocabulary.hpp), from the launcher: the setups and apps it can
+[`LaunchCatalog`](../../launcher/vocabulary.hpp), from `zengine.launcher`: the setups and apps it can
 start. Asked when the palette starts and each time it opens.
 
 ### `CommandRunAnswered`
 
-[`CommandRunAnswered`](../command_vocabulary.hpp), Workshop's word on a run: the
+[`CommandRunAnswered`](../command_vocabulary.hpp), from `zengine.workshop`, its word on a run: the
 entry remembered when it ran, its refusal said when not.
 
 ### `AreaRoom`
 
-`AreaRoom`, from the graphics window that shows the area `zengine.palette`
+`AreaRoom`, from `zengine.window.*`, the graphics window that shows the area `zengine.palette`
 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): its room there, where it draws the
 filter, the count and the entries.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged`, from that window: a press on an entry's line, which moves the cursor there.
+`AreaButtonChanged`, from `zengine.window.*`, that window: a press on an entry's line, which moves the cursor there.
 
 ## Shows
 

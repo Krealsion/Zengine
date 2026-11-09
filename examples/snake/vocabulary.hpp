@@ -142,9 +142,9 @@ struct SnakeWorldState {
 } // namespace v2
 
 /// The world's role: roles are the addresses that survive replacement. It is also the world's
-/// office, the owner of its area.
+/// role, the owner of its area.
 inline constexpr const char* kWorldRole = "snake.world";
-/// The area the world draws in, and the score weave's office and area.
+/// The area the world draws in, and the score weave's role and area.
 inline constexpr const char* kWorldArea = "snake.world";
 inline constexpr const char* kScoreRole = "snake.score";
 /// The pilot's role, the address it is landed by.

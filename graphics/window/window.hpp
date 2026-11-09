@@ -9,7 +9,7 @@
 // code it loads, has what changed painted in the palette the area wears, routes the pointer, gives
 // keys and their text to the areas that hear them, and tells each owner its room. What it keeps
 // painted, how it shows it and what it reads are its Medium's: characters on a terminal
-// (graphics/window/window_terminal.hpp), light in an OS window (graphics/window/window_sdl.hpp).
+// (graphics/window/window_tui.hpp), light in a GUI window (graphics/window/window_sdl.hpp).
 
 #include "graphics/painting.hpp"
 #include "timer/held_beat.hpp"
@@ -61,7 +61,7 @@ struct WindowState {
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    ZEN_SHAPE(WindowState, 10, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 11, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
@@ -92,7 +92,7 @@ struct WindowPlacementValue {
 };
 
 /// A picture read back from what the window last presented: `text/cells` on a terminal (`cell_px`
-/// 0, `width` and `height` in cells, a row of `width` bytes a line) or `image/bmp` on an OS window
+/// 0, `width` and `height` in cells, a row of `width` bytes a line) or `image/bmp` on a GUI window
 /// (`cell_px` the light cell pitch, `width` and `height` in pixels).
 struct CapturedWindowPicture {
     std::int64_t width = 0;
@@ -350,7 +350,7 @@ public:
         (void)mail.answer(s);
     }
 
-    /// What one area shows, to the office that placed it: its words and named parts as the
+    /// What one area shows, to the role that placed it: its words and named parts as the
     /// window holds them painted, which its next showing shows at the latest; nothing more when the
     /// asker's `since` is still the area's version.
     void on(const AreaShowAsked& asked, loom::Mail& mail) {
@@ -362,7 +362,7 @@ public:
         }
         if (a->arranger.empty() || !mail.authored_from_role(a->arranger)) {
             (void)mail.answer(loom::Refused{"area '" + asked.area +
-                                            "' is read only by the office that placed it"});
+                                            "' is read only by the role that placed it"});
             return;
         }
         AreaShown s;
@@ -388,7 +388,7 @@ public:
         (void)mail.answer(s);
     }
 
-    /// A moment the input office injected for a participant, its hand named: a pointer moment is
+    /// A moment the input role injected for a participant, its hand named: a pointer moment is
     /// landed by this window's own judge, as one its platform gave, and told as that hand's. The
     /// weaver's own moments are the platform's, which the window reads itself; keys are not taken.
     void on(const zengine::input::AttributedInput& in, loom::Mail& mail) {
@@ -412,7 +412,7 @@ public:
         settle(mail, false);
     }
 
-    /// THE DOUBLE-CLICK TIME, from the input office alone: every hand's presses count by it from
+    /// THE DOUBLE-CLICK TIME, from the input role alone: every hand's presses count by it from
     /// here on.
     void on(const zengine::input::PointerTimingSaid& said, loom::Mail& mail) {
         if (mail.authored_from_role(zengine::input::kInputRole)) {
@@ -447,8 +447,8 @@ public:
         }
     }
 
-    /// SHAPED BY AN OFFICE THAT ARRANGES IN IT: its title and its size, the medium's to set. A
-    /// shaping from any other office, or naming another window, changes nothing. A size that
+    /// SHAPED BY A ROLE THAT ARRANGES IN IT: its title and its size, the medium's to set. A
+    /// shaping from any other role, or naming another window, changes nothing. A size that
     /// changed offers the window again, so its arrangers place for it.
     void on(const WindowShaped& s, loom::Mail& mail) {
         if (s.window != Medium::kWindow) {
@@ -549,13 +549,13 @@ public:
         (void)mail.answer(chunk);
     }
 
-    /// Text copied to the platform's clipboard: an OS window's, or a terminal's by its copy
+    /// Text copied to the platform's clipboard: a GUI window's, or a terminal's by its copy
     /// sequence, which no terminal confirms.
     void clipboard_copy(std::string_view text) { medium_.clipboard_copy(text); }
     /// The platform clipboard's text now, read only when asked: empty when it holds none, and none
-    /// where no read exists (a terminal, or an OS window with no window).
+    /// where no read exists (a terminal, or a GUI window with no window).
     std::optional<std::string> clipboard_text() { return medium_.clipboard_text(); }
-    /// Where the window sits on its desktop: none on a terminal, or for an OS window with no window
+    /// Where the window sits on its desktop: none on a terminal, or for a GUI window with no window
     /// or one never seen unmaximized.
     std::optional<WindowPlacementValue> placement() { return medium_.placement(); }
     /// A remembered placement offered back: kept whole on a display; a terminal takes none.
@@ -579,8 +579,8 @@ public:
         touch_all();
         settle(mail, false);
         offer(mail);
-        // The double-click time asked of the input office, which says it again when it changes.
-        (void)mail.as_role(office()).send_to_role(zengine::input::kInputRole,
+        // The double-click time asked of the input role, which says it again when it changes.
+        (void)mail.as_role(role()).send_to_role(zengine::input::kInputRole,
                                                   zengine::input::PointerTimingAsked{});
     }
 
@@ -650,12 +650,12 @@ private:
             }
         }
         if (medium_.take_close()) {
-            (void)mail.as_role(office()).publish(SurfaceCloseRequested{});
+            (void)mail.as_role(role()).publish(SurfaceCloseRequested{});
         }
         settle(mail, false);
     }
 
-    /// What this window waits on claimed as its office after every delivery, and its beat run as
+    /// What this window waits on claimed as its role after every delivery, and its beat run as
     /// the host's wait leaves it: stopped while the wait holds the claim, running while it does
     /// not, while the medium cannot be waited on, and while the medium must look again soon.
     void settle_wait(loom::Mail& mail) {
@@ -667,10 +667,10 @@ private:
         if constexpr (requires { medium_.on_time(); }) {
             on_time = medium_.on_time();
         }
-        held_.settle(mail, office(), set, on_time, pump_);
+        held_.settle(mail, role(), set, on_time, pump_);
     }
 
-    /// A hand: the weaver's own, which the platform gives, or a participant's the input office
+    /// A hand: the weaver's own, which the platform gives, or a participant's the input role
     /// names. Each holds its own presses and rests its own pointer.
     struct Hand {
         bool local = true;
@@ -692,7 +692,7 @@ private:
         for (const WinArea* a : front_to_back(this->state_.areas)) {
             if (hears(*a, typed) && !a->owner.empty()) {
                 typed.area = a->area;
-                (void)mail.as_role(office()).send_to_role(a->owner, typed);
+                (void)mail.as_role(role()).send_to_role(a->owner, typed);
             }
         }
     }
@@ -754,7 +754,7 @@ private:
             }
             const ElementRecord* r = record_of(*a, l.path);
             if (!a->pointer && p == nullptr && r != nullptr && !r->action.empty()) {
-                (void)mail.as_role(office()).send_to_role(a->owner,
+                (void)mail.as_role(role()).send_to_role(a->owner,
                                                           ActionRequested{a->area, r->action});
                 return;
             }
@@ -767,7 +767,7 @@ private:
         tell(mail, *a, b, at, press, hand, l, clicks);
     }
 
-    /// A PRESS OF `button` COUNTED FOR ITS HAND, now, by the time the input office said. Past
+    /// A PRESS OF `button` COUNTED FOR ITS HAND, now, by the time the input role said. Past
     /// `kMaxCountedHands` hands, a new participant's takes the place of the lowest-numbered other
     /// participant's, which counts from 1 again; the weaver's own is always kept.
     std::int64_t count_click(const Hand& hand, std::int64_t button) {
@@ -806,7 +806,7 @@ private:
     /// area's arranger, at the window's point, and to nobody else.
     void refuse_hand(loom::Mail& mail, const WinArea& a, const Point& at, const Hand& hand) {
         if (!a.arranger.empty()) {
-            (void)mail.as_role(office()).send_to_role(
+            (void)mail.as_role(role()).send_to_role(
                 a.arranger,
                 AreaHandRefused{std::string(Medium::kWindow), a.area, hand.actor, at.x, at.y});
         }
@@ -817,7 +817,7 @@ private:
 
     /// A button's moment, to the owner of the area its press is held for or landed in at the
     /// area's point, with what the window drew under the hand (`l`), and to the area's arranger
-    /// following it, when another office, at the window's: both under the press's number, both
+    /// following it, when another role, at the window's: both under the press's number, both
     /// naming the hand, and both saying the press's clicks (0 for a release).
     void tell(loom::Mail& mail, const WinArea& a, const zengine::input::PointerButton& b,
               const Point& at, std::uint64_t press, const Hand& hand, const Landed& l,
@@ -828,7 +828,7 @@ private:
         told.clicks = clicks;
         to_owner(mail, a, told, press);
         if (followed(a) && a.arranger != a.owner) {
-            (void)mail.as_role(office()).send_to_role(
+            (void)mail.as_role(role()).send_to_role(
                 a.arranger,
                 AreaPressed{std::string(Medium::kWindow), a.area, b.button, b.pressed, at.x, at.y,
                             hand.local, hand.actor, told.under, told.part, told.drawing,
@@ -912,18 +912,18 @@ private:
 
     template <class Moment>
     void to_owner(loom::Mail& mail, const WinArea& a, const Moment& moment, std::uint64_t press) {
-        (void)mail.as_role(office()).send_to_role(a.owner, moment, press);
+        (void)mail.as_role(role()).send_to_role(a.owner, moment, press);
     }
 
-    /// What became of the pointer in an area, to its owner and to its arranger when another office:
-    /// no other office hears where the pointer goes.
+    /// What became of the pointer in an area, to its owner and to its arranger when another role:
+    /// no other role hears where the pointer goes.
     template <class Said>
     void to_owner_and_arranger(loom::Mail& mail, const WinArea& a, const Said& said) {
         if (!a.owner.empty()) {
-            (void)mail.as_role(office()).send_to_role(a.owner, said);
+            (void)mail.as_role(role()).send_to_role(a.owner, said);
         }
         if (followed(a) && a.arranger != a.owner) {
-            (void)mail.as_role(office()).send_to_role(a.arranger, said);
+            (void)mail.as_role(role()).send_to_role(a.arranger, said);
         }
     }
 
@@ -1197,9 +1197,9 @@ private:
         return measure_in(resolve_face(kTextFont, palette), body_points(palette));
     }
 
-    /// The font, size and measure a text node is set at in `palette` in an area `office` owns, and
+    /// The font, size and measure a text node is set at in `palette` in an area `role` owns, and
     /// its face; none for a node that is no text, or whose operands do not read.
-    void dress_text(PaintNode& node, const PaletteOffered& palette, const std::string& office) {
+    void dress_text(PaintNode& node, const PaletteOffered& palette, const std::string& role) {
         if (node.op != op::kText) {
             return;
         }
@@ -1207,7 +1207,7 @@ private:
         if (!args) {
             return;
         }
-        const PaletteSize size = resolve_size(args->size, palette, office);
+        const PaletteSize size = resolve_size(args->size, palette, role);
         node.face = resolve_face(args->font, palette);
         const TextMeasure m = measure_in(node.face, size.points);
         node.text = TextMeasured{args->font.empty() ? std::string(kTextFont) : args->font,
@@ -1281,7 +1281,7 @@ private:
         }
     }
 
-    /// WHAT EACH AREA SHOWS, SETTLED: told to the office that placed it and follows it, unasked,
+    /// WHAT EACH AREA SHOWS, SETTLED: told to the role that placed it and follows it, unasked,
     /// for each area whose version moved since it was last told.
     void tell_settled(loom::Mail& mail) {
         for (const WinArea& a : this->state_.areas) {
@@ -1294,12 +1294,12 @@ private:
                 continue;
             }
             told = version;
-            (void)mail.as_role(office()).send_to_role(
+            (void)mail.as_role(role()).send_to_role(
                 a.arranger, AreaSettled{std::string(Medium::kWindow), a.area, version});
         }
     }
 
-    /// Where the window sits, said as its office when it changed and only then: never on a
+    /// Where the window sits, said as its role when it changed and only then: never on a
     /// medium with no desktop place, since `(0,0)` is a real place.
     void report_placement(loom::Mail& mail) {
         const std::optional<WindowPlacementValue> now = medium_.placement();
@@ -1307,7 +1307,7 @@ private:
             return;
         }
         last_placement_ = *now;
-        (void)mail.as_role(office()).publish(SurfacePlacement{now->x, now->y, now->maximized});
+        (void)mail.as_role(role()).publish(SurfacePlacement{now->x, now->y, now->maximized});
     }
 
     static SurfaceCaptured refused_capture(std::string why) {
@@ -1356,7 +1356,7 @@ private:
 
     // ---- small things ---------------------------------------------------------------------
 
-    static std::string office() { return std::string(kWindowOfficePrefix) + Medium::kWindow; }
+    static std::string role() { return std::string(kWindowRolePrefix) + Medium::kWindow; }
 
     /// Pointer arithmetic held at int64's ends rather than past them.
     static std::int64_t sum(std::int64_t a, std::int64_t b) {
@@ -1403,12 +1403,12 @@ private:
         return nullptr;
     }
 
-    /// This window, as its own office, to whoever follows it: the directory, and an arranger that
+    /// This window, as its own role, to whoever follows it: the directory, and an arranger that
     /// lays out in its room.
     void offer(loom::Mail& mail) {
         const PixelRoom size = medium_.offered();
         const TextMeasure text = body_measure(built_in_palette());
-        (void)mail.as_role(office()).publish(
+        (void)mail.as_role(role()).publish(
             WindowOffered{Medium::kWindow, size.width, size.height, this->state_.epoch,
                           Medium::kCellDevicePx, text.advance, text.line,
                           measures_of(built_in_palette())});
@@ -1429,18 +1429,18 @@ private:
         for (const Presented& p : a.presented) {
             r.elements.push_back(p.ref);
         }
-        (void)mail.as_role(office()).send_to_role(a.owner, r);
+        (void)mail.as_role(role()).send_to_role(a.owner, r);
     }
 
     void refuse(loom::Mail& mail, const std::string& area, const std::string& reason) {
         note(reason);
-        (void)mail.as_role(office()).send(mail.sender(), DrawnRefused{area, reason});
+        (void)mail.as_role(role()).send(mail.sender(), DrawnRefused{area, reason});
     }
 
     void refuse_to(loom::Mail& mail, const std::string& owner, const std::string& area,
                    const std::string& reason) {
         note(reason);
-        (void)mail.as_role(office()).send_to_role(owner, DrawnRefused{area, reason});
+        (void)mail.as_role(role()).send_to_role(owner, DrawnRefused{area, reason});
     }
 
     void note(const std::string& why) {
@@ -1500,7 +1500,7 @@ private:
     /// it reaches nobody. A hold an area in front ended is released where it lands.
     std::set<HoldKey> ended_;
     std::uint64_t next_press_; ///< from a random start, so a reload names no press again
-    /// Each hand's presses counted, by the input office's time; at most `kMaxCountedHands` hands.
+    /// Each hand's presses counted, by the input role's time; at most `kMaxCountedHands` hands.
     std::map<std::int64_t, ClickCounter> clicks_;
     static constexpr std::size_t kMaxCountedHands = 64;
     std::int64_t double_click_ms_ = zengine::input::kDefaultDoubleClickMs;

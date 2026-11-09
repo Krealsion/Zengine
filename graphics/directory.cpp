@@ -12,7 +12,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.graphics.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.graphics.hpp" // this role's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -26,7 +26,7 @@ namespace {
 
 namespace gfx = zengine::graphics;
 
-/// An area as the directory keeps it: where it was placed and by which office, and the palette
+/// An area as the directory keeps it: where it was placed and by which role, and the palette
 /// chosen for it.
 struct DirectoryArea {
     gfx::AreaPlaced placed;
@@ -40,7 +40,7 @@ struct DirectoryState {
     std::vector<DirectoryArea> areas;
     std::vector<gfx::PaletteOffered> palettes;
     std::vector<gfx::ElementCodeOffered> codes;
-    ZEN_SHAPE(DirectoryState, 11, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(palettes),
+    ZEN_SHAPE(DirectoryState, 12, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(palettes),
               ZEN_FIELD(codes));
 };
 
@@ -54,11 +54,11 @@ class Directory
                 loom::Emit<gfx::AreaIntroduced, gfx::AreaWithdrawn, gfx::ElementCodeOffered,
                            gfx::PaletteOffered, gfx::GraphicsReady>> {
 public:
-    /// A window, as its own office: every code and palette offered, then each of its areas
+    /// A window, as its own role: every code and palette offered, then each of its areas
     /// introduced, which the window answers with each owner's room -- in that order, so an element
     /// a fresh window is asked to present finds its code there, and an area its palette.
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + w.window)) {
+        if (!mail.authored_from_role(std::string(gfx::kWindowRolePrefix) + w.window)) {
             return;
         }
         auto it = std::find_if(state_.windows.begin(), state_.windows.end(),
@@ -69,10 +69,10 @@ public:
             *it = w;
         }
         for (const gfx::ElementCodeOffered& c : state_.codes) {
-            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(office_of(w.window), c);
+            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(role_of(w.window), c);
         }
         for (const gfx::PaletteOffered& p : state_.palettes) {
-            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(office_of(w.window), p);
+            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(role_of(w.window), p);
         }
         for (const DirectoryArea& a : state_.areas) {
             if (a.placed.window == w.window) {
@@ -81,7 +81,7 @@ public:
         }
     }
 
-    /// The arranger: where an area stands, kept with the office the placing was authored as, which
+    /// The arranger: where an area stands, kept with the role the placing was authored as, which
     /// the window names the area's arranger. Moved to another window, it leaves the one it was in.
     void on(const gfx::AreaPlaced& p, loom::Mail& mail) {
         DirectoryArea* a = find(p.area);
@@ -91,7 +91,7 @@ public:
         } else {
             if (a->placed.window != p.window && window_of(a->placed.window) != nullptr) {
                 (void)mail.as_role(gfx::kGraphicsRole)
-                    .send_to_role(office_of(a->placed.window), gfx::AreaWithdrawn{p.area});
+                    .send_to_role(role_of(a->placed.window), gfx::AreaWithdrawn{p.area});
             }
             a->placed = p;
         }
@@ -116,7 +116,7 @@ public:
             *it = p;
         }
         for (const gfx::WindowOffered& w : state_.windows) {
-            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(office_of(w.window), p);
+            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(role_of(w.window), p);
         }
     }
 
@@ -151,11 +151,11 @@ public:
             *it = c;
         }
         for (const gfx::WindowOffered& w : state_.windows) {
-            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(office_of(w.window), c);
+            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(role_of(w.window), c);
         }
     }
 
-    /// An owner that started again, as its office: the area introduced again, so the window that
+    /// An owner that started again, as its role: the area introduced again, so the window that
     /// shows it answers with the room.
     void on(const gfx::RoomAsked& r, loom::Mail& mail) {
         const DirectoryArea* a = find(r.area);
@@ -172,8 +172,8 @@ public:
     }
 
 private:
-    static std::string office_of(const std::string& window) {
-        return std::string(gfx::kWindowOfficePrefix) + window;
+    static std::string role_of(const std::string& window) {
+        return std::string(gfx::kWindowRolePrefix) + window;
     }
 
     DirectoryArea* find(const std::string& area) {
@@ -202,7 +202,7 @@ private:
         }
         const gfx::AreaPlaced& p = a.placed;
         (void)mail.as_role(gfx::kGraphicsRole)
-            .send_to_role(office_of(p.window),
+            .send_to_role(role_of(p.window),
                           gfx::AreaIntroduced{p.area, p.owner, a.arranger, p.x, p.y, p.w, p.h,
                                               p.order, p.keys, p.pointer, a.palette,
                                               p.weaver_only, p.wheel, p.right, p.followed,

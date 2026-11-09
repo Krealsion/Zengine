@@ -235,15 +235,15 @@ ed::EditorPaneState editor_doc(TransferStory& s) {
 /// The Editor's rows above the document: the status row, and a notice row when one stands.
 std::int64_t editor_chrome(TransferStory& s) { return editor_doc(s).notice.empty() ? 1 : 2; }
 
-// ---- the Terminal, and the switch's office it can ask ----------------------------------------
+// ---- the Terminal, and the switch's role it can ask ----------------------------------------
 
-struct GuestsSwitchOfficeState {
-    ZEN_SHAPE(GuestsSwitchOfficeState, 1);
+struct GuestsSwitchRoleState {
+    ZEN_SHAPE(GuestsSwitchRoleState, 1);
 };
 
-/// THE EDITOR SWITCH'S OFFICE, STOOD IN FOR: it keeps the destination of every switch asked of it
+/// THE EDITOR SWITCH'S ROLE, STOOD IN FOR: it keeps the destination of every switch asked of it
 /// and answers none, so a line that reached it is counted and nothing switches.
-class SwitchOffice : public loom::WeaveBase<SwitchOffice, GuestsSwitchOfficeState,
+class SwitchRole : public loom::WeaveBase<SwitchRole, GuestsSwitchRoleState,
                                             loom::Accept<EditorSwitchRequested>> {
 public:
     std::vector<std::string> asked;
@@ -256,12 +256,12 @@ std::string switch_line(const std::string& destination) {
 }
 
 /// A LIVE WORKSHOP WITH THE REAL TERMINAL PANE OPEN, its participant widened for the switch by
-/// the host's own call, and the switch's office stood in for. No Input weave is mounted: a case
+/// the host's own call, and the switch's role stood in for. No Input weave is mounted: a case
 /// brings the guest's and the weaver's hands with `guest_hand::GuestHand`.
 struct TerminalDesk {
     PaneRig r;
     loom::TerminalSession* me = nullptr;
-    SwitchOffice* office = nullptr;
+    SwitchRole* role = nullptr;
     std::int64_t kind = 0;
 
     TerminalDesk() {
@@ -278,11 +278,11 @@ struct TerminalDesk {
         r.host.terminal = mounted.session;
         r.terminal_id = mounted.id;
         me = mounted.session;
-        auto stand_in = std::make_unique<SwitchOffice>();
-        office = stand_in.get();
-        const loom::WeaveId office_id =
+        auto stand_in = std::make_unique<SwitchRole>();
+        role = stand_in.get();
+        const loom::WeaveId role_id =
             r.bus.register_weave(std::move(stand_in), loom::Grant{}, std::string(kEditorSwitchRole));
-        office->zen_set_self(office_id);
+        role->zen_set_self(role_id);
         load::LoadPlan plan;
         load::ArtifactIntent seat;
         seat.stem = tp::kTerminalPaneStem;
@@ -310,7 +310,7 @@ struct TerminalDesk {
 
 // ---- Workshop's own quit, asked by message ---------------------------------------------------
 
-constexpr const char* kQuitAskerOffice = "zengine.test.guest-quit";
+constexpr const char* kQuitAskerRole = "zengine.test.guest-quit";
 
 struct GuestsQuitAskerState {
     ZEN_SHAPE(GuestsQuitAskerState, 1);
@@ -322,7 +322,7 @@ class QuitAsker : public loom::WeaveBase<QuitAsker, GuestsQuitAskerState,
                                          loom::Emit<WorkshopQuitRequested>> {
 public:
     void on(const SeatDo&, loom::Mail& mail) {
-        (void)mail.as_role(kQuitAskerOffice).send_to_role(kWorkshopProvider, WorkshopQuitRequested{});
+        (void)mail.as_role(kQuitAskerRole).send_to_role(kWorkshopProvider, WorkshopQuitRequested{});
     }
     void on(const loom::Ack&, loom::Mail&) { ++acks; }
     void on(const loom::Refused& said, loom::Mail&) { refusals.push_back(said.reason); }
@@ -336,14 +336,14 @@ QuitAsker* mount_quit_asker(PaneRig& r, loom::WeaveId& id) {
     loom::Grant grant;
     grant.allow_to_role(WorkshopQuitRequested::zen_name, WorkshopQuitRequested::zen_version,
                         kWorkshopProvider);
-    id = r.bus.register_weave(std::move(made), std::move(grant), std::string(kQuitAskerOffice));
+    id = r.bus.register_weave(std::move(made), std::move(grant), std::string(kQuitAskerRole));
     asker->zen_set_self(id);
     return asker;
 }
 
 // ---- the Composer, aimed at a target of one text field ---------------------------------------
 
-constexpr const char* kNotesOffice = "zengine.test.guest-notes";
+constexpr const char* kNotesRole = "zengine.test.guest-notes";
 
 struct GuestsNote {
     std::string words;
@@ -368,24 +368,24 @@ NoteDesk* mount_note_desk(PaneRig& r) {
     loom::Grant grant;
     (void)loom::allow_describe_answers(grant);
     const loom::WeaveId id =
-        r.bus.register_weave(std::move(weave), std::move(grant), std::string(kNotesOffice));
+        r.bus.register_weave(std::move(weave), std::move(grant), std::string(kNotesRole));
     raw->zen_set_self(id);
     return raw;
 }
 
-/// COMPOSE AT THE DESK'S RIGHT, AIMED AT `office` (the notes desk by default): Info put down to
+/// COMPOSE AT THE DESK'S RIGHT, AIMED AT `role` (the notes desk by default): Info put down to
 /// give it the room, then the target chosen the way the Loaded pane chooses one.
-std::int64_t compose_at_notes(InventoryStory& s, const char* office = kNotesOffice) {
+std::int64_t compose_at_notes(InventoryStory& s, const char* role = kNotesRole) {
     auto& r = s.r;
     REQUIRE(r.load_refusals.empty());
     r.pick({"zengine.info", "info"});
     r.pick(composer_ref());
-    const RuntimePane* row = r.session().panes.runtime.find(kComposerOffice, kComposePane);
+    const RuntimePane* row = r.session().panes.runtime.find(kComposerRole, kComposePane);
     REQUIRE(row != nullptr);
     const std::int64_t compose = row->kind;
     stage_desk(r, [&](Setup& staged) {
         for (auto& p : staged.panes) {
-            if (p.ref.provider != kComposerOffice) continue;
+            if (p.ref.provider != kComposerRole) continue;
             p.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 4 * gfx::kCellPx};
             p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
             p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
@@ -398,10 +398,10 @@ std::int64_t compose_at_notes(InventoryStory& s, const char* office = kNotesOffi
     InventoryHand* raw = selector.get();
     loom::Grant grant;
     grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
-    const loom::WeaveId id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
+    const loom::WeaveId id = r.bus.register_weave(std::move(selector), grant, kIntroRole);
     raw->zen_set_self(id);
-    raw->next = [office](loom::Mail& m) {
-        m.as_role(kIntroOffice).publish(intro::LoadedSelected{"loaded", "a-guest-notes", office});
+    raw->next = [role](loom::Mail& m) {
+        m.as_role(kIntroRole).publish(intro::LoadedSelected{"loaded", "a-guest-notes", role});
     };
     r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{})));
     r.bus.drain_until_idle();
@@ -587,13 +587,13 @@ TEST_CASE("on a weaver's host a guest's keys and presses toward the Terminal are
     CHECK(t.record().empty());
     CHECK(acts == 0);
     CHECK(switches == 0);
-    CHECK(t.office->asked.empty());
+    CHECK(t.role->asked.empty());
 
     // THE WEAVER'S OWN RETURN SENDS THE SAME LINE, and the switch is asked.
     g.weaver_key(input::scan::kReturn);
     CHECK(acts == 1);
     CHECK_FALSE(t.record().empty());
-    CHECK(t.office->asked == std::vector<std::string>{"twin"});
+    CHECK(t.role->asked == std::vector<std::string>{"twin"});
 }
 
 // ============================================================================
@@ -944,7 +944,7 @@ struct DoorGuest {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
-    /// The guest's toolbox save sent straight to the Inventory pane's office: the refusal's words,
+    /// The guest's toolbox save sent straight to the Inventory pane's role: the refusal's words,
     /// or empty when it answered the save done (`finished`).
     std::string save(std::uint64_t correlation, const std::string& path,
                      slots::InventoryToolboxFinished* finished = nullptr) {
@@ -983,11 +983,11 @@ TEST_CASE("a toolbox save sent straight to the Inventory pane asks the guest doo
             ++asked;
         }
     })};
-    // THE SAVE CROSSES NO GESTURE: sent straight to the pane's office by the story's own hand.
+    // THE SAVE CROSSES NO GESTURE: sent straight to the pane's role by the story's own hand.
     const auto save_by_hand = [&](const std::string& path) {
         s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxSave{path}); });
     };
-    // NO ONE HOLDS THE DOOR'S OFFICE: there is no door, so no guest, and the save writes its file.
+    // NO ONE HOLDS THE DOOR'S ROLE: there is no door, so no guest, and the save writes its file.
     const std::string alone = files.file("no-door.toolbox");
     save_by_hand(alone);
     REQUIRE_MESSAGE(s.hand->toolboxes.size() == 1, s.shown(s.source));
@@ -1032,7 +1032,7 @@ struct DeafDoorTurn {
     ZEN_SHAPE(DeafDoorTurn, 1);
 };
 
-/// AN OFFICE HOLDING `zengine.guests` THAT TAKES NOT THE QUESTION: there is a door's office, so
+/// A ROLE HOLDING `zengine.guests` THAT TAKES NOT THE QUESTION: there is a door's role, so
 /// the ask is refused rather than told no one holds it.
 class DeafDoor : public loom::WeaveBase<DeafDoor, DeafDoorState, loom::Accept<DeafDoorTurn>> {
 public:
@@ -1041,7 +1041,7 @@ public:
 
 } // namespace
 
-TEST_CASE("a toolbox save sent straight to the Inventory pane is refused in words when its ask of the guest door's office is refused, and no file is written") {
+TEST_CASE("a toolbox save sent straight to the Inventory pane is refused in words when its ask of the guest door's role is refused, and no file is written") {
     TempDir files("guest-toolbox-refused-ask");
     InventoryStory s(191 | 512, true);
     {
@@ -1060,7 +1060,7 @@ TEST_CASE("a toolbox save sent straight to the Inventory pane is refused in word
 }
 
 TEST_CASE("on a weaver's host a guest's Submit of a toolbox save in the Composer is refused, and no file is written") {
-    // A RELAY SENDS AS ITS OWN OFFICE: the Inventory pane would ask the guest door about the
+    // A RELAY SENDS AS ITS OWN ROLE: the Inventory pane would ask the guest door about the
     // Composer, no guest, so the send is judged at the Submit's approval, for the guest's hand, as the class its
     // shape is. The weaver types the path; the act that sends it is the guest's.
     TempDir files("guest-relay");
@@ -1172,7 +1172,7 @@ TEST_CASE("on a development host the same guest types into the Editor and saves,
         g.text(switch_line("guest"));
         g.key(input::scan::kReturn);
         CHECK_FALSE(t.record().empty());
-        CHECK(t.office->asked == std::vector<std::string>{"guest"});
+        CHECK(t.role->asked == std::vector<std::string>{"guest"});
     }
     SUBCASE("Workshop's titles") {
         TempDir dir("guest-titles-development");
@@ -1193,7 +1193,7 @@ TEST_CASE("on a development host the same guest types into the Editor and saves,
 
 namespace {
 
-/// A GUEST'S SESSION AS THE DOOR MOUNTS IT: a participant in no office, speaking personally under
+/// A GUEST'S SESSION AS THE DOOR MOUNTS IT: a participant in no role, speaking personally under
 /// the grant it was given, and keeping every answer it hears.
 class SettingsGuest
     : public loom::WeaveBase<SettingsGuest, SeatState,

@@ -196,7 +196,7 @@ struct Views : InventoryStory {
     bool debug_x = false;
 };
 
-/// A TEST-OWNED INVENTORY OFFICE whose answers a case releases in any order -- the one way to
+/// A TEST-OWNED INVENTORY ROLE whose answers a case releases in any order -- the one way to
 /// make a read or a write slow, silent or late through the real Info pane.
 struct ScriptedState { ZEN_SHAPE(ScriptedState, 1); };
 class ScriptedInventory : public loom::WeaveBase<ScriptedInventory, ScriptedState,
@@ -299,7 +299,7 @@ loom::Bytes record(std::int64_t count) {
     return {encoded.begin(), encoded.end()};
 }
 
-/// AN INVENTORY OFFICE WITH NO DOORS, held for an interval: what Info sends it is still queued,
+/// AN INVENTORY ROLE WITH NO DOORS, held for an interval: what Info sends it is still queued,
 /// because Info declares those shapes, and Loom refuses it at dispatch as NotAccepted -- the
 /// notice a replaced or half-loaded owner produces. It can still say something changed.
 class DoorlessInventory : public loom::WeaveBase<DoorlessInventory, ScriptedState,
@@ -308,11 +308,11 @@ public:
     void on(const InventoryHandDo&, loom::Mail& m) { m.as_role(inv::kInventoryRole).publish(inv::InventoryChanged{}); }
 };
 
-/// THE STORY WITH ITS INVENTORY OFFICE REPLACED BY A SCRIPTED ONE holding two entries.
+/// THE STORY WITH ITS INVENTORY ROLE REPLACED BY A SCRIPTED ONE holding two entries.
 struct ScriptedViews : Views {
     ScriptedInventory* inventory = nullptr;
     loom::WeaveId id;
-    std::unique_ptr<loom::Weave> parked; ///< the scripted owner while a doorless office holds the role
+    std::unique_ptr<loom::Weave> parked; ///< the scripted owner while a doorless weave holds the role
     loom::WeaveId doorless_id;
     static loom::Grant scripted_grant() {
         loom::Grant grant;
@@ -333,7 +333,7 @@ struct ScriptedViews : Views {
         act_scripted([](ScriptedInventory& s, loom::Mail& m) { s.changed(m); });
         inventory->only = r.bus.role_holder(info::kInfoPaneRole);
     }
-    /// THE OWNER LOSES ITS DOORS: the scripted office comes off the bus with its rows, and a
+    /// THE OWNER LOSES ITS DOORS: the scripted role comes off the bus with its rows, and a
     /// doorless one holds the role until `doors_back`.
     void doorless() {
         parked = r.bus.unregister_weave(id);
@@ -345,7 +345,7 @@ struct ScriptedViews : Views {
         doorless_id = r.bus.register_weave(std::move(owned), grant, inv::kInventoryRole);
         raw->zen_set_self(doorless_id);
     }
-    /// ...and the doorless office says something changed, as the role's holder.
+    /// ...and the doorless weave says something changed, as the role's holder.
     void doorless_changed() {
         r.bus.send(doorless_id, loom::Message(loom::to_value(InventoryHandDo{})));
         r.bus.drain_until_idle();
@@ -412,7 +412,7 @@ const RuntimePane* info_rows(ScriptedViews& s, const std::string& key, const cha
 }
 
 /// EVERY STATE INFO'S PANES DECLARE ROWS IN, walked by a weaver's own gestures through the real
-/// Info, Workshop and Inventory pane over a scripted Inventory office: the default pane's
+/// Info, Workshop and Inventory pane over a scripted Inventory role: the default pane's
 /// properties and a property draft, its value view with a field edit, a rename and an entry it
 /// waits on, the properties again holding a value, then a value view of its own and that view
 /// closed. `at` is called once in each, with the pane and one id that state alone declares.
@@ -471,7 +471,7 @@ void each_info_state(ScriptedViews& s, At&& at) {
 /// INFO'S CENSUS: the rows its panes declare in each state the walk reaches, in that order. Info
 /// declares no mode, so every state is the census's `-`.
 const CensusDriverOf kInfoCensus{info::kInfoPaneRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     ScriptedViews s;
     each_info_state(s, [&](const std::string& key, const char* id) {
         census_take(census, info::kInfoPaneRole, *info_rows(s, key, id));
@@ -679,7 +679,7 @@ TEST_CASE("info views: a silent watch read never queues, never stalls another vi
     REQUIRE_MESSAGE(s.shows(a, "watch ON"), s.shown(a));
     s.inventory->hold = "alpha";
     const auto before = s.inventory->reads;
-    for (int i = 0; i < 6; ++i) s.act_scripted([](ScriptedInventory& office, loom::Mail& m) { office.changed(m); });
+    for (int i = 0; i < 6; ++i) s.act_scripted([](ScriptedInventory& role, loom::Mail& m) { role.changed(m); });
     CHECK(s.inventory->reads == before + 1); // one read outstanding, the rest remembered once
     CHECK(s.inventory->held.size() == 1);
     // THE OTHER VIEW IS UNTOUCHED BY THE SILENCE: it edits and saves.
@@ -716,7 +716,7 @@ TEST_CASE("info views: pause, hide and close end the watch and its lease; nothin
     // HIDDEN: the desk closes the pane; the watch ends, the draft stays.
     s.button(a, "Watch");
     REQUIRE(s.r.w->observation_leases() == 1);
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(info::kInfoPaneRole), info::kInfoPaneRole, kLayoutsRole,
+    s.r.bus.role_send_to_role_as(s.r.bus.role_holder(info::kInfoPaneRole), info::kInfoPaneRole, kLayoutsRole,
         loom::Message(loom::to_value(PaneCloseRequested{info::kInfoPaneRole, "info.2"})));
     s.r.bus.drain_until_idle();
     CHECK_FALSE(s.r.session().panes.has(a));
@@ -769,7 +769,7 @@ TEST_CASE("info views: a watch needs the actor's own read authority and each obs
             stranger.act([&](loom::Mail& m) {
                 m.send_to_role("zengine.workshop", PaneObservationContinued{"info.2", lease, "anything"}, 900);
             });
-        // NOR CAN IT OPEN ONE: it holds no office that offered the pane, and no gesture of its own.
+        // NOR CAN IT OPEN ONE: it holds no role that offered the pane, and no gesture of its own.
         stranger.act([&](loom::Mail& m) {
             m.send_to_role("zengine.workshop", PaneObservationRequested{"info.2", inv::kInventoryRole,
                 inv::InventoryRead::zen_name, 1, 1, "anything"}, 901);
@@ -1077,7 +1077,7 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     const auto encoded = inv::encode_pair(zengine::message_draft::grab_field(named, {"name"}), {});
     const std::string area = held_area_of(b);
     const auto drop_at = [&](std::pair<std::int64_t, std::int64_t> at, const std::string& part) {
-        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+        s.r.bus.role_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
             info::kInfoPaneRole, loom::Message(loom::to_value(PaneCanvasValueDrop{"info.3", area,
                 3 * gfx::kCellPx + gfx::kCellPx / 2, at.first * gfx::kCellPx + gfx::kCellPx / 2,
                 loom::Bytes(encoded.begin(), encoded.end()), "", "", "", area, part, 0})));
@@ -1667,12 +1667,12 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     auto& r = s.r;
     r.pick({info::kInfoPaneRole, info::kInfoPane}); // Compose takes the default Info pane's corner
     r.pick(composer_ref());
-    const auto compose = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
-    s.place(kComposerOffice, "compose", 85, 4, 80, 24);
+    const auto compose = r.session().panes.runtime.find(kComposerRole, "compose")->kind;
+    s.place(kComposerRole, "compose", 85, 4, 80, 24);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
     loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
-    const auto id = r.bus.register_weave(std::move(selector), grant, kIntroOffice); raw->zen_set_self(id);
-    raw->next = [](loom::Mail& m) { m.as_role(kIntroOffice).publish(
+    const auto id = r.bus.register_weave(std::move(selector), grant, kIntroRole); raw->zen_set_self(id);
+    raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
         intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
     r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{}))); r.bus.drain_until_idle();
     const auto row = s.where(s.source, "Capture preset").first;
@@ -1995,7 +1995,7 @@ TEST_CASE("info views: a watched view given a whole value ends its lease and a l
         s.button(a, "Watch");
         REQUIRE(s.r.w->observation_leases() == 1);
         s.inventory->hold = "alpha";
-        s.act_scripted([](ScriptedInventory& office, loom::Mail& m) { office.changed(m); });
+        s.act_scripted([](ScriptedInventory& role, loom::Mail& m) { role.changed(m); });
         REQUIRE(s.inventory->held.size() == 1); // the watch's read waits
         s.copy_into(a, "Beta");
         CHECK_MESSAGE(s.shows(a, "COPY"), s.shown(a));
@@ -2013,7 +2013,7 @@ TEST_CASE("info views: a watched view given a whole value ends its lease and a l
         s.link_into(a, "Alpha");
         s.button(a, "Watch");
         s.inventory->hold = "alpha";
-        s.act_scripted([](ScriptedInventory& office, loom::Mail& m) { office.changed(m); });
+        s.act_scripted([](ScriptedInventory& role, loom::Mail& m) { role.changed(m); });
         REQUIRE(s.inventory->held.size() == 1);
         s.button(a, "Close");
         CHECK_FALSE(s.r.session().panes.has(a));

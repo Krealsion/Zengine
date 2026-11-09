@@ -188,16 +188,16 @@ QuitDeliveryRefusalNoted
 `workshop/weave.hpp` HostContext::undelivered_quits
 `workshop/workshop.cpp` quit_watch
 `tests/test_workshop_panes_editor.cpp` "a quit the held Editor cannot be asked is refused at once in
-its office's words, the weaver's keys and the repair work, and a quit after the reload ends the run"
+its role's words, the weaver's keys and the repair work, and a quit after the reload ends the run"
 "gestures queued behind a quit the held Editor cannot be asked are replayed in order once it is
 refused, and a burst past the hold is counted in its words" "a participant with no pane on the desk
-that stops running after the quit is asked refuses it by office and reason, and another
+that stops running after the quit is asked refuses it by role and reason, and another
 participant's owed answer is not waited for" "a delivered question nobody answers keeps the quit
 waiting, and a forged wake-up, a stranger's quit question or Workshop's refused answer of another
 shape -- each carrying the live ask's own number -- ends nothing" "a refusal or an answer that
 belongs to a quit already ended cannot decrement, refuse or complete the quit asked after it" "once
 the host's watch is gone a refused quit delivery writes nothing and wakes nobody, and a Workshop not
-quitting discards what the book holds" "a Workshop that does not hold its office says so and starts
+quitting discards what the book holds" "a Workshop that does not hold its role says so and starts
 no quit, and the refusal Loom records for that authorship is not made a participant's" "the close
 box and the interrupt chord meet the same refusal as q when the held Editor cannot be asked" "the
 shipped host mounts the quit watch from Workshop's own mount, after the bus and the HostContext

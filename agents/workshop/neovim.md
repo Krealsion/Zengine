@@ -1,6 +1,6 @@
 # Workshop law — the Neovim-backed Editor
 
-Register `WL-NVIM`: the Editor's office held with a Neovim, as a load plan choice beside the
+Register `WL-NVIM`: the Editor's role held with a Neovim, as a load plan choice beside the
 standard Editor. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md). A
 switch between the two is [`editor-switch.md`](editor-switch.md); an open is
 [`opening.md`](opening.md); what crosses the seam is the protocol's law in
@@ -8,9 +8,9 @@ switch between the two is [`editor-switch.md`](editor-switch.md); an open is
 [`neovim-transfers.md`](neovim-transfers.md); Neovim's own behaviour is Neovim's, measured and
 never restated.
 
-## WL-NVIM-01 — Neovim holds the Editor's office as the Editor, and every entry point reaches it
+## WL-NVIM-01 — Neovim holds the Editor's role as the Editor, and every entry point reaches it
 
-LAW — The Neovim-backed Editor holds `zengine.editor` with the Editor's pane key and answers the doors the standard Editor answers, so Files, the Builder and Edit Code reach it by reaching the office.
+LAW — The Neovim-backed Editor holds `zengine.editor` with the Editor's pane key and answers the doors the standard Editor answers, so Files, the Builder and Edit Code reach it by reaching the role.
 
 MEANS
 - an open is loaded hidden, its claim unmoved, shown at the publication ahead of every later key; a refused showing is said when Neovim answers;
@@ -20,7 +20,7 @@ MEANS
 DOES NOT MEAN
 - that Workshop knows it is Neovim: no host line names this weave or its artifact.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-02 — Neovim's screen is the pane's own picture, under one status row
 
@@ -34,7 +34,7 @@ MEANS
 DOES NOT MEAN
 - syntax colours, search matches or a rectangle: the pane draws one range, the named next seam.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-03 — A document crosses to Neovim and back exactly, and what does not is said
 
@@ -45,7 +45,7 @@ MEANS
 - a linewise selection crosses as its lines, a blockwise one as its cursor, each said;
 - a modified buffer's saved comparison is its file; a file not yet written counts as unsaved.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-04 — A switch away from Neovim names what it loses, resets and refuses
 
@@ -55,7 +55,7 @@ MEANS
 - an unfinished count is cancelled with Escape, and said among the resets;
 - the boundary asks Neovim again, so losses that moved send the weaver back to confirm.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-05 — Neovim is never waited on, and a Neovim that cannot serve is said in words
 
@@ -69,17 +69,17 @@ MEANS
 DOES NOT MEAN
 - that a press or a cursor races its question: a press on the highlight reaches Neovim once it has said what it selected, a location's cursor once it has shown the file.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-06 — Neovim belongs to one incarnation, and each way it ends is its own
 
-LAW — Hiding the pane ends nothing; a switch away ends Neovim once its successor serves; `:qa` leaves the office held with no document, said so; the quit asks Neovim; a reload is refused while it runs.
+LAW — Hiding the pane ends nothing; a switch away ends Neovim once its successor serves; `:qa` leaves the role held with no document, said so; the quit asks Neovim; a reload is refused while it runs.
 
 MEANS
 - the quit is refused naming the unsaved buffers, or the running terminal jobs;
 - a document handed to a Neovim that ended before it served is carried back as it was handed.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-07 — The clipboard crosses through the medium, both ways
 
@@ -89,7 +89,7 @@ MEANS
 - a linewise copy is its lines and one newline; text ending in a newline pastes linewise;
 - the provider is installed only where the weaver's own configuration chose none.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-08 — From a Loom with no Workshop, Neovim listens for a second terminal
 
@@ -99,7 +99,7 @@ MEANS
 - the stop is refused while a buffer holds unsaved changes, naming them, unless `discard` is set;
 - `loom-host` keeps its console: Neovim's own interface runs in the second terminal.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-09 — Which Neovim and which configuration, judged before a start
 
@@ -113,7 +113,7 @@ MEANS
 DOES NOT MEAN — that a relative init path follows Neovim's own working directory, which is the
 project's: it follows the directory this process started in, where the weaver set the variable.
 
-WHY — `agents/decisions/neovim-holds-the-editor-office.md`
+WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## Do not assume
 
@@ -129,11 +129,11 @@ WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 `editor/neovim-editor/pane.cpp` NeovimEditorWeave declare on(PaneActionRequested)
 `editor/neovim-editor/opening_switch.hpp` on(PrepareSourceRequested) on_claim_published
 on(OpenSourceRequested)
-`editor/neovim-editor/vocabulary.hpp` kEditorOffice kEditorPane kActionWrite kActionJumpOlder
+`editor/neovim-editor/vocabulary.hpp` kEditorRole kEditorPane kActionWrite kActionJumpOlder
 `workshop/keymap.hpp` kActionCatalog
 `editor/neovim/lua.hpp` kModule
-`tests/test_workshop_neovim.cpp` "an open through the office shows the file in Neovim, and the save
-chord writes it" "after a switch to Neovim, an open through the office shows another file in Neovim,
+`tests/test_workshop_neovim.cpp` "an open through the role shows the file in Neovim, and the save
+chord writes it" "after a switch to Neovim, an open through the role shows another file in Neovim,
 beside the unsaved one"
 `tests/test_neovim_live.cpp` "preparing a file hidden leaves the heard document the one Neovim
 shows"
@@ -184,14 +184,14 @@ refused beat is said on its pane" "a Neovim choice whose program is not there re
 words, and the standard Editor keeps editing" "a Neovim older than 0.11 refuses the switch naming
 its version" "a Neovim that stops at a prompt while starting refuses the switch in its words" "a
 Neovim that never answers keeps the switch pending and cancellable, and the candidate goes with the
-cancel" "the Neovim editor holding the office with no Neovim says so on its pane, refuses an open in
+cancel" "the Neovim editor holding the role with no Neovim says so on its pane, refuses an open in
 words, and permits the quit"
 
 ### WL-NVIM-06
 `editor/neovim-editor/pane.cpp` snapshot on(PaneQuitRequested) answer_quit absorb
 `editor/neovim-editor/opening_switch.hpp` judge
 `tests/test_workshop_neovim.cpp` "the orderly quit is refused while Neovim holds unsaved changes,
-naming the file, and permitted once written" "Neovim ended from inside leaves the office held with
+naming the file, and permitted once written" "Neovim ended from inside leaves the role held with
 no document, said so, and switching back carries nothing" "a reload of the Neovim editor is refused
 while its Neovim runs, said on its pane, and Neovim keeps running"
 UNWITNESSED — the handed document carried back when Neovim ends before it serves
@@ -201,7 +201,7 @@ UNWITNESSED — the handed document carried back when Neovim ends before it serv
 `editor/neovim-editor/pane.cpp` absorb on(ClipboardText)
 `editor/neovim-editor/common.hpp` join_lines paste_lines
 `tests/test_workshop_neovim.cpp` "a copy in Neovim reaches its medium, and a paste in Neovim asks it"
-`workshop/pane_drawing.hpp` WindowDrawing::clipboard_office
+`workshop/pane_drawing.hpp` WindowDrawing::clipboard_role
 
 ### WL-NVIM-08
 `editor/neovim-editor/opening_switch.hpp` on(NeovimStartRequested) on(NeovimStopRequested)
@@ -216,5 +216,5 @@ choice_from_environment kProfileVariable kProgramVariable
 `editor/neovim-editor/pane.cpp` start status_text started_words
 `tests/test_workshop_neovim.cpp` "a profile that is neither clean nor user and names no init file
 refuses the switch before starting Neovim" "the profile a weaver names is the configuration that
-runs and the pane says which one it is" "the Neovim editor holding the office under a profile it
+runs and the pane says which one it is" "the Neovim editor holding the role under a profile it
 refuses says so, and a press on the row saying it moves nothing"

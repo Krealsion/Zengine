@@ -10,10 +10,10 @@ read: a switch, another editor's write or a re-declaration.
 
 **Decision.** Workshop keeps, for each row of the live layout, a revision minted afresh whenever
 what it stands for moved: the desk put live, the row's settings, the counted declaration, the
-office's holder. A reading answers it; a write names it, and any other is refused with nothing
+role's holder. A reading answers it; a write names it, and any other is refused with nothing
 written. The write goes through the setter Info's rows use, so both doors judge alike. A holder
 taking `v2::PaneSettings` is handed the revision, and names it when it says a value it cannot
-use; a word about another revision is late. The doors answer an office, the Terminal the host
+use; a word about another revision is late. The doors answer a role, the Terminal the host
 widened and a guest whose row has `settings`, and are answered to the asker alone.
 
 **Alternatives considered.**

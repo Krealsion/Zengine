@@ -1,30 +1,30 @@
 # zengine.workshop -- Workshop
 
-**Manual.** Workshop's own weave, answering to the office `zengine.workshop`: the host every pane
+**Manual.** Workshop's own weave, answering to the role `zengine.workshop`: the host every pane
 is presented in. It holds the desk -- which panes are on it, where each stands and in what order,
 the room each is granted, where the keys go and what a press reaches -- and the files that bring a
-desk back. Workshop mounts it in its own process; it is not a file you load. A pane's office and
+desk back. Workshop mounts it in its own process; it is not a file you load. A pane's role and
 every other weave reach it by the messages below, which are the pane protocol: what a pane, a
 presenter, a window or an input producer says to Workshop, and what Workshop does with it.
 
 ## About
 
-A pane is a presentation an office offers; **the office authors the pane, and Workshop places its
-area.** Workshop keys every pane by the office Loom stamped on the offer and the pane's own key, so
+A pane is a presentation a role offers; **the role authors the pane, and Workshop places its
+area.** Workshop keys every pane by the role Loom stamped on the offer and the pane's own key, so
 no payload names its provider. It decides where a pane stands and how much room its area gets,
 draws its frame and the band, and routes each key and character to the one place it belongs; the
 pane draws in its own area of the window and hears the pointer there from the window, and decides
 what its rows mean. Nothing a pane says grants it
 anything: what Workshop may say is its own grant (`workshop_grant`,
-[`workshop/grant.cpp`](../grant.cpp)), checked at every send, and holding the office is no
+[`workshop/grant.cpp`](../grant.cpp)), checked at every send, and holding the role is no
 super-grant.
 
 Workshop judges the form of everything a pane sends and keeps nothing it refused: an update that
 does not fit is refused whole and said where the weaver reads, and the last good picture stands.
 Silence is never `unavailable`: Workshop learns of no provider's unloading, so it shows the last
-rows an office reported and waits. A pane is closed by asking `zengine.layouts`
+rows a role reported and waits. A pane is closed by asking `zengine.layouts`
 ([`PaneCloseRequested`](zengine.layouts.md#panecloserequested)), and closing destroys only
-Workshop's copy; the office, its weave and its state are untouched.
+Workshop's copy; the role, its weave and its state are untouched.
 
 The window, the room, the setup and the canvas a pane draws on are [the pane protocol's
 reference](workshop-panes.md); where a reported pointer lands is [pointer
@@ -34,8 +34,8 @@ the band.
 
 ## Use
 
-A weave joins the desk as a pane in five steps, each a message sent as its office
-(`mail.as_role(office)`, never personal speech, which Workshop ignores):
+A weave joins the desk as a pane in five steps, each a message sent as its role
+(`mail.as_role(role)`, never personal speech, which Workshop ignores):
 
 1. **Offer.** When the desk starts Workshop publishes `PaneCatalogRequested`; answer it, and
    your own activation, with [`PaneOffered`](#paneoffered). Repeating it refreshes in place.
@@ -60,7 +60,7 @@ A weave joins the desk as a pane in five steps, each a message sent as its offic
 A walk through all five is [Make a Workshop tool](make-a-workshop-tool.md).
 
 [`zengine.layouts`](zengine.layouts.md) keeps the layouts and every settings door, Workshop's own
-office-wide settings among them.
+role-wide settings among them.
 
 ## Commands
 
@@ -69,16 +69,16 @@ office-wide settings among them.
 `PaneLaunchRequested` asks Workshop to show one pane and give it the keys: open it, or focus it if
 it is open. It never closes anything ([`desktop_seam_vocabulary.hpp`](../desktop_seam_vocabulary.hpp)).
 
-- **Takes:** `office` and `pane`.
-- **Answers:** `PaneLaunchAnswered{office, pane, opened, focused, refusal}`, to the asker alone,
+- **Takes:** `role` and `pane`.
+- **Answers:** `PaneLaunchAnswered{role, pane, opened, focused, refusal}`, to the asker alone,
   after the desk has the pane, selected and holding the keys if it takes them; the band says
   `showed <name>`, or that it stands off this screen.
-- **Refuses:** in `refusal`, said on the band too: ``no pane `<pane>` from `<office>` -- nothing has
+- **Refuses:** in `refusal`, said on the band too: ``no pane `<pane>` from `<role>` -- nothing has
   offered it, and a launch loads nothing``; while the run still loads it, ``<name> is not here yet
-  -- this run is still loading `<office>`; launch it again once it has arrived``; ``<name> is not
-  available -- `<office>` is not offering it in this Workshop``; ``<name> is not available --
-  nothing holds `<office>` now; its artifact has to be loaded again (build it, or relaunch)``.
-- **Example:** the Pane Manager's open sends `{office: "zengine.builder-pane", pane: "builder"}`.
+  -- this run is still loading `<role>`; launch it again once it has arrived``; ``<name> is not
+  available -- `<role>` is not offering it in this Workshop``; ``<name> is not available --
+  nothing holds `<role>` now; its artifact has to be loaded again (build it, or relaunch)``.
+- **Example:** the Pane Manager's open sends `{role: "zengine.builder-pane", pane: "builder"}`.
 
 Version 2 adds `keys`: with `keys` false a closed pane is seated in front and the keys and the
 selection stay where they are, and a pane already on the desk is left as it is; `focused` is then
@@ -91,8 +91,8 @@ start ([`zengine.first-run`](zengine.first-run.md)).
 judged against the desk at the ask; one another pane covers is brought forward and focused,
 unless it is the last pane the weaver's input reached, which is hidden.
 
-- **Takes:** `office` and `pane`.
-- **Answers:** `PaneToggleAnswered{office, pane, opened, closed, refusal}`, to the asker alone, with
+- **Takes:** `role` and `pane`.
+- **Answers:** `PaneToggleAnswered{role, pane, opened, closed, refusal}`, to the asker alone, with
   the band's `showed <name>`, `brought <name> forward -- it was covered`, or `hid <name> -- ...`,
   naming the settings and locks the row took; a hide takes the row off as Workshop's own closes
   do, by asking `zengine.layouts`.
@@ -115,7 +115,7 @@ that asked it.
 `PaneInventoryRequested` asks for every pane this Workshop could show.
 
 - **Takes:** nothing.
-- **Answers:** `PaneInventory`, to the asker alone: each pane's office, key, name and summary, and
+- **Answers:** `PaneInventory`, to the asker alone: each pane's role, key, name and summary, and
   whether it is `open`, `available` or `pending` (still to come from the plan). It is the reading
   Workshop also publishes ([Follow](#follow)).
 - **Refuses:** nothing in words: personal speech is answered by nobody; a guest whose row holds
@@ -128,7 +128,7 @@ that asked it.
 
 - **Takes:** nothing.
 - **Answers:** `KeymapShown`, to the asker alone: the keymap file and what became of it, and every
-  binding with its address (`office`, `pane`, `id`), its key as a weaver spells it, its `causes`
+  binding with its address (`role`, `pane`, `id`), its key as a weaver spells it, its `causes`
   and `enters`, and each pane's modes. A guest reading pane by pane is not told the rows of a pane
   it may not read.
 - **Refuses:** nothing in words, as `PaneInventoryRequested`.
@@ -160,10 +160,10 @@ that asked it.
 `PaneRevealRequested` asks Workshop to show the asker's own pane and give it the keys
 ([`pane_vocabulary.hpp`](../pane_vocabulary.hpp)).
 
-- **Takes:** `pane`, a pane the asking office offered.
+- **Takes:** `pane`, a pane the asking role offered.
 - **Answers:** `PaneRevealAnswered{pane, seated, refusal}`, to the asker alone; the band says
   `showing <name> -- it asked to be shown, and it has the keys`, or that it stands off this screen.
-- **Refuses:** `defect: <name> was not seated`; a pane the office never offered is ignored.
+- **Refuses:** `defect: <name> was not seated`; a pane the role never offered is ignored.
 - **Example:** a pane that finished a long job asks to be shown.
 
 ### `WorkshopQuitRequested`
@@ -178,7 +178,7 @@ that asked it.
 - **Refuses:** in `loom::Refused`: `a quit already asked is still waiting for its answer`; a
   guest's on a weaver's host, `Workshop stays open -- <why>; quitting writes the last session`;
   `Workshop could not ask its panes whether they hold unsaved work -- it does not hold its own
-  office; Workshop stays open`; and each pane's own refusal, joined.
+  role; Workshop stays open`; and each pane's own refusal, joined.
 - **Example:** an agent's run ends Workshop with it.
 
 ### `PaneViewRequested`
@@ -198,7 +198,7 @@ weaver sees them ([`pane_view.hpp`](../pane_view.hpp)).
 - **Refuses:** in `loom::Refused`: `pane view unavailable: closed or unknown`, `...: the pane has
   drawn nothing yet`, `...: the pane is not presented`, `...: the pane is not placed in a window`,
   `...: the window refused its reading: <why>`, `...: Workshop refused the pane's last update and
-  kept none of it`, `...: waiting for the provider -- no participant holds its office`, `pane view
+  kept none of it`, `...: waiting for the provider -- no participant holds its role`, `pane view
   stale: ...; read it again from the start`, and a wait's refusals ([`DeskReadRequested`](#deskreadrequested)).
   A guest hears `pane view withheld: <why>`.
 - **Example:** read from 0, then the next page under the stamp the first answered.
@@ -223,7 +223,7 @@ weaver sees them ([`pane_view.hpp`](../pane_view.hpp)).
 `DeskReadRequested` v3 asks for the whole desk in one turn.
 
 - **Takes:** nothing.
-- **Answers:** `DeskRead` v3, to the asker alone: the desk as Workshop holds it -- its number, the
+- **Answers:** `DeskRead` v4, to the asker alone: the desk as Workshop holds it -- its number, the
   extent, the unit and input space, the room, every pane the desk names with its state word, rank
   and places, arranging, the menu with its named lines, and the band's words -- then every
   presented pane's stamp from the front back, and as many of their readings as one decoded value
@@ -288,9 +288,9 @@ one role, about one subject.
 
 - **Takes:** `pane`, `lease` and `subject`.
 - **Answers:** `PaneObservationAnswered`, to the asker alone, the same lease while it stands. Only
-  the lease's holder, still holding the office that offered the pane, continues it.
+  the lease's holder, still holding the role that offered the pane, continues it.
 - **Refuses:** `this observation is not current; start it again with a gesture`; and, forgetting
-  the lease: `the observing pane's office changed hands`, `the observation's subject changed; start
+  the lease: `the observing pane's role changed hands`, `the observation's subject changed; start
   it again`, `the observing pane is no longer on the desk`, `the actor who started this observation
   has left or lost its authority`.
 - **Example:** each refresh of a watched entry asks first, and stops on a refusal.
@@ -321,7 +321,7 @@ one role, about one subject.
   band says `This place does not accept the carried item; Escape cancels`, and it stays held.
   Escape puts it down; another hand cannot place or cancel it, and a guest's is released at the
   next attributed input once that guest has left. A placement Loom refuses is said with its
-  attempt, `Reference not delivered to <office> (attempt <n>): <why>`, and never retried. Workshop
+  attempt, `Reference not delivered to <role> (attempt <n>): <why>`, and never retried. Workshop
   reads none of the bytes; a sent drop is not a finished operation, and the receiver owns its
   meaning and authorizes its own writes.
 - **Refuses:** `the approved acquisition is no longer current`; `the carried reference exceeds its
@@ -335,9 +335,9 @@ one role, about one subject.
 
 - **Takes:** `pane`, `label`, `data`, and `drag`: true places it where the primary release lands,
   false waits for a click. v2 adds `token`, the source's own, which Workshop stamps into
-  `PaneCanvasValueDrop` with the source office and pane.
+  `PaneCanvasValueDrop` with the source role and pane.
 - **Answers:** `PaneCarryAnswered`, to the asker alone, as
-  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneCanvasValueDrop` v4, a point of the
+  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneCanvasValueDrop` v5, a point of the
   area it lands in, with what the window drew under the hand there. A value drag starts at the source's
   primary press, becomes a drag once the hand moves, and ends at that same hand's release, or its
   next key, text or press; a wheel turned while it is held turns the pane under the hand, and the
@@ -355,9 +355,9 @@ one role, about one subject.
 `PaneShortcutInvoked` asks Workshop to send a pane the action a global shortcut names
 ([`pane_shortcuts.hpp`](../pane_shortcuts.hpp)).
 
-- **Takes:** `office`, `pane`, `action`, and `holder`, the weave that registered the shortcut;
+- **Takes:** `role`, `pane`, `action`, and `holder`, the weave that registered the shortcut;
   under the correlation of the `AppActionRequested` it continues. Only `zengine.desktop` asks.
-- **Answers:** `PaneActionRequested{pane, action}` to that office under a new correlation, which the
+- **Answers:** `PaneActionRequested{pane, action}` to that role under a new correlation, which the
   pane may ask an operation under; nothing to the asker. It reaches a pane that is not shown.
   Neither a registration nor an old binding carries authority: the pane's next
   `PaneOperationRequested` is judged for the hand that pressed the shortcut.
@@ -372,8 +372,8 @@ one role, about one subject.
 [palette](zengine.palette.md) lists ([`command_vocabulary.hpp`](../command_vocabulary.hpp)).
 
 - **Takes:** `kind` -- `action`, `pane`, `layout`, `manual` or `close` -- and the command's
-  address: an action's declarer `office`, its `pane` for a pane's row, and its `id`; a pane's or a
-  manual's `office` and `pane`; a layout's `id`, in decimal. Only
+  address: an action's declarer `role`, its `pane` for a pane's row, and its `id`; a pane's or a
+  manual's `role` and `pane`; a layout's `id`, in decimal. Only
   `zengine.palette`'s holder asks, under the correlation of the palette's own row this Workshop
   sent it for a key, still that hand's latest gesture; the ask spends it.
 - **Answers:** `CommandRunAnswered{ran, refusal}` on the asking delivery, after putting the palette
@@ -385,9 +385,9 @@ one role, about one subject.
   its tab switches; a manual is asked of the desktop on that pane, as its `?` asks it. `ran` says
   the step was taken, not what the pane then did.
 - **Refuses:** `a command runs only under the palette's own row, as its hand's latest key`; `<pane>
-  @<office> is not a pane this Workshop has`; `<id> answers to no key in command mode here`; `<id>
+  @<role> is not a pane this Workshop has`; `<id> answers to no key in command mode here`; `<id>
   is not one of the application's rows`; `<id> is not a row in force of <pane>`; ``no layout `<id>`
-  on the shelf now``; `<pane> @<office> is not on the desk: its manual opens from it`; `the
+  on the shelf now``; `<pane> @<role> is not on the desk: its manual opens from it`; `the
   application shows no manuals now`; a guest's run
   toward a place only the weaver's hand reaches, in the words its key would get. A refusal is said
   on the band too.
@@ -409,7 +409,7 @@ handed -- a secondary press, a declared action, or a primary press.
   `zengine.presenter` -- nothing can present this menu``; and, ending a menu its presenter could not
   carry: `the presenter left -- <why>`, `the presenter was replaced`, `the presenter could not be
   reached`, `the presenter could not answer it -- <why>`.
-- **Example:** `pane_menu::Offer(pane, subject).at(row, col).row(id, label).send(mail, office)`
+- **Example:** `pane_menu::Offer(pane, subject).at(row, col).row(id, label).send(mail, role)`
   ([`pane_menu.hpp`](../pane_menu.hpp)).
 
 ### `PanePassRequested`
@@ -426,11 +426,11 @@ handed -- a secondary press, a declared action, or a primary press.
 
 `PaneManageRequested` asks for Workshop's own pane menu on a pane, continuing a menu choice.
 
-- **Takes:** `pane`, the asker's; `office` and `target`, the pane to manage; under the choice's
+- **Takes:** `pane`, the asker's; `role` and `target`, the pane to manage; under the choice's
   correlation.
 - **Answers:** nothing to the asker: Workshop opens its pane menu for that pane where the chosen
   menu stood, once.
-- **Refuses:** on the band, ``no pane `<office>/<target>` in this Workshop -- nothing to manage``; a
+- **Refuses:** on the band, ``no pane `<role>/<target>` in this Workshop -- nothing to manage``; a
   stale choice moves nothing.
 - **Example:** the Pane Manager's `manage` row continues to `pane_menu::manage`.
 
@@ -448,12 +448,12 @@ handed -- a secondary press, a declared action, or a primary press.
 `GuideRequested` asks Workshop to mark one part of a pane for the weaver to see: a guest's pointer
 ([`guide_vocabulary.hpp`](../guide_vocabulary.hpp)).
 
-- **Takes:** `pane` as `<office>/<pane>`; `control`, an action id or `part:<name>`, or empty to
+- **Takes:** `pane` as `<role>/<pane>`; `control`, an action id or `part:<name>`, or empty to
   clear the mark; `words`, its label, at most `kGuideWordsBytes` of printable ASCII.
 - **Answers:** `GuideAnswered{shown, said}`, to the asker alone: `marked <part> in <pane> for the
   weaver, as guest '<name>'; ...`, or `cleared`; a mark stands while its pane shows the part.
 - **Refuses:** in `said`: `only a guest a guest door admitted draws a guide mark`; `refused: '<pane>'
-  is not a pane; a mark names <office>/<pane>`; `` refused: pane <pane> is outside guest '<name>''s
+  is not a pane; a mark names <role>/<pane>`; `` refused: pane <pane> is outside guest '<name>''s
   `guide` doors ``; `refused: a press of <part> opens a pane only the weaver's hand reaches: ...`;
   `refused: guest '<name>' marks that pane already; one guest mark a pane`; `not shown: <pane>
   shows no part <part> now`; `not shown: <pane> is not on the desk, settled and uncovered, now`.
@@ -467,11 +467,11 @@ handed -- a secondary press, a declared action, or a primary press.
 `InspectPaneRequested` asks Workshop to make one pane the inspected subject
 ([`inspection_seam_vocabulary.hpp`](../inspection_seam_vocabulary.hpp)).
 
-- **Takes:** `office` and `pane`.
+- **Takes:** `role` and `pane`.
 - **Answers:** `PaneSubjectActed{accepted, refusal}`, to the asker alone, then publishes
   `PaneSubjectShown`: the pane, its name and its properties, named by a subject number.
-- **Refuses:** `<office>/<pane> is in neither this build's vocabulary nor this desk -- nothing to
-  inspect`. Only an office asks.
+- **Refuses:** `<role>/<pane> is in neither this build's vocabulary nor this desk -- nothing to
+  inspect`. Only a role asks.
 - **Example:** Info inspects the pane its weaver chose.
 
 ### `PaneSubjectRequested`
@@ -479,7 +479,7 @@ handed -- a secondary press, a declared action, or a primary press.
 `PaneSubjectRequested` asks for the inspected pane as it stands.
 
 - **Takes:** nothing.
-- **Answers:** `PaneSubjectShown`, to the asker alone; `office` and `pane` empty when no pane is
+- **Answers:** `PaneSubjectShown`, to the asker alone; `role` and `pane` empty when no pane is
   inspected.
 - **Refuses:** nothing; personal speech is answered by nobody.
 - **Example:** an inspector that arrives asks once, then follows the publication.
@@ -506,7 +506,7 @@ a setting in the layout.
 - **Answers:** `TerminalActed{accepted, refusal}`, to the asker alone; then the transcript it
   changed is published (`TranscriptShown`).
 - **Refuses:** ``this door knows one act, and it is `submit` ``; `no terminal participant is mounted
-  on this bus -- nothing was authored`. Only an office asks.
+  on this bus -- nothing was authored`. Only a role asks.
 - **Example:** the Terminal pane submits `ask @zengine.builder StatusRequested 1`.
 
 ### `TerminalValueRequested`
@@ -542,7 +542,7 @@ a managed opening ([`open_seam_vocabulary.hpp`](../open_seam_vocabulary.hpp)).
 - **Answers:** `PresentationTrial{op, ok, refusal, rows, columns}`, to the asker alone, measured on a
   copy of the desk; nothing moves. An asker that accepts `v2::PresentationTrial` is answered it,
   with the canvas `room` reserved for a pane that draws its picture.
-- **Refuses:** `no pane <office>/<pane> is offered on this desk`; `no room for a row of <name> on
+- **Refuses:** `no pane <role>/<pane> is offered on this desk`; `no room for a row of <name> on
   this screen`.
 - **Example:** the opening manager asks before it prepares the Editor's pane.
 
@@ -563,14 +563,14 @@ presentation it claims; the candidate is the Editor's to draw.
 
 ### `WeaversActRequested`
 
-`WeaversActRequested` asks whether a gesture is the weaver's current act sent to a pane of an
-office ([`vocabulary.hpp`](../layouts/vocabulary.hpp)).
+`WeaversActRequested` asks whether a gesture is the weaver's current act sent to a pane of a
+role ([`vocabulary.hpp`](../layouts/vocabulary.hpp)).
 
-- **Takes:** `gesture`, the correlation an office names; `office`, the office it names.
+- **Takes:** `gesture`, the correlation a role names; `role`, the role it names.
 - **Answers:** `WeaversActAnswered{current}`: true only for the act the weaver's hand made last,
-  sent to a pane of `office`.
+  sent to a pane of `role`.
 - **Refuses:** nothing in words: only `zengine.layouts` is answered, asking for an unlock.
-- **Example:** an office's unlock naming the weaver's act is judged by this answer.
+- **Example:** a role's unlock naming the weaver's act is judged by this answer.
 
 ## Hears
 
@@ -592,20 +592,20 @@ the `LiveLayout` sent before it.
 `SessionSaveAnswered`, from `zengine.layouts`, answering the quit's `SessionSaveRequested`: the
 session written, or why not, which the quit says before it ends.
 
-### `OfficeSettings`
+### `RoleSettings`
 
-`OfficeSettings`, from `zengine.layouts`: Workshop's own office-wide settings at their revision,
+`RoleSettings`, from `zengine.layouts`: Workshop's own role-wide settings at their revision,
 which it applies.
 
-### `OfficeSettingCommitAnswered`
+### `RoleSettingCommitAnswered`
 
-`OfficeSettingCommitAnswered`, from `zengine.layouts`, answering a toggle of one of Workshop's own
+`RoleSettingCommitAnswered`, from `zengine.layouts`, answering a toggle of one of Workshop's own
 settings: applied and written, or the refusal said on the band, the toggle then standing for the
 run.
 
 ### `PaneOffered`
 
-`PaneOffered`, from a pane's office: it has a pane ([`pane_vocabulary.hpp`](../pane_vocabulary.hpp)).
+`PaneOffered`, from any pane's role: it has a pane ([`pane_vocabulary.hpp`](../pane_vocabulary.hpp)).
 v1 `{pane, name, summary}`; v2 adds the `rows` and `columns` it likes; v3 a canvas body, `width`,
 `height`, `text_rows`. A new key joins the catalog; a known one refreshes its name and summary and
 waits for a new room. A refusal is said on the band, never answered: ``a pane's name cannot be
@@ -613,7 +613,7 @@ empty``, ``... is a built-in pane``, ``Workshop holds at most <n> panes -- ... w
 
 ### `PaneActions`
 
-`PaneActions`, from a pane's office: the rows its keys reach. v2 adds `supersedes`; v3 `mode`,
+`PaneActions`, from any pane's role: the rows its keys reach. v2 adds `supersedes`; v3 `mode`,
 `elsewhere`, and each row's `causes` and `enters` ([what a press may
 cause](workshop-panes.md#what-a-press-may-cause)). Judged whole with the keymap and answered
 `ActionsJudged`, to a holder that accepts it; a refusal is said on the band too, and the rows in
@@ -624,12 +624,12 @@ force stand. A later collision withdraws them: `ActionsWithdrawn`.
 `AppActions`, from `zengine.desktop` alone: the application's rows, above the modes or by default
 ([`desktop_seam_vocabulary.hpp`](../desktop_seam_vocabulary.hpp)); v2 adds `causes`. Judged
 whole, answered `ActionsJudged`; every pane's rows are joined again, a pane that now collides told
-`ActionsWithdrawn`. Another office is refused: ``application actions are declared by
+`ActionsWithdrawn`. Another role is refused: ``application actions are declared by
 `zengine.desktop` -- ...``.
 
 ### `PaneEscapeUnspent`
 
-`PaneEscapeUnspent`, from a pane's office under the correlation the Escape came on: that Escape
+`PaneEscapeUnspent`, from any pane's role under the correlation the Escape came on: that Escape
 was unspent there. While the pane still holds the keys and the Escape is still its hand's latest
 act, Workshop answers it as the desk's own: the desktop's row for a bare Escape
 ([escape](workshop-panes.md#escape-in-a-pane-that-holds-the-keys)).
@@ -661,34 +661,34 @@ requester told `the presenter was replaced`.
 
 ### `WithdrawalFence`
 
-`WithdrawalFence`, from Workshop to its own office behind a menu it withdrew: when it comes round,
+`WithdrawalFence`, from `zengine.workshop` to its own role behind a menu it withdrew: when it comes round,
 the withdrawn menu's record is forgotten, every refusal of its sentences delivered before it.
 
 ### `SurfacePlacement`
 
-`SurfacePlacement`, from a graphics window: where the window sits, and whether it is
+`SurfacePlacement`, from `zengine.window.*`, a graphics window: where the window sits, and whether it is
 maximized. Workshop keeps it, opaque, for its window file, and offers it back at a restore
 (`SurfacePlacementRemembered`) to the medium that holds the desk.
 
 ### `SurfaceCloseRequested`
 
-`SurfaceCloseRequested`, from the window that shows the desk, as that window's office: the window
+`SurfaceCloseRequested`, from `zengine.window.*`, the window that shows the desk, as that window's role: the window
 was asked to close. Workshop quits as a weaver's quit does, asking its panes first. A close said by
 anyone else ends nothing.
 
 ### `ClipboardCopy`
 
-`ClipboardCopy`: text was copied. Workshop keeps it as the clipboard its naming line pastes.
+`ClipboardCopy`, from any weave that copies: text was copied. Workshop keeps it as the clipboard its naming line pastes.
 
 ### `ClipboardText`
 
-`ClipboardText`, answering Workshop's `ClipboardTextRequested`, which it asks of the graphics
+`ClipboardText`, from `zengine.window.*`, answering Workshop's `ClipboardTextRequested`, which it asks of the graphics
 window that shows its area, else the window that offered itself: the platform's text, pasted into
 the line that asked, if that draft still stands.
 
 ### `KeyPressed`
 
-`KeyPressed`, from input ([`input/vocabulary.hpp`](../../input/vocabulary.hpp)): resolved once --
+`KeyPressed`, from `zengine.input` ([`input/vocabulary.hpp`](../../input/vocabulary.hpp)): resolved once --
 the application's rows above every mode, then a menu, arranging, a naming line, the focused pane,
 command mode -- and spent there. A pane holding the keys hears `PaneKey`, or `PaneActionRequested`
 for a row it declared. It names no hand: a send its gesture asks is refused (`this operation needs
@@ -696,7 +696,7 @@ a current attributed input gesture`).
 
 ### `KeyReleased`
 
-`KeyReleased`, from input: heard for Shift alone, per hand, to tell a tap from a hold. Shift pressed
+`KeyReleased`, from `zengine.input`: heard for Shift alone, per hand, to tell a tap from a hold. Shift pressed
 alone and released with no repeat is a tap, and a second lone Shift press within the double-click
 time ([`PointerTimingSaid`](#pointertimingsaid)) is the key `double-shift`, resolved as `KeyPressed` is where a row in force answers to it
 ([`desktop.palette-shift`](zengine.desktop.md#desktoppalette-shift)). Any other release is passed
@@ -704,7 +704,7 @@ over.
 
 ### `TextEntered`
 
-`TextEntered`, from input: a character goes where a key goes, so a pane holding the keys hears
+`TextEntered`, from `zengine.input`: a character goes where a key goes, so a pane holding the keys hears
 `PaneTextInput`; the character a binding's key produced is that binding's. On a weaver's host a
 guest's text rests nowhere:
 `this is a weaver's host: a guest's typed text rests in no pane, ...`.
@@ -716,7 +716,7 @@ or a guest's. Workshop routes it as that hand's; the producer's unattributed cop
 
 ### `PaneQuitAnswered`
 
-`PaneQuitAnswered`, from a pane answering `PaneQuitRequested`: `permitted`, or a `refusal` in its
+`PaneQuitAnswered`, from any pane answering `PaneQuitRequested`: `permitted`, or a `refusal` in its
 words. The last answer decides: every pane permitting ends Workshop; any refusal keeps it open, the
 band saying each refusal, or `<pane> refused the quit and gave no reason`. A quit asked here then
 opens a box at the room's centre: go back, or discard what those panes hold and quit.
@@ -724,12 +724,12 @@ opens a box at the room's centre: go back, or discard what those panes hold and 
 ### `QuitDeliveryRefusalNoted`
 
 `QuitDeliveryRefusalNoted`, from the host's watch ([`quit_delivery.hpp`](../quit_delivery.hpp)):
-Loom refused the quit question to a pane. The quit is refused: `the quit could not ask <office>
+Loom refused the quit question to a pane. The quit is refused: `the quit could not ask <role>
 (weave <n>) -- <why>; Workshop stays open, and a quit after the repair asks again`.
 
 ### `SourceOpened`
 
-`SourceOpened`, answering a pane's Edit Code open ([`pane_seam_vocabulary.hpp`](../pane_seam_vocabulary.hpp)):
+`SourceOpened`, from `zengine.opening`, answering a pane's Edit Code open ([`pane_seam_vocabulary.hpp`](../pane_seam_vocabulary.hpp)):
 accepted, Workshop publishes `PaneSourceOpened` and says what rebuilding it does; refused, the band
 says `<why> -- <name>'s code was not opened`.
 
@@ -741,7 +741,7 @@ not. Its condition is retracted, a trial it held is let go, and a refusal is sai
 ### `ManagedOpenProgress`
 
 `ManagedOpenProgress`, from `zengine.opening`: an opening waits. While `pending`, Attention says
-`opening <file>`, `waiting for <office> to <stage> -- your work is untouched`.
+`opening <file>`, `waiting for <role> to <stage> -- your work is untouched`.
 
 ### `EditorSwitchProgress`
 
@@ -754,34 +754,34 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 `GraphicsReady`, from `zengine.graphics`
 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): a directory started afresh. Workshop,
 its arranger, offers the four shipped palettes, chooses each area's (the one `workshop.skin` names),
-and places each open pane's frame (`zengine.workshop.frame.<office>.<pane>`) at its depth with the
-pane's own area over its body in front where its office draws there; its own area, taking the keys;
+and places each open pane's frame (`zengine.workshop.frame.<role>.<pane>`) at its depth with the
+pane's own area over its body in front where its role draws there; its own area, taking the keys;
 and `zengine.workshop.overlay` in front, deaf. It asks its rooms.
 
 ### `WindowOffered`
 
-`WindowOffered` v3, from the terminal or OS window as its own office (`zengine.window.terminal`,
+`WindowOffered` v3, from the terminal or GUI window as its own role (`zengine.window.tui`,
 `zengine.window.sdl`): its pixels, unit and text; Workshop's areas go on it. The first offer
 starts the desk: `PaneCatalogRequested`, the keymap and preferences, the floor painted, the last
 session and the startup notes. The panes are laid out in the window's room, again at each new
-size; an offer of none keeps the room. An offer from any other office or window is ignored.
+size; an offer of none keeps the room. An offer from any other role or window is ignored.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the graphics window that shows one of Workshop's areas, as that window's
-office: its room. A frame draws its pane's edge and header and a body its office does not draw; its
+`AreaRoom` v4, from `zengine.window.*`, the graphics window that shows one of Workshop's areas, as that window's
+role: its room. A frame draws its pane's edge and header and a body its role does not draw; its
 own area the band, and every pane's frame while a weaver arranges, a menu is open or something is
 carried; the overlay a carried value and guide marks. Each draws whole in a new window,
 incarnation, size or measure, or an empty area, then what changed.
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was;
+`DrawnRefused` v1, from `zengine.window.*`, that window: a drawing it refused, and why. What it shows stays as it was;
 a refused change is drawn again whole at once.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v4, from the window that shows `zengine.workshop` or a frame: a button pressed
+`AreaButtonChanged` v4, from `zengine.window.*`, the window that shows `zengine.workshop` or a frame: a button pressed
 or let go in one of Workshop's areas, at the screen's pixel there, by the hand it names. It is that
 moment as `PointerButton` takes one, that hand's, the press held to its own release, a drop
 carrying what the window drew under it: a tab, the chrome, the room, a menu, an arrangement, a body
@@ -789,46 +789,45 @@ Workshop draws. A moment over a pane a window shows in its own area is never rel
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v2, from that window: the pointer moved in Workshop's own area, or while a press
+`AreaPointerMoved` v2, from `zengine.window.*`, that window: the pointer moved in Workshop's own area, or while a press
 made there is held, as `PointerMoved` takes it, by the hand it names.
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v2, from that window: the wheel in Workshop's own area, as `PointerWheel` takes
+`AreaWheelTurned` v2, from `zengine.window.*`, that window: the wheel in Workshop's own area, as `PointerWheel` takes
 it, by the hand it names.
 
 ### `AreaKeyPressed`
 
-`AreaKeyPressed` v1, from the window that shows `zengine.workshop`, naming that area: a key, by the
+`AreaKeyPressed` v1, from `zengine.window.*`, the window that shows `zengine.workshop`, naming that area: a key, by the
 hand it names, as `KeyPressed` takes one, so the weaver's own key asks a send as the weaver's.
 
 ### `AreaKeyReleased`
 
-`AreaKeyReleased` v1, from that window, naming that area: a release, by the hand it names, as
+`AreaKeyReleased` v1, from `zengine.window.*`, that window, naming that area: a release, by the hand it names, as
 `KeyReleased` takes one.
 
 ### `AreaTextEntered`
 
-`AreaTextEntered` v1, from that window, naming that area: typed text, by the hand it names, as
+`AreaTextEntered` v1, from `zengine.window.*`, that window, naming that area: typed text, by the hand it names, as
 `TextEntered` takes it.
 
 ### `AreaHoldEnded`
 
-`AreaHoldEnded` v1, from that window, to Workshop as its own area's owner and as the arranger
+`AreaHoldEnded` v1, from `zengine.window.*`, that window, to Workshop as its own area's owner and as the arranger
 following each pane's area: a press held there ended with no release. In its own area every gesture
 that button holds ends, and a pane Workshop draws there that the press reached hears it lost. In a
 pane's area the pane's room no longer waits for that press.
 
 ### `AreaPointerLeft`
 
-`AreaPointerLeft` v1, from that window, told as `AreaHoldEnded` is: the pointer left an area with
+`AreaPointerLeft` v1, from `zengine.window.*`, that window, told as `AreaHoldEnded` is: the pointer left an area with
 no button held. Leaving Workshop's own area it rests on no canvas Workshop draws there, which hears
 that it left. A pane's area it left is the pane's to answer.
 
 ### `AreaPressed`
 
-`AreaPressed` v4, from the window, to a pane area's arranger: a button pressed or let go
-there, at the window's pixel, under the window's number, by the hand it names, with what the window
+`AreaPressed` v4, from `zengine.window.*` to a pane area's arranger: a button pressed or let go there, at its pixel, under the window's number, by the hand it names, with what the window
 drew under it, for a drop released there. Workshop counts the gesture on that hand and
 keeps the number, which the pane's carry, pass-back or menu cites. The weaver's own primary
 press also selects the pane, gives it the keys, ends a guide mark there and holds the pane's room
@@ -836,20 +835,20 @@ against a title row; a guest's does not.
 
 ### `AreaHandRefused`
 
-`AreaHandRefused` v1, from the window, to the arranger of a pane's area placed for the weaver's
+`AreaHandRefused` v1, from `zengine.window.*`, the window, to the arranger of a pane's area placed for the weaver's
 hand alone -- the editor's, the Terminal's and the Hotkeys pane's, on a weaver's host: a guest's
 press or wheel there, refused and given to nobody. Workshop says why, in its band.
 
 ### `AreaShown`
 
-`AreaShown` v1, from the window that shows the desk, answering Workshop's `AreaShowAsked`: what a
+`AreaShown` v1, from `zengine.window.*`, the window that shows the desk, answering Workshop's `AreaShowAsked`: what a
 pane's area shows, its words and its named parts. Workshop keeps it as that pane's reading, answers
 each read waiting on it, judges a guide mark on it again, and publishes `DeskStamps` when the
 reading moved. A refusal is kept as the pane's, and said to its readers.
 
 ### `AreaSettled`
 
-`AreaSettled` v1, from the window that shows the desk, unasked: what an area Workshop placed and
+`AreaSettled` v1, from `zengine.window.*`, the window that shows the desk, unasked: what an area Workshop placed and
 follows -- each pane's, and the menu's -- shows settled at a version. For a presented pane's area or
 the menu's, past the version Workshop took of it, Workshop asks it again (`AreaShowAsked`), one ask
 an area at a time; a late or repeated one asks nothing.
@@ -872,7 +871,7 @@ pane's stamp moved, the newest standing for all before it
 inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an Edit Code open;
 and `PaneQuitRequested`, the question a quit asks. To a graphics directory it says `PaletteOffered`,
 `PaletteChosen`, `AreaPlaced` and `RoomAsked`, each only when it moved, and to the window that shows
-its area, `Drawn`, and `AreaShowAsked` for each pane's area that settled. To a pane's office it
+its area, `Drawn`, and `AreaShowAsked` for each pane's area that settled. To a pane's role it
 says `PaneKeys` when the keys come or go, and after each primary press in its area.
 
 ## Files
@@ -885,13 +884,13 @@ says `PaneKeys` when the keys come or go, and after each primary press in its ar
   comes back on its own](workshop-panes.md#the-desk-comes-back-on-its-own)).
 - **The window file**, beside the session file, its name the session's with `.window` before the
   extension (`workshop-session.window.json`): the window's room, its place on the desktop and the
-  OS window's own room. Workshop alone writes it, at an orderly quit; while none exists, an older
+  GUI window's own room. Workshop alone writes it, at an orderly quit; while none exists, an older
   session's are read once.
 - **The keymap file**, `--keymap <path>`, by default `workshop-keymap.json` in the per-user config
   folder: read when the desk starts, written by an accepted `KeymapEditRequested`
   ([Hotkeys and the keymap](hotkeys.md)).
 - **The settings file**, `--prefs <path>`, by default `workshop-prefs.json` beside the keymap:
-  every office's office-wide settings (Workshop's own among them), the Workshop-wide pin lists and
+  every role's role-wide settings (Workshop's own among them), the Workshop-wide pin lists and
   the everywhere locks, kept and written by [`zengine.layouts`](zengine.layouts.md#files).
 - `--isolated` runs with no session, keymap or preferences file. The load plan the host runs is
   [the load plan's](load-plan.md), not this weave's.
@@ -901,4 +900,4 @@ says `PaneKeys` when the keys come or go, and after each primary press in its ar
 - [The pane protocol's reference](workshop-panes.md): the window, the room, the setup, the canvas.
 - [Make a Workshop tool](make-a-workshop-tool.md), the walk through a pane of your own.
 - [Panes](panes.md) and [Hotkeys and the keymap](hotkeys.md), for a weaver.
-- [`zengine.builder`](../../builder/docs/zengine.builder.md), an office Workshop mounts beside it.
+- [`zengine.builder`](../../builder/docs/zengine.builder.md), a role Workshop mounts beside it.

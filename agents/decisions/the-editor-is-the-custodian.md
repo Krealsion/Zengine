@@ -8,7 +8,7 @@ unlike the five before it: Files left the project root with the host, the Builde
 Attention left the conditions, Info left the object document, the Terminal left the participant
 — each presented a subject somebody else held. The Editor's subject was the buffer a weaver
 types into, and it was `Session::editor`: the exit read its dirty flag, the paste pinned its
-epoch, the Files and Builder asks landed at the host's own office, and four `Act` values, a
+epoch, the Files and Builder asks landed at the host's own role, and four `Act` values, a
 `KeyContext`, a `PasteOwner`, a drag place, a painter and three handler bodies were compiled into
 the host for it. A pane that only presented a buffer the host kept would have crossed the seam
 twice per keystroke and made a second mutable copy of the same bytes.
@@ -25,7 +25,7 @@ desk seats, selects and focuses it in the delivery that answers, or refuses with
 every gesture until the last answer, and replays them on a refusal). `OpenSourceRequested` is
 answered at `zengine.editor`; the recipe-name half moved to the read-only project door as
 `RecipeSourceSaid`, so the Builder walks two doors and no host relays a source toward the Editor's
-office. A same-shape reload carries the document as `EditorPaneState`, which the pane keeps
+role. A same-shape reload carries the document as `EditorPaneState`, which the pane keeps
 current so Loom's own `snapshot` and `zen.PokeRead` read one truth. `document.save` is
 `kUnlessOwned`, and the Editor's `editor.save` row DECLARES that it stands in for it.
 
@@ -94,8 +94,8 @@ current so Loom's own `snapshot` and `zen.PokeRead` read one truth. `document.sa
   field changed the identity of that row AND of the `PaneActions` v1 enclosing it, and a pane
   built against the old header could no longer register with this host. Ownership is version
   two; version one is what it was.
-- *A host relay from `RecipeSourceRequested` to the Editor's office* — refused: the host would
-  have to name a pane's office, which is the coupling the extraction exists to remove.
+- *A host relay from `RecipeSourceRequested` to the Editor's role* — refused: the host would
+  have to name a pane's role, which is the coupling the extraction exists to remove.
 
 **Superseded in part.** The reveal-as-commitment shape of the open, and the gestures the pane
 held for it, were replaced by the managed opening: one joint publication of the document and the

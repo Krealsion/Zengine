@@ -29,7 +29,7 @@ constexpr std::int64_t kLineBoxColumn = 2;
 
 namespace pane = zengine::terminal_pane;
 
-/// The office and pane, spelled through the package's own header -- the durable names, not
+/// The role and pane, spelled through the package's own header -- the durable names, not
 /// literals, so a case cannot agree with a typo.
 inline PaneRef pane_terminal_ref() {
     return PaneRef{pane::kTerminalPaneRole, pane::kTerminalPane};
@@ -292,7 +292,7 @@ struct TerminalRig {
 
 /// THE TERMINAL'S CENSUS: its rows in the one mode it has, for it declares none.
 const CensusDriverOf kTerminalCensus{pane::kTerminalPaneRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     TerminalRig t;
     t.open();
     const RuntimePane* held = t.row();
@@ -326,7 +326,7 @@ ZEN_PRESS_WITNESS_CASE(pane::kTerminalPaneRole, 0, "the Terminal's rows")
 // THE OFFER, THE ROWS, AND THE KEYS
 // ============================================================================
 
-TEST_CASE("the Terminal is an ordinary arranged pane, offered by an office") {
+TEST_CASE("the Terminal is an ordinary arranged pane, offered by a role") {
     // THE TERMINAL IS A PANE: a catalog row, a `PaneRef`, a place a weaver chooses and a boundary.
     TerminalRig t;
     t.open();
@@ -340,7 +340,7 @@ TEST_CASE("the Terminal is an ordinary arranged pane, offered by an office") {
     // pane -- moved, sized, fronted and closed by the same gestures.
     CHECK(is_runtime_kind(row->kind));
     CHECK(placement_of(row->kind) == placement::kOverlayStack);
-    // AND WORKSHOP COMPILES NOTHING FOR IT: the reference is the OFFICE's, minted from the
+    // AND WORKSHOP COMPILES NOTHING FOR IT: the reference is the ROLE's, minted from the
     // offer, and no `pane_kind::k*` constant of this host names it.
     const std::optional<std::int64_t> resolved =
         resolve_pane(pane_terminal_ref(), t.r.session().panes);
@@ -400,7 +400,7 @@ TEST_CASE("the manual the Terminal answers names exactly the commands it declare
     check_answered_manual(reader, pane::kTerminalPane, declared);
 }
 
-/// AN OFFICE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
+/// A ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
 struct ForgerState {
     ZEN_SHAPE(ForgerState, 1);
 };
@@ -423,8 +423,8 @@ TEST_CASE("the Terminal draws nothing in a window's room before it holds its row
     zengine::testing::pane_window::Window window(r.bus);
     window.room(area, pane::kTerminalPaneRole, 40, 10);
     CHECK(window.weave().heard.empty());
-    // ...A ROW ANOTHER OFFICE HANDS IS NOT ITS ROW, and draws nothing either.
-    // ⚔ MUTATION (tests/mutants/workshop_panes_terminal.md#row-from-any-office): a pane that takes a row from any office.
+    // ...A ROW ANOTHER ROLE HANDS IS NOT ITS ROW, and draws nothing either.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_terminal.md#row-from-any-role): a pane that takes a row from any role.
     auto forger = std::make_unique<RowForger>();
     RowForger* raw = forger.get();
     loom::Grant hands;
@@ -432,7 +432,7 @@ TEST_CASE("the Terminal draws nothing in a window's room before it holds its row
     const loom::WeaveId forger_id =
         r.bus.register_weave(std::move(forger), std::move(hands), std::string("test.forger"));
     raw->zen_set_self(forger_id);
-    (void)r.bus.office_send_to_role_as(
+    (void)r.bus.role_send_to_role_as(
         forger_id, "test.forger", pane::kTerminalPaneRole,
         loom::Message(loom::to_value(v2::PaneSettings{pane::kTerminalPane, 9, {}}), forger_id, {}, 0));
     r.bus.drain_until_idle();
@@ -1292,7 +1292,7 @@ TEST_CASE("in a room too small for both, the LINE is what survives") {
 
 TEST_CASE("an id the Terminal never declared is no act: the refusal stands through a new room, the line and a press's memory with it, and a declared id through the same door acts") {
     // THE FIVE ROWS NEVER CHANGE, so the one way to hand this pane an undeclared id is Workshop's
-    // own office with no key behind it. A key the line does not take spends nothing (`on(PaneKey)`
+    // own role with no key behind it. A key the line does not take spends nothing (`on(PaneKey)`
     // asks the line first); a resolved id that spent the notice before asking what it meant left
     // the refusal painted over a private clear, and ended the memory that lets a second press in a
     // word select it.
@@ -1306,7 +1306,7 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
     REQUIRE(t.seat() != nullptr);
     const std::int64_t caret = t.caret().column;
 
-    const PaneRig::OfficeAction unknown = t.r.workshop_action(
+    const PaneRig::RoleAction unknown = t.r.workshop_action(
         pane::kTerminalPaneRole, pane::kTerminalPane, "terminal.no-such-action");
     REQUIRE(unknown.authored);
     REQUIRE(unknown.delivered);
@@ -1327,7 +1327,7 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
 
     // A DECLARED ID THROUGH THE SAME DOOR IS AN ACT, and spends it -- so the provenance was never
     // the reason for the silence above.
-    const PaneRig::OfficeAction up =
+    const PaneRig::RoleAction up =
         t.r.workshop_action(pane::kTerminalPaneRole, pane::kTerminalPane, pane::kActionUp);
     REQUIRE(up.delivered);
     CHECK(t.text().find("nothing was authored") == std::string::npos);
@@ -1415,7 +1415,7 @@ TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
     // the different command a weaver typed after abandoning it.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("abc");
@@ -1450,7 +1450,7 @@ TEST_CASE("an edit is not a new draft, and a submit is") {
     // and they are what a paste is bound to.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("ab");
@@ -1485,7 +1485,7 @@ TEST_CASE("a paste is one gesture, and undo gives back the line it landed in") {
     // burst before it, so one undo would take the paste and the typed word together.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("keep");
@@ -1514,7 +1514,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     // normalization; this case owns the pane's door spending it.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.focus();
 
     t.r.windows.set_clipboard("two\r\nlines");
@@ -1825,7 +1825,7 @@ TEST_CASE("after a lock the recalled line is an ordinary draft whose undo stops 
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    t.r.on_os_window();
+    t.r.on_gui_window();
     run(t, "beta");
     t.r.key(input::scan::kUp);
     t.r.key(input::scan::kTab);
@@ -1845,7 +1845,7 @@ TEST_CASE("a paste asked for before a recall does not land in the recalled line"
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    t.r.on_os_window();
+    t.r.on_gui_window();
     run(t, "beta");
     t.r.windows.set_clipboard("OLD");
     t.enqueue_key(input::scan::kV, input::mod::kCtrl);
@@ -2376,20 +2376,20 @@ public:
     std::vector<loom::WeaveId> from;
 };
 
-/// A RECORDER seated in `office`, an office of the case's choosing, so a delivery or its absence
+/// A RECORDER seated in `role`, a role of the case's choosing, so a delivery or its absence
 /// is a measurement.
 struct Probe {
     TextRecorder* seat = nullptr;
     loom::WeaveId id{};
 };
 
-Probe mount_probe(TerminalRig& t, const std::string& office) {
+Probe mount_probe(TerminalRig& t, const std::string& role) {
     auto seat = std::make_unique<TextRecorder>();
     Probe p;
     p.seat = seat.get();
     loom::Grant grant;
     grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
-    p.id = t.r.bus.register_weave(std::move(seat), std::move(grant), office);
+    p.id = t.r.bus.register_weave(std::move(seat), std::move(grant), role);
     p.seat->zen_set_self(p.id);
     return p;
 }
@@ -2405,7 +2405,7 @@ bool heard_slot(const TextRecorder& seat, const std::string& slot) {
 
 } // namespace
 
-TEST_CASE("the address lists the offices and weaves on the bus now with what each is and every ask reads the bus again") {
+TEST_CASE("the address lists the roles and weaves on the bus now with what each is and every ask reads the bus again") {
     TerminalRig t;
     t.open();
     t.give_room(30, 120);
@@ -2415,13 +2415,13 @@ TEST_CASE("the address lists the offices and weaves on the bus now with what eac
     CHECK(t.row_of("  @zengine.workshop") >= 0);
     const std::string self = "#" + std::to_string(t.r.terminal_id.value);
     t.type(self);
-    CHECK(t.text().find(self + "   no office; accepts zen.Ack, zen.Refused") != std::string::npos);
+    CHECK(t.text().find(self + "   no role; accepts zen.Ack, zen.Refused") != std::string::npos);
     CHECK(t.text().find("(this terminal)") != std::string::npos);
     for (std::size_t i = 0; i < self.size(); ++i) {
         t.r.key(input::scan::kBackspace);
     }
 
-    // ADDITION: nobody holds the office, then a weave takes it, and the next keystroke's ask sees it.
+    // ADDITION: nobody holds the role, then a weave takes it, and the next keystroke's ask sees it.
     t.type("@zengine.pro");
     CHECK(t.text().find("'@zengine.pro' is an address; nothing on this bus answers to it now") !=
           std::string::npos);
@@ -2430,14 +2430,14 @@ TEST_CASE("the address lists the offices and weaves on the bus now with what eac
     CHECK(t.row_of("> @zengine.probe") >= 0);
     CHECK(t.text().find("held by #" + std::to_string(first.id.value) + " now") != std::string::npos);
 
-    // REPLACEMENT: the office moves to another weave, and the list names the new holder only.
+    // REPLACEMENT: the role moves to another weave, and the list names the new holder only.
     (void)t.r.bus.unregister_weave(first.id);
     const Probe second = mount_probe(t, "zengine.probe");
     t.type("e");
     CHECK(t.text().find("held by #" + std::to_string(second.id.value) + " now") != std::string::npos);
     CHECK(t.text().find("held by #" + std::to_string(first.id.value) + " now") == std::string::npos);
 
-    // REMOVAL: the office is empty again, and nothing is offered for it.
+    // REMOVAL: the role is empty again, and nothing is offered for it.
     (void)t.r.bus.unregister_weave(second.id);
     t.r.key(input::scan::kBackspace);
     CHECK(t.row_of("> @zengine.probe") < 0);
@@ -2460,7 +2460,7 @@ TEST_CASE("an id chosen from the list and gone before the line is sent leaves th
     t.type("RigNote 1 slot=gone text=x");
     t.submit();
 
-    // NOT RETARGETED: no weave heard the slot, and the office it held is empty rather than moved.
+    // NOT RETARGETED: no weave heard the slot, and the role it held is empty rather than moved.
     CHECK_FALSE(heard_slot(*other.seat, "gone"));
     // ATTRIBUTED BY LOOM: the send was authored, and its refusal came back to the participant that
     // authored it, naming the id it was addressed to and why.
@@ -2474,7 +2474,7 @@ TEST_CASE("an id chosen from the list and gone before the line is sent leaves th
     CHECK(back.dispatch_refusal->send.reason == "NoSuchTarget");
 }
 
-TEST_CASE("an office chosen from the list reaches whoever holds it at delivery and a vacated office is refused not retargeted") {
+TEST_CASE("a role chosen from the list reaches whoever holds it at delivery and a vacated role is refused not retargeted") {
     TerminalRig t;
     t.open(160, 48, /*shapes=*/0, /*participant=*/true, /*widen=*/true);
     t.give_room(30, 120);
@@ -2484,7 +2484,7 @@ TEST_CASE("an office chosen from the list reaches whoever holds it at delivery a
     t.r.key(input::scan::kTab);
     REQUIRE(t.typed() == "send @zengine.probe ");
 
-    // TURNOVER: the office changes hands before the send. The line names the office, the list said
+    // TURNOVER: the role changes hands before the send. The line names the role, the list said
     // it reaches whoever holds it when sent, and it does: the new holder, never the old weave.
     (void)t.r.bus.unregister_weave(old_holder.id);
     const Probe new_holder = mount_probe(t, "zengine.probe");
@@ -2776,12 +2776,12 @@ TEST_CASE("`workshop.completion-order` puts a shape's required fields first in t
     CHECK_FALSE(t.r.session().completion_required_first);
 
     // THE TERMINAL ITSELF WRITES WORKSHOP'S SETTING, and the next list is in the order it says.
-    const OfficeSettingsAnswered office = typed_answer<OfficeSettingsAnswered>(
-        t, "ask @zengine.layouts OfficeSettingsRequested 1 office=zengine.workshop");
+    const RoleSettingsAnswered role = typed_answer<RoleSettingsAnswered>(
+        t, "ask @zengine.layouts RoleSettingsRequested 1 role=zengine.workshop");
     t.clear_line();
-    const OfficeSettingCommitAnswered order = typed_answer<OfficeSettingCommitAnswered>(
-        t, "ask @zengine.layouts OfficeSettingCommitRequested 1 office=zengine.workshop "
-           "revision=" + std::to_string(office.revision) +
+    const RoleSettingCommitAnswered order = typed_answer<RoleSettingCommitAnswered>(
+        t, "ask @zengine.layouts RoleSettingCommitRequested 1 role=zengine.workshop "
+           "revision=" + std::to_string(role.revision) +
                " clear=false key=workshop.completion-order text=required-first");
     REQUIRE_MESSAGE(order.accepted, order.refusal);
     CHECK(t.r.session().completion_required_first);

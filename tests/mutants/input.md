@@ -6,7 +6,7 @@ page](README.md) says how an entry reads and how `tests/mutants/run.py` runs it.
 
 ## the-time-never-set
 
-The input office hears the setting Workshop hands it and keeps its default.
+The input role hears the setting Workshop hands it and keeps its default.
 
 In `input/double_click_setting.hpp`:
 
@@ -18,6 +18,6 @@ In `input/double_click_setting.hpp`:
 
 Red in `zengine-input-tests`:
 
-- the input office keeps the double-click time: declared to the layouts' owner at each activation,
+- the input role keeps the double-click time: declared to the layouts' owner at each activation,
   said to an asker, set from what the owner hands it, and published when it changes
 

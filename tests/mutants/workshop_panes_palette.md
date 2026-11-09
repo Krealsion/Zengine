@@ -18,7 +18,7 @@ In `workshop/weave_session.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-DESK-18: the palette closed by an office, through the layouts' owner, is put down with the keys
+- WL-DESK-18: the palette closed by a role, through the layouts' owner, is put down with the keys
   given back, as its own Escape puts it down
 
 ## other-owners-left-out

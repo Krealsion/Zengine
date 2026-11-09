@@ -9,24 +9,24 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - A window weave does the whole job of showing: it keeps every area's nodes, records and presented
   elements in its STATE (a reload keeps them and draws nothing again), paints a node only when it
   changes, keeps what it painted in its MEMORY (a reload paints it again from the state, once),
-  composes the areas front to back by their order, and shows only what changed: a terminal window
-  writes the cells whose picture changed, as runs; an OS window draws its whole picture once a
+  composes the areas front to back by their order, and shows only what changed: a TUI window
+  writes the cells whose picture changed, as runs; a GUI window draws its whole picture once a
   showing. It judges a press against what it painted and routes it, and gives keys, their releases
   and the text they type to the owners of the areas placed to hear each (`AreaKeyPressed`,
   `AreaKeyReleased`, `AreaTextEntered`), naming the area.
 - **One window, many media.** The store, the judge, the element seam, the directory's words, keys
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
-  painted, how it shows it and what it reads are the medium's alone (`window_terminal.hpp`,
+  painted, how it shows it and what it reads are the medium's alone (`window_tui.hpp`,
   `window_sdl.hpp`). A medium never holds a node, a record or an element the store does not.
 - **A window answers for its platform, on the bus and to C++ in its own process**: a copy, a
   paste's read of the clipboard (`ClipboardText`), its place on the desktop and a place offered
   back, a close its desktop asked for, the beat on request (`PumpSurface`), and the picture it last
   presented, read back -- never one a drawing saying `more` holds back. The clipboard is read when a
-  paste asks, never on the beat. The OS window publishes its place when it changed, before its
-  offer when both did, and each close once, as its office; a terminal publishes neither. A
-  window's title and size are said by an office that arranges an area in it (`WindowShaped`),
+  paste asks, never on the beat. The GUI window publishes its place when it changed, before its
+  offer when both did, and each close once, as its role; a terminal publishes neither. A
+  window's title and size are said by a role that arranges an area in it (`WindowShaped`),
   judged by the window from the arrangers its areas were introduced with, and from no other; the
-  OS window keeps the size within its display (`window::shaped_within`) and, as after a weaver's
+  GUI window keeps the size within its display (`window::shaped_within`) and, as after a weaver's
   resize, grows again only for an area reaching further than its areas did; the terminal keeps its
   emulator's. One
   picture is retained and fetched by chunk, one capture waits for its showing at a time, and a
@@ -51,7 +51,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   `Canvas::room`).
 - **The window says how it sets text, and every owner places its text by it.** A window that shows
   every pixel offers its room in pixels and the face it draws with, measured: a character's advance
-  and a line's height (`WindowOffered`, `AreaRoom`, `PaintTask`); a terminal window's text is the
+  and a line's height (`WindowOffered`, `AreaRoom`, `PaintTask`); a TUI window's text is the
   cell. Nothing in a window that shows every pixel is set a character a cell. Each owner paints its
   area's ground, so nothing behind a pane shows through what it leaves blank; no window paints an
   area's ground for its owner.
@@ -59,7 +59,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   naming the elements it still presents there, so a drawer's state keeps no window or incarnation
   and a drawer that starts again says only what the window does not hold. An area given another
   owner, or withdrawn and introduced again, starts empty, and its room says so (`empty`). A drawing
-  weave takes a room only from the office of the window it names.
+  weave takes a room only from the role of the window it names.
 
 ## Each owner hears the pointer in its own area
 
@@ -74,26 +74,26 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   with no release when its area is withdrawn or handed over, or an area hearing the pointer comes to
   stand in front of it where the press was made; the window tells `AreaHoldEnded` and makes up no
   release. A reload ends every hold untold.
-- **The arranger learns where presses land, never the moment**: `AreaPressed` to the office that
-  placed an area another office owns, under the press's number. The directory names that office from
+- **The arranger learns where presses land, never the moment**: `AreaPressed` to the role that
+  placed an area another role owns, under the press's number. The directory names that role from
   the placing's authorship (`AreaIntroduced::arranger`); a placing spoken personally names none.
 - A move with no button held that leaves an area hearing the pointer is told, `AreaPointerLeft`; so
   is the pointer resting in an area handed to another owner, to the owner it had.
-- **What became of the pointer goes to the area's owner, and to its arranger when another office**:
-  `AreaHoldEnded` and `AreaPointerLeft` reach no other office, so none learns where the weaver's
+- **What became of the pointer goes to the area's owner, and to its arranger when another role**:
+  `AreaHoldEnded` and `AreaPointerLeft` reach no other role, so none learns where the weaver's
   pointer goes.
 
 ## Every moment says whose hand it is
 
 - **The window lands a participant's pointer as it lands the weaver's.** It takes
-  `input::AttributedInput` from `zengine.input`'s office alone, and lands a press, a move or a wheel
-  that office injected for a participant by its own judge, as one its platform gave. A moment the
+  `input::AttributedInput` from `zengine.input`'s role alone, and lands a press, a move or a wheel
+  that role injected for a participant by its own judge, as one its platform gave. A moment the
   platform gave (`local`) is the window's own to read. An injected key or text is not taken there:
-  a participant's keys reach their consumers from the input office, attributed.
+  a participant's keys reach their consumers from the input role, attributed.
 - **Every moment it gives names the hand**: `AreaButtonChanged`, `AreaPointerMoved`,
-  `AreaWheelTurned` and `AreaPressed` say `local`, or the `actor` the input office named;
+  `AreaWheelTurned` and `AreaPressed` say `local`, or the `actor` the input role named;
   `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered` say `local`, the platform's own. An
-  owner takes a moment's hand only from the office of the window that shows its area, so a key no
+  owner takes a moment's hand only from the role of the window that shows its area, so a key no
   window gave names no hand. Each hand holds its own presses, so a guest's press and release never
   end or take the weaver's.
 - **An area placed for the weaver's hand alone refuses every injected hand**
@@ -103,10 +103,10 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 
 ## A window says what an area shows, to its arranger
 
-- **The office that placed an area asks, and only it**: `AreaShowAsked` is answered `AreaShown`,
+- **The role that placed an area asks, and only it**: `AreaShowAsked` is answered `AreaShown`,
   and anyone else is refused in words. The answer is what the window holds painted, after its own
   composition: each run of text on one line, and each record naming an action as the part it
-  names, with the box its drawing shows, in the area's pixels; a cell or point another office's
+  names, with the box its drawing shows, in the area's pixels; a cell or point another role's
   area in front paints over is not said, and one the asker's own area paints over is.
 - **A part's point is where the window's own judge lands a press on it**, or none; its availability
   is what its record says (`PartFace`), else available.
@@ -115,7 +115,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   `same`, with nothing else. `waiting` says the owner owes a whole drawing for the room it was told.
 - Past `kMaxAreaWords` runs of text a reading is refused whole, in words, rather than said in part.
 - **What a window says of an area unasked goes to an arranger that follows it**
-  (`AreaPlaced::followed`): where a press there landed while another office owns it, a hold
+  (`AreaPlaced::followed`): where a press there landed while another role owns it, a hold
   ended, the pointer left, and what it shows settled (`AreaSettled`, at each showing its version
   moved). An arranger that takes none of these places its areas without, and is told none, so no
   showing refuses a word on its bus.
@@ -177,8 +177,8 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - The terminal's claim (`graphics/window/terminal_io.hpp`) and its input edge
   (`input/terminal_reader.hpp`) are shared: whichever participant owns the terminal in a process
   takes both, for exactly its life. Two owners of one terminal in one process is not a supported
-  arrangement. The terminal window claims the terminal's input for its life
-  (`input/window_claim.hpp`), and the Input reader beside it reads none of it. The OS window reads
+  arrangement. The TUI window claims the terminal's input for its life
+  (`input/window_claim.hpp`), and the Input reader beside it reads none of it. The GUI window reads
   SDL's one queue itself and claims the process's input for its life: the Input reader beside it
   leaves the console the run started from as it found it, read by nobody, its echo and its Ctrl+C
   the person's.

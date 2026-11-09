@@ -263,7 +263,7 @@ struct CloserState {
     ZEN_SHAPE(CloserState, 1, ZEN_FIELD(closes));
 };
 
-/// A WEAVE IN AN OFFICE OF ITS OWN that can say a close, as that office.
+/// A WEAVE IN A ROLE OF ITS OWN that can say a close, as that role.
 class Closer : public loom::WeaveBase<Closer, CloserState, loom::Accept<>,
                                       loom::Emit<gfx::SurfaceCloseRequested>> {};
 
@@ -276,26 +276,26 @@ TEST_CASE("a close is the window's that shows the desk: one said by anyone else 
     bool stopped = false;
     t.host.request_stop = [&stopped] { stopped = true; };
     t.ready();
-    REQUIRE(t.windows.window() == gfx::kTerminalWindow);
-    const auto say_as = [&t](const std::string& office) {
+    REQUIRE(t.windows.window() == gfx::kTuiWindow);
+    const auto say_as = [&t](const std::string& role) {
         loom::Grant grant;
         grant.allow_to_any(gfx::SurfaceCloseRequested::zen_name,
                            gfx::SurfaceCloseRequested::zen_version);
         const loom::WeaveId id =
-            t.bus.register_weave(std::make_unique<Closer>(), std::move(grant), office);
+            t.bus.register_weave(std::make_unique<Closer>(), std::move(grant), role);
         REQUIRE(id.valid());
-        (void)t.bus.office_publish_as(id, office,
+        (void)t.bus.role_publish_as(id, role,
                                       loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
         t.bus.drain_until_idle();
         (void)t.bus.unregister_weave(id);
     };
-    // UNSIGNED, AS NO OFFICE...
+    // UNSIGNED, AS NO ROLE...
     t.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
     CHECK_FALSE(t.host.quit);
-    // ...AS THE OTHER WINDOW'S OFFICE, which shows no desk here...
-    say_as(std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow);
+    // ...AS THE OTHER WINDOW'S ROLE, which shows no desk here...
+    say_as(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow);
     CHECK_FALSE(t.host.quit);
-    // ...AND AS ANOTHER OFFICE ALTOGETHER.
+    // ...AND AS ANOTHER ROLE ALTOGETHER.
     say_as("zengine.test.closer");
     CHECK_FALSE(t.host.quit);
     CHECK_FALSE(stopped);
@@ -393,10 +393,10 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     // ...and the cell projection stands the caret on a cell, moving no character of the row.
     CHECK(label_at(t.shown(), 0, 0).find("layout name> [Default") == 0);
 
-    // ON THE OS WINDOW, whose platform clipboard a paste can read, A PANE COPIES -- publishing
+    // ON THE GUI WINDOW, whose platform clipboard a paste can read, A PANE COPIES -- publishing
     // `ClipboardCopy`, as every pane does with its own selection -- and this host's name editor
     // pastes it: the two boxes are in two images.
-    t.on_os_window();
+    t.on_gui_window();
     REQUIRE(t.session().setup.naming.open);
     t.publish(loom::to_value(gfx::ClipboardCopy{"Morning"}));
     // Paste replaces the selection: the name a weaver copied in a PANE arrives here.
@@ -449,26 +449,26 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     r.mount_workshop();
     r.ready();
     r.extent(240, 80);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerRole);
     REQUIRE(r.load_refusals.empty());
     r.pick(intro_ref());
     r.pick(composer_ref());
     std::int64_t intro_kind = kNoPaneKind;
     std::int64_t compose_kind = kNoPaneKind;
     for (const RuntimePane& row : r.session().panes.runtime.entries) {
-        if (row.provider == std::string(kIntroOffice) && row.pane == std::string(kIntroPane)) {
+        if (row.provider == std::string(kIntroRole) && row.pane == std::string(kIntroPane)) {
             intro_kind = row.kind;
         }
-        if (row.provider == std::string(kComposerOffice)) {
+        if (row.provider == std::string(kComposerRole)) {
             compose_kind = row.kind;
         }
     }
     REQUIRE(is_runtime_kind(intro_kind));
     REQUIRE(is_runtime_kind(compose_kind));
 
-    // The target: the introspection office itself, selected through the REAL Loaded pane --
-    // press the row naming the introspection stem, exactly as a weaver would. That office is
+    // The target: the introspection role itself, selected through the REAL Loaded pane --
+    // press the row naming the introspection stem, exactly as a weaver would. That role is
     // loaded and answers `zen.DescribeAccepted` in the same turn.
     {
         const std::vector<std::string> loaded = loaded_rows(r, intro_kind);
@@ -501,7 +501,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     REQUIRE(form_open);
 
     // A medium whose platform clipboard can be read, for the provider's own paste conversation.
-    r.on_os_window();
+    r.on_gui_window();
 
     // Type into the field under the cursor (typing makes it present), select all, copy.
     r.text("hello");
@@ -654,7 +654,7 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kC, input::mod::kCtrl); // mirror = "stale", platform = "stale"
     REQUIRE(t.session().clipboard.text == "stale");
-    t.on_os_window(); // the medium whose platform clipboard a paste reads
+    t.on_gui_window(); // the medium whose platform clipboard a paste reads
     REQUIRE(t.session().setup.naming.open);
     t.windows.set_clipboard("fresh"); // an unrelated application copies; nothing travels
     t.key(input::scan::kA, input::mod::kCtrl);
@@ -667,7 +667,7 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     CHECK(t.windows.clipboard_reads() == 2);
 }
 
-TEST_CASE("in the terminal window, which reads no clipboard, paste inserts nothing and breaks nothing") {
+TEST_CASE("in the TUI window, which reads no clipboard, paste inserts nothing and breaks nothing") {
     // The honest degradation: the window says it can read no clipboard, so the paste simply
     // does not happen -- consumed, so it cannot fall through to an application binding -- and
     // pressing it past the book's capacity stays quiet rather than becoming a crash or a queue.
@@ -1639,9 +1639,9 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     r.mount_workshop();
     r.ready();
     r.extent(100, 44); // two overlay slots, so both panes are genuinely presented
-    ProviderSeat* first = r.mount_provider(kHelloOffice);
+    ProviderSeat* first = r.mount_provider(kHelloRole);
     ProviderSeat* second = r.mount_provider("zengine.other");
-    const std::int64_t a = seat_pane_open(r, first, kHelloOffice, kHelloPane);
+    const std::int64_t a = seat_pane_open(r, first, kHelloRole, kHelloPane);
     const std::int64_t b = seat_pane_open(r, second, "zengine.other", "pane");
     REQUIRE(a != kNoPaneKind);
     REQUIRE(b != kNoPaneKind);
@@ -1677,7 +1677,7 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     click_body(r, b);
     REQUIRE(keyboard_pane(r.session().panes) == b);
     CHECK(shown_rows(b).at(0).rfind(std::string(kFoldOpenArrow) + " " + kTypingHere + "Seat @", 0) == 0);
-    CHECK(shown_rows(a).at(0).find("Seat @" + std::string(kHelloOffice)) ==
+    CHECK(shown_rows(a).at(0).find("Seat @" + std::string(kHelloRole)) ==
           std::string::npos);
 
     // FOCUS RELEASED by pressing outside every pane: the keyboard is Workshop's again,
@@ -1708,8 +1708,8 @@ TEST_CASE("the press lattice follows the reserved rows, titles hidden or shown")
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     const CellRect body = external_body_rect(r.session(), kind);
 
     // Titles shown: the first body row is one cell under the pane's top.
@@ -1810,13 +1810,13 @@ TEST_CASE("the keys the hotkeys guide gives to type are keys no pane on the desk
     PaneRig r;
     r.mount_workshop();
     load::LoadPlan plan;
-    for (const auto& [stem, office] : std::vector<std::pair<std::string, std::string>>{
+    for (const auto& [stem, role] : std::vector<std::pair<std::string, std::string>>{
              {"zengine-desktop-pane", "zengine.desktop"},
              {"zengine-flow-pane", "zengine.flow"},
              {"zengine-info-pane", "zengine.info"}}) {
         load::ArtifactIntent artifact;
         artifact.stem = stem;
-        artifact.weave = load::WeaveIntent{office};
+        artifact.weave = load::WeaveIntent{role};
         plan.artifacts.push_back(artifact);
     }
     const load::Executed loaded = r.run_plan(plan);

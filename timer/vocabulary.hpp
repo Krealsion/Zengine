@@ -313,7 +313,7 @@ inline constexpr const char* kTimerRole = "zengine.timer";
 /// unseen, and the one turn a second an idle host keeps.
 inline constexpr std::int64_t kBeatCapMs = 1000;
 
-/// How long the bus may rest, as the Timer claims it as its office at every beat that fired what
+/// How long the bus may rest, as the Timer claims it as its role at every beat that fired what
 /// was due: until `until_ms`, a reading of the Timer's own monotonic clock -- the soonest deadline,
 /// or `kBeatCapMs` from that beat when nothing is due sooner -- with `serial` the beat it queued
 /// behind it. A latest claim, not a message: a host reads it between turns and rests only while

@@ -4,6 +4,7 @@
 #define ZENGINE_INVENTORY_PANE_CLIENT_HPP
 #include "inventory/vocabulary.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_menu.hpp"
 #include <zen/weave.hpp>
 #include <zen/weave/role_request.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
@@ -29,7 +30,7 @@ public:
 
     bool busy() const { return phase != Phase::idle; }
     template<class RequestType>
-    bool begin(RequestType request, std::string pane, const char* office, loom::Mail& mail, std::uint64_t& asks, std::uint64_t gesture_override = 0) {
+    bool begin(RequestType request, std::string pane, const char* role, loom::Mail& mail, std::uint64_t& asks, std::uint64_t gesture_override = 0) {
         if (busy()) { notice = "An inventory operation is still pending"; return false; }
         request_ = std::move(request);
         gesture = gesture_override ? gesture_override : mail.correlation();
@@ -38,7 +39,7 @@ public:
         result.reset(); folder_result.reset();
         notice = "Checking this operation's authority";
         phase = Phase::authorizing;
-        const bool queued = pending_.send_to_role(mail.as_role(office), "zengine.workshop",
+        const bool queued = pending_.send_to_role(mail.as_role(role), zengine::workshop::pane_menu::kWorkshopRole,
             workshop::PaneOperationRequested{
             std::move(pane), kInventoryRole, RequestType::zen_name, RequestType::zen_version, static_cast<std::int64_t>(gesture)},
             permission_correlation);

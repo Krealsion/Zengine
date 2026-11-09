@@ -39,7 +39,7 @@ namespace {
 
 namespace pane = zengine::editor_pane;
 
-/// The office and pane a saved setup names, spelled through the package's own header -- the
+/// The role and pane a saved setup names, spelled through the package's own header -- the
 /// durable names, not literals, so a case cannot agree with a typo.
 inline PaneRef editor_ref() { return PaneRef{pane::kEditorPaneRole, pane::kEditorPane}; }
 
@@ -420,7 +420,7 @@ struct EditorRig {
         r.bus.drain_until_idle();
     }
 
-    /// THE STAND-IN WINDOW GIVES THE AREA ITS ROOM AGAIN, to the Editor holding the office now --
+    /// THE STAND-IN WINDOW GIVES THE AREA ITS ROOM AGAIN, to the Editor holding the role now --
     /// a new incarnation, which asked its room of the desk's own window.
     void reseat_slow_window() {
         REQUIRE(slow_window != nullptr);
@@ -437,10 +437,10 @@ struct EditorRig {
         slow_window->answer_paste(queued);
     }
 
-    /// The party that stands in for Files and the Builder: an office that asks the two doors
+    /// The party that stands in for Files and the Builder: a role that asks the two doors
     /// and reads their answers.
     void mount_asker() {
-        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerRole));
         asker = held.get();
         loom::Grant grant;
         grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
@@ -459,7 +459,7 @@ struct EditorRig {
         grant.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
         grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
         const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant),
-                                                      std::string(kDoorAskerOffice));
+                                                      std::string(kDoorAskerRole));
         asker->zen_set_self(id);
         asker->id = id;
     }
@@ -472,8 +472,8 @@ struct EditorRig {
     }
 
     /// ASK THE MANAGED DOOR TO OPEN ONE PATH -- what a Return on a source row in Files crosses
-    /// as -- and hand back what it answered. The door is the opening manager's office; the
-    /// Editor's own office is the direct, presentation-less door.
+    /// as -- and hand back what it answered. The door is the opening manager's role; the
+    /// Editor's own role is the direct, presentation-less door.
     SourceOpened ask_open(const std::string& path) {
         const std::size_t before = asker->opens.size();
         asker_says([path](DoorAsker& a, loom::Mail& mail) {
@@ -868,28 +868,28 @@ struct SecondPane {
     std::int64_t kind = kNoPaneKind;
 };
 inline SecondPane second_pane(EditorRig& e) {
-    if (e.r.session().panes.runtime.find(kOtherOffice, "other") == nullptr) {
-        ProviderSeat* seat = e.r.mount_provider(kOtherOffice);
+    if (e.r.session().panes.runtime.find(kOtherRole, "other") == nullptr) {
+        ProviderSeat* seat = e.r.mount_provider(kOtherRole);
         e.r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
         });
     }
-    const RuntimePane* row = e.r.session().panes.runtime.find(kOtherOffice, "other");
+    const RuntimePane* row = e.r.session().panes.runtime.find(kOtherRole, "other");
     REQUIRE(row != nullptr);
-    return SecondPane{PaneRef{kOtherOffice, "other"}, row->kind};
+    return SecondPane{PaneRef{kOtherRole, "other"}, row->kind};
 }
 
-TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
-    SUBCASE("a graphics window that shows the office's area shows an Editor Workshop seats "
+TEST_CASE("the Editor is an ordinary arranged pane, offered by a role") {
+    SUBCASE("a graphics window that shows the role's area shows an Editor Workshop seats "
             "nowhere, composed for the window's room, and Workshop is told none of it") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* office = pane::kEditorPaneRole;
-        const std::string area = pane_area(office, pane::kEditorPane);
+        const char* role = pane::kEditorPaneRole;
+        const std::string area = pane_area(role, pane::kEditorPane);
         std::size_t to_workshop = 0; // outlives the rig, whose bus the tap is on
         EditorRig u("edit-offer-window");
         const loom::ObserverId tap = u.r.bus.add_observer([&](const loom::BusEvent& ev) {
-            if (ev.authored_role == office && ev.kind == loom::EventKind::Delivered &&
+            if (ev.authored_role == role && ev.kind == loom::EventKind::Delivered &&
                 ev.schema_name == gfx::Drawn::zen_name && ev.addressed_role == kWorkshopProvider) {
                 ++to_workshop;
             }
@@ -897,9 +897,9 @@ TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
         RoomAsks directory(u.r.bus);
         u.open(160, 48, /*pick_it=*/false);
         REQUIRE_FALSE(u.r.session().panes.has(u.kind));
-        CHECK(directory.times(area, office) == 1);
+        CHECK(directory.times(area, role) == 1);
         pw::Window window(u.r.bus);
-        window.room(area, office, 30, 6);
+        window.room(area, role, 30, 6);
         REQUIRE(window.weave().heard.size() == 1);
         const gfx::Drawn& first = window.weave().heard[0];
         CHECK(first.whole);
@@ -922,7 +922,7 @@ TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
         CHECK(to_workshop == 0);
         u.r.bus.remove_observer(tap);
     }
-    // The Editor's row arrives the way every loaded pane's does: an offer from an office,
+    // The Editor's row arrives the way every loaded pane's does: an offer from a role,
     // admitted into the runtime catalog, launched, seated in the stack.
     EditorRig e("edit-offer");
     e.open();
@@ -1213,14 +1213,14 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     CHECK(e.doc_row(0) == "held");
 }
 
-TEST_CASE("a reveal from an office that offered no such pane is dropped") {
+TEST_CASE("a reveal from a role that offered no such pane is dropped") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_editor.md#reveal-seats-by-name):
     // `on(PaneRevealRequested)` seating by NAME rather than by the offer's row.
     EditorRig e("edit-stray-reveal");
     e.open(160, 48, /*pick_it=*/false);
     const std::string notice = e.r.session().notice;
     e.asker_says([](DoorAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kDoorAskerOffice)
+        (void)mail.as_role(kDoorAskerRole)
             .send_to_role(kWorkshopProvider, PaneRevealRequested{pane::kEditorPane});
     });
     CHECK_FALSE(e.r.session().panes.has(e.kind));
@@ -1743,7 +1743,7 @@ TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host'
     e.type("x");
     REQUIRE(e.dirty());
     e.asker_says([](DoorAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kDoorAskerOffice)
+        (void)mail.as_role(kDoorAskerRole)
             .send_to_role(kWorkshopProvider, PaneQuitAnswered{pane::kEditorPane, true, ""});
     });
     CHECK_FALSE(e.r.host.quit);
@@ -1756,7 +1756,7 @@ TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host'
     e.unfocus();
     e.enqueue_key(input::scan::kQ);
     e.asker->next = [](DoorAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kDoorAskerOffice)
+        (void)mail.as_role(kDoorAskerRole)
             .send_to_role(kWorkshopProvider, PaneQuitAnswered{pane::kEditorPane, true, ""});
     };
     (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
@@ -1877,13 +1877,13 @@ TEST_CASE("in a graphics window that gives the Editor its pointer, a press there
           "its number and its release sweep a selection as on Workshop's canvas, and a hold the "
           "window ends is the press lost") {
     namespace pw = zengine::testing::pane_window;
-    const char* office = pane::kEditorPaneRole;
-        const std::string area = pane_area(office, pane::kEditorPane);
+    const char* role = pane::kEditorPaneRole;
+        const std::string area = pane_area(role, pane::kEditorPane);
     EditorRig w("edit-window-sweep");
     w.open();
     (void)w.open_file("w.cpp", "one\ntwo\nthree\n");
     pw::Window window(w.r.bus);
-    window.room(area, office, 40, 10);
+    window.room(area, role, 40, 10);
     const std::int64_t first = w.chrome();
     // PRESSED ON THE FIRST LINE, MOVED TO THE SECOND'S THIRD COLUMN: swept from where it pressed.
     const std::uint64_t n = window.next_press();
@@ -1909,19 +1909,19 @@ TEST_CASE("in a graphics window that gives the Editor its pointer, a press there
 }
 
 TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by its number, wherever the window stands") {
-    SUBCASE("a graphics window that shows the office's area is drawn the rows Workshop is told, "
+    SUBCASE("a graphics window that shows the role's area is drawn the rows Workshop is told, "
             "named alike: whole first, then what changed; a press on a line there puts the caret "
             "on it; a refused change is followed once by the whole, a refused whole by nothing "
             "until the rows change") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* office = pane::kEditorPaneRole;
-        const std::string area = pane_area(office, pane::kEditorPane);
+        const char* role = pane::kEditorPaneRole;
+        const std::string area = pane_area(role, pane::kEditorPane);
         EditorRig w("edit-names-window");
         RoomAsks directory(w.r.bus);
         w.open();
-        // THE ROOM IS ASKED ONCE, on the activation, as the office.
-        CHECK(directory.times(area, office) == 1);
+        // THE ROOM IS ASKED ONCE, on the activation, as the role.
+        CHECK(directory.times(area, role) == 1);
         (void)w.open_file("w.cpp", "one\ntwo\nthree\n");
         pw::Window window(w.r.bus);
         pw::PaneWindow& seen = window.weave();
@@ -1932,7 +1932,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
             }
             return nullptr;
         };
-        window.room(area, office, 40, 10);
+        window.room(area, role, 40, 10);
         REQUIRE(seen.heard.size() == 1);
         CHECK(seen.heard[0].whole);
         CHECK(seen.refusals.empty());
@@ -2012,7 +2012,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
         seen.refuse_next = true;
         mark = seen.heard.size();
-        window.room(area, office, 40, 10, 2); // the window started again, holding nothing
+        window.room(area, role, 40, 10, 2); // the window started again, holding nothing
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK(seen.heard[mark].whole);
         CHECK(seen.refusals.size() == 2);
@@ -2036,7 +2036,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         CHECK(seen.strangers == 0);
 
         // A WINDOW SHORTER THAN THE ROWS WORKSHOP IS TOLD is drawn as many of them as it holds.
-        window.room(area, office, 40, 3, 3);
+        window.room(area, role, 40, 3, 3);
         const gfx::window::WinArea* held = seen.find(area);
         REQUIRE(held != nullptr);
         std::size_t texts = 0;
@@ -2080,7 +2080,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
 
 TEST_CASE("^c copies, does not quit, and the copy reaches the platform clipboard") {
     EditorRig e("edit-copy");
-    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
+    e.r.on_gui_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one two\n");
     e.press_doc(0, 0);
@@ -2142,7 +2142,7 @@ TEST_CASE("an empty Editor pane takes the keys and does nothing with them") {
 
 TEST_CASE("copy here, paste there -- multiline, through the medium's own answer") {
     EditorRig e("edit-paste");
-    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
+    e.r.on_gui_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
     e.press_doc(0, 0);
@@ -2223,7 +2223,7 @@ TEST_CASE("a paste still arriving refuses another source, and its answer lands w
 TEST_CASE("a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused "
           "with a sentence") {
     EditorRig e("edit-ascii");
-    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
+    e.r.on_gui_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);
@@ -2658,7 +2658,7 @@ TEST_CASE("the editor this host used to compile is named by no presentation sour
                           forbidden, "'");
         }
     }
-    // ...AND THE HOST'S ONE MENTION OF THE OFFICE IS THE CONVERSION TABLE, where a retired
+    // ...AND THE HOST'S ONE MENTION OF THE ROLE IS THE CONVERSION TABLE, where a retired
     // spelling written in a saved desk is turned into the weave's own -- not a route.
     CHECK(std::string(pane_migration::kEditorProvider) == pane::kEditorPaneRole);
     CHECK(std::string(pane_migration::kEditorPane) == pane::kEditorPane);
@@ -3122,7 +3122,7 @@ TEST_CASE("an opening in flight is a candidate and never a second document") {
 
     SUBCASE("a settlement forged by a stranger, or one for a flight that already ended, decides nothing") {
         // What a stranger might forge is the manager's `ManagedOpenSettled` -- which both owners
-        // take only from the manager's office -- or an answer to the manager, which Loom's
+        // take only from the manager's role -- or an answer to the manager, which Loom's
         // provenance says answers nothing it asked.
         EditorRig e("edit-open-stale");
         e.open();
@@ -3133,16 +3133,16 @@ TEST_CASE("an opening in flight is a candidate and never a second document") {
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
         e.asker_says([op, b_path](DoorAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kDoorAskerOffice)
+            (void)mail.as_role(kDoorAskerRole)
                 .send_to_role(pane::kEditorPaneRole,
                               ManagedOpenSettled{op + 1, true, true, std::string(), b_path});
-            (void)mail.as_role(kDoorAskerOffice)
+            (void)mail.as_role(kDoorAskerRole)
                 .send_to_role(kWorkshopProvider,
                               ManagedOpenSettled{op + 1, false, false, "forged refusal", b_path});
             v3::SourcePrepared forged;
             forged.op = op + 1;
             forged.ok = true;
-            (void)mail.as_role(kDoorAskerOffice).send_to_role(kOpeningRole, forged);
+            (void)mail.as_role(kDoorAskerRole).send_to_role(kOpeningRole, forged);
         });
         CHECK(e.doc_row(0) == "one");
         CHECK(e.read("path") == a_path);
@@ -3524,7 +3524,7 @@ TEST_CASE("an acquisition outstanding across the pane's removal still settles, a
     const std::size_t before = e.asker->opens.size();
     e.enqueue_open(b_path);
     REQUIRE(e.r.bus.pump_pending() == 1); // the request is queued
-    // THE REMOVAL, QUEUED BEHIND THE REQUEST: the close door, as an office asks it. Nothing
+    // THE REMOVAL, QUEUED BEHIND THE REQUEST: the close door, as a role asks it. Nothing
     // drains.
     enqueue_close(e.r, editor_ref());
     // ONE TURN: the manager binds the Editor and the desk and asks for a trial; then the
@@ -3556,14 +3556,14 @@ TEST_CASE("an acquisition outstanding across the pane's removal still settles, a
     CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.doc_row(0) == "two");
 
-    // ...AND A SETTLEMENT FOR A FLIGHT THAT ALREADY ENDED MOVES NOTHING. The office may forge
-    // one; both owners take it from the manager's office alone.
+    // ...AND A SETTLEMENT FOR A FLIGHT THAT ALREADY ENDED MOVES NOTHING. The role may forge
+    // one; both owners take it from the manager's role alone.
     const std::string text_before = e.read("text");
     const std::int64_t op = std::stoll(e.read("opened_by"));
     e.asker_says([op, a_path](DoorAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kDoorAskerOffice)
+        (void)mail.as_role(kDoorAskerRole)
             .send_to_role(pane::kEditorPaneRole, ManagedOpenSettled{op, false, false, "forged", a_path});
-        (void)mail.as_role(kDoorAskerOffice)
+        (void)mail.as_role(kDoorAskerRole)
             .send_to_role(kWorkshopProvider, ManagedOpenSettled{op, false, false, "forged", a_path});
     });
     CHECK(e.read("text") == text_before);
@@ -4265,7 +4265,7 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
         const std::string op = e.read_opening("op");
         CHECK(op != "0");
         CHECK(e.r.bus.joint_pending() == 1);
-        // ...AND ON THE DESK: a standing condition names the office it waits on.
+        // ...AND ON THE DESK: a standing condition names the role it waits on.
         const Condition* pending = e.r.session().conditions.find("opening:" + op);
         REQUIRE(pending != nullptr);
         CHECK(pending->detail.find(kEditorRole) != std::string::npos);
@@ -4384,7 +4384,7 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
             cancelled_by_stranger = mail.cancel_joint(loom::JointAuthority{}, op);
             // ...AND FORGED ANSWERS: an admission with the right operation number but no ask
             // behind it, and a dispatch refusal with the right attempt spelled as speech.
-            (void)mail.as_role(kDoorAskerOffice)
+            (void)mail.as_role(kDoorAskerRole)
                 .send_to_role(kOpeningRole, PresentationAdmitted{static_cast<std::int64_t>(op),
                                                                  false, "forged"});
             loom::DispatchRefused forged;
@@ -4393,7 +4393,7 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
             forged.shape = v3::PresentationAdmitRequested::zen_name;
             forged.version = v3::PresentationAdmitRequested::zen_version;
             forged.reason = "NoSuchTarget";
-            (void)mail.as_role(kDoorAskerOffice).send_to_role(kOpeningRole, forged);
+            (void)mail.as_role(kDoorAskerRole).send_to_role(kOpeningRole, forged);
         };
         (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                       loom::WeaveId{}, 0));
@@ -4567,7 +4567,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         CHECK(e.doc_row(0) == "oneSTRAY");
         CHECK(e.dirty());
     }
-    SUBCASE("no opening office is held: the relay's attempt is refused at dispatch, and the requester is told by that attempt -- never a document-only success") {
+    SUBCASE("no opening role is held: the relay's attempt is refused at dispatch, and the requester is told by that attempt -- never a document-only success") {
         EditorRig e("edit-old-door-no-manager");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/false, EditorRig::Project::kDoor,
                /*with_manager=*/false);
@@ -4583,7 +4583,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
     }
     SUBCASE("a relay that cannot be authored is refused at once, in words: nothing was queued") {
         // THE ONE IMMEDIATE ENQUEUE FAILURE THE RELAY CAN MEET: the Editor speaks to the
-        // opening office AS its own office, and an image loaded under a different role cannot
+        // opening role AS its own role, and an image loaded under a different role cannot
         // author that -- Loom refuses the authorship at the enqueue (RoleAuthorshipDenied),
         // no attempt exists, and the Editor answers the requester now rather than installing
         // a document in the presentation's place.
@@ -4593,7 +4593,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         const std::string a_path = spelled(e.root / "a.cpp");
         const std::size_t before = e.asker->opens.size();
         e.asker_says([&e, a_path](DoorAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kDoorAskerOffice).send(e.image, OpenSourceRequested{a_path});
+            (void)mail.as_role(kDoorAskerRole).send(e.image, OpenSourceRequested{a_path});
         });
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
@@ -4604,14 +4604,14 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         CHECK(e.opening().stage == "idle"); // the manager never heard of it
         CHECK(e.opening().refused == 0);
     }
-    SUBCASE("the opening office may not ask the old door: the loop is refused by name") {
+    SUBCASE("the opening role may not ask the old door: the loop is refused by name") {
         EditorRig e("edit-old-door-loop");
         e.open();
         put_bytes(e.root / "a.cpp", "one\n");
         const std::string a_path = spelled(e.root / "a.cpp");
-        // A stranger holding the opening office's spelling cannot author as it; the real
+        // A stranger holding the opening role's spelling cannot author as it; the real
         // manager can, and the Editor refuses exactly that authorship at its public door.
-        // Said through the manager's own office by a seat that holds it in the manager's
+        // Said through the manager's own role by a seat that holds it in the manager's
         // place: the manager is removed, and the asker takes the role.
         REQUIRE(e.r.bus.unregister_weave(e.r.opening_id) != nullptr);
         e.r.opening = nullptr;
@@ -4804,7 +4804,7 @@ struct CoordinatorState {
     ZEN_SHAPE(CoordinatorState, 1, ZEN_FIELD(n));
 };
 
-/// AN OPERATOR IN THE OPENING OFFICE THAT ARRANGES THE DESK'S HALF ALONE -- a trial, an
+/// AN OPERATOR IN THE OPENING ROLE THAT ARRANGES THE DESK'S HALF ALONE -- a trial, an
 /// admission with one row -- then tells the desk the operation did NOT commit (the desk drops
 /// its trial, as it must), and only THEN commits the publication the desk had offered. The
 /// real desk is shown a presentation it no longer holds a trial for: the fallback branch of
@@ -4884,7 +4884,7 @@ public:
     std::vector<loom::JointStatus> applied_status;
 };
 
-/// A FACT NOBODY IN THE OPENING KNOWS, and two owners of it in offices of their own.
+/// A FACT NOBODY IN THE OPENING KNOWS, and two owners of it in roles of their own.
 struct TestFact {
     std::string v;
     ZEN_SHAPE(TestFact, 1, ZEN_FIELD(v));
@@ -4962,8 +4962,8 @@ TEST_CASE("the real desk, shown a presentation it holds no trial for, answers th
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/false);
     REQUIRE_FALSE(e.r.session().panes.has(e.kind));
-    // THE INSTRUMENT, IN THE OPENING OFFICE, with the grants the host gives the manager for
-    // exactly this conversation and an authority over the desk's office alone.
+    // THE INSTRUMENT, IN THE OPENING ROLE, with the grants the host gives the manager for
+    // exactly this conversation and an authority over the desk's role alone.
     auto seat = std::make_unique<DeskOnlyOperator>();
     DeskOnlyOperator* op = seat.get();
     op->pane = editor_ref();
@@ -5264,9 +5264,9 @@ struct QuitSeatState {
     ZEN_SHAPE(QuitSeatState, 1, ZEN_FIELD(asked));
 };
 
-/// A PARTICIPANT IN THE QUIT AND IN NOTHING ELSE (test instrumentation): an office that offers
+/// A PARTICIPANT IN THE QUIT AND IN NOTHING ELSE (test instrumentation): a role that offers
 /// no pane, so nothing of it is on the desk, and accepts the quit question from Workshop's
-/// office. It permits at once, refuses the way a pane holding work does, keeps each answer right
+/// role. It permits at once, refuses the way a pane holding work does, keeps each answer right
 /// until a case releases it, or stays silent -- as the case sets it.
 class QuitSeat : public loom::WeaveBase<QuitSeat, QuitSeatState,
                                         loom::Accept<PaneQuitRequested, SeatDo>,
@@ -5319,7 +5319,7 @@ public:
     }
 };
 
-inline constexpr const char* kQuitForgerOffice = "zengine.test.quit-forger";
+inline constexpr const char* kQuitForgerRole = "zengine.test.quit-forger";
 
 /// A CASE'S OWN TAP, removed when the case leaves by any exit -- a REQUIRE's included -- before
 /// the locals it counts into are gone.
@@ -5332,15 +5332,15 @@ struct RemovedTap {
     RemovedTap& operator=(const RemovedTap&) = delete;
 };
 
-/// A QUIT PARTICIPANT in an office of its own, granted its answer and nothing else.
-inline QuitSeat* mount_quit_seat(PaneRig& r, const char* office, QuitSeat::Mode mode,
+/// A QUIT PARTICIPANT in a role of its own, granted its answer and nothing else.
+inline QuitSeat* mount_quit_seat(PaneRig& r, const char* role, QuitSeat::Mode mode,
                                  loom::WeaveId& id) {
     auto seat = std::make_unique<QuitSeat>();
     QuitSeat* raw = seat.get();
     raw->mode = mode;
     loom::Grant grant;
     grant.allow_to_any(PaneQuitAnswered::zen_name, PaneQuitAnswered::zen_version);
-    id = r.bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+    id = r.bus.register_weave(std::move(seat), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     return raw;
 }
@@ -5371,16 +5371,16 @@ inline void wake_workshop(EditorRig& e) {
     e.settle();
 }
 
-/// What Workshop says of one participant it could not ask: office, weave, meaning, Loom's reason.
-inline std::string could_not_ask(const std::string& office, loom::WeaveId id,
+/// What Workshop says of one participant it could not ask: role, weave, meaning, Loom's reason.
+inline std::string could_not_ask(const std::string& role, loom::WeaveId id,
                                  const char* meaning, const char* reason) {
-    return office + " (weave " + std::to_string(id.value) + ") -- " + meaning + " (" + reason +
+    return role + " (weave " + std::to_string(id.value) + ") -- " + meaning + " (" + reason +
            ")";
 }
 
 } // namespace
 
-TEST_CASE("a quit the held Editor cannot be asked is refused at once in its office's words, the weaver's keys and the repair work, and a quit after the reload ends the run") {
+TEST_CASE("a quit the held Editor cannot be asked is refused at once in its role's words, the weaver's keys and the repair work, and a quit after the reload ends the run") {
     // Loom holds the real Editor behind a publication its image could not apply, so the quit
     // question's delivery to it is refused and no answer can come. The refusal ends the quit: said
     // at once, the process and the Editor's document untouched, the keys the weaver's again, and
@@ -5461,7 +5461,7 @@ TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are rep
                   e.r.session().notice);
 }
 
-TEST_CASE("a participant with no pane on the desk that stops running after the quit is asked refuses it by office and reason, and another participant's owed answer is not waited for") {
+TEST_CASE("a participant with no pane on the desk that stops running after the quit is asked refuses it by role and reason, and another participant's owed answer is not waited for") {
     // NOT AN EDITOR-NAME CHECK AND NOT A DESK CHECK. Two participants show nothing: one owes its
     // answer and never gives it, and one is killed after the question to it is queued and before
     // it is delivered -- a real lifecycle change, so Loom refuses that delivery
@@ -5535,7 +5535,7 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     forge.allow_to_any(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version);
     const loom::WeaveId forger_id = e.r.bus.register_weave(std::move(forger_seat),
                                                            std::move(forge),
-                                                           std::string(kQuitForgerOffice));
+                                                           std::string(kQuitForgerRole));
     forger->zen_set_self(forger_id);
     const auto forge_next = [&e, forger, forger_id](std::function<void(loom::Mail&)> what) {
         forger->next = std::move(what);
@@ -5571,7 +5571,7 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     })};
     // 1. A FORGED WAKE-UP, with nothing in the book.
     forge_next([workshop](loom::Mail& mail) {
-        (void)mail.as_role(kQuitForgerOffice).send(workshop, QuitDeliveryRefusalNoted{});
+        (void)mail.as_role(kQuitForgerRole).send(workshop, QuitDeliveryRefusalNoted{});
     });
     e.settle();
     CHECK(e.r.host.undelivered_quits.empty());
@@ -5580,7 +5580,7 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     // 2. A STRANGER'S QUIT QUESTION, numbered as the live ask, refused at a participant killed
     // before it arrived.
     forge_next([live](loom::Mail& mail) {
-        (void)mail.as_role(kQuitForgerOffice).publish(PaneQuitRequested{}, live);
+        (void)mail.as_role(kQuitForgerRole).publish(PaneQuitRequested{}, live);
     });
     (void)e.r.bus.pump_pending(); // the stranger publishes: its questions are queued
     e.r.bus.kill(other_id);
@@ -5592,7 +5592,7 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     // 3. WORKSHOP'S OWN ANSWER OF ANOTHER SHAPE, echoing the live ask's number: the stranger asks
     // the inventory door with it, and does not take the answer, so Loom refuses Workshop's reply.
     forge_next([workshop, live](loom::Mail& mail) {
-        (void)mail.as_role(kQuitForgerOffice).send(workshop, PaneInventoryRequested{}, live);
+        (void)mail.as_role(kQuitForgerRole).send(workshop, PaneInventoryRequested{}, live);
     });
     e.settle();
     CHECK(echoed_answer_refused == 1);
@@ -5602,8 +5602,8 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     CHECK_FALSE(e.r.host.quit);
 }
 
-TEST_CASE("a Workshop that does not hold its office says so and starts no quit, and the refusal Loom records for that authorship is not made a participant's") {
-    // THE QUESTION WAS NEVER ASKED, so there is no quit to refuse. Loom refuses the office
+TEST_CASE("a Workshop that does not hold its role says so and starts no quit, and the refusal Loom records for that authorship is not made a participant's") {
+    // THE QUESTION WAS NEVER ASKED, so there is no quit to refuse. Loom refuses the role
     // publication at its authorship and records that refusal on the tap, under this Workshop's
     // stamp and the quit's own number -- the host's watch writes it down like any other, and
     // Workshop, not quitting, discards it and keeps its own sentence.
@@ -5613,7 +5613,7 @@ TEST_CASE("a Workshop that does not hold its office says so and starts no quit, 
     loom::Grant speak;
     speak.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
-    r.workshop_id = r.bus.register_weave(std::move(weave), std::move(speak)); // no office
+    r.workshop_id = r.bus.register_weave(std::move(weave), std::move(speak)); // no role
     r.w->zen_set_self(r.workshop_id);
     r.quit_watch = std::make_unique<QuitDeliveryWatch>(r.bus, r.workshop_id, r.host.undelivered_quits);
     loom::WeaveId seat_id{};
@@ -5635,7 +5635,7 @@ TEST_CASE("a Workshop that does not hold its office says so and starts no quit, 
     CHECK_FALSE(r.host.quit);
     CHECK(r.host.undelivered_quits.empty()); // written, woken, and discarded
     CHECK(r.session().notice == "Workshop could not ask its panes whether they hold unsaved work "
-                                "-- it does not hold its own office; Workshop stays open");
+                                "-- it does not hold its own role; Workshop stays open");
 }
 
 TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot decrement, refuse or complete the quit asked after it") {
@@ -5771,7 +5771,7 @@ TEST_CASE("the shipped host mounts the quit watch from Workshop's own mount, aft
     CHECK(context < bus);
     CHECK(bus < mount);
     CHECK(mount < watch);
-    CHECK(host.find("mount_in_office<WorkshopWeave>(", mount) < watch);
+    CHECK(host.find("mount_in_role<WorkshopWeave>(", mount) < watch);
 }
 
 // ============================================================================
@@ -5932,7 +5932,7 @@ TEST_CASE("measurement -- what the managed open retains and how many turns it ta
 }
 
 // ============================================================================
-// THE OFFICE'S CENSUS AND ITS MANUAL: both holders of `zengine.editor`
+// THE ROLE'S CENSUS AND ITS MANUAL: both holders of `zengine.editor`
 // ============================================================================
 
 namespace {
@@ -5948,7 +5948,7 @@ void neovim_beat(EditorRig& e) {
     e.r.bus.drain_until_idle();
 }
 
-/// THE NEOVIM-BACKED EDITOR HOLDING THE EDITOR'S OFFICE, on the fake Neovim whose module says it is
+/// THE NEOVIM-BACKED EDITOR HOLDING THE EDITOR'S ROLE, on the fake Neovim whose module says it is
 /// in Visual mode: started, ready, and declaring every row it has, `neovim.extract` among them.
 /// The case's `NeovimEnvironment` names the fake and its `visual` mode.
 void open_neovim_selecting(EditorRig& e) {
@@ -5968,10 +5968,10 @@ void open_neovim_selecting(EditorRig& e) {
     }
 }
 
-/// THE EDITOR'S CENSUS, one office with two holders: the standard Editor's rows, then the
+/// THE EDITOR'S CENSUS, one role with two holders: the standard Editor's rows, then the
 /// Neovim-backed Editor's, each in the one mode its pane has.
 const CensusDriverOf kEditorCensus{pane::kEditorPaneRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     {
         EditorRig e("edit-census");
         e.open();
@@ -6022,9 +6022,9 @@ ZEN_PRESS_WITNESS_CASE(pane::kEditorPaneRole, 0, "the Editor's rows")
 
 } // namespace
 
-TEST_CASE("the manual the standard Editor answers is the office's page, naming exactly the commands "
-          "both holders of the office declare") {
-    // EVERY ID EITHER HOLDER DECLARES: the page is the office's, so it is held to both.
+TEST_CASE("the manual the standard Editor answers is the role's page, naming exactly the commands "
+          "both holders of the role declare") {
+    // EVERY ID EITHER HOLDER DECLARES: the page is the role's, so it is held to both.
     std::set<std::string> declared;
     {
         EditorRig other("edit-manual-neovim");
@@ -6037,7 +6037,7 @@ TEST_CASE("the manual the standard Editor answers is the office's page, naming e
     for (const v4::PaneActionRow& a : e.row()->actions) declared.insert(a.id);
     ManualReader reader(e.r, pane::kEditorPaneRole);
     check_answered_manual(reader, pane::kEditorPane, declared);
-    // ...AND A PANE THE OFFICE DOES NOT OFFER IS REFUSED, naming it.
+    // ...AND A PANE THE ROLE DOES NOT OFFER IS REFUSED, naming it.
     const PaneDocumentShown other = reader.ask("elsewhere", "");
     CHECK(other.refusal == "zengine.editor offers no pane `elsewhere`");
     CHECK(other.sections.empty());

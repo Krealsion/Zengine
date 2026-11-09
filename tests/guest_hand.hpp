@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_TESTS_GUEST_HAND_HPP
 #define ZENGINE_TESTS_GUEST_HAND_HPP
-// A GUEST'S HAND AND THE WEAVER'S, IN ANY LIVE WORKSHOP RIG: the real Input weave in its office, a
+// A GUEST'S HAND AND THE WEAVER'S, IN ANY LIVE WORKSHOP RIG: the real Input weave in its role, a
 // participant that opens an input session and injects through it, the host seam answering that
 // participant as a row a guest door admitted -- its name, powers and version -- on the host a case
 // chooses, and the weaver's own attributed moments beside it. A case on what a guest's hand may do

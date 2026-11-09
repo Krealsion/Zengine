@@ -83,7 +83,8 @@ self-test before they answer:
   where the text belongs.
 - **`code_values`** (`tests/check_code_values.cmake`) — every value `tests/code_values.txt`
   registers is read from its owner: no marker out of step, no known value copied unmarked, no
-  test count naming no commit and command.
+  role's name spelled in a part's code past its home and its registered copies, no test count
+  naming no commit and command.
 - **`folder_map`** (`tests/check_folder_map.cmake`) — `tests/folders.txt` names every top-level
   folder and its kind; every feature, the host and every library holds a `README.md` and an
   `AGENTS.md` router within the router budget; every file under `agents/` but the decision records

@@ -194,7 +194,7 @@
         "InputInjected v1",
         "InputSessionClosed v1",
         "DeskReadRequested v3",
-        "DeskRead v3"
+        "DeskRead v4"
       ],
       "terms": [
         "capture",
@@ -227,7 +227,7 @@
           "name": "target_role",
           "type": "text",
           "default": "zengine.guests",
-          "help": "the office to ask zen.PokeDescribe of -- any role a woven Weave holds; the guest door (zengine.guests) is always present when a guests file admits this tool at all"
+          "help": "the role to ask zen.PokeDescribe of -- any role a woven Weave holds; the guest door (zengine.guests) is always present when a guests file admits this tool at all"
         }
       ],
       "outputs": [
@@ -281,7 +281,7 @@
           "name": "target_role",
           "type": "text",
           "default": "zengine.guests",
-          "help": "the office to ask zen.PokeDescribe of -- any role a woven Weave holds; the guest door (zengine.guests) is always present when a guests file admits this tool at all"
+          "help": "the role to ask zen.PokeDescribe of -- any role a woven Weave holds; the guest door (zengine.guests) is always present when a guests file admits this tool at all"
         },
         {
           "name": "label",
@@ -1078,7 +1078,7 @@
       "name": "act",
       "script": "act.py",
       "summary": "Act on Workshop through short named steps -- chords, text, presses on painted words, on the parts a pane names, on controls and menu lines -- and check each by what Workshop says it holds, without pictures.",
-      "description": "Use it for: pressing, typing and checking on Workshop's desk by names, each step checked by what Workshop says it holds, without pictures.\nSmallest run: workshop/act steps=[{\"press\":\"ctrl+p\"},{\"expect\":[\"zengine.desktop\",\"launcher\",\"PANES\"]}]\nFirst refusals: busy, when another run on this link holds the one input session (wait_for_input waits for it); a step naming no verb or two, before any contact; a press Workshop refuses, in its words.\n\nRuns a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), open (the pane whose Pane Manager row is named pane:<office>/<pane>: the Pane Manager put on the desk when it is not, the row brought into its window with Down and Up, then pressed where Workshop says its name is -- once to choose it where it is not chosen, once to open it -- until the desk says the pane is selected; a name no row carries fails with the names the list said), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it is the row a name names: the part the pane names so, as Info's property:Height, or, in a pane naming none, the row's text after a one- or two-column marker, up to a gap of two blanks where a value stands beside the name; bounded, and a name no row or several rows carry fails with the rows painted), part (press a part a pane names -- a row, a control, an element -- by its pane and its name, at the point Workshop gives it now, wherever the pane's last redraw put it; a name the pane does not draw fails with the names it does), carry (press a part by its name, or, in a pane naming no part so, by the one row whose text names it as select reads a row -- an Inventory entry named by an id no step knows ahead -- move by the Input owner's timed motion to another part's point or to a pane's middle, reckoned from its reading's place and text measure, and release there: a drag by names, the steps after it in the same run), into and click (press where Workshop paints a word holding some text, in a text pane or a canvas pane, found by PaneView version 7 and located by its PanePoint; into with no text presses the first word, a blank row at the point its word gives), at (press one cell of a pane's text lattice by its row and column, counted from 0 -- a text pane's painted cell, or the cell of the lattice a canvas pane sets its text on, a blank row's too -- reckoned from the reading's place and text measure); part, click and at take clicks 2, a double click in one call: the press and its release, then again a frame later, through this run's own input session, which the window counts as it counts the weaver's double click, as this run's hand, never the weaver's; rest (move the pointer to a window pixel or a terminal cell that says which cells it means, with no button held), wheel (one wheel moment of dy and dx notches -- dy 1 away from the weaver, -1 toward -- at the point Workshop gives a part a pane names, or at its first word where the step names no part; a text pane hears it as its wheel, a canvas pane as a canvas wheel), control (a visible [label], in a text or canvas pane), menu (press the line of the menu on the screen named so -- a row's id, as its presenter names it, or the action Workshop's own menu shows -- or, where no line is, the one line holding some text). Observations: desk (wait until Workshop's own numbers for a pane -- its state, rank, keys, place and size in canvas pixels -- or for the desk hold what the step names), expect and absent (wait until a pane paints, or stops painting, a word holding some text), rows (keep a pane's words and the parts it names), picture (keep a capture), wait (a pause). Settings: settings (one pane's row of the live layout, read by message -- its revision, what the pane's declaration takes with each setting's tags, pins and summary, what the row keeps and the desk's sentence -- and, given key=value, that value written at the revision just read in the field the declaration says it takes, on or off for a flag, then read back; key=- clears it; a refused write ends the run in Workshop's words). A pane's words are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. A name is the pane's: Workshop carries it as the pane said it. A part Workshop gives no point -- every place of it another part's, so no press reaches it on its own -- is never pressed: a step that would press one fails saying so. A step that presses a pane's word, part or cell (part, into, click, at, wheel, control) waits while its picture takes no press -- the one a managed opening shows, until its pane draws its own, whose words and parts Workshop says with no point -- reading the pane again; one still taking none when the step's seconds run out fails saying so. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent. What a press makes Workshop say is heard: before its first press the run follows Workshop's NoticeSaid, and each step keeps what its presses caused (caused in steps.json); a refusal among it ends the run naming the step's index and verb and Workshop's words, and nothing after it is pressed, while anything else Workshop says fails nothing. A gap or the end of what is heard over a press ends the run UNRESOLVED: whether Workshop refused it cannot be told, and a press after the end is not made. A row that may not hear it is pressed as before, and the answer says its refusals went unheard and why. A refusal Workshop says later, from work a press did not cause in its own delivery, is not heard.",
+      "description": "Use it for: pressing, typing and checking on Workshop's desk by names, each step checked by what Workshop says it holds, without pictures.\nSmallest run: workshop/act steps=[{\"press\":\"ctrl+p\"},{\"expect\":[\"zengine.desktop\",\"launcher\",\"PANES\"]}]\nFirst refusals: busy, when another run on this link holds the one input session (wait_for_input waits for it); a step naming no verb or two, before any contact; a press Workshop refuses, in its words.\n\nRuns a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), open (the pane whose Pane Manager row is named pane:<role>/<pane>: the Pane Manager put on the desk when it is not, the row brought into its window with Down and Up, then pressed where Workshop says its name is -- once to choose it where it is not chosen, once to open it -- until the desk says the pane is selected; a name no row carries fails with the names the list said), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it is the row a name names: the part the pane names so, as Info's property:Height, or, in a pane naming none, the row's text after a one- or two-column marker, up to a gap of two blanks where a value stands beside the name; bounded, and a name no row or several rows carry fails with the rows painted), part (press a part a pane names -- a row, a control, an element -- by its pane and its name, at the point Workshop gives it now, wherever the pane's last redraw put it; a name the pane does not draw fails with the names it does), carry (press a part by its name, or, in a pane naming no part so, by the one row whose text names it as select reads a row -- an Inventory entry named by an id no step knows ahead -- move by the Input owner's timed motion to another part's point or to a pane's middle, reckoned from its reading's place and text measure, and release there: a drag by names, the steps after it in the same run), into and click (press where Workshop paints a word holding some text, in a text pane or a canvas pane, found by PaneView version 7 and located by its PanePoint; into with no text presses the first word, a blank row at the point its word gives), at (press one cell of a pane's text lattice by its row and column, counted from 0 -- a text pane's painted cell, or the cell of the lattice a canvas pane sets its text on, a blank row's too -- reckoned from the reading's place and text measure); part, click and at take clicks 2, a double click in one call: the press and its release, then again a frame later, through this run's own input session, which the window counts as it counts the weaver's double click, as this run's hand, never the weaver's; rest (move the pointer to a window pixel or a terminal cell that says which cells it means, with no button held), wheel (one wheel moment of dy and dx notches -- dy 1 away from the weaver, -1 toward -- at the point Workshop gives a part a pane names, or at its first word where the step names no part; a text pane hears it as its wheel, a canvas pane as a canvas wheel), control (a visible [label], in a text or canvas pane), menu (press the line of the menu on the screen named so -- a row's id, as its presenter names it, or the action Workshop's own menu shows -- or, where no line is, the one line holding some text). Observations: desk (wait until Workshop's own numbers for a pane -- its state, rank, keys, place and size in canvas pixels -- or for the desk hold what the step names), expect and absent (wait until a pane paints, or stops painting, a word holding some text), rows (keep a pane's words and the parts it names), picture (keep a capture), wait (a pause). Settings: settings (one pane's row of the live layout, read by message -- its revision, what the pane's declaration takes with each setting's tags, pins and summary, what the row keeps and the desk's sentence -- and, given key=value, that value written at the revision just read in the field the declaration says it takes, on or off for a flag, then read back; key=- clears it; a refused write ends the run in Workshop's words). A pane's words are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. A name is the pane's: Workshop carries it as the pane said it. A part Workshop gives no point -- every place of it another part's, so no press reaches it on its own -- is never pressed: a step that would press one fails saying so. A step that presses a pane's word, part or cell (part, into, click, at, wheel, control) waits while its picture takes no press -- the one a managed opening shows, until its pane draws its own, whose words and parts Workshop says with no point -- reading the pane again; one still taking none when the step's seconds run out fails saying so. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent. What a press makes Workshop say is heard: before its first press the run follows Workshop's NoticeSaid, and each step keeps what its presses caused (caused in steps.json); a refusal among it ends the run naming the step's index and verb and Workshop's words, and nothing after it is pressed, while anything else Workshop says fails nothing. A gap or the end of what is heard over a press ends the run UNRESOLVED: whether Workshop refused it cannot be told, and a press after the end is not made. A row that may not hear it is pressed as before, and the answer says its refusals went unheard and why. A refusal Workshop says later, from work a press did not cause in its own delivery, is not heard.",
       "inputs": [
         {
           "name": "link",
@@ -1141,7 +1141,7 @@
         "PanePointRequested v4",
         "PanePoint v3",
         "DeskReadRequested v3",
-        "DeskRead v3",
+        "DeskRead v4",
         "SurfaceCaptureRequested v1",
         "SurfaceCaptured v1",
         "SurfaceCaptureChunkRequested v1",
@@ -1174,7 +1174,7 @@
       "name": "place",
       "script": "place.py",
       "summary": "Author where panes sit and how big they are, typing the numbers into Info's X, Y, Width and Height rows as a weaver would, and read each value back.",
-      "description": "For each pane, named by Info's row for it (pane:<office>/<pane>): press into Info, choose that row by its name, Return to make it the subject, Tab to its rows, and for each given field choose its row by name (property:Width), Return, clear, type, Return. Workshop writes the value through the desk's own door; the tool passes only when Info's AUTHORED row then shows it. Values use the face's unit: pixels in a window (\"120\" or \"120px\"), cells in a terminal. X and Y are one place, measured from the room's top-left (directly under the top band), so X is written first. The placement lands in the current layout and comes back with the next launch; Layouts `s` writes a Setup file.",
+      "description": "For each pane, named by Info's row for it (pane:<role>/<pane>): press into Info, choose that row by its name, Return to make it the subject, Tab to its rows, and for each given field choose its row by name (property:Width), Return, clear, type, Return. Workshop writes the value through the desk's own door; the tool passes only when Info's AUTHORED row then shows it. Values use the face's unit: pixels in a window (\"120\" or \"120px\"), cells in a terminal. X and Y are one place, measured from the room's top-left (directly under the top band), so X is written first. The placement lands in the current layout and comes back with the next launch; Layouts `s` writes a Setup file.",
       "inputs": [
         {
           "name": "link",
@@ -1186,7 +1186,7 @@
           "name": "panes",
           "type": "text",
           "default": "[]",
-          "help": "a JSON list of {\"pane\": Info's row for it, pane:<office>/<pane>, \"x\": .., \"y\": .., \"width\": .., \"height\": ..}; any field may be left out"
+          "help": "a JSON list of {\"pane\": Info's row for it, pane:<role>/<pane>, \"x\": .., \"y\": .., \"width\": .., \"height\": ..}; any field may be left out"
         }
       ],
       "outputs": [
@@ -1217,7 +1217,7 @@
         "PanePointRequested v4",
         "PanePoint v3",
         "DeskReadRequested v3",
-        "DeskRead v3"
+        "DeskRead v4"
       ],
       "terms": [
         "place",
@@ -1260,7 +1260,7 @@
           "name": "role",
           "type": "text",
           "default": "",
-          "help": "load-it: the role the artifact will hold (the office its source speaks as)"
+          "help": "load-it: the role the artifact will hold (the role its source speaks as)"
         },
         {
           "name": "seconds",
@@ -1348,8 +1348,8 @@
     {
       "name": "observe",
       "script": "observe.py",
-      "summary": "Follow what one office of a running Workshop publishes, for a while, and keep every word: what an owner says, numbered, with every loss said.",
-      "description": "Use it for: keeping every word one office of a running Workshop publishes, for a while, with every loss said.\nSmallest run: workshop/observe producer=zengine.builder shapes=BuildStatus@4 seconds=30\nFirst refusals: a shape the row's `observe` list does not name, in Workshop's words; a shape no participant declares, its application not loaded.\n\nSubscribes through the link to one office's publications of the named shapes (the guest's row must list them under `observe`; Workshop's relay refuses anything else in its own words), takes what it is told until `seconds` pass, `count` observations arrived or the subscription ends, then releases it. Every item is kept in order in observed.json: each observation with its number, its decoded fields (decoded with the descriptors the relay sent, so this host need not know the shape), the producer and its incarnation, its cause (this run's own correlation, or 0: this tool presses nothing, so always 0) and the far host's history numbers; each Gap with how many were lost and why; the ending. It holds no input session, so it may run beside a run that does. `read_pause_ms` makes it a deliberately slow reader and `window` a small one, which is how the relay's bounds are seen: occurrences past the window are dropped, counted and said as a Gap, and a `latest` shape keeps only its newest (`coalesced`). The summary counts observations, gaps and what they lost -- a loss is never hidden.",
+      "summary": "Follow what one role of a running Workshop publishes, for a while, and keep every word: what an owner says, numbered, with every loss said.",
+      "description": "Use it for: keeping every word one role of a running Workshop publishes, for a while, with every loss said.\nSmallest run: workshop/observe producer=zengine.builder shapes=BuildStatus@4 seconds=30\nFirst refusals: a shape the row's `observe` list does not name, in Workshop's words; a shape no participant declares, its application not loaded.\n\nSubscribes through the link to one role's publications of the named shapes (the guest's row must list them under `observe`; Workshop's relay refuses anything else in its own words), takes what it is told until `seconds` pass, `count` observations arrived or the subscription ends, then releases it. Every item is kept in order in observed.json: each observation with its number, its decoded fields (decoded with the descriptors the relay sent, so this host need not know the shape), the producer and its incarnation, its cause (this run's own correlation, or 0: this tool presses nothing, so always 0) and the far host's history numbers; each Gap with how many were lost and why; the ending. It holds no input session, so it may run beside a run that does. `read_pause_ms` makes it a deliberately slow reader and `window` a small one, which is how the relay's bounds are seen: occurrences past the window are dropped, counted and said as a Gap, and a `latest` shape keeps only its newest (`coalesced`). The summary counts observations, gaps and what they lost -- a loss is never hidden.",
       "inputs": [
         {
           "name": "link",
@@ -1361,7 +1361,7 @@
           "name": "producer",
           "type": "text",
           "required": true,
-          "help": "the office whose publications to follow, e.g. zengine.builder or td.game"
+          "help": "the role whose publications to follow, e.g. zengine.builder or td.game"
         },
         {
           "name": "shapes",
@@ -1407,7 +1407,7 @@
         }
       ],
       "requires": [
-        "a Workshop guest whose row may observe the named office's shapes",
+        "a Workshop guest whose row may observe the named role's shapes",
         "zengine-guest-vocabulary booted in this Loom session"
       ],
       "asks": [
@@ -1431,7 +1431,7 @@
         "watch"
       ],
       "example": "loom-session run <dir> workshop/observe --name builder-words --input producer=zengine.builder --input shapes=BuildAsked@1,BuildStatus@4 --input latest=BuildStatus --input seconds=60 --wait 90",
-      "recovery": "A refusal in Workshop's words means the guest's row does not list that office and shape under `observe`, or no participant there declares the shape (the application is not loaded): the weaver's guests file decides the first. An ending `lost` means the link's session ended: what was said after the last word kept is unknown. Gaps are losses the relay or this client counted: a slower reader or a smaller window loses more."
+      "recovery": "A refusal in Workshop's words means the guest's row does not list that role and shape under `observe`, or no participant there declares the shape (the application is not loaded): the weaver's guests file decides the first. An ending `lost` means the link's session ended: what was said after the last word kept is unknown. Gaps are losses the relay or this client counted: a slower reader or a smaller window loses more."
     },
     {
       "name": "inventory-organize",
@@ -1546,8 +1546,8 @@
     {
       "name": "inventory-controls",
       "script": "inventory_controls.py",
-      "summary": "Make a portable Inventory view of named commands, each bound to a target office and a key, through the Inventory pane's own configuration door; nothing is executed.",
-      "description": "Finds each control's entry by label inside `folder`, creates a single/row/column view holding the first (InventoryViewEdit create), moves the rest into it in order, binds each to `target` with its key, enables the items when asked, and sets the view's activation context. Reads InventoryViews back and passes only when the view holds the entries in order and every binding shows its target and key. Configuration runs nothing: a key pressed later runs its command only with the pressing actor's own permission for that office and shape.",
+      "summary": "Make a portable Inventory view of named commands, each bound to a target role and a key, through the Inventory pane's own configuration door; nothing is executed.",
+      "description": "Finds each control's entry by label inside `folder`, creates a single/row/column view holding the first (InventoryViewEdit create), moves the rest into it in order, binds each to `target` with its key, enables the items when asked, and sets the view's activation context. Reads InventoryViews back and passes only when the view holds the entries in order and every binding shows its target and key. Configuration runs nothing: a key pressed later runs its command only with the pressing actor's own permission for that role and shape.",
       "inputs": [
         {
           "name": "link",
@@ -1571,7 +1571,7 @@
           "name": "target",
           "type": "text",
           "default": "",
-          "help": "the office every command is sent to when its key is pressed"
+          "help": "the role every command is sent to when its key is pressed"
         },
         {
           "name": "kind",

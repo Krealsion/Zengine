@@ -59,7 +59,7 @@ inline constexpr const TerminalVerb* terminal_verb(std::string_view name) noexce
 /// `submit_terminal_line` reads out of the same token positions.
 enum class LineSlot : std::uint8_t {
     Verb = 0,      ///< token 0
-    Address = 1,   ///< token 1 -- #12, @office, *
+    Address = 1,   ///< token 1 -- #12, @role, *
     Shape = 2,     ///< token 2
     Version = 3,   ///< token 3
     Arguments = 4, ///< token 4 and everything after it
@@ -129,7 +129,7 @@ enum class CandidateKind : std::uint8_t {
     Shape,
     Version,
     Field,
-    Office, ///< `@office`, an office held on the bus now
+    Role, ///< `@role`, a role held on the bus now
     Weave,  ///< `#12`, a weave registered on the bus now
 };
 
@@ -152,7 +152,7 @@ struct Candidate {
 // WL-TERM-16 -- agents/workshop/terminal.md
 struct Destination {
     std::uint64_t id = 0;              ///< the weave's id, what `#12` names
-    std::string office;                ///< the office it holds now, or empty
+    std::string role;                ///< the role it holds now, or empty
     std::vector<std::string> accepts;  ///< the names of the shapes it accepts, in its own order
     bool alive = true;                 ///< false while the bus holds it dead
     bool self = false;                 ///< the terminal participant this line runs as
@@ -214,10 +214,10 @@ inline std::string missing_summary(const std::vector<loom::FieldDesc>& open) {
     return out;
 }
 
-/// WHAT A WEAVE IS, in the words a weaver chooses by: its office, the first shapes it accepts, and
+/// WHAT A WEAVE IS, in the words a weaver chooses by: its role, the first shapes it accepts, and
 /// whether it is this terminal or dead now.
 inline std::string destination_detail(const Destination& d) {
-    std::string out = d.office.empty() ? std::string("no office") : "@" + d.office;
+    std::string out = d.role.empty() ? std::string("no role") : "@" + d.role;
     if (d.accepts.empty()) {
         out += "; declares no door";
     } else {
@@ -304,7 +304,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
         break;
     }
     case LineSlot::Address: {
-        // Where a line can go now, read off the bus by its host: everyone, every office held and
+        // Where a line can go now, read off the bus by its host: everyone, every role held and
         // every weave registered, each with what it is. A reading, not a registry or a permission.
         if (reachable != nullptr) {
             const std::string& typed = cl.partial;
@@ -316,25 +316,25 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
                 c.detail = "everyone that accepts the shape";
                 out.candidates.push_back(std::move(c));
             }
-            std::vector<const Destination*> by_office;
+            std::vector<const Destination*> by_role;
             std::vector<const Destination*> by_id;
             for (const Destination& d : *reachable) {
                 by_id.push_back(&d);
-                if (!d.office.empty()) {
-                    by_office.push_back(&d);
+                if (!d.role.empty()) {
+                    by_role.push_back(&d);
                 }
             }
-            std::sort(by_office.begin(), by_office.end(),
-                      [](const Destination* a, const Destination* b) { return a->office < b->office; });
+            std::sort(by_role.begin(), by_role.end(),
+                      [](const Destination* a, const Destination* b) { return a->role < b->role; });
             std::sort(by_id.begin(), by_id.end(),
                       [](const Destination* a, const Destination* b) { return a->id < b->id; });
-            for (const Destination* d : by_office) {
-                const std::string spelling = "@" + d->office;
+            for (const Destination* d : by_role) {
+                const std::string spelling = "@" + d->role;
                 if (!detail::starts_with(spelling, typed)) {
                     continue;
                 }
                 Candidate c;
-                c.kind = CandidateKind::Office;
+                c.kind = CandidateKind::Role;
                 c.insert = spelling + " ";
                 c.display = spelling;
                 c.detail = "held by #" + std::to_string(d->id) +
@@ -361,7 +361,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
                                   ? "'" + typed + "' is an address; nothing on this bus answers to it now"
                                   : "keep typing -- '" + typed + "' is not an address yet";
             } else {
-                out.heading = "an address is #12, @office or * -- '" + typed + "' is none";
+                out.heading = "an address is #12, @role or * -- '" + typed + "' is none";
             }
             break;
         }
@@ -383,7 +383,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
         static constexpr Form kForms[] = {
             {"* ", "*", "everyone that accepts the shape"},
             {"#", "#<id>", "one weave, by id -- this terminal cannot list them"},
-            {"@", "@<office>", "whoever holds a role -- nor these"},
+            {"@", "@<role>", "whoever holds a role -- nor these"},
         };
         for (const Form& f : kForms) {
             if (!detail::starts_with(f.display, cl.partial)) {
@@ -397,7 +397,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
             out.candidates.push_back(std::move(c));
         }
         out.heading = out.candidates.empty()
-                          ? "an address is #12, @office or * -- '" + cl.partial + "' is none"
+                          ? "an address is #12, @role or * -- '" + cl.partial + "' is none"
                           : "where it goes";
         break;
     }

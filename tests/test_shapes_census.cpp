@@ -272,7 +272,7 @@ TEST_CASE("every shape this tree publishes is pinned by content id under its nam
 
 TEST_CASE("a weave the census cannot make is named in the words it refused to be made in") {
     // ⚔ MUTATION (tests/mutants/shapes_census.md#create-given-no-sink): the census handing `create`
-    // no sink -- the OS window told a driver SDL lacks is named as making nothing, and SDL's words
+    // no sink -- the GUI window told a driver SDL lacks is named as making nothing, and SDL's words
     // are lost.
     std::string window;
     for (const std::string& path : lines_of(ZENGINE_CENSUS_WEAVES)) {
@@ -282,7 +282,7 @@ TEST_CASE("a weave the census cannot make is named in the words it refused to be
         }
     }
     if (window.empty()) {
-        MESSAGE("this build holds no OS window, so no weave the census reads refuses to be made");
+        MESSAGE("this build holds no GUI window, so no weave the census reads refuses to be made");
         return;
     }
     std::string why;
@@ -297,7 +297,7 @@ TEST_CASE("a weave the census cannot make is named in the words it refused to be
 }
 
 TEST_CASE("every weave that takes a pane's row asks the layouts' owner for it, and none hands one") {
-    // ⚔ MUTATION (tests/mutants/shapes_census.md#facet-never-asks): a pane office that takes
+    // ⚔ MUTATION (tests/mutants/shapes_census.md#facet-never-asks): a pane role that takes
     // `PaneSettings` without the settings facet -- it never asks for its row, and draws no room.
     const std::string takes = ::zengine::workshop::PaneSettings::zen_name;
     const std::string asks = ::zengine::workshop::PaneSettingsAsked::zen_name;
@@ -319,12 +319,12 @@ TEST_CASE("every weave that takes a pane's row asks the layouts' owner for it, a
             CHECK(emitted.count(asks) == 1);
         }
     }
-    // ...ONE WAY FOR ALL: every pane office that takes a row is among them.
-    for (const char* office : {"zengine-attention-pane", "zengine-files", "zengine-introspection",
+    // ...ONE WAY FOR ALL: every pane role that takes a row is among them.
+    for (const char* role : {"zengine-attention-pane", "zengine-files", "zengine-introspection",
                                "zengine-editor-pane", "zengine-neovim-editor",
                                "zengine-terminal-pane", "zengine-desktop-pane",
                                "zengine-view-builder"}) {
-        CAPTURE(office);
-        CHECK(taking.count(office) == 1);
+        CAPTURE(role);
+        CHECK(taking.count(role) == 1);
     }
 }

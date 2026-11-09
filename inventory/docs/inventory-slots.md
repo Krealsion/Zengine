@@ -26,7 +26,7 @@ hotkey configuration; moving an existing entry does not prompt for a new name.
 Right-click **Duplicate with next number** or **Duplicate and name** for independent data.
 The duplicate remembers a configured key and target but starts disabled. To use a command hotkey:
 
-1. **Configure command hotkey**, entering an explicit office and key such as `zengine.inventory alt+1`.
+1. **Configure command hotkey**, entering an explicit role and key such as `zengine.inventory alt+1`.
 2. **Enable item hotkey** for the item.
 3. **Turn this view's hotkeys ON** for its activation context.
 

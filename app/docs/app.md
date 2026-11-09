@@ -45,7 +45,7 @@ The View Builder's **Export app** writes one from the view you saved
 asks Workshop to allow the write, as Save does, then writes `apps/tally/` in the project:
 
 - `app-plan.json`, through the load plan's codec: the basic operators, `zengine-app-weave`, the
-  graphics directory, the OS window and the Timer, the plan
+  graphics directory, the GUI window and the Timer, the plan
   [`examples/tally-app/`](../../examples/tally-app/README.md) holds, byte for byte;
 - `app.json`, naming the app and its window after the view's file, its window sized to hold the
   view at (8, 8) and its notice rows, the `day` palette, the view in a session named after it and the
@@ -79,14 +79,14 @@ Read as the load plan is, a Loom value in JSON, its integers written as quoted s
 }
 ```
 
-- `window.title`, `width` and `height` name the app's window and size it, in pixels: the OS window
-  takes them, keeping a size within its display, and a side of 0 keeps its own; the terminal window
+- `window.title`, `width` and `height` name the app's window and size it, in pixels: the GUI window
+  takes them, keeping a size within its display, and a side of 0 keeps its own; the TUI window
   keeps the terminal's. `window.skin` names the palette the app's areas wear, one of the shipped
   themes, `night`, `day` or `block`, in either window, and `classic` is another name for `night`;
-  one it does not name is the window's medium's, `night` in a terminal and `day` in an OS window,
+  one it does not name is the window's medium's, `night` in a terminal and `day` in a GUI window,
   and the app's line says so.
 
-  ![The tally app's OS window, titled tally and 320 by 260 as its app.json asks, Count giving 45](images/tally-app-window.png)
+  ![The tally app's GUI window, titled tally and 320 by 260 as its app.json asks, Count giving 45](images/tally-app-window.png)
 - Each view runs in its own session, its area at `x`, `y` in the window's pixels, its size the
   view's own and its notice rows beneath. Each flow runs in its own session. At most eight of each.
 - A file is a plain name in the app's folder; a path is refused.
@@ -180,10 +180,10 @@ touches the file.
 
 `zengine-app` composes the [Flow host](../../flow/docs/zengine.flow.host.md) and the
 [view host](../../view/docs/zengine.view.host.md) as Workshop does. The app's own weave,
-`zengine-app-weave` in the office `zengine.app`, is a row of the plan like any other:
+`zengine-app-weave` in the role `zengine.app`, is a row of the plan like any other:
 
 - it asks the host where the app's folder is (`zengine.app.host`), reads `app.json`, and runs each
-  flow, then each view, in its own session, as its office;
+  flow, then each view, in its own session, as its role;
 - on the graphics directory's start and the window's offer, it offers the palette `app.json`
   names and chooses it for each area, then places each view's area where `app.json` says, hearing
   the window's keys and pointer; once its own line has its room in a window it
@@ -197,7 +197,7 @@ that shows its area: a press on a number field puts it in focus, Tab moves betwe
 the one in focus, and a press on a button uses it. Its notice rows say what it said and what was
 refused, the flow's refusals among them.
 
-![The tally app in its own OS window: as it starts; Count giving 45; 10, 0 and -2 typed giving 30; and 0, 10, 0 refused by the flow's fold](images/tally-app.png)
+![The tally app in its own GUI window: as it starts; Count giving 45; 10, 0 and -2 typed giving 30; and 0, 10, 0 refused by the flow's fold](images/tally-app.png)
 
 ![The tally app's step field put in focus by a click, 2 typed into it, and Count giving 20](images/tally-app-field-clicked.png)
 

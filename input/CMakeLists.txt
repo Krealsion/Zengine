@@ -24,8 +24,8 @@ if(NOT TARGET loom::kernel)
 endif()
 
 # The weave arranges its own heartbeat: it accepts the Timer package's hello and beat, so it
-# speaks that vocabulary too. It holds one office, carries its manual and answers from it
-# (office_page.hpp). It loads beside either window, and reads the terminal's input where no
+# speaks that vocabulary too. It holds one role, carries its manual and answers from it
+# (role_page.hpp). It loads beside either window, and reads the terminal's input where no
 # window holds it. It declares its double-click time to Workshop's settings seam
 # (double_click_setting.hpp), so it speaks Workshop's vocabulary too.
 zengine_weave(zengine-input input.cpp MANUAL docs/zengine.input.md)

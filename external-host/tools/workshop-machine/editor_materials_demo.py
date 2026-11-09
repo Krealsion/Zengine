@@ -17,7 +17,7 @@ editor/docs/editor.md#carrying-text-commands-and-file-places is the guide.
             up a stored copy, a click drops it into the Editor.
   retrieve  a fresh Workshop: the toolbox restored, the place reopened from the other root, the
             snippet dropped into a document.
-  neovim    the Neovim-backed Editor holding the office (`demo.py start --neovim <program>`): a
+  neovim    the Neovim-backed Editor holding the role (`demo.py start --neovim <program>`): a
             Visual selection dragged from its highlight along a Bezier, ctrl+r for a linewise
             one, and a stored copy dropped into Neovim as data and taken back with u; then a
             captured command whose Terminal line is chosen while Neovim waits for input is held,
@@ -137,7 +137,7 @@ def run(ctx):
     def open_source(path):
         """Open a file the way a weaver does, from Files: it starts at this Workshop's project,
         where `folder` is; a press selects an entry, named `entry:<name>`, and Return enters a
-        directory or opens a file. (The opening office answers an office's request, never a
+        directory or opens a file. (The opening role answers a role's request, never a
         guest's anonymous one.)"""
         name = Path(path).name
         hand.control(*FILES, "look again")  # Files is a snapshot; this run may have made the files

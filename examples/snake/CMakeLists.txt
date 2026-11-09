@@ -1,5 +1,5 @@
 # The snake package: the first game -- a World that keeps its own rules, keys, beat and pause and
-# draws into a terminal window, its board as the game's own element code, a late-loaded Score
+# draws into a TUI window, its board as the game's own element code, a late-loaded Score
 # weave, a Pilot that plays it, and the playable host that drives the live-evolution moments
 # (examples/snake/README.md).
 
@@ -39,7 +39,7 @@ target_link_libraries(zengine-snake
             zengine-input-vocabulary zengine-timer-vocabulary zengine-timer-rest
             zengine-workshop-bus-tally zengine-warnings zengine-sanitize)
 set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score snake-pilot
-    snake-board zengine-graphics zengine-window-terminal zengine-timer)
+    snake-board zengine-graphics zengine-window-tui zengine-timer)
 set_target_properties(${zengine_snake_runtime}
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

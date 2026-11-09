@@ -79,7 +79,7 @@ void each_inventory_pane_state(InventoryStory& s, const std::function<void(const
 /// THE INVENTORY PANE'S CENSUS. The pane declares no modes, so a row it declares in several of the
 /// states driven is one line.
 const CensusDriverOf kInventoryPaneCensus{slots::kRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     InventoryStory s;
     each_inventory_pane_state(s, [&](const RuntimePane& held) { census_take(census, slots::kRole, held); });
     std::vector<std::string> once;
@@ -395,7 +395,7 @@ TEST_CASE("portable slots: invoking a configured hotkey checks current actor aut
         s.context("inventory",true);
         REQUIRE(s.layout().inventory_active);
         if (allowed) {
-            s.r.bus.office_send_to_role_as(s.r.bus.role_holder(slots::kRole), slots::kRole,
+            s.r.bus.role_send_to_role_as(s.r.bus.role_holder(slots::kRole), slots::kRole,
                 kLayoutsRole, loom::Message(loom::to_value(PaneCloseRequested{slots::kRole,"inventory"})));
             s.r.bus.drain_until_idle(); REQUIRE_FALSE(s.r.session().panes.has(s.source));
         }
@@ -440,7 +440,7 @@ TEST_CASE("portable slots: one batched drag moves into a row and a forged transf
     REQUIRE(shows_canvas(held));
     const CanvasRows lattice=held_canvas_rows(held);
     const std::string area=pane_window_area(s.r.session().panes,*s.r.session().panes.runtime.of_kind(s.source));
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider),kWorkshopProvider,slots::kRole,
+    s.r.bus.role_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider),kWorkshopProvider,slots::kRole,
         loom::Message(loom::to_value(PaneCanvasValueDrop{"inventory",area,
             lattice.column_x(0)-lattice.x,lattice.row_y(0)-lattice.y,s.pair(88),slots::kRole,row,"made up"})));
     s.r.bus.drain_until_idle(); CHECK(slots::placed(s.layout(),a)==slots::placed(before,a));
@@ -777,9 +777,9 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         REQUIRE(r.load_refusals.empty());
         r.pick({"zengine.info", "info"}); // give Compose the right-hand area
         r.pick(composer_ref());
-        const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
+        const auto compose_kind = r.session().panes.runtime.find(kComposerRole, "compose")->kind;
         stage_desk(r, [&](Setup& staged) {
-            for (auto& p : staged.panes) if (p.ref.provider == kComposerOffice) {
+            for (auto& p : staged.panes) if (p.ref.provider == kComposerRole) {
                 p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
                 p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
                 p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
@@ -791,9 +791,9 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         const auto before_target = held_reading(compose_kind).parts;
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
         loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
-        const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
+        const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroRole);
         raw->zen_set_self(selector_id);
-        raw->next = [](loom::Mail& m) { m.as_role(kIntroOffice).publish(
+        raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
             intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
         r.bus.send(selector_id, loom::Message(loom::to_value(InventoryHandDo{})));
         r.bus.drain_until_idle();
@@ -810,7 +810,7 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         const auto untouched = s.shown(compose_kind);
         const PaneCanvasValueDrop forged{"compose", held_area_of(compose_kind), 0, 0,
                                          loom::Bytes(bytes.begin(), bytes.end()), "", "", ""};
-        r.bus.send_to_role(kComposerOffice, loom::Message(loom::to_value(forged)));
+        r.bus.send_to_role(kComposerRole, loom::Message(loom::to_value(forged)));
         r.bus.drain_until_idle();
         CHECK(s.shown(compose_kind) == untouched);
         // A DROP THE WINDOW LANDED ON WHAT COMPOSE SHOWED BEFORE IT HAD A TARGET, where a target's
@@ -824,8 +824,8 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         }
         REQUIRE_MESSAGE(row_then >= 0, s.shown(compose_kind));
         const std::string compose_area = held_area_of(compose_kind);
-        r.bus.office_send_to_role_as(r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
-            kComposerOffice, loom::Message(loom::to_value(PaneCanvasValueDrop{"compose",
+        r.bus.role_send_to_role_as(r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            kComposerRole, loom::Message(loom::to_value(PaneCanvasValueDrop{"compose",
                 compose_area, column_then * gfx::kCellPx + 6, row_then * gfx::kCellPx + 6,
                 loom::Bytes(bytes.begin(), bytes.end()), "", "", "", compose_area,
                 part_drawn_at(before_target, row_then, column_then), 0})));
@@ -859,9 +859,9 @@ static std::int64_t compose_on_canvas_for_inventory(InventoryStory& s) {
     REQUIRE(r.load_refusals.empty());
     r.pick({"zengine.info", "info"}); // give Compose the right-hand area
     r.pick(composer_ref());
-    const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
+    const auto compose_kind = r.session().panes.runtime.find(kComposerRole, "compose")->kind;
     stage_desk(r, [&](Setup& staged) {
-        for (auto& p : staged.panes) if (p.ref.provider == kComposerOffice) {
+        for (auto& p : staged.panes) if (p.ref.provider == kComposerRole) {
             p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
             p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
             p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
@@ -870,9 +870,9 @@ static std::int64_t compose_on_canvas_for_inventory(InventoryStory& s) {
     r.extent(180, 60);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
     loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
-    const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
+    const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroRole);
     raw->zen_set_self(selector_id);
-    raw->next = [](loom::Mail& m) { m.as_role(kIntroOffice).publish(
+    raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
         intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
     r.bus.send(selector_id, loom::Message(loom::to_value(InventoryHandDo{})));
     r.bus.drain_until_idle();
@@ -910,11 +910,11 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         REQUIRE_MESSAGE(field >= 0, s.shown(compose_kind));
         s.acquire();
         bool removed = false;
-        RemoveObserver watch{s.r.bus, leave_once_sent(s, " -> Compose", kComposerOffice, removed)};
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, " -> Compose", kComposerRole, removed)};
         s.click(compose_kind, field);
         REQUIRE(removed);
         CHECK_MESSAGE(s.r.last_notice().find(std::string("Reference not delivered to ") +
-                                             kComposerOffice) != std::string::npos,
+                                             kComposerRole) != std::string::npos,
                       s.r.last_notice());
     }
     SUBCASE("a value on Flow's canvas") {
@@ -1202,11 +1202,11 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         InventoryStory s(allowed ? 127 : 111, true);
         auto& r = s.r;
         r.pick(composer_ref());
-        const auto compose = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
+        const auto compose = r.session().panes.runtime.find(kComposerRole, "compose")->kind;
         REQUIRE(r.session().keymap.app_row_of_id("desktop.deselect") != nullptr);
         REQUIRE(r.session().keymap.app_row_of_id("desktop.panes") != nullptr);
         stage_desk(r, [&](Setup& staged) {
-            for (auto& p : staged.panes) if (p.ref.provider == kComposerOffice) {
+            for (auto& p : staged.panes) if (p.ref.provider == kComposerRole) {
                 p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 32*gfx::kCellPx};
                 p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
                 p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
@@ -1215,8 +1215,8 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         r.extent(180, 60);
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
         loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
-        const auto id = r.bus.register_weave(std::move(selector), grant, kIntroOffice); raw->zen_set_self(id);
-        raw->next = [](loom::Mail& m) { m.as_role(kIntroOffice).publish(
+        const auto id = r.bus.register_weave(std::move(selector), grant, kIntroRole); raw->zen_set_self(id);
+        raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
             intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
         r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{}))); r.bus.drain_until_idle();
         auto row = [&](std::int64_t kind, const std::string& text) {
@@ -1469,7 +1469,7 @@ TEST_CASE("a value dragged from Inventory onto Flow's canvas reaches Flow as a c
     CHECK(drops[0].x < view.placed_w);
     CHECK(drops[0].y > 0);
     CHECK(drops[0].y < view.placed_h);
-    CHECK(drops[0].source_office == slots::kRole);
+    CHECK(drops[0].source_role == slots::kRole);
     CHECK(inv::decode_pair({reinterpret_cast<const char*>(drops[0].data.data()),
                             drops[0].data.size()}).item.get("count")->as_int() == 1);
     // FLOW HOLDS IT ON ITS OWN PAGE and offers its shape, which this definition does not have yet.
@@ -1620,8 +1620,8 @@ bool pictured(InventoryStory&, std::int64_t kind, const std::string& part) {
         if (t.text.find(part) != std::string::npos) return true;
     return false;
 }
-template <class T> void tell(InventoryStory& s, const char* office, const T& value) {
-    s.r.bus.send_to_role(office, loom::Message(loom::to_value(value)));
+template <class T> void tell(InventoryStory& s, const char* role, const T& value) {
+    s.r.bus.send_to_role(role, loom::Message(loom::to_value(value)));
     s.r.bus.drain_until_idle();
 }
 } // namespace
@@ -1729,7 +1729,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     CHECK(told_flow[1] == canvas_pointer::kLost);
     REQUIRE(drops.size() == 1);
     CHECK(drops[0].pane == vb::kPane);
-    CHECK(drops[0].source_office == flow->provider);
+    CHECK(drops[0].source_role == flow->provider);
     CHECK(pictured(s, s.builder, "shows tally.Total.total"));
 
     // THE SAME DRAG IN ONE BATCH: the release reaches Workshop before Flow asks to carry, so Flow
@@ -1839,7 +1839,7 @@ TEST_CASE("escape: Loaded and Powers let go of the row a weaver chose first, and
 
 namespace {
 
-/// An office that counts the story's commands it is sent: where a hotkey's command lands.
+/// A role that counts the story's commands it is sent: where a hotkey's command lands.
 struct SinkState {
     std::int64_t heard = 0;
     ZEN_SHAPE(SinkState, 1, ZEN_FIELD(heard));
@@ -1914,7 +1914,7 @@ TEST_CASE("hotkeys: many hotkeys on at once, each reaching its own command, noth
     s.context("inventory", true);
     REQUIRE(slots::shortcuts(s.layout()).size() == count);
     // PRESSED ON THE WEAVER'S OWN KEYBOARD, whose commands need no guest's authority: the first,
-    // a middle and the last chord each send their own command to their own office, and only there.
+    // a middle and the last chord each send their own command to their own role, and only there.
     std::vector<std::pair<std::size_t, StorySink*>> sinks;
     for (const std::size_t i : {std::size_t{0}, count / 2, count - 1}) {
         auto made = std::make_unique<StorySink>();
@@ -1931,7 +1931,7 @@ TEST_CASE("hotkeys: many hotkeys on at once, each reaching its own command, noth
         CHECK_MESSAGE(sink->state_.heard == 1, (s.shown(s.source) + s.r.last_notice()));
     }
     for (const auto& [i, sink] : sinks) {
-        CHECK(sink->state_.heard == 1); // and no chord reached another's office
+        CHECK(sink->state_.heard == 1); // and no chord reached another's role
     }
 }
 
@@ -2059,7 +2059,7 @@ TEST_CASE("a right press and a drop the window landed on Inventory's rows before
     const RuntimePane* pane = s.r.session().panes.runtime.of_kind(s.source);
     REQUIRE(pane != nullptr);
     const std::string area = pane_window_area(s.r.session().panes, *pane);
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+    s.r.bus.role_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
         loom::Message(loom::to_value(PaneCanvasValueDrop{pane->pane, area, 2 * gfx::kCellPx + 6,
             b * gfx::kCellPx + 6, s.pair(9), "", "", "", area, was_at_b, 0})));
     s.r.bus.drain_until_idle();
@@ -2117,7 +2117,7 @@ TEST_CASE("portable slots: an entry's transfer placed where the window drew a vi
     }
     REQUIRE_MESSAGE(b_row >= 0, s.shown(kind));
     const std::string drawn = part_drawn_at(first, b_row, b_column);
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+    s.r.bus.role_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
         loom::Message(loom::to_value(PaneCanvasValueDrop{row, area, b_column * gfx::kCellPx + 6,
             b_row * gfx::kCellPx + 6, s.pair(1), slots::kRole, "inventory", token, area, drawn, 0})));
     s.r.bus.drain_until_idle();
@@ -2158,7 +2158,7 @@ TEST_CASE("a value released on Flow before its carry is answered carries the win
     // FLOW REPAINTS before the carry is answered: typing on its search line.
     const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
     REQUIRE(flow != nullptr);
-    REQUIRE(s.r.bus.office_send_to_role_as(workshop, kWorkshopProvider, flow->provider,
+    REQUIRE(s.r.bus.role_send_to_role_as(workshop, kWorkshopProvider, flow->provider,
         loom::Message(loom::to_value(PaneTextInput{flow->pane, "m"}))).valid());
     s.r.bus.drain_until_idle();
     s.r.bus.remove_observer(tap);
@@ -2172,15 +2172,15 @@ TEST_CASE("a graphics window shows Inventory and Info in the areas Workshop plac
     namespace pw = zengine::testing::pane_window;
     InventoryStory s;
     pw::Window w(s.r.bus);
-    for (const auto& [office, pane] : std::vector<std::pair<std::string, std::string>>{
+    for (const auto& [role, pane] : std::vector<std::pair<std::string, std::string>>{
              {slots::kRole, "inventory"}, {"zengine.info", "info"}}) {
-        CAPTURE(office);
-        const RuntimePane* row = s.r.session().panes.runtime.find(office, pane);
+        CAPTURE(role);
+        const RuntimePane* row = s.r.session().panes.runtime.find(role, pane);
         REQUIRE(row != nullptr);
-        // THE AREA WORKSHOP PLACES the pane in is the one its office draws in, given its room.
+        // THE AREA WORKSHOP PLACES the pane in is the one its role draws in, given its room.
         const std::string area = pane_window_area(s.r.session().panes, *row);
         const std::size_t heard = w.weave().heard.size();
-        w.room(area, office, 80, 20);
+        w.room(area, role, 80, 20);
         REQUIRE(w.weave().heard.size() > heard);
         CHECK(w.weave().heard.back().area == area);
         CHECK(w.weave().heard.back().whole);

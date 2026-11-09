@@ -3,7 +3,7 @@
 """The asks desk-machine/read makes of a running Workshop, through the link, under the guest's own row --
 and what each came to, as values the readings are written from.
 
-THE DESK IN ONE TURN. `DeskReadRequested` v3 answers the desk (`DeskView` v4), every presented
+THE DESK IN ONE TURN. `DeskReadRequested` v3 answers the desk (`DeskView` v5), every presented
 pane's stamp front to back, and as many panes' readings (`PaneView` v7) as one decoded value and
 one reply's bytes hold. A stamp past the last reading names a pane this reader asks alone, by
 `PaneViewRequested` v7: from item 0 under an empty stamp, then page after page from the next item
@@ -48,7 +48,7 @@ GUESTS = "zengine.guests"
 #: A pane's restarts from item 0 after a page found its picture moved.
 STALE_RESTARTS = 3
 #: A pane's asks alone while its newest picture is in flight, and the wait before each next one,
-#: in seconds: a room just granted is answered by its office's next picture.
+#: in seconds: a room just granted is answered by its role's next picture.
 IN_FLIGHT_ASKS = 3
 IN_FLIGHT_WAIT = 0.1
 #: The desk read again when its number moved before the last page ("Consistency is per pane").
@@ -174,11 +174,11 @@ class Asker(object):
         self.ctx, self.link = ctx, link
         self.asks = 0
 
-    def ask(self, office, shape, version, fields):
+    def ask(self, role, shape, version, fields):
         """``(fields, None)`` for an answer, ``(None, words)`` for anything else."""
         self.asks += 1
         try:
-            answer = self.ctx.ask(office, shape, fields, version=version, via=self.link,
+            answer = self.ctx.ask(role, shape, fields, version=version, via=self.link,
                                   timeout=ASK_SECONDS)
         except REFUSALS as err:
             return None, refusal_words(err)
@@ -373,7 +373,7 @@ MAX_DOCUMENTS = 64
 
 
 def read_documents(ctx, link, reading):
-    """Each offered pane's manual, asked of its own office -- `PaneDocumentRequested` v1, the whole
+    """Each offered pane's manual, asked of its own role -- `PaneDocumentRequested` v1, the whole
     page -- under the asker's row, in the inventory's order: `reading["documents"]`, one entry a
     pane, its sections or its refusal in words. A pane past MAX_DOCUMENTS is not asked, and said."""
     asker = Asker(ctx, link)
@@ -381,11 +381,11 @@ def read_documents(ctx, link, reading):
     offered = (reading.get("inventory") or {}).get("panes") or []
     documents = []
     for p in offered[:MAX_DOCUMENTS]:
-        office, pane = p.get("office", ""), p.get("pane", "")
-        answer, words = asker.ask(office, "PaneDocumentRequested", 1, {"pane": pane, "section": ""})
+        role, pane = p.get("role", ""), p.get("pane", "")
+        answer, words = asker.ask(role, "PaneDocumentRequested", 1, {"pane": pane, "section": ""})
         if words is None and answer.get("refusal"):
             words = "refused: %s" % answer["refusal"]
-        documents.append({"office": office, "pane": pane, "refused": words,
+        documents.append({"role": role, "pane": pane, "refused": words,
                           "content_id": "" if words else answer.get("content_id", ""),
                           "sections": [] if words else list(answer.get("sections") or [])})
     reading["documents"] = documents

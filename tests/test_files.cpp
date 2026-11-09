@@ -289,7 +289,7 @@ TEST_CASE("a row that cannot be a catalog is refused before the owner is trouble
           std::string::npos);
 }
 
-// ---- The pure half, moved from `workshop_files` with the office that owns it ----------
+// ---- The pure half, moved from `workshop_files` with the role that owns it ----------
 
 TEST_CASE("a listing is directories first, then files, bytewise inside each") {
     TempDir dir("order");

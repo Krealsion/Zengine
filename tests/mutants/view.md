@@ -49,7 +49,7 @@ In `view/view.hpp`:
 Red in `zengine-view-tests`:
 
 - a view hears the pointer of the window that shows its area: a field pressed takes the focus and
-  what is typed, a button pressed is used once, and the same from any other office changes nothing
+  what is typed, a button pressed is used once, and the same from any other role changes nothing
 
 ## grant-without-wiring
 
@@ -63,7 +63,7 @@ In `view/view.hpp`:
 
 Red in `zengine-view-tests`:
 
-- a running view says what its wiring has done, as its own office: each intent's last send accepted
+- a running view says what its wiring has done, as its own role: each intent's last send accepted
   or refused, each field told, and again only when a row changes
 
 ## refusal-of-any-send
@@ -80,4 +80,4 @@ In `view/view.hpp`:
 Red in `zengine-view-tests`:
 
 - a view's intent that nothing accepts is said unheard, a refusal of an earlier send changes nothing
-  of the last, and an office that arrives later asks and is answered alone
+  of the last, and a role that arrives later asks and is answered alone

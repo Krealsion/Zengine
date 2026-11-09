@@ -625,33 +625,33 @@ struct WindowPointer {
     std::int64_t clicks = 0;
 };
 
-/// THE AREA A PANE DRAWS IN: `<office>.<pane>`, for every pane, whatever else its office offers.
-inline std::string pane_area(std::string_view office, std::string_view pane) {
-    std::string area(office);
+/// THE AREA A PANE DRAWS IN: `<role>.<pane>`, for every pane, whatever else its role offers.
+inline std::string pane_area(std::string_view role, std::string_view pane) {
+    std::string area(role);
     area += '.';
     area += pane;
     return area;
 }
 
-/// THE GRAPHICS WINDOW THAT SHOWS A PANE'S AREA, as the office drawing there keeps it: the canvas
+/// THE GRAPHICS WINDOW THAT SHOWS A PANE'S AREA, as the role drawing there keeps it: the canvas
 /// it draws with (`graphics::Canvas`) and the drawing it last sent. A drawing the window refused
 /// leaves what it shows as it was. A refused change was read against a drawing the window does not
 /// hold, so the drawing last sent goes again at once, whole; a refused whole drawing, which the
 /// window would refuse again, does not, nor does that drawing unchanged, and the next goes whole.
 class WindowDrawing {
 public:
-    WindowDrawing(std::string office, std::string area)
-        : canvas_(std::move(office), std::move(area)) {}
+    WindowDrawing(std::string role, std::string area)
+        : canvas_(std::move(role), std::move(area)) {}
 
     const std::string& area() const noexcept { return canvas_.area(); }
     /// A graphics window shows the area.
     bool shown() const noexcept { return !canvas_.window().empty(); }
-    /// The office of the window that shows the area, which a drawing sent there addresses.
-    std::string window_office() const { return canvas_.window_office(); }
-    /// The office that answers a paste asked from the area: the window showing it, none while none
+    /// The role of the window that shows the area, which a drawing sent there addresses.
+    std::string window_role() const { return canvas_.window_role(); }
+    /// The role that answers a paste asked from the area: the window showing it, none while none
     /// does.
-    std::string clipboard_office() const {
-        return shown() ? canvas_.window_office() : std::string();
+    std::string clipboard_role() const {
+        return shown() ? canvas_.window_role() : std::string();
     }
     /// The room that window gives the area, in pixels, and how it sets text there.
     std::int64_t width() const noexcept { return canvas_.width(); }
@@ -664,12 +664,12 @@ public:
     /// The window refused the whole drawing last sent, and no room or other drawing came since.
     bool refused_whole() const noexcept { return refused_whole_; }
 
-    /// THE ROOM A WINDOW TELLS OF THE AREA, as that window's office: true when the window, its
+    /// THE ROOM A WINDOW TELLS OF THE AREA, as that window's role: true when the window, its
     /// incarnation, its size or its measure changed or the area is empty, so it holds none of the
     /// drawing and the next goes whole.
     bool room(const graphics::AreaRoom& r, const loom::Mail& mail) {
         if (r.area != area() ||
-            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
+            !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + r.window) ||
             !canvas_.room(r)) {
             return false;
         }
@@ -680,10 +680,10 @@ public:
 
     /// Whether `mail` is the word of the window that shows the area, about `about`.
     bool from_window(const std::string& about, const loom::Mail& mail) const {
-        return about == area() && shown() && mail.authored_from_role(canvas_.window_office());
+        return about == area() && shown() && mail.authored_from_role(canvas_.window_role());
     }
 
-    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto
+    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's role, read onto
     /// the rows drawn there, `rows` by `columns`: a button pressed or let go, a move, the wheel, or
     /// a hold the window ended. None for another area or speaker.
     std::optional<WindowPointer> pointer(const graphics::AreaButtonChanged& b,

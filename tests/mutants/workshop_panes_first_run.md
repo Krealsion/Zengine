@@ -5,21 +5,21 @@ Each entry is a mutant that a comment in
 catch, the comment naming the entry by its path and heading. [The corpus's front page](README.md)
 says how an entry reads and how `tests/mutants/run.py` runs it.
 
-## wiring-from-any-office
+## wiring-from-any-role
 
-Start here takes a view's wiring from any office as a running view's.
+Start here takes a view's wiring from any role as a running view's.
 
 In `workshop/first-run/first_run.cpp`:
 
 ```diff
--        if (view_offices_.count(std::string(mail.authored_role())) == 0) {
+-        if (view_roles_.count(std::string(mail.authored_role())) == 0) {
 +        if (false) {
 ```
 
 Red in `zengine-workshop-panes-tests`:
 
 - WL-FIRST-04: each step is ticked by the fact its owner says -- the inventory, a running view's
-  wiring, the launcher's listing and its start -- and kept; a view's wiring said by an office no
+  wiring, the launcher's listing and its start -- and kept; a view's wiring said by a role no
   running view holds ticks nothing
 
 ## fact-asks-nothing

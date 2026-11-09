@@ -38,7 +38,7 @@ inline constexpr const char* kFormat = "zengine-view-description";
 /// the one this build writes. It reads version 1 too, a description without a size.
 inline constexpr std::int64_t kFormatVersion = 2;
 
-/// A view's name is its office and its intents' namespace, and Workshop lists it as a pane.
+/// A view's name is its role and its intents' namespace, and Workshop lists it as a pane.
 inline constexpr std::size_t kMaxNameBytes = 32;
 inline constexpr std::size_t kMaxElements = 64;
 inline constexpr std::size_t kMaxIdBytes = 32;
@@ -294,7 +294,7 @@ inline bool identifier(std::string_view id) {
     });
 }
 
-/// A view's name: an office and a namespace, so letters, digits, `_`, `-` and inner dots.
+/// A view's name: a role and a namespace, so letters, digits, `_`, `-` and inner dots.
 inline bool view_name(std::string_view name) {
     if (name.empty() || name.size() > kMaxNameBytes || name.front() == '.' || name.back() == '.')
         return false;
