@@ -486,18 +486,58 @@ struct PaletteStyle {
     friend bool operator==(const PaletteStyle&, const PaletteStyle&) = default;
 };
 
-/// One role's slots in a palette: the colours and the text sizes it sets for the slots that
-/// role exposes.
-struct PaletteSlots {
+/// One role's own values in a palette: the colours, text sizes and styles it sets for the own
+/// values that role declares.
+struct OwnValues {
     std::string role;
     std::vector<PaletteColor> colors;
     std::vector<PaletteSize> sizes{};
-    ZEN_SHAPE(PaletteSlots, 3, ZEN_FIELD(role), ZEN_FIELD(colors), ZEN_FIELD(sizes));
-    friend bool operator==(const PaletteSlots&, const PaletteSlots&) = default;
+    std::vector<PaletteStyle> styles{};
+    ZEN_SHAPE(OwnValues, 1, ZEN_FIELD(role), ZEN_FIELD(colors), ZEN_FIELD(sizes),
+              ZEN_FIELD(styles));
+    friend bool operator==(const OwnValues&, const OwnValues&) = default;
+};
+
+/// What kind of value an own value is.
+namespace own_kind {
+inline constexpr const char* kColor = "color";
+inline constexpr const char* kSize = "size";
+inline constexpr const char* kStyle = "style";
+} // namespace own_kind
+
+/// ONE OWN VALUE AS ITS PANE DECLARES IT: its name, its kind (`own_kind::`), and its default --
+/// a pool root's or style's name, or an exact colour (`rgba`) or size (`points`) where it names
+/// none.
+struct OwnDeclared {
+    std::string name;
+    std::string kind;
+    std::string default_name;
+    std::int64_t rgba = 0;
+    std::int64_t points = 0;
+    ZEN_SHAPE(OwnDeclared, 1, ZEN_FIELD(name), ZEN_FIELD(kind), ZEN_FIELD(default_name),
+              ZEN_FIELD(rgba), ZEN_FIELD(points));
+    friend bool operator==(const OwnDeclared&, const OwnDeclared&) = default;
+};
+
+/// The most own values one role declares.
+inline constexpr std::size_t kMaxOwnValues = 64;
+
+/// A pane -> whoever offers palettes, published as the pane's role on each activation and when
+/// asked: the own values it declares, whole, so a theme naming them is judged. A window needs none
+/// of it: each draw carries its own value's default.
+struct OwnValuesDeclared {
+    std::vector<OwnDeclared> values;
+    ZEN_SHAPE(OwnValuesDeclared, 1, ZEN_FIELD(values));
+    friend bool operator==(const OwnValuesDeclared&, const OwnValuesDeclared&) = default;
+};
+
+/// Whoever offers palettes -> any, on each of its activations: say your own values again.
+struct OwnValuesAsked {
+    ZEN_SHAPE(OwnValuesAsked, 1);
 };
 
 /// Whoever offers palettes -> the directory, and the directory -> each window: a palette, whole,
-/// at a revision -- its pool colours, fonts, sizes and styles, each role's slots, and a terminal's
+/// at a revision -- its pool colours, fonts, sizes and styles, each role's own values, and a terminal's
 /// outline characters (a corner, across and down). Offered again whole at a higher revision when
 /// anything in it changes: a window repaints every area wearing it from what it keeps, and no owner
 /// is told.
@@ -508,11 +548,11 @@ struct PaletteOffered {
     std::vector<PaletteFont> fonts{};
     std::vector<PaletteSize> sizes{};
     std::vector<PaletteStyle> styles{};
-    std::vector<PaletteSlots> slots;
+    std::vector<OwnValues> own;
     std::string outline = "+-|";
-    /// Version 4: a palette carries the pool's styles.
+    /// Version 4: a palette carries the pool's styles, and each role's own values.
     ZEN_SHAPE(PaletteOffered, 4, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
-              ZEN_FIELD(fonts), ZEN_FIELD(sizes), ZEN_FIELD(styles), ZEN_FIELD(slots),
+              ZEN_FIELD(fonts), ZEN_FIELD(sizes), ZEN_FIELD(styles), ZEN_FIELD(own),
               ZEN_FIELD(outline));
     friend bool operator==(const PaletteOffered&, const PaletteOffered&) = default;
 };

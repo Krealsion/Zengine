@@ -7,7 +7,7 @@ supports is in [settings](../workshop/settings.md).
 painter and a table of colours -- painted each area. Themes, a pane's own colours and a terminal
 that cannot show every colour all wanted colours as data, which no painter's table could be.
 
-**Decision.** A draw carries a `Color`: an exact value, a pool name or a slot its pane exposes, each
+**Decision.** A draw carries a `Color`: an exact value, a pool name or an own value its pane declares, each
 name a C++ name generated from JSON, so a name nobody declared does not build. The window turns a
 name into a colour when it paints, from the palette the area wears, and hands its painter exact
 colours; the painter knows none. A palette is offered whole at a revision, and a new one paints

@@ -97,12 +97,13 @@ class FlowPane final
                        ws::PaneCanvasValueDrop, ws::PaneCarryAnswered, gfx::AreaRoom,
                        gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
                        gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded,
-                       gfx::AreaPointerLeft, zengine::view::ViewWiring>,
+                       gfx::AreaPointerLeft, zengine::view::ViewWiring, gfx::OwnValuesAsked>,
           loom::Emit<ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
                      ws::PaneOperationRequested, ws::PaneValueCarryRequested, gfx::Drawn,
-                     gfx::RoomAsked, zengine::view::ViewWiringRequested>> {
+                     gfx::RoomAsked, zengine::view::ViewWiringRequested,
+                     gfx::OwnValuesDeclared>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -129,6 +130,7 @@ public:
     return loom::to_value(saved);
   }
   void on_activated(loom::Mail &mail) {
+    declare_own(mail);
     // AN ACTIVATION ENDS A WRITE STILL ASKED: a successor's ask numbers start again, so an
     // earlier answer could be read as a new ask's. Its dialog stays, to be confirmed again.
     if (const FlowAsk *ended = asks().find(of_kind(FlowAsk::Kind::kWrite))) {
@@ -197,6 +199,13 @@ public:
                                704, 396, 0};
   }
   void offered(loom::Mail &mail) { declare(mail, true); }
+  /// WHOEVER OFFERS PALETTES ASKS FOR FLOW'S OWN VALUES: said again, as on each activation.
+  void on(const gfx::OwnValuesAsked &, loom::Mail &mail) { declare_own(mail); }
+  /// FLOW'S OWN VALUES, published as Flow's role, which counts them while this life of Flow holds
+  /// it.
+  void declare_own(loom::Mail &mail) {
+    (void)mail.as_role(pane::kRole).publish(pane::hue::declared());
+  }
   void on(const ws::ActionsJudged &answer, loom::Mail &mail) {
     if (!host(mail, answer.pane))
       return;

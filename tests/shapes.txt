@@ -99,7 +99,7 @@ DeskStamps v3 0x3cc122a12715a647
 DeskView v5 0x885b0f9ecdea9c28
 DesktopState v4 0xfde823fbe0e70cf6
 DirectoryArea v8 0x64e015db58920989
-DirectoryState v13 0xab390fd8e33400ab
+DirectoryState v13 0xdd7b40c375d65e27
 Dismissal v1 0x2ef46c30c9e25ec4
 DockPlace v1 0xf7c97a163eb541df
 Drawn v2 0x3107618795be3e11
@@ -317,6 +317,10 @@ OfficeSettingsRequested v1 0xc72ad63d323aef9a
 OpenSourceRequested v1 0x7202b83683b28f3b
 OpeningRoom v1 0x3028e7c9b444ab5d
 OpeningState v1 0x7bed74362789d96d
+OwnDeclared v1 0x85004933a5372c32
+OwnValues v1 0x7e55accc27a91617
+OwnValuesAsked v1 0xee2bdb0205a4ceaa
+OwnValuesDeclared v1 0x3457cefaef363311
 PaintInk v1 0x89d64272a39df0f9
 PaintNode v4 0x2125e49f60cbafd9
 PaintResult v1 0xf6f28b0522c96a8b
@@ -324,9 +328,8 @@ PaintTask v5 0xa9927b56ac15b5d9
 PaletteChosen v1 0x9086ee799ceb3a7f
 PaletteColor v1 0xbe0b8c34db4c0986
 PaletteFont v1 0xbcfc409b94b549bf
-PaletteOffered v4 0xaeaa2660b2437d5e
+PaletteOffered v4 0x19150d0ebd717e01
 PaletteSize v1 0x24b765184de9a1bd
-PaletteSlots v3 0x46bb49ed7a93bc40
 PaletteState v1 0xf2c339f77a3a2a13
 PaletteStyle v1 0xa7ce872f508693f9
 PaneActionRequested v1 0xbb7e7caf6998a112
@@ -558,12 +561,12 @@ TerminalCompletionRequested v1 0xf6aac8925ab2f82f
 TerminalPaneState v1 0xd03f9407268706f8
 TerminalValueAnswered v1 0x17bc3734f66f3049
 TerminalValueRequested v1 0xc5538754a8ccd1f6
-TextArgs v4 0xbc8f33d48f4bc5e5
+TextArgs v4 0x1eff922e60d5e3db
 TextBoxFace v2 0x3d7ff715a419d008
 TextEntered v1 0x8f83bdd4c2946ae2
 TextMeasured v2 0xd5cfc1756cdf3a12
-TextSize v1 0x721bd460d9cda6ee
-TextStyle v1 0x4dd48063f88f1fdc
+TextSize v2 0xc4ca35b7be879eda
+TextStyle v1 0x0e00b846e410f3ed
 ThemeActed v1 0xf4e40fe491f0fc3d
 ThemeApplyRequested v1 0xbfa507f0e04d69ad
 ThemeFile v1 0xadbb42b4fead2a95
@@ -616,7 +619,7 @@ WindowOffered v5 0x2e85cafc6482f39e
 WindowShaped v1 0x65fc824d06476f98
 WindowShowAsked v1 0x9ae7f3bd1654e34e
 WindowShown v1 0x67d34473f44e6144
-WindowState v12 0xbafa0ea7232e1686
+WindowState v12 0xaf8d3ec15f76bcc2
 WithdrawalFence v1 0x84f263bbb46b652c
 WorkshopCMakeTarget v1 0x9e240d00291fccca
 WorkshopCMakeTarget v2 0x7d80363632515662

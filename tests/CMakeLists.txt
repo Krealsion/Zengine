@@ -767,7 +767,7 @@ foreach(stem IN ITEMS thermostat boundaries high_water empty)
 endforeach()
 add_executable(zengine-flow-tests test_flow.cpp test_flow_runtime.cpp test_flow_graph.cpp test_flow_view.cpp doctest_main.cpp)
 target_link_libraries(zengine-flow-tests PRIVATE zengine-flow zengine-graphics-vocabulary loom::kernel
-                                                 zengine-flow-slots zengine-warnings zengine-sanitize)
+                                                 zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-tests
     "FLOW_THERMOSTAT=\"$<TARGET_FILE:zengine-flow-thermostat>\""
@@ -783,7 +783,7 @@ zengine_doctest_test(flow zengine-flow-tests)
 add_executable(zengine-flow-pane-tests test_flow_pane.cpp doctest_main.cpp)
 # ...and Workshop's vocabulary for the discovery door it mounts, whose manual rides that target.
 target_link_libraries(zengine-flow-pane-tests PRIVATE zengine-flow zengine-activation loom::kernel
-    zengine-workshop-vocabulary zengine-flow-slots zengine-warnings zengine-sanitize)
+    zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-pane-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-pane-tests "FLOW_PANE_ARTIFACT=\"$<TARGET_FILE:zengine-flow-pane>\"")
 add_dependencies(zengine-flow-pane-tests zengine-flow-pane)
@@ -1799,12 +1799,16 @@ target_link_libraries(zengine-graphics-tests
 target_include_directories(zengine-graphics-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/examples/snake)
-# The suite's own slots, generated as a stranger's pane generates its own (cmake/ZengineNames.cmake).
+# The suite's own values in slots files, generated as a stranger's pane generates its own
+# (cmake/ZengineNames.cmake).
 zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_slots.json
               NAMESPACE graphics_suite::colors HEADER graphics_suite/colors.hpp)
 # ...and a version-1 file, which names its role `office`, read the same way.
 zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_slots_v1.json
               NAMESPACE graphics_suite_v1::colors HEADER graphics_suite/colors_v1.hpp)
+# ...and an own values file.
+zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_own.json
+              NAMESPACE graphics_suite_own::colors HEADER graphics_suite/colors_own.hpp)
 zengine_test_definitions(zengine-graphics-tests
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-tui>\""

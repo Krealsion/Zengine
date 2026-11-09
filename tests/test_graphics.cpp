@@ -35,6 +35,8 @@
 #include "graphics/window/palette.hpp"
 #include "graphics_suite/colors.hpp" // generated from tests/graphics_slots.json
 #include "graphics_suite/colors_v1.hpp" // ...and from a version-1 file, tests/graphics_slots_v1.json
+#include "graphics_suite/colors_own.hpp" // ...and from an own values file, tests/graphics_own.json
+#include "graphics/own.hpp"
 #include "graphics/window/terminal_io.hpp"
 #include "graphics/window/window_sdl.hpp"
 #include "graphics/window/window_tui.hpp"
@@ -5561,13 +5563,13 @@ TEST_CASE("a pane naming a pool colour paints its palette's colour, and a new re
     CHECK(t.shown().painter_calls == calls + 2);
 }
 
-TEST_CASE("a slot paints the palette's colour for the role that exposes it, else the default "
-          "its pane generated, and a terminal shows it as the pool colour it is like") {
+TEST_CASE("an own value paints the palette's colour for the role that declares it, else the "
+          "default its pane generated, and a terminal shows it as the pool colour it is like") {
     LitWindow t;
     gfx::PaletteOffered slotted = gfx::themes::night();
     slotted.palette = "slotted";
-    slotted.slots.push_back(gfx::PaletteSlots{"test.slotted", {{"card", 0x010203ff, "", ""}}, {}});
-    slotted.slots.push_back(gfx::PaletteSlots{"test.other", {{"badge", 0x040506ff, "", ""}}, {}});
+    slotted.own.push_back(gfx::OwnValues{"test.slotted", {{"card", 0x010203ff, "", ""}}, {}, {}});
+    slotted.own.push_back(gfx::OwnValues{"test.other", {{"badge", 0x040506ff, "", ""}}, {}, {}});
     t.r.to_role(gfx::kGraphicsRole, slotted);
     t.r.drain();
     t.own("test.slotted", 0, 0, 100, 50, "slotted");
@@ -5584,7 +5586,7 @@ TEST_CASE("a slot paints the palette's colour for the role that exposes it, else
     CHECK(own->nodes[0].quads[0].rgba == 0x010203ffu);   // the palette's, for its role
     CHECK(own->nodes[1].quads[0].rgba == 0xf2a541ffu);   // another role's setting is not its
     CHECK(plain->nodes[0].quads[0].rgba == 0x24324affu); // the default its pane generated
-    // IN A TERMINAL, a slot's default is filled and inked as the pool colour it is like.
+    // IN A TERMINAL, an own value's default is filled and inked as the pool colour it is like.
     gfx::Sketch cells;
     cells.fill_rect("card", 0, 0, 2 * gfx::kCellPx, gfx::kCellPx, graphics_suite::colors::card);
     cells.fill_rect("badge", 2 * gfx::kCellPx, 0, 2 * gfx::kCellPx, gfx::kCellPx,
@@ -5592,12 +5594,65 @@ TEST_CASE("a slot paints the palette's colour for the role that exposes it, else
     CHECK(painted(cells, gfx::themes::night())[0] == "  OO");
 }
 
-TEST_CASE("a version-1 slots file, which names its role office, generates its pane's colours as a "
-          "version-2 file does") {
-    const gfx::SlotColor plate = graphics_suite_v1::colors::plate;
+TEST_CASE("a version-1 slots file, which names its role office, generates its pane's own colours "
+          "as a version-2 file and an own values file do") {
+    const gfx::OwnColor plate = graphics_suite_v1::colors::plate;
     CHECK(std::string(plate.name) == "plate");
     CHECK(plate.rgba == 0x3a4b62ffu);
     CHECK(std::string(plate.like) == "background");
+    const gfx::OwnColor rim = graphics_suite_own::colors::rim;
+    CHECK(std::string(rim.name) == "rim");
+    CHECK(rim.rgba == 0x5a6b7cffu);
+    CHECK(std::string(rim.like) == "quiet");
+    const gfx::Color drawn = rim;
+    CHECK(drawn.from == gfx::color_from::kOwn);
+}
+
+TEST_CASE("an own value declared where it is used, with a pool colour, size or style for its "
+          "default, paints its default until a palette sets it for its role, and is declared as "
+          "it is drawn") {
+    const gfx::Color ring = gfx::own("ring", gfx::colors::accent);
+    const gfx::TextSize note = gfx::own("note", gfx::sizes::small_);
+    const gfx::TextLook title = gfx::own("title", gfx::styles::heading);
+    gfx::Sketch s;
+    s.fill_rect("ring", 0, 0, 2 * gfx::kCellPx, gfx::kCellPx, ring);
+    s.text("note", 0, 0, "n", gfx::colors::text, note);
+    s.text("title", 0, 0, "t", title);
+    const auto inks = [&](const gfx::PaletteOffered& p) {
+        return gfx::window::inks_of(s.nodes()[0].op, s.nodes()[0].args, p, "test.owner");
+    };
+    const auto text_of = [&](std::size_t i, const gfx::PaletteOffered& p) {
+        return gfx::window::resolve_text(*gfx::from_body<gfx::TextArgs>(s.nodes()[i].args), p,
+                                         "test.owner");
+    };
+    // ITS DEFAULT: the pool colour, size and style it names, as the palette says for them.
+    gfx::PaletteOffered day = gfx::themes::day();
+    const gfx::PaletteColor* accent = gfx::window::pool_color(day, "accent");
+    REQUIRE(accent != nullptr);
+    CHECK(inks(day)[0].rgba == accent->rgba);
+    CHECK(text_of(1, day).size.points == gfx::window::root_size("small", day).points);
+    CHECK(text_of(2, day).size.name == "large");
+    CHECK(text_of(2, day).weight == gfx::text_weight::kBold);
+    // ...UNTIL A PALETTE SETS IT FOR ITS ROLE, and another role's setting is not its.
+    day.own.push_back(gfx::OwnValues{"test.owner",
+                                     {{"ring", 0x0a0b0cff, "", ""}},
+                                     {{"note", 30}},
+                                     {{"title", "text", "huge", "alert", gfx::text_weight::kRegular}}});
+    day.own.push_back(gfx::OwnValues{"test.other", {{"ring", 0x0d0e0fff, "", ""}}, {}, {}});
+    CHECK(inks(day)[0].rgba == 0x0a0b0cff);
+    CHECK(text_of(1, day).size.points == 30);
+    CHECK(text_of(2, day).size.name == "huge");
+    CHECK(text_of(2, day).color.name == "alert");
+    CHECK(text_of(2, day).weight == gfx::text_weight::kRegular);
+    // DECLARED AS IT IS DRAWN: each name, its kind and its default.
+    const gfx::OwnValuesDeclared d =
+        gfx::declared({ring, gfx::own("kept", gfx::rgb(0x8fbcbb, gfx::colors::accent))}, {note},
+                      {title});
+    REQUIRE(d.values.size() == 4);
+    CHECK(d.values[0] == gfx::OwnDeclared{"ring", "color", "accent", 0, 0});
+    CHECK(d.values[1] == gfx::OwnDeclared{"kept", "color", "", 0x8fbcbbff, 0});
+    CHECK(d.values[2] == gfx::OwnDeclared{"note", "size", "small", 0, 0});
+    CHECK(d.values[3] == gfx::OwnDeclared{"title", "style", "heading", 0, 0});
 }
 
 namespace {

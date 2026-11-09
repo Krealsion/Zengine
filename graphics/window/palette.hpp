@@ -75,28 +75,44 @@ inline PaintInk own_ink(std::int64_t rgba, std::string_view like, const PaletteO
     return ink;
 }
 
-/// A COLOUR A DRAW NAMES, AS PAINTED in `palette` in an area `role` owns.
+/// The own values `palette` sets for `role`; none where it sets none.
+inline const OwnValues* own_values(const PaletteOffered& palette, const std::string& role) {
+    for (const OwnValues& o : palette.own) {
+        if (o.role == role) {
+            return &o;
+        }
+    }
+    return nullptr;
+}
+
+/// A pool colour as painted in `palette`: as the palette says, else the pool's default, else `text`.
+inline PaintInk pool_ink(std::string_view name, const PaletteOffered& palette) {
+    if (const PaletteColor* p = pool_color(palette, name)) {
+        return ink_of(*p, palette);
+    }
+    if (const PaletteColor* p = pool_color(palette, colors::text.name)) {
+        return ink_of(*p, palette);
+    }
+    return own_ink(0xffffffff, {}, palette);
+}
+
+/// A COLOUR A DRAW NAMES, AS PAINTED in `palette` in an area `role` owns: an own value as the
+/// palette sets it for that role, else as its default -- its exact colour, or its pool colour.
 inline PaintInk resolve(const Color& c, const PaletteOffered& palette, const std::string& role) {
     switch (c.from) {
     case color_from::kExact:
         return own_ink(c.rgba, c.like, palette);
     case color_from::kPool:
-        if (const PaletteColor* p = pool_color(palette, c.name)) {
-            return ink_of(*p, palette);
-        }
-        if (const PaletteColor* p = pool_color(palette, colors::text.name)) {
-            return ink_of(*p, palette);
-        }
-        return own_ink(0xffffffff, {}, palette);
-    case color_from::kSlot:
-        for (const PaletteSlots& s : palette.slots) {
-            if (s.role == role) {
-                if (const PaletteColor* p = find_color(s.colors, c.name)) {
-                    return ink_of(*p, palette);
-                }
+        return pool_ink(c.name, palette);
+    case color_from::kOwn:
+    case color_from::kOwnPool:
+        if (const OwnValues* o = own_values(palette, role)) {
+            if (const PaletteColor* p = find_color(o->colors, c.name)) {
+                return ink_of(*p, palette);
             }
         }
-        return own_ink(c.rgba, c.like, palette);
+        return c.from == color_from::kOwn ? own_ink(c.rgba, c.like, palette)
+                                          : pool_ink(c.like, palette);
     default:
         return PaintInk{};
     }
@@ -135,9 +151,21 @@ inline const PaletteStyle* pool_style(const PaletteOffered& palette, std::string
 /// palette holds: the window's own.
 inline constexpr std::int64_t kFallbackPoints = 13;
 
-/// A STYLE A DRAW NAMES, AS SET in `palette`: the pool style as the palette says, else as the
-/// pool's own default, else `body`'s; each of its fields a root's name.
-inline PaletteStyle resolve_style(const TextStyle& style, const PaletteOffered& palette) {
+/// A STYLE A DRAW NAMES, AS SET in `palette` in an area `role` owns: an own style as the palette
+/// sets it for that role, else as the pool style it is `like`; a pool style as the palette says,
+/// else as the pool's own default, else `body`'s; each of its fields a root's name.
+inline PaletteStyle resolve_style(const TextStyle& style, const PaletteOffered& palette,
+                                  const std::string& role = {}) {
+    if (style.from == style_from::kOwn) {
+        if (const OwnValues* o = own_values(palette, role)) {
+            for (const PaletteStyle& s : o->styles) {
+                if (s.name == style.name) {
+                    return s;
+                }
+            }
+        }
+        return resolve_style(TextStyle{style_from::kPool, style.like, {}}, palette);
+    }
     if (const PaletteStyle* s = pool_style(palette, style.pool_name())) {
         return *s;
     }
@@ -162,24 +190,24 @@ inline std::int64_t body_points(const PaletteOffered& palette) {
 }
 
 /// A TEXT SIZE A DRAW NAMES, AS SET in `palette` in an area `role` owns, in a style that stands at
-/// `style_size`: a pool size as the palette says, else as the pool's own default; a slot as the
-/// palette says for the area's owner, else at the points the drawing carries; none, the style's.
-/// Its name is the pool's, or the slot's.
+/// `style_size`: a pool size as the palette says, else as the pool's own default; an own value as
+/// the palette sets it for the area's owner, else at its default, its points or its pool size;
+/// none, the style's. Its name is the pool's, or the own value's.
 inline PaletteSize resolve_size(const TextSize& size, const PaletteOffered& palette,
                                 const std::string& role, const std::string& style_size) {
-    if (size.from == size_from::kSlot) {
-        for (const PaletteSlots& s : palette.slots) {
-            if (s.role != role) {
-                continue;
-            }
-            for (const PaletteSize& z : s.sizes) {
+    if (size.from == size_from::kOwn || size.from == size_from::kOwnPool) {
+        if (const OwnValues* o = own_values(palette, role)) {
+            for (const PaletteSize& z : o->sizes) {
                 if (z.name == size.name && z.points > 0) {
                     return z;
                 }
             }
         }
-        if (size.points > 0) {
+        if (size.from == size_from::kOwn && size.points > 0) {
             return PaletteSize{size.name, size.points};
+        }
+        if (size.from == size_from::kOwnPool && !size.like.empty()) {
+            return PaletteSize{size.name, root_size(size.like, palette).points};
         }
         return root_size(style_size, palette);
     }
@@ -221,7 +249,7 @@ struct TextSet {
 
 inline TextSet resolve_text(const TextArgs& t, const PaletteOffered& palette,
                             const std::string& role) {
-    const PaletteStyle style = resolve_style(t.style, palette);
+    const PaletteStyle style = resolve_style(t.style, palette, role);
     TextSet set;
     set.font = !t.font.empty() ? t.font : (!style.font.empty() ? style.font : kTextFont);
     set.size = resolve_size(t.size, palette, role, style.size);

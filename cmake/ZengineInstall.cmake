@@ -168,7 +168,7 @@ set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.
 # arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim and
 # size.
 set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp
-                                    graphics/text_style.hpp
+                                    graphics/text_style.hpp graphics/own.hpp
     graphics/ops.hpp graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp
     graphics/light_paint.hpp graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp
     graphics/element_abi.h graphics/element_export.hpp graphics/pixels.hpp

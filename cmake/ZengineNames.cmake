@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 #
-# Colours, text sizes and fonts by name, generated from JSON at configure time: a C++ name for each
-# colour, size and font a pool or a pane's slots declare, and a palette for each theme, so a name
-# nobody declared does not build and a theme is data. Installed with the package, so a stranger's
-# pane generates its slots as Zengine's own do. The JSON's form and the C++ it gives:
-# graphics/docs/graphics.md, "Colours by name" and "Text: styles, sizes, fonts, weight".
+# Colours, text sizes, fonts and styles by name, generated from JSON at configure time: a C++ name
+# for each colour, size, font and style a pool or a pane's own values declare, and a palette for each
+# theme, so a name nobody declared does not build and a theme is data. Installed with the package,
+# so a stranger's pane generates its own values as Zengine's own do. The JSON's form and the C++ it
+# gives: graphics/docs/graphics.md, "Colours by name" and "Text: styles, sizes, fonts, weight".
 
 if(CMAKE_VERSION VERSION_LESS 3.22)
     message(FATAL_ERROR "zengine: colours by name are generated with CMake 3.22 or newer; this is "
@@ -342,11 +342,11 @@ function(_zengine_names_write path text)
 endfunction()
 
 # zengine_names(<target> JSON <file> NAMESPACE <namespace> HEADER <include path>): a header naming
-# each colour of a pool (`PoolColor`) or a pane's slots (`SlotColor`, with its default and the pool
-# colour it is `like`) in <namespace>, and each size (`PoolSize`, or a slot's `SlotSize`), a pool's
-# fonts (`PoolFont`) and styles (`PoolStyle`) in `sizes`, `fonts` and `styles` beside it. A pool
-# declares the font `text` and the style `body`. A name is refused only where C++ cannot spell it,
-# and spelled with `_` after it where Windows' headers make it a macro.
+# each colour of a pool (`PoolColor`) or a pane's own values (`OwnColor`, with its default and the
+# pool colour it is `like`) in <namespace>, and each size (`PoolSize`, or an own `OwnSize`), a
+# pool's fonts (`PoolFont`) and styles (`PoolStyle`) in `sizes`, `fonts` and `styles` beside it. A
+# pool declares the font `text` and the style `body`. A name is refused only where C++ cannot spell
+# it, and spelled with `_` after it where Windows' headers make it a macro.
 function(zengine_names target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "JSON;NAMESPACE;HEADER" "")
     if(NOT TARGET ${target} OR NOT arg_JSON OR NOT arg_NAMESPACE OR NOT arg_HEADER)
@@ -356,15 +356,25 @@ function(zengine_names target)
     get_filename_component(file "${arg_JSON}" ABSOLUTE)
     file(READ "${file}" json)
     string(JSON format ERROR_VARIABLE err GET "${json}" format)
-    if(err OR NOT format MATCHES "^zengine-(pool|slots)$")
-        _zengine_names_fail("${file}" "its format is neither 'zengine-pool' nor 'zengine-slots'")
+    if(err OR NOT format MATCHES "^zengine-(pool|own|slots)$")
+        _zengine_names_fail("${file}" "its format is none of 'zengine-pool', 'zengine-own' and "
+                                      "'zengine-slots'")
     endif()
     _zengine_names_read(json "${file}" "${format}")
     if(format STREQUAL "zengine-pool")
         _zengine_names_keys("${json}" "${file}" "the pool" format format_version about outline
                             colors sizes fonts styles)
+    elseif(format STREQUAL "zengine-own")
+        string(JSON own_version ERROR_VARIABLE own_err GET "${json}" format_version)
+        if(NOT own_version EQUAL 1)
+            _zengine_names_fail("${file}" "it is own values version ${own_version}; own values "
+                                          "are read at version 1")
+        endif()
+        _zengine_names_keys("${json}" "${file}" "the own values" format format_version about role
+                            colors sizes)
     else()
-        # Version 2 names its role `role`; a version-1 file named it `office`, read as the same.
+        # Slots, as a pane's own values were named before: read as own values. Version 2 names its
+        # role `role`; a version-1 file named it `office`, read as the same.
         string(JSON slots_version ERROR_VARIABLE slots_err GET "${json}" format_version)
         if(slots_version EQUAL 2)
             _zengine_names_keys("${json}" "${file}" "the slots" format format_version about role
@@ -407,7 +417,7 @@ function(zengine_names target)
             string(APPEND text "inline constexpr ::zengine::graphics::PoolColor ${cpp}{\"${name}\"};\n")
         else()
             _zengine_names_literal(like "${c_${name}_like}")
-            string(APPEND text "inline constexpr ::zengine::graphics::SlotColor ${cpp}{\"${name}\", "
+            string(APPEND text "inline constexpr ::zengine::graphics::OwnColor ${cpp}{\"${name}\", "
                                "${c_${name}_color}u, ${like}};\n")
         endif()
     endforeach()
@@ -422,7 +432,7 @@ function(zengine_names target)
             if(format STREQUAL "zengine-pool")
                 string(APPEND text "inline constexpr ::zengine::graphics::PoolSize ${cpp}{\"${name}\"};\n")
             else()
-                string(APPEND text "inline constexpr ::zengine::graphics::SlotSize ${cpp}{\"${name}\", "
+                string(APPEND text "inline constexpr ::zengine::graphics::OwnSize ${cpp}{\"${name}\", "
                                    "${c_size_${name}_points}};\n")
             endif()
         endforeach()
@@ -572,7 +582,7 @@ function(zengine_palettes target)
         endforeach()
         string(JOIN ",\n        " body ${entries})
 
-        # Each role's slots, as the theme gives them.
+        # Each role's own values, as the theme gives them under `slots`.
         set(slot_text "")
         string(JSON slots_type ERROR_VARIABLE no_slots TYPE "${t}" slots)
         if(NOT no_slots)
@@ -592,7 +602,7 @@ function(zengine_palettes target)
                     endforeach()
                     string(JOIN ", " slot_body ${slot_entries})
                     _zengine_names_literal(role "${role}")
-                    string(APPEND slot_text "    p.slots.push_back({${role}, {${slot_body}}, {}});\n")
+                    string(APPEND slot_text "    p.own.push_back({${role}, {${slot_body}}, {}, {}});\n")
                 endforeach()
             endif()
         endif()

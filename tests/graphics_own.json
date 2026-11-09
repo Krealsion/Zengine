@@ -1,0 +1,9 @@
+{
+  "format": "zengine-own",
+  "format_version": 1,
+  "about": "The graphics suite's own values as an own values file says them, generated as a stranger's are.",
+  "role": "test.owned",
+  "colors": [
+    { "name": "rim", "color": "#5a6b7c", "like": "quiet", "about": "a rim's outline" }
+  ]
+}

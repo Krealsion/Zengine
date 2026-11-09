@@ -41,10 +41,10 @@ int main() {
     picture.text("label", 4, 6, "soup", gfx::colors::accent);
     const auto plate_args = gfx::from_body<gfx::RectArgs>(picture.nodes()[0].args);
     const auto label_args = gfx::from_body<gfx::TextArgs>(picture.nodes()[1].args);
-    check(plate_args && plate_args->fill.from == gfx::color_from::kSlot &&
+    check(plate_args && plate_args->fill.from == gfx::color_from::kOwn &&
               plate_args->fill.name == "plate" && plate_args->fill.rgba == 0x336699ff &&
               plate_args->fill.like == "background",
-          "a slot of the pane's own is its name, its default and the pool colour it is like");
+          "an own value of the pane's is its name, its default and the pool colour it is like");
     check(label_args && label_args->ink.from == gfx::color_from::kPool &&
               label_args->ink.name == "accent",
           "a pool colour is its name, which the window turns into a colour");

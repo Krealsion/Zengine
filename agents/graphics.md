@@ -125,24 +125,27 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 
 ## Colour, pixels and operands
 
-- **A colour is an exact value, a pool name or a slot, and the window alone turns a name into a
+- **A colour is an exact value, a pool name or an own value, and the window alone turns a name into a
   colour** (`Color`, `graphics/color.hpp`; `graphics/window/palette.hpp`), when it paints, from the
   palette the area wears: a pool name as the palette says, else the pool's default, else `text`; a
-  slot as the palette says for the area's owner, else the default the drawing carries. An area
+  own value as the palette says for the area's owner, else the default the drawing carries, an
+  exact colour or a pool colour as the palette says. An area
   wearing no palette the window holds wears the window's own, the pool's defaults. A text's style
   is turned into its font, size, colour and weight there too, each field the draw changes standing
   over the style's (`resolve_text`). The painter is handed exact colours (`PaintNode::inks`) and a
   resolved weight and measure, and keeps none; no drawer, painter or medium resolves a name.
-- **Names are generated, never spelled by hand**: the pool's and each pane's slots are C++ names
-  generated from JSON (`cmake/ZengineNames.cmake`), so a name nobody declared does not compile.
-  Nothing judges a name's spelling but what C++ cannot spell.
+- **Names are generated or declared, never spelled by hand**: the pool's are C++ names generated
+  from JSON (`cmake/ZengineNames.cmake`), so a name nobody declared does not compile; a pane's own
+  values are declared where they are used (`own()`), or generated from its own JSON, and drawn by
+  the name declared. Nothing judges a name's spelling but what C++ cannot spell.
 - **A palette is offered whole, at a revision**, through the directory, and kept by every window: a
   higher revision paints every area wearing it again from what the window keeps, and no owner is
   told. A palette chosen before its area is placed is kept for it, so the area is introduced once.
 - **A terminal shows a colour's word, else its nearest**: its `cells` word, else the nearest of the
   sixteen inks, never the terminal's default unless a word asks for it; a shape fills with its colour's
-  fill character, and an exact colour or a slot's own shows as the pool colour it is `like`.
-- **A drawer names a colour, never a role**: a pool name, a slot of its own, or an exact value
+  fill character, and an exact colour or an own value's exact default shows as the pool colour it
+  is `like`.
+- **A drawer names a colour, never a role**: a pool name, an own value of its own, or an exact value
   beside the pool colour it is `like`; where only the pool's colours are shown, a colour shows as
   its pool colour (`pool_color_of`, `graphics/ops.hpp`).
 - **Pixels are bytes**: an `image` carries its own red, green, blue and alpha, four bytes a pixel.

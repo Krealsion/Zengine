@@ -8,7 +8,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | path | what it is |
 |---|---|
 | `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's and the palettes (`PaletteOffered`, `PaletteChosen`), `WindowShown`; `kGraphicsRole` |
-| `color.hpp` | a colour a draw carries, `Color`: an exact value (`rgb`, `rgba`, beside the pool colour it is `like`), a pool name (`PoolColor`) or a slot (`SlotColor`) |
+| `color.hpp` | a colour a draw carries, `Color`: an exact value (`rgb`, `rgba`, beside the pool colour it is `like`), a pool name (`PoolColor`) or an own value (`own()`, `OwnColor`) |
+| `own.hpp` | a pane's own values as it declares them to whoever offers palettes: `declared()`, `OwnValuesDeclared` |
 | `pool.json`, `themes/*.json` | the pool's roots (colours, fonts, sizes `tiny` to `huge`) and the styles made of them, with their defaults, and the three shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent`, `styles::heading`, `sizes::large` ...) and `graphics/themes.hpp` (`themes::night()` ...) by `cmake/ZengineNames.cmake` |
 | `text_style.hpp` | what a text is set in: a style (`TextStyle`, `PoolStyle`) and the fields one draw changes (`TextLook`: `with_color`, `with_size`, `with_font`, `with_weight`), a size (`TextSize`) and a weight |
 | `pixels.hpp` | saturating pixel arithmetic: `add_cells`, `sub_px`, `mul_px`, `floor_div_px`, `px_of_cells`, `cell_of_pixel`, `device_of_px`, `px_span_contains` and the grains |
@@ -37,7 +38,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   light painter's packing and landing, and a tripwire that no source here includes Surface; the
   window, the directory, the palettes and the snake's board through the real kernel: said once, one
   change a tick shown once, a palette chosen or offered anew painting again with nothing drawn on
-  the bus, a slot, the window's own palette, a terminal's nearest ink, operands of the first
+  the bus, an own value, the window's own palette, a terminal's nearest ink, operands of the first
   versions refused, each participant replaced or reloaded, the room naming what the
   window holds, a drawing weave shown once a beat, keys and their releases, every pointer moment
   given to the area hearing the pointer it lands in, a press held for its area until its release
