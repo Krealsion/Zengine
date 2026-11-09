@@ -31,6 +31,14 @@ struct NoticeSaid {
     ZEN_SHAPE(NoticeSaid, 1, ZEN_FIELD(number), ZEN_FIELD(text), ZEN_FIELD(refusal));
 };
 
+/// A SEATED PANE ASKS WORKSHOP TO SAY A REFUSAL WHOLE. `text` is the sentence the pane's row
+/// paints cut at the pane's width. Workshop says it as its own notice, a refusal, and answers
+/// nothing. An empty sentence, or one from a role that holds no seated pane, is not said.
+struct PaneRefusalRequested {
+    std::string text;
+    ZEN_SHAPE(PaneRefusalRequested, 1, ZEN_FIELD(text));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_NOTICE_SEAM_VOCABULARY_HPP

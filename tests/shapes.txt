@@ -386,6 +386,7 @@ PanePointRequested v4 0x0bc2061aa091f99d
 PanePresentation v1 0x6ba016f3c6ef98b8
 PaneQuitAnswered v1 0x2b9e5561dcffbcb9
 PaneQuitRequested v1 0x8d69d14c20a8f5a4
+PaneRefusalRequested v1 0xccc84e88b7ac0da1
 PaneResetRequested v1 0x2c5ef4ef789630bb
 PaneRevealAnswered v1 0xc9433fec66580502
 PaneRevealRequested v1 0x6f6ea82ad0525e00

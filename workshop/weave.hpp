@@ -510,6 +510,8 @@ class WorkshopWeave
                                           // what a window says a pane's area shows, or why not
                                           zengine::graphics::AreaShown, loom::Refused,
                                           loom::DispatchRefused,
+                                          // a seated pane's refusal, said whole as a notice
+                                          PaneRefusalRequested,
                                           // that what an area shows settled, unasked
                                           zengine::graphics::AreaSettled,
                                           // the double-click time the input role says
@@ -753,6 +755,8 @@ public:
     std::string authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const v2::PaneOperationRequested& asked, loom::Mail& mail);
+    /// A seated pane's refusal, said whole: its row paints the same sentence cut at its width.
+    void on(const PaneRefusalRequested& asked, loom::Mail& mail);
     /// A guest's mark on one control or part, for the weaver to see: judged against the row's
     /// `guide` and `capture` doors, then the part as the pane shows it now.
     void on(const GuideRequested& asked, loom::Mail& mail);

@@ -38,10 +38,12 @@ with its reason.
 
 Every command that builds, loads, promotes, reverts, writes the plan or opens a file asks Workshop
 first. A refusal names what was not done and why, as `` `tally` was not built -- <the reason> ``: a
-guest without the `build` power is refused this way before anything runs. The reason is Workshop's
-own, `8 acts are already waiting on Workshop`, `nothing was queued to <role>`, or `the ask could
-not reach <role> (<the bus's reason>)`. Until the Builder role has said what it builds, a
-command says `the Builder has not said what it builds yet` and does nothing.
+guest without the `build` power is refused this way before anything runs. The pane's row paints
+that sentence cut at its width. The refusal is read from the notice: Workshop says the same
+sentence whole, and the [notices record](../../notices/docs/zengine.notices.md) keeps it. The
+reason is Workshop's own, `8 acts are already waiting on Workshop`, `nothing was queued to
+<role>`, or `the ask could not reach <role> (<the bus's reason>)`. Until the Builder role has
+said what it builds, a command says `the Builder has not said what it builds yet` and does nothing.
 
 ## Commands
 

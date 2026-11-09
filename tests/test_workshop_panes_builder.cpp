@@ -17,6 +17,8 @@
 #include "pane_window.hpp"
 
 #include "builder/builder-pane/vocabulary.hpp"
+#include "notices/vocabulary.hpp"
+#include "workshop/actor_scope.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/pane_document.hpp"
@@ -30,6 +32,7 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <memory>
 #include <regex>
 #include <set>
 
@@ -2665,6 +2668,119 @@ TEST_CASE("a guest without build is refused b, B, f and load-built in words on e
     b.letter(input::scan::kB, "b");
     REQUIRE(b.tool->asked.size() == asked + 1);
     CHECK(b.tool->asked.back() == "snake");
+}
+
+namespace nt = zengine::notices;
+
+struct RefusalPageState {
+    ZEN_SHAPE(RefusalPageState, 1);
+};
+struct RefusalPageDo {
+    ZEN_SHAPE(RefusalPageDo, 1);
+};
+
+/// A WEAVE THAT ASKS THE NOTICES RECORD FOR ONE PAGE, as any other reader would.
+class RefusalPage
+    : public loom::WeaveBase<RefusalPage, RefusalPageState,
+                             loom::Accept<nt::NoticesShown, RefusalPageDo>,
+                             loom::Emit<nt::NoticesRequested>> {
+public:
+    std::function<void(loom::Mail&)> next;
+    std::vector<nt::NoticesShown> pages;
+    void on(const nt::NoticesShown& page, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            pages.push_back(page);
+        }
+    }
+    void on(const RefusalPageDo&, loom::Mail& mail) {
+        std::function<void(loom::Mail&)> once;
+        once.swap(next);
+        if (once) {
+            once(mail);
+        }
+    }
+};
+
+/// THE RECORD, LOADED AFTER THE PANE, so a later refusal is the one it can keep.
+void load_notices(BuilderRig& b) {
+    load::LoadPlan plan;
+    load::ArtifactIntent row;
+    row.stem = nt::kNoticesStem;
+    row.weave = load::WeaveIntent{nt::kNoticesRole};
+    plan.artifacts.push_back(std::move(row));
+    const load::Executed done = b.r.run_plan(std::move(plan));
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+}
+
+/// THE NEWEST PAGE OF THE RECORD.
+nt::NoticesShown notices_page(BuilderRig& b) {
+    auto held = std::make_unique<RefusalPage>();
+    RefusalPage* reader = held.get();
+    loom::Grant grant;
+    grant.allow_to_role(nt::NoticesRequested::zen_name, nt::NoticesRequested::zen_version,
+                        nt::kNoticesRole);
+    const loom::WeaveId id =
+        b.r.bus.register_weave(std::move(held), std::move(grant), "test.builder-refusal");
+    reader->zen_set_self(id);
+    reader->next = [](loom::Mail& m) {
+        (void)m.as_role("test.builder-refusal")
+            .send_to_role(nt::kNoticesRole, nt::NoticesRequested{0, nt::kMaxNoticesPage}, 7);
+    };
+    (void)b.r.bus.send(id, loom::Message(loom::to_value(RefusalPageDo{}), loom::WeaveId{},
+                                         loom::WeaveId{}, 0));
+    b.r.bus.drain_until_idle();
+    REQUIRE(reader->pages.size() == 1);
+    const nt::NoticesShown page = reader->pages.back();
+    b.r.bus.unregister_weave(id);
+    return page;
+}
+
+TEST_CASE("a guest without build is refused whole in the notices record while the pane's row cuts that sentence at its width") {
+    // THE ROW IS THE PAINT. A reading of the pane gets the refusal cut where the row ends, so the
+    // sentence is also said as a notice: the record keeps every character, and the row still ends
+    // where the pane's width cuts it.
+    BuilderRig b("bld-refusal-notice");
+    b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
+    b.open();
+    REQUIRE_MESSAGE(b.text().find("snake") != std::string::npos, b.text());
+    load_notices(b);
+    const Written sized = staged_author_pane_size(
+        b.r, builder_ref(), PaneSize{pane_unit::kPixels, cells_px(36)}, PaneSize{});
+    REQUIRE_MESSAGE(sized.accepted, sized.refusal);
+    b.r.extent(161, 48);
+    b.r.extent(160, 48);
+    guest_hand::GuestHand g(b.r, {"input"});
+    const std::string why = zengine::workshop::scope::judge(g.row, {}, zengine::workshop::scope::kBuild);
+    const std::string whole = "`snake` was not built -- " + why;
+    REQUIRE(why.find("builds and loads") != std::string::npos);
+    const std::size_t asked = b.tool->asked.size();
+    g.key(input::scan::kB);
+    CHECK(b.tool->asked.size() == asked);
+    const std::vector<std::string> rows = b.shown();
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0] != whole);
+    REQUIRE(rows[0].size() >= 3);
+    CHECK(rows[0].compare(rows[0].size() - 3, 3, "...") == 0);
+    const std::string painted = rows[0].substr(0, rows[0].size() - 3);
+    CHECK(whole.rfind(painted, 0) == 0);
+    CHECK(painted.find("builds and loads") == std::string::npos);
+    const nt::NoticesShown page = notices_page(b);
+    const nt::KeptNotice* kept = nullptr;
+    std::string heard;
+    for (const nt::KeptNotice& row : page.rows) {
+        if (!heard.empty()) {
+            heard += " | ";
+        }
+        heard += row.text;
+        if (row.text == whole) {
+            kept = &row;
+        }
+    }
+    if (heard.empty()) {
+        heard = "(the record kept nothing)";
+    }
+    REQUIRE_MESSAGE(kept != nullptr, heard);
+    CHECK(kept->refusal);
 }
 
 TEST_CASE("a guest with build builds the catalog in force, and on a weaver's host is refused "
