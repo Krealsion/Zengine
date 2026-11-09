@@ -873,7 +873,7 @@ int main(int argc, char** argv) {
         ++host.conditions_generation;
         // ---- THE OBSERVATION RELAY, beside the door (workshop/guest_door.hpp says how) --------
         // What a guest may OBSERVE is its row's `observe` list and nothing else. No weaver control
-        // calls the relay's `revoke` yet -- like `decide` for an "ask" row, it is a host seam.
+        // calls the relay's `revoke` yet; it is a host seam.
         (void)mount_observation(bus, *raw_door, file);
         std::size_t observers = 0;
         for (const guests::GuestRow& row : file.rows) {

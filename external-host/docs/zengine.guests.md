@@ -12,8 +12,8 @@ it: [Drive Workshop from another host](external-host.md).
 The door holds Workshop's listener, the guests file's rows, the inventory of connections and, for
 each session it admitted, the row that admitted it. A peer says a name when it connects, its
 *claim*; the door *establishes* the name of the row whose credential it presented, and a peer that
-presents none of them is refused. A row written `"admit": "ask"` waits `awaiting-decision`, acting on
-nothing, until the host decides.
+presents none of them is refused. A row written `"admit": "ask"` is refused when the file is read,
+in words naming the row, and Workshop does not listen: nothing decides such a connection.
 
 An admitted session is an ordinary participant on Workshop's bus, under a grant no wider than its
 row's powers. The door grants nothing itself: the bus checks every send a guest makes against that

@@ -968,7 +968,7 @@ guests::GuestsFile toolbox_guests(const char* host) {
     guests::GuestsFile file;
     file.version = 2;
     file.host = host;
-    file.rows.push_back(guests::GuestRow{"agent", "door-key", {"input", "toolbox"}, {}, false, "", false, {}, {}});
+    file.rows.push_back(guests::GuestRow{"agent", "door-key", {"input", "toolbox"}, {}, "", false, {}, {}});
     return file;
 }
 
