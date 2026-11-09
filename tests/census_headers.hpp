@@ -81,10 +81,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::app::AppPlaceDoorState>(), // AppPlaceDoorState v1
         shape<::zengine::app::AppSeatState>(), // AppSeatState v1
         shape<::zengine::app::AppSeatTurn>(), // AppSeatTurn v1
-        shape<::zengine::app::ZengineAppFile>(), // ZengineAppFile v1
+        shape<::zengine::app::ZengineAppFile>(), // ZengineAppFile v2
+        shape<::zengine::app::v1::ZengineAppFile>(), // ZengineAppFile v1
         shape<::zengine::app::ZengineAppFlow>(), // ZengineAppFlow v1
         shape<::zengine::app::ZengineAppView>(), // ZengineAppView v1
-        shape<::zengine::app::ZengineAppWindow>(), // ZengineAppWindow v1
+        shape<::zengine::app::ZengineAppWindow>(), // ZengineAppWindow v2
+        shape<::zengine::app::v1::ZengineAppWindow>(), // ZengineAppWindow v1
         shape<::zengine::builder::ArtifactPromoted>(), // ArtifactPromoted v2
         shape<::zengine::builder::ArtifactRealized>(), // ArtifactRealized v3
         shape<::zengine::builder::BuildAsked>(), // BuildAsked v1

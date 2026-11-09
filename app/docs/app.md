@@ -69,10 +69,10 @@ Read as the load plan is, a Loom value in JSON, its integers written as quoted s
 {
   "zen": 1,
   "schema": "ZengineAppFile",
-  "version": 1,
+  "version": 2,
   "fields": {
     "name": "tally",
-    "window": { "title": "tally", "width": "320", "height": "260", "skin": "day" },
+    "window": { "title": "tally", "width": "320", "height": "260", "theme": "day" },
     "views": [ { "file": "tally.view", "session": "tally.panel", "x": "8", "y": "8" } ],
     "flows": [ { "file": "tally.flow", "session": "tally" } ]
   }
@@ -81,10 +81,10 @@ Read as the load plan is, a Loom value in JSON, its integers written as quoted s
 
 - `window.title`, `width` and `height` name the app's window and size it, in pixels: the GUI window
   takes them, keeping a size within its display, and a side of 0 keeps its own; the TUI window
-  keeps the terminal's. `window.skin` names the palette the app's areas wear, one of the shipped
-  themes, `night`, `day` or `block`, in either window, and `classic` is another name for `night`;
-  one it does not name is the window's medium's, `night` in a terminal and `day` in a GUI window,
-  and the app's line says so.
+  keeps the terminal's. `window.theme` names the theme the app's areas wear, one of the shipped
+  themes, `night`, `day` or `block`, in either window; one it does not name is the window's
+  medium's, `night` in a terminal and `day` in a GUI window, and the app's line says so. A
+  version-1 file, which named it `window.skin`, is read as version 2 holds it, `classic` as `night`.
 
   ![The tally app's GUI window, titled tally and 320 by 260 as its app.json asks, Count giving 45](images/tally-app-window.png)
 - Each view runs in its own session, its area at `x`, `y` in the window's pixels, its size the

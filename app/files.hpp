@@ -52,14 +52,21 @@ inline std::string plain_name(const std::string& name) {
 /// views and `kMaxAppFlows` flows, each file a plain name and each session 1 to 128 bytes.
 inline ReadApp app_from_text(std::string_view text) {
     ReadApp out;
-    const loom::Admission admitted = loom::admit(loom::compat::parse(text),
-                                                 loom::schema_of<ZengineAppFile>(),
-                                                 loom::Report::FirstError);
+    const loom::Unverified claim = loom::compat::parse(text);
+    // A FILE OF VERSION 1, which named a skin, is read as version 2 holds it.
+    const bool first = claim.well_formed() &&
+                       claim.claimed_name() == std::string(v1::ZengineAppFile::zen_name) &&
+                       claim.claimed_version() == v1::ZengineAppFile::zen_version;
+    const loom::Admission admitted =
+        first ? loom::admit(claim, loom::schema_of<v1::ZengineAppFile>(), loom::Report::FirstError)
+              : loom::admit(claim, loom::schema_of<ZengineAppFile>(), loom::Report::FirstError);
     if (!admitted.ok()) {
         out.refusal = "app.json is not an app: " + admitted.first_error().message();
         return out;
     }
-    ZengineAppFile app = loom::from_value<ZengineAppFile>(admitted.value());
+    ZengineAppFile app =
+        first ? v1::to_current(loom::from_value<v1::ZengineAppFile>(admitted.value()))
+              : loom::from_value<ZengineAppFile>(admitted.value());
     const auto refuse = [&out](std::string why) {
         out.refusal = "app.json " + std::move(why);
         return out;

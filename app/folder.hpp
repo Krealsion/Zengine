@@ -43,7 +43,7 @@ inline constexpr const char* kAppHostLine = "zengine-app.path";
 /// Where an exported app's view stands in its window, and the margin around it, in pixels.
 inline constexpr std::int64_t kViewInset = 8;
 /// The palette an exported app's areas wear.
-inline constexpr const char* kExportSkin = "day";
+inline constexpr const char* kExportTheme = "day";
 /// The longest name an exported app may have, in bytes.
 inline constexpr std::size_t kMaxAppName = 64;
 
@@ -227,7 +227,7 @@ inline ExportJudged judge_export(const ExportAsked& asked) {
     app.window.width = d.width + 2 * kViewInset;
     app.window.height = d.height + 2 * kViewInset +
                         static_cast<std::int64_t>(view::kNoticeRows + 1) * line;
-    app.window.skin = kExportSkin;
+    app.window.theme = kExportTheme;
     app.views.push_back(ZengineAppView{out.name + ".view", d.name, kViewInset, kViewInset});
     app.flows.push_back(ZengineAppFlow{out.name + ".flow", flow_name});
     out.app_text = loom::compat::serialize(loom::to_value(app));
