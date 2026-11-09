@@ -9,7 +9,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's and the palettes (`PaletteOffered`, `PaletteChosen`), `WindowShown`; `kGraphicsRole` |
 | `color.hpp` | a colour a draw carries, `Color`: an exact value (`rgb`, `rgba`, beside the pool colour it is `like`), a pool name (`PoolColor`) or a slot (`SlotColor`) |
-| `pool.json`, `themes/*.json` | the pool's colours and their defaults, and the three shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent` ...) and `graphics/themes.hpp` (`themes::night()` ...) by `cmake/ZengineNames.cmake` |
+| `pool.json`, `themes/*.json` | the pool's roots (colours, fonts, sizes `tiny` to `huge`) and the styles made of them, with their defaults, and the three shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent`, `styles::heading`, `sizes::large` ...) and `graphics/themes.hpp` (`themes::night()` ...) by `cmake/ZengineNames.cmake` |
+| `text_style.hpp` | what a text is set in: a style (`TextStyle`, `PoolStyle`) and the fields one draw changes (`TextLook`: `with_color`, `with_size`, `with_font`, `with_weight`), a size (`TextSize`) and a weight |
 | `pixels.hpp` | saturating pixel arithmetic: `add_cells`, `sub_px`, `mul_px`, `floor_div_px`, `px_of_cells`, `cell_of_pixel`, `device_of_px`, `px_span_contains` and the grains |
 | `ops.hpp`, `implied.hpp` | the seven operators' operands and the colours each carries (`colors_of`), the pool colour a colour shows as (`pool_color_of`), refused in words when they do not read (`operands_refused`); a body without its envelope |
 | `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed |

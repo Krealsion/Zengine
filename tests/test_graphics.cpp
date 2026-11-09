@@ -7803,7 +7803,7 @@ TEST_CASE("a terminal shows bold where a text asks it, and says each ink's weigh
     t.r.drain();
     const std::size_t from = t.term.written.size();
     gfx::Sketch s;
-    s.text("b", 0, 0, "B", gfx::colors::accent, gfx::sizes::heading, gfx::text_weight::kBold);
+    s.text("b", 0, 0, "B", gfx::colors::accent, gfx::sizes::large, gfx::text_weight::kBold);
     s.text("r", gfx::kCellPx, 0, "R", gfx::colors::accent);
     t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(whole(kOwner, s))));
@@ -7857,8 +7857,8 @@ TEST_CASE("the GUI window draws a line of an accented letter, a Cyrillic one, an
     CHECK(marked_rows.first < e_rows.first);
 }
 
-TEST_CASE("the GUI window measures each of the pool's sizes in the room it says, and draws a heading "
-          "in bold at that height") {
+TEST_CASE("the GUI window measures each of the pool's sizes and styles in the room it says, and "
+          "draws a heading in its style's bold at that height") {
     sdl_video_driver("dummy");
     embedded_faces_only();
     RealLit t;
@@ -7867,20 +7867,27 @@ TEST_CASE("the GUI window measures each of the pool's sizes in the room it says,
     REQUIRE_FALSE(t.heard.rooms.empty());
     const gfx::AreaRoom room = t.heard.rooms.back();
     const gfx::TextMeasure body = room.measure();
-    const gfx::TextMeasure heading = room.measure(gfx::sizes::heading.name);
-    const gfx::TextMeasure caption = room.measure(gfx::sizes::caption.name);
-    // EVERY SIZE OF THE POOL IS IN THE ROOM, measured before the owner lays its text out.
-    CHECK(room.measures.size() == gfx::window::built_in_palette().sizes.size());
+    const gfx::TextMeasure heading = room.measure_style(gfx::styles::heading.name);
+    const gfx::TextMeasure caption = room.measure_style(gfx::styles::caption.name);
+    // EVERY SIZE AND STYLE OF THE POOL IS IN THE ROOM, measured before the owner lays its text out;
+    // a style's is its size's in its font.
+    CHECK(room.measures.size() == gfx::window::built_in_palette().sizes.size() +
+                                      gfx::window::built_in_palette().styles.size());
+    CHECK(heading == room.measure(gfx::sizes::large.name));
+    CHECK(caption == room.measure(gfx::sizes::small_.name));
+    CHECK(room.measure_style(gfx::styles::body.name) == body);
     CHECK(heading.line > body.line);
     CHECK(heading.advance > body.advance);
     CHECK(caption.line < body.line);
     CHECK(room.measure("no such size") == body);
+    CHECK(room.measure_style("no such style") == body);
 
     gfx::Sketch s;
     s.text("body", 0, 0, "M", gfx::rgb(0x000000));
-    s.text("heading", 0, 60, "M", gfx::rgb(0x000000), gfx::sizes::heading,
-           gfx::text_weight::kBold);
-    s.text("plain", 100, 60, "M", gfx::rgb(0x000000), gfx::sizes::heading);
+    s.text("heading", 0, 60, "M", gfx::styles::heading.with_color(gfx::rgb(0x000000)));
+    s.text("plain", 100, 60, "M",
+           gfx::styles::heading.with_color(gfx::rgb(0x000000))
+               .with_weight(gfx::text_weight::kRegular));
     t.draw(s);
     t.pump();
     const Picture p = picture_of(t);

@@ -1,17 +1,28 @@
 {
   "format": "zengine-pool",
-  "format_version": 2,
-  "about": "The shared pool: the fonts, the text sizes and the colours every pane may name, by use. A font names the face it sets text in; a size, the points it stands at, which a terminal sets in its one cell. A colour has the colour it paints where a theme sets none, what a terminal shows for it -- its default colours for text and grounds, a pane's frame in grey (`bright black`), else the nearest of its sixteen inks -- and the character a terminal fills a shape with in it. These defaults are the window's own palette, night's.",
+  "format_version": 3,
+  "about": "The shared pool: the roots every pane may name by use -- the fonts, the text sizes from tiny to huge and the colours -- and the styles made of them. A font names the face it sets text in; a size, the points it stands at, which a terminal sets in its one cell; a style, a font, a size and a colour, each a root's name, and a weight. A colour has the colour it paints where a theme sets none, what a terminal shows for it -- its default colours for text and grounds, a pane's frame in grey (`bright black`), else the nearest of its sixteen inks -- and the character a terminal fills a shape with in it. These defaults are the window's own palette, night's.",
   "outline": "+-|",
   "fonts": [
     { "name": "text", "face": "JetBrains Mono",
       "about": "the face every text is set in: monospaced, embedded in the window, regular and bold" }
   ],
   "sizes": [
-    { "name": "caption", "points": 11, "about": "words beside the text, set smaller" },
-    { "name": "body", "points": 13, "about": "ordinary text: what a text naming no size stands at" },
-    { "name": "heading", "points": 16, "about": "a heading over a part of a pane" },
-    { "name": "title", "points": 20, "about": "a title over a whole surface" }
+    { "name": "tiny", "points": 9, "about": "the smallest words: a mark's label" },
+    { "name": "small", "points": 11, "about": "smaller than ordinary text" },
+    { "name": "medium", "points": 13, "about": "ordinary text" },
+    { "name": "large", "points": 16, "about": "larger than ordinary text" },
+    { "name": "huge", "points": 20, "about": "the largest words: a title over a whole surface" }
+  ],
+  "styles": [
+    { "name": "caption", "font": "text", "size": "small", "color": "soft", "weight": "regular",
+      "about": "words beside the text, set smaller" },
+    { "name": "body", "font": "text", "size": "medium", "color": "text", "weight": "regular",
+      "about": "ordinary text: what a text naming no style is set in" },
+    { "name": "heading", "font": "text", "size": "large", "color": "text", "weight": "bold",
+      "about": "a heading over a part of a pane" },
+    { "name": "title", "font": "text", "size": "huge", "color": "text", "weight": "regular",
+      "about": "a title over a whole surface" }
   ],
   "colors": [
     { "name": "ground", "color": "#101418", "cells": "terminal default", "fill": "#",

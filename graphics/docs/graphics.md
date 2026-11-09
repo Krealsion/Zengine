@@ -201,29 +201,40 @@ An exact colour can name the pool colour a medium that cannot show it shows in i
 (`rgb(0x2e7d5b, colors::accent)`); where only the pool's colours are shown, any colour shows as
 its pool colour (`pool_color_of`).
 
-## Text: sizes, fonts, weight
+## Text: styles, sizes, fonts, weight
 
-A text draw carries a size, a font and a weight beside its colour (`TextArgs`, `graphics/ops.hpp`;
-`graphics/text_style.hpp`). A size is a pool name or a slot (`TextSize`), a font a pool name, both
-generated from `graphics/pool.json` with the colours (pool format 2): `zengine::graphics::sizes`
-holds `caption`, `body`, `heading` and `title`, and `zengine::graphics::fonts` holds `text`, which
-names the face it sets text in. A text naming no size stands at `body`, and one naming no font is
-set in `text`; a weight is `text_weight::kRegular` or `kBold`.
+The pool's roots are its colours, its fonts and its text sizes; its **styles** are made of them.
+A style is a font, a size and a colour, each a root's name, and a weight (`PaletteStyle`). All are
+generated from `graphics/pool.json` with the colours (pool format 3): `zengine::graphics::sizes`
+holds the roots `tiny`, `small`, `medium`, `large` and `huge`; `zengine::graphics::fonts` holds
+`text`, which names the face it sets text in; and `zengine::graphics::styles` holds `caption`
+(small, in `soft`), `body` (medium, in `text`), `heading` (large and bold) and `title` (huge). A
+name that Windows' headers make a macro is spelled in C++ with `_` after it: `sizes::small_`, still
+`small` wherever a draw or a theme names it.
+
+A text draw carries a style beside its colour, size, font and weight (`TextArgs`,
+`graphics/ops.hpp`; `graphics/text_style.hpp`), and each of the four changes its style for that one
+draw: a colour (none: the style's), a size (`TextSize`, a pool size or a slot; none: the style's), a
+font ("": the style's) and a weight (`text_weight::kRegular`, `kBold`, or `kOfStyle`: the style's).
+A text naming no style is set in `body`.
 
 ```cpp
-sketch.text("card/title", x, y, "Counter", graphics::colors::accent, graphics::sizes::heading,
-            graphics::text_weight::kBold);
+sketch.text("card/title", x, y, "Counter", graphics::styles::heading);
+sketch.text("card/alarm", x, y + 20, "Over", graphics::styles::heading.with_color(graphics::colors::alert));
+sketch.text("card/count", x, y + 40, "3", graphics::colors::accent); // body, in accent
 ```
 
-The window turns a size into points and a font into a face when it paints, from the area's
-palette (`PaletteOffered`'s `sizes` and `fonts`), and says each pool size's measure in the room
-before an owner lays its text out: `AreaRoom::measures`, one `TextMeasured` a size, its points and
-its column's advance and line in pixels; `measure(size)` reads one, and `measure()` is `body`'s. A
-slot size (`SlotSize`, a slots file's `sizes`) stands at the points its palette sets for the area's
-owner, else at its own. A window of characters sets every size in its cell and shows bold through
-its ink. Every font is monospaced, so an owner places text by columns: each character takes the
-columns the text core gives it (`component::character_columns`), 0, 1 or 2 by Unicode's width
-classes, the rule both painters and a terminal draw by.
+The window turns a style into its fields, a size into points and a font into a face when it
+paints, from the area's palette (`PaletteOffered`'s `styles`, `sizes` and `fonts`), and says each
+measure in the room before an owner lays its text out: `AreaRoom::measures`, one `TextMeasured` for
+each pool size in `text` and one for each style in its own font and size, with its points and its
+column's advance and line in pixels; `measure(size)` reads a size's, `measure_style(style)` a
+style's, and `measure()` is `body`'s. A slot size (`SlotSize`, a slots file's `sizes`) stands at the
+points its palette sets for the area's owner, else at its own. A window of characters sets every
+size in its cell and shows bold through its ink. Every font is monospaced, so an owner places text
+by columns: each character takes the columns the text core gives it
+(`component::character_columns`), 0, 1 or 2 by Unicode's width classes, the rule both painters and
+a terminal draw by.
 
 The GUI window ([`zengine.window.sdl`](zengine.window.sdl.md)) sets text in the embedded JetBrains
 Mono, regular and bold, each size measured as it is first asked. A character that face lacks is

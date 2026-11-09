@@ -61,7 +61,7 @@ struct WindowState {
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    ZEN_SHAPE(WindowState, 11, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 12, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
@@ -1173,8 +1173,9 @@ private:
         }
     }
 
-    /// Every pool size of `palette` as the medium sets it in the pool's `text` font: the measures
-    /// a room and an offer carry, so an owner places text at each size before it draws.
+    /// Every pool size of `palette` as the medium sets it in the pool's `text` font, and every pool
+    /// style as it sets it in the style's font and size: the measures a room and an offer carry, so
+    /// an owner places text at each size and in each style before it draws.
     std::vector<TextMeasured> measures_of(const PaletteOffered& palette) {
         std::vector<TextMeasured> out;
         const std::string face = resolve_face(kTextFont, palette);
@@ -1186,15 +1187,32 @@ private:
                 }
                 named.push_back(s.name);
                 const TextMeasure m = measure_in(face, s.points);
-                out.push_back(TextMeasured{kTextFont, s.name, s.points, m.advance, m.line});
+                out.push_back(TextMeasured{kTextFont, s.name, {}, s.points, m.advance, m.line});
+            }
+        }
+        named.clear();
+        for (const std::vector<PaletteStyle>* styles :
+             {&palette.styles, &built_in_palette().styles}) {
+            for (const PaletteStyle& st : *styles) {
+                if (std::find(named.begin(), named.end(), st.name) != named.end()) {
+                    continue;
+                }
+                named.push_back(st.name);
+                const PaletteStyle style = resolve_style(TextStyle{style_from::kPool, st.name}, palette);
+                const std::string font = style.font.empty() ? std::string(kTextFont) : style.font;
+                const PaletteSize size = root_size(style.size, palette);
+                const TextMeasure m = measure_in(resolve_face(font, palette), size.points);
+                out.push_back(
+                    TextMeasured{font, size.name, st.name, size.points, m.advance, m.line});
             }
         }
         return out;
     }
 
-    /// How the medium sets text at the pool's `body` in `palette`.
+    /// How the medium sets text in the pool's `body` style in `palette`.
     TextMeasure body_measure(const PaletteOffered& palette) {
-        return measure_in(resolve_face(kTextFont, palette), body_points(palette));
+        const PaletteStyle body = resolve_style(TextStyle{}, palette);
+        return measure_in(resolve_face(body.font, palette), body_points(palette));
     }
 
     /// The font, size and measure a text node is set at in `palette` in an area `role` owns, and
@@ -1207,11 +1225,12 @@ private:
         if (!args) {
             return;
         }
-        const PaletteSize size = resolve_size(args->size, palette, role);
-        node.face = resolve_face(args->font, palette);
-        const TextMeasure m = measure_in(node.face, size.points);
-        node.text = TextMeasured{args->font.empty() ? std::string(kTextFont) : args->font,
-                                 size.name, size.points, m.advance, m.line};
+        const TextSet set = resolve_text(*args, palette, role);
+        node.face = resolve_face(set.font, palette);
+        node.weight = set.weight;
+        const TextMeasure m = measure_in(node.face, set.size.points);
+        node.text =
+            TextMeasured{set.font, set.size.name, {}, set.size.points, m.advance, m.line};
     }
 
     /// Some of an area's nodes painted by its medium, each sent with every ancestor present (a
@@ -1244,8 +1263,14 @@ private:
         dress(task, palette, a.owner);
         for (const KeptNode& k : a.nodes) {
             if (send.count(k.node.path) != 0) {
-                PaintNode node{k.node.path, key_of(at, k.node.path), k.node.op, k.node.args,
-                               inks_of(k.node.op, k.node.args, palette, a.owner), {}, {}};
+                PaintNode node{k.node.path,
+                               key_of(at, k.node.path),
+                               k.node.op,
+                               k.node.args,
+                               inks_of(k.node.op, k.node.args, palette, a.owner),
+                               {},
+                               {},
+                               text_weight::kOfStyle};
                 dress_text(node, palette, a.owner);
                 task.nodes.push_back(std::move(node));
             }

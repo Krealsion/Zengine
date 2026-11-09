@@ -102,17 +102,6 @@ inline PaintInk resolve(const Color& c, const PaletteOffered& palette, const std
     }
 }
 
-/// The colours a node's operands name, as painted in `palette` in an area `role` owns, in the
-/// order a painter takes them (`colors_of`).
-inline std::vector<PaintInk> inks_of(const std::string& op, const loom::Bytes& args,
-                                     const PaletteOffered& palette, const std::string& role) {
-    std::vector<PaintInk> out;
-    for (const Color& c : colors_of(op, args)) {
-        out.push_back(resolve(c, palette, role));
-    }
-    return out;
-}
-
 // ---- A text's size and font -----------------------------------------------------------------
 
 /// A pool size in `palette`: its own, else the pool's default; nothing where neither holds it.
@@ -130,19 +119,54 @@ inline const PaletteSize* pool_size(const PaletteOffered& palette, std::string_v
     return nullptr;
 }
 
-/// The points the pool's `body` stands at in `palette`, and the window's own where no palette
-/// holds one.
-inline std::int64_t body_points(const PaletteOffered& palette) {
-    const PaletteSize* s = pool_size(palette, kBodySize);
-    return s != nullptr && s->points > 0 ? s->points : 13;
+/// A pool style in `palette`: its own, else the pool's default; nothing where neither holds it.
+inline const PaletteStyle* pool_style(const PaletteOffered& palette, std::string_view name) {
+    for (const std::vector<PaletteStyle>* styles : {&palette.styles, &built_in_palette().styles}) {
+        for (const PaletteStyle& s : *styles) {
+            if (s.name == name) {
+                return &s;
+            }
+        }
+    }
+    return nullptr;
 }
 
-/// A TEXT SIZE A DRAW NAMES, AS SET in `palette` in an area `role` owns: a pool size as the
-/// palette says, else as the pool's own default, else as `body`; a slot as the palette says for the
-/// area's owner, else at the points the drawing carries, else as `body`. Its name is the pool's, or
-/// the slot's.
+/// The points a text set without a size of its own stands at where its style names no size the
+/// palette holds: the window's own.
+inline constexpr std::int64_t kFallbackPoints = 13;
+
+/// A STYLE A DRAW NAMES, AS SET in `palette`: the pool style as the palette says, else as the
+/// pool's own default, else `body`'s; each of its fields a root's name.
+inline PaletteStyle resolve_style(const TextStyle& style, const PaletteOffered& palette) {
+    if (const PaletteStyle* s = pool_style(palette, style.pool_name())) {
+        return *s;
+    }
+    if (const PaletteStyle* s = pool_style(palette, kBodyStyle)) {
+        return *s;
+    }
+    return PaletteStyle{kBodyStyle, kTextFont, {}, colors::text.name, text_weight::kRegular};
+}
+
+/// The size a size root stands at in `palette`: its own, else the pool's default, else the
+/// window's own points.
+inline PaletteSize root_size(const std::string& name, const PaletteOffered& palette) {
+    if (const PaletteSize* s = pool_size(palette, name); s != nullptr && s->points > 0) {
+        return *s;
+    }
+    return PaletteSize{name, kFallbackPoints};
+}
+
+/// The points the pool's `body` style stands at in `palette`.
+inline std::int64_t body_points(const PaletteOffered& palette) {
+    return root_size(resolve_style(TextStyle{}, palette).size, palette).points;
+}
+
+/// A TEXT SIZE A DRAW NAMES, AS SET in `palette` in an area `role` owns, in a style that stands at
+/// `style_size`: a pool size as the palette says, else as the pool's own default; a slot as the
+/// palette says for the area's owner, else at the points the drawing carries; none, the style's.
+/// Its name is the pool's, or the slot's.
 inline PaletteSize resolve_size(const TextSize& size, const PaletteOffered& palette,
-                                const std::string& role) {
+                                const std::string& role, const std::string& style_size) {
     if (size.from == size_from::kSlot) {
         for (const PaletteSlots& s : palette.slots) {
             if (s.role != role) {
@@ -157,13 +181,14 @@ inline PaletteSize resolve_size(const TextSize& size, const PaletteOffered& pale
         if (size.points > 0) {
             return PaletteSize{size.name, size.points};
         }
-        return PaletteSize{kBodySize, body_points(palette)};
+        return root_size(style_size, palette);
     }
-    const std::string name = size.pool_name();
-    if (const PaletteSize* s = pool_size(palette, name); s != nullptr && s->points > 0) {
-        return *s;
+    if (!size.name.empty()) {
+        if (const PaletteSize* s = pool_size(palette, size.name); s != nullptr && s->points > 0) {
+            return *s;
+        }
     }
-    return PaletteSize{kBodySize, body_points(palette)};
+    return root_size(style_size, palette);
 }
 
 /// THE FACE A FONT A DRAW NAMES IS SET IN, in `palette`: the font's face as the palette says, else
@@ -183,6 +208,48 @@ inline std::string resolve_face(const std::string& font, const PaletteOffered& p
         }
     }
     return {};
+}
+
+/// A TEXT AS SET in `palette` in an area `role` owns: its font, size, colour and weight, each its
+/// own where its draw names one, else its style's.
+struct TextSet {
+    std::string font;
+    PaletteSize size;
+    Color color;
+    std::int64_t weight = text_weight::kRegular;
+};
+
+inline TextSet resolve_text(const TextArgs& t, const PaletteOffered& palette,
+                            const std::string& role) {
+    const PaletteStyle style = resolve_style(t.style, palette);
+    TextSet set;
+    set.font = !t.font.empty() ? t.font : (!style.font.empty() ? style.font : kTextFont);
+    set.size = resolve_size(t.size, palette, role, style.size);
+    set.color = !t.ink.none() ? t.ink
+                              : Color{color_from::kPool,
+                                      style.color.empty() ? std::string(colors::text.name)
+                                                          : style.color,
+                                      0,
+                                      {}};
+    set.weight = t.weight != text_weight::kOfStyle ? t.weight : style.weight;
+    return set;
+}
+
+/// The colours a node's operands name, as painted in `palette` in an area `role` owns, in the
+/// order a painter takes them (`colors_of`): a text naming no colour of its own in its style's.
+inline std::vector<PaintInk> inks_of(const std::string& op, const loom::Bytes& args,
+                                     const PaletteOffered& palette, const std::string& role) {
+    std::vector<PaintInk> out;
+    if (op == op::kText) {
+        if (const auto t = from_body<TextArgs>(args)) {
+            out.push_back(resolve(resolve_text(*t, palette, role).color, palette, role));
+        }
+        return out;
+    }
+    for (const Color& c : colors_of(op, args)) {
+        out.push_back(resolve(c, palette, role));
+    }
+    return out;
 }
 
 /// A task's own colours and outline, as `palette` gives them for an area `role` owns: its text,

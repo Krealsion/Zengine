@@ -65,10 +65,20 @@ public:
               Color stroke = no_color()) {
         put(name, op::kPath, PathArgs{d, fill, stroke});
     }
+    /// Words in the pool's `body` style, in `ink`, and at a size, a weight and a font of their own
+    /// where given.
     void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
-              Color ink, TextSize size = {}, std::int64_t weight = text_weight::kRegular,
+              Color ink, TextSize size = {}, std::int64_t weight = text_weight::kOfStyle,
               std::string font = {}) {
-        put(name, op::kText, TextArgs{x, y, words, ink, std::move(size), std::move(font), weight});
+        put(name, op::kText,
+            TextArgs{x, y, words, ink, {}, std::move(size), std::move(font), weight});
+    }
+    /// Words in a look: a style, as it stands or with a field changed
+    /// (`styles::heading.with_color(colors::alert)`).
+    void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
+              const TextLook& look) {
+        put(name, op::kText,
+            TextArgs{x, y, words, look.ink, look.style, look.size, look.font, look.weight});
     }
     void image(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                std::int64_t h, std::int64_t pw, std::int64_t ph, loom::Bytes rgba) {

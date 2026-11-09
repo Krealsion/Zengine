@@ -129,9 +129,10 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   colour** (`Color`, `graphics/color.hpp`; `graphics/window/palette.hpp`), when it paints, from the
   palette the area wears: a pool name as the palette says, else the pool's default, else `text`; a
   slot as the palette says for the area's owner, else the default the drawing carries. An area
-  wearing no palette the window holds wears the window's own, the pool's defaults. The painter is
-  handed exact colours (`PaintNode::inks`) and keeps none; no drawer, painter or medium resolves a
-  name.
+  wearing no palette the window holds wears the window's own, the pool's defaults. A text's style
+  is turned into its font, size, colour and weight there too, each field the draw changes standing
+  over the style's (`resolve_text`). The painter is handed exact colours (`PaintNode::inks`) and a
+  resolved weight and measure, and keeps none; no drawer, painter or medium resolves a name.
 - **Names are generated, never spelled by hand**: the pool's and each pane's slots are C++ names
   generated from JSON (`cmake/ZengineNames.cmake`), so a name nobody declared does not compile.
   Nothing judges a name's spelling but what C++ cannot spell.

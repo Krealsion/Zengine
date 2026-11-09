@@ -312,7 +312,7 @@ public:
             if (auto a = from_body<TextArgs>(args)) {
                 const bool own = node.text.advance > 0 && node.text.line > 0;
                 text(a->x, a->y, a->text, ink_of(0), own ? node.text.measure() : text_,
-                     own ? node.text.points : 0, a->weight, node.face);
+                     own ? node.text.points : 0, node.weight_of(a->weight), node.face);
             }
         } else if (op == op::kImage) {
             if (auto a = from_body<ImageArgs>(args)) {

@@ -5,7 +5,7 @@
 # colour, size and font a pool or a pane's slots declare, and a palette for each theme, so a name
 # nobody declared does not build and a theme is data. Installed with the package, so a stranger's
 # pane generates its slots as Zengine's own do. The JSON's form and the C++ it gives:
-# graphics/docs/graphics.md, "Colours by name" and "Text: sizes, fonts, weight".
+# graphics/docs/graphics.md, "Colours by name" and "Text: styles, sizes, fonts, weight".
 
 if(CMAKE_VERSION VERSION_LESS 3.22)
     message(FATAL_ERROR "zengine: colours by name are generated with CMake 3.22 or newer; this is "
@@ -62,11 +62,17 @@ function(_zengine_names_identifier name file)
     if(NOT name MATCHES "^[A-Za-z_][A-Za-z0-9_]*$" OR name IN_LIST keywords)
         _zengine_names_fail("${file}" "'${name}' cannot be a C++ name")
     endif()
-    # ...nor the words Windows' headers define as macros, which no name there can be.
+endfunction()
+
+# <out> = the C++ name a declared name is spelled as: the name itself, or, for a word Windows'
+# headers define as a macro (`small`), the name with `_` after it (`sizes::small_`), which no
+# macro there shadows. The name a draw sends is the declared one either way.
+function(_zengine_names_cpp out name)
     set(macros small near far min max interface pascal cdecl IN OUT OPTIONAL)
     if(name IN_LIST macros)
-        _zengine_names_fail("${file}" "'${name}' is a macro Windows' headers define, so it "
-                                      "cannot be a C++ name there")
+        set(${out} "${name}_" PARENT_SCOPE)
+    else()
+        set(${out} "${name}" PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -225,6 +231,58 @@ function(_zengine_names_fonts prefix json file)
     set(${prefix}_fonts "${names}" PARENT_SCOPE)
 endfunction()
 
+# The styles of `json`'s `styles` member, each judged against the roots already read under
+# <prefix> (its font, size and colour each one of them; its weight `regular` or `bold`), as lists
+# in the caller's scope: <prefix>_styles and, a style each,
+# <prefix>_style_<name>_{font,size,color,weight,about}. No `styles` member is no styles.
+function(_zengine_names_styles prefix json file)
+    set(names "")
+    string(JSON type ERROR_VARIABLE err TYPE "${json}" styles)
+    if(NOT err)
+        if(NOT type STREQUAL "ARRAY")
+            _zengine_names_fail("${file}" "'styles' is ${type}, not a list")
+        endif()
+        string(JSON n LENGTH "${json}" styles)
+        if(n GREATER 0)
+            math(EXPR last "${n} - 1")
+            foreach(i RANGE ${last})
+                string(JSON s GET "${json}" styles ${i})
+                _zengine_names_keys("${s}" "${file}" "style ${i}" name font size color weight about)
+                _zengine_names_get(name "${s}" name "" "${file}")
+                _zengine_names_identifier("${name}" "${file}")
+                if(name IN_LIST names)
+                    _zengine_names_fail("${file}" "the style '${name}' is declared twice")
+                endif()
+                list(APPEND names "${name}")
+                foreach(field font size color)
+                    _zengine_names_get(v "${s}" ${field} "" "${file}")
+                    if(field STREQUAL "font")
+                        set(roots "${${prefix}_fonts}")
+                    elseif(field STREQUAL "size")
+                        set(roots "${${prefix}_sizes}")
+                    else()
+                        set(roots "${${prefix}_names}")
+                    endif()
+                    if(NOT v IN_LIST roots)
+                        _zengine_names_fail("${file}" "the style '${name}' names the ${field} '${v}', "
+                                                      "which the pool does not declare")
+                    endif()
+                    set(${prefix}_style_${name}_${field} "${v}" PARENT_SCOPE)
+                endforeach()
+                _zengine_names_get(weight "${s}" weight "regular" "${file}")
+                if(NOT weight MATCHES "^(regular|bold)$")
+                    _zengine_names_fail("${file}" "the style '${name}' weighs '${weight}': "
+                                                  "regular or bold")
+                endif()
+                _zengine_names_get(about "${s}" about "" "${file}")
+                set(${prefix}_style_${name}_weight "${weight}" PARENT_SCOPE)
+                set(${prefix}_style_${name}_about "${about}" PARENT_SCOPE)
+            endforeach()
+        endif()
+    endif()
+    set(${prefix}_styles "${names}" PARENT_SCOPE)
+endfunction()
+
 # <out> = the namespace `ns` sits in, and `ns` itself where it sits in none.
 function(_zengine_names_parent out ns)
     string(FIND "${ns}" "::" at REVERSE)
@@ -250,10 +308,10 @@ function(_zengine_names_read out file format)
     endif()
     if(format STREQUAL "zengine-pool")
         string(JSON version ERROR_VARIABLE verr GET "${json}" format_version)
-        if(verr OR NOT version EQUAL 2)
+        if(verr OR NOT version EQUAL 3)
             _zengine_names_fail("${file}" "it is pool version ${version}; a pool is read from "
-                                          "version 2, which declares its fonts and sizes beside "
-                                          "its colours")
+                                          "version 3, which declares its sizes from tiny to huge "
+                                          "and the styles made of its roots beside its colours")
         endif()
     endif()
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${file}")
@@ -283,12 +341,12 @@ function(_zengine_names_write path text)
     file(WRITE "${path}" "${text}")
 endfunction()
 
-# zengine_names(<target> JSON <file> NAMESPACE <namespace> HEADER <include path>): a header on the
-# target's include path naming each colour of a pool (`PoolColor`) or a pane's slots (`SlotColor`,
-# with its default and the pool colour it is `like`) in <namespace>, and each text size (`PoolSize`,
-# or a slot's `SlotSize` with its points) and a pool's fonts (`PoolFont`) in the namespaces `sizes`
-# and `fonts` beside it. A pool declares the size `body` and the font `text`. A name is a C++ name,
-# refused only where C++ could not spell it.
+# zengine_names(<target> JSON <file> NAMESPACE <namespace> HEADER <include path>): a header naming
+# each colour of a pool (`PoolColor`) or a pane's slots (`SlotColor`, with its default and the pool
+# colour it is `like`) in <namespace>, and each size (`PoolSize`, or a slot's `SlotSize`), a pool's
+# fonts (`PoolFont`) and styles (`PoolStyle`) in `sizes`, `fonts` and `styles` beside it. A pool
+# declares the font `text` and the style `body`. A name is refused only where C++ cannot spell it,
+# and spelled with `_` after it where Windows' headers make it a macro.
 function(zengine_names target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "JSON;NAMESPACE;HEADER" "")
     if(NOT TARGET ${target} OR NOT arg_JSON OR NOT arg_NAMESPACE OR NOT arg_HEADER)
@@ -304,7 +362,7 @@ function(zengine_names target)
     _zengine_names_read(json "${file}" "${format}")
     if(format STREQUAL "zengine-pool")
         _zengine_names_keys("${json}" "${file}" "the pool" format format_version about outline
-                            colors sizes fonts)
+                            colors sizes fonts styles)
     else()
         # Version 2 names its role `role`; a version-1 file named it `office`, read as the same.
         string(JSON slots_version ERROR_VARIABLE slots_err GET "${json}" format_version)
@@ -323,13 +381,15 @@ function(zengine_names target)
     _zengine_names_colors(c "${json}" "${file}" TRUE)
     _zengine_names_sizes(c "${json}" "${file}")
     _zengine_names_fonts(c "${json}" "${file}")
+    set(c_styles "")
     if(format STREQUAL "zengine-pool")
-        if(NOT "body" IN_LIST c_sizes)
-            _zengine_names_fail("${file}" "the pool declares no size 'body', the size a text "
-                                          "naming none stands at")
-        endif()
+        _zengine_names_styles(c "${json}" "${file}")
         if(NOT "text" IN_LIST c_fonts)
-            _zengine_names_fail("${file}" "the pool declares no font 'text', the font a text "
+            _zengine_names_fail("${file}" "the pool declares no font 'text', the font a style "
+                                          "naming none is set in")
+        endif()
+        if(NOT "body" IN_LIST c_styles)
+            _zengine_names_fail("${file}" "the pool declares no style 'body', the style a text "
                                           "naming none is set in")
         endif()
     endif()
@@ -339,14 +399,15 @@ function(zengine_names target)
     string(APPEND text "#pragma once\n\n#include \"graphics/color.hpp\"\n"
                        "#include \"graphics/text_style.hpp\"\n\nnamespace ${arg_NAMESPACE} {\n")
     foreach(name IN LISTS c_names)
+        _zengine_names_cpp(cpp "${name}")
         if(NOT c_${name}_about STREQUAL "")
             string(APPEND text "/// ${c_${name}_about}\n")
         endif()
         if(format STREQUAL "zengine-pool")
-            string(APPEND text "inline constexpr ::zengine::graphics::PoolColor ${name}{\"${name}\"};\n")
+            string(APPEND text "inline constexpr ::zengine::graphics::PoolColor ${cpp}{\"${name}\"};\n")
         else()
             _zengine_names_literal(like "${c_${name}_like}")
-            string(APPEND text "inline constexpr ::zengine::graphics::SlotColor ${name}{\"${name}\", "
+            string(APPEND text "inline constexpr ::zengine::graphics::SlotColor ${cpp}{\"${name}\", "
                                "${c_${name}_color}u, ${like}};\n")
         endif()
     endforeach()
@@ -354,13 +415,14 @@ function(zengine_names target)
     if(c_sizes)
         string(APPEND text "\nnamespace ${parent}::sizes {\n")
         foreach(name IN LISTS c_sizes)
+            _zengine_names_cpp(cpp "${name}")
             if(NOT c_size_${name}_about STREQUAL "")
                 string(APPEND text "/// ${c_size_${name}_about}\n")
             endif()
             if(format STREQUAL "zengine-pool")
-                string(APPEND text "inline constexpr ::zengine::graphics::PoolSize ${name}{\"${name}\"};\n")
+                string(APPEND text "inline constexpr ::zengine::graphics::PoolSize ${cpp}{\"${name}\"};\n")
             else()
-                string(APPEND text "inline constexpr ::zengine::graphics::SlotSize ${name}{\"${name}\", "
+                string(APPEND text "inline constexpr ::zengine::graphics::SlotSize ${cpp}{\"${name}\", "
                                    "${c_size_${name}_points}};\n")
             endif()
         endforeach()
@@ -369,12 +431,24 @@ function(zengine_names target)
     if(c_fonts)
         string(APPEND text "\nnamespace ${parent}::fonts {\n")
         foreach(name IN LISTS c_fonts)
+            _zengine_names_cpp(cpp "${name}")
             if(NOT c_font_${name}_about STREQUAL "")
                 string(APPEND text "/// ${c_font_${name}_about}\n")
             endif()
-            string(APPEND text "inline constexpr ::zengine::graphics::PoolFont ${name}{\"${name}\"};\n")
+            string(APPEND text "inline constexpr ::zengine::graphics::PoolFont ${cpp}{\"${name}\"};\n")
         endforeach()
         string(APPEND text "} // namespace ${parent}::fonts\n")
+    endif()
+    if(c_styles)
+        string(APPEND text "\nnamespace ${parent}::styles {\n")
+        foreach(name IN LISTS c_styles)
+            _zengine_names_cpp(cpp "${name}")
+            if(NOT c_style_${name}_about STREQUAL "")
+                string(APPEND text "/// ${c_style_${name}_about}\n")
+            endif()
+            string(APPEND text "inline constexpr ::zengine::graphics::PoolStyle ${cpp}{\"${name}\"};\n")
+        endforeach()
+        string(APPEND text "} // namespace ${parent}::styles\n")
     endif()
     _zengine_names_folder(dir ${target})
     _zengine_names_write("${dir}/${arg_HEADER}" "${text}")
@@ -401,8 +475,9 @@ function(zengine_palettes target)
     _zengine_names_colors(p "${pool}" "${pool_file}" TRUE)
     _zengine_names_sizes(p "${pool}" "${pool_file}")
     _zengine_names_fonts(p "${pool}" "${pool_file}")
+    _zengine_names_styles(p "${pool}" "${pool_file}")
     _zengine_names_get(pool_outline "${pool}" outline "+-|" "${pool_file}")
-    # The pool's fonts and sizes, which every palette carries as the pool declares them.
+    # The pool's fonts, sizes and styles, which every palette carries as the pool declares them.
     set(type_entries "")
     foreach(name IN LISTS p_fonts)
         _zengine_names_literal(face "${p_font_${name}_face}")
@@ -414,11 +489,22 @@ function(zengine_palettes target)
         list(APPEND type_entries "{\"${name}\", ${p_size_${name}_points}}")
     endforeach()
     string(JOIN ", " sizes_body ${type_entries})
-    set(type_text "    p.fonts = {${fonts_body}};\n    p.sizes = {${sizes_body}};\n")
+    set(type_entries "")
+    foreach(name IN LISTS p_styles)
+        if(p_style_${name}_weight STREQUAL "bold")
+            set(weight "::zengine::graphics::text_weight::kBold")
+        else()
+            set(weight "::zengine::graphics::text_weight::kRegular")
+        endif()
+        list(APPEND type_entries "{\"${name}\", \"${p_style_${name}_font}\", \"${p_style_${name}_size}\", \"${p_style_${name}_color}\", ${weight}}")
+    endforeach()
+    string(JOIN ", " styles_body ${type_entries})
+    set(type_text "    p.fonts = {${fonts_body}};\n    p.sizes = {${sizes_body}};\n    p.styles = {${styles_body}};\n")
 
     get_filename_component(source "${pool_file}" NAME)
     set(text "// Generated by zengine_palettes() from ${source} and its themes: edit the JSON, ")
-    string(APPEND text "never this file.\n\n#pragma once\n\n#include \"graphics/vocabulary.hpp\"\n\n")
+    string(APPEND text "never this file.\n\n#pragma once\n\n#include \"graphics/text_style.hpp\"\n"
+                       "#include \"graphics/vocabulary.hpp\"\n\n")
     string(APPEND text "#include <vector>\n\nnamespace ${arg_NAMESPACE} {\n\n")
 
     # The pool's own: every colour as it declares it.
