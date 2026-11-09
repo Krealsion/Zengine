@@ -5562,6 +5562,54 @@ TEST_CASE("a pane naming a pool colour paints its palette's colour, and a new re
     CHECK(t.shown().painter_calls == calls + 2);
 }
 
+TEST_CASE("a palette offered anew with a size, a font or a style changed tells each owner of an area "
+          "wearing it its room again, with the measures it now sets text at; a colour alone tells "
+          "none") {
+    // ⚔ MUTATION (tests/mutants/graphics.md#remeasure-never-said): a size changed, no room said.
+    LitWindow t;
+    gfx::PaletteOffered mine = gfx::themes::night();
+    mine.palette = "mine";
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    LitHeard& first = t.own("test.first", 0, 0, 100, 50, "mine");
+    LitHeard& other = t.own("test.other", 0, 60, 100, 50, "night", 1);
+    REQUIRE_FALSE(first.rooms.empty());
+    const gfx::AreaRoom before = first.rooms.back();
+    const std::size_t first_rooms = first.rooms.size();
+    const std::size_t other_rooms = other.rooms.size();
+    // A COLOUR ALONE: repainted, and no owner told.
+    for (gfx::PaletteColor& c : mine.colors) {
+        if (c.name == gfx::colors::accent.name) c.rgba = 0x123456ff;
+    }
+    mine.revision = 2;
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    CHECK(first.rooms.size() == first_rooms);
+    // A SIZE: the room again, its text set at the new points; the area wearing another palette
+    // is told nothing.
+    for (gfx::PaletteSize& z : mine.sizes) {
+        if (z.name == "medium") z.points = 20;
+    }
+    mine.revision = 3;
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    REQUIRE(first.rooms.size() == first_rooms + 1);
+    CHECK(other.rooms.size() == other_rooms);
+    const gfx::AreaRoom after = first.rooms.back();
+    CHECK(after.epoch == before.epoch);
+    CHECK(after.measures != before.measures); // medium, which body stands at, now 20 points
+    // A STYLE: told again.
+    for (gfx::PaletteStyle& st : mine.styles) {
+        if (st.name == gfx::styles::heading.name) st.size = "huge";
+    }
+    mine.revision = 4;
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    REQUIRE(first.rooms.size() == first_rooms + 2);
+    CHECK(first.rooms.back().measure_style(gfx::styles::heading.name) ==
+          first.rooms.back().measure(gfx::sizes::huge.name));
+}
+
 TEST_CASE("an own value paints the palette's colour for the role that declares it, else the "
           "default its pane generated, and a terminal shows it as the pool colour it is like") {
     LitWindow t;

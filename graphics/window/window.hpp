@@ -292,7 +292,10 @@ public:
     }
 
     /// A palette, through the directory: kept at its latest revision, and every area wearing it
-    /// painted again from what the window keeps. Its owners are told nothing and draw nothing.
+    /// painted again from what the window keeps. A change of colour alone is the window's own
+    /// repaint, and its owners are told nothing and draw nothing; a change of a size, a font or a
+    /// style sets text another way, so each owner is told its area's room again, with the measures
+    /// it now sets text at, and lays its text out again in its own `on`.
     void on(const PaletteOffered& p, loom::Mail& mail) {
         if (!mail.authored_from_role(kGraphicsRole)) {
             return;
@@ -304,6 +307,8 @@ public:
         if (it != held.end() && it->revision >= p.revision) {
             return;
         }
+        const bool sets_text_anew = measures_of(it != held.end() ? *it : built_in_palette()) !=
+                                measures_of(p);
         if (it == held.end()) {
             if (held.size() >= kMaxPalettes) {
                 note("the window holds " + std::to_string(kMaxPalettes) + " palettes: '" +
@@ -319,6 +324,9 @@ public:
                 medium_.wear(a, ground_of(palette_of(a)));
                 remake(a);
                 touch(a);
+                if (sets_text_anew) {
+                    room(mail, a);
+                }
             }
         }
         settle(mail, false);
