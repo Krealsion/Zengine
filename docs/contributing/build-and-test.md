@@ -339,5 +339,6 @@ refuses a page out of form.
 
 ## Attribution
 
-Who authors a commit, and that no commit carries a co-author line or an AI credit, is in
+Who authors a commit, and that no commit carries an AI agent's identity, a co-author line
+or an AI credit, is in
 [repository conventions](repository-conventions.md#attribution).
