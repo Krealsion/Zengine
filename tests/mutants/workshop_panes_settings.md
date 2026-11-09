@@ -166,7 +166,7 @@ In `workshop/layouts/store.cpp`:
 
 ```diff
 -    return row_named(counted(ref), key);
-+    static const v2::PaneSettingRow skin{"workshop.skin"};
++    static const v2::PaneSettingRow skin = [] { v2::PaneSettingRow r{}; r.key = "workshop.skin"; return r; }();
 +    return key == "workshop.skin" ? &skin : row_named(counted(ref), key);
 ```
 

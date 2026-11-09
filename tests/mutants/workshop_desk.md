@@ -40,7 +40,7 @@ In `workshop/weave_run.cpp`:
 
 ```diff
 -        skins[area] = seat != nullptr ? wears(theme::stack_over(stack, seat->theme)) : worn;
-+        skins[area] = std::string();
++        skins[area] = std::string(); (void)seat;
 ```
 
 In `workshop/weave_run.cpp`:
