@@ -14,6 +14,8 @@
 
 namespace zengine::workshop {
 
+using zengine::component::Fingerprint;
+
 namespace {
 
 /// FNV-1a over a spelling of the active setup: membership, places, sizes and ranks. Any of those

@@ -29,7 +29,7 @@ WHY — `agents/decisions/the-document-model.md`
 ## Proven by
 
 ### WL-DOC-02
-`workshop/property.hpp` Row Commit Written TextForm Property TextForm::format TextForm::expected
+`property/property.hpp` Row Commit Written TextForm Property TextForm::format TextForm::expected
 Row::show Row::commit_text
 `tests/test_workshop_document.cpp` "a successful commit writes through the semantic setter"
 "unparseable text leaves the property untouched and says so" "a parseable value the property refuses

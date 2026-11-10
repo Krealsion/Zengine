@@ -17,6 +17,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-voc
                                                             zengine-manual
                                                             zengine-operator
                                                             zengine-persist
+                                                            zengine-property
                                                             zengine-theme-vocabulary
                                                             loom::core
                                                             loom::terminal)

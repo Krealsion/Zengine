@@ -14,7 +14,7 @@
 #include "files/files.hpp"
 #include "files/marks.hpp"
 #include "files/vocabulary.hpp"
-#include "workshop/path_admission.hpp"
+#include "persist/path_admission.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
 

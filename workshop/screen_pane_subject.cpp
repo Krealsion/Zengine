@@ -9,6 +9,11 @@
 
 namespace zengine::workshop {
 
+using zengine::property::Property;
+using zengine::property::Row;
+using zengine::property::TextForm;
+using zengine::persist::Written;
+
 // WL-MAKER-12 -- agents/workshop/maker-pane.md
 std::string interior_capture_text(const Session& s, const PaneRef& ref) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);

@@ -14,7 +14,7 @@
 
 #include "terminal/complete.hpp" // the completer's values, and where a line can go
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
@@ -74,6 +74,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::persist::Written;
 
 /// HOW MANY DESK READS ONE ASKER IS ANSWERED IN A SECOND: each composes the whole desk.
 inline constexpr std::int64_t kDeskReadsPerSecond = 4;

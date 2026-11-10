@@ -421,6 +421,7 @@ endfunction()
 
 add_subdirectory(activation)
 add_subdirectory(persist)
+add_subdirectory(property)
 add_subdirectory(manual)
 add_subdirectory(operator)
 add_subdirectory(maker)

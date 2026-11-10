@@ -13,7 +13,7 @@
 // Builder law: agents/realization.md
 
 // A refusal is a `std::string`, empty meaning accepted: builder/ sits below workshop/, so it
-// does not borrow `workshop::Written` (workshop/recipe_persist.hpp wraps these at the file).
+// does not borrow `persist::Written` (workshop/recipe_persist.hpp wraps these at the file).
 
 #include "builder/vocabulary.hpp"
 

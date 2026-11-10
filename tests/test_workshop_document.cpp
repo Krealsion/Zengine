@@ -15,6 +15,12 @@
 // Proven over a plain subject: these laws are about `Row` and `Property`, not any one owner
 // of rows, so the subject is nothing but its properties and setters that refuse in words.
 
+using zengine::persist::Written;
+using zengine::property::Commit;
+using zengine::property::Property;
+using zengine::property::Row;
+using zengine::property::TextForm;
+
 namespace {
 
 /// A name and three whole numbers, and nothing else.

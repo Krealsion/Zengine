@@ -10,7 +10,7 @@
 
 #include "pane_migration.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 #include "setup.hpp"
 
 #include "graphics/pixels.hpp" // a retired file's sub-units landed on pixels
@@ -31,6 +31,8 @@
 #include <vector>
 
 namespace zengine::workshop::setup_persist {
+
+using zengine::persist::Written;
 
 /// What a Workshop setup file says it is: its own word, so handing Workshop the wrong file is
 /// named rather than half-read.

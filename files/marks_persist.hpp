@@ -8,9 +8,9 @@
 // Files law: agents/workshop/files.md
 
 #include "files/marks.hpp"
-#include "workshop/path_admission.hpp"
+#include "persist/path_admission.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -25,6 +25,8 @@
 #include <vector>
 
 namespace zengine::workshop::marks_persist {
+
+using zengine::persist::Written;
 
 /// What a Workshop marks file says it is -- its own word, beside the family's others, so
 /// handing Workshop the wrong one of its own files is named rather than half-read.

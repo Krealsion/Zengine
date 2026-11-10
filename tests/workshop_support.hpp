@@ -17,7 +17,7 @@
 
 #include "info/settings_rows.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp"
+#include "property/property.hpp"
 #include "workshop/screen.hpp"
 #include "workshop/setup.hpp"
 #include "workshop/setup_persist.hpp"

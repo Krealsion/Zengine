@@ -11,7 +11,7 @@
 #include "weave.hpp"
 #include "decoded_cells.hpp"
 #include "desk_read.hpp"
-#include "fingerprint.hpp"
+#include "component/fingerprint.hpp"
 #include "reply_bytes.hpp"
 
 #include <zen/serialize.hpp>
@@ -27,6 +27,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::component::Fingerprint;
 
 using namespace desk_read;
 

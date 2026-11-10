@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PROPERTY_HPP
-#define ZENGINE_WORKSHOP_PROPERTY_HPP
+#ifndef ZENGINE_PROPERTY_PROPERTY_HPP
+#define ZENGINE_PROPERTY_PROPERTY_HPP
 
 // The typed connection between an editor and the property it presents.
 // Workshop law: agents/workshop/document.md (+1 register; agents/workshop.md routes)
@@ -17,7 +17,7 @@
 #include <string_view>
 #include <utility>
 
-namespace zengine::workshop {
+namespace zengine::property {
 
 /// The outcome of an attempted write: the file library's (`persist/written.hpp`).
 using persist::Written;
@@ -196,6 +196,6 @@ private:
     std::string refusal_;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::property
 
-#endif // ZENGINE_WORKSHOP_PROPERTY_HPP
+#endif // ZENGINE_PROPERTY_PROPERTY_HPP

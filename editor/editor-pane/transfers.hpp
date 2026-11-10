@@ -29,7 +29,7 @@
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include <zen/weave.hpp>
 

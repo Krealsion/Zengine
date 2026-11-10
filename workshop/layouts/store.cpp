@@ -9,7 +9,7 @@
 #include "workshop/layouts/store.hpp"
 
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include <algorithm>
 #include <filesystem>
@@ -20,6 +20,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::persist::Written;
 
 namespace {
 

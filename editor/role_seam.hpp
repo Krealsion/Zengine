@@ -25,7 +25,7 @@
 #include "workshop/pane_seat.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 #include "workshop/pane_menu.hpp"
 
 #include <zen/weave.hpp>

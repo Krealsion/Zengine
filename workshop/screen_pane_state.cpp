@@ -9,6 +9,8 @@
 
 namespace zengine::workshop {
 
+using zengine::property::TextForm;
+
 // ---- The dynamic panes, painted -------------------------------------------------------
 
 // WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md

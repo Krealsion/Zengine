@@ -13,7 +13,7 @@
 #include "workshop/pane_settings.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
-#include "workshop/property.hpp" // a number typed, read by the inspector's one conversion
+#include "property/property.hpp" // a number typed, read by the inspector's one conversion
 
 #include <cstdint>
 #include <optional>
@@ -165,7 +165,7 @@ inline Typed commit_of(const workshop::PaneSettingsAnswered& read, const Setting
         break;
     case workshop::SettingKind::kNumber:
         // A NUMBER'S ONE CONVERSION IS THE INSPECTOR'S OWN (WL-DOC-02).
-        typed.number = workshop::TextForm<std::int64_t>::parse(body);
+        typed.number = zengine::property::TextForm<std::int64_t>::parse(body);
         break;
     case workshop::SettingKind::kText: typed.text = text; break;
     default: break;

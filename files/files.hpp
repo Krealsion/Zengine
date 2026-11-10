@@ -22,7 +22,7 @@
 // WHETHER A FILESYSTEM PATH CAN BE SAID AT ALL. The browser is one of two places that turn
 // something the OS reported into a Workshop path string; a conversion that threw would end the
 // process, so it asks here.
-#include "workshop/path_admission.hpp"
+#include "persist/path_admission.hpp"
 
 // ...AND WHERE A LOCATION MAY BE SEEDED FROM, AND WHAT ITS PARENT IS. The browser is the
 // first consumer of the marks, not their owner -- `parent_location` is a lexical fact about
@@ -30,6 +30,9 @@
 #include "files/marks.hpp"
 
 namespace zengine::workshop {
+
+using zengine::persist::AdmittedName;
+using zengine::persist::admit_filename;
 
 /// HOW MANY ENTRIES ONE LISTING WILL HOLD, whatever a layout keeps, and the fewest a layout may
 /// keep it to.

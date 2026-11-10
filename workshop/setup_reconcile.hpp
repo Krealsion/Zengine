@@ -12,7 +12,7 @@
 #include "pane_settings.hpp"
 #include "pane_vocabulary.hpp"
 #include "panes.hpp"
-#include "property.hpp"
+#include "property/property.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -24,6 +24,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::persist::Written;
 
 // ---- Admitting one live offer into the runtime catalog -----------------------
 // A descriptor is judged whole and only then copied: an offer wrong in its fourth field leaves

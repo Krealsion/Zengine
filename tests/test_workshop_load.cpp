@@ -72,7 +72,7 @@ namespace workshop = zengine::workshop;
 namespace load = zengine::workshop::load;
 namespace load_persist = zengine::workshop::load_persist;
 namespace tmr = zengine::timer;
-using zengine::workshop::Written;
+using zengine::persist::Written;
 
 // ---- the artifact directory this suite's host resolves against ----------------
 // Real artifacts, staged once, and deliberately MORE than any plan here names: with a lookup

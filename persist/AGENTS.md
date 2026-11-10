@@ -10,6 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `file.hpp` | `read_file`, `write_file`, `write_file_making_room`, `pending_path`, `resolved_against`, `json::` |
 | `json.hpp` | plain JSON, read into a tree of nodes and written back: `json::parse`, `json::to_text`, bounded in depth and values |
 | `written.hpp` | `Written` |
+| `path_admission.hpp` | `admit_path`, `admit_location`, `admit_filename`, `launch_project_dir`: a filesystem path or name taken into the one path vocabulary, or refused in words |
 | `CMakeLists.txt` | `zengine-persist`: INTERFACE |
 
 ## Law

@@ -16,6 +16,9 @@
 
 namespace zengine::workshop {
 
+using zengine::property::Commit;
+using zengine::property::Row;
+
 // WL-INFO-14 -- agents/workshop/info-body.md
 void WorkshopWeave::refresh_inspected() {
     InspectedPane& in = session_.inspected;

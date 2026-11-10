@@ -51,7 +51,7 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 ### WL-PED-04
 `workshop/screen_pane_subject.cpp` pane_subject_rows
 `workshop/weave_inspection.cpp` refresh_inspected
-`workshop/property.hpp` Row::section
+`property/property.hpp` Row::section
 `tests/test_workshop_host.cpp` "the subject's rows say identity, then AUTHORED, then RESOLVED"
 "looking never authors"
 `tests/test_workshop_panes_settings.cpp` "a pane's settings are rows of its subject, named by their

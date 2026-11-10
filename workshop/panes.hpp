@@ -7,7 +7,7 @@
 // The pane catalog, the panes open this session, and each open pane's view.
 // Workshop law: agents/workshop/panes-and-windows.md (+9 registers; agents/workshop.md routes)
 
-#include "fingerprint.hpp"
+#include "component/fingerprint.hpp"
 #include "pane_vocabulary.hpp"
 #include "pane_settings.hpp"
 #include <zen/switchboard/message.hpp>

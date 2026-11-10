@@ -41,7 +41,7 @@
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"

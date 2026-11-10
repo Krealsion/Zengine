@@ -7,7 +7,7 @@
 // Which artifacts participate in this project, and how: the typed load plan and its law
 // (workshop/docs/load-plan.md, agents/realization.md).
 
-#include "property.hpp" // `Written` -- a refusal carries its reason
+#include "persist/written.hpp" // `Written` -- a refusal carries its reason
 
 #include "operator/catalog.hpp" // `op::MountMode` -- one spelling of overlay
 
@@ -19,6 +19,8 @@
 #include <vector>
 
 namespace zengine::workshop::load {
+
+using zengine::persist::Written;
 
 // ---- What a plan may hold -----------------------------------------------------
 
