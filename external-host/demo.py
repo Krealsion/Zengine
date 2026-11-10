@@ -164,7 +164,7 @@ def prerequisites(args, setup):
     if not args.loom_prefix and not args.package:
         missing.append("--loom-prefix: an installed Loom with loom-host and its Python session runtime")
     project = setup.get("project") or {}
-    medium = "tui" if args.tui else "sdl"
+    medium = "tui" if args.tui else "gui"
     if medium not in setup.get("medium")["supports"]:
         missing.append("setup %s does not support the %s medium (it supports %s)"
                        % (setup.name, medium, ", ".join(setup.get("medium")["supports"])))
@@ -355,7 +355,7 @@ def launch(args, source, root):
             service = session.start("workshop-machine/demo-serve", "demo-service", {"setup": str(setup.root)})
             config = {"setup": setup.name, "directory": str(source.root), "digest": source.digest(),
                       "prepared": str(setup.root),
-                      "medium": "tui" if args.tui else "sdl", "build": str(build), "loom_prefix": str(prefix),
+                      "medium": "tui" if args.tui else "gui", "build": str(build), "loom_prefix": str(prefix),
                       "workshop_pid": workshop.pid, "host_pid": host.pid, "lifetime": session.lifetime,
                       "endpoint": "127.0.0.1:" + port, "project": str(cwd) if cwd != wdir else "",
                       "session": str(sdir), "service": "demo-service", "service_start": service}

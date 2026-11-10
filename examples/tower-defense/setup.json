@@ -30,7 +30,7 @@
  ],
  "medium": {
   "supports": [
-   "sdl",
+   "gui",
    "tui"
   ],
   "viewport": [

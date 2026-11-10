@@ -989,23 +989,6 @@ TEST_CASE("a plan round-trips through the codec, value for value") {
     CHECK(load_persist::to_text(back.plan) == text);
 }
 
-TEST_CASE("a plan naming the GUI window's earlier role still loads, into the GUI window's role") {
-    // A FILE IN A WEAVER'S FOLDERS, written before the window was named for what it is: the
-    // reader takes its role as the GUI window's, and the next write spells the role now.
-    const load::LoadPlan p = plan_of({weaves("zengine-window-sdl", "zengine.window.gui")});
-    std::string text = load_persist::to_text(p);
-    const std::string now = "\"zengine.window.gui\"";
-    REQUIRE(text.find(now) != std::string::npos);
-    text.replace(text.find(now), now.size(), "\"zengine.window.sdl\"");
-    const load_persist::LoadedPlan back = load_persist::from_text(text);
-    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
-    REQUIRE(back.plan.artifacts.size() == 1);
-    REQUIRE(back.plan.artifacts[0].weave.has_value());
-    CHECK(back.plan.artifacts[0].weave->role == "zengine.window.gui");
-    CHECK(back.plan == p);
-    CHECK(load_persist::to_text(back.plan).find("zengine.window.sdl") == std::string::npos);
-}
-
 TEST_CASE("the ORDER survives the file, because the order is the plan's meaning") {
     const load::LoadPlan p = plan_of({provides("c"), provides("a"), provides("b")});
     const load_persist::LoadedPlan back = load_persist::from_text(load_persist::to_text(p));

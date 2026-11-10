@@ -292,7 +292,7 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
 `summary`, `task`, `choose`, `prepares`, `guide`, `first_task` (`do`, `expect`), `variations`,
 `limits`, `reset` (`scope`, `keeps`); and for preparation:
 
-- `medium` -- the `supports` list (`sdl`, `tui`) and the `viewport` in cells; a `skin` field is
+- `medium` -- the `supports` list (`gui`, `tui`) and the `viewport` in cells; a `skin` field is
   refused, since no setup's desk is shown in a Skin;
 - `requires` -- extra `artifacts`, named `inputs` (such as `zengine_prefix`, a launcher flag) and
   `notes`;
