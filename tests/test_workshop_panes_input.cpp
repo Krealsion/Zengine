@@ -477,7 +477,7 @@ TEST_CASE("the projection says which entry each row names, and which name none")
         ++named;
         // THE ENTRY THE MAP POINTS AT IS THE ENTRY THAT ROW DREW.
         CHECK(view.rows[i].text.find(at->name) != std::string::npos);
-        CHECK(view.rows[i].text.find(at->role) != std::string::npos);
+        CHECK(view.rows[i].text.find(intro::roles_text(*at)) != std::string::npos);
     }
     CHECK(named == 3);
 
@@ -596,11 +596,11 @@ TEST_CASE("the mark a weaver reads is `>`, and it is the width of the indent it 
     // moves, and a list cannot begin cutting names because something in it was selected.
     REQUIRE(std::char_traits<char>::length(intro::kSelectedMark) ==
             std::char_traits<char>::length(intro::kUnselectedMark));
-    const intro::LoadedWeave one{"a-weave", "a.role"};
+    const intro::LoadedWeave one{"a-weave", {"a.role"}};
     CHECK(intro::entry_row(one, false, 46) == "  a-weave @a.role");
     CHECK(intro::entry_row(one, true, 46) == "> a-weave @a.role");
     // ...and a weave the kernel bound no role to says so in either form.
-    const intro::LoadedWeave none{"a-weave", ""};
+    const intro::LoadedWeave none{"a-weave", {}};
     CHECK(intro::entry_row(none, false, 46) == "  a-weave @(no role)");
     CHECK(intro::entry_row(none, true, 46) == "> a-weave @(no role)");
 }
