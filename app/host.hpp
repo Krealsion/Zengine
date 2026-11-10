@@ -441,8 +441,8 @@ private:
         request.name = stem;
         request.path = path_of(stem);
         for (const load::ArtifactIntent& row : plan_.artifacts) {
-            if (row.stem == stem && row.weave.has_value()) {
-                request.role = row.weave->role;
+            if (row.stem == stem && row.weave.has_value() && !row.weave->role.empty()) {
+                request.roles = {row.weave->role};
             }
         }
         request.build = loom::BuildIdentity(request.path);

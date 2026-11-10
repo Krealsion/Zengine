@@ -1182,9 +1182,12 @@ private:
                 return;
             }
             const loom::WeaveId booter = voice_->speaker();
+            const std::string& role = artifact.weave->role;
             bus_->send_as(booter, manager_,
                           loom::Message(loom::to_value(loom::LoadWeave{artifact.stem, path,
-                                                                       artifact.weave->role}),
+                                                                       std::vector<std::string>(
+                                                                           role.empty() ? 0U : 1U,
+                                                                           role)}),
                                         booter, booter, correlation));
             // The boundary: the command is queued and nothing has delivered it. The host's loop
             // does, and the Manager's answer wakes `answered()`; turning the bus here is the defect

@@ -22,7 +22,9 @@ ServedTurn tell_failures(loom::Switchboard& bus, ShowingFailures& book,
     for (ShowingFailure& failure : book.take()) {
         ServedTurn::Failed one;
         one.owner = failure.owner;
-        one.role = bus.role_of(failure.owner);
+        for (const std::string& role : bus.roles_of(failure.owner)) {
+            one.role += (one.role.empty() ? "" : "+") + role;
+        }
         one.held = bus.has_failed_application(failure.owner);
         one.diagnostic =
             "a published claim could not be applied by " +

@@ -301,7 +301,7 @@ struct CanonRig {
 private:
     void send_load(const char* name, const char* path, const char* role) {
         bus.send_as(witness, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), witness,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), witness,
                                   witness, 0));
     }
     void send_reload(const char* name, const char* path) {
@@ -418,7 +418,7 @@ TEST_CASE("a host that publishes no delay rule does NOT get a quietly local Time
                                                std::string(tmr::kNormalizeDelay) + "'") !=
                       std::string::npos,
                   r.heard.refusals.back());
-    CHECK(r.kernel.role_of("zengine-timer").empty());
+    CHECK(r.kernel.roles_of("zengine-timer").empty());
 }
 
 TEST_CASE("a host that publishes the rule at another SIGNATURE is refused the same way") {

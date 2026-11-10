@@ -947,14 +947,14 @@ TEST_CASE("two lists of loaded weaves are two press meanings whatever their name
     const auto meaning = [](const std::vector<intro::LoadedWeave>& weaves) {
         return intro::press_meaning(intro::project_loaded(weaves, 8, 46));
     };
-    const std::vector<intro::LoadedWeave> joined{{"a;b", "test.one"}};
-    const std::vector<intro::LoadedWeave> apart{{"a", "test.one"}, {"b", "test.one"}};
+    const std::vector<intro::LoadedWeave> joined{{"a;b", {"test.one"}}};
+    const std::vector<intro::LoadedWeave> apart{{"a", {"test.one"}}, {"b", {"test.one"}}};
     CHECK(meaning(joined) != meaning(apart));
-    const std::vector<intro::LoadedWeave> in_role{{"a", "r;1:b"}};
-    const std::vector<intro::LoadedWeave> beside{{"a", "r"}, {"b", ""}};
+    const std::vector<intro::LoadedWeave> in_role{{"a", {"r;1:b"}}};
+    const std::vector<intro::LoadedWeave> beside{{"a", {"r"}}, {"b", {}}};
     CHECK(meaning(in_role) != meaning(beside));
-    const std::vector<intro::LoadedWeave> one_role{{"a", "test.one"}};
-    const std::vector<intro::LoadedWeave> other_role{{"a", "test.two"}};
+    const std::vector<intro::LoadedWeave> one_role{{"a", {"test.one"}}};
+    const std::vector<intro::LoadedWeave> other_role{{"a", {"test.two"}}};
     CHECK(meaning(one_role) != meaning(other_role));
     // ...and a list is one meaning however often it is said.
     CHECK(meaning(apart) == meaning(apart));

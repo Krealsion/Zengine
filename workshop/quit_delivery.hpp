@@ -24,7 +24,7 @@ namespace zengine::workshop {
 struct UndeliveredQuit {
     std::uint64_t ask = 0;         ///< the correlation the refused envelope carried: the asker's own
     loom::WeaveId participant{};   ///< the recipient fanout resolved, as the bus stamped it
-    std::string role;            ///< the role that recipient held at the refusal; empty for none
+    std::string role;            ///< the roles that recipient held at the refusal, `r1+r2`; empty for none
     loom::RefusalReason reason = loom::RefusalReason::None;
 };
 

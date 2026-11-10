@@ -31,12 +31,21 @@
 
 namespace zengine::introspection {
 
-/// One loaded weave as the kernel knows it: the library name and the role bound at load. An
-/// empty `role` is an observed absence (the kernel bound none), so the row may say `(no role)`.
+/// One loaded weave as the kernel knows it: the library name and the roles it holds, in binding
+/// order. No role is an observed absence (the kernel bound none), so the row may say `(no role)`.
 struct LoadedWeave {
     std::string name;
-    std::string role;
+    std::vector<std::string> roles;
 };
+
+/// A weave's roles as the Manager's answer spells them and a row shows them: `r1+r2`.
+inline std::string roles_text(const LoadedWeave& w) {
+    std::string out;
+    for (const std::string& role : w.roles) {
+        out += (out.empty() ? "" : "+") + role;
+    }
+    return out;
+}
 
 /// WHAT THIS LIST DOES NOT CONTAIN. Workshop's own header already says whose pane
 /// this is; this says whose facts these are NOT.
@@ -70,10 +79,11 @@ inline std::string fit(std::string text, std::int64_t columns) {
     return workshop::pane_text::fit(std::move(text), columns);
 }
 
-/// The Manager's answer, read: `name@role,name,...` from `Kernel::loaded()`. The wire form has no
-/// escaping, so a name with a comma or an at-sign cannot be read right; the split is on the
-/// last `@`, the ambiguity's better half. An empty blob is an observed empty map. The order is
-/// the kernel's (name order) and is not sorted here. Empty entries are skipped.
+/// The Manager's answer, read: `name@r1+r2,name,...` from `Kernel::loaded()`, a weave's roles
+/// joined by `+`, which no role name holds. The wire form has no escaping, so a name with a comma
+/// or an at-sign cannot be read right; the split is on the last `@`, the ambiguity's better half.
+/// An empty blob is an observed empty map. The order is the kernel's (name order) and is not
+/// sorted here. Empty entries are skipped.
 inline std::vector<LoadedWeave> parse_loaded(std::string_view blob) {
     std::vector<LoadedWeave> out;
     std::size_t at = 0;
@@ -84,10 +94,19 @@ inline std::vector<LoadedWeave> parse_loaded(std::string_view blob) {
         if (!entry.empty()) {
             const std::size_t sep = entry.rfind('@');
             if (sep == std::string_view::npos) {
-                out.push_back(LoadedWeave{std::string(entry), std::string()});
+                out.push_back(LoadedWeave{std::string(entry), {}});
             } else {
-                out.push_back(LoadedWeave{std::string(entry.substr(0, sep)),
-                                          std::string(entry.substr(sep + 1))});
+                LoadedWeave w{std::string(entry.substr(0, sep)), {}};
+                std::string_view roles = entry.substr(sep + 1);
+                for (;;) {
+                    const std::size_t plus = roles.find('+');
+                    w.roles.emplace_back(roles.substr(0, plus));
+                    if (plus == std::string_view::npos) {
+                        break;
+                    }
+                    roles.remove_prefix(plus + 1);
+                }
+                out.push_back(std::move(w));
             }
         }
         if (comma == std::string_view::npos) {
@@ -108,7 +127,7 @@ inline std::string spelled(const std::string& text) {
 /// are one width. The only place an entry row is spelled (`project_loaded`, `mark_selected`).
 inline std::string entry_row(const LoadedWeave& w, bool chosen, std::int64_t columns) {
     return fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + spelled(w.name) + " @" +
-                   (w.role.empty() ? std::string(kNoRole) : spelled(w.role)),
+                   (w.roles.empty() ? std::string(kNoRole) : spelled(roles_text(w))),
                columns);
 }
 
@@ -168,7 +187,7 @@ inline bool matches(const LoadedWeave& w, std::string_view search) {
     };
     const std::string needle = lower(search);
     return lower(w.name).find(needle) != std::string::npos ||
-           lower(w.role).find(needle) != std::string::npos;
+           lower(roles_text(w)).find(needle) != std::string::npos;
 }
 
 /// Which entry a row names, or nothing; total over every row, since a provider is handed a row
@@ -196,7 +215,7 @@ inline std::string press_meaning(const LoadedView& view) {
     std::string said;
     for (std::size_t row = 0; row < view.rows.size(); ++row) {
         const LoadedWeave* entry = entry_at_row(view, static_cast<std::int64_t>(row));
-        said += entry != nullptr ? length_said(entry->name) + length_said(entry->role) + ';'
+        said += entry != nullptr ? length_said(entry->name) + length_said(roles_text(*entry)) + ';'
                                  : std::string("-;");
     }
     return said;

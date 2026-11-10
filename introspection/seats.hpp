@@ -205,7 +205,7 @@ public:
         }
         const bool moved = selected_ != entry->name;
         selected_ = entry->name;
-        const std::string role = entry->role;
+        const std::string role = roles_text(*entry); // the row's words: `r1+r2`
         if (moved) {
             mark_selected(view_, selected_, columns());
             say(mail);

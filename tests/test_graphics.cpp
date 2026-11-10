@@ -7055,7 +7055,7 @@ TEST_CASE("the GUI window SDL cannot open, told a video driver it lacks, is refu
         Rig r;
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
         const auto loaded =
-            r.command(loom::LoadWeave{"zengine-window-sdl", WINDOW_SDL_SO, sdl_role()});
+            r.command(loom::LoadWeave{"zengine-window-sdl", WINDOW_SDL_SO, {sdl_role()}});
         CHECK(loaded.kind == 2); // refused: the weave would not be made
         CHECK_FALSE(r.bus.role_holder(sdl_role()).valid());
         CHECK(gui_windows().empty());

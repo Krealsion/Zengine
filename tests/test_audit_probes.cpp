@@ -243,7 +243,7 @@ struct Rig {
     }
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
-        const std::uint64_t corr = command(loom::LoadWeave{name, path, role});
+        const std::uint64_t corr = command(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)});
         pump_beats(6); // drains when no clock exists; bounded once one does
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
@@ -595,7 +595,7 @@ TEST_CASE("probe D: a consumer loaded LONG AFTER time started begins anyway — 
     // in the Timer's own beats, which the load's own time does not spend and a loaded machine
     // stretches but never shortens.
     const std::uint64_t corr = r.command(
-        loom::LoadWeave{"snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole});
+        loom::LoadWeave{"snake-world-v1", WORLD_V1_SO, {zengine::snake::kWorldRole}});
     const std::int64_t bound = 10 * zengine::snake::kTickMs / zengine::testing::kVirtualStepMs;
     r.pump_until_visual(bound);
     const Seen::Answer* loaded = r.seen.find(corr);

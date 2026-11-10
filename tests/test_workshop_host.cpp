@@ -161,9 +161,9 @@ TEST_CASE("with the bus read the address offers everyone then each role held now
     // so a weaver chooses `#7` because it is the timer's role and not because 7 looked right.
     loom::TerminalSession me("t", workshop_vocab());
     const std::vector<Destination> reachable{
-        Destination{7, "zengine.timer", {"TimerRequested", "TimerCancelled", "Drive", "Hello"}, true, false},
-        Destination{3, "", {"Ack", "Refused"}, true, true},
-        Destination{12, "zengine.test.board", {"RigNote"}, false, false},
+        Destination{7, {"zengine.timer"}, {"TimerRequested", "TimerCancelled", "Drive", "Hello"}, true, false},
+        Destination{3, {}, {"Ack", "Refused"}, true, true},
+        Destination{12, {"zengine.test.board"}, {"RigNote"}, false, false},
     };
     const Completion at = complete_line(me, "send ", &reachable);
     CHECK(displays(at) == std::vector<std::string>{"*", "@zengine.test.board", "@zengine.timer", "#3", "#7",

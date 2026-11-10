@@ -156,7 +156,12 @@ private:
         if (ev.kind != loom::EventKind::Delivered || ev.payload == nullptr) return;
         const std::string_view prefix = gfx::kWindowRolePrefix;
         if (ev.schema_name == gfx::Drawn::zen_name) {
-            if (bus_.role_of(ev.target).rfind(prefix, 0) != 0) return;
+            const std::vector<std::string> held = bus_.roles_of(ev.target);
+            if (std::none_of(held.begin(), held.end(), [&prefix](const std::string& r) {
+                    return r.rfind(prefix, 0) == 0;
+                })) {
+                return;
+            }
             const gfx::Drawn d = loom::from_value<gfx::Drawn>(*ev.payload);
             zengine::graphics::window::WinArea& a = areas_[d.area];
             a.area = d.area;
@@ -3707,7 +3712,7 @@ struct PaneRig {
         const loom::WeaveId booter =
             loom::mount_granted<Booter>(bus, std::move(reach), loaded, load_refusals);
         bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), booter,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), booter,
                                   booter, 0));
         bus.drain_until_idle();
         if (loaded.size() <= before) {

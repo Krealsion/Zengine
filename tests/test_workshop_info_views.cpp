@@ -2138,7 +2138,7 @@ loom::WeaveId unload_then_load(PaneRig& r, const char* name, const char* path, c
     r.bus.drain_until_idle();
     between();
     const std::size_t before = r.loaded.size();
-    r.bus.send_as(seat, r.manager, loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), seat, seat, 0));
+    r.bus.send_as(seat, r.manager, loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), seat, seat, 0));
     r.bus.drain_until_idle();
     return r.loaded.size() > before ? loom::WeaveId{static_cast<std::uint64_t>(std::stoll(r.loaded.back()))}
                                     : loom::WeaveId{};

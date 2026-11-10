@@ -316,7 +316,7 @@ struct Rig {
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(witness, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), witness,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), witness,
                                   witness, corr));
         bus.drain_until_idle();
         const Seen::Answer* a = seen.find(corr);

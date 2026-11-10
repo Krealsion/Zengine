@@ -255,7 +255,7 @@ struct Rig {
     }
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
-        const Recorded::Answer a = command(loom::LoadWeave{name, path, role});
+        const Recorded::Answer a = command(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)});
         REQUIRE_MESSAGE(a.kind == 0, "load refused: ", a.text);
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(a.text))};
     }
@@ -1103,7 +1103,7 @@ struct Timed {
         r.bus.send_as(r.probe, r.manager,
                       loom::Message(loom::to_value(loom::LoadWeave{"zengine-timer-virtual",
                                                                    TIMER_VIRTUAL_SO,
-                                                                   zengine::timer::kTimerRole}),
+                                                                   {zengine::timer::kTimerRole}}),
                                     r.probe, r.probe, corr));
         pump_until(corr);
         const Recorded::Answer* loaded = r.rec.find(corr);

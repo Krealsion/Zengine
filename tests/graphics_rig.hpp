@@ -139,7 +139,7 @@ struct Rig {
     }
 
     loom::WeaveId load(const char* name, const char* path, const std::string& role) {
-        const Heard::Answer a = command(loom::LoadWeave{name, path, role});
+        const Heard::Answer a = command(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)});
         if (a.kind != 0) {
             return loom::WeaveId{};
         }

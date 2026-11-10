@@ -81,12 +81,12 @@ inline loom::AdmissionPolicy artifact_admission() {
         "a weaver-visible policy seat");
     return [existing](const loom::AdmissionRequest& request) {
         if (request.stage == loom::AdmissionStage::Speak &&
-            request.role == inventory::kInventoryRole) {
+            request.roles == std::vector<std::string>{inventory::kInventoryRole}) {
             return loom::AdmissionVerdict::admit(inventory_role_grant(),
                 "Workshop's inventory role may capture descriptions and answer its protocol");
         }
         if (request.stage == loom::AdmissionStage::Speak &&
-            request.role == first_run::kFirstRunRole) {
+            request.roles == std::vector<std::string>{first_run::kFirstRunRole}) {
             return loom::AdmissionVerdict::admit(first_run_role_grant(),
                 "the quick setup may keep its settings, show its panes, ask the editor switch and the launcher, "
                 "and ask the running views what their wiring has done");

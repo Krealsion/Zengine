@@ -12,6 +12,7 @@
 #include <zen/switchboard.hpp>
 #include <zen/value.hpp>
 
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -85,11 +86,21 @@ public:
     }
 
 private:
+    bool holds(loom::WeaveId id, const std::string& role) const {
+        const std::vector<std::string> held = bus_->roles_of(id);
+        return std::find(held.begin(), held.end(), role) != held.end();
+    }
+
     std::string who(loom::WeaveId id) const {
         if (!id.valid()) return "host";
         const auto label = labels_.find(id.value);
         if (label != labels_.end()) return label->second;
-        const std::string role = bus_ != nullptr ? bus_->role_of(id) : std::string();
+        std::string role;
+        if (bus_ != nullptr) {
+            for (const std::string& r : bus_->roles_of(id)) {
+                role += (role.empty() ? "" : "+") + r;
+            }
+        }
         return role.empty() ? "weave " + std::to_string(id.value) : role;
     }
 
@@ -131,8 +142,8 @@ private:
     bool left_out(const loom::BusEvent& ev) const {
         for (const std::string& role : left_out_) {
             if (ev.authored_role == role || ev.addressed_role == role ||
-                (bus_ != nullptr && (bus_->role_of(ev.sender) == role ||
-                                     (ev.target.valid() && bus_->role_of(ev.target) == role)))) {
+                (bus_ != nullptr && (holds(ev.sender, role) ||
+                                     (ev.target.valid() && holds(ev.target, role))))) {
                 return true;
             }
         }

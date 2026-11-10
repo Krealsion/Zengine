@@ -55,8 +55,11 @@ QuitDeliveryWatch::QuitDeliveryWatch(loom::Switchboard& bus, loom::WeaveId works
         // as Loom treats its own refusal notice: an allocation failure here must not replace the
         // evidence the delivery produced, and a lost entry leaves the quit waiting.
         try {
-            book.note(UndeliveredQuit{ev.correlation, ev.target, bus.role_of(ev.target),
-                                      ev.refusal.reason});
+            std::string roles;
+            for (const std::string& role : bus.roles_of(ev.target)) {
+                roles += (roles.empty() ? "" : "+") + role;
+            }
+            book.note(UndeliveredQuit{ev.correlation, ev.target, roles, ev.refusal.reason});
             (void)bus.send(workshop, loom::Message(loom::to_value(QuitDeliveryRefusalNoted{}),
                                                    loom::WeaveId{}, loom::WeaveId{}, 0));
         } catch (const std::bad_alloc&) {
