@@ -8,6 +8,7 @@
 // together, neither rebuilt; the Timer is read through what it SCHEDULED -- the stored delay a
 // real `zen.Bequest` carries -- never through an accessor naming its mode.
 
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "operator/catalog.hpp"
@@ -301,7 +302,7 @@ struct CanonRig {
 private:
     void send_load(const char* name, const char* path, const char* role) {
         bus.send_as(witness, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), witness,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), witness,
                                   witness, 0));
     }
     void send_reload(const char* name, const char* path) {

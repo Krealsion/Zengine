@@ -10,6 +10,7 @@
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "weavelib/virtual_step.hpp" // the virtual Timer's beat
@@ -255,7 +256,7 @@ struct Rig {
     }
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
-        const Recorded::Answer a = command(loom::LoadWeave{name, path, std::vector<std::string>(*role == 0 ? 0U : 1U, role)});
+        const Recorded::Answer a = command(loom::LoadWeave{name, path, zengine::testing::role_set(role)});
         REQUIRE_MESSAGE(a.kind == 0, "load refused: ", a.text);
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(a.text))};
     }

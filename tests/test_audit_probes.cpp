@@ -10,6 +10,7 @@
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "weavelib/virtual_step.hpp" // the suites' virtual beat
@@ -243,7 +244,7 @@ struct Rig {
     }
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
-        const std::uint64_t corr = command(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)});
+        const std::uint64_t corr = command(loom::LoadWeave{name, path, zengine::testing::role_set(role)});
         pump_beats(6); // drains when no clock exists; bounded once one does
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);

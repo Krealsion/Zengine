@@ -11,6 +11,7 @@
 // `static` keeps one a suite does not use silent under -Wunused-function. It includes doctest.h
 // because the fixtures assert.
 
+#include "role_set.hpp"
 #include "doctest.h"
 #include "control_parts.hpp"
 #include "rig_windows.hpp"
@@ -3712,7 +3713,7 @@ struct PaneRig {
         const loom::WeaveId booter =
             loom::mount_granted<Booter>(bus, std::move(reach), loaded, load_refusals);
         bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), booter,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), booter,
                                   booter, 0));
         bus.drain_until_idle();
         if (loaded.size() <= before) {

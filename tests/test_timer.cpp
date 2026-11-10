@@ -10,6 +10,7 @@
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "weavelib/virtual_step.hpp" // the suites' virtual beat
@@ -627,7 +628,7 @@ struct Rig {
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(witness, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(*role == 0 ? 0U : 1U, role)}), witness,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), witness,
                                   witness, corr));
         // Bounded either way: drains when no clock exists yet, and stops after a
         // few beats when loading the timer itself has just started one.

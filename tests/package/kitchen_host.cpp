@@ -157,7 +157,9 @@ int main(int argc, char** argv) {
         const std::uint64_t correlation = waiter->asking(manager);
         bus.send_as(waiter_id, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{
-                                      stem, dir + "/" + stem + kArtifactSuffix, std::vector<std::string>(role.empty() ? 0U : 1U, role)}),
+                                      stem, dir + "/" + stem + kArtifactSuffix,
+                                      role.empty() ? std::vector<std::string>{}
+                                                   : std::vector<std::string>{role}}),
                                   waiter_id, waiter_id, correlation));
         // A load is answered, not merely started: is_loaded turns true while the Result naming
         // the weave is still queued, so this turns the dispatch crank until this waiter's own

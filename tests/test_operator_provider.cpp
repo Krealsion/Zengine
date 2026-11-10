@@ -8,6 +8,7 @@
 // compositions, the chain, residency, refusals, one store, the real Timer, custody, and the host
 // and the plan executor read as source files.
 
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "restamp.hpp"
@@ -836,7 +837,7 @@ struct LiveRig : ProviderRig {
         {
             op::OperatorOffer offering(operators, path);
             bus.send_as(witness, manager,
-                        loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), witness,
+                        loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), witness,
                                       witness, 0));
             drain_until([&] {
                 return heard.results.size() > ok_before || heard.refusals.size() > no_before;
