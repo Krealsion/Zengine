@@ -255,7 +255,7 @@ struct Rig {
     }
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
-        const Recorded::Answer a = command(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)});
+        const Recorded::Answer a = command(loom::LoadWeave{name, path, std::vector<std::string>(*role == 0 ? 0U : 1U, role)});
         REQUIRE_MESSAGE(a.kind == 0, "load refused: ", a.text);
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(a.text))};
     }

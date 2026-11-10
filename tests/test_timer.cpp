@@ -627,7 +627,7 @@ struct Rig {
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(witness, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(role.empty() ? 0U : 1U, role)}), witness,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::vector<std::string>(*role == 0 ? 0U : 1U, role)}), witness,
                                   witness, corr));
         // Bounded either way: drains when no clock exists yet, and stops after a
         // few beats when loading the timer itself has just started one.
