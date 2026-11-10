@@ -4606,7 +4606,7 @@ inline bool any_row(const std::vector<std::string>& rows, const std::string& nee
 inline std::vector<intro::LoadedWeave> loaded_population(std::size_t n) {
     std::vector<intro::LoadedWeave> out;
     for (std::size_t i = 0; i < n; ++i) {
-        out.push_back(intro::LoadedWeave{"weave-" + std::to_string(i), "role." + std::to_string(i)});
+        out.push_back(intro::LoadedWeave{"weave-" + std::to_string(i), {"role." + std::to_string(i)}});
     }
     return out;
 }
