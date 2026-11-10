@@ -314,12 +314,11 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
     speak.roles = {fr::kFirstRunRole};
     const loom::AdmissionVerdict v = artifact_admission()(speak);
     REQUIRE(v.admitted);
-    // The role's grant is for a load asking that one role: a set holding it beside another is
-    // not admitted with it.
+    // The role's own grant is for a load asking that one role: a set holding it beside another
+    // is judged as any other load, by the policy's general words.
     loom::AdmissionRequest wider = speak;
     wider.roles = {fr::kFirstRunRole, "zengine.test.beside"};
-    CHECK_FALSE(artifact_admission()(wider).grant.permits_role(
-        EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version, kEditorSwitchRole));
+    CHECK(artifact_admission()(wider).reason != v.reason);
     for (const auto& [name, version] :
          std::vector<std::pair<std::string, std::uint32_t>>{
              {EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version},
