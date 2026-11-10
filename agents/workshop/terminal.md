@@ -140,10 +140,10 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-16 — Where a line can go is read off the bus at the ask, and kept by nobody
 
-LAW — At the line's address, the host reads each weave on the bus that is not a sealed candidate -- id, role now, accepted shapes, whether alive -- and hands that to the completer for one answer.
+LAW — At the line's address, the host reads each weave on the bus that is not a sealed candidate -- id, roles now, accepted shapes, whether alive -- and hands that to the completer for one answer.
 
 MEANS
-- roles are listed by name and weaves by id, each with what it is; the participant is marked;
+- roles are listed by name, each role of a weave holding several among them, and weaves by id, each with what it is; the participant is marked;
 - a weave loaded, removed or replaced shows on the next ask: nothing kept the last reading;
 - it observes no traffic and holds nothing between asks: a reading, not a tap or a registry.
 
@@ -282,7 +282,8 @@ shown nor taken" "an answer for a caret that has since moved does not reopen the
 `terminal/door.hpp` bus_destinations on(TerminalCompletionRequested)
 `workshop/weave.hpp` HostContext::destinations
 `tests/test_workshop_host.cpp` "with the bus read the address offers everyone then each role held
-now then each weave registered now with what it is"
+now then each weave registered now with what it is" "a destination holding several roles is offered
+as each of them, in role order"
 `tests/test_workshop_panes_terminal.cpp` "the address lists the roles and weaves on the bus now
 with what each is and every ask reads the bus again" "an id chosen from the list and gone before the
 line is sent leaves the participant's refusal and reaches no other weave" "a role chosen from the

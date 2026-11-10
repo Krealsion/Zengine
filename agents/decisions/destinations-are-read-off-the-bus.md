@@ -11,7 +11,7 @@ second registry.
 
 **Decision.** The owner of which weaves exist and which roles they hold is the Switchboard. The
 host that holds it answers the completion ask, so when the line is at its address the host reads
-`list_weaves`, `sealed`, `role_of`, `alive` and `accepted_schemas` at that moment and hands the
+`list_weaves`, `sealed`, `roles_of`, `alive` and `accepted_schemas` at that moment and hands the
 completer a value for one answer. The list is `*`, the roles held now by name, and the weaves
 registered now by id, each saying what it is. Nothing keeps the reading.
 
