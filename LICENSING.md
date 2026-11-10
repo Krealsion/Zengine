@@ -56,8 +56,13 @@ contrary notices) and falls under this repository's AGPL-3.0-only statement, but
 frozen reference material it does not carry per-file headers.
 
 Its `Resources/TTFs/` directory contains third-party fonts that are **not**
-first-party and **not** AGPL-licensed: `Airstream.ttf` is covered by the
-adjacent `Nick's Fonts License.txt`; `Basic-Regular.ttf` and
-`Elounda-Regular.otf` carry no adjacent notice and their exact terms are
-unverified — they are excluded from any ownership claim here and remain under
-their original authors' terms.
+first-party and **not** AGPL-licensed. `Airstream.ttf` is covered by the
+adjacent `Nick's Fonts License.txt`. `Elounda-Regular.otf` is Elounda Regular
+1.000, Copyright (c) 2024, Silverblur_type, under the SIL Open Font License 1.1
+with no Reserved Font Name declared. Its bytes match the regular face at commit
+`fbe57c50f74a7230b4cc67524a4d2e4c9c89ede2` of
+<https://github.com/silverblurtype/elounda> (SHA-256
+`7a4135312b6e4b085a8bb830f9e28af9b0b835c0cf879f51f8bee47f4b5fdc3e`), and
+`quarry/Resources/TTFs/OFL-Elounda.txt` beside it is that commit's license
+text. The Basic face is not in the directory: its terms could not be verified
+from an authoritative source, and the file was removed.

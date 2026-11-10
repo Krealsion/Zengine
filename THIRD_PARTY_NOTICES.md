@@ -8,14 +8,26 @@ Bundled third-party material actually present in this repository:
 | JetBrains Mono 2.304, Regular and Bold | `graphics/window/fonts/JetBrainsMono-Regular.ttf`, `JetBrainsMono-Bold.ttf` | Copyright 2020 The JetBrains Mono Project Authors | SIL Open Font License 1.1 (no Reserved Font Name declared) | `graphics/window/fonts/OFL.txt`, verbatim from upstream |
 | GNU Unifont and Unifont Upper 17.0.05 | `graphics/window/fonts/Unifont-17.0.05.otf`, `UnifontUpper-17.0.05.otf` | Copyright (C) 1998-2026 Roman Czyborra, Paul Hardy, Qianqian Fang, Andrew Miller, Johnnie Weaver, David Corbett, Élla Chiana Moskopp, Rebecca Bettencourt, Ho-Seok Ee, et al. | dual: SIL Open Font License 1.1, or GNU GPL 2 or later with the GNU Font Embedding Exception; taken here under the OFL 1.1 | `graphics/window/fonts/OFL-Unifont.txt` |
 | Airstream font | `quarry/Resources/TTFs/Airstream.ttf` | Nick's Fonts | Nick's Fonts freeware EULA | `quarry/Resources/TTFs/Nick's Fonts License.txt` |
-| Basic font | `quarry/Resources/TTFs/Basic-Regular.ttf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
-| Elounda font | `quarry/Resources/TTFs/Elounda-Regular.otf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
+| Elounda Regular 1.000 | `quarry/Resources/TTFs/Elounda-Regular.otf` | Copyright (c) 2024, Silverblur_type | SIL Open Font License 1.1 (no Reserved Font Name declared) | `quarry/Resources/TTFs/OFL-Elounda.txt`, the author's license file verbatim |
 
-The two unattributed fonts are quarry material from the prior V1 engine tree;
-they are excluded from the repository's first-party AGPL-3.0-only claim, and their
-provenance is recorded as unresolved in [LICENSING.md](LICENSING.md).
+Elounda Regular is quarry material, excluded from this repository's first-party
+AGPL-3.0-only claim. The file is unmodified: SHA-256
+`7a4135312b6e4b085a8bb830f9e28af9b0b835c0cf879f51f8bee47f4b5fdc3e`, 43464 bytes,
+identical to the regular face at commit `fbe57c50f74a7230b4cc67524a4d2e4c9c89ede2`
+(2024-04-23) of <https://github.com/silverblurtype/elounda>. The license file in
+that commit, still the license at the root of that repository, is the SIL Open
+Font License 1.1 with the copyright line above and no Reserved Font Name;
+`quarry/Resources/TTFs/OFL-Elounda.txt` is that text. The font's name table
+names the designer Valerio Brotto (Silverblur_type).
 
-**JetBrains Mono and GNU Unifont are different in kind from those three, and deliberately
+The Basic face is not in this tree. The copy the quarry held matched no file
+Sorkin Type Co publishes (<https://github.com/SorkinType/Basic>, every revision
+of its TrueType file) and no file Google Fonts publishes for the family
+(<https://github.com/google/fonts>), so its terms were not verified from an
+authoritative source and the file was removed.
+[LICENSING.md](LICENSING.md) records the same.
+
+**JetBrains Mono and GNU Unifont are different in kind from the quarry fonts, and deliberately
 so.** They are the faces the GUI window sets its text in -- Unifont the last resort for every
 character JetBrains Mono lacks -- they are unmodified upstream bytes, their provenance is
 written down in full beside them
