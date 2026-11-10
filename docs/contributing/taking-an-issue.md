@@ -273,6 +273,9 @@ A check's link ends in its job's id.
   ([VM-LANE-05](../../agents/verification/lanes.md#vm-lane-05--a-job-under-continue-on-error-is-red-only-in-the-jobs-list)).
 - **A new push cancels the run in progress.** Push once, and read that run to its end before the
   next push.
+- **The attribution check's refusal on a pull request is cleared by a new run.** Edit the
+  title or the description and remove the credit, then push a commit or close and reopen
+  the pull request. A re-run reads the text its run began with.
 - **A red is diagnosed before the next push**: name the job, the step and the case, reproduce it
   where the platform allows, and fix it on the branch.
 - **The issue gets its `CI passed, ready for review` comment**, with the run, once every job has

@@ -243,10 +243,13 @@ co-author line or an AI credit, for anyone. The reason:
 
 `tests/check_commit_attribution.cmake` refuses, on every commit it reads, an author or
 committer that is an AI agent, every co-author line, and an assistant's credit: Claude
-Code's line, and a footer of links to an assistant's own pages, Cursor's among them.
-Prose that names an assistant passes. On a pull request the same check reads the title
+Code's line, a footer of links to an assistant's own pages, and the marker Cursor opens
+a description with, the comment named `CURSOR_AGENT_PR_BODY_BEGIN`. Prose that names an
+assistant, or names that marker, passes. On a pull request the same check reads the title
 and the description, the text the merge copies into a commit. Its refusal names the
-commit and the identity, and gives the same reason.
+commit and the identity, and gives the same reason. A refusal of the pull request's title
+or description says to edit that text and then push a commit or close and reopen the
+pull request, since a re-run reads the text its run began with.
 
 ## Licensing
 
