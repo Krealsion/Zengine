@@ -77,16 +77,16 @@ carry all of them.
 
 ### 0.1 Shape and size
 
-129 files. About **9,000 lines** of C++ across headers and sources, plus three TrueType/OpenType
-fonts, two JSON config files, a Python helper and four Markdown/text documents. Every file
-arrived in one commit and none has been edited since.
+129 files. About **9,000 lines** of C++ across headers and sources, plus two TrueType/OpenType
+fonts, two JSON config files, a Python helper and four Markdown/text documents. The C++
+source arrived in one commit and has not been edited since.
 
 ```text
 quarry/
   CMakeLists.txt CMakePresets.json .clang-format .clang-tidy   build + lint configuration
   readme.md  vision.md  todo.txt  compile_code.py              documents and one tool
   Resources/
-    TTFs/            three fonts + one EULA        (see Traps in §1.4)
+    TTFs/            two fonts, each with its terms (see Traps in §1.4)
     config/          default.json, current.json    the config schema and the live config
     generated/       config.h, config.cpp          checked-in generator OUTPUT
   src/
@@ -355,9 +355,9 @@ metric, never the medium's own decision.
   while duplicating its sizing, and is referenced by nothing. As an *interface* it is still
   readable — set_texture / set_clipping / set_position / set_origin / set_angle / set_scale ×5 /
   flip_x / flip_y — which is a reasonable statement of what a 2-D sprite affordance means.
-- ⚠ **Font licensing.** `Resources/TTFs/` holds three faces under terms that are not open.
-  The repository already owns this fact — see `THIRD_PARTY_NOTICES.md` and `LICENSING.md`,
-  which record the EULA for one and "terms unverified" for the other two. Consult those, not
+- ⚠ **Font licensing.** `Resources/TTFs/` holds Airstream under Nick's Fonts' EULA and
+  Elounda Regular under the SIL Open Font License 1.1. The Basic face is not there.
+  `THIRD_PARTY_NOTICES.md` and `LICENSING.md` own this fact. Consult those, not
   this paragraph, before copying a byte out of that directory.
 
 ---
@@ -1741,9 +1741,6 @@ Recorded rather than resolved.
 - **Whether `default.json` was intended as the schema or merely as the defaults.** It functions as
   both — `ConfigManager` infers types from it and the generator infers the API from it — and
   nothing says whether that dual role was deliberate or convenient.
-- **Which of the three fonts, if any, are safe to reuse.** `THIRD_PARTY_NOTICES.md` records one
-  EULA and two unverified provenances; that file is the owner, not this one
-  ([§1.4](#14-textures-images-and-fonts)).
 - **How much of stratum A is hand-written.** [§0.5](#05-authorship-weight) records the markers
   observed; classifying file by file was not attempted and would change how much of §4's
   "requirement evidence" is genuinely the founder's.
