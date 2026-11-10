@@ -989,6 +989,23 @@ TEST_CASE("a plan round-trips through the codec, value for value") {
     CHECK(load_persist::to_text(back.plan) == text);
 }
 
+TEST_CASE("a plan naming the GUI window's earlier role still loads, into the GUI window's role") {
+    // A FILE IN A WEAVER'S FOLDERS, written before the window was named for what it is: the
+    // reader takes its role as the GUI window's, and the next write spells the role now.
+    const load::LoadPlan p = plan_of({weaves("zengine-window-sdl", "zengine.window.gui")});
+    std::string text = load_persist::to_text(p);
+    const std::string now = "\"zengine.window.gui\"";
+    REQUIRE(text.find(now) != std::string::npos);
+    text.replace(text.find(now), now.size(), "\"zengine.window.sdl\"");
+    const load_persist::LoadedPlan back = load_persist::from_text(text);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    REQUIRE(back.plan.artifacts.size() == 1);
+    REQUIRE(back.plan.artifacts[0].weave.has_value());
+    CHECK(back.plan.artifacts[0].weave->role == "zengine.window.gui");
+    CHECK(back.plan == p);
+    CHECK(load_persist::to_text(back.plan).find("zengine.window.sdl") == std::string::npos);
+}
+
 TEST_CASE("the ORDER survives the file, because the order is the plan's meaning") {
     const load::LoadPlan p = plan_of({provides("c"), provides("a"), provides("b")});
     const load_persist::LoadedPlan back = load_persist::from_text(load_persist::to_text(p));
@@ -1345,7 +1362,7 @@ TEST_CASE("the shipped plan's window row is the GUI window, otherwise the TUI wi
     CHECK(os.stem == "zengine-window-sdl");
     CHECK_FALSE(os.provider.has_value());
     REQUIRE(os.weave.has_value());
-    CHECK(os.weave->role == window + zengine::graphics::kSdlWindow);
+    CHECK(os.weave->role == window + zengine::graphics::kGuiWindow);
     CHECK_FALSE(os.optional);
     REQUIRE(os.otherwise.size() == 1);
     CHECK(os.otherwise[0] ==
@@ -1514,7 +1531,7 @@ TEST_CASE("the shipped window row in the GUI window's absence: told a driver it 
 TEST_CASE("the TUI window taken alone: the row loading it keeps it, a row naming it in its "
           "place loads it and tries nothing else, and a plan offering none is refused, unchanged") {
     const std::string terminal = "zengine.window.tui";
-    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.gui");
     os.otherwise = {load::AlternativeIntent{"zengine-window-tui", load::WeaveIntent{terminal}}};
     load::LoadPlan plan = plan_of({provides("zengine-operators-basic"), os,
                                    weaves("zengine-input", "zengine.input")});
@@ -1528,13 +1545,13 @@ TEST_CASE("the TUI window taken alone: the row loading it keeps it, a row naming
     // A ROW LOADING IT ITSELF keeps it, and names nothing in its place any more.
     load::ArtifactIntent own = weaves("zengine-window-tui", terminal.c_str());
     own.otherwise = {load::AlternativeIntent{"zengine-window-sdl",
-                                             load::WeaveIntent{"zengine.window.sdl"}}};
+                                             load::WeaveIntent{"zengine.window.gui"}}};
     load::LoadPlan itself = plan_of({own});
     REQUIRE(load::take_role(itself, terminal).accepted);
     CHECK(itself.artifacts[0] == weaves("zengine-window-tui", terminal.c_str()));
 
     // A PLAN OFFERING NONE -- the GUI window alone -- is refused, and left as it was.
-    load::LoadPlan alone = plan_of({weaves("zengine-window-sdl", "zengine.window.sdl")});
+    load::LoadPlan alone = plan_of({weaves("zengine-window-sdl", "zengine.window.gui")});
     const load::LoadPlan before = alone;
     const Written refused = load::take_role(alone, terminal);
     CHECK_FALSE(refused.accepted);
@@ -1553,7 +1570,7 @@ TEST_CASE("what a row loads in its place is a weave, named once, into a role no 
         CHECK_FALSE(w.accepted);
         CHECK_MESSAGE(w.refusal.find(words) != std::string::npos, w.refusal);
     };
-    const load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    const load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.gui");
     CHECK(load::check_plan(plan_of({with(os, "zengine-window-tui", "zengine.window.tui")}))
               .accepted);
     refused(plan_of({with(both("zengine-timer", "zengine.timer"), "zengine-plain-weave", "x.y")}),
@@ -1586,7 +1603,7 @@ TEST_CASE("what a row loads in its place is a weave, named once, into a role no 
 
 TEST_CASE("a plan naming a row's alternatives is written as version 4 and read back the plan it "
           "is; one naming none is written as before, and a version-4 file naming none is refused") {
-    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.gui");
     os.otherwise = {load::AlternativeIntent{"zengine-window-tui",
                                             load::WeaveIntent{"zengine.window.tui"}}};
     load::ArtifactIntent optional_row = weaves("zengine-plain-weave", "p.q");
@@ -1623,7 +1640,7 @@ TEST_CASE("a plan naming a row's alternatives is written as version 4 and read b
     const load_persist::LoadedPlan unnamed = load_persist::from_text(
         R"({"zen":1,"schema":"WorkshopLoadFile","version":4,"fields":{)"
         R"("format":"zengine-workshop-load-plan","format_version":"4","artifacts":[)"
-        R"({"artifact":"zengine-window-sdl","provider":[],"weave":[{"role":"zengine.window.sdl"}],)"
+        R"({"artifact":"zengine-window-sdl","provider":[],"weave":[{"role":"zengine.window.gui"}],)"
         R"("optional":false,"otherwise":[{"artifact":"zengine-window-tui","weave":[]}]}],)"
         R"("choices":[]}})");
     CHECK_FALSE(unnamed.outcome.accepted);
@@ -1686,7 +1703,7 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
     // THE GUI WINDOW paints a window of its own and leaves the terminal it was started from alone.
     CHECK_FALSE(load::medium_holds_terminal(
         settled(loaded("zengine-window-sdl", std::string(zengine::graphics::kWindowRolePrefix) +
-                                                 zengine::graphics::kSdlWindow)),
+                                                 zengine::graphics::kGuiWindow)),
         true));
 
     // A ROW THAT RUNS NO WEAVE holds nothing: a medium switched away or never loaded.
@@ -1729,7 +1746,7 @@ TEST_CASE("a plan naming a retired artifact is refused by name, with its fix, be
         CHECK_FALSE(rig.kernel.is_loaded("zengine-timer"));
     }
     // A ROW NAMING ONE IN ITS PLACE is refused the same way, though it may never be tried.
-    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.gui");
     os.otherwise = {load::AlternativeIntent{"zengine-skin-tui-classic",
                                             load::WeaveIntent{"zengine.window.tui"}}};
     PlanRig alternative;

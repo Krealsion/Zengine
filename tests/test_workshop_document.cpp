@@ -299,7 +299,7 @@ TEST_CASE("a close is the window's that shows the desk: one said by anyone else 
     t.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
     CHECK_FALSE(t.host.quit);
     // ...AS THE OTHER WINDOW'S ROLE, which shows no desk here...
-    say_as(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow);
+    say_as(std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow);
     CHECK_FALSE(t.host.quit);
     // ...AND AS ANOTHER ROLE ALTOGETHER.
     say_as("zengine.test.closer");

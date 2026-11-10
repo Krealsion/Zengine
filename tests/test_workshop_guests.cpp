@@ -574,7 +574,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     // of no other window.
     const std::string window_role = zengine::graphics::kWindowRolePrefix;
     for (const std::string& medium :
-         {window_role + zengine::graphics::kSdlWindow,
+         {window_role + zengine::graphics::kGuiWindow,
           window_role + zengine::graphics::kTuiWindow}) {
         CAPTURE(medium);
         CHECK(cap.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, medium));

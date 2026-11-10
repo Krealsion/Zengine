@@ -2130,9 +2130,9 @@ TEST_CASE("the authoring line asks the window that shows Files for a paste, the 
     // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#paste-asked-elsewhere): Files' paste asked
     // of another role than the window showing its area.
     namespace gfx = zengine::graphics;
-    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
+    for (const char* window : {gfx::kGuiWindow, gfx::kTuiWindow}) {
         CAPTURE(window);
-        const bool os = std::string(window) == gfx::kSdlWindow;
+        const bool os = std::string(window) == gfx::kGuiWindow;
         FilesRig f("files-paste-window");
         put_file(f.root / "oven.cpp", "// a weaver's weave\n");
         if (os) f.r.on_gui_window();

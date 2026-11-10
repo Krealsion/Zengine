@@ -491,7 +491,7 @@ loom::Grant grant_for(const GuestRow& row) {
             // THE PICTURE, read from the window that shows the desk.
             for (const std::string& medium :
                  {std::string(graphics::kWindowRolePrefix) + graphics::kTuiWindow,
-                  std::string(graphics::kWindowRolePrefix) + graphics::kSdlWindow}) {
+                  std::string(graphics::kWindowRolePrefix) + graphics::kGuiWindow}) {
                 g.allow_to_role(graphics::SurfaceCaptureRequested::zen_name,
                                 graphics::SurfaceCaptureRequested::zen_version, medium);
                 g.allow_to_role(graphics::SurfaceCaptureChunkRequested::zen_name,

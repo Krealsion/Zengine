@@ -7,6 +7,7 @@
 // The load plan's own file: which artifacts this project runs on, the one execution-authority
 // document beside the setup.
 
+#include "graphics/vocabulary.hpp"
 #include "load_plan.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
@@ -568,7 +569,7 @@ inline LoadedPlan from_text(std::string_view bytes) {
             a.provider = load::ProviderIntent{mode};
         }
         if (!row.weave.empty()) {
-            a.weave = load::WeaveIntent{row.weave.front().role};
+            a.weave = load::WeaveIntent{zengine::graphics::window_role_read(row.weave.front().role)};
         }
         a.optional = row.optional;
         for (const WorkshopLoadAlternative& alt : row.otherwise) {
@@ -578,12 +579,15 @@ inline LoadedPlan from_text(std::string_view bytes) {
                                       "`: what a row loads in its place names its weave once");
             }
             a.otherwise.push_back(
-                load::AlternativeIntent{alt.artifact, load::WeaveIntent{alt.weave.front().role}});
+                load::AlternativeIntent{alt.artifact,
+                                        load::WeaveIntent{zengine::graphics::window_role_read(
+                                            alt.weave.front().role)}});
         }
         candidate.artifacts.push_back(std::move(a));
     }
     for (const WorkshopLoadChoice& c : file.choices) {
-        candidate.choices.push_back(load::ChoiceIntent{c.role, c.name, c.artifact});
+        candidate.choices.push_back(
+            load::ChoiceIntent{zengine::graphics::window_role_read(c.role), c.name, c.artifact});
     }
     // One plan, one spelling: a file in a version larger than its plan needs is refused, or a
     // save would rewrite a file nobody edited.

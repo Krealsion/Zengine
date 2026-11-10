@@ -335,7 +335,7 @@ struct Windows::Impl {
     /// area, a front area over the ones behind, as the window reads itself back.
     Shown light_screen() const {
         Shown s;
-        s.window = gfx::kSdlWindow;
+        s.window = gfx::kGuiWindow;
         s.advance = light.face.advance;
         s.line = light.face.line;
         if (s.advance <= 0 || s.line <= 0) {
@@ -454,14 +454,14 @@ void Windows::room(std::int64_t width_px, std::int64_t height_px, std::int64_t a
     m.light.size = gfx::window::PixelSize{width_px, height_px};
     m.light.face = face;
     if (!m.sdl_id.valid()) {
-        m.sdl_id = m.mount<wb::FakeSdlWindow>(gfx::kSdlWindow, wb::FakeSdlBackend{&m.light});
-        m.up = gfx::kSdlWindow;
+        m.sdl_id = m.mount<wb::FakeSdlWindow>(gfx::kGuiWindow, wb::FakeSdlBackend{&m.light});
+        m.up = gfx::kGuiWindow;
         m.activate(m.sdl_id, m.sdl_lives);
-    } else if (m.up != gfx::kSdlWindow || new_face) {
-        m.up = gfx::kSdlWindow;
+    } else if (m.up != gfx::kGuiWindow || new_face) {
+        m.up = gfx::kGuiWindow;
         m.activate(m.sdl_id, m.sdl_lives);
     } else {
-        m.pump(gfx::kSdlWindow);
+        m.pump(gfx::kGuiWindow);
     }
 }
 
@@ -503,7 +503,7 @@ loom::WeaveId Windows::id() const {
     if (impl_->up == gfx::kTuiWindow) {
         return impl_->terminal_id;
     }
-    if (impl_->up == gfx::kSdlWindow) {
+    if (impl_->up == gfx::kGuiWindow) {
         return impl_->sdl_id;
     }
     return loom::WeaveId{};
@@ -555,7 +555,7 @@ void Windows::queue(const std::vector<zengine::input::InputEvent>& moments) {
     for (const zengine::input::InputEvent& e : moments) {
         if (m.up == gfx::kTuiWindow) {
             m.term.moments.push_back(e);
-        } else if (m.up == gfx::kSdlWindow) {
+        } else if (m.up == gfx::kGuiWindow) {
             m.light.queued.events.push_back(e);
         }
     }
@@ -563,7 +563,7 @@ void Windows::queue(const std::vector<zengine::input::InputEvent>& moments) {
 
 std::vector<Quad> Windows::quads() {
     Impl& m = *impl_;
-    const bool sdl = m.up == gfx::kSdlWindow;
+    const bool sdl = m.up == gfx::kGuiWindow;
     REQUIRE_MESSAGE(sdl, "quads are the GUI window's");
     std::vector<Quad> out;
     if (m.light.frames.empty()) {

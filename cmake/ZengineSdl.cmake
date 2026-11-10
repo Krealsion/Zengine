@@ -145,7 +145,7 @@ if(zengine_sdl_fetched)
 endif()
 
 # ---- SDL_ttf: a real typeface for the GUI window ------------------------------------------
-# A font engine that pairs with this SDL3, which the GUI window needs (graphics/docs/zengine.window.sdl.md).
+# A font engine that pairs with this SDL3, which the GUI window needs (graphics/docs/zengine.window.gui.md).
 # SDL_ttf requires FreeType and its tarball does not bundle it, and both of its doors were
 # measured shut here: SDLTTF_VENDORED=OFF finds no FreeType on the WSL lane or in CLion's MinGW,
 # and ON needs external/freetype to exist. So FreeType is fetched, pinned, into that directory;

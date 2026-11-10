@@ -29,8 +29,18 @@ inline constexpr const char* kGraphicsRole = "zengine.graphics";
 inline constexpr const char* kWindowRolePrefix = "zengine.window.";
 /// The TUI window's name: one terminal to a process, so one TUI window.
 inline constexpr const char* kTuiWindow = "tui";
-/// The GUI window's name: a window of light on the desktop, drawn through SDL.
-inline constexpr const char* kSdlWindow = "sdl";
+/// The GUI window's name: a window of light on the desktop. The weave that draws it,
+/// `zengine-window-sdl`, is the one place SDL is named.
+inline constexpr const char* kGuiWindow = "gui";
+/// The role a load plan written for an earlier Workshop names the GUI window by. A reader of a
+/// saved plan takes it as the GUI window's role (`window_role_read`), so the file still loads.
+inline constexpr const char* kGuiWindowEarlierRole = "zengine.window.sdl";
+
+/// `role` as a saved file's reader takes it: the GUI window's earlier role read as its role now,
+/// any other role as written.
+inline std::string window_role_read(const std::string& role) {
+    return role == kGuiWindowEarlierRole ? std::string(kWindowRolePrefix) + kGuiWindow : role;
+}
 
 /// The bounds one area keeps in its window. A drawing past any of them is refused whole, in words
 /// sent to its drawer.

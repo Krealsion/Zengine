@@ -2491,9 +2491,9 @@ TEST_CASE("Powers asks the window that shows it for a paste into its query, the 
     // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#paste-asked-elsewhere): Powers'
     // paste asked of another role than the window showing its area.
     namespace gfx = zengine::graphics;
-    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
+    for (const char* window : {gfx::kGuiWindow, gfx::kTuiWindow}) {
         CAPTURE(window);
-        const bool os = std::string(window) == gfx::kSdlWindow;
+        const bool os = std::string(window) == gfx::kGuiWindow;
         PaneRig r;
         if (os) r.on_gui_window();
         const std::int64_t kind = open_powers(r);

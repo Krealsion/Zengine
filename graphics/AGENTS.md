@@ -89,7 +89,7 @@ rows; it shares the rig.
 
 - [`zengine.window.tui`](docs/zengine.window.tui.md), the TUI window's manual,
   compiled in
-- [`zengine.window.sdl`](docs/zengine.window.sdl.md), the GUI window's manual, compiled in
+- [`zengine.window.gui`](docs/zengine.window.gui.md), the GUI window's manual, compiled in
 - [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual, compiled in
 - [The Graphics package](docs/graphics.md), drawing into a window
 

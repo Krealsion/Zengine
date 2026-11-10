@@ -51,11 +51,11 @@ medium and the input beside it:
 | row | loads |
 |---|---|
 | third | `zengine-graphics`, as `zengine.graphics` |
-| fourth | `zengine-window-sdl`, as `zengine.window.sdl`; **otherwise** `zengine-window-tui`, as `zengine.window.tui` |
+| fourth | `zengine-window-sdl`, as `zengine.window.gui`; **otherwise** `zengine-window-tui`, as `zengine.window.tui` |
 | fifth | `zengine-input`, as `zengine.input` |
 
 The directory introduces each pane's area and Workshop's own to the window that loaded: the
-[GUI window](../../graphics/docs/zengine.window.sdl.md), which reads SDL's one event queue itself,
+[GUI window](../../graphics/docs/zengine.window.gui.md), which reads SDL's one event queue itself,
 or the [TUI window](../../graphics/docs/zengine.window.tui.md), which takes the process's
 terminal and sends its keys to their owners. No skin is loaded.
 [`zengine-input`](../../input/docs/zengine.input.md) follows either and serves input sessions, a
@@ -75,7 +75,7 @@ version 4):
 {
   "artifact": "zengine-window-sdl",
   "provider": [],
-  "weave": [ { "role": "zengine.window.sdl" } ],
+  "weave": [ { "role": "zengine.window.gui" } ],
   "optional": false,
   "otherwise": [
     { "artifact": "zengine-window-tui", "weave": [ { "role": "zengine.window.tui" } ] }

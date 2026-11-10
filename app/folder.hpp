@@ -57,7 +57,7 @@ inline workshop::load::LoadPlan export_plan() {
     plan.artifacts = {{"zengine-operators-basic", provider, std::nullopt},
                       {"zengine-app-weave", std::nullopt, weave(kAppRole)},
                       {"zengine-graphics", std::nullopt, weave(zengine::graphics::kGraphicsRole)},
-                      {"zengine-window-sdl", std::nullopt, weave("zengine.window.sdl")},
+                      {"zengine-window-sdl", std::nullopt, weave("zengine.window.gui")},
                       {"zengine-timer", provider, weave(zengine::timer::kTimerRole)}};
     return plan;
 }

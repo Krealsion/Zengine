@@ -53,7 +53,7 @@ window reads SDL's one process-global event queue itself, with this package's tr
 (`input/translate_sdl_core.hpp`): SDL scancodes pass through as the wire identity they already are.
 The platform's clipboard events are ignored there deliberately, not from disinterest: clipboard read
 follows paste intent, so the clipboard is read through the window when a paste asks with
-`ClipboardTextRequested` ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), and
+`ClipboardTextRequested` ([`zengine.window.gui`](../../graphics/docs/zengine.window.gui.md)), and
 never watched; no moment carries clipboard text. Each backend's exact honest reach — which modifiers
 it can vouch for on which keys — stays documented in `input/translate.hpp`. The terminal readers
 (`input/terminal_reader.hpp`) serve any program reading a terminal, a TUI window among them,

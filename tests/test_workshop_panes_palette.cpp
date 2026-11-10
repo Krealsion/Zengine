@@ -826,11 +826,11 @@ TEST_CASE("the palette's start line fits its row or is cut with a mark at its de
     // The sentence the palette says of a started demo, and the process the stand-in answers.
     const std::string full =
         "started the demo `values`, process 4242: it goes on without Workshop";
-    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
+    for (const char* window : {gfx::kGuiWindow, gfx::kTuiWindow}) {
         const std::string which = window;
         CAPTURE(which);
         PaneRig r;
-        if (std::string(window) == gfx::kSdlWindow) {
+        if (std::string(window) == gfx::kGuiWindow) {
             r.on_gui_window();
         }
         ProviderSeat* tools = nullptr;

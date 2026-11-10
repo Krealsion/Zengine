@@ -330,7 +330,7 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
     CHECK_FALSE(v.grant.permits_role(zengine::graphics::Drawn::zen_name, zengine::graphics::Drawn::zen_version,
                                      kWorkshopProvider));
     CHECK(v.grant.permits_role(zengine::graphics::Drawn::zen_name, zengine::graphics::Drawn::zen_version,
-                               std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kSdlWindow));
+                               std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kGuiWindow));
     CHECK_FALSE(v.grant.permits_role(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version,
                                      "zen.manager"));
 }

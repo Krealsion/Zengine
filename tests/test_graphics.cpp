@@ -43,7 +43,7 @@
 #include "input/terminal_reader.hpp"
 #include "input/translate.hpp"
 #include "manuals/zengine.graphics.hpp"
-#include "manuals/zengine.window.sdl.hpp"
+#include "manuals/zengine.window.gui.hpp"
 #include "manuals/zengine.window.tui.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
@@ -1372,13 +1372,13 @@ TEST_CASE("a canvas told its area is empty draws whole again, in the same window
 TEST_CASE("a canvas told its window sets text in another measure draws whole again, and keeps the "
           "measure for its owner") {
     gfx::Canvas canvas("test.area");
-    REQUIRE(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false, gfx::kCellPx,
+    REQUIRE(canvas.room(gfx::AreaRoom{"test.area", "gui", 7, 240, 120, {}, false, gfx::kCellPx,
                                       8, 18, {}}));
     CHECK(canvas.cell_px() == gfx::kCellPx);
     CHECK(canvas.text() == gfx::TextMeasure{8, 18});
-    CHECK_FALSE(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false,
+    CHECK_FALSE(canvas.room(gfx::AreaRoom{"test.area", "gui", 7, 240, 120, {}, false,
                                           gfx::kCellPx, 8, 18, {}}));
-    CHECK(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false, gfx::kCellPx, 7,
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "gui", 7, 240, 120, {}, false, gfx::kCellPx, 7,
                                     16, {}}));
     CHECK(canvas.text() == gfx::TextMeasure{7, 16});
     // A ROOM THAT SAYS NO MEASURE is a window whose text is the cell.
@@ -4586,7 +4586,7 @@ namespace {
 namespace light = zengine::graphics::light;
 namespace gw = zengine::graphics::window;
 
-std::string sdl_role() { return std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow; }
+std::string sdl_role() { return std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow; }
 
 /// The primitives each node of a sketch paints for light in `palette`, in the sketch's order.
 std::vector<light::NodePrimitives> lit(const gfx::Sketch& s, const gfx::PaletteOffered& palette) {
@@ -5123,7 +5123,7 @@ struct LitWindow {
         const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(g), role);
         raw->zen_set_self(id);
         owners.emplace_back(role, id);
-        gfx::AreaPlaced placed{role, gfx::kSdlWindow, role, x, y, w, h, order, keys};
+        gfx::AreaPlaced placed{role, gfx::kGuiWindow, role, x, y, w, h, order, keys};
         placed.releases = keys; // the owner takes every key moment
         placed.text = keys;
         placed.pointer = pointer;
@@ -5186,7 +5186,7 @@ TEST_CASE("the GUI window paints every operator for light, holds a drawing sayin
     LitWindow t;
     LitHeard& o = t.own("test.lit", 0, 0, 40 * gfx::kCellPx, 20 * gfx::kCellPx, "night");
     REQUIRE(o.rooms.size() == 1);
-    CHECK(o.rooms[0].window == gfx::kSdlWindow);
+    CHECK(o.rooms[0].window == gfx::kGuiWindow);
     const std::size_t before = t.light.frames.size();
     gfx::Drawn first = whole("test.lit", every_operator());
     first.more = true;
@@ -5208,7 +5208,7 @@ TEST_CASE("the GUI window paints every operator for light, holds a drawing sayin
     CHECK(a->nodes[5].images.size() == 1);
 
     const gfx::WindowShown s = t.shown();
-    CHECK(s.window == gfx::kSdlWindow);
+    CHECK(s.window == gfx::kGuiWindow);
     CHECK(s.nodes == 8);
     CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / t.light.face.line));
     CHECK(any_row_has(s, "hi\xC3\xA9!"));
@@ -5218,7 +5218,7 @@ TEST_CASE("the GUI window paints every operator for light, holds a drawing sayin
 
     t.say("test.lit", gfx::Drawn{"test.nowhere", false, {}, {}, {}, {}, false});
     REQUIRE(o.refused.size() == 1);
-    CHECK(o.refused[0] == "window 'sdl' shows no area 'test.nowhere'");
+    CHECK(o.refused[0] == "window 'gui' shows no area 'test.nowhere'");
 }
 
 TEST_CASE("the GUI window sets text in the face it measured: its owners are told it, its painter sets "
@@ -5953,7 +5953,7 @@ TEST_CASE("the GUI window resized offers itself again in its new size in pixels,
     t.pump();
     const auto again = t.r.read<gfx::WindowOffered>(mark, sdl_role());
     REQUIRE(again.size() == 1);
-    CHECK(again[0].window == gfx::kSdlWindow);
+    CHECK(again[0].window == gfx::kGuiWindow);
     CHECK(again[0].width == 1200);
     CHECK(again[0].height == 600);
     CHECK(again[0].epoch == epoch);
@@ -6023,7 +6023,7 @@ TEST_CASE("the GUI window's page answers for every shape it accepts, and names n
     const std::vector<std::string> described = described_shapes_of(t.r.bus, t.window);
     REQUIRE_FALSE(described.empty());
     CHECK(check_role_manual(t.r.bus, sdl_role()) >= described.size());
-    check_page_names_accepted(zengine::manual::pages::zengine_window_sdl::kManual, described);
+    check_page_names_accepted(zengine::manual::pages::zengine_window_gui::kManual, described);
 }
 
 TEST_CASE("the GUI window has its backend read back the last picture it presented: none before one, "
@@ -6238,7 +6238,7 @@ TEST_CASE("a GUI window a weaver made narrower and a pixel taller is not grown b
     // the other still reaches across the old room, no further than it did.
     for (const char* area : {"test.desk", "test.over"}) {
         t.r.to_role(gfx::kGraphicsRole,
-                    gfx::AreaPlaced{area, gfx::kSdlWindow, area, 0, 0, gw::kDefaultWidth - 156,
+                    gfx::AreaPlaced{area, gfx::kGuiWindow, area, 0, 0, gw::kDefaultWidth - 156,
                                     gw::kDefaultHeight + 1, 0, false});
         t.r.drain();
         CHECK(t.light.grown.empty());
@@ -6646,7 +6646,7 @@ TEST_CASE("an area's arranger reads what the GUI window shows of it: its runs of
           "measure, each part by the box its primitives span and the point nearest its middle a "
           "press reaches it by, what an area in front draws over left out") {
     LitWindow t;
-    ReadDesk d(t.r, gfx::kSdlWindow);
+    ReadDesk d(t.r, gfx::kGuiWindow);
     const gfx::Color ink = gfx::colors::text;
     gfx::Sketch s;
     s.text("a", 0, 0, "lid", ink);
@@ -6658,7 +6658,7 @@ TEST_CASE("an area's arranger reads what the GUI window shows of it: its runs of
 
     const std::optional<gfx::AreaShown> first = d.read("test.read");
     REQUIRE(first.has_value());
-    CHECK(first->window == gfx::kSdlWindow);
+    CHECK(first->window == gfx::kGuiWindow);
     CHECK(first->advance == 8);
     CHECK(first->line == 18);
     REQUIRE(first->words.size() == 2);
@@ -6978,7 +6978,7 @@ struct SdlWeave {
         owner = r.bus.register_weave(std::move(made), std::move(g), "test.lit");
         raw->zen_set_self(owner);
         r.to_role(gfx::kGraphicsRole, gfx::themes::day());
-        gfx::AreaPlaced placed{"test.lit", gfx::kSdlWindow, "test.lit", 0,
+        gfx::AreaPlaced placed{"test.lit", gfx::kGuiWindow, "test.lit", 0,
                                0, 40 * gfx::kCellPx, 4 * gfx::kCellPx, 0, keys};
         placed.releases = keys; // the owner takes every key moment
         placed.text = keys;
@@ -7021,7 +7021,7 @@ TEST_CASE("the GUI window opens one window on the desktop, draws in it, keeps th
     {
         SdlWeave w;
         const gfx::WindowShown first = w.shown();
-        CHECK(first.window == gfx::kSdlWindow);
+        CHECK(first.window == gfx::kGuiWindow);
         CHECK(any_row_has(first, "lit"));
         CHECK(first.showings > 0);
         CHECK(first.painter_calls > 0);
@@ -7175,7 +7175,7 @@ struct RealLit {
     void place_area(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
         r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{"test.lit", "day"});
         r.to_role(gfx::kGraphicsRole,
-                  gfx::AreaPlaced{"test.lit", gfx::kSdlWindow, "test.lit", x, y, w, h, 0, false});
+                  gfx::AreaPlaced{"test.lit", gfx::kGuiWindow, "test.lit", x, y, w, h, 0, false});
         r.drain();
     }
     void draw(const gfx::Sketch& s) {
@@ -7341,7 +7341,7 @@ loom::WeaveId arranged_by(LitWindow& t, const std::string& area, std::int64_t w,
     raw->zen_set_self(id);
     t.r.bus.role_send_to_role_as(
         id, "test.arranger", gfx::kGraphicsRole,
-        loom::Message(loom::to_value(gfx::AreaPlaced{area, gfx::kSdlWindow, area, 0, 0, w, h, 1, false})));
+        loom::Message(loom::to_value(gfx::AreaPlaced{area, gfx::kGuiWindow, area, 0, 0, w, h, 1, false})));
     t.r.drain();
     return id;
 }
@@ -7385,13 +7385,13 @@ TEST_CASE("a GUI window takes its title and its size from a role that arranges a
     loom::Grant g = loom::emit_default_grant(*raw);
     const loom::WeaveId stranger = t.r.bus.register_weave(std::move(made), std::move(g), "test.stranger");
     raw->zen_set_self(stranger);
-    say_as(t, stranger, "test.stranger", gfx::WindowShaped{gfx::kSdlWindow, "stranger", 320, 260});
+    say_as(t, stranger, "test.stranger", gfx::WindowShaped{gfx::kGuiWindow, "stranger", 320, 260});
     say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kTuiWindow, "tally", 320, 260});
     CHECK(t.light.shaped.empty());
     CHECK(t.light.size == gw::PixelSize{gw::kDefaultWidth, gw::kDefaultHeight});
 
     // THE ARRANGER: the title and the size, and the window offered again at that size.
-    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kSdlWindow, "tally", 320, 260});
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kGuiWindow, "tally", 320, 260});
     REQUIRE(t.light.shaped.size() == 1);
     CHECK(t.light.shaped[0].first == "tally");
     CHECK(t.light.shaped[0].second == gw::PixelSize{320, 260});
@@ -7414,8 +7414,8 @@ TEST_CASE("a GUI window takes its title and its size from a role that arranges a
     // begins.
     std::string long_title(gfx::kMaxWindowTitleBytes - 1, 'a');
     long_title += "\xC3\xA9tally";
-    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kSdlWindow, "tal\nly", 0, 0});
-    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kSdlWindow, long_title, 0, 0});
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kGuiWindow, "tal\nly", 0, 0});
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kGuiWindow, long_title, 0, 0});
     REQUIRE(t.light.shaped.size() == 3);
     CHECK(t.light.shaped[1].first == "tal ly");
     CHECK(t.light.shaped[2].first == std::string(gfx::kMaxWindowTitleBytes - 1, 'a'));

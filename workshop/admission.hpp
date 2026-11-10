@@ -55,7 +55,7 @@ inline loom::Grant first_run_role_grant() {
     to(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version, layouts);
     to(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version, workshop);
     to(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);
-    for (const char* window : {graphics::kSdlWindow, graphics::kTuiWindow}) {
+    for (const char* window : {graphics::kGuiWindow, graphics::kTuiWindow}) {
         to(graphics::Drawn::zen_name, graphics::Drawn::zen_version,
            std::string(graphics::kWindowRolePrefix) + window);
     }

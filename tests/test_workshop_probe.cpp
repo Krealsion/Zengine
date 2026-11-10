@@ -596,7 +596,7 @@ TEST_CASE("probe: a refused capture, and a chunk that does not continue the pict
     const std::string refused = r.run();
     INFO("refused: " << refused);
     CHECK(starts(refused, "STOPPED"));
-    CHECK(has(refused, "zengine.window.sdl refused the capture: this medium has no picture"));
+    CHECK(has(refused, "zengine.window.gui refused the capture: this medium has no picture"));
     CHECK(has(refused, "session 1 closed in cleanup"));
     // A chunk from another picture.
     Rig s;
@@ -661,7 +661,7 @@ TEST_CASE("probe: a picture is asked of the GUI window, then the TUI window, and
     // asked of the GUI window alone -- every terminal plan would stop at capture.
     // ⚔ MUTATION (tests/mutants/workshop_probe.md#chunks-of-the-gui-window): the chunks asked of the
     // GUI window after the TUI window described the picture.
-    for (const char* holder : {"zengine.window.sdl", "zengine.window.tui"}) {
+    for (const char* holder : {"zengine.window.gui", "zengine.window.tui"}) {
         CAPTURE(holder);
         const bool terminal = std::string(holder) == "zengine.window.tui";
         Rig r;
@@ -670,11 +670,11 @@ TEST_CASE("probe: a picture is asked of the GUI window, then the TUI window, and
         const std::string said = r.run();
         INFO("the run: " << said);
         REQUIRE(starts(said, "PASS"));
-        CHECK(has(said, "zengine.window.sdl was not reached (NoRoleHolder: zengine.window.sdl); "
+        CHECK(has(said, "zengine.window.gui was not reached (NoRoleHolder: zengine.window.gui); "
                         "asking zengine.window.tui") == terminal);
         CHECK(has(said, "capture 1 at frame 5: 3x1 text/cells, 4 bytes"));
         CHECK(has(said, "(4 of 4 bytes, text/cells, read back whole)"));
-        std::vector<std::string> captures = {"zengine.window.sdl"};
+        std::vector<std::string> captures = {"zengine.window.gui"};
         if (terminal) {
             captures.push_back(holder);
         }
@@ -685,7 +685,7 @@ TEST_CASE("probe: a picture is asked of the GUI window, then the TUI window, and
         const std::string again = r.run();
         CHECK(starts(again, "PASS"));
         CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name).at(captures.size()) ==
-              "zengine.window.sdl");
+              "zengine.window.gui");
     }
 }
 
@@ -698,7 +698,7 @@ TEST_CASE("probe: when no role holds the picture the run stops on the first refu
     INFO("the run: " << said);
     CHECK(starts(said, "STOPPED"));
     CHECK(has(said, "link: dispatch-refused at capture (SurfaceCaptureRequested): NoRoleHolder: "
-                    "zengine.window.sdl; session 1 closed in cleanup"));
+                    "zengine.window.gui; session 1 closed in cleanup"));
     CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) ==
           std::vector<std::string>(zengine::workshop_probe::kCaptureRoles.begin(),
                                    zengine::workshop_probe::kCaptureRoles.end()));
@@ -709,7 +709,7 @@ TEST_CASE("probe: when no role holds the picture the run stops on the first refu
     // fetching sent the run on to the next role.
     Rig s;
     s.answer_with(gfx::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value&) {
-        return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.window.sdl");
+        return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.window.gui");
     });
     const std::string fetching = s.run();
     INFO("refused while fetching: " << fetching);
@@ -717,7 +717,7 @@ TEST_CASE("probe: when no role holds the picture the run stops on the first refu
     CHECK(has(fetching, "link: dispatch-refused at fetch (SurfaceCaptureChunkRequested)"));
     CHECK(has(fetching, "session 1 closed in cleanup"));
     CHECK(asked_of(s, gfx::SurfaceCaptureRequested::zen_name) ==
-          std::vector<std::string>{"zengine.window.sdl"});
+          std::vector<std::string>{"zengine.window.gui"});
 }
 
 TEST_CASE("probe: a lost link leaves the session to Workshop's door, and says so") {

@@ -113,7 +113,7 @@ The window file's room is this run's, whichever window the run was in.
 In `workshop/weave_session.cpp`:
 
 ```diff
--    const bool gui_window = window_name_ == graphics::kSdlWindow;
+-    const bool gui_window = window_name_ == graphics::kGuiWindow;
 -    place.room_w = gui_window ? session_.normal_w : session_.window_room_w;
 +    const bool gui_window = true;
 +    place.room_w = gui_window ? session_.normal_w : session_.window_room_w;

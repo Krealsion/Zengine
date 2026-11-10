@@ -24,7 +24,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
 - [`zengine.window.tui`](docs/zengine.window.tui.md), the TUI window's manual: what
   it keeps and shows, what an owner sends it and what it refuses, where a key and a press go, the
   palettes it holds and the code it opens, and what a reload or a replacement costs
-- [`zengine.window.sdl`](docs/zengine.window.sdl.md), the GUI window's manual: the same window on
+- [`zengine.window.gui`](docs/zengine.window.gui.md), the GUI window's manual: the same window on
   the desktop, drawn in light through SDL3, and how it keeps its window across a reload
 - [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual: what the arranger and a
   window tell it, and what it says to each window
