@@ -34,8 +34,13 @@ endif()
 #   generated with [claude code], or claude.com/claude-code — Claude Code's line.
 #   cursor.com/agents/ or cursor.com/background-agent — Cursor's footer of links to its
 #   agent's pages, as written on pull requests 125, 126 and 127.
+#   the HTML comment naming CURSOR_AGENT_PR_BODY_BEGIN — Cursor opens a description with
+#   it. The comment is built below, and a sentence that names the token is prose.
 set(ZEN_ATTRIBUTION_CREDIT
     "generated with \\[claude code\\]|claude\\.com/claude-code|cursor\\.com/agents/|cursor\\.com/background-agent")
+set(ZEN_ATTRIBUTION_MARKER_NAME "CURSOR_AGENT_PR_BODY_BEGIN")
+string(CONCAT ZEN_ATTRIBUTION_MARKER "<!-- " "${ZEN_ATTRIBUTION_MARKER_NAME}" " -->")
+string(CONCAT ZEN_ATTRIBUTION_CREDIT "${ZEN_ATTRIBUTION_CREDIT}" "|" "${ZEN_ATTRIBUTION_MARKER}")
 
 # Agent identities refused as an author or a committer, beside the credit line. Each email
 # notes where that agent was seen.
@@ -389,11 +394,11 @@ if(NOT person_ok STREQUAL "")
         "committed (\"${person_ok}\").")
 endif()
 
-# The footer pull requests 125, 126 and 127 carried, links and buttons. The marker those
-# descriptions still open with, and a sentence naming Cursor, are the neighbours that pass.
+# A footer of links to an assistant's pages. The links and ids are made up; the shape is
+# the one a description carried, and the links are what the credit grep refuses.
 set(ZEN_ATTRIBUTION_CURSOR_FOOTER [=[<!-- CURSOR_AGENT_PR_BODY_END -->
 
-<div><a href="https://cursor.com/agents/bc-6ce49916-cda5-5f53-a9ce-3d3b641cb474?cursor_ref=pr_footer&cursor_cta=open_in_web"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-web-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-web-light.png"><img alt="Open in Web" width="114" height="28" src="https://cursor.com/assets/images/open-in-web-dark.png"></picture></a>&nbsp;<a href="https://cursor.com/background-agent?bcId=bc-6ce49916-cda5-5f53-a9ce-3d3b641cb474&cursor_ref=pr_footer&cursor_cta=open_in_cursor"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-cursor-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-cursor-light.png"><img alt="Open in Cursor" width="131" height="28" src="https://cursor.com/assets/images/open-in-cursor-dark.png"></picture></a>&nbsp;</div>]=])
+<div><a href="https://cursor.com/agents/bc-00000000-0000-4000-8000-000000000000?cursor_ref=pr_footer&cursor_cta=open_in_web"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-web-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-web-light.png"><img alt="Open in Web" width="114" height="28" src="https://cursor.com/assets/images/open-in-web-dark.png"></picture></a>&nbsp;<a href="https://cursor.com/background-agent?bcId=bc-00000000-0000-4000-8000-000000000000&cursor_ref=pr_footer&cursor_cta=open_in_cursor"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-cursor-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-cursor-light.png"><img alt="Open in Cursor" width="131" height="28" src="https://cursor.com/assets/images/open-in-cursor-dark.png"></picture></a>&nbsp;</div>]=])
 
 zen_throwaway_commit(
     "Self-test: the footer a pull request carried\n\nThe change.\n\n${ZEN_ATTRIBUTION_CURSOR_FOOTER}"
@@ -433,17 +438,55 @@ if(NOT pr_prose STREQUAL "")
         "(\"${pr_prose}\").")
 endif()
 
-zen_attribution_judge_text(
-    "Self-test: a described pull request\n\n<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n\nThe change, with the marker and no footer."
-    pr_marker)
-if(NOT pr_marker STREQUAL "")
+# The comment Cursor opens a description with is a credit, on a commit and on a pull
+# request. A sentence that names it is prose. The comment is the one the predicate built.
+if(ZEN_ATTRIBUTION_MARKER STREQUAL "")
     message(FATAL_ERROR
-        "attribution: SELF-TEST FAILED -- the marker without the links was flagged "
-        "(\"${pr_marker}\").")
+        "attribution: SELF-TEST FAILED -- the marker a description opens with was not built. "
+        "An empty alternative in the credit pattern matches every message.")
+endif()
+
+zen_throwaway_commit(
+    "Self-test: the marker a description opens with\n\n${ZEN_ATTRIBUTION_MARKER}\n\nThe change, and no footer."
+    marker_sha)
+zen_attribution_verdict("${marker_sha}" marker_found)
+if(NOT marker_found STREQUAL "an assistant's credit")
+    message(FATAL_ERROR
+        "attribution: SELF-TEST FAILED -- the marker a description opens with was not refused "
+        "as a credit (\"${marker_found}\").")
+endif()
+
+zen_throwaway_commit(
+    "Self-test: a sentence naming the marker\n\nThis sentence names ${ZEN_ATTRIBUTION_MARKER_NAME}, the marker Cursor opens a description with."
+    marker_prose_sha)
+zen_attribution_verdict("${marker_prose_sha}" marker_prose)
+if(NOT marker_prose STREQUAL "")
+    message(FATAL_ERROR
+        "attribution: SELF-TEST FAILED -- a sentence naming the marker was flagged "
+        "(\"${marker_prose}\"). Prose naming it is not attribution.")
+endif()
+
+zen_attribution_judge_text(
+    "Self-test: a pull request opening with the marker\n\n${ZEN_ATTRIBUTION_MARKER}\n\nThe change, and no footer."
+    pr_marker)
+if(NOT pr_marker STREQUAL "an assistant's credit")
+    message(FATAL_ERROR
+        "attribution: SELF-TEST FAILED -- the pull request text was not refused when it "
+        "opened with the marker (\"${pr_marker}\").")
+endif()
+
+zen_attribution_judge_text(
+    "Self-test: a pull request naming the marker\n\nThis description names ${ZEN_ATTRIBUTION_MARKER_NAME}, the marker Cursor opens a description with, which is prose."
+    pr_marker_prose)
+if(NOT pr_marker_prose STREQUAL "")
+    message(FATAL_ERROR
+        "attribution: SELF-TEST FAILED -- a pull request whose prose names the marker was "
+        "flagged (\"${pr_marker_prose}\").")
 endif()
 
 message(STATUS "attribution: self-test OK -- an agent's identity and a person's, a co-author "
-               "line, Claude Code's credit line, Cursor's footer, and prose naming an assistant")
+               "line, Claude Code's credit line, Cursor's footer, the marker a description "
+               "opens with, and prose naming an assistant or that marker")
 
 # ---- the real population ------------------------------------------------------------
 
@@ -519,7 +562,9 @@ if(NOT pr_title STREQUAL "" OR NOT pr_body STREQUAL "")
             "attribution FAILED: the pull request's title or description carries ${pr_found}.\n"
             "  The merge copies that title and description into a commit on main.\n\n"
             "${ZEN_ATTRIBUTION_REASON}\n"
-            "  Edit the title or the description and remove the credit.")
+            "  Edit the title or the description and remove the credit, then push a commit\n"
+            "  or close and reopen the pull request. A re-run reads the text its run began\n"
+            "  with.")
     endif()
     set(pr_note ", and the pull request's title and description carry none of that")
 endif()
