@@ -18,6 +18,8 @@
 
 namespace zengine::workshop {
 
+using zengine::persist::Written;
+
 /// The one current completed recipe catalog of a running Workshop, and the authored file
 /// it came from.
 class CurrentRecipes {

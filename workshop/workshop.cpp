@@ -14,7 +14,7 @@
 #include "load_execute.hpp"
 #include "load_persist.hpp"
 #include "log_selection.hpp"
-#include "path_admission.hpp"
+#include "persist/path_admission.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
 #include "staging.hpp"
@@ -90,6 +90,7 @@
 namespace {
 
 using namespace zengine::workshop;
+using zengine::persist::launch_project_dir;
 namespace builder = zengine::builder;
 namespace manual = zengine::manual;
 namespace op = zengine::op;
@@ -364,7 +365,7 @@ int main(int argc, char** argv) {
     host.dir = exe_dir();
     // And where the weaver is standing: the project is the launch directory (user_paths.hpp),
     // captured once. A directory the platform will not report and one this application cannot
-    // say are the same absence, empty, which the banner states (path_admission.hpp).
+    // say are the same absence, empty, which the banner states (persist/path_admission.hpp).
     host.project_dir = launch_project_dir();
     // The one pane whose presentation this host commits jointly with its document, spelled
     // through the conversion table, the one host-side file that names it.

@@ -12,6 +12,8 @@
 
 namespace zengine::workshop {
 
+using zengine::persist::Written;
+
 // ---- THE EXTERNAL PANE SEAM: a role offers, Workshop seats, the pane draws
 
 void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {

@@ -15,7 +15,7 @@
 #include "keymap.hpp"
 #include "pane_settings.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 #include "screen.hpp" // the arrangement's measures: each setting's default and bounds
 #include "settings_seam_vocabulary.hpp"
 #include "workshop/pane_menu.hpp"
@@ -37,6 +37,8 @@
 #include <vector>
 
 namespace zengine::workshop::prefs_persist {
+
+using zengine::persist::Written;
 
 /// What a Workshop settings file says it is -- its own word, beside the family's others, so
 /// handing Workshop the wrong one of its own files is named rather than half-read.

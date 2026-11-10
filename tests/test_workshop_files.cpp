@@ -34,7 +34,7 @@
 // WHETHER A FILESYSTEM PATH CAN BE SAID AT ALL. The browser's names and the host's launch
 // directory are the two paths this application takes from the OS, and the boundary they
 // share is asserted here directly rather than only through its consumers.
-#include "workshop/path_admission.hpp"
+#include "persist/path_admission.hpp"
 #include "workshop/pane_text.hpp"
 
 // THE TWO DOORS THE FILES WEAVE ASKS. One is this host's own weave (`workshop/pane_doors.hpp`);
@@ -69,6 +69,10 @@
 #endif
 #include <windows.h>
 #endif
+
+using zengine::persist::AdmittedPath;
+using zengine::persist::admit_path;
+using zengine::persist::launch_project_dir;
 
 // ============================================================================
 // Support: a project on disk, and a Workshop launched into it

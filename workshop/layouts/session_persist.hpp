@@ -13,7 +13,7 @@
 #include "operator/migration.hpp"
 #include "workshop/layouts/run.hpp"
 #include "persist/file.hpp" // and the members a file of lines carries, read as text
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 #include "workshop/setup.hpp"
 #include "workshop/setup_persist.hpp"
 
@@ -34,6 +34,8 @@
 #include <vector>
 
 namespace zengine::workshop::session_persist {
+
+using zengine::persist::Written;
 
 /// What a Workshop session file says it is: its own word, so handing Workshop the wrong file is
 /// named rather than half-read.

@@ -4276,7 +4276,7 @@ TEST_CASE("Files' path keeps its root and as much of its end as fits, cut in the
         f.r.key(input::scan::kReturn); // into the one folder each level holds
     }
     f.r.key(input::scan::kDown); // an act, which spends the `in <path>` the walk left
-    const std::string whole = zengine::workshop::admit_location(deep.generic_string());
+    const std::string whole = zengine::persist::admit_location(deep.generic_string());
     REQUIRE(f.first().rfind("Files ", 0) == 0);
     const std::string area = pane_area(files::kFilesRole, files::kProjectFilesPane);
     zengine::testing::pane_window::Window window(f.r.bus);

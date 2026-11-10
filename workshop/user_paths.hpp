@@ -15,7 +15,7 @@
 #include <system_error>
 
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 namespace zengine::workshop {
 

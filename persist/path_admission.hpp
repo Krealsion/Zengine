@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PATH_ADMISSION_HPP
-#define ZENGINE_WORKSHOP_PATH_ADMISSION_HPP
+#ifndef ZENGINE_PERSIST_PATH_ADMISSION_HPP
+#define ZENGINE_PERSIST_PATH_ADMISSION_HPP
 
 // GETTING A FILESYSTEM PATH INTO THE ONLY PATH VOCABULARY THIS APPLICATION HAS.
 // Workshop law: agents/workshop/files.md (+1 registers; agents/workshop.md routes)
@@ -13,7 +13,7 @@
 #include <system_error>
 #include <type_traits>
 
-namespace zengine::workshop {
+namespace zengine::persist {
 
 /// WHETHER A FILESYSTEM PATH COULD BE CARRIED, AND WHAT IT BECAME IF IT COULD.
 // WL-FILES-11 -- agents/workshop/files.md
@@ -127,6 +127,6 @@ inline std::string launch_project_dir() {
     return admitted.spelling;
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::persist
 
-#endif // ZENGINE_WORKSHOP_PATH_ADMISSION_HPP
+#endif // ZENGINE_PERSIST_PATH_ADMISSION_HPP

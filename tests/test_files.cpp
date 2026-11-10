@@ -12,7 +12,7 @@
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
 #include "files/marks_persist.hpp"
-#include "workshop/path_admission.hpp"
+#include "persist/path_admission.hpp"
 #include "workshop/prefs_persist.hpp"
 
 #include "doctest.h"
@@ -33,6 +33,10 @@
 #endif
 
 using namespace zengine::workshop;
+using zengine::persist::AdmittedName;
+using zengine::persist::admit_filename;
+using zengine::persist::AdmittedPath;
+using zengine::persist::admit_location;
 
 namespace {
 

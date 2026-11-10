@@ -9,7 +9,7 @@
 
 #include "load_plan.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -24,6 +24,8 @@
 #include <vector>
 
 namespace zengine::workshop::load_persist {
+
+using zengine::persist::Written;
 
 /// What a Workshop load plan says it is: its own word, so handing Workshop the wrong file is named
 /// rather than half-read.

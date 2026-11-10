@@ -9,7 +9,7 @@
 
 #include "keymap.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -24,6 +24,8 @@
 #include <vector>
 
 namespace zengine::workshop::keymap_persist {
+
+using zengine::persist::Written;
 
 /// What a Workshop keymap file says it is -- its own word, beside the family's others, so
 /// handing Workshop the wrong one of its own files is named rather than half-read.

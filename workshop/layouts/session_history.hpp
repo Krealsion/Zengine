@@ -27,6 +27,8 @@
 
 namespace zengine::workshop::session_history {
 
+using zengine::persist::Written;
+
 // ---- The shapes older Workshops wrote -----------------------------------------------
 // WL-MIG-02 -- agents/workshop/migration.md
 

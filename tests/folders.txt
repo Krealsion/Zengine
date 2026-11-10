@@ -31,6 +31,7 @@ message-draft     library
 notices           feature
 operator          library
 persist           library
+property          library
 quarry            quarry
 terminal          feature
 theme             feature

@@ -9,7 +9,7 @@
 #include "inventory/codec.hpp"
 #include "operator/reference.hpp"
 #include "workshop/actor_scope.hpp"
-#include "workshop/fingerprint.hpp"
+#include "component/fingerprint.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_drawing.hpp"
@@ -2579,7 +2579,7 @@ private:
   std::int64_t dialog_number() const {
     if (!model_.dialog)
       return 0;
-    ws::Fingerprint f;
+    zengine::component::Fingerprint f;
     f.bytes(model_.dialog->action);
     f.bytes(model_.dialog->title);
     return f.value() | 1;

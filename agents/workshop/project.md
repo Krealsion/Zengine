@@ -180,7 +180,7 @@ WHY — `agents/decisions/the-window-is-a-choice-in-the-plan.md`
 
 ### WL-PROJ-01
 `workshop/weave.hpp` HostContext::project_dir HostContext::dir
-`workshop/path_admission.hpp` launch_project_dir
+`persist/path_admission.hpp` launch_project_dir
 `workshop/workshop.cpp` launch_project_dir
 `tests/test_workshop_files.cpp` "the launch capture is the working directory, when it can be said"
 "a launch directory this Workshop cannot say is an absence, not an exit" "zengine.project.anchor

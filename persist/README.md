@@ -16,6 +16,7 @@ refused out loud. Every outcome is a `Written`: accepted, or refused with its re
 |---|---|
 | `file.hpp` | the bounded read, the safe write, a relative spelling resolved, and JSON read as text before a shape can judge it |
 | `written.hpp` | `Written`, what a write came to |
+| `path_admission.hpp` | a path or a file name from the platform taken into the application's one path vocabulary, or refused in words |
 | `CMakeLists.txt` | the build: `zengine-persist`, header-only |
 
 Working on it: [AGENTS.md](AGENTS.md).

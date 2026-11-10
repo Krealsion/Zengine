@@ -24,7 +24,7 @@
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include "graphics/vocabulary.hpp"
 
@@ -74,7 +74,7 @@ using ws::PaneTextInput;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::SourceOpened;
-using ws::Written;
+using zengine::persist::Written;
 using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 

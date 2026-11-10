@@ -61,6 +61,8 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-input-vocabulary
     zengine-ui-vocabulary
     zengine-component
+    zengine-persist
+    zengine-property
     zengine-operator
     zengine-operator-consumer
     zengine-pane-vocabulary
@@ -79,6 +81,8 @@ set_target_properties(zengine-timer-rest          PROPERTIES EXPORT_NAME timer-r
 set_target_properties(zengine-input-vocabulary    PROPERTIES EXPORT_NAME input)
 set_target_properties(zengine-ui-vocabulary       PROPERTIES EXPORT_NAME ui)
 set_target_properties(zengine-component           PROPERTIES EXPORT_NAME component)
+set_target_properties(zengine-persist             PROPERTIES EXPORT_NAME persist)
+set_target_properties(zengine-property            PROPERTIES EXPORT_NAME property)
 set_target_properties(zengine-operator            PROPERTIES EXPORT_NAME operator)
 set_target_properties(zengine-operator-consumer   PROPERTIES EXPORT_NAME operator-consumer)
 set_target_properties(zengine-pane-vocabulary     PROPERTIES EXPORT_NAME pane)
@@ -118,7 +122,11 @@ set(zengine_public_headers_component  component/motion.hpp
                                       component/control_strip.hpp
                                       component/columns.hpp
                                       component/tab_strip.hpp
-                                      component/accordion.hpp)
+                                      component/accordion.hpp
+                                      component/fingerprint.hpp)
+set(zengine_public_headers_persist    persist/written.hpp
+                                      persist/path_admission.hpp)
+set(zengine_public_headers_property   property/property.hpp)
 set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/catalog.hpp
                                       operator/fold.hpp
@@ -203,7 +211,7 @@ if(TARGET zengine-app)
 endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
-                    editor/source-transfer activation timer input ui manual component
+                    editor/source-transfer activation timer input ui manual component persist property
                     operator workshop editor/neovim-editor graphics graphics/elements
                     graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}

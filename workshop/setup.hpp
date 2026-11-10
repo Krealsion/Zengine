@@ -9,7 +9,7 @@
 
 #include "pane_settings.hpp"
 #include "panes.hpp"
-#include "property.hpp"
+#include "property/property.hpp"
 #include "settings_seam_vocabulary.hpp" // how long a pin list is
 
 #include "theme/stack_name.hpp" // how many themes a layout wears
@@ -26,6 +26,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::persist::Written;
 
 /// The name a fresh Workshop's setup carries: a setup always has a name, so "unnamed" is no state.
 inline constexpr const char* kDefaultSetupName = "Default";

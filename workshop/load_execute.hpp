@@ -38,6 +38,8 @@
 
 namespace zengine::workshop::load {
 
+using zengine::persist::Written;
+
 class PlanExecutor;
 
 // ---- What the runtime made of one authored row --------------------------------

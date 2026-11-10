@@ -102,7 +102,7 @@ WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask
 
-LAW — `workshop/path_admission.hpp` alone asks for a path's bytes: a path is admitted as a value (carried or not, plus its spelling), a filename as a name with an exact flag, the launch capture as the host's.
+LAW — `persist/path_admission.hpp` alone asks for a path's bytes: a path is admitted as a value (carried or not, plus its spelling), a filename as a name with an exact flag, the launch capture as the host's.
 
 MEANS
 - `exact` and the name's text, never the path again, are what `open` and `use_recipes` ask through `openable`;
@@ -280,21 +280,21 @@ host's filesystem roots are asked for, never invented"
 "a marks file this run could not read keeps its bytes when the weaver marks a place"
 
 ### WL-FILES-09
-`workshop/path_admission.hpp` admit_location
+`persist/path_admission.hpp` admit_location
 `files/files.cpp` admit_location
 `files/marks.hpp` admit_location
 `tests/test_files.cpp` "a location is one absolute spelling, admitted the same way every time"
 
 ### WL-FILES-10
 `files/files.hpp` carried_name narrow_paths_are_utf8 FileRow::openable shown_name
-`workshop/path_admission.hpp` admit_filename
+`persist/path_admission.hpp` admit_filename
 `files/files.cpp` open
 `files/browser_view.hpp` row_text
 `tests/test_files.cpp` "a name beyond ASCII is carried exactly and opens, drawn as the screen spells
 it"
 
 ### WL-FILES-11
-`workshop/path_admission.hpp` AdmittedPath::carried AdmittedName::exact admit_path admit_filename
+`persist/path_admission.hpp` AdmittedPath::carried AdmittedName::exact admit_path admit_filename
 launch_project_dir u8string
 `files/files.cpp` open use_recipes
 `tests/test_files.cpp` "an ordinary path and an ordinary name are carried exactly as they were" "a

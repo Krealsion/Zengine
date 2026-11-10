@@ -18,7 +18,7 @@
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"

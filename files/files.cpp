@@ -24,9 +24,9 @@
 #include "workshop/settings_seam_vocabulary.hpp" // the places' fold, committed as the pane's word
 #include "files/marks_persist.hpp"
 #include "workshop/pane_vocabulary.hpp"
-#include "workshop/path_admission.hpp"
+#include "persist/path_admission.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
@@ -71,7 +71,7 @@ namespace ws = zengine::workshop;
 namespace files = zengine::files;
 namespace pane_menu = zengine::workshop::pane_menu;
 
-using ws::AdmittedName;
+using zengine::persist::AdmittedName;
 using ws::FileRow;
 using ws::Listing;
 using ws::LocationMarks;
@@ -145,6 +145,8 @@ std::vector<std::string> split_subject(const std::string& subject) {
 // ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
 
 namespace files_row {
+
+using zengine::persist::AdmittedName;
 /// Kinds a row can carry. `kNone` is a row that names nothing a press may spend -- the header,
 /// a marker, a sentence, the field a mode is only showing.
 inline constexpr std::int64_t kNone = 0;
@@ -327,7 +329,7 @@ public:
         }
         settled_ = true;
         marks_path_ = said.marks_path;
-        marks_.origin = ws::admit_location(said.project_dir);
+        marks_.origin = zengine::persist::admit_location(said.project_dir);
         load_marks();
         const bool carried = !state_.current_dir.empty();
         const std::int64_t cursor = state_.cursor;
@@ -1223,7 +1225,7 @@ private:
         if (marks_path_.empty() || marks_refused_) {
             return;
         }
-        const ws::Written done = ws::marks_persist::save_file(marks_path_, marks_.weaver);
+        const zengine::persist::Written done = ws::marks_persist::save_file(marks_path_, marks_.weaver);
         if (!done.accepted) {
             notice_ = "could not write your marks: " + done.refusal;
         }
@@ -1301,7 +1303,7 @@ private:
             return;
         }
         const std::filesystem::path was(state_.current_dir);
-        const AdmittedName leaf = ws::admit_filename(was.filename());
+        const AdmittedName leaf = zengine::persist::admit_filename(was.filename());
         state_.current_dir = up;
         refresh();
         if (leaf.exact) {
@@ -1334,7 +1336,7 @@ private:
             return;
         }
         if (row->directory) {
-            const std::string into = ws::admit_location(
+            const std::string into = zengine::persist::admit_location(
                 zengine::persist::resolved_against(state_.current_dir, row->name));
             if (into.empty()) {
                 notice_ = "`" + ws::shown_name(row->name) + "` cannot be reached from here";
@@ -1458,7 +1460,7 @@ private:
     /// GO TO A PLACE THE SECTION SHOWS, as a jump to it would: its listing, the cursor on its
     /// first row, and `at <path>` with why the place is known.
     void go_to_place(const std::string& path, loom::Mail& mail) {
-        const std::string to = ws::admit_location(path);
+        const std::string to = zengine::persist::admit_location(path);
         if (to.empty()) {
             notice_ = "`" + ws::shown_name(path) + "` cannot be reached from here";
             say(mail);
@@ -1556,7 +1558,7 @@ private:
         if (folder.empty()) {
             notice_ = "this Workshop was configured with no demo service";
         } else {
-            state_.current_dir = ws::admit_location(folder);
+            state_.current_dir = zengine::persist::admit_location(folder);
             refresh();
             notice_ = "at the demos: start one from its menu";
         }

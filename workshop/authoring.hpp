@@ -14,7 +14,7 @@
 #include "load_execute.hpp"
 #include "load_persist.hpp"
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
 #include "staging.hpp"

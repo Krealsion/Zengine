@@ -27,6 +27,7 @@ spells a header from the repository root, for example `#include "component/text_
 | `control_strip.hpp` | a row of labelled controls packed into the width available |
 | `columns.hpp` | a table's columns, laid out once so every row lines up |
 | `tab_strip.hpp` | a row of named tabs, the active one marked, windowed to the width available; no pane draws it yet |
+| `fingerprint.hpp` | a number naming what was held or sent: the same parts give the same number in every build |
 | `accordion.hpp` | a section that opens, shuts, and peeks while the pointer rests on its header; a group of them over the open ones their owner keeps; and the rows a tree shows |
 | `motion.hpp` | straight and curved paths, and progress over elapsed time |
 | `CMakeLists.txt` | the `zengine-component` library target |

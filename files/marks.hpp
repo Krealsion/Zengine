@@ -7,7 +7,7 @@
 // PLACES A WEAVER MAY WANT TO COME BACK TO.
 // Files law: agents/workshop/files.md
 
-#include "workshop/path_admission.hpp"
+#include "persist/path_admission.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -17,6 +17,9 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::persist::admit_location;
+using zengine::persist::admit_path;
 
 /// WHY A LOCATION IS KNOWN. Flags rather than an enumeration: one place can be the origin,
 /// a weaver's own mark and a filesystem root simultaneously, and a presentation that had to

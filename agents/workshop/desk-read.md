@@ -170,7 +170,7 @@ arranging gives exactly one notice, with a new desk number" "two panes changing 
 reach the follower: the newest notice names both new pictures"
 
 ### WL-READ-07
-`workshop/fingerprint.hpp` Fingerprint
+`component/fingerprint.hpp` Fingerprint
 `workshop/weave_desk_read.cpp` stamp_now pane_reading shown_fingerprint placed_fingerprint
 `tests/test_workshop_desk_read.cpp` "a stamp names what a pane shows: the same picture drawn again
 keeps it and sends no notice, and every change moves it, rows included" "a canvas pane moved and

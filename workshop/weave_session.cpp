@@ -13,6 +13,8 @@
 
 namespace zengine::workshop {
 
+using zengine::persist::Written;
+
 // ---- The live layout, presented --------------------------------------------------------------
 
 // WL-LAYOUT-01 -- agents/workshop/layouts.md

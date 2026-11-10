@@ -11,6 +11,8 @@
 
 namespace zengine::workshop {
 
+using zengine::persist::Written;
+
 // ---- A declarer's verdicts --------------------------------------------------------------
 
 // WL-DESK-06 -- agents/workshop/desktop.md

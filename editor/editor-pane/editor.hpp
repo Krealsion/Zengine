@@ -13,7 +13,7 @@
 // Workshop law: agents/workshop/editor.md
 
 #include "component/text_box.hpp" // the word/character helpers and the owner-held Clipboard
-#include "workshop/property.hpp"  // Written -- the one refusal-with-reason shape here
+#include "property/property.hpp"  // Written -- the one refusal-with-reason shape here
 #include "input/vocabulary.hpp"   // scan/mod names for the editor's own key vocabulary
 
 #include <cstddef>
@@ -23,6 +23,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::persist::Written;
 
 // ---- The editor's fixed policy numbers ---------------------------------------------------
 

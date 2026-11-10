@@ -15,7 +15,7 @@
 #include "context.hpp" // what can be done with a pointed subject
 #include "keymap.hpp"
 #include "panes.hpp"
-#include "property.hpp"
+#include "property/property.hpp"
 #include "settings_seam_vocabulary.hpp" // where a lock holds a setting
 #include "setup.hpp"
 #include "live_desk.hpp" // the live layout as the layouts' owner last sent it
@@ -45,6 +45,9 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::property::Row;
+using zengine::persist::Written;
 
 // ---- The one screen's layout, in canvas pixels -----------------------------------------
 

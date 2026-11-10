@@ -10,7 +10,7 @@
 // Workshop law: agents/workshop/window-file.md
 
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 #include "screen.hpp"
 
 #include <zen/admission.hpp>
@@ -29,6 +29,8 @@
 #include <utility>
 
 namespace zengine::workshop::window_persist {
+
+using zengine::persist::Written;
 
 /// What a Workshop window file says it is: its own word.
 inline constexpr const char* kFormat = "zengine-workshop-window";

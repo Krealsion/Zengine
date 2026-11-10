@@ -9,6 +9,8 @@
 
 namespace zengine::workshop {
 
+using zengine::persist::Written;
+
 // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
 
 // WL-ARR-08 -- agents/workshop/arrangement.md

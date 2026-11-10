@@ -8,7 +8,7 @@
 // Workshop law: agents/workshop/project.md
 
 #include "persist/file.hpp"
-#include "workshop/property.hpp" // `Written`
+#include "persist/written.hpp" // `Written`
 
 #include "builder/recipe.hpp"
 
@@ -25,6 +25,8 @@
 #include <vector>
 
 namespace zengine::workshop::recipe_persist {
+
+using zengine::persist::Written;
 
 namespace builder = zengine::builder;
 

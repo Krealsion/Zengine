@@ -11,7 +11,7 @@
 // Workshop law: agents/workshop/keyboard.md (+1 register; agents/workshop.md routes)
 
 #include "pane_vocabulary.hpp" // PaneActionRow -- the rows a pane weave declares
-#include "property.hpp"        // Written -- the one refusal-with-reason shape this package has
+#include "property/property.hpp"        // Written -- the one refusal-with-reason shape this package has
 
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
@@ -24,6 +24,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+using zengine::persist::Written;
 
 /// Action ids whose owner changed, and the id an authored row for each is read as now: the owner
 /// moving changed no meaning, so the old id's row applies to the new one unless that is authored
