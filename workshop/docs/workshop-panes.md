@@ -909,7 +909,7 @@ weaver presses a visible row
        AreaButtonChanged { area, button, pressed, x, y, under, part, drawing } to the area's role
        AreaPressed { window, area, button, pressed, x, y, ... }          to Workshop, which placed it
     -> the provider acts on the row the window drew there, refused where another row stands now
-    -> LoadedSelected { pane, library, role }   published; nobody answers
+    -> LoadedSelected { pane, library, roles }  published; nobody answers
 ```
 
 - **Workshop learns nothing about what a pane's rows mean.** It hears where a press landed and

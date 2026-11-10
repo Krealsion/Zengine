@@ -13,6 +13,7 @@
 #include <zen/weave/shape.hpp>
 
 #include <string>
+#include <vector>
 
 namespace zengine::introspection {
 
@@ -75,16 +76,16 @@ inline constexpr const char* kProjectActionDown = "project.down";
 inline constexpr const char* kIntrospectionStem = "zengine-introspection";
 
 /// A weaver selected one of the entries this pane was showing: a fact, not a command, and nothing
-/// here listens. It carries data and no authority: a listener hearing a library and its role may
+/// here listens. It carries data and no authority: a listener hearing a library and its roles may
 /// not thereby send it anything, load, unload or read it -- values flow, authority does not.
 /// `library` is the name the kernel loaded it under (not a WeaveId, not proof it is alive);
-/// `role` is the role bound at load, empty meaning none; `pane` names the pane. Whose fact it
-/// is, is `mail.authored_role()`. No previous value, row, timestamp or grant.
+/// `roles` are the roles bound at load, in role order, none where the kernel bound none; `pane`
+/// names the pane. Whose fact it is, is `mail.authored_role()`. No previous value, row, timestamp or grant.
 struct LoadedSelected {
     std::string pane;    ///< the pane key this selection happened in -- `loaded`
     std::string library; ///< the loaded-library name the selected row named
-    std::string role;    ///< the role observed at load; EMPTY means the kernel bound none
-    ZEN_SHAPE(LoadedSelected, 1, ZEN_FIELD(pane), ZEN_FIELD(library), ZEN_FIELD(role));
+    std::vector<std::string> roles; ///< the roles observed at load; NONE means the kernel bound none
+    ZEN_SHAPE(LoadedSelected, 2, ZEN_FIELD(pane), ZEN_FIELD(library), ZEN_FIELD(roles));
 };
 
 } // namespace zengine::introspection

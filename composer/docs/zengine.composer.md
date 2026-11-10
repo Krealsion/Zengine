@@ -189,9 +189,10 @@ asked about one, Compose answers that its page has no section for it.
 
 ### `LoadedSelected`
 
-`LoadedSelected` v1, from `zengine.introspection`
+`LoadedSelected` v2, from `zengine.introspection`
 ([`introspection/vocabulary.hpp`](../../introspection/vocabulary.hpp)): the weave you pressed in the
-Loaded pane. Compose drops the last target's list and form and asks the new one what it accepts.
+Loaded pane. Compose drops the last target's list and form and asks the new one, at the first of
+its roles, what it accepts.
 From any other role it is ignored.
 
 ### `ClipboardCopy`

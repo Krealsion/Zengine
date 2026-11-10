@@ -5683,7 +5683,7 @@ TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot de
     close_box(e);
     REQUIRE(e.r.session().notice == waiting);
     // THE FIRST QUIT'S REFUSAL, in the book with its wake-up: it names the ended ask.
-    e.r.host.undelivered_quits.note(UndeliveredQuit{first, gone_id, "zengine.test.quit-gone",
+    e.r.host.undelivered_quits.note(UndeliveredQuit{first, gone_id, {"zengine.test.quit-gone"},
                                                     loom::RefusalReason::TargetUnavailable});
     wake_workshop(e);
     CHECK(e.r.host.undelivered_quits.empty());
@@ -5714,7 +5714,7 @@ TEST_CASE("once the host's watch is gone a refused quit delivery writes nothing 
     hold_the_editor(e);
     // THE BOOK, WHILE NO QUIT IS IN FLIGHT: an entry and its wake-up are discarded, said nowhere.
     e.r.host.undelivered_quits.note(
-        UndeliveredQuit{1, e.image, kEditorRole, loom::RefusalReason::ApplicationFailed});
+        UndeliveredQuit{1, e.image, {kEditorRole}, loom::RefusalReason::ApplicationFailed});
     const std::string before = e.r.session().notice;
     wake_workshop(e);
     CHECK(e.r.host.undelivered_quits.empty());

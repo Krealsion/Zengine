@@ -3707,14 +3707,17 @@ struct PaneRig {
 #endif
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
+        return load(name, path, zengine::testing::role_set(role));
+    }
+    loom::WeaveId load(const char* name, const char* path, std::vector<std::string> roles) {
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
         const std::size_t before = loaded.size();
         const loom::WeaveId booter =
             loom::mount_granted<Booter>(bus, std::move(reach), loaded, load_refusals);
         bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), booter,
-                                  booter, 0));
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::move(roles)}),
+                                  booter, booter, 0));
         bus.drain_until_idle();
         if (loaded.size() <= before) {
             return loom::WeaveId{};

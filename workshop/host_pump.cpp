@@ -22,14 +22,16 @@ ServedTurn tell_failures(loom::Switchboard& bus, ShowingFailures& book,
     for (ShowingFailure& failure : book.take()) {
         ServedTurn::Failed one;
         one.owner = failure.owner;
+        std::string roles;
         for (const std::string& role : bus.roles_of(failure.owner)) {
-            one.role += (one.role.empty() ? "" : "+") + role;
+            one.roles.push_back(role);
+            roles += (roles.empty() ? "" : "+") + role;
         }
         one.held = bus.has_failed_application(failure.owner);
         one.diagnostic =
             "a published claim could not be applied by " +
-            (one.role.empty() ? "weave " + spelled(one.owner)
-                                : one.role + " (weave " + spelled(one.owner) + ")") +
+            (roles.empty() ? "weave " + spelled(one.owner)
+                           : roles + " (weave " + spelled(one.owner) + ")") +
             (one.held ? " -- it is held until it is reloaded or removed"
                       : " -- it is not held now") +
             "; its own words: " + failure.words;

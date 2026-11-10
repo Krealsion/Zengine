@@ -731,7 +731,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         }
         REQUIRE(failures.size() == 1);
         CHECK(failures[0].owner == o.editor_id);
-        CHECK(failures[0].role == kEditorRole);
+        CHECK(failures[0].roles == std::vector<std::string>{kEditorRole});
         CHECK(failures[0].held);
         const std::string expected =
             held_sentence(o, "test instrumentation: the stand-in Editor could not apply /x/b.cpp");

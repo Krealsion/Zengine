@@ -790,11 +790,11 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         // What the window showed of Compose before it had a target.
         const auto before_target = held_reading(compose_kind).parts;
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
-        loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+        loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
         const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroRole);
         raw->zen_set_self(selector_id);
         raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
-            intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+            intro::LoadedSelected{"loaded", "zengine-inventory", {inv::kInventoryRole}}); };
         r.bus.send(selector_id, loom::Message(loom::to_value(InventoryHandDo{})));
         r.bus.drain_until_idle();
         REQUIRE_MESSAGE(s.shown(compose_kind).find("InventoryRename") != std::string::npos, s.shown(compose_kind));
@@ -869,11 +869,11 @@ static std::int64_t compose_on_canvas_for_inventory(InventoryStory& s) {
     });
     r.extent(180, 60);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
-    loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+    loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
     const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroRole);
     raw->zen_set_self(selector_id);
     raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
-        intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+        intro::LoadedSelected{"loaded", "zengine-inventory", {inv::kInventoryRole}}); };
     r.bus.send(selector_id, loom::Message(loom::to_value(InventoryHandDo{})));
     r.bus.drain_until_idle();
     REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
@@ -1214,10 +1214,10 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         });
         r.extent(180, 60);
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
-        loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+        loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
         const auto id = r.bus.register_weave(std::move(selector), grant, kIntroRole); raw->zen_set_self(id);
         raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
-            intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+            intro::LoadedSelected{"loaded", "zengine-inventory", {inv::kInventoryRole}}); };
         r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{}))); r.bus.drain_until_idle();
         auto row = [&](std::int64_t kind, const std::string& text) {
             const auto rows = pane_rows(r, kind);

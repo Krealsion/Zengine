@@ -327,7 +327,8 @@ public:
             return;
         }
         composing_.library = sel.library;
-        composing_.role = sel.role;
+        // A weave answers at each of its roles, so the first is address enough to ask it.
+        composing_.role = sel.roles.empty() ? std::string() : sel.roles.front();
         restoring_ = false; // the weaver chose another target: the carried form goes with the old one
         composing_.cursor = 0;
         composing_.notice.clear();
@@ -340,8 +341,8 @@ public:
         composing_.draft = MessageDraft{};
         if (composing_.role.empty()) {
             // AN OBSERVED ABSENCE. `LoadedWeave`'s own rule, one layer further on:
-            // the kernel binds a role at load only when one was named, so an empty
-            // role is the kernel saying this library holds none. There is nothing to
+            // the kernel binds roles at load only when some were named, so no role
+            // is the kernel saying this library holds none. There is nothing to
             // address, and nothing here manufactures an address.
             composing_.stage = stage::kNoRole;
             say(mail);

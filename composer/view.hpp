@@ -277,7 +277,7 @@ inline std::string field_row_text(const MessageDraft& draft, std::size_t which, 
 
 /// What this pane is looking at and what the weaver has done to it: the provider's whole
 /// presentation state, read by the projector and written by nothing else. No inventory and no
-/// second copy: `library` and `role` are what a `LoadedSelected` said, `snapshot` is one
+/// second copy: `library` and `role` are a `LoadedSelected`'s library and first role, `snapshot` is one
 /// target's decoded vocabulary replaced whole, and `draft` is the weaver's own work.
 struct Composing {
     std::int64_t stage = stage::kNoTarget;

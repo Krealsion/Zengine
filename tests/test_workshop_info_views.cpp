@@ -1671,10 +1671,10 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     const auto compose = r.session().panes.runtime.find(kComposerRole, "compose")->kind;
     s.place(kComposerRole, "compose", 85, 4, 80, 24);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
-    loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+    loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
     const auto id = r.bus.register_weave(std::move(selector), grant, kIntroRole); raw->zen_set_self(id);
     raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
-        intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+        intro::LoadedSelected{"loaded", "zengine-inventory", {inv::kInventoryRole}}); };
     r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{}))); r.bus.drain_until_idle();
     const auto row = s.where(s.source, "Capture preset").first;
     s.drag_between(s.source, {row, 2}, compose, {0, 2});

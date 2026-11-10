@@ -49,7 +49,7 @@ lets a provider locate itself on a screen.
   press would let a weaver select something they were never shown** — silently, and only
   sometimes.
 - **The fact a pane publishes carries DATA and no authority.**
-  `LoadedSelected{pane, library, role}` is an occurrence, not a transition, and a listener that
+  `LoadedSelected{pane, library, roles}` is an occurrence, not a transition, and a listener that
   hears it has acquired nothing: a grant is per `(shape, version, target)` and a value in a
   message is not one. Values may flow; authority must not flow implicitly with them.
 

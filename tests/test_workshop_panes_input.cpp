@@ -726,7 +726,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
         REQUIRE(ears.heard.size() == 2);
         CHECK(ears.heard[1].library == named);
         CHECK(ears.heard[1].pane == ears.heard[0].pane);
-        CHECK(ears.heard[1].role == ears.heard[0].role);
+        CHECK(ears.heard[1].roles == ears.heard[0].roles);
         CHECK(loaded_rows(r, kind) == was);
     }
 }
@@ -1100,18 +1100,20 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
     REQUIRE(ears.heard.size() == 1);
     REQUIRE(ears.heard[0].library == std::string(intro::kIntrospectionStem));
 
-    // THE PAYLOAD IS THREE STRINGS AND ITS SCHEMA SAYS SO -- no id, no handle, no grant,
-    // no token, no capability, and nothing a listener could present to anybody.
+    // THE PAYLOAD IS TWO STRINGS AND A LIST OF STRINGS, AND ITS SCHEMA SAYS SO -- no id, no handle,
+    // no grant, no token, no capability, and nothing a listener could present to anybody.
     const std::shared_ptr<const loom::Schema> shape = loom::schema_of<intro::LoadedSelected>();
     REQUIRE(shape != nullptr);
     CHECK(shape->name() == "LoadedSelected");
-    CHECK(shape->version() == 1);
+    CHECK(shape->version() == intro::LoadedSelected::zen_version);
     REQUIRE(shape->fields().size() == 3);
     CHECK(shape->fields()[0].name == "pane");
     CHECK(shape->fields()[1].name == "library");
-    CHECK(shape->fields()[2].name == "role");
+    CHECK(shape->fields()[2].name == "roles");
     for (const loom::Field& f : shape->fields()) {
-        CHECK(f.type.kind == loom::Kind::Text);
+        const loom::TypeRef& said = f.type.element ? *f.type.element : f.type;
+        CHECK((f.type.kind == loom::Kind::List) == (f.name == "roles"));
+        CHECK(said.kind == loom::Kind::Text);
         CHECK(f.name != "weave");
         CHECK(f.name != "id");
         CHECK(f.name != "grant");
@@ -1119,9 +1121,9 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
         CHECK(f.name != "capability");
         CHECK(f.name != "provider"); // Loom's stamp answers that, as everywhere else
     }
-    // ...AND THE ROLE IS THE OBSERVED ONE. The pane writes `(no role)` for a weaver; the
+    // ...AND THE ROLES ARE THE OBSERVED ONES. The pane writes `(no role)` for a weaver; the
     // wire carries the observation, so a listener reads the fact and not the prose.
-    CHECK(ears.heard[0].role == std::string(kIntroRole));
+    CHECK(ears.heard[0].roles == std::vector<std::string>{kIntroRole});
     CHECK(intro::kNoRole == std::string("(no role)"));
 }
 
@@ -1162,7 +1164,7 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     // in both runs, and reads the same row back from either.
     CHECK(by_cell.heard[0].library == by_pixel.heard[0].library);
     CHECK(by_cell.heard[0].pane == by_pixel.heard[0].pane);
-    CHECK(by_cell.heard[0].role == by_pixel.heard[0].role);
+    CHECK(by_cell.heard[0].roles == by_pixel.heard[0].roles);
 }
 
 TEST_CASE("nothing in this build reacts to a selection") {
@@ -1983,7 +1985,7 @@ struct ComposeRig {
     void select_as(const std::string& speaker, const std::string& role,
                    const std::string& library) {
         selector->next = [speaker, role, library](Selector& s, loom::Mail& m) {
-            s.say(m, speaker, intro::LoadedSelected{"loaded", library, role});
+            s.say(m, speaker, intro::LoadedSelected{"loaded", library, zengine::testing::role_set(role)});
         };
         (void)r.bus.send(selector_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
@@ -2027,7 +2029,7 @@ struct ComposeRig {
         r.windows.queue({input::PointerButton{1, true, x, y, input::space::kCells, 0},
                          input::PointerButton{1, false, x, y, input::space::kCells, 0}});
         selector->next = [role, library](Selector& s, loom::Mail& m) {
-            s.say(m, kIntroRole, intro::LoadedSelected{"loaded", library, role});
+            s.say(m, kIntroRole, intro::LoadedSelected{"loaded", library, zengine::testing::role_set(role)});
         };
         (void)r.bus.send(selector_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
@@ -3009,7 +3011,7 @@ TEST_CASE("the Composer opens, closes and moves nothing but itself") {
     const std::int64_t selected_before = r.session().panes.selected;
 
     selector->next = [](Selector& s, loom::Mail& m) {
-        s.say(m, kIntroRole, intro::LoadedSelected{"loaded", "zengine-timer", kTimerRole});
+        s.say(m, kIntroRole, intro::LoadedSelected{"loaded", "zengine-timer", {kTimerRole}});
     };
     (void)r.bus.send(selector_id,
                      loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));

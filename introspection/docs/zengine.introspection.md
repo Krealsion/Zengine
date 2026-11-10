@@ -182,9 +182,9 @@ Moves Project's list down an artifact. Otherwise as [`project.up`](#projectup).
 
 ## Follow
 
-A press on a weave's row of `Loaded` publishes `LoadedSelected` v1 as `zengine.introspection`:
-`pane`, the pane key `loaded`; `library`, the name the kernel loaded the weave under; `role`, the
-role it was bound to at load, empty when none. An observer accepts the shape and reads whose fact
+A press on a weave's row of `Loaded` publishes `LoadedSelected` v2 as `zengine.introspection`:
+`pane`, the pane key `loaded`; `library`, the name the kernel loaded the weave under; `roles`, the
+roles it was bound to at load, a list, empty when none. An observer accepts the shape and reads whose fact
 it is from the authored role. It is said once a press, again when the same row is pressed again,
 and never when a selection clears. The name is not a weave id and not proof the weave runs now, and
 hearing it grants no reach to the weave it names. Nothing else is said unasked but
