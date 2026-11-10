@@ -311,9 +311,15 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
     // SWITCH'S ROLE ALONE.
     loom::AdmissionRequest speak;
     speak.stage = loom::AdmissionStage::Speak;
-    speak.role = fr::kFirstRunRole;
+    speak.roles = {fr::kFirstRunRole};
     const loom::AdmissionVerdict v = artifact_admission()(speak);
     REQUIRE(v.admitted);
+    // The role's grant is for a load asking that one role: a set holding it beside another is
+    // not admitted with it.
+    loom::AdmissionRequest wider = speak;
+    wider.roles = {fr::kFirstRunRole, "zengine.test.beside"};
+    CHECK_FALSE(artifact_admission()(wider).grant.permits_role(
+        EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version, kEditorSwitchRole));
     for (const auto& [name, version] :
          std::vector<std::pair<std::string, std::uint32_t>>{
              {EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version},
@@ -843,7 +849,7 @@ TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and
     // launcher, the approval and a launch of either version to Workshop, the wiring's ask to any.
     loom::AdmissionRequest speak;
     speak.stage = loom::AdmissionStage::Speak;
-    speak.role = fr::kFirstRunRole;
+    speak.roles = {fr::kFirstRunRole};
     const loom::AdmissionVerdict v = artifact_admission()(speak);
     REQUIRE(v.admitted);
     namespace la = zengine::launcher;
