@@ -152,7 +152,8 @@ filter, the count and the entries.
 
 The filter `find: ` with its caret, the count of entries shown of those listed (or the last
 notice), then one line an entry: the marker `> ` at the cursor, the label, whose it is, and its key
-at the line's end.
+at the line's end. What a start answered stands on the count's line while it stands. A start
+longer than the row is cut at the row's end, and the cut is marked.
 
 ## See also
 
