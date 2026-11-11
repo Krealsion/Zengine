@@ -360,7 +360,7 @@ layout's row never keeps the fold.
 In `files/files.cpp`:
 
 ```diff
--        if (asks().ask(mail, ws::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
+-        if (asks().ask(mail, zengine::pane::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
 -            Asks::Asked::kHeld) {
 -            notice_ = places_stay() + " -- the layouts' owner could not be asked";
 -        }

@@ -31,7 +31,7 @@
 
 namespace {
 
-namespace ws = zengine::workshop;
+namespace pane = zengine::pane;
 namespace gfx = zengine::graphics;
 using zengine::timer::TimedWeave;
 using zengine::timer::TimerFired;
@@ -483,8 +483,8 @@ std::string status_line(const TdState& s) {
            std::to_string(s.tick);
 }
 
-std::vector<zengine::pane::TextRow> picture(const TdState& s) {
-    std::vector<zengine::pane::TextRow> rows;
+std::vector<pane::TextRow> picture(const TdState& s) {
+    std::vector<pane::TextRow> rows;
     rows.push_back({"TOWER DEFENSE   wave " + std::to_string(s.wave) + "/" + std::to_string(kWaves) +
                         "   gold " + std::to_string(s.gold) + "   lives " + std::to_string(s.lives) +
                         "   " + phase_words(s),
@@ -514,10 +514,10 @@ std::vector<zengine::pane::TextRow> picture(const TdState& s) {
 
 // ---- The pane ---------------------------------------------------------------------------------
 class Game : public TimedWeave<Game, TdState,
-                               loom::Accept<zengine::pane::PaneCatalogRequested, gfx::AreaRoom,
-                                            gfx::DrawnRefused, zengine::pane::PaneActionRequested,
+                               loom::Accept<pane::PaneCatalogRequested, gfx::AreaRoom,
+                                            gfx::DrawnRefused, pane::PaneActionRequested,
                                             gfx::AreaButtonChanged, TdCommand>,
-                               loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::PaneActions, gfx::Drawn,
+                               loom::Emit<pane::v2::PaneOffered, pane::PaneActions, gfx::Drawn,
                                           gfx::RoomAsked, TdSeen, TdOccurred>> {
 public:
     Game() : tick_(timers().repeat("td.tick", std::chrono::milliseconds(150), &Game::on_tick)) {}
@@ -536,7 +536,7 @@ public:
         }
     }
 
-    void on(const zengine::pane::PaneCatalogRequested&, loom::Mail& mail) {
+    void on(const pane::PaneCatalogRequested&, loom::Mail& mail) {
         if (mail.authored_from_role(kWorkshop)) {
             offer(mail);
         }
@@ -554,7 +554,7 @@ public:
         (void)window_.refused(refused, mail);
     }
 
-    void on(const zengine::pane::PaneActionRequested& asked, loom::Mail& mail) {
+    void on(const pane::PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || asked.pane != kPane) {
             return;
         }
@@ -566,10 +566,10 @@ public:
 
     // A first-button press in the area, at the cell of the picture it landed on.
     void on(const gfx::AreaButtonChanged& button, loom::Mail& mail) {
-        const zengine::pane::RowsRoom room = window_.rows_room();
-        const std::optional<zengine::pane::WindowPointer> p =
+        const pane::RowsRoom room = window_.rows_room();
+        const std::optional<pane::WindowPointer> p =
             window_.pointer(button, mail, room.rows(), room.columns());
-        if (!p || p->phase != zengine::pane::canvas_pointer::kPress || p->button != 1) {
+        if (!p || p->phase != pane::canvas_pointer::kPress || p->button != 1) {
             return;
         }
         // Map rows start under the header, and each cell is two columns: its glyph, then a gap.
@@ -641,10 +641,10 @@ private:
 
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kRole).send_to_role(
-            kWorkshop, zengine::pane::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
+            kWorkshop, pane::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
         namespace scan = zengine::input::scan;
         const std::int64_t none = zengine::input::mod::kNone;
-        zengine::pane::PaneActions actions;
+        pane::PaneActions actions;
         actions.pane = kPane;
         actions.rows = {{"td.left", "cursor left", scan::kLeft, none},
                         {"td.right", "cursor right", scan::kRight, none},
@@ -676,25 +676,25 @@ private:
     // The picture drawn in the area: as many rows as its room holds, each cut to its width.
     void show(loom::Mail& mail) {
         tell(mail);
-        const zengine::pane::RowsRoom room = window_.rows_room();
+        const pane::RowsRoom room = window_.rows_room();
         if (room.rows() <= 0 || room.columns() <= 0) {
             return;
         }
-        std::vector<zengine::pane::TextRow> rows = picture(state_);
-        for (zengine::pane::TextRow& row : rows) {
+        std::vector<pane::TextRow> rows = picture(state_);
+        for (pane::TextRow& row : rows) {
             if (static_cast<std::int64_t>(row.text.size()) > room.columns()) {
                 row.text.resize(static_cast<std::size_t>(room.columns()));
             }
         }
-        const zengine::pane::RowsDrawing drawn = zengine::pane::rows_drawing(rows,
-                                                                             std::vector<zengine::pane::RowPart>{}, room,
+        const pane::RowsDrawing drawn = pane::rows_drawing(rows,
+                                                                             std::vector<pane::RowPart>{}, room,
                                                        room.columns(), {}, room.rows());
         window_.draw(drawn.sketch, mail);
     }
 
     Handle tick_;
     Said said_; // what the rules said since the last tell; a report, not state
-    zengine::pane::WindowDrawing window_{kRole, zengine::pane::pane_area(kRole, kPane)}; // told its room afresh
+    pane::WindowDrawing window_{kRole, pane::pane_area(kRole, kPane)}; // told its room afresh
 };
 
 } // namespace

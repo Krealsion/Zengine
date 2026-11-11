@@ -11,8 +11,8 @@ A view's start asks to be shown whatever it was told.
 In `view/view.hpp`:
 
 ```diff
--            if (loom::from_value<detail::ViewStart>(in.payload).reveal) say(bus, ws::PaneRevealRequested{kPane});
-+            if (true) say(bus, ws::PaneRevealRequested{kPane});
+-            if (loom::from_value<detail::ViewStart>(in.payload).reveal) say(bus, pane::PaneRevealRequested{kPane});
++            if (true) say(bus, pane::PaneRevealRequested{kPane});
 ```
 
 Red in `zengine-view-tests`:

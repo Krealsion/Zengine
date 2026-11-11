@@ -83,7 +83,7 @@ In `workshop/palette/palette.cpp`:
 
 ```diff
          // Fitted, so a start the row cannot hold is cut with a mark instead of dropped at the area's edge.
--        const std::string started = ws::pane_text::fit(started_, columns());
+-        const std::string started = zengine::pane::pane_text::fit(started_, columns());
 +        const std::string started = started_;
 ```
 

@@ -1,4 +1,4 @@
-    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
+    void on(const pane::PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || asked.pane != kPane) {
             return;
         }
