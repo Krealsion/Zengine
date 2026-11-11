@@ -155,7 +155,7 @@ inline std::string render_cell(const loom::Cell& cell, const std::string& label,
         // to a person's question. The length is the one thing that is always true.
         return "(bytes, " + std::to_string(cell.as_bytes().size()) + " octets)";
     case loom::Kind::Message: {
-        const std::shared_ptr<loom::Value>& nested = cell.as_message();
+        const auto& nested = cell.as_message();
         if (nested == nullptr) {
             return "(no value)"; // unreachable through `Cell::message`; written anyway
         }

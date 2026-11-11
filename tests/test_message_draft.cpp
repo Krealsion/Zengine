@@ -98,16 +98,25 @@ TEST_CASE("nested message and list forms retain incomplete fields and address ex
 }
 
 TEST_CASE("draft construction, copying and snapshots do not share mutable nested data") {
-    loom::Value nested(leaf());
-    nested.set("count", loom::Cell::integer(5));
+    // THE SENDER KEEPS A POINTER TO THE CHILD IT PLACED, and changes the child through it once the
+    // drafts are made: a draft holds a copy, not the sender's value.
+    const auto nested = std::make_shared<loom::Value>(leaf());
+    nested->set("count", loom::Cell::integer(5));
     loom::Value source(shape());
     source.set("child", loom::Cell::message(nested));
     md::Draft first(source);
     md::Draft second(first);
-    source.get("child")->as_message()->set("count", loom::Cell::integer(101));
+    nested->set("count", loom::Cell::integer(101));
+    CHECK(first.get({std::string("child"), std::string("count")})->as_int() == 5);
     first.set_text({std::string("child"), std::string("count")}, "13");
+    // A SNAPSHOT IS A VALUE OF ITS OWN: a child placed in it leaves the draft as it was. Where a
+    // cell hands its nested value out read-only (`loom::Cell::as_message`), a nested value the
+    // snapshot shared could not be changed through it either.
     auto snapshot = second.snapshot();
-    snapshot.get("child")->as_message()->set("count", loom::Cell::integer(202));
+    loom::Value changed = *snapshot.get("child")->as_message();
+    changed.set("count", loom::Cell::integer(202));
+    snapshot.set("child", loom::Cell::message(std::move(changed)));
+    CHECK(snapshot.get("child")->as_message()->get("count")->as_int() == 202);
     CHECK(first.get({std::string("child"), std::string("count")})->as_int() == 13);
     CHECK(second.get({std::string("child"), std::string("count")})->as_int() == 5);
     auto wrong = loom::Value(shape());
@@ -170,7 +179,9 @@ TEST_CASE("corrupt library envelopes, embedded drafts and repeated names are ref
     REQUIRE(admitted);
     auto envelope = std::move(admitted).value();
     auto entries = envelope.get("presets")->as_list();
-    entries[0].as_message()->set("draft", loom::Cell::bytes({1, 2, 3}));
+    loom::Value damaged = *entries[0].as_message();
+    damaged.set("draft", loom::Cell::bytes({1, 2, 3}));
+    entries[0] = loom::Cell::message(std::move(damaged));
     envelope.set("presets", loom::Cell::list(entries));
     CHECK_THROWS_AS(md::read_library(loom::serialize(envelope)), std::invalid_argument);
 
@@ -180,7 +191,9 @@ TEST_CASE("corrupt library envelopes, embedded drafts and repeated names are ref
     auto repeated = std::move(two).value();
     auto presets = repeated.get("presets")->as_list();
     REQUIRE(presets.size() == 2);
-    presets[1].as_message()->set("title", loom::Cell::text("example"));
+    loom::Value renamed = *presets[1].as_message();
+    renamed.set("title", loom::Cell::text("example"));
+    presets[1] = loom::Cell::message(std::move(renamed));
     repeated.set("presets", loom::Cell::list(presets));
     CHECK_THROWS_AS(md::read_library(loom::serialize(repeated)), std::invalid_argument);
     CHECK_THROWS_AS(md::read_library(std::string(zengine::maker::kMaxFileBytes + 1, 'x')), std::invalid_argument);
