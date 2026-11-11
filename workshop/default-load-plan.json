@@ -55,7 +55,7 @@
         "provider": [],
         "weave": [
           {
-            "role": "zengine.window.sdl"
+            "role": "zengine.window.gui"
           }
         ],
         "optional": false,

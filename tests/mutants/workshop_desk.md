@@ -81,7 +81,7 @@ Workshop takes the TUI window's offer alone.
 In `workshop/weave_handlers.cpp`:
 
 ```diff
--    if ((w.window != graphics::kTuiWindow && w.window != graphics::kSdlWindow) ||
+-    if ((w.window != graphics::kTuiWindow && w.window != graphics::kGuiWindow) ||
 +    if ((w.window != graphics::kTuiWindow) ||
 ```
 

@@ -820,7 +820,7 @@ zengine_test_definitions(zengine-app-host-tests
 add_dependencies(zengine-app-host-tests zengine-app)
 # The windows the suite mounts in process carry their roles' pages.
 zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.tui.md)
-zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
+zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.gui.md)
 zengine_doctest_test(app_host zengine-app-host-tests)
 
 # ---- THE LAUNCHER: what Workshop may start, judged against its configured catalog -------------
@@ -944,7 +944,7 @@ target_link_libraries(zengine-workshop-rig-windows
 target_include_directories(zengine-workshop-rig-windows PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.tui.md)
-zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
+zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.gui.md)
 
 # One entry per subject (VM-POP-11), an entry holding several sources where one object cannot
 # (VM-POP-12), and tests/workshop_support.hpp what several need (VM-POP-13). They prove Workshop in
@@ -1830,7 +1830,7 @@ zengine_test_definitions(zengine-graphics-tests
     "CONNECTIONS_PANE_SO=\"$<TARGET_FILE:zengine-connections-pane>\"")
 # The suite mounts both windows in process, and reads every role's page against what it accepts.
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.tui.md)
-zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
+zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.gui.md)
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.graphics.md)
 zengine_doctest_test(graphics zengine-graphics-tests)
 # The GUI window's own weave is a conditional subpopulation (VM-POP-08): the cases that load

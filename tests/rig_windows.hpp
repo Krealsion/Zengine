@@ -86,7 +86,7 @@ public:
     void room(std::int64_t width_px, std::int64_t height_px, std::int64_t advance = 0,
               std::int64_t line = 0);
 
-    /// Whether a window is up, and which: `terminal` or `sdl`, empty when none.
+    /// Whether a window is up, and which: `tui` or `gui`, empty when none.
     bool up() const;
     std::string window() const;
     /// The role of the window up, `zengine.window.<window>`.

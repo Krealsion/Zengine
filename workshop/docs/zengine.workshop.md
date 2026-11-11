@@ -769,7 +769,7 @@ and `zengine.workshop.overlay` in front, deaf. It asks its rooms.
 ### `WindowOffered`
 
 `WindowOffered` v3, from the terminal or GUI window as its own role (`zengine.window.tui`,
-`zengine.window.sdl`): its pixels, unit and text; Workshop's areas go on it. The first offer
+`zengine.window.gui`): its pixels, unit and text; Workshop's areas go on it. The first offer
 starts the desk: `PaneCatalogRequested`, the keymap and preferences, the floor painted, the last
 session and the startup notes. The panes are laid out in the window's room, again at each new
 size; an offer of none keeps the room. An offer from any other role or window is ignored.

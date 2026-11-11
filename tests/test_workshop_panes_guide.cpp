@@ -235,7 +235,7 @@ std::vector<rw::Quad> guide_quads(TutorDesk& d) {
 
 /// WHETHER ANY MARK IS DRAWN, in either window: a cell or a quad in the guide colour.
 bool mark_drawn(TutorDesk& d) {
-    return d.b.r.windows.window() == gfx::kSdlWindow ? !guide_quads(d).empty()
+    return d.b.r.windows.window() == gfx::kGuiWindow ? !guide_quads(d).empty()
                                                        : !guide_cells(d).empty();
 }
 

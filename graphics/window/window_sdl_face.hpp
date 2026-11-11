@@ -8,7 +8,7 @@
 // size a palette names, measured and drawn a character a column; what it lacks drawn from the
 // platform's fonts, then from embedded GNU Unifont, the last resort, each such glyph in its own
 // columns. `ZENGINE_SDL_EMBEDDED_FACES=1` keeps it to the embedded faces. Reference:
-// graphics/docs/zengine.window.sdl.md, "Text"; provenance: graphics/window/fonts/PROVENANCE.md.
+// graphics/docs/zengine.window.gui.md, "Text"; provenance: graphics/window/fonts/PROVENANCE.md.
 
 #include "component/text.hpp"
 #include "graphics/vocabulary.hpp"

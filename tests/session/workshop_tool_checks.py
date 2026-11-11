@@ -1852,7 +1852,7 @@ def run_checks(tools, runtime):
         # Each stand-in below answers PaneView version 7 and PanePointRequested version 4 for such
         # a pane; any other version fails the check that asked it.
         LOADED = ("zengine.introspection", "loaded")
-        WEAVES = [("zengine-input", "zengine.input"), ("zengine-window-sdl", "zengine.window.sdl"),
+        WEAVES = [("zengine-input", "zengine.input"), ("zengine-window-sdl", "zengine.window.gui"),
                   ("zengine-inventory-pane", "zengine.inventory-pane"),
                   ("zengine-composer", "zengine.composer"), ("zengine-inventory", "zengine.inventory"),
                   ("zengine-info", "zengine.info")]
@@ -1905,7 +1905,7 @@ def run_checks(tools, runtime):
             finally:
                 held.close()
             # Word 1 is the window's row, the lattice's row 2: its third character is where it is pressed.
-            self.assertEqual(at, {"row": 1, "text": "  zengine-window-sdl @zengine.window.sdl",
+            self.assertEqual(at, {"row": 1, "text": "  zengine-window-sdl @zengine.window.gui",
                                   "x": loaded.column_x(2) + 3, "y": loaded.row_y(2) + 7, "space": 2})
             self.assertEqual(loaded.chosen, ["zengine-window-sdl"])
             self.assertEqual(kept["rows"][0]["text"], "loaded weaves -- 6")
@@ -3262,7 +3262,7 @@ def run_checks(tools, runtime):
 
         def test_the_window_role_is_the_one_the_desk_names(self):
             for space, role in ((steps.SPACE_CELLS, "zengine.window.tui"),
-                                  (steps.SPACE_PIXELS, "zengine.window.sdl")):
+                                  (steps.SPACE_PIXELS, "zengine.window.gui")):
                 ctx = Context(steps)
                 asked = []
 

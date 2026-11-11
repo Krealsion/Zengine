@@ -99,7 +99,7 @@ if(ZENGINE_SDL_LIB)
     add_library(zengine-window-font OBJECT ${zengine_window_font_units})
     set_target_properties(zengine-window-font PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_compile_options(zengine-window-font PRIVATE -w)
-    zengine_weave(zengine-window-sdl window/window_sdl.cpp MANUAL docs/zengine.window.sdl.md)
+    zengine_weave(zengine-window-sdl window/window_sdl.cpp MANUAL docs/zengine.window.gui.md)
     target_link_libraries(zengine-window-sdl PRIVATE zengine-graphics-vocabulary
                                                      zengine-input-vocabulary
                                                      zengine-timer-vocabulary

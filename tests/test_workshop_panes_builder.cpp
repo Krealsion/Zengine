@@ -2483,9 +2483,9 @@ TEST_CASE("the Builder's role line asks the window that shows the pane for a pas
     // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#paste-asked-of-another-role): the
     // Builder's paste asked of another role than the window showing its area.
     namespace gfx = zengine::graphics;
-    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
+    for (const char* window : {gfx::kGuiWindow, gfx::kTuiWindow}) {
         CAPTURE(window);
-        const bool os = std::string(window) == gfx::kSdlWindow;
+        const bool os = std::string(window) == gfx::kGuiWindow;
         BuilderRig b("bld-paste-window");
         b.tool->catalog = catalog_of({{"one", "a"}});
         if (os) b.r.on_gui_window();

@@ -2138,9 +2138,9 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
         // ⚔ MUTATION (tests/mutants/workshop_panes_window.md#paste-asked-elsewhere): the Terminal
         // pane's paste asked of another role than the window showing it.
         namespace term = zengine::terminal_pane;
-        for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
+        for (const char* window : {gfx::kGuiWindow, gfx::kTuiWindow}) {
             CAPTURE(window);
-            const bool os = std::string(window) == gfx::kSdlWindow;
+            const bool os = std::string(window) == gfx::kGuiWindow;
             PaneRig p;
             p.mount_workshop();
             (void)p.mount_terminal();

@@ -401,7 +401,7 @@ naming none is refused.
 ```json
 { "artifact": "zengine-window-sdl",
   "provider": [],
-  "weave":    [ { "role": "zengine.window.sdl" } ],
+  "weave":    [ { "role": "zengine.window.gui" } ],
   "optional": false,
   "otherwise": [ { "artifact": "zengine-window-tui",
                    "weave": [ { "role": "zengine.window.tui" } ] } ] }

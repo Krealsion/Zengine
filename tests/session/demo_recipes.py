@@ -229,7 +229,7 @@ def make(tmp, name="made", **fields):
     (root / "README.md").write_text("# guide\n", encoding="utf-8")
     data = {"format": "zengine-setup", "format_version": "1", "title": "Made", "summary": "s",
             "task": "t", "choose": "c", "guide": "README.md", "first_task": {"do": "d", "expect": "e"},
-            "medium": {"supports": ["sdl"], "viewport": [120, 56]},
+            "medium": {"supports": ["gui"], "viewport": [120, 56]},
             "authority": {"may": ["input", "capture", "inventory", "toolbox", "demo"]}, "desk": "desk.json"}
     data.update(fields)
     (root / "setup.json").write_text(json.dumps(data), encoding="utf-8")
@@ -758,7 +758,7 @@ class Recipes(unittest.TestCase):
                 return {"state": self.state, "failure": "step 3 of 3: expect: p/k never painted 'x' within 10s",
                         "artifacts": [{"name": n, "path": str(made / n)} for n in ("one.bmp", "one.png", "steps.json")]}
         module = types.SimpleNamespace(NotAnswered=TimeoutError)
-        config = {"directory": str(root), "digest": described.Setup(root).digest(), "medium": "sdl",
+        config = {"directory": str(root), "digest": described.Setup(root).digest(), "medium": "gui",
                   "session": "S", "prepared": "P"}
         session, out = Session(), Path(self.tmp) / "pictures"
         result = launcher.walk(module, session, config, "look", out, 60)

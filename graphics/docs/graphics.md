@@ -13,7 +13,7 @@ drawing weave, an element of your own, and the seam an element's code is written
 a window answers for its platform, on the bus and to C++ in its own process. The
 package ships three weaves, each with its manual: the TUI window,
 [`zengine.window.tui`](zengine.window.tui.md), built as `zengine-window-tui`; the GUI
-window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
+window, [`zengine.window.gui`](zengine.window.gui.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
 Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they
 are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, is another name for
@@ -272,7 +272,7 @@ by columns: each character takes the columns the text core gives it
 (`component::character_columns`), 0, 1 or 2 by Unicode's width classes, the rule both painters and
 a terminal draw by.
 
-The GUI window ([`zengine.window.sdl`](zengine.window.sdl.md)) sets text in the embedded JetBrains
+The GUI window ([`zengine.window.gui`](zengine.window.gui.md)) sets text in the embedded JetBrains
 Mono, regular and bold, each size measured as it is first asked. A character that face lacks is
 drawn from the platform's own fonts -- the Windows font folder, the folders fontconfig reads,
 macOS's, at most `window::kMaxPlatformFaces` files, looked in once a character -- and else from GNU

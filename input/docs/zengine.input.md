@@ -22,7 +22,7 @@ terminal has turned them on, as the TUI window does. On Windows it reads the con
 records, releases included. With no terminal (a pipe, a test run) it reads nothing, and says
 nothing. When a TUI window (`zengine.window.tui`) holds the process's terminal in the
 same run, it leaves the terminal's input to the window and serves input sessions alone. Beside the
-GUI window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), which reads its own
+GUI window ([`zengine.window.gui`](../../graphics/docs/zengine.window.gui.md)), which reads its own
 events, it serves input sessions alone and leaves the console the run was started from as it was:
 not read, what is typed there echoed, and a Ctrl+C there ending the run as it ends any program.
 

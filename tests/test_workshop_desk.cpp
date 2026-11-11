@@ -2254,7 +2254,7 @@ TEST_CASE("the conversation of reading the desk, a pane's words and a character'
     say_rows(d);
     zengine::tests::Timeline heard(d.r.bus);
     heard.varies("epoch"); // the window's incarnation, drawn afresh each run
-    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.sdl"}) {
+    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.gui"}) {
         heard.without(role);
     }
     heard.name(d.asker_id, "asker");
@@ -2275,7 +2275,7 @@ TEST_CASE("the conversation of a press on a word is kept") {
     PaneView view;
     REQUIRE(d.words(kAlphaRole, "alpha", view).empty());
     zengine::tests::Timeline heard(d.r.bus);
-    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.sdl"}) {
+    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.gui"}) {
         heard.without(role);
     }
     heard.name(d.asker_id, "asker");
@@ -2291,7 +2291,7 @@ TEST_CASE("the conversation of opening a pane is kept") {
     DeskRig d;
     ProviderSeat* gamma = d.r.mount_provider("zengine.test.desk-gamma");
     zengine::tests::Timeline heard(d.r.bus);
-    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.sdl"}) {
+    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.gui"}) {
         heard.without(role);
     }
     heard.name(d.asker_id, "asker");
@@ -4056,10 +4056,10 @@ std::string tui_window_role() {
 }
 
 std::string sdl_window_role() {
-    return std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow;
+    return std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow;
 }
 
-/// THE GUI WINDOW AS WORKSHOP MEETS IT, in `zengine.window.sdl`: it says what a case hands it as
+/// THE GUI WINDOW AS WORKSHOP MEETS IT, in `zengine.window.gui`: it says what a case hands it as
 /// its role, keeps every drawing and place offered back, and answers a paste with what its
 /// platform holds, counting each read.
 class SdlWindowSeat
@@ -4199,7 +4199,7 @@ TEST_CASE("the TUI window offered brings Workshop up in it, the last session res
 
         os_does([](loom::Mail& m) {
             (void)m.as_role(sdl_window_role())
-                .publish(gfx::WindowOffered{gfx::kSdlWindow, 1085, 361, 3, gfx::kCellPx, 8, 18, {}});
+                .publish(gfx::WindowOffered{gfx::kGuiWindow, 1085, 361, 3, gfx::kCellPx, 8, 18, {}});
         });
         // UP IN IT, the last session restored first, and laid out in its room in pixels, its text
         // the face the window measured and the device unit the pixel, as the window says...
@@ -4217,23 +4217,23 @@ TEST_CASE("the TUI window offered brings Workshop up in it, the last session res
         // ...NO PALETTE OFFERED THE DIRECTORY BY WORKSHOP, and its area placed on the GUI window.
         CHECK(directory->offered.empty());
         REQUIRE(directory->areas.count(kWorkshopProvider) == 1);
-        CHECK(directory->areas.at(kWorkshopProvider).window == gfx::kSdlWindow);
+        CHECK(directory->areas.at(kWorkshopProvider).window == gfx::kGuiWindow);
         // ...AND A PANE WHOSE ROLE DRAWS IN A WINDOW, opened, placed on it too.
         REQUIRE(o.load(apane::kAttentionPaneStem, WORKSHOP_SO_ATTENTION_PANE,
                        apane::kAttentionPaneRole)
                     .valid());
         o.pick(PaneRef{apane::kAttentionPaneRole, apane::kAttentionPane});
         REQUIRE(directory->areas.count(kAttentionArea) == 1);
-        CHECK(directory->areas.at(kAttentionArea).window == gfx::kSdlWindow);
+        CHECK(directory->areas.at(kAttentionArea).window == gfx::kGuiWindow);
         for (const gfx::AreaPlaced& placed : directory->placed) {
-            CHECK(placed.window == gfx::kSdlWindow);
+            CHECK(placed.window == gfx::kGuiWindow);
         }
 
         // THE WINDOW SHOWS WORKSHOP'S AREA: Workshop draws the desk there...
         os_does([](loom::Mail& m) {
             (void)m.as_role(sdl_window_role())
                 .send_to_role(kWorkshopProvider,
-                              gfx::AreaRoom{kWorkshopProvider, gfx::kSdlWindow, 1, cells_px(90),
+                              gfx::AreaRoom{kWorkshopProvider, gfx::kGuiWindow, 1, cells_px(90),
                                             cells_px(30), {}});
         });
         CHECK(os->drawn() > 0);

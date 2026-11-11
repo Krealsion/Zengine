@@ -21,7 +21,7 @@ FORMAT, VERSION = "zengine-setup", "1"
 HERE = Path(__file__).resolve().parent
 COLLECTION = HERE / "setups"
 POWERS = ("input", "capture", "inspect", "inventory", "toolbox", "demo", "open", "build")
-MEDIA = ("sdl", "tui")
+MEDIA = ("gui", "tui")
 VIEW_KINDS = ("row", "column", "single")
 # The panes whose owners implement PaneResetRequested (workshop/setup_control.hpp).
 RESETTABLE = ("zengine.inventory-pane", "zengine.info", "zengine.composer")

@@ -33,10 +33,10 @@
 namespace zengine::workshop_probe {
 
 /// THE ROLES THAT HOLD WORKSHOP'S PICTURE, in the order a run asks them: the GUI window and the
-/// TUI window (`graphics/vocabulary.hpp`'s `kWindowRolePrefix`, `kSdlWindow`,
+/// TUI window (`graphics/vocabulary.hpp`'s `kWindowRolePrefix`, `kGuiWindow`,
 /// `kTuiWindow`). A far Workshop loads one of them; the other is no role there.
 inline constexpr std::array<const char*, 2> kCaptureRoles = {
-    "zengine.window.sdl",
+    "zengine.window.gui",
     "zengine.window.tui",
 };
 

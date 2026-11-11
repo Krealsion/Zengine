@@ -29,8 +29,9 @@ inline constexpr const char* kGraphicsRole = "zengine.graphics";
 inline constexpr const char* kWindowRolePrefix = "zengine.window.";
 /// The TUI window's name: one terminal to a process, so one TUI window.
 inline constexpr const char* kTuiWindow = "tui";
-/// The GUI window's name: a window of light on the desktop, drawn through SDL.
-inline constexpr const char* kSdlWindow = "sdl";
+/// The GUI window's name: a window of light on the desktop. The weave that draws it,
+/// `zengine-window-sdl`, is the one place SDL is named.
+inline constexpr const char* kGuiWindow = "gui";
 
 /// The bounds one area keeps in its window. A drawing past any of them is refused whole, in words
 /// sent to its drawer.

@@ -1202,7 +1202,7 @@ struct Live {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
              bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow).valid())) {
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow).valid())) {
             in_window = false;
         }
         return !in_window;
@@ -3930,7 +3930,7 @@ struct PaneRig {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
              bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow).valid())) {
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow).valid())) {
             in_window = false;
         }
         return !in_window;

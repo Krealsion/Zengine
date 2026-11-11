@@ -26,7 +26,7 @@
  },
  "medium": {
   "supports": [
-   "sdl"
+   "gui"
   ],
   "viewport": [
    120,

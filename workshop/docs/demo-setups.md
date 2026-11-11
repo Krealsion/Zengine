@@ -97,9 +97,9 @@ setup with a project, `project/` and a development runtime. `start` first copies
 `export` does, into `prepared/<name>/` in the root: the desk, toolbox, project files and tool
 packages come from that copy, so the root prepares -- and every Reset restores -- the revision it
 started with, whatever later happens to the setup's own directory. Workshop opens on a desk and a
-session `start` writes at the versions this Workshop writes, setup version
+session file `start` writes at the versions this Workshop writes, setup version
 <!-- value setup_persist::kFormatVersion,workshop_formats.SETUP_VERSION -->8<!-- /value --> and
-session version
+session file version
 <!-- value session_persist::kFormatVersion,workshop_formats.SESSION_VERSION -->14<!-- /value -->
 (`external-host/tools/workshop/workshop_formats.py`), and every desk the setup applies is at that
 setup version: a desk saved at setup version 4 is lifted, its rows keeping no settings, and an
@@ -292,7 +292,7 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
 `summary`, `task`, `choose`, `prepares`, `guide`, `first_task` (`do`, `expect`), `variations`,
 `limits`, `reset` (`scope`, `keeps`); and for preparation:
 
-- `medium` -- the `supports` list (`sdl`, `tui`) and the `viewport` in cells; a `skin` field is
+- `medium` -- the `supports` list (`gui`, `tui`) and the `viewport` in cells; a `skin` field is
   refused, since no setup's desk is shown in a Skin;
 - `requires` -- extra `artifacts`, named `inputs` (such as `zengine_prefix`, a launcher flag) and
   `notes`;

@@ -176,7 +176,7 @@ struct Run {
         FakeSdlWindow* raw = w.get();
         loom::Grant g = loom::emit_default_grant(*raw);
         window = bus.register_weave(std::move(w), std::move(g),
-                                    std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow);
+                                    std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow);
         raw->zen_set_self(window);
         const loom::WeaveId door = zengine::testing::mount_door(bus);
         zengine::testing::order_activation(bus, door, window, 1);
@@ -201,7 +201,7 @@ struct Run {
 
     /// What the window shows now, row by row.
     std::string shown() {
-        bus.send_as_to_role(ears_id, std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow,
+        bus.send_as_to_role(ears_id, std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow,
                             loom::Message(loom::to_value(gfx::WindowShowAsked{}), ears_id, ears_id));
         turn();
         std::string out;

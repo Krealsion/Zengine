@@ -28,7 +28,7 @@ SPACE_PIXELS = 2
 # The roles that hold Workshop's picture, in the order a first picture asks them: the GUI window
 # and the TUI window (graphics/vocabulary.hpp kWindowRolePrefix). A far Workshop loads one
 # of them; the other is no role there.
-CAPTURE_ROLES = ("zengine.window.sdl", "zengine.window.tui")
+CAPTURE_ROLES = ("zengine.window.gui", "zengine.window.tui")
 
 
 def capture_role(ctx):
@@ -307,7 +307,7 @@ def check_picture(ctx, captured, data, role=None):
 
 
 #: The window role that answers for each input space the desk names (DeskView `space`).
-ROLE_OF_SPACE = {SPACE_CELLS: "zengine.window.tui", SPACE_PIXELS: "zengine.window.sdl"}
+ROLE_OF_SPACE = {SPACE_CELLS: "zengine.window.tui", SPACE_PIXELS: "zengine.window.gui"}
 
 
 def name_capture_role(ctx, link, row):

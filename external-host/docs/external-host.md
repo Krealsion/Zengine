@@ -320,12 +320,12 @@ session needs to speak to Workshop, and nothing of the session itself:
   Workshop's answers re-admitted by identity. It accepts nothing and says nothing.
 - **The `workshop` tool package**, installed at `share/zengine/loom-tools/workshop`, reaches
   Workshop by message alone:
-  `workshop/connections` (the connection inventory, and this session's own row; with `wait_plan`,
+  `workshop/connections` (the connection inventory, and this Loom session's own row; with `wait_plan`,
   first where Workshop's load plan came to rest),
   `workshop/inspect-capture`
   (the journey below as a tool: inspect, open an input session, click and/or press a chord with
   settlement — optionally clearing a field first and typing into it, or repeating a chord
-  several presses in one batch — picture, close, and every failure after the session opened
+  several presses in one batch — picture, close, and every failure after the input session opened
   closes it first and says both)
   and `workshop/inventory-capture` (asks Workshop's *storage* inventory — a different inventory
   than the connections one above — to capture a named participant's own `zen.PokeStructure`,
@@ -568,11 +568,11 @@ run 00cc5c97/look -- passed (live)
   ask 4 loom.link.StatusRequested v1 -> loom.link.workshop: answer loom.link.Status
   ask 7 GuestConnectionsRequested v1 -> zengine.guests via workshop: answer GuestConnections
   ask 11 InputSessionRequested v1 -> zengine.input via workshop: answer InputSessionOpened
-  ask 14 SurfaceCaptureRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptured
-  ask 16..60 SurfaceCaptureChunkRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptureChunk (23 asks)
+  ask 14 SurfaceCaptureRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptured
+  ask 16..60 SurfaceCaptureChunkRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptureChunk (23 asks)
   ask 64 InjectInput v1 -> zengine.input via workshop: answer InputInjected
-  ask 67 SurfaceCaptureRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptured
-  ask 69..113 SurfaceCaptureChunkRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptureChunk (23 asks)
+  ask 67 SurfaceCaptureRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptured
+  ask 69..113 SurfaceCaptureChunkRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptureChunk (23 asks)
   ask 117 InputSessionClosed v1 -> zengine.input via workshop: answer zen.Ack
   note: cleanup close input session 1: done
 $ loom-session crossings work look
@@ -585,7 +585,7 @@ run look: worker session 15; 75 remembered deliveries to it -- 8 answered its as
 
 (Trimmed: the directory, the inputs and the worker's notes.) A row that may `capture` also reads
 the desk once after the inventory, and asks its pictures first of the window role the desk's
-input space names (`zengine.window.tui` for cells, `zengine.window.sdl` for pixels); another
+input space names (`zengine.window.tui` for cells, `zengine.window.gui` for pixels); another
 row asks each role in turn. The run names no chord by default: it presses only the `chord` and
 `click` it is given, and one given neither is refused before anything is pressed. A batch after
 which nothing repainted fails naming `arm=true` and `changed=false`. The pictures are in the run's
@@ -736,7 +736,7 @@ client reads.
 window while no client is attached, found finished by a new one; an edit rerun; two runs against one
 input holder, on one link and on two; a tool bug and its cleanup; a run CANCELLED while it owns the
 input session, whose cleanup closes it and whose successor on the same link opens one again;
-Workshop killed while a capture is open; a new session lifetime refusing the old handles. Before its
+Workshop killed while a capture is open; a new Loom session lifetime refusing the old handles. Before its
 processes start it runs the tools' own checks against scripted panes, `builder`'s completion and
 `nvim-edit`'s confirmation among them, and `desk-machine/read`'s against a scripted Workshop
 (`tests/session/desk_read_checks.py`): `AGENTS.md` written first, each word and part where its
@@ -751,7 +751,7 @@ pseudo-terminal), walks a Tutor through a terminal Workshop on a weaver's host w
 pseudo-terminal it holds. Beside it, `tests/session/story_journey.py` holds
 [the tower defense story](../../examples/tower-defense/README.md)'s own custody to the same
 processes -- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's
-session it reuses while it runs and replaces only once it is seen to end -- and
+Loom session it reuses while it runs and replaces only once it is seen to end -- and
 `tests/session/neovim_journey.py`, behind `session-neovim` (the session tooling and a named Neovim
 at once), drives `workshop-machine/nvim-edit` against a real Neovim.
 

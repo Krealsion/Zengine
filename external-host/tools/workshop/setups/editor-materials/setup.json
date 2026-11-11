@@ -4,7 +4,7 @@
  "guide": "README.md",
  "medium": {
   "supports": [
-   "sdl",
+   "gui",
    "tui"
   ],
   "viewport": [

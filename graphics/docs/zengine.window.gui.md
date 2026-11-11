@@ -1,8 +1,8 @@
-# zengine.window.sdl -- the GUI window
+# zengine.window.gui -- the GUI window
 
 **Manual.** A window on the desktop, drawn in light through SDL3: the weave that does the whole
 job of showing what its areas' owners draw, as the TUI window does on a terminal. It answers
-to the role `zengine.window.sdl` (a window's role is `zengine.window.` and its name, `sdl`)
+to the role `zengine.window.gui` (a window's role is `zengine.window.` and its name, `gui`)
 and is built as `zengine-window-sdl`, a file a host loads, where the build has SDL. It keeps what
 each owner drew, paints it in pixels in the colours of the palette its area wears, draws the whole
 picture again when
@@ -87,7 +87,7 @@ back.
   follows from this drawer; `number`, the drawer's own for what its drawing means, which the window
   says with each press that lands there.
 - **Answers:** nothing; the window paints what changed and, unless `more`, shows it.
-- **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'sdl' shows no area
+- **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'gui' shows no area
   '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
   draw` (or `to remove`), where an element the window presents lies; `'<path>' is drawn in
   '<parent>', which is not drawn`; `a path is empty, longer than <bytes> bytes or deeper than
@@ -134,7 +134,7 @@ back.
 `WindowShowAsked` v1 asks the window what it shows, and what it has spent.
 
 - **Takes:** nothing.
-- **Answers:** `WindowShown` v1, to the asker alone: the window's name, `sdl`, and incarnation; its
+- **Answers:** `WindowShown` v1, to the asker alone: the window's name, `gui`, and incarnation; its
   rows as text, the window read as a grid of cells of `kCellPx` pixels, each run of text a character
   at its columns from the cell it starts in, front areas over those behind, trailing spaces left off; how
   many areas, nodes and presented elements it keeps; and since it started, its showings (pictures
@@ -148,7 +148,7 @@ back.
 `AreaShowAsked` v1 asks what one area shows, of the role that placed it.
 
 - **Takes:** `area`; `since`, the `version` of the last answer the asker took, or 0.
-- **Answers:** `AreaShown` v1, to the asker alone: the window's name, `sdl`, and incarnation; the
+- **Answers:** `AreaShown` v1, to the asker alone: the window's name, `gui`, and incarnation; the
   area's `version`, which moves whenever what it shows may have moved -- its drawing, its place, or
   an area that meets it; `waiting`, true while the window told the owner a room it must draw whole
   and none has come since; its face's measure; and, unless `since` is still the version (then
@@ -161,7 +161,7 @@ back.
   (`px`, `py`); and `available`, as the record says it (`PartFace`), else true. A part none of whose
   points shows is not said. What the window holds painted is what it shows at its next picture at
   the latest.
-- **Refuses:** in `zen.Refused`: `window 'sdl' shows no area '<area>'`; `area '<area>' is read only
+- **Refuses:** in `zen.Refused`: `window 'gui' shows no area '<area>'`; `area '<area>' is read only
   by the role that placed it`; `area '<area>' shows more than <bound> runs of text`
   (`kMaxAreaWords`).
 - **Example:** Workshop reads the area of a pane it placed, `AreaShowAsked{"zengine.info", 0}`, and
@@ -233,7 +233,7 @@ judged against the displays there are now.
 
 `WindowShaped` v1 names the window and sizes it, said by a role that arranges an area in it.
 
-- **Takes:** `window`, `sdl`; `title`, at most `kMaxWindowTitleBytes` bytes, a longer one cut
+- **Takes:** `window`, `gui`; `title`, at most `kMaxWindowTitleBytes` bytes, a longer one cut
   where a character begins and each control character made a space, an empty one keeping the
   window's own; `width` and `height` in pixels, a side of 0 keeping the window's own.
 - **Answers:** nothing to the sender; the GUI window takes the title and the size, kept within its
@@ -242,8 +242,8 @@ judged against the displays there are now.
   window takes the title and keeps its size.
 - **Refuses:** nothing in words: from a role that arranges no area here, or naming another
   window, it changes nothing.
-- **Example:** an app's weave, which arranges the app's areas, says `WindowShaped{"sdl", "tally",
-  320, 260}`; Workshop, restoring a session, says `WindowShaped{"sdl", "", 1180, 760}`, the room
+- **Example:** an app's weave, which arranges the app's areas, says `WindowShaped{"gui", "tally",
+  320, 260}`; Workshop, restoring a session, says `WindowShaped{"gui", "", 1180, 760}`, the room
   its window was last left at.
 
 ## Hears

@@ -9,7 +9,7 @@
 // when anything changed hands the backend the whole picture, back to front, each area in its own
 // bounds; a press lands on the primitives shown. The desktop's arithmetic and the picture read
 // back are here, pure; SDL is the backend's (graphics/window/window_sdl_backend.hpp). Reference:
-// graphics/docs/zengine.window.sdl.md.
+// graphics/docs/zengine.window.gui.md.
 
 #include "graphics/light_paint.hpp"
 #include "graphics/window/compose.hpp"
@@ -17,7 +17,7 @@
 
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
-#include "manuals/zengine.window.sdl.hpp" // this role's manual, compiled in from its page
+#include "manuals/zengine.window.gui.hpp" // this role's manual, compiled in from its page
 
 #include <algorithm>
 #include <cstddef>
@@ -228,9 +228,9 @@ struct PixelPolled {
 template <class Backend>
 class LightMedium {
 public:
-    static constexpr const char* kWindow = kSdlWindow;
+    static constexpr const char* kWindow = kGuiWindow;
     static constexpr const zengine::manual::Manual& kManual =
-        zengine::manual::pages::zengine_window_sdl::kManual;
+        zengine::manual::pages::zengine_window_gui::kManual;
 
     LightMedium() = default;
     explicit LightMedium(Backend backend) : backend_(std::move(backend)) {}

@@ -480,7 +480,7 @@ void WorkshopWeave::restore_window(const window_persist::LoadedWindow& window, l
     std::int64_t room_w = window.viewport_w;
     std::int64_t room_h = window.viewport_h;
     bool honoured = window.honoured;
-    if (window_name_ == graphics::kSdlWindow && placement.room_w > 0 && placement.room_h > 0) {
+    if (window_name_ == graphics::kGuiWindow && placement.room_w > 0 && placement.room_h > 0) {
         room_w = placement.room_w;
         room_h = placement.room_h;
         honoured = window_persist::viewport_honoured(room_w, room_h);
@@ -543,7 +543,7 @@ void WorkshopWeave::say_restored(const LiveLayout& live, loom::Mail&) {
 
 // WL-SESSION-20 -- agents/workshop/window-file.md
 void WorkshopWeave::shape_restored_window(loom::Mail& mail) {
-    if (!restored_window_ || window_name_ != graphics::kSdlWindow) {
+    if (!restored_window_ || window_name_ != graphics::kGuiWindow) {
         return;
     }
     const RestoredWindow held = std::move(*restored_window_);
@@ -551,7 +551,7 @@ void WorkshopWeave::shape_restored_window(loom::Mail& mail) {
     const std::string role = medium_role();
     // An empty title keeps the window's own: the room is the restore's, the title is not.
     mail.as_role(kWorkshopProvider)
-        .send_to_role(role, zengine::graphics::WindowShaped{graphics::kSdlWindow, std::string(),
+        .send_to_role(role, zengine::graphics::WindowShaped{graphics::kGuiWindow, std::string(),
                                                               held.w, held.h});
     if (held.place) {
         mail.send_to_role(role, *held.place);
@@ -592,7 +592,7 @@ bool WorkshopWeave::save_last_session(loom::Mail& mail) {
     place.x = session_.place_x;
     place.y = session_.place_y;
     place.maximized = session_.place_maximized;
-    const bool gui_window = window_name_ == graphics::kSdlWindow;
+    const bool gui_window = window_name_ == graphics::kGuiWindow;
     place.room_w = gui_window ? session_.normal_w : session_.window_room_w;
     place.room_h = gui_window ? session_.normal_h : session_.window_room_h;
     // THE WINDOW FILE FIRST, Workshop's own; then the owner is asked to save the run. Neither is

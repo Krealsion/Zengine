@@ -187,7 +187,7 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
 
 // WL-GEO-08 -- agents/workshop/geometry.md
 void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
-    if ((w.window != graphics::kTuiWindow && w.window != graphics::kSdlWindow) ||
+    if ((w.window != graphics::kTuiWindow && w.window != graphics::kGuiWindow) ||
         !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + w.window)) {
         return;
     }

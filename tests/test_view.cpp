@@ -1142,7 +1142,7 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
 
     // THE SAME FROM ANY OTHER ROLE changes nothing: another window's, Workshop's, a stranger's.
     const auto drawn = w.window->drawn.size();
-    const std::string sdl = std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow;
+    const std::string sdl = std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow;
     auto other = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
     const auto other_id = rig.bus.register_weave(std::move(other), loom::Grant{}.allow_any(), sdl);
     auto stranger = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
@@ -1278,7 +1278,7 @@ TEST_CASE("a view hears the pointer of the window that shows its area: a field p
     CHECK(rig.desk->heard.back().correlation == press_number);
 
     // THE SAME FROM ANY OTHER ROLE changes nothing: another window's, Workshop's, a stranger's.
-    const std::string sdl = std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow;
+    const std::string sdl = std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow;
     auto other = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
     const auto other_id = rig.bus.register_weave(std::move(other), loom::Grant{}.allow_any(), sdl);
     auto stranger = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
