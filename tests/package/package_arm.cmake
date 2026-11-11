@@ -2,10 +2,10 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The installed-package witness's package arm (run.cmake -DZEN_PACKAGE=ON): the package a stranger
-# downloads, judged where run.cmake installed it (`prefix`), stripped: its files, the SDL it built
-# among them; `--version` naming this checkout's commit; no image naming the build machine's
-# folders; and Workshop started from the prefix as a weaver starts it, nothing installed beside it,
-# each row loaded in the window each start means (no flag, `--tui`, a driver SDL lacks).
+# downloads, judged where run.cmake installed it (`prefix`), stripped: its files and SDL; its
+# commit and one release number in all it says; no image naming the build machine's folders; and
+# Workshop started from the prefix as a weaver starts it, nothing beside it, each row loaded in
+# the window each start means (no flag, `--tui`, a driver SDL lacks).
 
 if(WIN32)
     set(exe ".exe")
@@ -47,6 +47,56 @@ if(NOT build_info MATCHES "zengine commit ${commit}")
     message(FATAL_ERROR "package witness: BUILD-INFO.txt does not name the commit ${commit}:\n${build_info}")
 endif()
 message(STATUS "package witness: --version and BUILD-INFO.txt name ${commit} ok")
+
+# ...and one release number in all it says (the top-level CMakeLists.txt, "the release number"):
+# Workshop, its CMake package, BUILD-INFO.txt and README.txt say the number this tree was
+# configured as, and so do the Loom package it was built against and that Loom's host, which a
+# package holds beside them.
+file(READ "${build_dir}/CMakeCache.txt" arm_cache)
+string(REGEX MATCH "\nZENGINE_PACKAGE_VERSION:[A-Z]+=([^\n]*)" _ "${arm_cache}")
+set(number "${CMAKE_MATCH_1}")
+string(REGEX MATCH "\nloom_DIR:[A-Z]+=([^\n]*)" _ "${arm_cache}")
+set(loom_config_dir "${CMAKE_MATCH_1}")
+if(NOT number MATCHES "^[0-9]+[.][0-9]+[.][0-9]+$" OR NOT EXISTS "${loom_config_dir}/loomConfigVersion.cmake")
+    message(FATAL_ERROR "package witness: ${build_dir} names no release number X.Y.N ('${number}') "
+                        "or no installed Loom ('${loom_config_dir}')")
+endif()
+set(wrong "")
+string(REGEX MATCH "^[^\r\n]*" said "${version_said}")
+if(NOT said STREQUAL "zengine ${number}")
+    list(APPEND wrong "zengine-workshop --version: ${said}")
+endif()
+foreach(config "${prefix}/lib/cmake/zengine/zengineConfigVersion.cmake"
+               "${loom_config_dir}/loomConfigVersion.cmake")
+    file(READ "${config}" config_text)
+    string(REGEX MATCH "set\\(PACKAGE_VERSION \"([^\"]*)\"\\)" _ "${config_text}")
+    if(NOT CMAKE_MATCH_1 STREQUAL number)
+        list(APPEND wrong "${config}: ${CMAKE_MATCH_1}")
+    endif()
+endforeach()
+string(REGEX MATCH "^[^\r\n]*" said "${build_info}")
+string(REGEX REPLACE "[ \t]+" " " said "${said}")
+if(NOT said STREQUAL "zengine ${number}")
+    list(APPEND wrong "BUILD-INFO.txt: ${said}")
+endif()
+file(STRINGS "${prefix}/README.txt" said LIMIT_COUNT 1)
+string(FIND "${said}" "Zengine ${number} -- " said_at)
+if(NOT said_at EQUAL 0)
+    list(APPEND wrong "README.txt: ${said}")
+endif()
+get_filename_component(loom_host "${loom_config_dir}/../../../bin/loom-host${exe}" ABSOLUTE)
+execute_process(COMMAND "${loom_host}" --version RESULT_VARIABLE host_rc
+                OUTPUT_VARIABLE host_said ERROR_VARIABLE host_said)
+string(FIND "${host_said}" "loom-host ${number}  (weave ABI v" host_at)
+if(NOT host_rc EQUAL 0 OR NOT host_at EQUAL 0)
+    list(APPEND wrong "${loom_host} --version (exit ${host_rc}): ${host_said}")
+endif()
+if(wrong)
+    string(REPLACE ";" "\n  " pretty "${wrong}")
+    message(FATAL_ERROR "package witness: the package is ${number}, and these say otherwise:\n  ${pretty}")
+endif()
+message(STATUS "package witness: Workshop, loom-host, both CMake packages, BUILD-INFO.txt and "
+               "README.txt say ${number} ok")
 
 # ---- no build machine in any image -----------------------------------------------------------
 # The source and build folders, as this machine spells them, read in every printable run of every

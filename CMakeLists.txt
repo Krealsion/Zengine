@@ -17,8 +17,29 @@ if(DEFINED ZENGINE_SDL_SKIN)
         "-UZENGINE_SDL_SKIN, adding -DZENGINE_TUI_ONLY=ON where it was OFF.")
 endif()
 
+# ---- the release number --------------------------------------------------------------
+# One number names a build everywhere: X.Y.N, the same in Zengine and Loom. X.Y is the release
+# series, kept here alone and equal to Loom's; a person moves it, in both repositories. N is the
+# package's, read from the tag the package is published as (`vX.Y.N` gives `X.Y.N`) and given as
+# ZENGINE_PACKAGE_VERSION with ZENGINE_PACKAGE (below). A build that is no package is the series
+# alone, and Workshop's `--version` says it is no package.
+set(ZENGINE_SERIES 0.2)
+option(ZENGINE_PACKAGE "Install Workshop ready to run: the package a stranger downloads" OFF)
+set(ZENGINE_PACKAGE_VERSION "" CACHE STRING
+    "The package's release number, X.Y.N in the series ZENGINE_SERIES, read from its tag")
+set(zengine_release_number ${ZENGINE_SERIES})
+if(ZENGINE_PACKAGE)
+    string(REPLACE "." "[.]" zengine_series_pattern "${ZENGINE_SERIES}")
+    if(NOT ZENGINE_PACKAGE_VERSION MATCHES "^${zengine_series_pattern}[.](0|[1-9][0-9]*)$")
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE_VERSION names the package's release number, "
+                            "${ZENGINE_SERIES}.N in this series (ZENGINE_SERIES, CMakeLists.txt), "
+                            "read from its tag (vX.Y.N gives X.Y.N); it is '${ZENGINE_PACKAGE_VERSION}'")
+    endif()
+    set(zengine_release_number ${ZENGINE_PACKAGE_VERSION})
+endif()
+
 project(zengine
-    VERSION 0.2.0
+    VERSION ${zengine_release_number}
     DESCRIPTION "Zen's default set of weaves — the Loom's first external consumer"
     LANGUAGES CXX)
 
@@ -60,6 +81,12 @@ if(ZEN_LOOM_DEV)
 else()
     find_package(loom 0.1 REQUIRED)
     message(STATUS "zengine: Loom from installed package at ${loom_DIR}")
+    # The package holds the Loom it is built against, which says the package's number too.
+    if(ZENGINE_PACKAGE AND NOT loom_VERSION STREQUAL PROJECT_VERSION)
+        message(FATAL_ERROR "zengine: the package is ${PROJECT_VERSION}, and the Loom it is built "
+                            "against (${loom_DIR}) is ${loom_VERSION}: build that Loom with "
+                            "-DLOOM_PACKAGE_VERSION=${PROJECT_VERSION}")
+    endif()
 endif()
 
 # Either path must hand over the weave-authoring surface. Checked here, out loud, rather
@@ -118,19 +145,12 @@ if(ZENGINE_SANITIZE)
 endif()
 
 # ---- the package a stranger downloads -------------------------------------------------
-# ZENGINE_PACKAGE installs Workshop ready to run beside the developer package
-# (cmake/ZengineInstall.cmake). Declared before any package, so workshop/ and launcher/ read it.
-# Its version is the tag's, `vX.Y.N` giving `X.Y.N`, X.Y being `project(VERSION)`'s major and
-# minor; the CMake package's own line stays `project(VERSION)`. Loom is named by the commit the
-# package was built against.
-option(ZENGINE_PACKAGE "Install Workshop ready to run: the package a stranger downloads" OFF)
-set(ZENGINE_PACKAGE_VERSION "" CACHE STRING "The package's version, read from its tag (vX.Y.N gives X.Y.N)")
+# ZENGINE_PACKAGE, declared with the release number (above) before any package, so workshop/ and
+# launcher/ read it, installs Workshop ready to run beside the developer package
+# (cmake/ZengineInstall.cmake), as the release number ZENGINE_PACKAGE_VERSION names. Loom is
+# named by the commit the package was built against, too.
 set(ZENGINE_PACKAGE_LOOM_COMMIT "" CACHE STRING "The Loom commit the package is built against")
 if(ZENGINE_PACKAGE)
-    if(NOT ZENGINE_PACKAGE_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
-        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE_VERSION names the package's version, read "
-                            "from its tag (vX.Y.N gives X.Y.N); it is '${ZENGINE_PACKAGE_VERSION}'")
-    endif()
     if(NOT ZENGINE_PACKAGE_LOOM_COMMIT MATCHES "^[0-9a-f]+$")
         message(FATAL_ERROR "zengine: ZENGINE_PACKAGE_LOOM_COMMIT names the Loom commit the package "
                             "is built against; it is '${ZENGINE_PACKAGE_LOOM_COMMIT}'")

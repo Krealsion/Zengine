@@ -4,11 +4,12 @@ name: Package
 # downloads"): Workshop ready to run, one archive per platform, judged before anything leaves.
 # A night packages the newest `main` commit whose CI push run passed and that is newer than the
 # last tag of its series, at the Loom commit that run built against, and publishes it as the next
-# `vX.Y.N`, X.Y being that commit's own `project(VERSION)` major and minor (CMakeLists.txt); a
-# commit of another series than main's tip is packaged by no night, and a tip whose CI push run
-# finished without passing turns a night's or a dispatch's run red, named. A dispatch publishes
-# only when asked; a pull request touching it runs it on its own head, a dry run that judges no
-# main and holds the judge of main's tip to its fixed cases.
+# `vX.Y.N`, X.Y being that commit's own release series (CMakeLists.txt, ZENGINE_SERIES), and
+# Zengine and Loom are both built as that one number; a commit of another series than main's tip,
+# or built against a Loom of another series (its CMakeLists.txt, LOOM_SERIES), is packaged by no
+# night, and a tip whose CI push run finished without passing turns a night's or a dispatch's run
+# red, named. A dispatch publishes only when asked; a pull request touching it runs it on its own
+# head, a dry run that judges no main and holds the judge of main's tip to its fixed cases.
 on:
   schedule:
     - cron: '41 3 * * *'
@@ -70,19 +71,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # A commit's series, X.Y: its own project(VERSION)'s major and minor (CMakeLists.txt).
+          LOOM_URL=https://github.com/Krealsion/Loom.git
+          # A commit's series, X.Y: its own set(ZENGINE_SERIES X.Y) (CMakeLists.txt, "the release
+          # number").
           series_of() {
             git show "$1:CMakeLists.txt" | tr -d '\r' \
-              | sed -n '/^project(zengine$/,/^ *LANGUAGES/s/^ *VERSION \([0-9][0-9]*\.[0-9][0-9]*\)\.[0-9][0-9]*$/\1/p'
+              | sed -n 's/^set(ZENGINE_SERIES \([0-9][0-9]*\.[0-9][0-9]*\))$/\1/p'
           }
           if [ "$EVENT" = pull_request ]; then
-            # A DRY RUN of the change itself, at Loom main as CI resolves it now.
+            # A DRY RUN of the change itself, at the Loom branch of this pull request's branch name
+            # when Loom has one -- a change made in both repositories at once -- else at Loom main
+            # as CI resolves it now.
             commit="$HEAD_SHA"
-            loom="$(git ls-remote https://github.com/Krealsion/Loom.git refs/heads/main | awk 'NR == 1 { print $1 }')"
-            echo "dry run: this pull request's head $commit, Loom main $loom"
+            loom=""
+            if [ -n "$HEAD_REF" ]; then
+              loom="$(git ls-remote "$LOOM_URL" "refs/heads/$HEAD_REF" | awk 'NR == 1 { print $1 }')"
+            fi
+            if [ -n "$loom" ]; then
+              echo "dry run: this pull request's head $commit, Loom's branch of the same name, $HEAD_REF, at $loom"
+            else
+              loom="$(git ls-remote "$LOOM_URL" refs/heads/main | awk 'NR == 1 { print $1 }')"
+              echo "dry run: this pull request's head $commit, Loom main $loom"
+            fi
           else
             # THE NEWEST MAIN COMMIT CI PASSED, with the Loom commit that run recorded.
             commit=""; loom=""
@@ -107,10 +121,21 @@ jobs:
           series="$(series_of "$commit")"
           tip_series="$(series_of HEAD)"
           for s in "$series" "$tip_series"; do
-            [[ "$s" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "a CMakeLists.txt's project(VERSION) names no series: '$s'" >&2; exit 1; }
+            [[ "$s" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "a CMakeLists.txt names no release series, set(ZENGINE_SERIES X.Y): '$s'" >&2; exit 1; }
           done
           if [ "$series" != "$tip_series" ]; then
             echo "the commit to package, $commit, is of series $series; main's tip is of $tip_series: nothing is packaged until a commit of $tip_series passes"
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # ...and the Loom it is built against says the same series: one number names the package.
+          git init -q "$RUNNER_TEMP/loom-series"
+          git -C "$RUNNER_TEMP/loom-series" fetch -q --depth=1 "$LOOM_URL" "$loom"
+          loom_series="$(git -C "$RUNNER_TEMP/loom-series" show FETCH_HEAD:CMakeLists.txt | tr -d '\r' \
+                         | sed -n 's/^set(LOOM_SERIES \([0-9][0-9]*\.[0-9][0-9]*\))$/\1/p')"
+          [[ "$loom_series" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "Loom $loom's CMakeLists.txt names no release series, set(LOOM_SERIES X.Y): '$loom_series'" >&2; exit 1; }
+          if [ "$series" != "$loom_series" ]; then
+            echo "::warning::Zengine $commit is of series $series, and the Loom it is built against, $loom, is of $loom_series: nothing is packaged until the two say one series"
             echo "moved=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -240,7 +265,7 @@ jobs:
           name="zengine-$VERSION-linux-x86_64"
           stage="$RUNNER_TEMP/stage/$name"
           cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF -DLOOM_PACKAGE_VERSION="$VERSION"
           cmake --build "$RUNNER_TEMP/loom-build"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$RUNNER_TEMP/loom-prefix"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
@@ -332,7 +357,8 @@ jobs:
           [System.IO.File]::WriteAllText($ca, $pem.ToString())
           cmake -S "$tmp/loom-src" -B "$tmp/loom-build" -G Ninja -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER="$gcc" -DCMAKE_CXX_COMPILER="$gxx" -DLOOM_ENABLE_WINDOWS_KERNEL=ON `
-            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF "-DCMAKE_EXE_LINKER_FLAGS=$static"
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF -DLOOM_PACKAGE_VERSION="$env:VERSION" `
+            "-DCMAKE_EXE_LINKER_FLAGS=$static"
           cmake --build "$tmp/loom-build"
           cmake --install "$tmp/loom-build" --prefix "$tmp/loom-prefix"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$gcc" `
@@ -356,10 +382,11 @@ jobs:
 
   # ---- each package judged on a runner that did not build it ---------------------------------------
   # Extracted into an empty folder named with a space and letters outside the system's code page,
-  # then the judges (tests/package/judges/): imports or ELF, the private paths of the machine that
-  # built it, and the first start of Workshop on each plan with nothing installed beside it. Then the
-  # story (tests/package/story.py): the tally panel exported from the package's Workshop as an app
-  # that runs in the package's own zengine-app and outlives Workshop; its pictures kept on the run.
+  # then the judges (tests/package/judges/): one release number in all it says, imports or ELF, the
+  # private paths of the machine that built it, and the first start of Workshop on each plan with
+  # nothing installed beside it. Then the story (tests/package/story.py): the tally panel exported
+  # from the package's Workshop as an app that runs in the package's own zengine-app and outlives
+  # Workshop; its pictures kept on the run.
   judge-linux:
     name: Package / judge Linux
     needs: [decide, build-linux]
@@ -396,6 +423,7 @@ jobs:
           J=tests/package/judges
           grep -q "^zengine commit $COMMIT\$" <("$pkg/bin/zengine-workshop" --version)
           grep -q "^zengine tree   clean\$" "$pkg/BUILD-INFO.txt"
+          python3 -I $J/release_number.py "$pkg" "$VERSION"
           python3 -I $J/elf_judge.py "$pkg" --allow libstdc++.so.6 --allow libgcc_s.so.1
           python3 -I $J/private_scan.py "$pkg" /__w/ /home/runner/ /usr/src/ snapshot.ubuntu.com
           # Started as a weaver starts it, each in the window it means: no flag, the GUI window;
@@ -471,6 +499,7 @@ jobs:
           if (-not (Select-String -LiteralPath (Join-Path $pkg 'BUILD-INFO.txt') -Pattern '^zengine tree   clean$' -Quiet)) {
             throw 'BUILD-INFO.txt does not say the tree was clean'
           }
+          python -I -X utf8 "$J\release_number.py" $pkg $env:VERSION
           python -I -X utf8 "$J\pe_imports.py" $pkg
           python -I -X utf8 "$J\private_scan.py" $pkg 'D:\a\Zengine' 'D:/a/Zengine' 'D:\a\_temp' 'D:/a/_temp' 'hostedtoolcache'
           # Started as a weaver starts it, each in the window it means (the Linux judge says why).

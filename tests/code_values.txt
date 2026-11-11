@@ -26,6 +26,11 @@
 # Any other spelling of a registered name in a part's code (a feature's, a host's or a library's)
 # is a red.
 
+# ---- the release number
+# The release series, X.Y: a build that is no package says it, and a package says X.Y.N.
+ZENGINE_SERIES                  CMakeLists.txt                            ZENGINE_SERIES
+claim   ZENGINE_SERIES  zengine-{}.N
+
 # ---- the law register's budgets
 ZEN_LAW_CORE_BYTES              tests/check_law_register.cmake            ZEN_LAW_CORE_BYTES
 ZEN_LAW_REGISTER_BYTES          tests/check_law_register.cmake            ZEN_LAW_REGISTER_BYTES

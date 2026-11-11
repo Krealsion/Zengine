@@ -120,9 +120,15 @@ stages, read from `workshop/CMakeLists.txt`'s own lists, in `bin/`, where it res
 itself; the SDL it built and fetched; the launchers, `README.txt`, `BUILD-INFO.txt`, `NOTICE.md`
 and each third party's licence text (`workshop/package/`). Under it:
 
-- the version is `ZENGINE_PACKAGE_VERSION`, read from the night's tag, and Loom is named by
-  `ZENGINE_PACKAGE_LOOM_COMMIT`; `project(VERSION)` stays the CMake package's compatibility line;
-  `zengine-workshop --version` says the package's facts as `BUILD-INFO.txt` does;
+- **one release number names it**, `ZENGINE_PACKAGE_VERSION`, X.Y.N read from the night's tag
+  (the top-level `CMakeLists.txt`, "the release number"): X.Y is the series, `ZENGINE_SERIES`,
+  kept there alone and equal to Loom's `LOOM_SERIES`, and moved by a person in both
+  repositories; `project(VERSION)` is that number, so the CMake package says it; the Loom it is
+  built against was built as the same number (`LOOM_PACKAGE_VERSION`), refused at configure
+  otherwise, so `loom-host --version` and Loom's CMake package say it too; and
+  `zengine-workshop --version` says it with the package's other facts as `BUILD-INFO.txt` does.
+  Loom is named by its commit too, `ZENGINE_PACKAGE_LOOM_COMMIT`. A build that is no package is
+  the series alone, and Workshop's `--version` says it is no package;
 - Workshop compiles no CMake, so its Builder refuses in its own words and its banner says it
   builds nothing;
 - the launcher's demo service is the package's own `share/zengine/loom-tools/demo.py`, beside the
@@ -141,17 +147,19 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
 
 **How the package is made** (`.github/workflows/package.yml`):
 - **When.** Each night, from the newest `main` commit whose CI push run passed and is newer than the
-  last tag of its series, `vX.Y.*`, X.Y being that commit's own `project(VERSION)` major and minor,
-  so a package's version is always the commit's it is built from. A commit of another series than
-  `main`'s tip -- a version moved and not yet passed -- is packaged by no night, which ends green
-  and says why. `decide` reads that run's `loom-commit` artifact, which `ci.yml`'s `resolve-loom`
-  keeps, and builds at that Loom commit. When nothing moved, the night ends green and says
-  so. A pull request touching how the package is made runs the same jobs on its own head,
-  at Loom `main`, as a dry run, all but the judging of `main`'s tip, which is a night's and a
-  dispatch's; in its place the dry run holds that judge (`tests/package/tip/judge.py`) to its
-  fixed cases (`cases.py` beside it), each answer kept there and none read from GitHub, and a
-  wrong verdict is red.
-- **Built** cold and Release, with the version the next tag's:
+  last tag of its series, `vX.Y.*`, X.Y being that commit's own `ZENGINE_SERIES`, so a package's
+  version is always the commit's it is built from. A commit of another series than `main`'s tip
+  -- a series moved and not yet passed -- is packaged by no night, nor one whose Loom commit's
+  `LOOM_SERIES` is another than its own -- a series moved in one repository and not yet in the
+  other; the night ends green and says why. `decide` reads that run's `loom-commit` artifact,
+  which `ci.yml`'s `resolve-loom` keeps, and builds at that Loom commit. When nothing moved, the
+  night ends green and says so. A pull request touching how the package is made runs the same
+  jobs on its own head, at Loom's branch of the pull request's branch name where Loom has one (a
+  change made in both repositories at once), else at Loom `main`, as a dry run, all but the
+  judging of `main`'s tip, which is a night's and a dispatch's; in its place the dry run holds
+  that judge (`tests/package/tip/judge.py`) to its fixed cases (`cases.py` beside it), each answer
+  kept there and none read from GitHub, and a wrong verdict is red.
+- **Built** cold and Release, Loom and Zengine both as the next tag's release number:
   - Linux in Ubuntu 22.04 pinned by digest, its packages from Ubuntu's archive on one named day,
     and SDL with its X11 and Wayland drivers (`cmake/ZengineSdl.cmake` keeps SDL's guard under the
     switch);
@@ -161,10 +169,10 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
     same files make the same bytes.
 - **Judged** on a runner that did not build it, extracted under a folder named with a space and
   letters outside the code page: `--version` naming the commit and a clean tree, then the judges
-  (`tests/package/judges/`), then the story (`tests/package/story.py`): the tally setup started
-  from the package by the package's own demo service (`demo.py start --package`), its walk
-  `export` passed, the exported app's
-  launcher naming the package's `zengine-app`, the app answered at its console until every row
+  (`tests/package/judges/`), the first of them one release number in all the package says, then
+  the story (`tests/package/story.py`): the tally setup started from the package by the
+  package's own demo service (`demo.py start --package`), its walk `export` passed, the exported
+  app's launcher naming the package's `zengine-app`, the app answered at its console until every row
   runs, and still running once Workshop has stopped. Its pictures and the app's console are kept on
   the run, red or green. Then `SHA256SUMS`.
 - **What a red judge does.** Nothing is published while any judge is red.

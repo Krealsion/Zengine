@@ -43,7 +43,8 @@ Keep [**cheat_sheet.md**](cheat_sheet.md) open beside your editor.
 
 ## Maturity — read this before you depend on it
 
-**Version 0.2.0. Pre-release. Interfaces change without deprecation cycles.**
+**The <!-- value ZENGINE_SERIES -->0.2<!-- /value --> series, each night's package its next
+number. Pre-release. Interfaces change without deprecation cycles.**
 
 What is solid: the message/schema contract, the Timer protocol, the drawing vocabulary,
 and the verification discipline (see [Test discipline](docs/contributing/build-and-test.md)).
@@ -73,16 +74,17 @@ archive per platform, with `SHA256SUMS` and the notes on checking them.
 
 | platform | file | start |
 |---|---|---|
-| Windows 10 or 11, x64 | `zengine-0.2.N-windows-x64.zip` | extract it anywhere, then `Workshop.cmd` (a window) or `Workshop-terminal.cmd` (this console) |
-| Linux x86-64, glibc 2.35 or newer | `zengine-0.2.N-linux-x86_64.tar.gz` | extract it anywhere, then `./workshop.sh` (a window) or `./workshop-terminal.sh` (this terminal) |
+| Windows 10 or 11, x64 | `zengine-0.2.N-windows-x64.zip` | extract it anywhere, then `Workshop.cmd` (a window) or `Workshop-terminal.cmd` (this console) <!-- value ZENGINE_SERIES in "zengine-{}.N" --> |
+| Linux x86-64, glibc 2.35 or newer | `zengine-0.2.N-linux-x86_64.tar.gz` | extract it anywhere, then `./workshop.sh` (a window) or `./workshop-terminal.sh` (this terminal) <!-- value ZENGINE_SERIES in "zengine-{}.N" --> |
 
 What it needs that it does not carry -- Python 3.8 or newer for the ready-to-use setups, and on
 Linux its C++ runtime and a desktop for the window -- is on [how to install these
 dependencies](workshop/docs/dependencies.md). Your project is a folder of your own, made at the
 first start and kept when a newer package replaces the old one: `%USERPROFILE%\Zengine` on
-Windows, `~/Zengine` on Linux. The package's `README.txt` says where everything goes, and
-`bin/zengine-workshop --version` names the commits it was made from. Windows may warn that the
-publisher is unknown: the package is not signed. What it does not do yet is in [Workshop
+Windows, `~/Zengine` on Linux. The package's `README.txt` says where everything goes,
+`bin/zengine-workshop --version` says its release number and the commits it was made from, and
+`bin/loom-host --version` says the same number. Windows may warn that the publisher is unknown:
+the package is not signed. What it does not do yet is in [Workshop
 limitations](workshop/docs/limitations.md#the-package-a-stranger-downloads-is-an-alpha-made-each-night).
 
 ## Build it
