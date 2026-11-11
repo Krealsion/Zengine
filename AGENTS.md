@@ -53,7 +53,7 @@ read and never built ([the quarry's catalog](quarry/QUARRY-CATALOG.md)):
 |---|---|
 | lanes, suites, populations, CI, what a green means, platform build traps, a harness, a witness, a check | [agents/verification.md](agents/verification.md), the router over the method registers: [checks](agents/verification/checks.md) · [dependencies](agents/verification/dependencies.md) · [fixtures](agents/verification/fixtures.md) · [lanes](agents/verification/lanes.md) · [mutation](agents/verification/mutation.md) · [mutation verdicts](agents/verification/mutation-verdicts.md) · [platforms](agents/verification/platforms.md) · [population](agents/verification/population.md) · [probes](agents/verification/probes.md) · [walls](agents/verification/walls.md) · [driving a witness](agents/verification/witnesses.md) · [reading one](agents/verification/witnesses-reading.md) |
 | `cmake/ZengineInstall.cmake`, any public header, any exported target's link line | [agents/packaging.md](agents/packaging.md) |
-| the pane seam: what crosses between Workshop and every pane, and the tools that arrive through it | [agents/panes.md](agents/panes.md) |
+| the pane seam's prose, both its halves, and the tools that arrive through it (its law: `pane/`'s router) | [agents/panes.md](agents/panes.md) |
 | Workshop, the host every feature is mounted in | [workshop/AGENTS.md](workshop/AGENTS.md) |
 
 The suites no one folder holds:

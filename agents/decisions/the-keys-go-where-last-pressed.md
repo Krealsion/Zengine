@@ -55,4 +55,5 @@ grant.
 [WL-FOCUS-03](../workshop/focus.md), [WL-FOCUS-04](../workshop/focus.md),
 [WL-FOCUS-05](../workshop/focus.md), [WL-FOCUS-06](../workshop/focus.md),
 [WL-FOCUS-08](../workshop/focus.md), [WL-FOCUS-09](../workshop/focus.md),
-[WL-FOCUS-10](../workshop/focus.md), [WL-FOCUS-11](../workshop/focus.md).
+[WL-FOCUS-10](../workshop/focus.md), [WL-FOCUS-11](../workshop/focus.md),
+[PANE-SEAM-03](../pane-contract/seam.md).

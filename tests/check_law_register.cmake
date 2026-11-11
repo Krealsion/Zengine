@@ -29,19 +29,21 @@ endif()
 # row whose directory holds no register is a red. tools/fill_laws.sh reads these `set(...)` lines
 # at column 0, one each, so the table has one copy; the self-test binds its synthetic family with
 # list(APPEND), never a second `set`.
-set(ZEN_LAW_FAMILIES WL MW)
+set(ZEN_LAW_FAMILIES WL MW PANE)
 set(ZEN_LAW_DIR_WL agents/workshop)
 set(ZEN_LAW_ROUTER_WL agents/workshop.md)
 set(ZEN_LAW_DIR_MW agents/maker)
 set(ZEN_LAW_ROUTER_MW agents/maker.md)
+set(ZEN_LAW_DIR_PANE agents/pane-contract)
+set(ZEN_LAW_ROUTER_PANE agents/pane-contract.md)
 set(ZEN_LAW_RECORD_DIR agents/decisions)
 set(ZEN_LAW_CORE AGENTS.md)
 set(ZEN_LAW_WITNESS_DIR tests)
 
 # The lists the table derives, recomputed by zen_law_families_derive() whenever the table is
 # rebound (the self-test binds a synthetic second family, then restores this one): the
-# register directories and routers in table order, the family alternation `(WL|...)`, and the
-# id pattern `(WL|...)-<AREA>-<NN>`. A row missing either half is refused before anything runs.
+# register directories and routers in table order, the family alternation `(WL|...)`, the
+# alternation a citation is read by (the families and VM), and the id pattern `(WL|...)-<AREA>-<NN>`. A row missing either half is refused before anything runs.
 macro(zen_law_families_derive)
     set(ZEN_LAW_REGISTER_DIRS "")
     set(ZEN_LAW_ROUTERS "")
@@ -61,6 +63,7 @@ macro(zen_law_families_derive)
             string(APPEND ZEN_LAW_FAMILY_RE "|${zen_family}")
         endif()
     endforeach()
+    set(ZEN_LAW_CITED_RE "(${ZEN_LAW_FAMILY_RE}|VM)")
     set(ZEN_LAW_FAMILY_RE "(${ZEN_LAW_FAMILY_RE})")
     set(ZEN_LAW_ID_RE "${ZEN_LAW_FAMILY_RE}-[A-Z]+-[0-9]+")
 endmacro()
@@ -74,7 +77,7 @@ zen_law_families_derive()
 set(ZEN_VM_REGISTER_DIRS agents/verification)
 set(ZEN_VM_ROUTERS agents/verification.md)
 set(ZEN_VM_TABLE_HEADING "## Where a case goes")
-set(ZEN_VM_ID_FAMILIES WL MW VM TIMER POP KERN)
+set(ZEN_VM_ID_FAMILIES WL MW PANE VM TIMER POP KERN)
 foreach(zen_family IN LISTS ZEN_LAW_FAMILIES)
     if(NOT zen_family IN_LIST ZEN_VM_ID_FAMILIES)
         message(FATAL_ERROR
@@ -738,7 +741,14 @@ endfunction()
 # one. A cited law is a token of a law family ending in a two-digit number, this repository's or
 # Loom's; a standard, or a hyphenated word in capitals, is shaped like a token and is none.
 # The self-test below spells examples.
-set(ZEN_PLAN_LAW_FAMILIES WL MW VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
+set(ZEN_PLAN_LAW_FAMILIES WL MW PANE VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
+foreach(zen_family IN LISTS ZEN_LAW_FAMILIES)
+    if(NOT zen_family IN_LIST ZEN_PLAN_LAW_FAMILIES)
+        message(FATAL_ERROR
+            "law-register: family ${zen_family} is in the family table and not in "
+            "ZEN_PLAN_LAW_FAMILIES; its cited ids would be read as development-phase codes. Add it there.")
+    endif()
+endforeach()
 set(ZEN_PLAN_NOT_CODES UTF-8 UTF-16 UTF-32 AGPL-3 FNV-1a SHA-1 SHA-256 ISO-8601
     HAND-WRITTEN WEAVE-ONLY PROVIDER-ONLY)
 
@@ -862,16 +872,16 @@ function(zen_law_cited_cases rel text out)
     set(${out} "${found}" PARENT_SCOPE)
 endfunction()
 
-# The WL, MW and VM ids a C/C++ file's comments name, in order, once every `/*` that opens no
-# block is unmade. A `//` inside a string literal is read as a comment start, so this reads more
-# comment than there is, never less.
+# The law and method ids (ZEN_LAW_CITED_RE) a C/C++ file's comments name, in order, once every
+# `/*` that opens no block is unmade. A `//` inside a string literal is read as a comment start,
+# so this reads more comment than there is, never less.
 function(zen_law_comment_ids content out)
     set(ids "")
-    if(content MATCHES "(WL|MW|VM)-[A-Z]+-[0-9]")
+    if(content MATCHES "${ZEN_LAW_CITED_RE}-[A-Z]+-[0-9]")
         zen_law_unmake_open_markers("${content}" content)
         string(REGEX MATCHALL "/\\*([^*]|\\*+[^*/])*\\*+/|//[^\n]*" comments "${content}")
         foreach(comment IN LISTS comments)
-            string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(WL|MW|VM)-[A-Z]+-[0-9]+" hits "${comment}")
+            string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])${ZEN_LAW_CITED_RE}-[A-Z]+-[0-9]+" hits "${comment}")
             foreach(hit IN LISTS hits)
                 string(REGEX REPLACE "^[^A-Z]" "" hit "${hit}")
                 list(APPEND ids "${hit}")
@@ -883,7 +893,7 @@ endfunction()
 
 # The law ids a document names anywhere in its text, bounded as a comment's are.
 function(zen_law_text_ids text out)
-    string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(WL|MW|VM)-[A-Z]+-[0-9]+" hits "${text}")
+    string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])${ZEN_LAW_CITED_RE}-[A-Z]+-[0-9]+" hits "${text}")
     set(ids "")
     foreach(hit IN LISTS hits)
         string(REGEX REPLACE "^[^A-Z]" "" hit "${hit}")
@@ -1396,7 +1406,7 @@ zen_law_pointer_names("LayoutTabPress::create" create function "WorkshopDoc" "ze
 zen_law_pointer_names("LayoutTabPress::create" create variable "" "zengine::workshop::LayoutTabPress" over_member)
 zen_law_pointer_names("LayoutTabPress::create" create function "int64_t" "zengine::workshop::LayoutTabPress" over_outofline)
 zen_law_pointer_names("create" create function "WorkshopDoc" "zengine::workshop" bare_free)
-zen_law_pointer_names("detail::fit" fit function "string" "zengine::workshop::detail" ns_inside)
+zen_law_pointer_names("detail::fit" fit function "string" "zengine::pane::detail" ns_inside)
 zen_law_pointer_names("detail::fit" fit function "string" "zengine::workshop" ns_outside)
 zen_law_pointer_names("Session::normal_w" Session scope "" "zengine::workshop" scope_named)
 zen_law_pointer_names("on(WindowOffered)" on function "WindowOffered" "zengine::workshop::WorkshopWeave" overload)

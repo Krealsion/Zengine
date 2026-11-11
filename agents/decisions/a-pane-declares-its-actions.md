@@ -49,4 +49,5 @@ pane's declared rows are bounded (`kMaxPaneActionRows`) and its ids may not be W
 so one authored row never names two things. "No shape in which a provider says it wants keys"
 stands: declaring rows points no keyboard and holds none.
 
-**Laws supported.** [WL-KEY-15](../workshop/keyboard.md).
+**Laws supported.** [WL-KEY-15](../workshop/keyboard.md),
+[PANE-SEAM-04](../pane-contract/seam.md).

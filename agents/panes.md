@@ -1,9 +1,11 @@
 # Agent law — The pane seam and the tools that arrive through it
 
 Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching the external pane
-protocol, `introspection/` or `composer/` — what crosses the Workshop↔provider seam, and the
-shipped tools that live entirely on the far side of it. Workshop's own screen and routing law
-is [`workshop.md`](workshop.md); public reference:
+protocol, `introspection/` or `composer/` — what crosses the seam between Workshop and a pane, told
+from both sides, and the shipped tools that live entirely on the far side of it. The contract's own
+law, what a pane and any host owe each other, is the register
+[`pane-contract.md`](pane-contract.md) routes (`PANE-SEAM`); Workshop's own screen and routing
+law is [`workshop.md`](workshop.md); public reference:
 [`workshop/docs/workshop-panes.md`](../workshop/docs/workshop-panes.md) and
 [`introspection/docs/zengine.introspection.md`](../introspection/docs/zengine.introspection.md).
 

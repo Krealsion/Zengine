@@ -30,6 +30,7 @@ manual            library
 message-draft     library
 notices           feature
 operator          library
+pane              library
 persist           library
 property          library
 quarry            quarry

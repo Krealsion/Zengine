@@ -81,4 +81,5 @@ shipped one both from a plan row and by a live reload that keeps the open menu. 
 presented menu is landed by the window in the presenter's area, one area a menu, and no window
 showing the desk means no menu.
 
-**Laws supported.** [WL-CTX-10](../workshop/pane-menu.md).
+**Laws supported.** [WL-CTX-10](../workshop/pane-menu.md),
+[PANE-SEAM-05](../pane-contract/seam.md).
