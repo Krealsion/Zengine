@@ -4163,17 +4163,34 @@ TEST_CASE("Files' places are a section of the pane: shut at first and saying how
     CHECK(f.row()->latest.rows == 9);
 
     // THE HEADER PRESSED: the pane commits its own word, the owner hands the row back, and the
-    // places show -- the origin first, and why each is known.
+    // places show -- the origin first, and why each is known -- as many as the room holds. A
+    // machine's filesystem roots are its own, so the case reads the cut the pane made: the places
+    // it could not hold are counted on the section's last row, and a section that cuts has taken
+    // every row but the one it leaves the listing.
     press_pane(f.r, f.kind, at, 0);
     rows = f.shown();
     INFO("opened\n", picture(rows));
     CHECK(rows[1] == "- places");
     CHECK(places_kept(f) == std::optional<bool>(true));
-    REQUIRE(rows.size() > 2 + held);
-    CHECK(rows[2].rfind("    ", 0) == 0);
+    const std::int64_t listing = row_beginning(rows, "> alpha/");
+    REQUIRE(listing > 3);
+    const std::size_t section = static_cast<std::size_t>(listing - 2);
+    REQUIRE(section <= held);
+    const bool cut = section < held;
+    const std::size_t shown = cut ? section - 1 : section;
+    REQUIRE(shown >= 2);
+    for (std::size_t i = 0; i < shown; ++i) {
+        CHECK(rows[2 + i].rfind("    ", 0) == 0);
+    }
     CHECK(rows[2].find("origin") != std::string::npos);
     CHECK(rows[3].find("filesystem root") != std::string::npos);
-    CHECK(row_beginning(rows, "> alpha/") == static_cast<std::int64_t>(2 + held));
+    if (cut) {
+        CHECK(rows[2 + shown] ==
+              "  " + zengine::workshop::pane_text::omitted_text(held - shown, "more"));
+        REQUIRE(rows.size() > static_cast<std::size_t>(listing) + 1);
+        CHECK(rows[static_cast<std::size_t>(listing) + 1].rfind("[menu]", 0) == 0);
+        CHECK(static_cast<std::int64_t>(rows.size()) == f.granted_rows());
+    }
     // ...AND THE PANE OFFERS AGAIN, a row a place more, so a pane sized `fit` follows.
     CHECK(f.row()->latest.rows == 9 + static_cast<std::int64_t>(held));
     // ...AND A RELOAD IN PLACE IS HANDED THE ROW AGAIN, the places open in it.
