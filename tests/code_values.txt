@@ -52,6 +52,8 @@ workshop_formats.SETUP_VERSION   external-host/tools/workshop/workshop_formats.p
 workshop_formats.SESSION_VERSION external-host/tools/workshop/workshop_formats.py  SESSION_VERSION
 guests::kGuestsFileVersion      workshop/guests.hpp                       kGuestsFileVersion
 workshop_formats.GUESTS_VERSION  external-host/tools/workshop/workshop_formats.py  GUESTS_VERSION
+# ...and a demo setup's own description, `setup.json`, which the tool package alone reads.
+setups.VERSION                  external-host/tools/workshop/setups.py            VERSION
 # The desk said whole: Loom's decode budget as Workshop restates it, a reply's bytes, the
 # desk-read rate, and the reader's own bounds on what it writes.
 kDecodedCellBudget              workshop/decoded_cells.hpp                kDecodedCellBudget

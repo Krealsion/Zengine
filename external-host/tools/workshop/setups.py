@@ -17,11 +17,15 @@ import unicodedata
 
 import workshop_formats as formats
 
-FORMAT, VERSION = "zengine-setup", "1"
+FORMAT = "zengine-setup"
+# The version this module reads, the only one: a description of another version is refused
+# by its number before a field is read. Written into `format_version` as a string.
+VERSION = 2
 HERE = Path(__file__).resolve().parent
 COLLECTION = HERE / "setups"
 POWERS = ("input", "capture", "inspect", "inventory", "toolbox", "demo", "open", "build")
 MEDIA = ("gui", "tui")
+MEDIUM_FIELDS = ("supports", "viewport")
 VIEW_KINDS = ("row", "column", "single")
 # The panes whose owners implement PaneResetRequested (workshop/setup_control.hpp).
 RESETTABLE = ("zengine.inventory-pane", "zengine.info", "zengine.composer")
@@ -291,8 +295,13 @@ class Setup:
     # ---- validation -------------------------------------------------------------------------------
     def problems(self):
         d, out = self.data, []
-        if d.get("format") != FORMAT or d.get("format_version") != VERSION:
-            out.append("format must be %r version %r" % (FORMAT, VERSION))
+        if d.get("format") != FORMAT:
+            return ["format must be %r; this file says %r" % (FORMAT, d.get("format"))]
+        if d.get("format_version") != str(VERSION):
+            return ["setup.json is %s version %s, and this launcher reads version %d alone: in "
+                    "version %d `medium.supports` names the GUI window `gui`, where version 1 named it "
+                    "after SDL. Write \"format_version\": \"%d\" and `gui` in its place"
+                    % (FORMAT, d.get("format_version"), VERSION, VERSION, VERSION)]
         for key in TEXT_FIELDS:
             if not isinstance(d.get(key), str) or not d[key].strip():
                 out.append("%s is required text" % key)
@@ -305,8 +314,10 @@ class Setup:
         view = medium.get("viewport")
         if not (isinstance(view, list) and len(view) == 2 and all(isinstance(v, int) for v in view)):
             out.append("medium.viewport is [columns, rows]")
-        if "skin" in medium:
-            out.append("medium.skin is retired: a setup's desk is shown in a window; drop the field")
+        others = sorted(set(medium) - set(MEDIUM_FIELDS))
+        if others:
+            out.append("medium holds %s alone; drop %s"
+                       % (" and ".join(MEDIUM_FIELDS), ", ".join(others)))
         may = (d.get("authority") or {}).get("may", [])
         unknown = [p for p in may if p not in POWERS]
         if unknown:

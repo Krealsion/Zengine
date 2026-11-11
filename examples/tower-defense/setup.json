@@ -1,6 +1,6 @@
 {
  "format": "zengine-setup",
- "format_version": "1",
+ "format_version": "2",
  "title": "Tower defense development desk",
  "summary": "The tower defense example built, loaded and on a desk with its source, Builder, toolbox row and Alt+1..Alt+5 game keys.",
  "task": "Play, change and rebuild the tower defense game, and watch it under its monitor.",

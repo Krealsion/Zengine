@@ -288,12 +288,13 @@ the package's `setups/`, so a setup's name is one setup across all of them. `--s
 directory holding `setup.json`. [`workbench`](../../external-host/tools/workshop/setups/workbench/setup.json)
 and [`tower-defense`](../../examples/tower-defense/setup.json) are the two complete examples.
 
-`setup.json` (`format` `zengine-setup`, `format_version` `1`) says, for a reader: `title`,
-`summary`, `task`, `choose`, `prepares`, `guide`, `first_task` (`do`, `expect`), `variations`,
-`limits`, `reset` (`scope`, `keeps`); and for preparation:
+`setup.json` (`format` `zengine-setup`, `format_version`
+<!-- value setups.VERSION -->2<!-- /value -->; a file of another version is refused by its number
+before a field is read, naming what to change) says, for a reader: `title`, `summary`, `task`,
+`choose`, `prepares`, `guide`, `first_task` (`do`, `expect`), `variations`, `limits`, `reset`
+(`scope`, `keeps`); and for preparation:
 
-- `medium` -- the `supports` list (`gui`, `tui`) and the `viewport` in cells; a `skin` field is
-  refused, since no setup's desk is shown in a Skin;
+- `medium` -- the `supports` list (`gui`, `tui`) and the `viewport` in cells, and no other field;
 - `requires` -- extra `artifacts`, named `inputs` (such as `zengine_prefix`, a launcher flag) and
   `notes`;
 - `authority` -- the guest's `may` powers (always `demo`; `build` for a setup that builds) and

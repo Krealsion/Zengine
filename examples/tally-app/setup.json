@@ -1,6 +1,6 @@
 {
  "format": "zengine-setup",
- "format_version": "1",
+ "format_version": "2",
  "title": "The tally app",
  "summary": "The tally panel's view and flow in a project, Flow and the View Builder to open them, and Export app.",
  "task": "Open the tally panel in the View Builder and export it as an app that runs without Workshop.",
