@@ -12,6 +12,9 @@ its canary and green on a clean sample, in a folder of its own.
                 of `true` is clean
   first_start   a program that ends at once is red, and one that does not say what is expected
                 of it; one that stays up, loading only the system's libraries, is clean
+  release_number  a CMake package saying the series alone is red; on Linux, where a script is a
+                program, a host saying it is no package is red, one number everywhere is clean,
+                and a package asked for another number than its own is red
 Exit 0 when every judgement is the one expected, 1 otherwise.
 """
 import os
@@ -136,6 +139,46 @@ def main(argv):
                        "--seconds", "2", "--home", fresh(work, "home-silent"),
                        "--expect", "loaded: zengine-window-sdl", "--", *stay_args)
     expect("first_start: a program that does not say what is expected of it is red", code, 1, said)
+
+    # ---- release_number --------------------------------------------------------------------------
+    expect("release_number: an empty population is red", judge("release_number.py", empty, "0.2.7")[0],
+           2, "")
+    expect("release_number: a number that is no X.Y.N is red", judge("release_number.py", empty, "0.2")[0],
+           2, "")
+    said = fresh(work, "number-package")
+    for d in ("bin", "lib/cmake/zengine", "lib/cmake/loom"):
+        os.makedirs(os.path.join(said, *d.split("/")))
+
+    def says(rel, text):
+        with open(os.path.join(said, *rel.split("/")), "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        if rel.startswith("bin/"):
+            os.chmod(os.path.join(said, *rel.split("/")), 0o755)
+
+    says("lib/cmake/zengine/zengineConfigVersion.cmake", 'set(PACKAGE_VERSION "0.2.7")\n')
+    says("lib/cmake/loom/loomConfigVersion.cmake", 'set(PACKAGE_VERSION "0.2")\n')
+    says("BUILD-INFO.txt", "zengine        0.2.7\nzengine commit 0123\n")
+    says("README.txt", "Zengine 0.2.7 -- Workshop, ready to run\n")
+    code, out = judge("release_number.py", said, "0.2.7")
+    expect("release_number: a CMake package saying the series alone is red", code, 1, out)
+    if "WRONG  lib/cmake/loom/loomConfigVersion.cmake: says '0.2'" not in out:
+        failures.append("release_number names the file that says another number")
+        print("FAIL  release_number: the red does not name loomConfigVersion.cmake\n    " + out)
+    says("lib/cmake/loom/loomConfigVersion.cmake", 'set(PACKAGE_VERSION "0.2.7")\n')
+    if not NT:
+        # The programs, as scripts that answer --version: on Windows a program is an image, so the
+        # cases that start one are Linux's.
+        says("bin/zengine-workshop", "#!/bin/sh\necho 'zengine 0.2.7'\necho 'zengine commit 0123'\n")
+        says("bin/loom-host", "#!/bin/sh\necho 'loom-host 0.2, a build that is no package  (weave ABI v11)'\n")
+        code, out = judge("release_number.py", said, "0.2.7")
+        expect("release_number: a host that is no package, in a package, is red", code, 1, out)
+        says("bin/loom-host", "#!/bin/sh\necho 'loom-host 0.2.7  (weave ABI v11)'\n")
+        code, out = judge("release_number.py", said, "0.2.7")
+        expect("release_number: a package saying one number everywhere is clean", code, 0, out)
+        code, out = judge("release_number.py", said, "0.2.8")
+        expect("release_number: a package saying another number than its own is red", code, 1, out)
+    else:
+        print("skip  release_number's programs: a program is an image here")
 
     print("package judges: %d judgement(s) not as expected" % len(failures))
     return 1 if failures else 0
