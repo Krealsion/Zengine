@@ -30,7 +30,6 @@
 #include <vector>
 
 namespace pm = zengine::pane::pane_menu;
-namespace ws = zengine::workshop;
 namespace co = zengine::component;
 namespace gfx = zengine::graphics;
 

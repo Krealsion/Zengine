@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-namespace ws = zengine::workshop;
 
 namespace {
 

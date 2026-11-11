@@ -26,7 +26,6 @@
 #include <string>
 #include <vector>
 
-namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 
 namespace {
