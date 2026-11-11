@@ -1,6 +1,6 @@
 {
  "format": "zengine-setup",
- "format_version": "1",
+ "format_version": "2",
  "title": "Inspection workbench",
  "summary": "Inventory, Loaded, Compose and three Info views, filled with the workbench toolbox and an Alt+1 capture key.",
  "task": "Inspect a captured structure, finish a preset from it, keep a watched note, and take fresh captures with one key.",

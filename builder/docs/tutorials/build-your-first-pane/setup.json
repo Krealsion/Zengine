@@ -1,6 +1,6 @@
 {
  "format": "zengine-setup",
- "format_version": "1",
+ "format_version": "2",
  "title": "Build your first pane",
  "summary": "Files and the Builder over a project holding one source file, tally.cpp, and its recipe.",
  "task": "Build a small pane from one source file, put it in the project, and open it in Workshop.",

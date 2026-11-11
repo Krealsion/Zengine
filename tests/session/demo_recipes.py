@@ -227,9 +227,9 @@ def make(tmp, name="made", **fields):
                  ("zengine.inventory-pane", "inventory"), ("zengine.demo", "controls")]))]}}
     (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
     (root / "README.md").write_text("# guide\n", encoding="utf-8")
-    data = {"format": "zengine-setup", "format_version": "1", "title": "Made", "summary": "s",
-            "task": "t", "choose": "c", "guide": "README.md", "first_task": {"do": "d", "expect": "e"},
-            "medium": {"supports": ["gui"], "viewport": [120, 56]},
+    data = {"format": "zengine-setup", "format_version": str(described.VERSION), "title": "Made",
+            "summary": "s", "task": "t", "choose": "c", "guide": "README.md",
+            "first_task": {"do": "d", "expect": "e"}, "medium": {"supports": ["gui"], "viewport": [120, 56]},
             "authority": {"may": ["input", "capture", "inventory", "toolbox", "demo"]}, "desk": "desk.json"}
     data.update(fields)
     (root / "setup.json").write_text(json.dumps(data), encoding="utf-8")
@@ -495,6 +495,31 @@ class Recipes(unittest.TestCase):
         for words in ("unknown power", "must include demo", "relative path", "share one chord",
                       "needs the toolbox power"):
             self.assertIn(words, said)
+
+    def test_a_setup_of_another_version_is_refused_by_its_number_alone(self):
+        # Every field after the version is wrong too: none of them is read.
+        make(self.tmp, "older", format_version="1", title="", medium={"supports": [], "viewport": "x"})
+        with self.assertRaises(described.SetupError) as refused:
+            described.Setup(Path(self.tmp) / "older")
+        said = str(refused.exception)
+        self.assertEqual(said.count("\n  - "), 1, said)
+        for words in ("zengine-setup version 1", "reads version %d alone" % described.VERSION,
+                      "`medium.supports` names the GUI window `gui`",
+                      'Write "format_version": "%d"' % described.VERSION):
+            self.assertIn(words, said)
+        make(self.tmp, "unversioned", format_version=None)
+        with self.assertRaisesRegex(described.SetupError, "version None, and this launcher reads"):
+            described.Setup(Path(self.tmp) / "unversioned")
+        make(self.tmp, "other", format="zengine-workshop-setup")
+        with self.assertRaisesRegex(described.SetupError, "format must be 'zengine-setup'; this file "
+                                    "says 'zengine-workshop-setup'"):
+            described.Setup(Path(self.tmp) / "other")
+
+    def test_a_medium_holds_its_two_fields_alone(self):
+        make(self.tmp, "wider", medium={"supports": ["gui"], "viewport": [120, 56], "skin": "night"})
+        with self.assertRaisesRegex(described.SetupError, "medium holds supports and viewport alone; "
+                                    "drop skin"):
+            described.Setup(Path(self.tmp) / "wider")
 
     def test_loading_or_describing_a_setup_asks_nothing(self):
         owner = Owner()
