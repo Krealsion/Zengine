@@ -225,14 +225,35 @@ jobs:
         run: |
           set -eu
           export DEBIAN_FRONTEND=noninteractive
+          # An update refuses unless every index arrived. apt keeps a suite only when all its
+          # indexes came, and on a fetch that fails it warns, leaves that suite out whole and exits
+          # 0: the build set then resolves against the release's own versions, which cannot sit
+          # beside the image's newer libraries, and the install fails as "unmet dependencies",
+          # naming no archive. So a failed fetch is an error (--error-on=any), the update is tried
+          # again after a pause, and the last refusal names the archive that did not answer. The
+          # dated archive is what makes two builds the same, so nothing falls back to the live one.
+          update() { # <the archive's hosts> <what was asked of them>
+            tries=1 started=$(date +%s)
+            for pause in 30 60 120; do
+              if apt-get update --error-on=any; then return 0; fi
+              echo "The update could not fetch every index from $1; trying again in $pause s."
+              sleep "$pause"
+              tries=$((tries + 1))
+            done
+            if apt-get update --error-on=any; then return 0; fi
+            echo "::error title=$1 did not answer whole::apt-get update could not fetch every" \
+              "index of $2 from $1, in $tries tries over $((($(date +%s) - started) / 60)) min:" \
+              "the archive's service failed, not the change. Re-run this job once $1 answers."
+            return 1
+          }
           # The snapshot service speaks HTTPS, and the bare image holds no certificates to check it
           # with: those alone come from the image's own sources first.
-          apt-get update
+          update "archive.ubuntu.com and security.ubuntu.com" "the image's own sources"
           apt-get install -y --no-install-recommends ca-certificates
           for suite in jammy jammy-updates jammy-security; do
             echo "deb [check-valid-until=no] https://snapshot.ubuntu.com/ubuntu/$APT_SNAPSHOT $suite main universe"
           done > /etc/apt/sources.list
-          apt-get update
+          update snapshot.ubuntu.com "the dated archive $APT_SNAPSHOT"
           apt-get install -y --no-install-recommends \
             git g++ cmake ninja-build python3 pkg-config file binutils \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
