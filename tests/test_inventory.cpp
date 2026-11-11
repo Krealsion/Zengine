@@ -587,8 +587,13 @@ TEST_CASE("weave: nested payload and metadata survive source mutation and destru
     auto metadata = make_sample(8, "metadata before", {"m"});
     const auto pair = as_bytes(inv::encode_pair(item, {metadata}));
     r.set(pair);
-    item.get("child")->as_message()->set("note", loom::Cell::text("item after"));
-    metadata.get("child")->as_message()->set("note", loom::Cell::text("metadata after"));
+    const auto renote = [](loom::Value& value, const char* note) {
+        loom::Value child = *value.get("child")->as_message();
+        child.set("note", loom::Cell::text(note));
+        value.set("child", loom::Cell::message(std::move(child)));
+    };
+    renote(item, "item after");
+    renote(metadata, "metadata after");
     item = loom::Value(sample_schema());
     metadata = loom::Value(sample_schema()); // release the original nested source objects
     r.get();
@@ -596,7 +601,8 @@ TEST_CASE("weave: nested payload and metadata survive source mutation and destru
     auto decoded = inv::decode_pair(std::string(returned.begin(), returned.end()));
     CHECK(decoded.item.get("child")->as_message()->get("note")->as_text() == "item before");
     CHECK(decoded.metadata.front().get("child")->as_message()->get("note")->as_text() == "metadata before");
-    decoded.metadata.front().get("child")->as_message()->set("note", loom::Cell::text("receiver edit"));
+    renote(decoded.metadata.front(), "receiver edit");
+    CHECK(decoded.metadata.front().get("child")->as_message()->get("note")->as_text() == "receiver edit");
     r.get();
     CHECK(r.caller->states.back().pair == pair);
 }

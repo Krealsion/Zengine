@@ -1379,7 +1379,7 @@ TEST_CASE("depth is bounded and the cut says so") {
         up.set("under", std::move(held));
         held = loom::Cell::message(std::move(up));
     }
-    const std::shared_ptr<loom::Value>& top = held.as_message();
+    const auto& top = held.as_message();
     REQUIRE(top != nullptr);
 
     const std::vector<std::string> lines = render_value(*top);
