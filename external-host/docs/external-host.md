@@ -777,9 +777,10 @@ at once), drives `workshop-machine/nvim-edit` against a real Neovim.
 }
 ```
 
+<!-- value ZENGINE_SERIES in "loom-host {}" -->
 ```text
 $ loom-host
-loom-host 0.1.0   containment: ...
+loom-host 0.2   containment: ...
   history: durable stream probe-run.log
   link workshop -> 127.0.0.1:7654: admitted as 'agent' (session 20; role loom.link.workshop, weave 5)
   refused  probe
