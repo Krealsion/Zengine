@@ -55,8 +55,12 @@ QuitDeliveryWatch::QuitDeliveryWatch(loom::Switchboard& bus, loom::WeaveId works
         // as Loom treats its own refusal notice: an allocation failure here must not replace the
         // evidence the delivery produced, and a lost entry leaves the quit waiting.
         try {
-            book.note(UndeliveredQuit{ev.correlation, ev.target, bus.role_of(ev.target),
-                                      ev.refusal.reason});
+            std::vector<std::string> roles;
+            for (const std::string& role : bus.roles_of(ev.target)) {
+                roles.push_back(role);
+            }
+            book.note(
+                UndeliveredQuit{ev.correlation, ev.target, std::move(roles), ev.refusal.reason});
             (void)bus.send(workshop, loom::Message(loom::to_value(QuitDeliveryRefusalNoted{}),
                                                    loom::WeaveId{}, loom::WeaveId{}, 0));
         } catch (const std::bad_alloc&) {
@@ -70,7 +74,11 @@ QuitDeliveryWatch::~QuitDeliveryWatch() { bus_.remove_observer(tap_); }
 // WL-SESSION-19 -- agents/workshop/session.md
 std::string undelivered_quit_words(const UndeliveredQuit& one) {
     const std::string weave = "weave " + std::to_string(one.participant.value);
-    return (one.role.empty() ? weave : one.role + " (" + weave + ")") + " -- " +
+    std::string roles;
+    for (const std::string& role : one.roles) {
+        roles += (roles.empty() ? "" : "+") + role;
+    }
+    return (roles.empty() ? weave : roles + " (" + weave + ")") + " -- " +
            refusal_meaning(one.reason) + " (" + loom::name_of(one.reason) + ")";
 }
 

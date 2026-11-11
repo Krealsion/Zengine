@@ -8,6 +8,7 @@
 // handoff reaches `create()`; evaluation costs no bus turns; unload and reload rebind; changing
 // the host's truth moves the consumer; and five failures get five answers.
 
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "operator/catalog.hpp"
@@ -143,7 +144,7 @@ struct HostRig {
         const loom::WeaveId booter =
             loom::mount_granted<Booter>(bus, std::move(reach), loaded, refusals);
         bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), booter,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), booter,
                                   booter, 0));
         bus.drain_until_idle();
         if (loaded.size() <= before) {
@@ -166,7 +167,7 @@ struct HostRig {
         const loom::WeaveId booter =
             loom::mount_granted<Booter>(bus, std::move(reach), loaded, refusals);
         bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, ""}), booter,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, {}}), booter,
                                   booter, 0));
         bus.drain_until_idle();
         if (loaded.size() <= before) {

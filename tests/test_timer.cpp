@@ -10,6 +10,7 @@
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "weavelib/virtual_step.hpp" // the suites' virtual beat
@@ -627,7 +628,7 @@ struct Rig {
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(witness, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), witness,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), witness,
                                   witness, corr));
         // Bounded either way: drains when no clock exists yet, and stops after a
         // few beats when loading the timer itself has just started one.
@@ -3394,7 +3395,7 @@ TEST_CASE("direct load: a Timer loaded straight through the control door, with N
     const std::uint64_t corr = 1;
     bus.send_as(witness, control,
                 loom::Message(loom::to_value(loom::LoadLibrary{"zengine-timer-virtual",
-                                                               TIMER_VIRTUAL_SO, kTimerRole}),
+                                                               TIMER_VIRTUAL_SO, {kTimerRole}}),
                               witness, witness, corr));
     pump_beats(6);
 
@@ -3991,8 +3992,8 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
     CHECK(k.r.bus.sealed(k.incumbent));
     CHECK_FALSE(k.r.bus.sealed(candidate));
-    CHECK(k.r.kernel.role_of("zengine-timer-v2") == kTimerRole);
-    CHECK(k.r.kernel.role_of("zengine-timer-v1").empty());
+    CHECK(k.r.kernel.roles_of("zengine-timer-v2") == std::vector<std::string>{kTimerRole});
+    CHECK(k.r.kernel.roles_of("zengine-timer-v1").empty());
 
     // EXACTLY TWO SECONDS REMAINED AT THE BOUNDARY, read off the letter the retired incumbent
     // wrote, decoded through the real gate. It is also a positive control: the successor's claim
@@ -4616,7 +4617,7 @@ TEST_CASE("keystone: retirement is private and finite — the old artifact unloa
     // reconciling them: the retiring artifact is SEALED, the new one is LIVE.
     CHECK(k.r.kernel.status("zengine-timer-v1") == loom::ArtifactStatus::Sealed);
     CHECK(k.r.kernel.status("zengine-timer-v2") == loom::ArtifactStatus::Live);
-    CHECK(k.r.kernel.role_of("zengine-timer-v2") == kTimerRole);
+    CHECK(k.r.kernel.roles_of("zengine-timer-v2") == std::vector<std::string>{kTimerRole});
 
     // RETIREMENT PUBLISHED NOTHING. The only thing the old service said after
     // the boundary was its letter, to its coordinator — no availability notice,

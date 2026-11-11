@@ -698,7 +698,7 @@ TEST_CASE("weave: a reference held across an in-place reload still reads and wri
         return booter->said.back();
     };
     const std::string loaded =
-        boot(loom::LoadWeave{"inventory", INVENTORY_SO, inv::kInventoryRole});
+        boot(loom::LoadWeave{"inventory", INVENTORY_SO, {inv::kInventoryRole}});
     REQUIRE_MESSAGE(loaded.rfind("refused", 0) != 0, loaded);
 
     const auto pair = as_bytes(inv::encode_pair(make_sample(7, "kept", {"a"}), {}));

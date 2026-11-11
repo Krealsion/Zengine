@@ -1738,7 +1738,7 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
     t.r.bus.send_as(booter, t.r.manager,
                     loom::Message(loom::to_value(loom::LoadWeave{"zengine-menu-presenter",
                                                                  WORKSHOP_SO_MENU_PRESENTER,
-                                                                 kPresenterRole}),
+                                                                 {kPresenterRole}}),
                                   booter, booter, 0));
     const CellRect hello = t.hello_body();
     {
@@ -2020,7 +2020,7 @@ void enqueue_presenter_load(PaneRig& r, const char* image) {
         loom::mount_granted<Booter>(r.bus, std::move(reach), r.loaded, r.load_refusals);
     r.bus.send_as(booter, r.manager,
                   loom::Message(loom::to_value(loom::LoadWeave{"zengine-menu-presenter", image,
-                                                               kPresenterRole}),
+                                                               {kPresenterRole}}),
                                 booter, booter, 0));
 }
 

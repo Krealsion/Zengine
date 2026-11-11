@@ -283,7 +283,7 @@ private:
 
     void load_score(loom::Mail& mail) {
         command(mail, "load score weave (late)", kScoreLoaded,
-                loom::LoadWeave{"snake-score", ctx_->so("snake-score"), kScoreRole});
+                loom::LoadWeave{"snake-score", ctx_->so("snake-score"), {kScoreRole}});
     }
 
     void grow_world(loom::Mail& mail) {
@@ -304,7 +304,7 @@ private:
     void fly_or_land(loom::Mail& mail) {
         if (!ctx_->pilot_flying) {
             command(mail, "fly the pilot", kPilotFlown,
-                    loom::LoadWeave{"snake-pilot", ctx_->so("snake-pilot"), kPilotRole});
+                    loom::LoadWeave{"snake-pilot", ctx_->so("snake-pilot"), {kPilotRole}});
             return;
         }
         const std::string label = "land the pilot";
@@ -615,17 +615,17 @@ int main(int argc, char** argv) {
     // birth, and the timer service, whose loading is what starts time: every weave arranges its
     // own beat on its own activation, so the pilot hears the first game from its first step.
     boot("load directory", loom::LoadWeave{"zengine-graphics", ctx.so("zengine-graphics"),
-                                           gfx::kGraphicsRole});
+                                           {gfx::kGraphicsRole}});
     boot("load TUI window", loom::LoadWeave{"zengine-window-tui",
-                                                 ctx.so("zengine-window-tui"), kWindowRole});
-    boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), kWorldRole},
+                                                 ctx.so("zengine-window-tui"), {kWindowRole}});
+    boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), {kWorldRole}},
          kWorldLoaded);
     if (fly_at_birth) {
         boot("fly the pilot",
-             loom::LoadWeave{"snake-pilot", ctx.so("snake-pilot"), kPilotRole}, kPilotFlown);
+             loom::LoadWeave{"snake-pilot", ctx.so("snake-pilot"), {kPilotRole}}, kPilotFlown);
     }
     boot("load timer service",
-         loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
+         loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), {timer::kTimerRole}});
 
     // The whole game runs in this loop: a turn, then one wait on the window's terminal for as long
     // as the Timer's beat allows. A turn that leaves nothing queued means nothing here will ever

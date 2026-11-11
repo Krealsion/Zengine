@@ -3387,7 +3387,7 @@ TEST_CASE("a turn that delivers nothing does not mean no answer is coming") {
 
     bus.send_as(booter, slow,
                 loom::Message(loom::to_value(
-                                  loom::LoadWeave{"unanswered", "unanswered", "test.unanswered"}),
+                                  loom::LoadWeave{"unanswered", "unanswered", {"test.unanswered"}}),
                               booter, booter, first));
 
     // THE WAIT THE PRODUCTION EXECUTOR SPELLS: bounded turns, with the CONVERSATION as the
@@ -3451,7 +3451,7 @@ TEST_CASE("an answer from the weave that WAS asked, about another conversation, 
     const std::uint64_t mine = answers.ask(slow);
     bus.send_as(booter, slow,
                 loom::Message(loom::to_value(
-                                  loom::LoadWeave{"unanswered", "unanswered", "test.unanswered"}),
+                                  loom::LoadWeave{"unanswered", "unanswered", {"test.unanswered"}}),
                               booter, booter, mine));
     for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
         bus.pump_pending();
@@ -3650,7 +3650,7 @@ TEST_CASE("a late answer to a forgotten load settles nothing -- including the NE
     // ---- ASK A, DEFERRED, THEN LOCALLY FORGOTTEN --------------------------------
     const std::uint64_t a = answers.ask(slow);
     bus.send_as(booter, slow,
-                loom::Message(loom::to_value(loom::LoadWeave{"A", "A", "test.a"}), booter,
+                loom::Message(loom::to_value(loom::LoadWeave{"A", "A", {"test.a"}}), booter,
                               booter, a));
     for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
         bus.pump_pending();
@@ -3816,7 +3816,7 @@ TEST_CASE("dropping a load conversation is local, and claims nothing of the far 
     const std::uint64_t mine = answers.ask(slow);
     bus.send_as(booter, slow,
                 loom::Message(loom::to_value(
-                                  loom::LoadWeave{"unanswered", "unanswered", "test.unanswered"}),
+                                  loom::LoadWeave{"unanswered", "unanswered", {"test.unanswered"}}),
                               booter, booter, mine));
     for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
         bus.pump_pending();

@@ -397,11 +397,11 @@ std::int64_t compose_at_notes(InventoryStory& s, const char* role = kNotesRole) 
     auto selector = std::make_unique<InventoryHand>();
     InventoryHand* raw = selector.get();
     loom::Grant grant;
-    grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+    grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
     const loom::WeaveId id = r.bus.register_weave(std::move(selector), grant, kIntroRole);
     raw->zen_set_self(id);
     raw->next = [role](loom::Mail& m) {
-        m.as_role(kIntroRole).publish(intro::LoadedSelected{"loaded", "a-guest-notes", role});
+        m.as_role(kIntroRole).publish(intro::LoadedSelected{"loaded", "a-guest-notes", zengine::testing::role_set(role)});
     };
     r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{})));
     r.bus.drain_until_idle();

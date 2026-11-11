@@ -147,8 +147,11 @@ private:
     }
 
     std::string who(loom::WeaveId id) const {
-        const std::string role = bus_->role_of(id);
-        return role.empty() ? "weave " + std::to_string(id.value) : role;
+        std::string roles; // `r1+r2`, as the Manager's list spells a weave's roles
+        for (const std::string& role : bus_->roles_of(id)) {
+            roles += (roles.empty() ? "" : "+") + role;
+        }
+        return roles.empty() ? "weave " + std::to_string(id.value) : roles;
     }
 
     /// The kind of input this delivery is, or empty: a release, a move and everything else are not.

@@ -6,6 +6,7 @@
 // scoped observation lease a watch spends; Sample Source; and the bounded view lifecycle.
 // agents/inventory.md owns the law; info/docs/zengine.info.md is the reference.
 
+#include "role_set.hpp"
 #include "census.hpp"
 #include "inventory_story.hpp"
 #include "info/vocabulary.hpp"
@@ -1670,10 +1671,10 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     const auto compose = r.session().panes.runtime.find(kComposerRole, "compose")->kind;
     s.place(kComposerRole, "compose", 85, 4, 80, 24);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
-    loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+    loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, intro::LoadedSelected::zen_version);
     const auto id = r.bus.register_weave(std::move(selector), grant, kIntroRole); raw->zen_set_self(id);
     raw->next = [](loom::Mail& m) { m.as_role(kIntroRole).publish(
-        intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+        intro::LoadedSelected{"loaded", "zengine-inventory", {inv::kInventoryRole}}); };
     r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{}))); r.bus.drain_until_idle();
     const auto row = s.where(s.source, "Capture preset").first;
     s.drag_between(s.source, {row, 2}, compose, {0, 2});
@@ -2138,7 +2139,10 @@ loom::WeaveId unload_then_load(PaneRig& r, const char* name, const char* path, c
     r.bus.drain_until_idle();
     between();
     const std::size_t before = r.loaded.size();
-    r.bus.send_as(seat, r.manager, loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), seat, seat, 0));
+    r.bus.send_as(seat, r.manager,
+                  loom::Message(loom::to_value(loom::LoadWeave{name, path,
+                                                               zengine::testing::role_set(role)}),
+                                seat, seat, 0));
     r.bus.drain_until_idle();
     return r.loaded.size() > before ? loom::WeaveId{static_cast<std::uint64_t>(std::stoll(r.loaded.back()))}
                                     : loom::WeaveId{};

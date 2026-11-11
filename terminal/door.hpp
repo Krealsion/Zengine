@@ -30,7 +30,7 @@
 namespace zengine::workshop {
 
 /// The host's answer to `destinations`, read off `bus` at the call: every weave that is not a
-/// sealed candidate, its role, accepted shapes and liveness, and `self` marked. A reading, not a
+/// sealed candidate, its roles, accepted shapes and liveness, and `self` marked. A reading, not a
 /// registry.
 // WL-TERM-16 -- agents/workshop/terminal.md
 inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self) {
@@ -41,7 +41,7 @@ inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, l
         }
         Destination d;
         d.id = id.value;
-        d.role = bus.role_of(id);
+        d.roles = bus.roles_of(id);
         d.alive = bus.alive(id);
         d.self = self.valid() && id == self;
         for (const std::shared_ptr<const loom::Schema>& door : bus.accepted_schemas(id)) {

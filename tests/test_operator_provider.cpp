@@ -8,6 +8,7 @@
 // compositions, the chain, residency, refusals, one store, the real Timer, custody, and the host
 // and the plan executor read as source files.
 
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "restamp.hpp"
@@ -836,7 +837,7 @@ struct LiveRig : ProviderRig {
         {
             op::OperatorOffer offering(operators, path);
             bus.send_as(witness, manager,
-                        loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), witness,
+                        loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), witness,
                                       witness, 0));
             drain_until([&] {
                 return heard.results.size() > ok_before || heard.refusals.size() > no_before;
@@ -935,7 +936,7 @@ TEST_CASE("a fallback Timer does NOT move, which is what makes the two rows abov
     const std::size_t ok_before = r.heard.results.size();
     r.bus.send_as(r.witness, r.manager,
                   loom::Message(loom::to_value(loom::LoadWeave{"zengine-timer", TIMER_SO,
-                                                               tmr::kTimerRole}),
+                                                               {tmr::kTimerRole}}),
                                 r.witness, r.witness, 0));
     r.drain_until([&] { return r.heard.results.size() > ok_before; });
     REQUIRE(r.heard.results.size() > ok_before);

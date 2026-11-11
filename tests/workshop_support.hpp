@@ -11,6 +11,7 @@
 // `static` keeps one a suite does not use silent under -Wunused-function. It includes doctest.h
 // because the fixtures assert.
 
+#include "role_set.hpp"
 #include "doctest.h"
 #include "control_parts.hpp"
 #include "rig_windows.hpp"
@@ -156,7 +157,12 @@ private:
         if (ev.kind != loom::EventKind::Delivered || ev.payload == nullptr) return;
         const std::string_view prefix = gfx::kWindowRolePrefix;
         if (ev.schema_name == gfx::Drawn::zen_name) {
-            if (bus_.role_of(ev.target).rfind(prefix, 0) != 0) return;
+            const std::vector<std::string> held = bus_.roles_of(ev.target);
+            if (std::none_of(held.begin(), held.end(), [&prefix](const std::string& r) {
+                    return r.rfind(prefix, 0) == 0;
+                })) {
+                return;
+            }
             const gfx::Drawn d = loom::from_value<gfx::Drawn>(*ev.payload);
             zengine::graphics::window::WinArea& a = areas_[d.area];
             a.area = d.area;
@@ -3701,14 +3707,17 @@ struct PaneRig {
 #endif
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
+        return load(name, path, zengine::testing::role_set(role));
+    }
+    loom::WeaveId load(const char* name, const char* path, std::vector<std::string> roles) {
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
         const std::size_t before = loaded.size();
         const loom::WeaveId booter =
             loom::mount_granted<Booter>(bus, std::move(reach), loaded, load_refusals);
         bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), booter,
-                                  booter, 0));
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::move(roles)}),
+                                  booter, booter, 0));
         bus.drain_until_idle();
         if (loaded.size() <= before) {
             return loom::WeaveId{};
@@ -4600,7 +4609,7 @@ inline bool any_row(const std::vector<std::string>& rows, const std::string& nee
 inline std::vector<intro::LoadedWeave> loaded_population(std::size_t n) {
     std::vector<intro::LoadedWeave> out;
     for (std::size_t i = 0; i < n; ++i) {
-        out.push_back(intro::LoadedWeave{"weave-" + std::to_string(i), "role." + std::to_string(i)});
+        out.push_back(intro::LoadedWeave{"weave-" + std::to_string(i), {"role." + std::to_string(i)}});
     }
     return out;
 }

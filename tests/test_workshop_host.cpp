@@ -161,9 +161,9 @@ TEST_CASE("with the bus read the address offers everyone then each role held now
     // so a weaver chooses `#7` because it is the timer's role and not because 7 looked right.
     loom::TerminalSession me("t", workshop_vocab());
     const std::vector<Destination> reachable{
-        Destination{7, "zengine.timer", {"TimerRequested", "TimerCancelled", "Drive", "Hello"}, true, false},
-        Destination{3, "", {"Ack", "Refused"}, true, true},
-        Destination{12, "zengine.test.board", {"RigNote"}, false, false},
+        Destination{7, {"zengine.timer"}, {"TimerRequested", "TimerCancelled", "Drive", "Hello"}, true, false},
+        Destination{3, {}, {"Ack", "Refused"}, true, true},
+        Destination{12, {"zengine.test.board"}, {"RigNote"}, false, false},
     };
     const Completion at = complete_line(me, "send ", &reachable);
     CHECK(displays(at) == std::vector<std::string>{"*", "@zengine.test.board", "@zengine.timer", "#3", "#7",
@@ -193,6 +193,24 @@ TEST_CASE("with the bus read the address offers everyone then each role held now
     // AN EMPTY BUS IS STILL A READING: everyone, and nothing else.
     const std::vector<Destination> none;
     CHECK(displays(complete_line(me, "send ", &none)) == std::vector<std::string>{"*"});
+}
+
+TEST_CASE("a destination holding several roles is offered as each of them, in role order") {
+    // EVERY ROLE IS AN ADDRESS OF ITS OWN: a weave Loom bound to two roles is reached by either,
+    // so each is offered, sorted among the others' roles, and its row says both.
+    loom::TerminalSession me("t", workshop_vocab());
+    const std::vector<Destination> reachable{
+        Destination{9, {"zengine.two", "zengine.one"}, {"Hello"}, true, false},
+        Destination{4, {"zengine.mid"}, {"Hello"}, true, false},
+    };
+    const Completion at = complete_line(me, "send ", &reachable);
+    CHECK(displays(at) == std::vector<std::string>{"*", "@zengine.mid", "@zengine.one", "@zengine.two",
+                                                   "#4", "#9"});
+    CHECK(at.candidates[2].detail == "held by #9 now; reaches whoever holds it when sent");
+    CHECK(at.candidates[3].detail == "held by #9 now; reaches whoever holds it when sent");
+    CHECK(at.candidates[5].detail == "@zengine.two @zengine.one; accepts Hello");
+    CHECK(displays(complete_line(me, "send @zengine.o", &reachable)) ==
+          std::vector<std::string>{"@zengine.one"});
 }
 
 TEST_CASE("shape candidates are the catalog, in the host's order, and versions stay apart") {

@@ -10,6 +10,7 @@
 // chosen --
 // sent by the test, which stands where a host's arranger stands.
 
+#include "role_set.hpp"
 #include "graphics/themes.hpp"
 #include "graphics/vocabulary.hpp"
 #include "examples/snake/vocabulary.hpp"
@@ -139,7 +140,7 @@ struct Rig {
     }
 
     loom::WeaveId load(const char* name, const char* path, const std::string& role) {
-        const Heard::Answer a = command(loom::LoadWeave{name, path, role});
+        const Heard::Answer a = command(loom::LoadWeave{name, path, zengine::testing::role_set(role)});
         if (a.kind != 0) {
             return loom::WeaveId{};
         }

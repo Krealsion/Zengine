@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace zengine::workshop {
@@ -152,7 +153,7 @@ struct Candidate {
 // WL-TERM-16 -- agents/workshop/terminal.md
 struct Destination {
     std::uint64_t id = 0;              ///< the weave's id, what `#12` names
-    std::string role;                ///< the role it holds now, or empty
+    std::vector<std::string> roles;    ///< the roles it holds now, in binding order, or none
     std::vector<std::string> accepts;  ///< the names of the shapes it accepts, in its own order
     bool alive = true;                 ///< false while the bus holds it dead
     bool self = false;                 ///< the terminal participant this line runs as
@@ -217,7 +218,10 @@ inline std::string missing_summary(const std::vector<loom::FieldDesc>& open) {
 /// WHAT A WEAVE IS, in the words a weaver chooses by: its role, the first shapes it accepts, and
 /// whether it is this terminal or dead now.
 inline std::string destination_detail(const Destination& d) {
-    std::string out = d.role.empty() ? std::string("no role") : "@" + d.role;
+    std::string out = d.roles.empty() ? std::string("no role") : std::string();
+    for (const std::string& role : d.roles) {
+        out += (out.empty() ? "@" : " @") + role;
+    }
     if (d.accepts.empty()) {
         out += "; declares no door";
     } else {
@@ -316,20 +320,21 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
                 c.detail = "everyone that accepts the shape";
                 out.candidates.push_back(std::move(c));
             }
-            std::vector<const Destination*> by_role;
+            // Every role of every destination is an address of its own, in role order.
+            std::vector<std::pair<std::string, const Destination*>> by_role;
             std::vector<const Destination*> by_id;
             for (const Destination& d : *reachable) {
                 by_id.push_back(&d);
-                if (!d.role.empty()) {
-                    by_role.push_back(&d);
+                for (const std::string& role : d.roles) {
+                    by_role.emplace_back(role, &d);
                 }
             }
             std::sort(by_role.begin(), by_role.end(),
-                      [](const Destination* a, const Destination* b) { return a->role < b->role; });
+                      [](const auto& a, const auto& b) { return a.first < b.first; });
             std::sort(by_id.begin(), by_id.end(),
                       [](const Destination* a, const Destination* b) { return a->id < b->id; });
-            for (const Destination* d : by_role) {
-                const std::string spelling = "@" + d->role;
+            for (const auto& [role, d] : by_role) {
+                const std::string spelling = "@" + role;
                 if (!detail::starts_with(spelling, typed)) {
                     continue;
                 }

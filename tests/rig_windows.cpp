@@ -197,7 +197,7 @@ struct Windows::Impl {
         const std::size_t before = ears->loaded.size();
         bus.send_as(ears_id, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{"zengine-graphics", directory_so,
-                                                                 gfx::kGraphicsRole}),
+                                                                 {gfx::kGraphicsRole}}),
                                   ears_id, ears_id, 0));
         bus.drain_until_idle();
         REQUIRE_MESSAGE(ears->loaded.size() == before + 1,

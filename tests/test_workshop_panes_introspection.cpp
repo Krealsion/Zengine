@@ -947,14 +947,14 @@ TEST_CASE("two lists of loaded weaves are two press meanings whatever their name
     const auto meaning = [](const std::vector<intro::LoadedWeave>& weaves) {
         return intro::press_meaning(intro::project_loaded(weaves, 8, 46));
     };
-    const std::vector<intro::LoadedWeave> joined{{"a;b", "test.one"}};
-    const std::vector<intro::LoadedWeave> apart{{"a", "test.one"}, {"b", "test.one"}};
+    const std::vector<intro::LoadedWeave> joined{{"a;b", {"test.one"}}};
+    const std::vector<intro::LoadedWeave> apart{{"a", {"test.one"}}, {"b", {"test.one"}}};
     CHECK(meaning(joined) != meaning(apart));
-    const std::vector<intro::LoadedWeave> in_role{{"a", "r;1:b"}};
-    const std::vector<intro::LoadedWeave> beside{{"a", "r"}, {"b", ""}};
+    const std::vector<intro::LoadedWeave> in_role{{"a", {"r;1:b"}}};
+    const std::vector<intro::LoadedWeave> beside{{"a", {"r"}}, {"b", {}}};
     CHECK(meaning(in_role) != meaning(beside));
-    const std::vector<intro::LoadedWeave> one_role{{"a", "test.one"}};
-    const std::vector<intro::LoadedWeave> other_role{{"a", "test.two"}};
+    const std::vector<intro::LoadedWeave> one_role{{"a", {"test.one"}}};
+    const std::vector<intro::LoadedWeave> other_role{{"a", {"test.two"}}};
     CHECK(meaning(one_role) != meaning(other_role));
     // ...and a list is one meaning however often it is said.
     CHECK(meaning(apart) == meaning(apart));
@@ -1715,7 +1715,31 @@ TEST_CASE("the Loaded pane shows a weave's name and role as written, and its pic
     CHECK(chosen[static_cast<std::size_t>(at)] == "> plain-caf\xC3\xA9 @test.pl\xC3\xA9in");
     REQUIRE(ears.heard.size() == 1);
     CHECK(ears.heard[0].library == "plain-caf\xC3\xA9");
-    CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");
+    CHECK(ears.heard[0].roles == std::vector<std::string>{"test.pl\xC3\xA9in"});
+}
+
+TEST_CASE("a press on the row of a weave holding two roles says both, each a role of its own") {
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
+    const std::vector<std::string> both{"test.pair.one", "test.pair.two"};
+    REQUIRE(r.load("pair", WORKSHOP_SO_HELLO, both).valid());
+    r.ready();
+    r.extent(160, 48);
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    const std::int64_t at = row_with_text(shown, "pair @");
+    REQUIRE(at >= 0);
+    CHECK(shown[static_cast<std::size_t>(at)] == "  pair @test.pair.one+test.pair.two");
+
+    press_pane(r, kind, at, 1);
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].library == "pair");
+    CHECK(ears.heard[0].roles == both);
 }
 
 TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name or role holds it, ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing is sent but the Manager's question and the selection") {

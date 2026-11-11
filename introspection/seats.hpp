@@ -205,13 +205,13 @@ public:
         }
         const bool moved = selected_ != entry->name;
         selected_ = entry->name;
-        const std::string role = entry->role;
+        const std::vector<std::string> roles = entry->roles;
         if (moved) {
             mark_selected(view_, selected_, columns());
             say(mail);
         }
         (void)mail.as_role(kIntrospectionRole)
-            .publish(LoadedSelected{kLoadedPane, selected_, role});
+            .publish(LoadedSelected{kLoadedPane, selected_, roles});
         return true;
     }
 

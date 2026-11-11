@@ -10,6 +10,7 @@
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
+#include "role_set.hpp"
 #include "doctest.h"
 
 #include "component/text_box.hpp" // the one TU that pins its key spellings to scan::
@@ -316,7 +317,7 @@ struct Rig {
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(witness, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), witness,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), witness,
                                   witness, corr));
         bus.drain_until_idle();
         const Seen::Answer* a = seen.find(corr);

@@ -71,7 +71,7 @@ loom::Weave::PublishedClaim contain_showing(ShowingFailures* book, loom::WeaveId
 struct ServedTurn {
     struct Failed {
         loom::WeaveId owner{};  ///< the owner whose application threw
-        std::string role;     ///< the role it holds, if any
+        std::vector<std::string> roles; ///< the roles it holds, if any
         bool held = false;      ///< Loom still holds it when the turn ends
         std::string diagnostic; ///< the sentence handed to `tell`
     };

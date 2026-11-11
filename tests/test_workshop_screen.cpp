@@ -1300,13 +1300,30 @@ TEST_CASE("the Manager's blob is read as name and role, and an absent role is a 
         "zengine-skin-tui-classic@zengine.skin,snake-controls,zengine-timer@zengine.timer");
     REQUIRE(got.size() == 3);
     CHECK(got[0].name == "zengine-skin-tui-classic");
-    CHECK(got[0].role == "zengine.skin");
+    CHECK(got[0].roles == std::vector<std::string>{"zengine.skin"});
     // AN EMPTY ROLE IS THE KERNEL ANSWERING "this one holds none", not a reading that
     // failed -- `LoadLibrary` carries a role field that may legitimately be empty.
     CHECK(got[1].name == "snake-controls");
-    CHECK(got[1].role.empty());
+    CHECK(got[1].roles.empty());
     CHECK(got[2].name == "zengine-timer");
-    CHECK(got[2].role == "zengine.timer");
+    CHECK(got[2].roles == std::vector<std::string>{"zengine.timer"});
+}
+
+TEST_CASE("a weave holding several roles is read as each of them, and its row says them as the "
+          "Manager does") {
+    // `+` JOINS A WEAVE'S ROLES in the Manager's answer: no role name holds one, so every name
+    // between two of them is a role of its own, in the order Loom bound them.
+    const std::vector<intro::LoadedWeave> got =
+        intro::parse_loaded("pair@zengine.one+zengine.two,solo@zengine.solo");
+    REQUIRE(got.size() == 2);
+    CHECK(got[0].name == "pair");
+    CHECK(got[0].roles == std::vector<std::string>{"zengine.one", "zengine.two"});
+    CHECK(got[1].roles == std::vector<std::string>{"zengine.solo"});
+    const std::vector<TextRow> rows = intro::project_loaded(got, 8, 46).rows;
+    CHECK(any_row(rows, "pair @zengine.one+zengine.two"));
+    // A search finds the weave by either of its roles.
+    CHECK(intro::matches(got[0], "two"));
+    CHECK(intro::matches(got[0], "one"));
 }
 
 TEST_CASE("an empty map is an observed zero, and stray commas invent no weave") {
@@ -1335,12 +1352,12 @@ TEST_CASE("the split is on the LAST at-sign, and the ambiguity is bounded not so
     const std::vector<intro::LoadedWeave> got = intro::parse_loaded("odd@name@zengine.role");
     REQUIRE(got.size() == 1);
     CHECK(got[0].name == "odd@name");
-    CHECK(got[0].role == "zengine.role");
+    CHECK(got[0].roles == std::vector<std::string>{"zengine.role"});
 }
 
 TEST_CASE("a weave with no role says so, rather than leaving the column blank") {
     const std::vector<TextRow> rows =
-        intro::project_loaded({intro::LoadedWeave{"snake-controls", ""}}, 8, 46).rows;
+        intro::project_loaded({intro::LoadedWeave{"snake-controls", {}}}, 8, 46).rows;
     CHECK(any_row(rows, std::string("snake-controls @") + intro::kNoRole));
 }
 
@@ -1447,7 +1464,7 @@ TEST_CASE("every projection fits the room it was given, over the whole domain") 
 
 TEST_CASE("a long name is cut with a mark rather than silently") {
     const std::vector<TextRow> out = intro::project_loaded(
-        {intro::LoadedWeave{"a-library-with-a-very-long-name-indeed", "zengine.role"}}, 8, 20).rows;
+        {intro::LoadedWeave{"a-library-with-a-very-long-name-indeed", {"zengine.role"}}}, 8, 20).rows;
     REQUIRE(out.size() >= 2);
     CHECK(out[1].text.size() == 20);
     CHECK(out[1].text.find(intro::kElided) != std::string::npos);

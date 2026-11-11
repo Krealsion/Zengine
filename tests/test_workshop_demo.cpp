@@ -742,7 +742,7 @@ TEST_CASE("a reloaded demo role never stands working with no service: it says th
     };
     DemoActor desk{bus, "zengine.workshop"}, worker{bus}, visitor{bus}, next{bus};
     const std::string loaded =
-        boot(loom::LoadWeave{"zengine-demo-control", WORKSHOP_SO_DEMO_CONTROL, demo::kRole});
+        boot(loom::LoadWeave{"zengine-demo-control", WORKSHOP_SO_DEMO_CONTROL, {demo::kRole}});
     REQUIRE_MESSAGE(loaded.rfind("refused", 0) != 0, loaded);
     const auto status = [&] {
         visitor.say(demo::kRole, demo::DemoStatusRequested{});
