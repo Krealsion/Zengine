@@ -332,7 +332,8 @@ jobs:
               "this job once snapshot.ubuntu.com answers."
             exit 1
           fi
-          if [ "$status" -ne 0 ] && grep -q '^E: Failed to fetch https://snapshot.ubuntu.com/' "$RUNNER_TEMP/install.log"; then
+          if [ "$status" -ne 0 ] &&
+            grep -q '^E: Failed to fetch https://snapshot.ubuntu.com/' "$RUNNER_TEMP/install.log"; then
             echo "::error title=snapshot.ubuntu.com did not answer whole::apt-get install could" \
               "not fetch $(grep -c '^E: Failed to fetch' "$RUNNER_TEMP/install.log") of the build" \
               "set's packages from the dated archive $APT_SNAPSHOT at snapshot.ubuntu.com" \
