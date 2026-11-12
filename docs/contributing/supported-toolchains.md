@@ -198,7 +198,8 @@ loadable image needs it — the weave's own sources *and* any static library lin
 unique symbol is enough to mark a whole image as non-deletable, so `STATIC` and `OBJECT`
 libraries are legitimate subjects. An executable is not: it is never the thing being loaded.
 
-Inside this repository, `zengine_weave()` applies it. Outside, call it yourself; see
+`zengine_weave()` applies it, inside this repository and from the installed package alike, which
+carries the function (`cmake/ZengineWeave.cmake`). Outside, a project may also call it itself; see
 [getting started](../getting-started.md#using-zengine-from-another-project).
 
 ## SDL

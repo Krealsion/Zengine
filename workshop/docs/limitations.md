@@ -14,12 +14,12 @@ pre-release; interfaces change without deprecation cycles.
 [`cmake/ZengineInstall.cmake`](../../cmake/ZengineInstall.cmake) and installs the loadable
 artifacts they need — see [using Zengine from another
 project](../../docs/getting-started.md#using-zengine-from-another-project). Three things are
-deliberately outside it, and each is a real limit rather than an oversight:
+deliberately outside it, or only partly in, and each is a real limit rather than an oversight:
 
-- **The GUI window (`zengine-window-sdl`) is not in the developer package.** When no SDL3 is
-  present the build fetches one and links it out of its own build tree, so installing the window
-  without it would ship an image that cannot load. The package a stranger downloads (below)
-  carries the SDL it built, with the GUI window.
+- **The GUI window (`zengine-window-sdl`) is in the developer package only with an SDL it
+  fetched.** A build that fetched SDL3 installs the window with that SDL beside it; a build over a
+  system SDL3 leaves the window out, since that SDL is the system's to carry. The package a
+  stranger downloads (below) carries the SDL it built, with the GUI window.
 - **Workshop is not in the developer package.** A build's executable compiles the path of the
   CMake that configured it into itself, for the Builder tool it mounts, so an installed copy
   would carry a stranger's directory layout. The package a stranger downloads carries Workshop

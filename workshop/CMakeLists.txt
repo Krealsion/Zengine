@@ -4,20 +4,23 @@
 # The vocabulary is header-only, as input/ and graphics/ are, and the suites include the headers
 # the host does, so what the tests pin is what ships. It is portable: no kernel, no loader.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/discipline.cmake)
+
 # Every edge is named on its own line, never inherited through a sibling. The builder and
 # operator edges carry shapes and the catalog: no presentation header names builder/runner.hpp,
 # builder/run.hpp, operator/provider_host.hpp or operator/image.hpp, so a presentation reaches
 # neither process authority nor the dynamic loader (`zengine-workshop-load` loads).
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-vocabulary
-                                                            zengine-ui-vocabulary
-                                                            zengine-component
+target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine::graphics
+                                                            zengine::ui
+                                                            zengine::component
                                                             zengine-builder-vocabulary
-                                                            zengine-manual
-                                                            zengine-operator
-                                                            zengine-persist
-                                                            zengine-property
+                                                            zengine::manual
+                                                            zengine::operator
+                                                            zengine::persist
+                                                            zengine::property
                                                             zengine-theme-vocabulary
                                                             loom::core
                                                             loom::terminal)
@@ -33,11 +36,8 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.layouts.md)
 # The manuals of two doors among the vocabulary's headers, the discovery door (`powers_door.hpp`)
 # and the sample door (`sample_door.hpp`), compiled into whatever mounts them: each answers a
 # shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.powers.md)
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.sources.md)
-# ...and the Flow host's (`flow/flow-host/runtime.hpp`, which Workshop mounts and does not
-# install): it rides Workshop's vocabulary, not the exported `zengine-flow`.
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../flow/docs/zengine.flow.host.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.powers.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.sources.md)
 
 # ---- The authored load plan: its shape, its file, its execution, and the observation door ----
 #
@@ -52,10 +52,10 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE ../flow/docs/zengine.flow.h
 add_library(zengine-workshop-load INTERFACE)
 target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
 # The observation door's manual, compiled into whatever mounts it.
-zengine_manual(zengine-workshop-load INTERFACE ../introspection/docs/zengine.arrangement.md)
+zengine_manual(zengine-workshop-load INTERFACE docs/zengine.arrangement.md)
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
                                                       zengine-builder-vocabulary
-                                                      zengine-operator
+                                                      zengine::operator
                                                       loom::core
                                                       loom::switchboard)
 # ...and the realization owner's manual, compiled into whatever mounts the plan booter: it
@@ -116,10 +116,10 @@ add_library(zengine-workshop-logic STATIC
 target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
-                                             PRIVATE zengine-warnings zengine-sanitize)
+                                             PRIVATE workshop-warnings workshop-sanitize)
 # The editor switch's manual, compiled into whatever mounts the role
 # (`editor_switch.hpp`): it answers a shape's section from this page (`ShapeDocumentRequested`).
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../editor/docs/zengine.editor-switch.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.editor-switch.md)
 
 # The host needs a Loom that can host .so weaves: it loads a window and an Input producer.
 if(NOT TARGET loom::kernel)
@@ -134,7 +134,7 @@ endif()
 # means nothing outside a Workshop run (cmake/ZengineInstall.cmake).
 zengine_provider(zengine-workshop-session-history session_migration_provider.cpp)
 target_link_libraries(zengine-workshop-session-history
-    PRIVATE zengine-workshop-vocabulary zengine-operator)
+    PRIVATE zengine-workshop-vocabulary zengine::operator)
 
 # ---- The guests file and the door's policy, compiled once --------------------------------
 #
@@ -145,19 +145,19 @@ add_library(zengine-workshop-guests STATIC guests.cpp)
 target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-guests
     PUBLIC loom::bridge loom::switchboard loom::core
-           zengine-input-vocabulary zengine-graphics-vocabulary zengine-timer-vocabulary
+           zengine::input zengine::graphics zengine::timer
            zengine-workshop-vocabulary zengine::inventory zengine-builder-vocabulary
-    PRIVATE zengine-warnings zengine-sanitize)
+    PRIVATE workshop-warnings workshop-sanitize)
 # ...and the door's manual, compiled into whatever mounts the door: it answers a shape's section
 # from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
-zengine_manual(zengine-workshop-guests INTERFACE ../external-host/docs/zengine.guests.md)
+zengine_manual(zengine-workshop-guests INTERFACE docs/zengine.guests.md)
 
 # The bus tally (`bus_tally.hpp`): where a running bus spends its time, off Loom's own stamps, by a
 # host's observer. Header-only; Workshop, `zengine-app` and the snake keep one and say it at the end.
 add_library(zengine-workshop-bus-tally INTERFACE)
 target_include_directories(zengine-workshop-bus-tally INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine-graphics-vocabulary
-                                                           zengine-input-vocabulary loom::switchboard)
+target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine::graphics
+                                                           zengine::input loom::switchboard)
 
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
@@ -171,21 +171,21 @@ target_link_libraries(zengine-workshop
             # ...and the bodies, compiled once (the logic target above): this host reaches
             # every one of them, and its object is where the ceiling was measured.
             zengine-workshop-logic
-            zengine-graphics-vocabulary zengine-ui-vocabulary
-            zengine-timer-vocabulary zengine-builder-vocabulary
+            zengine::graphics zengine::ui
+            zengine::timer zengine-builder-vocabulary
             # The graphics and timer vocabularies are here because this host writes grants and a
             # log selection in their shapes; what to load is the plan's, so no package is named
             # here to save a plan row. The operator package is the host half of the catalog this host
             # owns, which starts empty and is filled by mounting providers.
-            zengine-operator
+            zengine::operator
             # ...and the rest between turns, on the OS clock (timer/rest.hpp), and the tally of
             # where the bus spends its time (workshop/bus_tally.hpp).
-            zengine-timer-rest zengine-workshop-bus-tally
+            zengine::timer-rest zengine-workshop-bus-tally
             # ...and the load plan: the typed plan, its codec and its executor.
             zengine-workshop-load
-            # ...and the view host this host composes beside the Flow host.
-            zengine-view
-            zengine-warnings zengine-sanitize)
+            # ...and the view host this host composes beside the Flow host, which it mounts.
+            zengine::view zengine::flow-host
+            workshop-warnings workshop-sanitize)
 
 # ---- The one thing this host hands its build runner -------------------------------------
 #
@@ -231,11 +231,12 @@ target_compile_definitions(zengine-workshop PRIVATE
 
 # ---- The shipped recipe catalog, configured rather than compiled in ---------------------
 #
-# Its target, snake-world-v2, is an artifact always built here and never loaded or staged by this
-# host: building an image the host has mapped changes code under a running program. Its
-# `artifact_dir` is asked of the target, never guessed (snake stages its worlds elsewhere), and
-# `file(GENERATE)` below expands what `configure_file` copies as text.
-set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:snake-world-v2>")
+# Its target, Workshop's own example (`recipe-example/`), is an artifact always built here and
+# never loaded or staged by this host: building an image the host has mapped changes code under a
+# running program. Its `artifact_dir` is asked of the target, never guessed, and `file(GENERATE)`
+# below expands what `configure_file` copies as text.
+add_subdirectory(recipe-example)
+set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:zengine-workshop-recipe-example>")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
                ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2 @ONLY)
 
@@ -244,32 +245,34 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # directory, and each host takes a copy. The GUI window joins only where this configuration built
 # it. The graphics directory, its TUI window and the painters a window opens stand here too:
 # Workshop offers the painters to the directory from this directory (`arrange_graphics`).
-set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zengine-inventory-pane
-                               zengine-introspection zengine-composer zengine-files
-                               zengine-builder-pane zengine-attention-pane
-                               zengine-notices zengine-notices-pane
-                               zengine-desktop-pane zengine-connections-pane zengine-demo-control
-                               zengine-menu-presenter zengine-palette zengine-first-run
-                               zengine-flow-pane zengine-view-builder
-                               zengine-info-pane zengine-terminal-pane
-                               zengine-editor-pane zengine-neovim-editor
-                               zengine-operators-basic
-                               zengine-workshop-session-history
-                               zengine-graphics zengine-window-tui zengine-theme)
-if(TARGET zengine-window-sdl)
-    list(APPEND zengine_workshop_artifacts zengine-window-sdl)
+# Zengine's are named by the stems its package installs them under, Workshop's own are its targets.
+set(zengine_workshop_zengine_artifacts zengine-input zengine-timer zengine-inventory
+                                       zengine-inventory-pane zengine-introspection
+                                       zengine-composer zengine-files zengine-attention-pane
+                                       zengine-notices zengine-notices-pane
+                                       zengine-menu-presenter zengine-flow-pane
+                                       zengine-view-builder zengine-info-pane
+                                       zengine-terminal-pane zengine-editor-pane
+                                       zengine-neovim-editor zengine-operators-basic
+                                       zengine-graphics zengine-window-tui zengine-theme)
+if(TARGET zengine-window-sdl OR "zengine-window-sdl" IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
+    list(APPEND zengine_workshop_zengine_artifacts zengine-window-sdl)
 endif()
+set(zengine_workshop_own_artifacts zengine-builder-pane zengine-desktop-pane zengine-connections-pane
+                                   zengine-demo-control zengine-palette zengine-first-run
+                                   zengine-workshop-session-history)
 # THE APP HOST BESIDE WORKSHOP (app/docs/app.md): `zengine-app`, the program an exported app's
 # launchers start, and its own weave, which it opens from its own directory. Built only where this
 # Loom can host it (app/CMakeLists.txt asks the same), and defined after this directory, so named
 # by the condition rather than by its target.
 set(zengine_workshop_programs "")
 if(TARGET loom::kernel AND TARGET loom::host-policy)
-    list(APPEND zengine_workshop_artifacts zengine-app-weave)
+    list(APPEND zengine_workshop_zengine_artifacts zengine-app-weave)
     list(APPEND zengine_workshop_programs zengine-app)
 endif()
 # ...and the launcher, which starts an app or a demo from Workshop (launcher/CMakeLists.txt).
-list(APPEND zengine_workshop_artifacts zengine-launcher)
+list(APPEND zengine_workshop_own_artifacts zengine-launcher)
+set(zengine_workshop_artifacts ${zengine_workshop_zengine_artifacts} ${zengine_workshop_own_artifacts})
 # Each copy is a rule with its own OUTPUT and DEPENDS, on the artifact's clock: a POST_BUILD copy
 # runs only when the host relinks, so an edited window went on loading stale. The host's directory
 # is spelled out: `$<TARGET_FILE_DIR:zengine-workshop>` would make these rules depend on the host
@@ -281,12 +284,22 @@ else()
 endif()
 set(zengine_workshop_staged "")
 foreach(artifact IN LISTS zengine_workshop_artifacts zengine_workshop_programs)
+    # In this tree a staged file is its target's; built against an installed Zengine, which names
+    # ZENGINE_ARTIFACT_DIR, Zengine's artifacts and programs are the package's files.
+    set(file $<TARGET_FILE:${artifact}>)
+    set(after ${artifact})
+    if(ZENGINE_ARTIFACT_DIR AND artifact IN_LIST zengine_workshop_zengine_artifacts)
+        set(file ${ZENGINE_ARTIFACT_DIR}/${artifact}${CMAKE_SHARED_LIBRARY_SUFFIX})
+        set(after ${file})
+    elseif(ZENGINE_ARTIFACT_DIR AND artifact IN_LIST zengine_workshop_programs)
+        set(file ${ZENGINE_PACKAGE_PREFIX_DIR}/${CMAKE_INSTALL_BINDIR}/${artifact}${CMAKE_EXECUTABLE_SUFFIX})
+        set(after ${file})
+    endif()
     set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${artifact}.stamp)
     add_custom_command(OUTPUT ${stamp}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:${artifact}> ${zengine_workshop_dir}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${file} ${zengine_workshop_dir}
         COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
-        DEPENDS ${artifact}
+        DEPENDS ${after}
         COMMENT "workshop: staging ${artifact} beside the host")
     list(APPEND zengine_workshop_staged ${stamp})
 endforeach()
@@ -458,7 +471,7 @@ else()
 endif()
 add_executable(zengine-workshop-develop develop.cpp)
 target_link_libraries(zengine-workshop-develop
-    PRIVATE zengine-builder-vocabulary zengine-warnings zengine-sanitize)
+    PRIVATE zengine-builder-vocabulary workshop-warnings workshop-sanitize)
 add_dependencies(zengine-workshop-develop zengine-workshop)
 target_compile_definitions(zengine-workshop-develop PRIVATE
     "ZENGINE_DEVELOP_CMAKE=\"${CMAKE_COMMAND}\""

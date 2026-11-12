@@ -195,13 +195,13 @@ folder, and each feature, the host and each library says what it is in its own `
 | [`editor/`](editor/README.md) | the Editor, standard or held by a Neovim, and the source material it carries | `zengine::neovim`, `zengine::source-transfer` |
 | [`external-host/`](external-host/README.md) | Workshop driven from another Loom host, and the Connections pane | not exported |
 | [`files/`](files/README.md) | Files: browse the project you launched in and open a file | not exported |
-| [`flow/`](flow/README.md) | Flow: author a stateful weave as a graph, edit it live, generate native C++ | `zengine::flow` |
+| [`flow/`](flow/README.md) | Flow: author a stateful weave as a graph, edit it live, generate native C++ | `zengine::flow`, `zengine::flow-host` |
 | [`info/`](info/README.md) | Info: independent views that inspect and edit a value | not exported |
 | [`introspection/`](introspection/README.md) | Loaded, Project and Powers: what a running system is made of | not exported |
 | [`inventory/`](inventory/README.md) | Inventory: stored typed values, portable toolboxes and hotkeys | `zengine::inventory` |
 | [`notices/`](notices/README.md) | Notices: what Workshop said, kept for the run and shown in a pane | not exported |
 | [`terminal/`](terminal/README.md) | the Terminal: type a command to the weaves on the bus | not exported |
-| [`view/`](view/README.md) | a view described as data, the view host, and the View Builder | not exported |
+| [`view/`](view/README.md) | a view described as data, the view host, and the View Builder | `zengine::view` |
 
 **The host** — [`workshop/`](workshop/README.md), the interactive environment for weavers, with
 the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengine::pane`.
@@ -219,7 +219,7 @@ the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengi
 | [`operator/`](operator/README.md) | typed reusable rules, supplied by artifacts | `zengine::operator`, `zengine::operator-consumer` |
 | [`maker/`](maker/README.md) | a weave built from a weaver's definition — state, triggers and emits as data, edited live | `zengine::maker` |
 | [`message-draft/`](message-draft/README.md) | typed value forms, unfinished drafts and named presets | `zengine::message-draft` |
-| [`manual/`](manual/README.md) | a weave's manual, compiled into the weave and answered on ask by its pane or role | not exported |
+| [`manual/`](manual/README.md) | a weave's manual, compiled into the weave and answered on ask by its pane or role | `zengine::manual` |
 
 **Examples** — [`examples/`](examples/README.md): worked examples, among them `snake/`, a game
 whose parts are separate weaves.

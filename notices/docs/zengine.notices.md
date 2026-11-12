@@ -67,7 +67,7 @@ in that life it lets nothing go below `kMostKept`.
 replaced one or let some go, and once each time it is activated: `first`, `last`, `keep` and
 `let_go`, as a page says them. It carries no words: a reader asks for the page it wants. A guest
 follows it with `capture`, and observing it lets the guest ask for a page
-([the guests file](../../external-host/docs/zengine.guests.md)).
+([the guests file](../../workshop/docs/zengine.guests.md)).
 
 ## See also
 

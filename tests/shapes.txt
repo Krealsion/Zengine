@@ -475,6 +475,7 @@ QuitDeliveryRefusalNoted v1 0x0e5c8812183151e9
 RealizationAsked v1 0x1bb743d1720ed277
 RecipeAuthorRequested v3 0xc0e82ea63933b444
 RecipeCatalog v2 0x42184a3294b5b8b2
+RecipeExampleState v1 0x4b8483de06b58a48
 RecipeOutcome v1 0xcca769b648aca151
 RecipeSourceRequested v1 0x0efbf681ea62ed54
 RecipeSourceSaid v1 0xd1c5496297b65e48

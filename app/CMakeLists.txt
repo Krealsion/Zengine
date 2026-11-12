@@ -31,7 +31,7 @@ target_link_libraries(zengine-app-weave PRIVATE zengine-app-vocabulary zengine-v
 # executor is Workshop's (`zengine-workshop-load`), header-only and with no Workshop in it.
 add_library(zengine-app-host INTERFACE)
 target_link_libraries(zengine-app-host INTERFACE zengine-app-vocabulary zengine-workshop-load
-                                                 zengine-view zengine-flow
+                                                 zengine-view zengine-flow zengine-flow-host
                                                  zengine-timer-vocabulary
                                                  zengine-graphics-vocabulary
                                                  loom::kernel loom::host-policy

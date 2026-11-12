@@ -16,7 +16,6 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `powers_detail.hpp` | the Powers pane's words and row geometry: the chrome fit, the list's window, a power's line, the detail and sample rows |
 | `CMakeLists.txt` | `zengine-introspection-view` (INTERFACE, the pure headers) and the weave, carrying its manual |
 | `docs/zengine.introspection.md` | the weave's manual, answered for each of its panes; `docs/images/` holds its picture |
-| `docs/zengine.arrangement.md`, `docs/zengine.powers.md`, `docs/zengine.sources.md` | the manuals of the three Workshop doors the panes ask, carried by `workshop/CMakeLists.txt`'s targets |
 
 ## Law
 
@@ -55,8 +54,8 @@ a Compose target picked on the Loaded pane).
 ## Pages
 
 - [`zengine.introspection` -- Loaded, Project and Powers](docs/zengine.introspection.md), the manual
-- [`zengine.arrangement`](docs/zengine.arrangement.md), [`zengine.powers`](docs/zengine.powers.md)
-  and [`zengine.sources`](docs/zengine.sources.md), the doors' manuals
+- the doors' manuals are Workshop's: [`zengine.arrangement`](../workshop/docs/zengine.arrangement.md),
+  [`zengine.powers`](../workshop/docs/zengine.powers.md) and [`zengine.sources`](../workshop/docs/zengine.sources.md)
 
 ## Practices
 

@@ -20,15 +20,13 @@ target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 house and a guest spell them identically: `activation`, `timer`, `timer-rest` (`timer/rest.hpp`
 and the OS clock it naps on, `timer/os_clock.hpp`: the rest a host takes between turns while the
 Timer's beat is all its bus holds), `surface`, `input`, `ui`,
-`component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
-`columns`, the control strip, and pure `motion::Path` sampling: every header
-`zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the pane
+`manual` (a weave's manual as the weave carries it, `manual/manual.hpp`, and the door a role
+answers for the shapes it accepts, `manual/vocabulary.hpp`), `component` (every header `zengine_public_headers_component` lists: the text box, the list
+mechanics, the control strip, motion sampling), `operator`, `operator-consumer`, `pane` (the pane
 contract, every header `zengine_public_headers_pane` lists, installed under `include/zengine/pane/`:
 the protocol `pane/vocabulary.hpp` and the optional helpers beside it; and Workshop's own beside it,
-`workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp`, `workshop/setup_control.hpp`,
-`workshop/guest_seam_vocabulary.hpp` and the seams a pane speaks to Workshop's doors,
-`workshop/open_seam_vocabulary.hpp`, `workshop/project_seam_vocabulary.hpp` and
-`workshop/settings_seam_vocabulary.hpp`, under `include/zengine/workshop/`), `neovim` (the one
+a desk's reading and the seams a pane speaks to Workshop's doors, every header
+`zengine_public_headers_workshop` lists, under `include/zengine/workshop/`), `neovim` (the one
 header `editor/neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp`, `library.hpp` and `transfer.hpp`: typed editing, schema closure and reusable
@@ -50,7 +48,9 @@ claim and size, `window/terminal_io.hpp`: every header
 its `elements/` and `window/`; the directory and the windows are artifacts, below), and `flow` (standalone
 authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
-`flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`). The optional
+`flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`), `flow-host` (the Flow host,
+`flow/flow-host/runtime.hpp`, which both hosts here mount, its manual with it) and `view` (a view as
+data, drawn, and its host). The optional
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
@@ -59,9 +59,12 @@ target is internal, and that difference is the boundary made visible.
 own weave, which `zengine-app` runs), `zengine-timer`, `zengine-input`, `zengine-inventory`,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
-Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and TUI
-window (`zengine-graphics`, `zengine-window-tui`), which paints with its own painter. They
-install as FILES, not as
+Loom host, a session, to speak Workshop's guest shapes), the graphics directory and TUI
+window (`zengine-graphics`, `zengine-window-tui`), which paints with its own painter, and every
+pane and office Workshop stages, so a host built against the package stages them from there
+(`workshop/CMakeLists.txt`); and the GUI window (`zengine-window-sdl`) with the SDL3 and SDL3_ttf
+it was built against beside it, where the build fetched them, which the config names as
+`ZENGINE_SDL_RUNTIME` for `zengine_stage_sdl()`. They install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys and their
@@ -77,39 +80,40 @@ does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`)
 artifacts from `lib/zengine/` by a path relative to its own, so it names no machine's layout, and
 with the GUI window out it runs an app whose window is the TUI window.
 
-**Two CMake modules ride along**, installed beside the package config, which includes both.
+**Four CMake modules ride along**, installed beside the package config, which includes each.
 `zengine_code_page(<target>...)`, `cmake/ZengineCodePage.cmake` with the manifest it gives: a
 stranger's program calls it to run in the UTF-8 code page on Windows, as every program this
 repository builds does (VM-PLAT-16); elsewhere it does nothing. `zengine_names()` and
 `zengine_palettes()`, `cmake/ZengineNames.cmake`: a stranger's pane generates its slots' names from
 its JSON as Zengine's own panes do, with CMake 3.22 or newer, the package's floor; the pool's and
-the shipped themes' JSON install under `share/zengine/graphics/`. The installed-package witness calls it for
+the shipped themes' JSON install under `share/zengine/graphics/`. `zengine_manual()`,
+`cmake/ZengineManual.cmake`: a weave's page compiled in, as every Zengine weave carries its own.
+`zengine_weave()`, `zengine_provider()` and `zengine_stage_sdl()`, `cmake/ZengineWeave.cmake`: this
+tree's weave pattern. The installed-package witness calls it for
 every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;
 `public_surface.cpp` checks the code page it runs in.
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
 Every one of them is a weave but `zengine-operators-basic`, a provider (enforced by
-`zengine_provider()` in the top-level `CMakeLists.txt`). The public
+`zengine_provider()`, `cmake/ZengineWeave.cmake`). The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`
 CTest entry keeps the retired spellings from coming back — it owns the list of them, so this
 page does not spell them.
 
 **What is deliberately out of the developer package, and why** (each is a limit, not an
-oversight): the GUI window (`zengine-window-sdl`), because a fetched SDL is a build-tree library
-the developer package does not carry; Workshop, because a
-build's executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured
-it, so installing it would ship one machine's layout -- the package below carries both;
-the implementation in `flow/flow-host/runtime.hpp` and the Flow pane model/view,
-because these currently implement Workshop session policy and presentation; the view package
-(`view/`) and the View Builder, because this repository's own hosts, Workshop and `zengine-app`,
-compose the view host and are the description format's consumers. Their control
-vocabularies are public through `zengine::flow`, so another participant can drive them; the rest of the Workshop/Builder/introspection/composer vocabularies and the
-pane weaves that spend them (`zengine-files`, `zengine-builder-pane`), because they are Workshop
-being Workshop — a stranger's pane needs only the pane protocol, which is in, since a pane
-arrives by an authored load-plan row; the Timer's service headers, because using the Timer is
-supported and *being* one has not been measured.
+oversight): the GUI window over a system SDL3, which is the system's to carry; Workshop, because
+a build's executable carries
+`ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured it, so installing it would
+ship one machine's layout -- the package below carries it; the panes' own insides, the Flow
+pane's model and view and the View Builder's among them, a pane's control vocabulary public where
+another participant drives it (the Flow pane's, through `zengine::flow`); Workshop's own
+vocabularies and weaves (`zengine-builder-pane` among them), because they are Workshop being
+Workshop -- a stranger's pane needs only the pane contract and the
+words Workshop's offices answer (the Builder's and the launcher's, beside the contract), which are
+in, since a pane arrives by an authored load-plan row; the Timer's service headers, because using
+the Timer is supported and *being* one has not been measured.
 
 ## The package a stranger downloads
 

@@ -1,7 +1,7 @@
 # Destinations are read off the bus
 
 **Decision record.** One decision, its alternatives, and why this one. The law it supports is in
-[terminal](../workshop/terminal.md).
+[terminal-door](../workshop/terminal-door.md).
 
 **Context.** A weaver addressing a line had to know an id or a role already: the completer
 offered `#<id>` and `@<role>` as forms, because the participant holds no directory of weaves or
@@ -30,4 +30,4 @@ record; a role reaches whoever holds it at delivery; a host that lists nothing s
 forms. A Loom door answering the same question for a loaded asker is the seam an inspection tool
 would use.
 
-**Laws supported.** [WL-TERM-16](../workshop/terminal.md).
+**Laws supported.** [WL-TERM-16](../workshop/terminal-door.md).

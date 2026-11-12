@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_TERMINAL_TRANSCRIPT_HPP
-#define ZENGINE_TERMINAL_TRANSCRIPT_HPP
+#ifndef ZENGINE_WORKSHOP_TERMINAL_TRANSCRIPT_HPP
+#define ZENGINE_WORKSHOP_TERMINAL_TRANSCRIPT_HPP
 
 // The host's derived reading of the terminal participant: the picture the Terminal pane is shown,
 // and the comparison that decides whether it is worth saying. Workshop's terminal door reads it;
 // the pane's image includes none of it (WL-TERM-08).
-// Workshop law: agents/workshop/terminal.md
+// Workshop law: agents/workshop/terminal-door.md
 
 #include "workshop/terminal_seam_vocabulary.hpp"
 
@@ -50,7 +50,7 @@ inline const char* entry_addressing(loom::Addressing addressing) noexcept {
 
 /// THE PARTICIPANT'S RECORD, AS THE SEAM CARRIES IT: derived at the moment of the ask, holding
 /// no `loom::TerminalSession`, no `Transcript` and no entry the renderer could not read.
-// WL-TERM-02, WL-TERM-03 -- agents/workshop/terminal.md
+// WL-TERM-02, WL-TERM-03 -- agents/workshop/terminal-door.md
 inline TranscriptShown transcript_shown(const loom::TerminalSession* me) {
     TranscriptShown shown;
     if (me == nullptr) {
@@ -87,7 +87,7 @@ inline TranscriptShown transcript_shown(const loom::TerminalSession* me) {
 }
 
 /// ...and the comparison that decides whether saying it again would be news.
-// WL-TERM-03 -- agents/workshop/terminal.md
+// WL-TERM-03 -- agents/workshop/terminal-door.md
 inline bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) {
     if (a.attached != b.attached || a.participant != b.participant || a.dropped != b.dropped ||
         a.entries.size() != b.entries.size()) {
@@ -113,4 +113,4 @@ inline bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) 
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_TERMINAL_TRANSCRIPT_HPP
+#endif // ZENGINE_WORKSHOP_TERMINAL_TRANSCRIPT_HPP

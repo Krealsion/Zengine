@@ -4,7 +4,7 @@
 name a weave answers to): which powers this program resolves, what each is for, and whose
 contribution satisfies it. Workshop mounts it in its own process before it performs your project's
 plan; it is not a file you load. The `Powers` pane of
-[`zengine.introspection`](zengine.introspection.md#powers), Flow's search line and the Terminal all
+[`zengine.introspection`](../../introspection/docs/zengine.introspection.md#powers), Flow's search line and the Terminal all
 ask it, so one question gets the same rows wherever it is asked.
 
 ## About
@@ -33,8 +33,8 @@ counts it (`unanswered`).
 
 ## Use
 
-Ask [`FindPowers`](#findpowers) for the powers that fit a search, page by page, and
-[`DescribePower`](#describepower) for one power's whole stack. Each answer comes to you alone.
+Ask [`FindPowers`](zengine.powers.md#findpowers) for the powers that fit a search, page by page, and
+[`DescribePower`](zengine.powers.md#describepower) for one power's whole stack. Each answer comes to you alone.
 
 ## Commands
 
@@ -57,7 +57,7 @@ is answered the same way.
   is source, operator, conversion or form; 'sources' is none of them`; `a construction is native,
   composite or evaluator; '<word>' is none of them`; `a fit is fold; '<word>' is not one`; `these
   <n> rows come to <bytes> bytes and an answer carries at most <kMaxPowersAnswerBytes>; ask for
-  fewer with limit`. The bounds are [`workshop/powers_vocabulary.hpp`](../../workshop/powers_vocabulary.hpp)'s.
+  fewer with limit`. The bounds are [`workshop/powers_vocabulary.hpp`](../powers_vocabulary.hpp)'s.
 - **Example:** at the Terminal, `ask @zengine.powers FindPowers 1 text=larger` finds `math.max`;
   `ask @zengine.powers FindPowers 2 fits=fold yields=Int`.
 
@@ -77,8 +77,8 @@ to satisfy it.
 
 ## See also
 
-- [`zengine.introspection`](zengine.introspection.md), whose `Powers` pane asks both.
-- The shapes and bounds: [`workshop/powers_vocabulary.hpp`](../../workshop/powers_vocabulary.hpp).
+- [`zengine.introspection`](../../introspection/docs/zengine.introspection.md), whose `Powers` pane asks both.
+- The shapes and bounds: [`workshop/powers_vocabulary.hpp`](../powers_vocabulary.hpp).
 - [Sources and Operators](../../operator/docs/operator-sources.md), and
   [the fold](../../operator/docs/operator-providers.md#the-fold).
 - [`zengine.sources`](zengine.sources.md), the one role that may run a Source.

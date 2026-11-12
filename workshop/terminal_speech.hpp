@@ -24,7 +24,7 @@ namespace zengine::workshop {
 /// three answers accepted. `Drawn` is known, so the completer describes what drawing takes, and
 /// granted to no one; its lists cannot be typed on a line, so a line naming it is never sent.
 /// Being a terminal confers nothing else.
-// WL-TERM-20 -- agents/workshop/terminal.md
+// WL-TERM-20 -- agents/workshop/terminal-door.md
 inline void let_terminal_speak(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
     let_terminal_find_powers(vocab, grant);
     let_terminal_switch_editors(vocab, grant);

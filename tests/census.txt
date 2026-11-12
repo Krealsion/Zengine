@@ -1,0 +1,90 @@
+# The census: numbers the tree holds, each pinned by a row, read by tests/check_census.cmake, which
+# is red where the tree and a row differ in either direction. A row marked `falls` may only fall: a
+# change that raises one, or adds one, is red whatever else it says. A change that closes a reach
+# lowers or removes its row in the same change, so a gain cannot be given back quietly.
+#
+# The line between Workshop and Zengine (agents/workshop-line.md). `side <folder>/ <side>`
+# says whose a folder is, the longest that holds a file deciding; a file the package installs is
+# the package's, and every other file is Zengine's. `line <file> <header> <count> falls` is a
+# reach across it: a file of one side including, <count> times, a header of the other that the
+# package does not install. `cmake -DZEN_CENSUS_WRITE=<file> -P tests/check_census.cmake` writes
+# the rows as the tree stands, to diff. ASCII only.
+
+side workshop/ workshop
+side builder/ workshop
+side launcher/ workshop
+side external-host/ workshop
+side workshop/menu-presenter/ zengine
+
+line app/folder.hpp workshop/load_persist.hpp 1 falls
+line app/host.hpp workshop/load_execute.hpp 1 falls
+line app/host.hpp workshop/load_persist.hpp 1 falls
+line app/main.cpp workshop/bus_tally.hpp 1 falls
+line attention/pane.cpp workshop/attention_seam_vocabulary.hpp 1 falls
+line editor/editor-pane/common.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+line editor/editor-pane/opening_switch.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+line editor/editor-pane/opening_switch.hpp workshop/editor_switch_vocabulary.hpp 1 falls
+line editor/editor-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+line editor/editor-pane/pane.cpp workshop/editor_handoff_vocabulary.hpp 1 falls
+line editor/editor-pane/pane.cpp workshop/keymap.hpp 1 falls
+line editor/neovim-editor/common.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+line editor/neovim-editor/opening_switch.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+line editor/neovim-editor/opening_switch.hpp workshop/editor_switch_vocabulary.hpp 1 falls
+line editor/neovim-editor/pane.cpp workshop/editor_handoff_vocabulary.hpp 1 falls
+line editor/neovim-editor/pane.cpp workshop/pane_seam_vocabulary.hpp 1 falls
+line editor/source-transfer/material.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+line examples/snake/play.cpp workshop/bus_tally.hpp 1 falls
+line external-host/vocabulary_weave.hpp notices/vocabulary.hpp 1 falls
+line flow/flow-pane/find.hpp workshop/powers_vocabulary.hpp 1 falls
+line flow/flow-pane/model.hpp workshop/powers_vocabulary.hpp 1 falls
+line flow/flow-pane/pane.cpp workshop/powers_vocabulary.hpp 1 falls
+line info/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+line info/pane.cpp workshop/inspection_seam_vocabulary.hpp 1 falls
+line info/property_view.hpp workshop/inspection_seam_vocabulary.hpp 1 falls
+line info/settings_rows.hpp workshop/inspection_seam_vocabulary.hpp 1 falls
+line introspection/introspection.cpp workshop/arrangement_vocabulary.hpp 1 falls
+line introspection/introspection.cpp workshop/powers_vocabulary.hpp 1 falls
+line introspection/introspection.cpp workshop/sample_vocabulary.hpp 1 falls
+line introspection/powers.hpp workshop/powers_vocabulary.hpp 1 falls
+line introspection/powers_detail.hpp workshop/powers_vocabulary.hpp 1 falls
+line introspection/resolved.hpp workshop/arrangement_vocabulary.hpp 1 falls
+line introspection/seats.hpp workshop/arrangement_vocabulary.hpp 1 falls
+line introspection/seats.hpp workshop/powers_vocabulary.hpp 1 falls
+line introspection/seats.hpp workshop/sample_vocabulary.hpp 1 falls
+line inventory/inventory-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+line inventory/inventory-pane/presentation.hpp workshop/keymap.hpp 1 falls
+line inventory/inventory-pane/toolbox.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+line inventory/inventory-pane/toolbox_file.hpp workshop/keymap.hpp 1 falls
+line launcher/catalog.hpp app/folder.hpp 1 falls
+line launcher/catalog.hpp app/session_file.hpp 1 falls
+line launcher/catalog.hpp app/vocabulary.hpp 1 falls
+line launcher/configured.hpp.in app/program.hpp 1 falls
+line launcher/weave.cpp app/program.hpp 1 falls
+line launcher/weave.cpp files/vocabulary.hpp 1 falls
+line launcher/weave.cpp view/view-builder/vocabulary.hpp 1 falls
+line notices/notices.cpp workshop/notice_seam_vocabulary.hpp 1 falls
+line terminal/history_and_completion.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+line terminal/pane.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
+line terminal/view.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+line workshop/authoring.hpp persist/file.hpp 1 falls
+line workshop/first-run/setup.hpp info/vocabulary.hpp 1 falls
+line workshop/first-run/setup.hpp notices/notices-pane/vocabulary.hpp 1 falls
+line workshop/first-run/story.hpp view/view-builder/vocabulary.hpp 1 falls
+line workshop/guests.cpp composer/vocabulary.hpp 1 falls
+line workshop/guests.cpp info/vocabulary.hpp 1 falls
+line workshop/guests.cpp notices/vocabulary.hpp 1 falls
+line workshop/keymap.hpp input/gesture_grammar.hpp 1 falls
+line workshop/keymap_persist.hpp persist/file.hpp 1 falls
+line workshop/layouts/session_persist.hpp persist/file.hpp 1 falls
+line workshop/layouts/store.cpp persist/file.hpp 1 falls
+line workshop/load_persist.hpp persist/file.hpp 1 falls
+line workshop/prefs_persist.hpp persist/file.hpp 1 falls
+line workshop/recipe_persist.hpp persist/file.hpp 1 falls
+line workshop/setup.hpp theme/stack_name.hpp 1 falls
+line workshop/setup_persist.hpp persist/file.hpp 1 falls
+line workshop/user_paths.hpp persist/file.hpp 1 falls
+line workshop/weave.hpp persist/file.hpp 1 falls
+line workshop/weave.hpp theme/vocabulary.hpp 1 falls
+line workshop/weave_guest_read.cpp attention/vocabulary.hpp 1 falls
+line workshop/weave_run.cpp theme/stack_name.hpp 1 falls
+line workshop/window_persist.hpp persist/file.hpp 1 falls

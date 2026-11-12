@@ -126,9 +126,10 @@ nothing at all, because no shape begins with a lowercase `s` and a heading with 
 was refused for being one row tall -- so the one sentence that tells a weaver the vocabulary lacks
 what they reached for never appeared.
 
-**Laws supported.** [WL-TERM-01](../workshop/terminal.md), [WL-TERM-02](../workshop/terminal.md),
-[WL-TERM-03](../workshop/terminal.md), [WL-TERM-04](../workshop/terminal.md),
-[WL-TERM-05](../workshop/terminal.md), [WL-TERM-06](../workshop/terminal.md),
+**Laws supported.** [WL-TERM-02](../workshop/terminal-door.md),
+[WL-TERM-03](../workshop/terminal-door.md), [WL-TERM-04](../workshop/terminal-door.md),
+[WL-TERM-05](../workshop/terminal-door.md), [WL-TERM-20](../workshop/terminal-door.md),
+[WL-TERM-01](../workshop/terminal.md), [WL-TERM-06](../workshop/terminal.md),
 [WL-TERM-07](../workshop/terminal.md), [WL-TERM-08](../workshop/terminal.md),
 [WL-TERM-09](../workshop/terminal.md), [WL-TERM-10](../workshop/terminal.md),
-[WL-TERM-11](../workshop/terminal.md), [WL-TERM-20](../workshop/terminal.md).
+[WL-TERM-11](../workshop/terminal.md).

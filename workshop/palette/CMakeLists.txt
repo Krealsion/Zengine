@@ -3,6 +3,9 @@
 # Workshop says to any presenter and asks Workshop to run a choice; it draws in its own area of a
 # graphics window (the pane protocol, the graphics canvas, the text box for its filter).
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../discipline.cmake)
+
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: palette skipped — this Loom cannot host loadable weaves (no loom::kernel)")
     return()
@@ -10,7 +13,7 @@ endif()
 
 zengine_weave(zengine-palette palette.cpp MANUAL ../docs/zengine.palette.md)
 target_link_libraries(zengine-palette PRIVATE zengine-workshop-vocabulary
-                                              zengine-graphics-vocabulary
-                                              zengine-input-vocabulary
-                                              zengine-activation
-                                              zengine-component)
+                                              zengine::graphics
+                                              zengine::input
+                                              zengine::activation
+                                              zengine::component)

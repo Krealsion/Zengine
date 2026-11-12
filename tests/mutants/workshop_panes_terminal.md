@@ -55,7 +55,7 @@ Red in `zengine-workshop-panes-tests`:
 
 The Terminal's door asks for completions in the shape's order whatever the session says.
 
-In `terminal/door.hpp`:
+In `workshop/terminal/door.hpp`:
 
 ```diff
 -                                           self.session().completion_required_first

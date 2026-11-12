@@ -10,6 +10,7 @@
 #include "maker/succession.hpp"
 #include "flow/graph.hpp"
 #include "flow/shape.hpp"
+#include "flow/flow-host/runtime.hpp"
 
 #include "component/text_box.hpp"
 #include "component/motion.hpp"
@@ -63,6 +64,16 @@
 #include "pane/rows.hpp"
 #include "pane/rows_block.hpp"
 #include "manual/manual.hpp"
+#include "manual/vocabulary.hpp"
+
+#include "builder/recipe.hpp"
+#include "builder/vocabulary.hpp"
+#include "launcher/vocabulary.hpp"
+
+#include "view/description.hpp"
+#include "view/host.hpp"
+#include "view/view.hpp"
+#include "view/vocabulary.hpp"
 #include "workshop/setup_control.hpp"
 
 #include <cstdio>

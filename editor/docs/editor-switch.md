@@ -4,7 +4,7 @@
 from one editor to another, and exactly what of the document crosses each way: what is adjusted,
 what is reset, what needs your consent and what is refused. It is a conversation between the switch
 and both Editors, so no one manual holds it: the switch's commands are
-[`zengine.editor-switch`](zengine.editor-switch.md), the Editors' are
+[`zengine.editor-switch`](../../workshop/docs/zengine.editor-switch.md), the Editors' are
 [`zengine.editor`](zengine.editor.md), and switching while you work is
 [Neovim in Workshop](neovim.md). The shapes are
 [`workshop/editor_handoff_vocabulary.hpp`](../../workshop/editor_handoff_vocabulary.hpp). The law

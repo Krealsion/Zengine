@@ -48,9 +48,9 @@ METHOD — The sanitizer lane is a second KIND of evidence: the same full popula
 BECAUSE — a bound into a temporary scene and an unguarded extent overflow both passed the
 ordinary lane green and were named only under instrumentation.
 
-## VM-LANE-08 — A new target lists zengine-sanitize beside zengine-warnings
+## VM-LANE-08 — A new target lists its side's sanitizer beside its warnings
 
-METHOD — A new target lists `zengine-sanitize` beside `zengine-warnings`; omitting it fails nothing and silently drops the target out of the sanitizer witness, which is the one way that lane degrades.
+METHOD — A new target lists `zengine-sanitize` beside `zengine-warnings`, or on Workshop's side `workshop-sanitize` beside `workshop-warnings`; omitting it drops the target out of the sanitizer witness unseen.
 BECAUSE — the interface target carries the instrumentation flags; a target that does not link it
 builds uninstrumented and green, so the lane shrinks without a red.
 
@@ -206,8 +206,9 @@ quarter of the slowest runner's 90 minutes less its cold build. ASan keeps every
 `.github/workflows/ci.yml` ZENGINE_SANITIZE
 
 ### VM-LANE-08
-`CMakeLists.txt` zengine-sanitize zengine-warnings
-`workshop/CMakeLists.txt` zengine-sanitize
+`CMakeLists.txt` zengine-sanitize zengine-warnings ZENGINE_WEAVE_DISCIPLINE
+`workshop/discipline.cmake` workshop-sanitize workshop-warnings ZENGINE_WEAVE_DISCIPLINE
+`workshop/CMakeLists.txt` workshop-sanitize
 
 ### VM-LANE-09
 `tests/verify.cmake`

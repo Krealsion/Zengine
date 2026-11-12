@@ -151,20 +151,20 @@ Terminal line is then sent by the Terminal as itself, as the weaver's is.
 refusals; an old row never has `build`. What each row's powers do not reach is said beside the row:
 at launch, on the Attention pane, and in the [Connections pane](zengine.connections.md#version). A
 guest that asks the door for its inventory hears its own row's powers and losses alone
-([`GuestConnectionsRequested`](zengine.guests.md#guestconnectionsrequested)). What a row's powers reach past what they once
+([`GuestConnectionsRequested`](../../workshop/docs/zengine.guests.md#guestconnectionsrequested)). What a row's powers reach past what they once
 did is said the same way, at launch and on Attention: a row holding `capture` reads the desk said
 whole, the pane inventory and the keymap, which a row written for pictures and pane rows did not,
 so the widening stands beside it as a condition (`guests.gain/<n>`, `n` its place in the file,
 counted from 0) and is never silent.
 
 Any admitted session may also ask the door for its own row, whatever its powers
-([`GuestRowDescribedRequested`](zengine.guests.md#guestrowdescribedrequested)). The file is read
+([`GuestRowDescribedRequested`](../../workshop/docs/zengine.guests.md#guestrowdescribedrequested)). The file is read
 once, at launch: a changed row applies at the next launch.
 
 **Listening is not loaded.** Workshop opens its door, and writes the port it listens on to the
 file's `port_file` when the file names one, before its load plan is realized. A guest can therefore
 be admitted while rows that declare shapes are still loading; the door says where the plan is
-([`GuestPlanRequested`](zengine.guests.md#guestplanrequested)), so a shape not declared yet is not
+([`GuestPlanRequested`](../../workshop/docs/zengine.guests.md#guestplanrequested)), so a shape not declared yet is not
 taken for one this run never declares. `workshop/connections` asks it from a Loom session with
 `wait_plan`, and the demo service asks it before its first ask.
 

@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_ARRANGEMENT_HPP
 
 // The host's read-only observation door, `zengine.arrangement` (its manual, which it carries and
-// answers: introspection/docs/zengine.arrangement.md): a derivation, pure over the live realization
+// answers: workshop/docs/zengine.arrangement.md): a derivation, pure over the live realization
 // owner it reads, and the weave that answers a role that asks. It keeps no store, publishes
 // nothing, and cannot mount,
 // unmount, overlay, evaluate, load, unload, reload or replace anything. Which powers resolve

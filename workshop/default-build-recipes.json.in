@@ -7,13 +7,13 @@
     "format_version": "2",
     "recipes": [
       {
-        "recipe": "snake-world-v2",
-        "artifact": "snake-world-v2",
+        "recipe": "workshop-recipe-example",
+        "artifact": "zengine-workshop-recipe-example",
         "artifact_dir": "@ZENGINE_RECIPE_ARTIFACT_DIR@",
         "cmake_target": [
           {
             "build_dir": "@CMAKE_BINARY_DIR@",
-            "target": "snake-world-v2",
+            "target": "zengine-workshop-recipe-example",
             "config": "",
             "entry": ""
           }

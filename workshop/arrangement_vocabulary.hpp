@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 
 // Asking a host what its authored project resolved: `ArrangementRequested` ->
-// `ResolvedArrangement`, answered by one role (introspection/docs/zengine.arrangement.md); which
+// `ResolvedArrangement`, answered by one role (workshop/docs/zengine.arrangement.md); which
 // powers resolve is the discovery door's (powers_vocabulary.hpp). Values only: a picture of the
 // owner's facts, which confers no authority over them.
 

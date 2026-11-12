@@ -11,10 +11,10 @@ powers the program can use and who supplies each. One weave offers all of them, 
 
 Each pane answers its own question from its own owner, and the panes disagree on purpose. `Loaded`
 asks the kernel's Weave Manager which weaves it loaded (`zen.ListLoaded`). `Project` asks the
-host's arrangement door, [`zengine.arrangement`](zengine.arrangement.md), what the project's load
+host's arrangement door, [`zengine.arrangement`](../../workshop/docs/zengine.arrangement.md), what the project's load
 plan asked for and what realization made of each row. `Powers` asks the discovery door,
-[`zengine.powers`](zengine.powers.md), which powers resolve here, and the sample door,
-[`zengine.sources`](zengine.sources.md), to run a Source when you ask. A provider such as
+[`zengine.powers`](../../workshop/docs/zengine.powers.md), which powers resolve here, and the sample door,
+[`zengine.sources`](../../workshop/docs/zengine.sources.md), to run a Source when you ask. A provider such as
 `zengine-operators-basic` is a row of `Project` and absent from `Loaded`: no kernel loads it.
 
 The panes report and do not act. None of them loads, unloads, mounts, overlays or replaces
@@ -69,8 +69,8 @@ and another out, is among them). Which view a power is in is read off its defini
   `Sources` or `Operators` in the first row does [`powers.sources`](#powerssources) or
   [`powers.operators`](#powersoperators).
 - **Answers:** the brackets move, `[Sources] Operators` or `Sources [Operators]`, and the list is
-  asked again of the discovery door ([`FindPowers`](zengine.powers.md#findpowers)), with the
-  selected power's description ([`DescribePower`](zengine.powers.md#describepower)). Each view keeps
+  asked again of the discovery door ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)), with the
+  selected power's description ([`DescribePower`](../../workshop/docs/zengine.powers.md#describepower)). Each view keeps
   its own selection, by identity: leave a view and come back, and your power is still selected
   there.
 - **Refuses:** nothing.
@@ -84,7 +84,7 @@ short pane hides is still held; moving starts again from the list's first row.
 - **Takes:** the list on screen. Default key <!-- key powers.up -->`up`<!-- /key -->; the wheel moves
   a row a notch.
 - **Answers:** the `> ` mark and the position, `2/3`, move, and the discovery door is asked about
-  the power now selected ([`DescribePower`](zengine.powers.md#describepower)); its
+  the power now selected ([`DescribePower`](../../workshop/docs/zengine.powers.md#describepower)); its
   detail shows under the list ([`yields`](#yields), [`active`](#active)).
 - **Refuses:** nothing; at the first row, or in an empty list, nothing moves.
 - **Example:** press <!-- key powers.up -->`up`<!-- /key -->.
@@ -95,7 +95,7 @@ Moves the selection to the next power the list shows. Otherwise as [`powers.up`]
 
 - **Takes:** the list on screen. Default key <!-- key powers.down -->`down`<!-- /key -->.
 - **Answers:** the mark moves down one, and the door is asked about the power now selected
-  ([`DescribePower`](zengine.powers.md#describepower)).
+  ([`DescribePower`](../../workshop/docs/zengine.powers.md#describepower)).
 - **Refuses:** nothing; at the last row nothing moves.
 - **Example:** in a cold pane, press <!-- key powers.down -->`down`<!-- /key --> to select the first
   power, `1/3`.
@@ -107,7 +107,7 @@ Samples the selected Source: the host runs it once, now, and the pane keeps what
 - **Takes:** the selected power, in the Sources view. Default key
   <!-- key powers.sample -->`return`<!-- /key -->; the control `[ Sample ]`, under a selected Source.
 - **Answers:** asks the sample door to run it
-  ([`SampleRequested`](zengine.sources.md#samplerequested)). Its answer shows under the detail as
+  ([`SampleRequested`](../../workshop/docs/zengine.sources.md#samplerequested)). Its answer shows under the detail as
   `sampled when asked  zengine.project.anchor` and the value's lines, or `sample refused when asked`
   and the refusal in its owner's words. What a sample said is history: it stays through view
   switches, searches, a new selection and its provider unloading, and nothing refreshes it. Each
@@ -124,8 +124,8 @@ Shows the Sources view. Otherwise as [`powers.view`](#powersview).
 
 - **Takes:** the view shown. No default key; a press on `Sources` in the first row.
 - **Answers:** `[Sources] Operators`, and the list asked again
-  ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's description
-  ([`DescribePower`](zengine.powers.md#describepower)); nothing when Sources is shown.
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)) with the selected power's description
+  ([`DescribePower`](../../workshop/docs/zengine.powers.md#describepower)); nothing when Sources is shown.
 - **Refuses:** nothing.
 - **Example:** press `Sources`.
 
@@ -135,8 +135,8 @@ Shows the Operators view. Otherwise as [`powers.view`](#powersview).
 
 - **Takes:** the view shown. No default key; a press on `Operators` in the first row.
 - **Answers:** `Sources [Operators]`, and the list asked again
-  ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's description
-  ([`DescribePower`](zengine.powers.md#describepower)); nothing when Operators is shown.
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)) with the selected power's description
+  ([`DescribePower`](../../workshop/docs/zengine.powers.md#describepower)); nothing when Operators is shown.
 - **Refuses:** nothing.
 - **Example:** press `Operators`.
 
@@ -149,7 +149,7 @@ power can be opened or edited.
 - **Takes:** the filter, in both views at once. No default key; the control `[ ] Composite`, drawn
   in the first row when the pane is wide enough.
 - **Answers:** the control reads `[x] Composite` or `[ ] Composite`, and the list is asked again of
-  the discovery door ([`FindPowers`](zengine.powers.md#findpowers)). A composite
+  the discovery door ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)). A composite
   power's row ends ` (composite)`.
 - **Refuses:** nothing; a filter nothing passes shows `none here match the current search`.
 - **Example:** press `[ ] Composite` in the Operators view.
@@ -162,7 +162,7 @@ whole.
 - **Takes:** the list on screen. Default key <!-- key project.up -->`up`<!-- /key -->; the wheel
   moves it an artifact a notch.
 - **Answers:** the arrangement door is asked again
-  ([`ArrangementRequested`](zengine.arrangement.md#arrangementrequested)), and its answer is
+  ([`ArrangementRequested`](../../workshop/docs/zengine.arrangement.md#arrangementrequested)), and its answer is
   drawn from the artifact now first; the row that counts what is not shown says what is above it
   too, `  ... 1 earlier, 3 more`.
 - **Refuses:** nothing; at the first artifact, or with every artifact shown, nothing moves and
@@ -175,7 +175,7 @@ Moves Project's list down an artifact. Otherwise as [`project.up`](#projectup).
 
 - **Takes:** the list on screen. Default key <!-- key project.down -->`down`<!-- /key -->.
 - **Answers:** the door is asked again
-  ([`ArrangementRequested`](zengine.arrangement.md#arrangementrequested)), and the next artifact
+  ([`ArrangementRequested`](../../workshop/docs/zengine.arrangement.md#arrangementrequested)), and the next artifact
   comes into the pane.
 - **Refuses:** nothing; once the last artifact shows, nothing moves and nothing is asked.
 - **Example:** in a pane that counts `  ... 5 more`, press <!-- key project.down -->`down`<!-- /key -->.
@@ -228,7 +228,7 @@ resolved role: `Loaded` shows it.
 A row not running says where realization has got with it: `(loading)` and `(not reached)`, a
 project coming up; `(refused)`; `(switched: its role is held by another choice)`; `(unavailable:
 optional, and this run stepped over it)`. Then `    why   ` the refusing layer's sentence and
-`    next  ` what you can do, from [`zengine.arrangement`](zengine.arrangement.md#arrangementrequested).
+`    next  ` what you can do, from [`zengine.arrangement`](../../workshop/docs/zengine.arrangement.md#arrangementrequested).
 
 ### `powers`
 
@@ -269,8 +269,8 @@ The panes read and write no file. `Project`'s last row names the plan file the h
 
 ## See also
 
-- [`zengine.arrangement`](zengine.arrangement.md), [`zengine.powers`](zengine.powers.md) and
-  [`zengine.sources`](zengine.sources.md), the roles the panes ask.
+- [`zengine.arrangement`](../../workshop/docs/zengine.arrangement.md), [`zengine.powers`](../../workshop/docs/zengine.powers.md) and
+  [`zengine.sources`](../../workshop/docs/zengine.sources.md), the roles the panes ask.
 - [A picture of `Powers`](images/powers-find.png), searching the Operators for `larger`.
 - [Sources and Operators](../../operator/docs/operator-sources.md), and
   [what a contribution says about itself](../../operator/docs/operator-providers.md#what-a-contribution-says-about-itself).

@@ -72,7 +72,7 @@ hears itself.
 ## Find what to compose
 
 The rail beside the graph finds operators through the host's
-[discovery door](../../introspection/docs/zengine.powers.md), the door the
+[discovery door](../../workshop/docs/zengine.powers.md), the door the
 **Powers** pane and the Terminal ask too, so one question gets the same rows in all three.
 
 - **The search line** takes what you type while no dialog is open. A power matches when each word

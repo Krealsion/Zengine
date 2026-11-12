@@ -147,7 +147,8 @@ endif()
 set(stranger_src "${work}/kitchen")
 file(REMOVE_RECURSE "${stranger_src}")
 file(MAKE_DIRECTORY "${stranger_src}")
-file(GLOB fixture "${here}/CMakeLists.txt" "${here}/*.cpp" "${here}/*.hpp" "${here}/*.json")
+file(GLOB fixture "${here}/CMakeLists.txt" "${here}/*.cpp" "${here}/*.hpp" "${here}/*.json"
+     "${here}/*.md")
 file(COPY ${fixture} DESTINATION "${stranger_src}")
 
 # A build of the copy, against the prefix and the Loom and nothing else. ZEN_CMAKE_ARGS
@@ -236,11 +237,21 @@ if(NOT probe_product)
 endif()
 message(STATUS "package witness: the Workshop probe builds as a stranger, from installed headers alone ok")
 
+file(GLOB woven "${stranger_bin}/oven-woven.*" "${stranger_bin}/${ZEN_CONFIG}/oven-woven.*")
+list(FILTER woven EXCLUDE REGEX "\.(a|lib|exp|pdb)$")
+if(NOT woven)
+    message(FATAL_ERROR "package witness: the installed zengine_weave() produced no loadable weave in ${stranger_bin}")
+endif()
+message(STATUS "package witness: a stranger's weave builds by the installed weave pattern ok")
+
 zen_find_program_in(surfaces witness-surfaces "${stranger_bin}")
 zen_run("every exported target, from the installed headers" "${surfaces}")
 
 zen_find_program_in(graphics witness-graphics "${stranger_bin}")
 zen_run("the graphics package alone, from its installed headers" "${graphics}")
+
+zen_find_program_in(manual witness-manual "${stranger_bin}")
+zen_run("a stranger's weave carries its manual, compiled in by the installed module" "${manual}")
 
 zen_find_program_in(drafts witness-message-drafts "${stranger_bin}")
 zen_run("reusable drafts and Flow workspace use installed headers" "${drafts}")

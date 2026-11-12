@@ -20,9 +20,12 @@ add_executable(witness-surfaces public_surface.cpp)
 target_link_libraries(witness-surfaces
     PRIVATE
         zengine::inventory
+        zengine::manual
         zengine::activation
         zengine::maker
         zengine::flow
+        zengine::flow-host
+        zengine::view
         zengine::timer
         zengine::input
         zengine::ui
@@ -102,7 +105,11 @@ add_dependencies(kitchen-host oven)
 # noun true of every member is `artifact`, and a variable renamed after one surface goes red here.
 foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
                  zengine-guest-vocabulary zengine-inventory zengine-graphics
-                 zengine-window-tui)
+                 zengine-window-tui zengine-theme zengine-files zengine-introspection
+                 zengine-composer zengine-attention-pane zengine-notices zengine-notices-pane
+                 zengine-info-pane zengine-inventory-pane zengine-terminal-pane
+                 zengine-editor-pane zengine-flow-pane zengine-view-builder
+                 zengine-menu-presenter)
     if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
         message(FATAL_ERROR
             "kitchen: '${expected}' is not in ZENGINE_RUNTIME_ARTIFACTS "
@@ -116,6 +123,17 @@ foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
             "file nobody installed is worse than an empty one.")
     endif()
 endforeach()
+# The GUI window arrives with the SDL it was built against, beside it, where the package's build
+# fetched one; zengine_stage_sdl() above stages them beside the host.
+if("zengine-window-sdl" IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
+    list(LENGTH ZENGINE_SDL_RUNTIME zengine_sdl_count)
+    if(NOT zengine_sdl_count EQUAL 2)
+        message(FATAL_ERROR
+            "kitchen: the package carries the GUI window, and ZENGINE_SDL_RUNTIME names "
+            "'${ZENGINE_SDL_RUNTIME}', not SDL3 and SDL3_ttf beside it in ${ZENGINE_ARTIFACT_DIR}")
+    endif()
+    message(STATUS "kitchen: the GUI window arrives with its SDL, ${ZENGINE_SDL_RUNTIME}")
+endif()
 message(STATUS
     "kitchen: the installed package advertises ${ZENGINE_RUNTIME_ARTIFACTS} in "
     "${ZENGINE_ARTIFACT_DIR} -- weaves and a provider in one list, which is why they are "
@@ -139,8 +157,25 @@ add_dependencies(flow-host flow-native)
 add_executable(witness-message-drafts message_draft_consumer.cpp)
 target_link_libraries(witness-message-drafts PRIVATE zengine::message-draft zengine::flow zengine::pane)
 
+# ---- the same weave, built by the installed pattern ------------------------------------------
+# zengine_weave() is the package's own loadable-weave pattern, Loom's contract applied and the
+# manual compiled in, as Zengine builds its own weaves; zengine_stage_sdl() stages the SDL this
+# package carries beside a host, or nothing. run.cmake requires the image.
+zengine_weave(oven-woven oven.cpp MANUAL kitchen-oven.md)
+target_link_libraries(oven-woven PRIVATE zengine::timer)
+zengine_stage_sdl(kitchen-host)
+
+# ---- a stranger's weave carries its manual -------------------------------------------------
+# manual_consumer.cpp reads back the page tests/package/kitchen-oven.md, compiled in by the
+# installed zengine_manual() and answered from `zengine::manual`: a manual the package stopped
+# carrying, or a module that reads this source tree, fails here.
+add_executable(witness-manual manual_consumer.cpp)
+target_link_libraries(witness-manual PRIVATE zengine::manual)
+zengine_manual(witness-manual PRIVATE kitchen-oven.md)
+
 # ---- every program here runs in the UTF-8 code page on Windows, as a stranger asks ---------
 # run.cmake refuses a program built without it there, and public_surface.cpp checks the code page
 # it runs in; elsewhere the line does nothing.
 zengine_code_page(witness-surfaces witness-graphics witness-pane-menu witness-pane-settings
-                  witness-pane-window kitchen-host flow-author flow-host witness-message-drafts)
+                  witness-pane-window kitchen-host flow-author flow-host witness-message-drafts
+                  witness-manual)

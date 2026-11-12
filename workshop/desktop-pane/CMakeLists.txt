@@ -4,6 +4,9 @@
 # host owns. It links no loom::kernel: nothing it can say reaches the control door or the
 # Manager, which is the point of it being a participant rather than the host.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../discipline.cmake)
+
 # The weave needs a Loom that can HOST loadable weaves — the same honest question every
 # package here asks.
 if(NOT TARGET loom::kernel)
@@ -14,6 +17,6 @@ endif()
 # Its manual is compiled in, and answered for each of its three panes to whoever asks.
 zengine_weave(zengine-desktop-pane pane.cpp MANUAL ../docs/zengine.desktop.md)
 target_link_libraries(zengine-desktop-pane PRIVATE zengine-workshop-vocabulary
-                                                   zengine-input-vocabulary
-                                                   zengine-activation
-                                                   zengine-component)
+                                                   zengine::input
+                                                   zengine::activation
+                                                   zengine::component)

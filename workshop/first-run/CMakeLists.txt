@@ -3,6 +3,9 @@
 # role-wide setting in Workshop's settings file and draws in its own area of a graphics window
 # (the pane protocol, the graphics canvas); its answers go to the editor switch and Workshop.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../discipline.cmake)
+
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: first-run skipped — this Loom cannot host loadable weaves (no loom::kernel)")
     return()
@@ -10,6 +13,6 @@ endif()
 
 zengine_weave(zengine-first-run first_run.cpp MANUAL ../docs/zengine.first-run.md)
 target_link_libraries(zengine-first-run PRIVATE zengine-workshop-vocabulary
-                                                zengine-graphics-vocabulary
-                                                zengine-input-vocabulary
-                                                zengine-activation)
+                                                zengine::graphics
+                                                zengine::input
+                                                zengine::activation)

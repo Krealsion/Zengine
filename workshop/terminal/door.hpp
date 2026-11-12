@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_TERMINAL_DOOR_HPP
-#define ZENGINE_TERMINAL_DOOR_HPP
+#ifndef ZENGINE_WORKSHOP_TERMINAL_DOOR_HPP
+#define ZENGINE_WORKSHOP_TERMINAL_DOOR_HPP
 
 // The door onto the terminal participant, composed onto Workshop's weave: the picture of its
 // record said when it changed, the one act that authors, and the read that says what could be
 // said next, all at the role Workshop holds. Compiled into Workshop; the pane's image includes
 // none of it (WL-TERM-08).
-// Workshop law: agents/workshop/terminal.md
+// Workshop law: agents/workshop/terminal-door.md
 
-#include "terminal/complete.hpp"
-#include "terminal/transcript.hpp"
+#include "workshop/terminal/complete.hpp"
+#include "workshop/terminal/transcript.hpp"
 
 #include "workshop/panes.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
@@ -32,7 +32,7 @@ namespace zengine::workshop {
 /// The host's answer to `destinations`, read off `bus` at the call: every weave that is not a
 /// sealed candidate, its roles, accepted shapes and liveness, and `self` marked. A reading, not a
 /// registry.
-// WL-TERM-16 -- agents/workshop/terminal.md
+// WL-TERM-16 -- agents/workshop/terminal-door.md
 inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self) {
     std::vector<Destination> out;
     for (const loom::WeaveId id : bus.list_weaves()) {
@@ -55,7 +55,7 @@ inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, l
 }
 
 /// `LineSlot` AS THE SEAM SPELLS IT.
-// WL-TERM-04 -- agents/workshop/terminal.md
+// WL-TERM-04 -- agents/workshop/terminal-door.md
 inline const char* slot_name(LineSlot slot) noexcept {
     switch (slot) {
     case LineSlot::Verb: return kSlotVerb;
@@ -154,7 +154,7 @@ public:
 
     /// WHAT THE PARTICIPANT'S RECORD HOLDS, TO WHOEVER IS PRESENTING IT -- derived on the
     /// repaint, compared against the last utterance, and said only when it changed.
-    // WL-TERM-03 -- agents/workshop/terminal.md
+    // WL-TERM-03 -- agents/workshop/terminal-door.md
     void say_transcript(loom::Mail& mail) {
         TranscriptShown now = transcript_shown(host_->terminal);
         if (transcript_said_ && same_transcript(now, said_transcript_)) {
@@ -174,7 +174,7 @@ private:
     /// Compose and author one line through the participant, in Loom's own grammar: the one path
     /// that speaks as the terminal, stamped with its identity and judged against its grant -- why
     /// the participant stayed this host's.
-    // WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
+    // WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal-door.md
     void submit_terminal_line(const std::string& line) {
         if (line.empty()) {
             return;
@@ -227,4 +227,4 @@ private:
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_TERMINAL_DOOR_HPP
+#endif // ZENGINE_WORKSHOP_TERMINAL_DOOR_HPP

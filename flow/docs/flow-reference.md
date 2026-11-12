@@ -8,7 +8,8 @@ tool; [graphical authoring](flow.md) covers Workshop, and the pane's commands ar
 [its manual](zengine.flow.md). Workshop runs projects through its
 [existing-host manager](flow-runtime.md), rather than opening a nested Loom session.
 The installed `flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp` expose their control
-messages through `zengine::flow`; their runtime and presentation implementations remain internal.
+messages through `zengine::flow`; the host itself, `flow/flow-host/runtime.hpp`, is installed through
+`zengine::flow-host`, and the pane's presentation remains internal.
 
 ## Authoring and persistence
 

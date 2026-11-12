@@ -55,11 +55,13 @@ read and never built ([the quarry's catalog](quarry/QUARRY-CATALOG.md)):
 | `cmake/ZengineInstall.cmake`, any public header, any exported target's link line | [agents/packaging.md](agents/packaging.md) |
 | the pane seam's prose, both its halves, and the tools that arrive through it (its law: `pane/`'s router) | [agents/panes.md](agents/panes.md) |
 | Workshop, the host every feature is mounted in | [workshop/AGENTS.md](workshop/AGENTS.md) |
+| the line between Workshop and Zengine, `tests/census.txt` | [agents/workshop-line.md](agents/workshop-line.md) |
 
 The suites no one folder holds:
 
 - `doc_links`, `package_vocabulary`, `law_register`, `source_comments`, `code_values`, `folder_map`, `manual`
   — the checks that read the source tree, each stating its contract in its own header (below)
+- `census` — the numbers `tests/census.txt` pins, the line between Workshop and Zengine among them
 - `smoke` — the one suite with no kernel, in `tests/smoke/`
 - `workshop_shapes` — every shape the tree publishes against `tests/shapes.txt` (Do not assume)
 - `package_judges` — the judges of the package a stranger downloads, each red on its canary
@@ -153,7 +155,8 @@ cmake -P tests/documentation_lane.cmake
   runs serially — live outside the repository.
 - **The sanitizer lane is a second KIND of evidence**: the same full population under
   ASan+UBSan, for defects whose symptom is that *no answer changes* (lifetimes, extents,
-  retained references). A new target lists `zengine-sanitize` beside `zengine-warnings`;
+  retained references). A new target lists `zengine-sanitize` beside `zengine-warnings` (on Workshop's side, its
+  own `workshop-sanitize` beside `workshop-warnings`);
   omitting it fails nothing and silently drops the target out of the witness — that is the one
   way this lane degrades.
 - **The package witness is a third kind**: both lanes above reach Zengine through its own
@@ -177,7 +180,7 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- Seven entries read the source tree rather than a build: `doc_links` (every repo-local
+- Eight entries read the source tree rather than a build: `doc_links` (every repo-local
   documentation reference must resolve, anchors included, and no current-facing file names a path
   outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
   (the registers under `agents/`: the form, every name they make, and every file's byte budget;
@@ -189,10 +192,12 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   registers read from its owner: no marker out of step, no known value copied unmarked, no role's
   name spelled past its home, no test count without its commit and command) and `folder_map` (every top-level folder listed with its
   kind, a front page and a router in every feature, the host and every library, and every
-  register and CTest entry routed by exactly one router) and `manual` (every weave's manual in
+  register and CTest entry routed by exactly one router), `manual` (every weave's manual in
   form and carried by a target, a pane's commands exactly its ids in the action census
   (`tests/actions.txt`, `tests/actions/`), and every key marker in a current page its declared default,
-  Workshop's own in `tests/workshop_actions.txt`). Full contract detail:
+  Workshop's own in `tests/workshop_actions.txt`) and `census` (every number `tests/census.txt`
+  pins held by the tree, both ways, and a row marked to fall never raised: the line between
+  Workshop and Zengine, [agents/workshop-line.md](agents/workshop-line.md)). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction

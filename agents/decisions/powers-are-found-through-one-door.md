@@ -1,7 +1,7 @@
 # Powers are found through one door, and the Terminal may ask it
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [terminal](../workshop/terminal.md); the door's is in [panes](../panes.md).
+supports is in [terminal-door](../workshop/terminal-door.md); the door's is in [panes](../panes.md).
 
 **Context.** A maker composing in Flow, a weaver browsing in Powers and an agent at the Terminal
 all ask which powers there are, by what they are for and by the shapes they take and give. Flow
@@ -31,4 +31,4 @@ this door; Flow's rail lists only what the door answers, while its graph still r
 signatures from the Flow host. A query is scalar, so the Terminal spells every one of them.
 Paging continues after an identity, a position no door has to remember.
 
-**Laws supported.** [WL-TERM-18](../workshop/terminal.md).
+**Laws supported.** [WL-TERM-18](../workshop/terminal-door.md).

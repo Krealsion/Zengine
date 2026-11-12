@@ -4,6 +4,9 @@
 # (tools/workshop/loom-tool.json). Both are installed (lib/zengine, share/zengine/loom-tools);
 # Loom's session tooling runs them. The artifact needs a Loom that can host loadable weaves.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../workshop/discipline.cmake)
+
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: guest vocabulary weave skipped -- this Loom cannot host loadable weaves (no loom::kernel)")
     return()
@@ -11,7 +14,7 @@ endif()
 
 zengine_weave(zengine-guest-vocabulary vocabulary_weave.cpp)
 target_link_libraries(zengine-guest-vocabulary
-    PRIVATE zengine-input-vocabulary zengine-graphics-vocabulary zengine::inventory
+    PRIVATE zengine::input zengine::graphics zengine::inventory
             zengine-builder-vocabulary)
 target_include_directories(zengine-guest-vocabulary PRIVATE ${CMAKE_SOURCE_DIR})
 
@@ -20,5 +23,5 @@ target_include_directories(zengine-guest-vocabulary PRIVATE ${CMAKE_SOURCE_DIR})
 # sanitizer lane would have to shut the `session` gate. It only registers shapes, so it gives up
 # little; Workshop, which that host drives, stays instrumented.
 get_target_property(zengine_guest_links zengine-guest-vocabulary LINK_LIBRARIES)
-list(REMOVE_ITEM zengine_guest_links zengine-sanitize)
+list(REMOVE_ITEM zengine_guest_links workshop-sanitize)
 set_target_properties(zengine-guest-vocabulary PROPERTIES LINK_LIBRARIES "${zengine_guest_links}")

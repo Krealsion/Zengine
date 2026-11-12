@@ -137,7 +137,7 @@ The case comes first, and it fails on the unchanged code for the reason the issu
    count, in the same commit
    ([VM-POP-05](../../agents/verification/population.md#vm-pop-05--floors-are-minimums-anchored-to-a-measured-baseline)),
    and a new suite or target lists `zengine-sanitize` beside `zengine-warnings`
-   ([VM-LANE-08](../../agents/verification/lanes.md#vm-lane-08--a-new-target-lists-zengine-sanitize-beside-zengine-warnings)).
+   ([VM-LANE-08](../../agents/verification/lanes.md#vm-lane-08--a-new-target-lists-its-sides-sanitizer-beside-its-warnings)).
 2. **Run it alone.** A suite's binary is the target `tests/CMakeLists.txt` declares for its
    entry; the Workshop entry `workshop_<subject>` is `zengine-workshop-<subject>-tests`, and each
    `workshop_panes_<part>` is `zengine-workshop-panes-tests` with its part's `--source-file`, which

@@ -50,8 +50,10 @@ include(CMakePackageConfigHelpers)
 # the tree needs it; agents/packaging.md says what each grants, and the end of this file what is
 # out. EXPORT_NAME makes `zengine::timer` the same target from this tree and from a prefix.
 set(ZENGINE_EXPORTED_TARGETS
+    zengine-manual
     zengine-maker
     zengine-flow
+    zengine-flow-host
     zengine-message-draft
     zengine-inventory-vocabulary
     zengine-source-transfer-vocabulary
@@ -66,11 +68,14 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-operator
     zengine-operator-consumer
     zengine-pane-vocabulary
+    zengine-view
     zengine-neovim-editor-vocabulary
     zengine-graphics-vocabulary)
 
+set_target_properties(zengine-manual PROPERTIES EXPORT_NAME manual)
 set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
 set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
+set_target_properties(zengine-flow-host PROPERTIES EXPORT_NAME flow-host)
 set_target_properties(zengine-message-draft PROPERTIES EXPORT_NAME message-draft)
 set_target_properties(zengine-inventory-vocabulary PROPERTIES EXPORT_NAME inventory)
 set_target_properties(zengine-source-transfer-vocabulary PROPERTIES EXPORT_NAME source-transfer)
@@ -86,6 +91,7 @@ set_target_properties(zengine-property            PROPERTIES EXPORT_NAME propert
 set_target_properties(zengine-operator            PROPERTIES EXPORT_NAME operator)
 set_target_properties(zengine-operator-consumer   PROPERTIES EXPORT_NAME operator-consumer)
 set_target_properties(zengine-pane-vocabulary     PROPERTIES EXPORT_NAME pane)
+set_target_properties(zengine-view                PROPERTIES EXPORT_NAME view)
 set_target_properties(zengine-neovim-editor-vocabulary PROPERTIES EXPORT_NAME neovim)
 set_target_properties(zengine-graphics-vocabulary PROPERTIES EXPORT_NAME graphics)
 
@@ -110,7 +116,7 @@ set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/input_weave.hpp)
 set(zengine_public_headers_ui         ui/vocabulary.hpp
                                       ui/layout.hpp)
-set(zengine_public_headers_manual     manual/manual.hpp)
+set(zengine_public_headers_manual     manual/manual.hpp manual/vocabulary.hpp)
 set(zengine_public_headers_component  component/motion.hpp
                                       component/unicode_width.hpp
                                       component/text.hpp
@@ -163,6 +169,15 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_v
                                       workshop/open_seam_vocabulary.hpp
                                       workshop/project_seam_vocabulary.hpp
                                       workshop/settings_seam_vocabulary.hpp)
+# ...and the words a pane and its host's offices both speak, installed beside the pane contract
+# though Workshop's Builder and launcher answer them: what to build and what a build came to, the
+# recipe a weaver authors (`builder/`), and what to launch (`launcher/`).
+set(zengine_public_headers_builder    builder/vocabulary.hpp builder/recipe.hpp)
+set(zengine_public_headers_launcher   launcher/vocabulary.hpp)
+# The view package: a view described as data, its renderer and the host that registers each view as
+# its own participant, the host's manual with it (below).
+set(zengine_public_headers_view view/vocabulary.hpp view/description.hpp view/view.hpp
+                                view/host.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
 # The graphics vocabulary an owner draws with, its colours by name -- the pool's generated names
@@ -192,7 +207,7 @@ set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/l
 set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp inventory/grant.hpp)
 install(FILES inventory/inventory-pane/vocabulary.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/inventory/inventory-pane)
 set(zengine_public_headers_editor/source-transfer editor/source-transfer/vocabulary.hpp)
-set(zengine_public_headers_flow/flow-host flow/flow-host/vocabulary.hpp)
+set(zengine_public_headers_flow/flow-host flow/flow-host/vocabulary.hpp flow/flow-host/runtime.hpp)
 set(zengine_public_headers_flow/flow-pane flow/flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)
     install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -207,10 +222,18 @@ endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
                     editor/source-transfer activation timer input ui manual component persist property
-                    operator pane workshop editor/neovim-editor graphics graphics/elements
+                    operator pane builder launcher view workshop editor/neovim-editor graphics graphics/elements
                     graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
+endforeach()
+# ...and the manual an exported target carries compiled in, a role's page as `manuals/<role>.hpp`
+# (cmake/ZengineManual.cmake): the header its public header includes, generated beside the build.
+foreach(target IN LISTS ZENGINE_EXPORTED_TARGETS)
+    get_target_property(zengine_target_manuals ${target} ZENGINE_MANUAL_HEADERS)
+    if(zengine_target_manuals)
+        install(FILES ${zengine_target_manuals} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/manuals)
+    endif()
 endforeach()
 
 # ---- the loadable artifacts a consumer's host opens --------------------------------------
@@ -221,10 +244,11 @@ endforeach()
 # Loom statically and needs nothing else at load time.
 set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
-# Out of the developer package: the GUI window (a fetched SDL is a build-tree library this package
-# does not carry); introspection and the composer, shown only inside a Workshop run; the snake
-# example; every test fixture. The package a stranger downloads (ZENGINE_PACKAGE, below) carries
-# Workshop with the SDL it built, in bin/.
+# The panes and the offices beside them are Zengine's, every one, and a host built against this
+# package stages them from here as Workshop stages them beside itself (workshop/CMakeLists.txt).
+# The GUI window joins them with the SDL this build fetched (below). Out of the developer package:
+# Workshop's own weaves; the snake example; every test fixture. The package a stranger downloads
+# (ZENGINE_PACKAGE, below) carries Workshop with the SDL it built, in bin/.
 set(zengine_installable_artifacts
     zengine-app-weave            # weave: an app's own weave, which zengine-app runs
     zengine-timer                # weave
@@ -237,7 +261,21 @@ set(zengine_installable_artifacts
     zengine-guest-vocabulary     # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
                                  # declared there, so a session's Python tools can speak it
     zengine-graphics             # weave: the graphics directory
-    zengine-window-tui)     # weave: the window over the process's own terminal
+    zengine-window-tui           # weave: the window over the process's own terminal
+    zengine-theme                # weave: the theme stack and the shipped themes' reader
+    zengine-files                # weave: Files, the project browser
+    zengine-introspection        # weave: Loaded, Project and Powers
+    zengine-composer             # weave: the composer
+    zengine-attention-pane       # weave: Attention
+    zengine-notices              # weave: the notices office
+    zengine-notices-pane         # weave: Notices
+    zengine-info-pane            # weave: Info
+    zengine-inventory-pane       # weave: Inventory
+    zengine-terminal-pane        # weave: the Terminal pane
+    zengine-editor-pane          # weave: the Editor
+    zengine-flow-pane            # weave: the Flow pane
+    zengine-view-builder         # weave: the View Builder
+    zengine-menu-presenter)      # weave: the menu presenter
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)
@@ -255,6 +293,27 @@ foreach(artifact IN LISTS zengine_installable_artifacts)
         list(APPEND ZENGINE_INSTALLED_ARTIFACTS ${artifact})
     endif()
 endforeach()
+
+# ...AND THE GUI WINDOW, WITH THE SDL IT WAS BUILT AGAINST, where this build fetched that SDL: the
+# window and both SDL libraries in the one directory, which a host stages beside itself
+# (zengine_stage_sdl(), handed ZENGINE_SDL_RUNTIME by the config). A window over a system SDL3
+# stays out: that SDL is the system's to carry.
+if(TARGET zengine-window-sdl AND zengine_sdl_fetched AND zengine_sdl_ttf_fetched)
+    if(WIN32)
+        install(FILES $<TARGET_FILE:zengine-window-sdl> ${ZENGINE_SDL_RUNTIME}
+                DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR})
+    else()
+        # By target, so the build tree's RUNPATH becomes $ORIGIN, where the SDL beside it is.
+        get_target_property(zengine_dev_sdl SDL3::SDL3 ALIASED_TARGET)
+        get_target_property(zengine_dev_ttf SDL3_ttf::SDL3_ttf ALIASED_TARGET)
+        set_target_properties(zengine-window-sdl ${zengine_dev_sdl} ${zengine_dev_ttf}
+                              PROPERTIES INSTALL_RPATH "$ORIGIN")
+        install(TARGETS zengine-window-sdl LIBRARY DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR})
+        install(TARGETS ${zengine_dev_sdl} ${zengine_dev_ttf}
+                LIBRARY DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR} NAMELINK_SKIP)
+    endif()
+    list(APPEND ZENGINE_INSTALLED_ARTIFACTS zengine-window-sdl)
+endif()
 
 if(NOT ZENGINE_INSTALLED_ARTIFACTS)
     message(STATUS
@@ -466,14 +525,18 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion)
 
 # Beside them, the function a program built against the package calls to run in the UTF-8 code
-# page on Windows, as every program this repository builds does, and the manifest it gives; and
-# the generator of colours by name, which a pane's slots are generated with.
+# page on Windows, as every program this repository builds does, and the manifest it gives; the
+# generator of colours by name, which a pane's slots are generated with; a weave's manual,
+# compiled into the target that carries it (zengine_manual()); and the loadable-weave pattern
+# (zengine_weave(), zengine_provider(), zengine_stage_sdl()).
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfigVersion.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineCodePage.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/utf8-code-page.manifest
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineNames.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineManual.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineWeave.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
 
 # The pool, the terminal's own look and the shipped themes, as the JSON the names and palettes above
@@ -484,7 +547,7 @@ install(FILES ${ZENGINE_GRAPHICS_THEME_FILES}
         DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/graphics/themes)
 
 # ---- what is deliberately not in the package -----------------------------------------------
-# Workshop's own vocabularies and load plan, the Builder's, and the pane weaves' header halves:
+# Workshop's own vocabularies and load plan, the Builder's but its words, and the pane weaves' header halves:
 # Workshop being Workshop, which no stranger needs to offer it a pane (the pane protocol is in).
 # zengine-warnings and zengine-sanitize: build discipline, PRIVATE on every target. zengine-snake.
 # zengine-workshop outside the package: a build's compiles the absolute path of its CMake

@@ -12,7 +12,7 @@
 
 
 
-#include "terminal/complete.hpp" // the completer's values, and where a line can go
+#include "workshop/terminal/complete.hpp" // the completer's values, and where a line can go
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
@@ -51,7 +51,7 @@
 #include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
 #include "theme/vocabulary.hpp" // where the themes are and what is worn, told to the theme role
-#include "terminal/door.hpp" // the door onto the terminal participant, composed below
+#include "workshop/terminal/door.hpp" // the door onto the terminal participant, composed below
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
 #include <zen/terminal/session.hpp>
@@ -134,7 +134,7 @@ struct HostContext {
 
     /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the
     /// host mounted none.
-    // WL-TERM-02 -- agents/workshop/terminal.md
+    // WL-TERM-02 -- agents/workshop/terminal-door.md
     loom::TerminalSession* terminal = nullptr;
 
     /// WHAT PROJECT REALIZATION IS WAITING ON, ANSWERED ALIVE.
@@ -178,7 +178,7 @@ struct HostContext {
 
     /// Where a terminal line can be addressed now, read off the bus at the call and kept nowhere.
     /// Empty lists nothing, and the completer offers the address forms.
-    // WL-TERM-16 -- agents/workshop/terminal.md
+    // WL-TERM-16 -- agents/workshop/terminal-door.md
     std::function<std::vector<Destination>()> destinations;
 
     /// What the recipe catalog says about one recipe's source, answered by the host through the

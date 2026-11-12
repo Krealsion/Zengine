@@ -4,6 +4,9 @@
 # whose tool package is header-only and needs no kernel: the `return()` below ends this file
 # alone, so a Loom that cannot host weaves still exports the vocabulary Workshop compiles against.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../../workshop/discipline.cmake)
+
 # It links no loom::kernel: it asks roles (the tool, the project, the plan, the opening
 # role) and hears answers, and never touches the control door or the Manager.
 
@@ -18,5 +21,5 @@ endif()
 zengine_weave(zengine-builder-pane pane.cpp MANUAL ../docs/zengine.builder-pane.md)
 target_link_libraries(zengine-builder-pane PRIVATE zengine-workshop-vocabulary
                                                    zengine-builder-vocabulary
-                                                   zengine-component zengine-input-vocabulary
-                                                   zengine-activation)
+                                                   zengine::component zengine::input
+                                                   zengine::activation)

@@ -14,12 +14,10 @@ the installed package.
 - [`zengine.introspection` -- Loaded, Project and Powers](docs/zengine.introspection.md): the
   panes' manual -- what each pane shows, where each fact comes from, and how to find and sample a
   power
-- [`zengine.arrangement` -- the arrangement door](docs/zengine.arrangement.md): the role the
-  `Project` pane asks what the project asked for and what came of it
-- [`zengine.powers` -- the discovery door](docs/zengine.powers.md): the role `Powers`, Flow and
-  the Terminal ask to find a power
-- [`zengine.sources` -- the sample door](docs/zengine.sources.md): the one role that may run a
-  Source
+- the doors these panes ask are Workshop's, and their manuals stand with it: the
+  [arrangement door](../workshop/docs/zengine.arrangement.md), the
+  [discovery door](../workshop/docs/zengine.powers.md) and the
+  [sample door](../workshop/docs/zengine.sources.md)
 
 ![Powers wearing its ? at its top right, and the Manual showing the manual of Loaded, Project and Powers](docs/images/zengine.introspection-manual.png)
 

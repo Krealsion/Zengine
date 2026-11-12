@@ -144,6 +144,10 @@ if(ZENGINE_SANITIZE)
         -fsanitize=address,undefined)
 endif()
 
+# Every weave and provider this tree builds takes the discipline its folder names: these two
+# here, Workshop's own in its folders (workshop/discipline.cmake).
+set(ZENGINE_WEAVE_DISCIPLINE zengine-warnings zengine-sanitize)
+
 # ---- the package a stranger downloads -------------------------------------------------
 # ZENGINE_PACKAGE, declared with the release number (above) before any package, so workshop/ and
 # launcher/ read it, installs Workshop ready to run beside the developer package
@@ -191,52 +195,10 @@ if(ZENGINE_PACKAGE)
 endif()
 
 # ---- the loadable-weave pattern -------------------------------------------------------
-# A loadable weave is a PIC shared library with an exact filename (no `lib` prefix), linked
-# against the exported substrate; the kernel is the host's dependency. The reloadable lifetime is
-# the Loom's law (KERN-05), and loom_weave_build_contract() applies it: every package's weaves
-# go through this function, so the contract is a law here, not a convention.
-function(zengine_weave target source)
-    # ARGN, so a weave may carry more than its one .cpp (a generated source, an embedded
-    # typeface); the first source is the one file that is the weave. `MANUAL <page>` names the
-    # weave's manual, which it carries compiled in (cmake/ZengineManual.cmake).
-    cmake_parse_arguments(PARSE_ARGV 2 zengine_weave "" "MANUAL" "")
-    add_library(${target} SHARED ${source} ${zengine_weave_UNPARSED_ARGUMENTS})
-    if(zengine_weave_MANUAL)
-        zengine_manual(${target} PRIVATE "${zengine_weave_MANUAL}")
-    endif()
-    target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings
-                                            zengine-sanitize)
-    loom_weave_build_contract(${target})
-    set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
-    # ...AND THAT FILE IS WRITTEN DOWN, as the file this weave's code is read from. It is the
-    # editing entry the development recipe catalog names for the weave (workshop/CMakeLists.txt),
-    # so the entry is the build's own declaration and never a file guessed from a target's name.
-    get_filename_component(zengine_weave_entry "${source}" ABSOLUTE
-                           BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    set_property(TARGET ${target} PROPERTY ZENGINE_WEAVE_SOURCE "${zengine_weave_entry}")
-    # ...AND A WEAVE OF THE TREE'S OWN SOURCE IS COUNTED, for the census of the shapes it publishes
-    # (tests/test_shapes_census.cpp); a test's own weave, or one built from a source the build
-    # writes -- under the build tree, wherever that tree stands -- publishes nothing of the tree's.
-    string(FIND "${zengine_weave_entry}" "${PROJECT_SOURCE_DIR}/" zengine_weave_in_tree)
-    string(FIND "${zengine_weave_entry}" "${PROJECT_SOURCE_DIR}/tests/" zengine_weave_in_tests)
-    string(FIND "${zengine_weave_entry}" "${PROJECT_BINARY_DIR}/" zengine_weave_in_build)
-    if(zengine_weave_in_tree EQUAL 0 AND NOT zengine_weave_in_tests EQUAL 0 AND
-       NOT zengine_weave_in_build EQUAL 0)
-        set_property(GLOBAL APPEND PROPERTY ZENGINE_PRODUCT_WEAVES ${target})
-    endif()
-endfunction()
-
-# ---- ...and an artifact that is a provider, not a weave --------------------------------
-# One line differs from zengine_weave(), and it is the claim: no loom::switchboard. A provider
-# supplies operator definitions to a host that opened it; the Kernel never loads it and it has
-# no participant. It still takes loom_weave_build_contract(): it is opened, held while its
-# contributions are installed and closed, and an escaped static would survive an unmount.
-function(zengine_provider target source)
-    add_library(${target} SHARED ${source} ${ARGN})
-    target_link_libraries(${target} PRIVATE loom::core zengine-warnings zengine-sanitize)
-    loom_weave_build_contract(${target})
-    set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
-endfunction()
+# zengine_weave(), zengine_provider() and zengine_stage_sdl(), the package's too: every package's
+# weaves go through them, so the Loom's reloadable-lifetime contract is a law here, not a
+# convention (cmake/ZengineWeave.cmake).
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineWeave.cmake)
 
 # ---- ...and a weave built as a WebAssembly module, beside its native build ---------------
 # zengine_wasm_weave(), refusing where the Loom package builds no module: the function the installed

@@ -109,6 +109,7 @@ source_comments                   script            always
 code_values                       script            always
 folder_map                        script            always
 manual                            script            always
+census                            script            always
 configure_switches                script            always
 sanitizer_lane                    script            always
 flow                              doctest           always  82

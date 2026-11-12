@@ -25,7 +25,8 @@ set(ZENGINE_SDL_TEXT_LIB "")
 set(ZENGINE_SDL_RUNTIME "")
 
 # zengine_sdl_weave(<target>) — a weave that links SDL, the GUI window. One place, so a weave that
-# links SDL reaches it as the window does.
+# links SDL reaches it as the window does. A host stages the runtime beside itself with
+# zengine_stage_sdl() (cmake/ZengineWeave.cmake), defined before this file's early return.
 function(zengine_sdl_weave target)
     target_link_libraries(${target} PRIVATE ${ZENGINE_SDL_LIB})
     if(NOT WIN32)
@@ -34,19 +35,6 @@ function(zengine_sdl_weave target)
         # build tree; $ORIGIN covers the copy.
         set_property(TARGET ${target} APPEND PROPERTY BUILD_RPATH "$ORIGIN")
     endif()
-endfunction()
-
-# zengine_stage_sdl(<host target>) -- put the SDL runtime beside a host that loads SDL-backed
-# weaves; a no-op where SDL came from the system or there is none. Both helpers are defined
-# before the early return below, so a host asks without an `if` of its own, which the lane with
-# no SDL, the Windows stranger lane, is the least likely to test.
-function(zengine_stage_sdl host)
-    foreach(runtime IN LISTS ZENGINE_SDL_RUNTIME)
-        add_custom_command(TARGET ${host} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${runtime} $<TARGET_FILE_DIR:${host}>
-            COMMENT "${host}: staging ${runtime} beside the host")
-    endforeach()
 endfunction()
 
 if(ZENGINE_TUI_ONLY)

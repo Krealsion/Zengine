@@ -22,6 +22,15 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 - [The opening role](docs/zengine.opening.md), `zengine.opening`: how a source opens in the Editor
 - [The realization owner](docs/zengine.realization.md), `zengine.realization`: the load plan
   performed, and what becomes of a build offered to the running project
+- [The arrangement door](docs/zengine.arrangement.md), `zengine.arrangement`: the role the
+  `Project` pane asks what the project asked for and what came of it
+- [The discovery door](docs/zengine.powers.md), `zengine.powers`: the role `Powers`, Flow and the
+  Terminal ask to find a power
+- [The sample door](docs/zengine.sources.md), `zengine.sources`: the one role that may run a Source
+- [The editor switch](docs/zengine.editor-switch.md), `zengine.editor-switch`: the four messages a
+  weaver sends to move the Editor's role, what each answers, and how a switch is followed
+- [The guest door](docs/zengine.guests.md), `zengine.guests`: who is connected, a guest's own row,
+  and where Workshop's plan is
 
 ![The Manual over the Pane Manager, opened by the ? at the Pane Manager's top right, showing the desk's own manual](docs/images/zengine.desktop-manual.png)
 

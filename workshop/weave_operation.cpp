@@ -402,7 +402,7 @@ void WorkshopWeave::on(const PaneOperationRequested& asked, loom::Mail& mail) {
 }
 // A TRANSCRIPT VALUE, captured for the current actor's gesture: the exact participant and
 // observation, authorized now and carried as content, never a replay of the line or its authority.
-// WL-TERM-17 -- agents/workshop/terminal.md
+// WL-TERM-17 -- agents/workshop/terminal-door.md
 void WorkshopWeave::on(const TerminalValueRequested& asked, loom::Mail& mail) {
     const auto reason = authorize_pane_operation({asked.pane, kWorkshopProvider,
         TerminalValueRequested::zen_name, TerminalValueRequested::zen_version, asked.gesture}, mail);

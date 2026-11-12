@@ -19,7 +19,7 @@ are each asked of the Flow host, the role [`zengine.flow.host`](zengine.flow.hos
 request answered once ([its vocabulary](../flow-host/vocabulary.hpp),
 [the Flow host](flow-runtime.md)); the pane shows what it answered. The pane always names one
 session there, `workshop`. The operators you can add are found through the host's discovery door, `zengine.powers`
-([its manual](../../introspection/docs/zengine.powers.md)), which answers Flow, the Powers pane and
+([its manual](../../workshop/docs/zengine.powers.md)), which answers Flow, the Powers pane and
 the Terminal alike. It asks only for what a contributor offers, with a port selected only for what
 yields its type, and with a fold's body slot open only for what a fold can spend; it asks again when
 the question changes, when the window gives its area a room, and after a run, an apply, a stop or a catalog
@@ -102,7 +102,7 @@ Runs the definition: the Flow host makes a fresh participant from it, with the d
 - **Answers:** asks the Flow host ([`FlowRun`](flow-runtime.md#conversation)); the notice says `run
   queued`, which means only that the request went. The answer then says `run: observed`, or its
   reason, the bar reads `Running`, and the discovery door is asked again
-  ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)), since running mounts the
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)), since running mounts the
   definition's operators.
 - **Refuses:** the draft's first problem, such as an unwired port or `incompatible type`, naming
   the place, and the Next line leads with `Run needs this first:` and the press that does it; `run
@@ -137,7 +137,7 @@ could be. Letting a dragged wire go on empty graph room opens the same search wh
   port. Default key <!-- key find-wire -->`ctrl+n`<!-- /key -->; View's `Find a wire`.
 - **Answers:** a list at the graph's centre, `From <step or field> : <type> -- what takes it` or
   `Into <step>'s <port> : <type> -- what fills it`, the search line above its rows, and asks the discovery
-  door ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)): from an output, each
+  door ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)): from an output, each
   power with a port of exactly that type, a row a port (`add -> lhs`), and the fold's counting
   ports for an `Int`; from a port, what is in scope of its type, a typed constant for `Int` and
   `Bool`, then each power that yields it. A row chosen makes the node, placed after what it reads
@@ -210,7 +210,7 @@ Changes the running participant's behaviour to the draft's, keeping its state.
   and the Next line's `[Apply]` while the draft differs from what runs.
 - **Answers:** asks the Flow host ([`FlowApply`](flow-runtime.md#conversation)): `apply queued`,
   then `apply: observed`, and the discovery door is asked again
-  ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). The participant keeps its
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)). The participant keeps its
   state and its accepted, emitted and state shapes; a change to any of those needs
   [`restart`](#restart).
 - **Refuses:** the draft's first problem; `apply refused: <the host's reason>`, such as a changed
@@ -224,7 +224,7 @@ Stops the running participant; its last state comes back as the draft's.
 - **Takes:** the session. No default key; the bar's `Stop`.
 - **Answers:** asks the Flow host ([`FlowStop`](flow-runtime.md#conversation)): `stop queued`, then
   `stop: observed`; the bar reads `Run` again and the discovery door is asked again
-  ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)).
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)).
 - **Refuses:** `stop refused: <the host's reason>`, such as while a send is still being
   delivered; `stop was not delivered: <the bus's reason>`.
 - **Example:** press `Stop`.
@@ -242,7 +242,7 @@ where the kept fields' shape is unchanged; otherwise it starts again from the dr
   stopping, then running the draft`; once it has stopped, the draft runs
   ([`FlowRun`](flow-runtime.md#conversation)), `Restarting: the draft runs, keeping what it kept`,
   then `run: observed`. Each asks the discovery door again
-  ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)).
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)).
 - **Refuses:** `Nothing runs to restart; press Run`; the draft's first problem; a stop's or a run's
   refusals, as [`stop`](#stop) and [`run`](#run).
 - **Example:** with the rule running, add `+ say tally.Total`, then press `Restart`.
@@ -266,7 +266,7 @@ Reads the host's operators again: the ports the graph checks its wiring against.
 
 - **Takes:** nothing. No default key; View's `Catalog`.
 - **Answers:** asks the Flow host ([`FlowCatalog`](flow-runtime.md#conversation)) and the discovery
-  door again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)): `catalog
+  door again ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)): `catalog
   queued`, then `Host operators refreshed`.
 - **Refuses:** the host's reason; `operator descriptor identity disagrees`; `catalog was not
   delivered: <the bus's reason>`.
@@ -416,7 +416,7 @@ start toward a limit by a step, threading an answer through.
   the Graph page's rail.
 - **Answers:** a node `body: [choose]`, its `step` bound to `1`, and a fold's open body slot shut,
   so the discovery door is asked again
-  ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). Press its body row to
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)). Press its body row to
   choose the body ([`graph`](#graph)).
 - **Refuses:** `add a trigger before adding a node`, with no trigger yet.
 - **Example:** type `count`, press the fold's row, press `[Add to the rule]`.
@@ -605,7 +605,7 @@ to repair.
   dialog's `[Confirm]`.
 - **Answers:** the dialog's own outcome, in its command's section; one that replaces the draft or
   binds a port changes what the discovery door is asked, and it is asked again
-  ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). A save, an export, a
+  ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)). A save, an export, a
   generate and a library export ask Workshop first whether the confirming hand may write a file,
   `<Saving> is waiting for Workshop's approval`, and write only when it allows.
 - **Refuses:** `<Saving> was refused: <Workshop's reason>`; `<Saving> is already waiting for
