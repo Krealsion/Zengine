@@ -53,27 +53,27 @@ accept `AttributedInput` and believe it only when Loom says `zengine.input` auth
 Who may send: any weave its host grants the shapes. In Workshop, a guest whose row has the `input`
 power may send the four session shapes, and Workshop closes a gone guest's session on its behalf.
 
-The weave keeps its own beat. When it is activated, and whenever the Timer says it is ready, it asks
-the Timer for a repeating beat, `zengine.input.pump`, every `kPumpBeatMs` milliseconds
-(`EnsureRoleTimer`, addressed to its role, so a successor inherits it), and each beat polls the
-platform once ([the Timer binding](../../timer/docs/timer-binding.md)). After every look it claims,
-as its role, what its reader waits on (`loom.host.WaitSet` v1): the terminal's input while it
-reads it, nothing while a window holds it. Where a host's one wait holds that claim it reads when
-the wait says the terminal is ready, and lets its beat go, keeping it only while a timed motion
-plays or a lone `ESC` waits to be released ([`Waited`](#loomhostwaited)).
+The weave is a source of the host's one wait, and keeps no time of its own. After every delivery
+it claims, as its role, what its reader waits on (`loom.host.WaitSet` v2): the terminal's input
+while it reads it, nothing while a window holds it; and, while a timed motion plays or a lone
+`ESC` waits to be released, a time to look again, `kLookAgainMs` after the time the wait last
+handed it. A reader the wait cannot hold is looked at on that time alone. It reads when the wait
+says what it waits on is ready or its time came ([`Waited`](#loomhostwaited)); a host that runs no
+wait on its role wakes it never, and `PumpInput` is that host's door
+([a source's own time](../../timer/docs/timers.md#the-hosts-wait)).
 
 
 ## Commands
 
 ### `PumpInput`
 
-`PumpInput` v1 gives the weave its hands once, as a beat does: it moves a timed motion on, then
+`PumpInput` v1 gives the weave its hands once, as a wake does: it moves a timed motion on, then
 polls the platform once and publishes what came.
 
 - **Takes:** nothing.
 - **Answers:** nothing is answered; what the platform had is published ([Follow](#follow)).
 - **Refuses:** nothing.
-- **Example:** a suite, or a host with no Timer, sends `PumpInput{}` to `zengine.input`.
+- **Example:** a suite, or a host that runs no wait, sends `PumpInput{}` to `zengine.input`.
 
 ### `InputSessionRequested`
 
@@ -142,8 +142,9 @@ behalf.
 - **Takes:** `session`; `x` and `y`, the end, in the space of the session's last pointer moment;
   `duration_ms`; `bend`, 0 for a straight line, otherwise how far both control points of a cubic
   curve stand off the line, in that space. Seed the start with a pointer moment first.
-- **Answers:** on each beat, at most one `PointerMoved`, the holder's, at the point the elapsed time
-  has reached: a late beat skips ahead, never bursts, and a point equal to the last is left out
+- **Answers:** at each wake, at most one `PointerMoved`, the holder's, at the point the time the
+  wait handed has reached since the first it handed after the ask: a late wake skips ahead, never
+  bursts, and a point equal to the last is left out
   until the end. At the end, `InputInjected` v1 to you alone, counting the moves: they were
   published, not that anything came of them. While it runs, `InjectInput` is refused, and closing
   the session ends it.
@@ -178,26 +179,12 @@ time it is activated. A time other than the one it holds is held to 200..2000 ms
 published ([Follow](#follow)); until one is handed it, it holds
 <!-- value kDefaultDoubleClickMs -->400<!-- /value --> ms.
 
-### `TimerReady`
-
-`TimerReady` v1, from `zengine.timer`, the Timer: it is there, first or again after a reload. The weave asks for its
-beat again, which keeps the one beat it has rather than adding a second.
-
-### `TimerFired`
-
-`TimerFired` v1, from `zengine.timer`, the Timer: a beat. Its own, `zengine.input.pump`, polls the platform once, as
-`PumpInput` does; another timer's firing aimed at the role polls nothing.
-
-### `TimerResolution`
-
-`TimerResolution` v1, from `zengine.timer`, the Timer: what it made of the weave's order for its beat, kept by the
-binding and answered with nothing.
-
 ### `loom.host.Waited`
 
-`loom.host.Waited` v1, from the host alone: its one wait holds the role's claim, so the beat
-stops; holds it no longer, so the beat runs again; or the terminal is ready, and the weave polls
-it once, as a beat does. From any participant it is nothing.
+`loom.host.Waited` v2, from the host alone, with the time on the wait's clock: its one wait holds
+the role's claim, or holds it no longer, so the weave looks on a time alone; or what it waits on
+is ready, or the time it claimed came, and the weave looks once, as `PumpInput` does. From any
+participant it is nothing.
 
 ## Follow
 
@@ -214,5 +201,5 @@ else is said unasked, and there is no state to read but its two counters, by pok
 - [The Input package](input.md): every moment's fields, keys, modifiers and pointer spaces, and what
   each platform can vouch for.
 - [Pointer spaces](../../workshop/docs/pointer-spaces.md): where a reported position lands.
-- [The Timer binding](../../timer/docs/timer-binding.md): how the beat is kept.
+- [The host's wait](../../timer/docs/timers.md#the-hosts-wait): how a source is woken.
 - [A weave's manual](../../manual/docs/manual.md): how this page is carried and asked.

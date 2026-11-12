@@ -13,7 +13,6 @@
 #include "role_set.hpp"
 #include "doctest.h"
 
-#include "weavelib/virtual_step.hpp" // the virtual Timer's beat
 
 #include "logic.hpp"
 #include "pilot.hpp"
@@ -27,6 +26,8 @@
 #include <fstream>
 #include <iterator>
 
+#include <zen/host/clock.hpp>
+#include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -938,23 +939,24 @@ TEST_CASE("snake draws into its window, never onto the terminal: with no termina
 // The host holds no privileged wind (TIMER-02)
 // ============================================================================
 
-TEST_CASE("the playable host sends no Drive: time is the composition's, not the host's") {
-    // WHY THIS READS THE SOURCE: a root Drive carries no activation key, so the service ignores
-    // it (TIMER-01), and a wind left in the host would change no behaviour. The claim at risk is
-    // "the host contributes nothing to time", and only the file can guard it -- defense in depth
-    // against that claim quietly becoming false, not a proof: a wind by another spelling still
-    // compiles, and nobody writes one by accident.
+TEST_CASE("the playable host winds nothing: it waits on the Timer's role, and the timers are "
+          "the composition's") {
+    // WHY THIS READS THE SOURCE: the host's part in time is its one wait, which hands the Timer
+    // the time when what it claimed comes, and nothing more -- it asks for no timer and fires
+    // none. Only the file can guard that claim -- defense in depth against it quietly becoming
+    // false, not a proof: a timer asked by another spelling still compiles.
     std::ifstream host(HOST_PLAY_CPP);
     REQUIRE_MESSAGE(host.is_open(), "cannot read the host source: ", std::string(HOST_PLAY_CPP));
     const std::string source((std::istreambuf_iterator<char>(host)),
                              std::istreambuf_iterator<char>());
     REQUIRE(source.size() > 1000); // we really did read the host, not an empty path
 
-    // No Drive is constructed, sent, or named anywhere in the playable host.
-    CHECK(source.find("Drive") == std::string::npos);
-    // And the timer vocabulary IS reached for -- the host names the role it loads the service
-    // into -- so the absence above is of the WIND, not of a host that speaks no timer at all.
-    CHECK(source.find("timer::kTimerRole") != std::string::npos);
+    // No timer is asked for or fired anywhere in the playable host.
+    CHECK(source.find("StartTimer") == std::string::npos);
+    CHECK(source.find("TimerFired") == std::string::npos);
+    // And the host's wait IS on the Timer's role -- the absence above is of a wind, not of a
+    // host whose Timer nothing wakes.
+    CHECK(source.find("wait.trust(timer::kTimerRole)") != std::string::npos);
 }
 
 TEST_CASE("the world's beat uses the timer binding, not hand-written ceremony") {
@@ -1073,23 +1075,13 @@ TEST_CASE("the world's new-game button is a gfx::Button, not a hand-written text
 
 namespace {
 
-/// The world with its own beat, over the virtual Timer: time moves only while a pump waits for
-/// it, so a pace is a count of the world's beats in a stated span.
+/// The world with its own tick, over the Timer under the host's one wait on a clock that moves
+/// only when told: a pace is a count of the world's ticks in a stated span of that clock.
 struct Timed {
     Rig r;
     loom::WeaveId world;
-    std::int64_t drives = 0;
-    std::int64_t stop_after = -1;
-    std::uint64_t stop_on = 0; ///< a correlation whose answer ends the pump
-    loom::ObserverId tap = r.bus.add_observer([this](const loom::BusEvent& e) {
-        if (e.kind != loom::EventKind::Delivered) {
-            return;
-        }
-        if ((e.schema_name == "Drive" && ++drives == stop_after) ||
-            (stop_on != 0 && e.correlation == stop_on && e.target == r.probe)) {
-            r.bus.stop();
-        }
-    });
+    loom::host::ManualClock clock;
+    loom::host::Reactor wait{r.bus, clock};
 
     /// `before_time` runs once the world is loaded and before the Timer is: what it loads hears
     /// the world from its first step.
@@ -1098,8 +1090,8 @@ struct Timed {
         if (before_time) {
             before_time(*this);
         }
-        // Loaded through the steward, which activates it: from here the beat chain never idles,
-        // so every pump is bounded by the Timer's own beats.
+        // Loaded through the steward, which activates it; the host waits on its role.
+        wait.trust(zengine::timer::kTimerRole);
         const std::uint64_t corr = r.next_corr++;
         r.bus.send_as(r.probe, r.manager,
                       loom::Message(loom::to_value(loom::LoadWeave{"zengine-timer-virtual",
@@ -1113,24 +1105,45 @@ struct Timed {
     }
     Timed(const Timed&) = delete;
     Timed& operator=(const Timed&) = delete;
-    ~Timed() { r.bus.remove_observer(tap); }
 
-    /// A stretch of virtual time: each beat of the virtual Timer is `kBeatCapMs` of it.
-    void pump_for(std::int64_t ms) {
-        stop_after = drives + ms / zengine::testing::kVirtualStepMs;
+    /// THE HOST'S LOOP: the bus turned, then the one wait -- a look while the bus holds work,
+    /// else a rest to the soonest time due, which moves the clock there -- until `done()` holds
+    /// with the bus empty, or the clock reads `until` and what is due then was handed over.
+    template <class Done>
+    void loop(Done done, std::int64_t until) {
         Hush hush;
-        r.bus.drain_until_idle();
-        stop_after = -1;
+        for (int turn = 0; turn < 200000; ++turn) {
+            r.bus.pump_pending();
+            if (r.bus.pending() != 0) {
+                (void)wait.after_turn(0);
+                continue;
+            }
+            if (done()) {
+                return;
+            }
+            if (clock.now_ms() >= until) {
+                (void)wait.after_turn(0);
+                if (r.bus.pending() == 0) {
+                    return;
+                }
+                continue;
+            }
+            (void)wait.after_turn(until - clock.now_ms());
+        }
+        FAIL("the host's loop did not come to rest");
     }
 
-    /// Until the answer to `corr` arrives, bounded by a hundred beats.
+    /// A stretch of the host's clock.
+    void pump_for(std::int64_t ms) {
+        loop([] { return false; }, clock.now_ms() + ms);
+    }
+
+    /// Until the answer to `corr` arrives, at most a second of the host's clock.
     void pump_until(std::uint64_t corr) {
-        stop_on = corr;
-        pump_for(100 * zengine::testing::kVirtualStepMs);
-        stop_on = 0;
+        loop([&] { return r.rec.find(corr) != nullptr; }, clock.now_ms() + 1000);
     }
 
-    /// A poke under the live chain: answered within a beat, the pump bounded by the beats.
+    /// A poke, answered in the turn it is read: no time passes for it.
     std::string read(const char* field) {
         const std::uint64_t corr = r.next_corr++;
         r.bus.send(world, loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{},
