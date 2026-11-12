@@ -44,9 +44,9 @@ program with its files); the subjects are in the
 | [action-causes](../agents/workshop/action-causes.md) | `workshop_panes_hand` (actions), `workshop_panes_project` (builder) |
 | [arrangement](../agents/workshop/arrangement.md) | `workshop_panes_seam` (window), `workshop_panes_hand` (input), `workshop_screen`, `workshop_host` |
 | [arrangement-snap](../agents/workshop/arrangement-snap.md) | `workshop_screen` |
-| [canvas](../agents/workshop/canvas.md) | `workshop_panes_seam` (canvas), `workshop_panes_info` (inventory_info), `flow_pane`, `surface` |
+| [canvas](../agents/workshop/canvas.md) | `workshop_panes_seam` (canvas), `workshop_panes_info` (inventory_info), `flow_pane` |
 | [catalog](../agents/workshop/catalog.md) | `workshop_panes_seam` (seam) |
-| [chrome](../agents/workshop/chrome.md) | `workshop_screen`, `workshop_panes_seam` (window), `surface` |
+| [chrome](../agents/workshop/chrome.md) | `workshop_screen`, `workshop_panes_seam` (window) |
 | [code](../agents/workshop/code.md) | `workshop_panes_project` (code), `workshop_files` |
 | [contextual](../agents/workshop/contextual.md) | `workshop_host`, `workshop_panes_seam` (button, window), `workshop_screen` |
 | [desk-read](../agents/workshop/desk-read.md) | `workshop_desk` |
@@ -74,11 +74,11 @@ program with its files); the subjects are in the
 | [participants](../agents/workshop/participants.md) | `snake` |
 | [panes-and-windows](../agents/workshop/panes-and-windows.md) | `workshop_panes_seam` (window, seam), `workshop_screen`, `workshop_host` |
 | [planes](../agents/workshop/planes.md) | `workshop_screen`, `workshop_panes_seam` (window, seam), `workshop_document` |
-| [pointer](../agents/workshop/pointer.md) | `workshop_panes_editor` (editor), `workshop_panes_hand` (input), `workshop_screen`, `surface` |
+| [pointer](../agents/workshop/pointer.md) | `workshop_panes_editor` (editor), `workshop_panes_hand` (input), `workshop_screen` |
 | [press-chain](../agents/workshop/press-chain.md) | `workshop_panes_hand` (input), `workshop_panes_project` (files), `workshop_screen`, `workshop_host` |
 | [regions](../agents/workshop/regions.md) | `workshop_screen`, `workshop_host`, `workshop_panes_project` (builder) |
 | [session](../agents/workshop/session.md) | `workshop_persistence`, `workshop_panes_editor` (editor), `workshop_document` |
-| [session-restore](../agents/workshop/session-restore.md) | `workshop_persistence`, `surface` |
+| [session-restore](../agents/workshop/session-restore.md) | `workshop_persistence` |
 | [window-file](../agents/workshop/window-file.md) | `workshop_persistence`, `graphics` |
 | [setting-locks](../agents/workshop/setting-locks.md) | `workshop_panes_settings` (settings), `workshop_panes_hand` (guests), `workshop_panes_terminal` (terminal) |
 | [settings](../agents/workshop/settings.md) | `workshop_panes_settings` (settings), `workshop_panes_editor` (opening), `workshop_persistence` |
