@@ -109,7 +109,7 @@ doors builder/runner.hpp BuildRunnerBase 2
 doors builder/weave.hpp BuilderBase 10
 doors composer/composer.cpp ComposerWeave 13
 doors editor/editor-pane/pane.cpp EditorPaneWeave 35
-doors editor/neovim-editor/pane.cpp NeovimEditorWeave 41
+doors editor/neovim-editor/pane.cpp NeovimEditorWeave 38
 doors examples/guard-pane/guard.cpp Guard 6
 doors examples/numbered-presenter/presenter.cpp NumberedPresenter 7
 doors examples/snake/pilot.cpp SnakePilot 4
@@ -129,10 +129,10 @@ doors flow/flow-pane/pane.cpp FlowPane 21
 doors graphics/directory.cpp Directory 7
 doors graphics/drawing.hpp ActionFacet 3
 doors graphics/drawing.hpp DrawingFacet 2
-doors graphics/window/window.hpp WindowBase 20
+doors graphics/window/window.hpp WindowBase 21
 doors info/pane.cpp InfoPaneWeave 25
 doors input/double_click_setting.hpp DoubleClickSetting 2
-doors input/input_weave.hpp EmitsOf 7
+doors input/input_weave.hpp EmitsOf 8
 doors introspection/introspection.cpp IntrospectionWeave 14
 doors inventory/inventory-pane/pane.cpp InventoryPane 26
 doors inventory/weave.hpp InventoryWeave 25
@@ -157,7 +157,7 @@ doors terminal/pane.cpp TerminalPaneWeave 10
 doors theme/weave.cpp Base 9
 doors theme/weave.cpp ThemeWeave 9
 doors timer/binding.hpp TimedWeave 4
-doors timer/timer_weave.hpp TimerServiceT 12
+doors timer/timer_weave.hpp TimerWeave 13
 doors view/host.hpp Manager 5
 doors view/view-builder/pane.cpp ViewBuilderPane 19
 doors workshop/arrangement.hpp ArrangementDoor 1
@@ -174,20 +174,20 @@ doors workshop/pane_doors.hpp ProjectDoor 7
 doors workshop/powers_door.hpp PowersDoor 3
 doors workshop/sample_door.hpp SampleDoor 1
 doors workshop/terminal/door.hpp TerminalDoor 2
-doors workshop/weave.hpp WorkshopWeave 93 falls
+doors workshop/weave.hpp WorkshopWeave 94 falls
 
 hooks workshop/develop.hpp World 5
 hooks workshop/editor_switch.hpp EditorSwitchHost 4
 hooks workshop/layouts/store.hpp LayoutsHost 4
-hooks workshop/weave.hpp HostContext 19 falls
+hooks workshop/weave.hpp HostContext 18 falls
 
 lines builder/builder-pane/pane.cpp BuilderPaneWeave 1663
 lines editor/editor-pane/pane.cpp EditorPaneWeave 1179
-lines editor/neovim-editor/pane.cpp NeovimEditorWeave 1165
+lines editor/neovim-editor/pane.cpp NeovimEditorWeave 1125
 lines files/files.cpp FilesWeave 1614
 lines flow/flow-pane/pane.cpp FlowPane 2542
-lines graphics/window/window.hpp Window 1430
+lines graphics/window/window.hpp Window 1428
 lines info/property_view.hpp PropertyView 1002
 lines info/value_view.hpp ValueView 1361
 lines view/view-builder/pane.cpp ViewBuilderPane 1337
-lines workshop/weave.hpp WorkshopWeave 1825
+lines workshop/weave.hpp WorkshopWeave 1841
