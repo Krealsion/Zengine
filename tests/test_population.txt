@@ -103,6 +103,7 @@ graphics_color_role_refused compile-negative always role.*has not been declared|
 # The scripts read the source tree, not a build: every configuration runs them, and a deleted
 # registration is a red because its row is here.
 doc_links                         script            always
+doc_names                         script            always
 package_vocabulary                script            always
 law_register                      script            always
 source_comments                   script            always

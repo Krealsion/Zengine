@@ -4,12 +4,12 @@
 # The text checks and the documentation lane's reach (AGENTS.md, the documentation lane). Each
 # check is `tests/check_<name>.cmake`, run as `cmake -DZEN_REPO=<root> -P` by CTest and the lane
 # alike; tests/CMakeLists.txt registers them from this list, so the two cannot drift.
-set(ZEN_TEXT_CHECKS doc_links package_vocabulary law_register source_comments code_values folder_map
-    manual census)
+set(ZEN_TEXT_CHECKS doc_links doc_names package_vocabulary law_register source_comments code_values
+    folder_map manual census)
 
 # Besides Markdown and the images under a docs/ folder, what a documentation-only change may
 # touch: the text checks themselves and the files only they read.
-set(ZEN_TEXT_ONLY_FILES tests/code_values.txt tests/folders.txt tests/census.txt)
+set(ZEN_TEXT_ONLY_FILES tests/code_values.txt tests/folders.txt tests/census.txt tests/doc_names.txt)
 
 # The folders whose first-party source doc_links and source_comments read: each row of
 # tests/folders.txt whose kind holds code a build compiles or a lane runs, and the root
