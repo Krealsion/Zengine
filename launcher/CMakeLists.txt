@@ -1,6 +1,9 @@
 # The launcher (launcher/docs/zengine.launcher.md): `zengine-launcher`, the weave that starts an app
 # or a demo from a catalog fixed here, detached, and keeps nothing of it.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../workshop/discipline.cmake)
+
 # The words, and the catalog's configured facts (`launcher/configured.hpp`, written below): portable,
 # no kernel and no loader.
 add_library(zengine-launcher-vocabulary INTERFACE)

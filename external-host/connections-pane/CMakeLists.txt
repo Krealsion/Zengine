@@ -4,6 +4,9 @@
 # server (the door holds those, in the host), and no loom::kernel, so a pane that shows
 # connections cannot make one.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../../workshop/discipline.cmake)
+
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: connections pane weave skipped — this Loom cannot host loadable weaves (no loom::kernel)")
     return()

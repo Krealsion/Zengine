@@ -144,6 +144,10 @@ if(ZENGINE_SANITIZE)
         -fsanitize=address,undefined)
 endif()
 
+# Every weave and provider this tree builds takes the discipline its folder names: these two
+# here, Workshop's own in its folders (workshop/discipline.cmake).
+set(ZENGINE_WEAVE_DISCIPLINE zengine-warnings zengine-sanitize)
+
 # ---- the package a stranger downloads -------------------------------------------------
 # ZENGINE_PACKAGE, declared with the release number (above) before any package, so workshop/ and
 # launcher/ read it, installs Workshop ready to run beside the developer package
@@ -204,8 +208,7 @@ function(zengine_weave target source)
     if(zengine_weave_MANUAL)
         zengine_manual(${target} PRIVATE "${zengine_weave_MANUAL}")
     endif()
-    target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings
-                                            zengine-sanitize)
+    target_link_libraries(${target} PRIVATE loom::core loom::switchboard ${ZENGINE_WEAVE_DISCIPLINE})
     loom_weave_build_contract(${target})
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
     # ...AND THAT FILE IS WRITTEN DOWN, as the file this weave's code is read from. It is the
@@ -233,7 +236,7 @@ endfunction()
 # contributions are installed and closed, and an escaped static would survive an unmount.
 function(zengine_provider target source)
     add_library(${target} SHARED ${source} ${ARGN})
-    target_link_libraries(${target} PRIVATE loom::core zengine-warnings zengine-sanitize)
+    target_link_libraries(${target} PRIVATE loom::core ${ZENGINE_WEAVE_DISCIPLINE})
     loom_weave_build_contract(${target})
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()

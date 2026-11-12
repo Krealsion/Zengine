@@ -4,6 +4,9 @@
 # The vocabulary is header-only, as input/ and graphics/ are, and the suites include the headers
 # the host does, so what the tests pin is what ships. It is portable: no kernel, no loader.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/discipline.cmake)
+
 # Every edge is named on its own line, never inherited through a sibling. The builder and
 # operator edges carry shapes and the catalog: no presentation header names builder/runner.hpp,
 # builder/run.hpp, operator/provider_host.hpp or operator/image.hpp, so a presentation reaches
@@ -116,7 +119,7 @@ add_library(zengine-workshop-logic STATIC
 target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
-                                             PRIVATE zengine-warnings zengine-sanitize)
+                                             PRIVATE workshop-warnings workshop-sanitize)
 # The editor switch's manual, compiled into whatever mounts the role
 # (`editor_switch.hpp`): it answers a shape's section from this page (`ShapeDocumentRequested`).
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../editor/docs/zengine.editor-switch.md)
@@ -147,7 +150,7 @@ target_link_libraries(zengine-workshop-guests
     PUBLIC loom::bridge loom::switchboard loom::core
            zengine::input zengine::graphics zengine::timer
            zengine-workshop-vocabulary zengine::inventory zengine-builder-vocabulary
-    PRIVATE zengine-warnings zengine-sanitize)
+    PRIVATE workshop-warnings workshop-sanitize)
 # ...and the door's manual, compiled into whatever mounts the door: it answers a shape's section
 # from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_manual(zengine-workshop-guests INTERFACE ../external-host/docs/zengine.guests.md)
@@ -185,7 +188,7 @@ target_link_libraries(zengine-workshop
             zengine-workshop-load
             # ...and the view host this host composes beside the Flow host.
             zengine-view
-            zengine-warnings zengine-sanitize)
+            workshop-warnings workshop-sanitize)
 
 # ---- The one thing this host hands its build runner -------------------------------------
 #
@@ -458,7 +461,7 @@ else()
 endif()
 add_executable(zengine-workshop-develop develop.cpp)
 target_link_libraries(zengine-workshop-develop
-    PRIVATE zengine-builder-vocabulary zengine-warnings zengine-sanitize)
+    PRIVATE zengine-builder-vocabulary workshop-warnings workshop-sanitize)
 add_dependencies(zengine-workshop-develop zengine-workshop)
 target_compile_definitions(zengine-workshop-develop PRIVATE
     "ZENGINE_DEVELOP_CMAKE=\"${CMAKE_COMMAND}\""

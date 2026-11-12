@@ -155,7 +155,8 @@ cmake -P tests/documentation_lane.cmake
   runs serially — live outside the repository.
 - **The sanitizer lane is a second KIND of evidence**: the same full population under
   ASan+UBSan, for defects whose symptom is that *no answer changes* (lifetimes, extents,
-  retained references). A new target lists `zengine-sanitize` beside `zengine-warnings`;
+  retained references). A new target lists `zengine-sanitize` beside `zengine-warnings` (on Workshop's side, its
+  own `workshop-sanitize` beside `workshop-warnings`);
   omitting it fails nothing and silently drops the target out of the witness — that is the one
   way this lane degrades.
 - **The package witness is a third kind**: both lanes above reach Zengine through its own

@@ -4,6 +4,9 @@
 # host owns. It links no loom::kernel: nothing it can say reaches the control door or the
 # Manager, which is the point of it being a participant rather than the host.
 
+# Workshop's own warnings and sanitizer, which its weaves here take (workshop/discipline.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/../discipline.cmake)
+
 # The weave needs a Loom that can HOST loadable weaves — the same honest question every
 # package here asks.
 if(NOT TARGET loom::kernel)
