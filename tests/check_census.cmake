@@ -7,7 +7,7 @@
 #   cmake -P tests/check_census.cmake                 (from the repository root, or -DZEN_REPO=<repo>)
 #   cmake -DZEN_CENSUS_WRITE=<file> -P tests/check_census.cmake   (the census as the tree stands)
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
 if(NOT DEFINED ZEN_REPO OR ZEN_REPO STREQUAL "")
     set(ZEN_REPO "${CMAKE_CURRENT_LIST_DIR}/..")
@@ -405,7 +405,8 @@ if(DEFINED ZEN_CENSUS_WRITE)
         endforeach()
         string(APPEND out "line ${file} ${header} ${count}${mark}\n")
     endforeach()
-    file(WRITE "${ZEN_CENSUS_WRITE}" "${out}")
+    # LF on every host, as the census is committed.
+    file(CONFIGURE OUTPUT "${ZEN_CENSUS_WRITE}" CONTENT "${out}" @ONLY NEWLINE_STYLE UNIX)
     message(STATUS "census: wrote the census as the tree stands to ${ZEN_CENSUS_WRITE}")
 endif()
 

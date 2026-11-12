@@ -3,7 +3,7 @@
 # change that raises one, or adds one, is red whatever else it says. A change that closes a reach
 # lowers or removes its row in the same change, so a gain cannot be given back quietly.
 #
-# The line between Workshop and Zengine (agents/packaging.md, "The line"). `side <folder>/ <side>`
+# The line between Workshop and Zengine (agents/workshop-line.md). `side <folder>/ <side>`
 # says whose a folder is, the longest that holds a file deciding; a file the package installs is
 # the package's, and every other file is Zengine's. `line <file> <header> <count> falls` is a
 # reach across it: a file of one side including, <count> times, a header of the other that the
