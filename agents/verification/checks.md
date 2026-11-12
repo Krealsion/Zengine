@@ -110,6 +110,12 @@ BECAUSE — a definition's value is on the compile's command line, which a compi
 and never rewrites, so a unit given a path of its tree is served to no second tree; the paths
 stand in one generated unit per target, the one compile each tree pays.
 
+## VM-CHECK-17 — A census pins what the tree holds, and a row marked to fall only falls
+
+METHOD — A number the tree must not grow is a row of `tests/census.txt`, red where tree and row differ either way; a row marked `falls` is held to the change's base, and raised or new there it is red.
+BECAUSE — a gain held by hand is given back by the next change that does not look; pinned, it is a
+changed row in that change's diff, and a change that closes a reach lowers the row with it.
+
 ## Seen
 
 ### VM-CHECK-01
@@ -163,6 +169,10 @@ nowhere yet
 `tests/test_shapes_census.cpp` "every shape this tree publishes is pinned by content id under its
 name and version"
 `tests/shapes.txt`
+
+### VM-CHECK-17
+`tests/check_census.cmake` zen_census_judge zen_census_side
+`tests/census.txt`
 
 ### VM-CHECK-16
 `tests/CMakeLists.txt` zengine_test_definitions zengine_write_tree_paths
