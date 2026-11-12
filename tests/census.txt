@@ -74,9 +74,7 @@ line terminal/pane.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
 line terminal/transcript.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
 line terminal/view.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
 line view/view-builder/pane.cpp launcher/vocabulary.hpp 1 falls
-line workshop/admission.hpp view/vocabulary.hpp 1 falls
 line workshop/authoring.hpp persist/file.hpp 1 falls
-line workshop/first-run/first_run.cpp view/vocabulary.hpp 1 falls
 line workshop/first-run/setup.hpp info/vocabulary.hpp 1 falls
 line workshop/first-run/setup.hpp notices/notices-pane/vocabulary.hpp 1 falls
 line workshop/first-run/story.hpp view/view-builder/vocabulary.hpp 1 falls
@@ -101,4 +99,3 @@ line workshop/weave_guest_read.cpp attention/vocabulary.hpp 1 falls
 line workshop/weave_run.cpp theme/stack_name.hpp 1 falls
 line workshop/window_persist.hpp persist/file.hpp 1 falls
 line workshop/workshop.cpp flow/flow-host/runtime.hpp 1 falls
-line workshop/workshop.cpp view/host.hpp 1 falls

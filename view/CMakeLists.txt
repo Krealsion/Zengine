@@ -2,13 +2,16 @@
 # Copyright (c) 2026 Joshua DeMoss
 # The view package: a view described as data, the renderer that draws it on its pane's canvas and
 # in a graphics window, and the host that registers each view as its own participant
-# (view/docs/view.md). Header-only and internal: Workshop composes the host, and the View Builder
-# authors descriptions.
+# (view/docs/view.md). Header-only and exported, `zengine::view`: both hosts here, Workshop and
+# `zengine-app`, compose the view host, and so may a stranger's; the View Builder authors descriptions.
 add_library(zengine-view INTERFACE)
-target_include_directories(zengine-view INTERFACE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+target_include_directories(zengine-view INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::view ALIAS zengine-view)
 target_compile_features(zengine-view INTERFACE cxx_std_20)
 target_link_libraries(zengine-view INTERFACE zengine-maker zengine-pane-vocabulary
-    zengine-component zengine-input-vocabulary
+    zengine-component zengine-input-vocabulary zengine-activation zengine-manual
     zengine-graphics-vocabulary loom::core loom::switchboard)
 # ...and the view host's manual, compiled into whatever mounts the host: its role answers a
 # shape's section from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).

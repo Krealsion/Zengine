@@ -187,7 +187,7 @@ target_link_libraries(zengine-workshop
             # ...and the load plan: the typed plan, its codec and its executor.
             zengine-workshop-load
             # ...and the view host this host composes beside the Flow host.
-            zengine-view
+            zengine::view
             workshop-warnings workshop-sanitize)
 
 # ---- The one thing this host hands its build runner -------------------------------------

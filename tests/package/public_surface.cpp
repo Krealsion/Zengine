@@ -64,6 +64,11 @@
 #include "pane/rows_block.hpp"
 #include "manual/manual.hpp"
 #include "manual/vocabulary.hpp"
+
+#include "view/description.hpp"
+#include "view/host.hpp"
+#include "view/view.hpp"
+#include "view/vocabulary.hpp"
 #include "workshop/setup_control.hpp"
 
 #include <cstdio>

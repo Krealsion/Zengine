@@ -67,6 +67,7 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-operator
     zengine-operator-consumer
     zengine-pane-vocabulary
+    zengine-view
     zengine-neovim-editor-vocabulary
     zengine-graphics-vocabulary)
 
@@ -88,6 +89,7 @@ set_target_properties(zengine-property            PROPERTIES EXPORT_NAME propert
 set_target_properties(zengine-operator            PROPERTIES EXPORT_NAME operator)
 set_target_properties(zengine-operator-consumer   PROPERTIES EXPORT_NAME operator-consumer)
 set_target_properties(zengine-pane-vocabulary     PROPERTIES EXPORT_NAME pane)
+set_target_properties(zengine-view                PROPERTIES EXPORT_NAME view)
 set_target_properties(zengine-neovim-editor-vocabulary PROPERTIES EXPORT_NAME neovim)
 set_target_properties(zengine-graphics-vocabulary PROPERTIES EXPORT_NAME graphics)
 
@@ -165,6 +167,10 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_v
                                       workshop/open_seam_vocabulary.hpp
                                       workshop/project_seam_vocabulary.hpp
                                       workshop/settings_seam_vocabulary.hpp)
+# The view package: a view described as data, its renderer and the host that registers each view as
+# its own participant, the host's manual with it (below).
+set(zengine_public_headers_view view/vocabulary.hpp view/description.hpp view/view.hpp
+                                view/host.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
 # The graphics vocabulary an owner draws with, its colours by name -- the pool's generated names
@@ -209,10 +215,18 @@ endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
                     editor/source-transfer activation timer input ui manual component persist property
-                    operator pane workshop editor/neovim-editor graphics graphics/elements
+                    operator pane view workshop editor/neovim-editor graphics graphics/elements
                     graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
+endforeach()
+# ...and the manual an exported target carries compiled in, a role's page as `manuals/<role>.hpp`
+# (cmake/ZengineManual.cmake): the header its public header includes, generated beside the build.
+foreach(target IN LISTS ZENGINE_EXPORTED_TARGETS)
+    get_target_property(zengine_target_manuals ${target} ZENGINE_MANUAL_HEADERS)
+    if(zengine_target_manuals)
+        install(FILES ${zengine_target_manuals} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/manuals)
+    endif()
 endforeach()
 
 # ---- the loadable artifacts a consumer's host opens --------------------------------------

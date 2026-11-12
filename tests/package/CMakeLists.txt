@@ -24,6 +24,7 @@ target_link_libraries(witness-surfaces
         zengine::activation
         zengine::maker
         zengine::flow
+        zengine::view
         zengine::timer
         zengine::input
         zengine::ui

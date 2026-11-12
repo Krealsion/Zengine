@@ -9,7 +9,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `manual.hpp` | `Manual` and `Section`, the view a generated `manuals/<role>.hpp` defines; the bounds |
 | `vocabulary.hpp` | `ShapeDocumentRequested`, `ShapeDocumentShown`, `shape_document`, `content_id_text` |
-| `CMakeLists.txt` | `zengine-manual`, INTERFACE, over `loom::core`; not a weave, not installed |
+| `CMakeLists.txt` | `zengine-manual`, INTERFACE, over `loom::core`; not a weave; exported as `zengine::manual` |
 
 The grammar a page is split with is `cmake/ZengineManual.cmake`, which `zengine_weave(... MANUAL)`
 and `zengine_manual()` call at configure time and `tests/check_manual.cmake` includes.

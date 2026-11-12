@@ -51,7 +51,8 @@ claim and size, `window/terminal_io.hpp`: every header
 its `elements/` and `window/`; the directory and the windows are artifacts, below), and `flow` (standalone
 authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
-`flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`). The optional
+`flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`) and `view` (a view as data,
+its renderer and the view host, which both hosts compose). The optional
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
@@ -106,9 +107,8 @@ the developer package does not carry; Workshop, because a
 build's executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured
 it, so installing it would ship one machine's layout -- the package below carries both;
 the implementation in `flow/flow-host/runtime.hpp` and the Flow pane model/view,
-because these currently implement Workshop session policy and presentation; the view package
-(`view/`) and the View Builder, because this repository's own hosts, Workshop and `zengine-app`,
-compose the view host and are the description format's consumers. Their control
+because these currently implement Workshop session policy and presentation; the View Builder, a
+pane's own insides. Their control
 vocabularies are public through `zengine::flow`, so another participant can drive them; the rest of the Workshop/Builder/introspection/composer vocabularies and the
 pane weaves that spend them (`zengine-files`, `zengine-builder-pane`), because they are Workshop
 being Workshop — a stranger's pane needs only the pane protocol, which is in, since a pane
