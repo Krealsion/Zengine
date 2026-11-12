@@ -231,11 +231,12 @@ target_compile_definitions(zengine-workshop PRIVATE
 
 # ---- The shipped recipe catalog, configured rather than compiled in ---------------------
 #
-# Its target, snake-world-v2, is an artifact always built here and never loaded or staged by this
-# host: building an image the host has mapped changes code under a running program. Its
-# `artifact_dir` is asked of the target, never guessed (snake stages its worlds elsewhere), and
-# `file(GENERATE)` below expands what `configure_file` copies as text.
-set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:snake-world-v2>")
+# Its target, Workshop's own example (`recipe-example/`), is an artifact always built here and
+# never loaded or staged by this host: building an image the host has mapped changes code under a
+# running program. Its `artifact_dir` is asked of the target, never guessed, and `file(GENERATE)`
+# below expands what `configure_file` copies as text.
+add_subdirectory(recipe-example)
+set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:zengine-workshop-recipe-example>")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
                ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2 @ONLY)
 
