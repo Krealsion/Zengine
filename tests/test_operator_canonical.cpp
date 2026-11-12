@@ -21,6 +21,7 @@
 #include "timer/normalize.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/host/wait_set.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
