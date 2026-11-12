@@ -245,32 +245,34 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # directory, and each host takes a copy. The GUI window joins only where this configuration built
 # it. The graphics directory, its TUI window and the painters a window opens stand here too:
 # Workshop offers the painters to the directory from this directory (`arrange_graphics`).
-set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zengine-inventory-pane
-                               zengine-introspection zengine-composer zengine-files
-                               zengine-builder-pane zengine-attention-pane
-                               zengine-notices zengine-notices-pane
-                               zengine-desktop-pane zengine-connections-pane zengine-demo-control
-                               zengine-menu-presenter zengine-palette zengine-first-run
-                               zengine-flow-pane zengine-view-builder
-                               zengine-info-pane zengine-terminal-pane
-                               zengine-editor-pane zengine-neovim-editor
-                               zengine-operators-basic
-                               zengine-workshop-session-history
-                               zengine-graphics zengine-window-tui zengine-theme)
-if(TARGET zengine-window-sdl)
-    list(APPEND zengine_workshop_artifacts zengine-window-sdl)
+# Zengine's are named by the stems its package installs them under, Workshop's own are its targets.
+set(zengine_workshop_zengine_artifacts zengine-input zengine-timer zengine-inventory
+                                       zengine-inventory-pane zengine-introspection
+                                       zengine-composer zengine-files zengine-attention-pane
+                                       zengine-notices zengine-notices-pane
+                                       zengine-menu-presenter zengine-flow-pane
+                                       zengine-view-builder zengine-info-pane
+                                       zengine-terminal-pane zengine-editor-pane
+                                       zengine-neovim-editor zengine-operators-basic
+                                       zengine-graphics zengine-window-tui zengine-theme)
+if(TARGET zengine-window-sdl OR "zengine-window-sdl" IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
+    list(APPEND zengine_workshop_zengine_artifacts zengine-window-sdl)
 endif()
+set(zengine_workshop_own_artifacts zengine-builder-pane zengine-desktop-pane zengine-connections-pane
+                                   zengine-demo-control zengine-palette zengine-first-run
+                                   zengine-workshop-session-history)
 # THE APP HOST BESIDE WORKSHOP (app/docs/app.md): `zengine-app`, the program an exported app's
 # launchers start, and its own weave, which it opens from its own directory. Built only where this
 # Loom can host it (app/CMakeLists.txt asks the same), and defined after this directory, so named
 # by the condition rather than by its target.
 set(zengine_workshop_programs "")
 if(TARGET loom::kernel AND TARGET loom::host-policy)
-    list(APPEND zengine_workshop_artifacts zengine-app-weave)
+    list(APPEND zengine_workshop_zengine_artifacts zengine-app-weave)
     list(APPEND zengine_workshop_programs zengine-app)
 endif()
 # ...and the launcher, which starts an app or a demo from Workshop (launcher/CMakeLists.txt).
-list(APPEND zengine_workshop_artifacts zengine-launcher)
+list(APPEND zengine_workshop_own_artifacts zengine-launcher)
+set(zengine_workshop_artifacts ${zengine_workshop_zengine_artifacts} ${zengine_workshop_own_artifacts})
 # Each copy is a rule with its own OUTPUT and DEPENDS, on the artifact's clock: a POST_BUILD copy
 # runs only when the host relinks, so an edited window went on loading stale. The host's directory
 # is spelled out: `$<TARGET_FILE_DIR:zengine-workshop>` would make these rules depend on the host
@@ -282,12 +284,22 @@ else()
 endif()
 set(zengine_workshop_staged "")
 foreach(artifact IN LISTS zengine_workshop_artifacts zengine_workshop_programs)
+    # In this tree a staged file is its target's; built against an installed Zengine, which names
+    # ZENGINE_ARTIFACT_DIR, Zengine's artifacts and programs are the package's files.
+    set(file $<TARGET_FILE:${artifact}>)
+    set(after ${artifact})
+    if(ZENGINE_ARTIFACT_DIR AND artifact IN_LIST zengine_workshop_zengine_artifacts)
+        set(file ${ZENGINE_ARTIFACT_DIR}/${artifact}${CMAKE_SHARED_LIBRARY_SUFFIX})
+        set(after ${file})
+    elseif(ZENGINE_ARTIFACT_DIR AND artifact IN_LIST zengine_workshop_programs)
+        set(file ${ZENGINE_PACKAGE_PREFIX_DIR}/${CMAKE_INSTALL_BINDIR}/${artifact}${CMAKE_EXECUTABLE_SUFFIX})
+        set(after ${file})
+    endif()
     set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${artifact}.stamp)
     add_custom_command(OUTPUT ${stamp}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:${artifact}> ${zengine_workshop_dir}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${file} ${zengine_workshop_dir}
         COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
-        DEPENDS ${artifact}
+        DEPENDS ${after}
         COMMENT "workshop: staging ${artifact} beside the host")
     list(APPEND zengine_workshop_staged ${stamp})
 endforeach()

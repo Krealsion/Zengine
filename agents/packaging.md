@@ -21,15 +21,12 @@ house and a guest spell them identically: `activation`, `timer`, `timer-rest` (`
 and the OS clock it naps on, `timer/os_clock.hpp`: the rest a host takes between turns while the
 Timer's beat is all its bus holds), `surface`, `input`, `ui`,
 `manual` (a weave's manual as the weave carries it, `manual/manual.hpp`, and the door a role
-answers for the shapes it accepts, `manual/vocabulary.hpp`), `component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
-`columns`, the control strip, and pure `motion::Path` sampling: every header
-`zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the pane
+answers for the shapes it accepts, `manual/vocabulary.hpp`), `component` (every header `zengine_public_headers_component` lists: the text box, the list
+mechanics, the control strip, motion sampling), `operator`, `operator-consumer`, `pane` (the pane
 contract, every header `zengine_public_headers_pane` lists, installed under `include/zengine/pane/`:
 the protocol `pane/vocabulary.hpp` and the optional helpers beside it; and Workshop's own beside it,
-`workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp`, `workshop/setup_control.hpp`,
-`workshop/guest_seam_vocabulary.hpp` and the seams a pane speaks to Workshop's doors,
-`workshop/open_seam_vocabulary.hpp`, `workshop/project_seam_vocabulary.hpp` and
-`workshop/settings_seam_vocabulary.hpp`, under `include/zengine/workshop/`), `neovim` (the one
+a desk's reading and the seams a pane speaks to Workshop's doors, every header
+`zengine_public_headers_workshop` lists, under `include/zengine/workshop/`), `neovim` (the one
 header `editor/neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp`, `library.hpp` and `transfer.hpp`: typed editing, schema closure and reusable
@@ -62,9 +59,10 @@ target is internal, and that difference is the boundary made visible.
 own weave, which `zengine-app` runs), `zengine-timer`, `zengine-input`, `zengine-inventory`,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
-Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and TUI
-window (`zengine-graphics`, `zengine-window-tui`), which paints with its own painter. They
-install as FILES, not as
+Loom host, a session, to speak Workshop's guest shapes), the graphics directory and TUI
+window (`zengine-graphics`, `zengine-window-tui`), which paints with its own painter, and every
+pane and office Workshop stages, so a host built against the package stages them from there
+(`workshop/CMakeLists.txt`). They install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys and their
@@ -109,8 +107,8 @@ the developer package does not carry; Workshop, because a build's executable car
 ship one machine's layout -- the package below carries both; the panes' own insides, the Flow
 pane's model and view and the View Builder's among them, a pane's control vocabulary public where
 another participant drives it (the Flow pane's, through `zengine::flow`); Workshop's own
-vocabularies and the pane weaves that spend them (`zengine-files`, `zengine-builder-pane`),
-because they are Workshop being Workshop -- a stranger's pane needs only the pane contract and the
+vocabularies and weaves (`zengine-builder-pane` among them), because they are Workshop being
+Workshop -- a stranger's pane needs only the pane contract and the
 words Workshop's offices answer (the Builder's and the launcher's, beside the contract), which are
 in, since a pane arrives by an authored load-plan row; the Timer's service headers, because using
 the Timer is supported and *being* one has not been measured.

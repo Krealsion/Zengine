@@ -244,10 +244,11 @@ endforeach()
 # Loom statically and needs nothing else at load time.
 set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
+# The panes and the offices beside them are Zengine's, every one, and a host built against this
+# package stages them from here as Workshop stages them beside itself (workshop/CMakeLists.txt).
 # Out of the developer package: the GUI window (a fetched SDL is a build-tree library this package
-# does not carry); introspection and the composer, shown only inside a Workshop run; the snake
-# example; every test fixture. The package a stranger downloads (ZENGINE_PACKAGE, below) carries
-# Workshop with the SDL it built, in bin/.
+# does not carry); Workshop's own weaves; the snake example; every test fixture. The package a
+# stranger downloads (ZENGINE_PACKAGE, below) carries Workshop with the SDL it built, in bin/.
 set(zengine_installable_artifacts
     zengine-app-weave            # weave: an app's own weave, which zengine-app runs
     zengine-timer                # weave
@@ -260,7 +261,21 @@ set(zengine_installable_artifacts
     zengine-guest-vocabulary     # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
                                  # declared there, so a session's Python tools can speak it
     zengine-graphics             # weave: the graphics directory
-    zengine-window-tui)     # weave: the window over the process's own terminal
+    zengine-window-tui           # weave: the window over the process's own terminal
+    zengine-theme                # weave: the theme stack and the shipped themes' reader
+    zengine-files                # weave: Files, the project browser
+    zengine-introspection        # weave: Loaded, Project and Powers
+    zengine-composer             # weave: the composer
+    zengine-attention-pane       # weave: Attention
+    zengine-notices              # weave: the notices office
+    zengine-notices-pane         # weave: Notices
+    zengine-info-pane            # weave: Info
+    zengine-inventory-pane       # weave: Inventory
+    zengine-terminal-pane        # weave: the Terminal pane
+    zengine-editor-pane          # weave: the Editor
+    zengine-flow-pane            # weave: the Flow pane
+    zengine-view-builder         # weave: the View Builder
+    zengine-menu-presenter)      # weave: the menu presenter
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)

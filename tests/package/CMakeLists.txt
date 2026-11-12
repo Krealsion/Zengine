@@ -105,7 +105,11 @@ add_dependencies(kitchen-host oven)
 # noun true of every member is `artifact`, and a variable renamed after one surface goes red here.
 foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
                  zengine-guest-vocabulary zengine-inventory zengine-graphics
-                 zengine-window-tui)
+                 zengine-window-tui zengine-theme zengine-files zengine-introspection
+                 zengine-composer zengine-attention-pane zengine-notices zengine-notices-pane
+                 zengine-info-pane zengine-inventory-pane zengine-terminal-pane
+                 zengine-editor-pane zengine-flow-pane zengine-view-builder
+                 zengine-menu-presenter)
     if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
         message(FATAL_ERROR
             "kitchen: '${expected}' is not in ZENGINE_RUNTIME_ARTIFACTS "
