@@ -2,24 +2,19 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Timer suite -- the Timer package proven headless: the vocabulary pinned by content id; the
-// service over a fake clock through a real bus; the real library through the real Kernel on the
-// real clock, its chain run from its own activation; and the chains that tick the world, poll
-// input and beat the window with nobody pumping them. The chain never quiesces, so every pump
-// carries a stop plan (a beat budget, a stop-on-fire, a stopwatch) and a stopped pump PARKS the
-// queue mid-chain: an ask or cancel behind a parked beat lands one firing late, pinned twice.
+// service through a real bus, handed its time by the host's one wait (`loom::host::Reactor`) on a
+// clock that moves only when told; the real library through the real Kernel under that same wait;
+// and the world it ticks with nobody sending a tick. Every pump is the host's loop: the bus turned,
+// then the wait -- a look while the bus holds work, else a rest until the soonest time due, which
+// moves the clock there. The bus drains between wakes, so a pump ends when the host is quiet, when
+// what it waits for came, or at the time it waits until.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "role_set.hpp"
 #include "doctest.h"
 
-#include "weavelib/virtual_step.hpp" // the suites' virtual beat
-
-using zengine::testing::kVirtualStepMs;
-
 #include "timer/binding.hpp"
-#include "timer/os_clock.hpp"
-#include "timer/rest.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -42,6 +37,7 @@ using zengine::testing::kVirtualStepMs;
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -49,6 +45,9 @@ using zengine::testing::kVirtualStepMs;
 #include <utility>
 #include <vector>
 
+#include <zen/host/clock.hpp>
+#include <zen/host/reactor.hpp>
+#include <zen/host/wait_set.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -61,48 +60,62 @@ using loom::schema_of;
 
 namespace {
 
-// ---- tier 2 rig: the fake clock and its ears ---------------------------------
+// ---- the host's loop, as every rig here turns it ----------------------------------
 
-/// The test's hand inside the beat: virtual now, beat counting, and a bus
-/// stop after a beat budget (the backstop that makes "nothing fires"
-/// provable without waiting for it not to happen).
-struct FakeHooks {
-    std::int64_t now = 0;
-    std::int64_t step = zengine::testing::kVirtualStepMs; ///< a beat's step; 0 or less: the cap
-    std::int64_t beats = 0;
-    std::int64_t stop_after = -1; ///< stop the bus once beats reaches this
-    loom::Switchboard* bus = nullptr;
-};
-
-/// Virtual time, booked a beat's wait at a time (`elapse_ms`): what this suite calls a beat's nap,
-/// blocking nothing. The shipped Timer's waiting is the host's rest, pinned over a host's clock.
-struct FakeClock {
-    FakeHooks* h = nullptr;
-    std::int64_t now_ms() { return h->now; }
-    std::int64_t step_ms() const { return h->step; }
-    void elapse_ms(std::int64_t ms) {
-        if (ms > 0) {
-            h->now += ms;
+/// THE HOST'S LOOP: the bus turned, then the host's one wait -- a look while the bus holds work,
+/// else a rest until the soonest time a trusted source is due (on a clock that moves only when
+/// told, the wait moves it there), or until `until` when one is given. It returns once `done()`
+/// holds with the bus empty, once the host is quiet -- the bus empty and nothing to wait for --
+/// or at `until`, after what is due then has been handed over. `at_once` returns as soon as
+/// `done()` holds after a turn, the bus as that turn left it (a tap that stops the bus mid-turn
+/// leaves the rest queued). The bound is a hang guard: a loop that does not come to rest fails the
+/// case.
+template <class Done>
+void host_loop(loom::Switchboard& bus, loom::host::Reactor& wait, const loom::host::Clock& clock,
+               Done done, std::optional<std::int64_t> until = std::nullopt, bool at_once = false) {
+    for (int turn = 0; turn < 200000; ++turn) {
+        bus.pump_pending();
+        if (at_once && done()) {
+            return;
         }
-        ++h->beats;
-        if (h->stop_after >= 0 && h->beats >= h->stop_after) {
-            h->bus->stop();
+        if (bus.pending() != 0) {
+            (void)wait.after_turn(0);
+            continue;
+        }
+        if (done()) {
+            return;
+        }
+        if (until && clock.now_ms() >= *until) {
+            (void)wait.after_turn(0); // what is due at that time, handed over
+            if (bus.pending() == 0) {
+                return;
+            }
+            continue;
+        }
+        (void)(until ? wait.after_turn(*until - clock.now_ms()) : wait.after_turn());
+        if (!until && bus.pending() == 0) {
+            return; // quiet: nothing claimed a time, nothing is ready
         }
     }
-};
+    FAIL("the host's loop did not come to rest");
+}
 
-using FakeService = TimerServiceT<FakeClock>;
+/// Whether a delivery is the host's wait waking `who` because its time came.
+bool due_wake_of(const loom::BusEvent& ev, loom::WeaveId who) {
+    return ev.kind == loom::EventKind::Delivered && ev.target == who && ev.payload != nullptr &&
+           ev.schema_name == loom::host::Waited::zen_name && !ev.sender.valid() &&
+           ev.schema_version == loom::host::Waited::zen_version && ev.payload->get("due") != nullptr &&
+           ev.payload->get("due")->as_bool();
+}
 
 /// What the ears heard, shared with the test. One instance can serve several
 /// ears — the ids and stamps say who was addressed.
 struct Heard {
     std::vector<std::string> fired;     ///< TimerFired ids, in arrival order
-    std::vector<std::int64_t> fired_at; ///< virtual now at each arrival
+    std::vector<std::int64_t> fired_at; ///< the host's clock at each arrival
     std::vector<TimerResolution> resolutions; ///< receipts, in arrival order
     std::int64_t ready = 0;             ///< TimerReady hellos
-    const FakeHooks* hooks = nullptr;
-    loom::Switchboard* bus = nullptr;
-    std::string stop_on_id; ///< stop the bus when this id arrives (if set)
+    const loom::host::Clock* clock = nullptr;
 };
 
 struct EarState {
@@ -111,25 +124,22 @@ struct EarState {
 };
 
 /// An ordinary timer consumer; its Emit list is what lets the test speak AS it (send_as
-/// authorizes against the grant mount() derives from exactly this list). `Drive` is in it ON
-/// PURPOSE: the hostile frames this suite forges -- a beat from a FOREIGN stamped sender, one
-/// carrying someone else's activation key -- must be SAYABLE through the honest API, or the pin
-/// would test the grant model rather than the service's ownership check.
+/// authorizes against the grant mount() derives from exactly this list). `Waited` is in it ON
+/// PURPOSE: the hostile frame this suite forges -- the host's wait's word from a participant --
+/// must be SAYABLE through the honest API, or the pin would test the grant model rather than the
+/// service's check that only the host's own word is time.
 class Ear
     : public loom::WeaveBase<Ear, EarState,
                              loom::Accept<TimerFired, TimerReady, TimerResolution>,
                              loom::Emit<StartTimer, StartRoleTimer, EnsureTimer, EnsureRoleTimer,
-                                        CancelTimer, CancelAllMyTimers, Drive>> {
+                                        CancelTimer, CancelAllMyTimers, loom::host::Waited>> {
 public:
     explicit Ear(Heard& heard) : heard_(&heard) {}
     void on(const TimerResolution& t, loom::Mail&) { heard_->resolutions.push_back(t); }
     void on(const TimerFired& f, loom::Mail&) {
         ++state_.count;
         heard_->fired.push_back(f.id);
-        heard_->fired_at.push_back(heard_->hooks != nullptr ? heard_->hooks->now : -1);
-        if (!heard_->stop_on_id.empty() && f.id == heard_->stop_on_id) {
-            heard_->bus->stop();
-        }
+        heard_->fired_at.push_back(heard_->clock != nullptr ? heard_->clock->now_ms() : -1);
     }
     void on(const TimerReady&, loom::Mail&) { ++heard_->ready; }
 
@@ -247,11 +257,12 @@ private:
     Letters* box_;
 };
 
-/// The tier-2 world: a real bus, the service on a fake clock, one ear, and a
-/// stand-in door to activate from.
+/// The tier-2 world: a real bus, the service in its role, the host's one wait trusting that role
+/// on a clock that moves only when told, one ear, and a stand-in door to activate from.
 struct FakeRig {
     loom::Switchboard bus;
-    FakeHooks hooks;
+    loom::host::ManualClock clock;
+    loom::host::Reactor wait{bus, clock};
     Heard heard;
     Letters letters;
     std::vector<std::string> tape; ///< delivered schema names, in order
@@ -269,11 +280,10 @@ struct FakeRig {
     /// identical; the only difference under test is which operator truth the
     /// running Timer executes.
     explicit FakeRig(zengine::op::Catalog operators) {
-        hooks.bus = &bus;
-        heard.hooks = &hooks;
-        heard.bus = &bus;
-        // Into its ROLE — the beat is role-addressed, exactly as the .so's is.
-        service = mount_role<FakeService>(bus, kTimerRole, FakeClock{&hooks}, std::move(operators));
+        heard.clock = &clock;
+        wait.trust(kTimerRole);
+        // Into its ROLE: the host's wait reads the role's claim, exactly as the .so's is read.
+        service = mount_role<TimerWeave>(bus, kTimerRole, std::move(operators));
         ear = loom::mount<Ear>(bus, heard);
         door = zengine::testing::mount_door(bus);
         other_door = zengine::testing::mount_door(bus);
@@ -284,33 +294,25 @@ struct FakeRig {
             }
             tape.push_back(ev.schema_name);
             if (ev.schema_name == "StartTimer") {
-                ask_now = hooks.now; // the instant a schedule was anchored
+                ask_now = clock.now_ms(); // the instant a schedule was asked for
             }
             if (ev.schema_name == loom::PrepareShutdown::zen_name) {
-                // The instant the predecessor reads its clock. Nothing naps
-                // inside that handler, so this IS the letter's `now`.
-                letter_now = hooks.now;
+                // The time the predecessor was last handed: its letter's `now`.
+                letter_now = clock.now_ms();
             }
-            if (ev.schema_name == "Drive") {
-                ++drives;
-                if (stop_after_drives >= 0 && drives >= stop_after_drives) {
-                    bus.stop();
-                }
+            if (due_wake_of(ev, service)) {
+                ++wakes;
             }
         });
     }
 
-    std::int64_t drives = 0;
-    std::int64_t stop_after_drives = -1;
-    std::int64_t letter_now = -1; ///< virtual now when the predecessor was asked to write
-    std::int64_t ask_now = -1;    ///< virtual now when a StartTimer was last applied
+    std::int64_t wakes = 0;       ///< the host's wakes the service was handed, its time come
+    std::int64_t letter_now = -1; ///< the clock when the predecessor was asked to write
+    std::int64_t ask_now = -1;    ///< the clock when a StartTimer was last delivered
 
-    /// Bounded by BEATS DELIVERED rather than by naps: a bootstrap beat spends a
-    /// queue turn without napping, so a nap-counting bound would not see one.
-    void pump_drives(std::int64_t n) {
-        stop_after_drives = drives + n;
-        bus.drain_until_idle();
-        stop_after_drives = -1;
+    /// The bus turned until it is empty, and no time passing: what is queued now, delivered.
+    void settle() {
+        host_loop(bus, wait, clock, [] { return true; });
     }
 
     /// Put a steward in the `zen.manager` slot. Deliberately NOT part of the
@@ -339,13 +341,14 @@ struct FakeRig {
         return a.value().get(field)->as_int();
     }
 
-    /// Ask the service to write its letter, as the steward would, and decode it.
+    /// Ask the service to write its letter, as the steward would, and decode it: the bus turned with
+    /// no wait between, so no time passes and nothing fires between the asks before it and it.
     std::vector<TimerHandoffEntry> prepare_shutdown() {
         REQUIRE(steward.valid());
         const std::size_t before = letters.received.size();
         bus.send_as(steward, service,
                     loom::Message(loom::to_value(loom::PrepareShutdown{}), steward, steward, 77));
-        pump_drives(4); // the ask, the letter, and the beats they queue behind
+        bus.drain_until_idle(); // delivered in this turn: no wake between the asks and the letter
         REQUIRE(letters.received.size() == before + 1);
         const std::optional<TimerHandoff> h =
             loom::claim_item<TimerHandoff>(letters.received.back());
@@ -362,7 +365,6 @@ struct FakeRig {
 
     /// Activate the service the way the control door does: a directed,
     /// stamped `zen.Activated` carrying the next sequence of this lineage.
-    /// This — not a wind — is what starts time.
     void activate(std::int64_t sequence) {
         activate_as(door, sequence);
     }
@@ -386,40 +388,33 @@ struct FakeRig {
         zengine::testing::order_activation(bus, impostor, service, sequence);
     }
 
-    /// The activation key's two halves, as they travel on a Drive.
-    std::string door_text() const { return std::to_string(door.value); }
-    std::int64_t current_sequence() const { return next_sequence - 1; }
-
-    /// Send a Drive AS `who`. The forged-frame door: everything a hostile or
-    /// confused participant could actually put on the wire.
-    void drive_as(loom::WeaveId who, const std::string& sender_text, std::int64_t sequence,
-                  std::int64_t serial) {
-        bus.send_as(who, service,
-                    loom::Message(loom::to_value(Drive{sender_text, sequence, serial}), who, who,
-                                  0));
-    }
-
-    /// Start (or resume) the chain and let it run at most `n` more beats
-    /// (fewer if a stop_on_id fires first). The interrupted beat's tail
-    /// parks; the next call resumes it — the host's own stop/quit mechanics.
-    void run_beats(std::int64_t n, bool start = false) {
-        hooks.stop_after = hooks.beats + n;
-        // A HANG GUARD, not a schedule. This bound counts BEATS DELIVERED while
-        // the one above counts naps, and the two differ exactly where a chain
-        // beats without napping — a bootstrap that never resolves would spin
-        // forever under the nap bound alone. A test that fails should fail with
-        // an assertion, never by being killed.
-        stop_after_drives = drives + n + 8;
+    /// The host's loop until the service has been handed `n` more wakes, or the host is quiet --
+    /// a Timer with nothing standing claims no time, so nothing wakes it. What the last wake set
+    /// off is delivered before it returns.
+    void run_wakes(std::int64_t n, bool start = false) {
         if (start) {
             activate();
         }
-        bus.drain_until_idle();
-        hooks.stop_after = -1;
-        stop_after_drives = -1;
+        const std::int64_t target = wakes + n;
+        host_loop(bus, wait, clock, [&] { return wakes >= target; });
+    }
+
+    /// The host's loop until the clock reads `ms`, and what is due then delivered.
+    void run_until(std::int64_t ms) {
+        host_loop(bus, wait, clock, [] { return false; }, ms);
+    }
+
+    /// The host's loop until `id` has been heard `times` more, or the host is quiet.
+    void run_until_fired(const std::string& id, std::size_t times = 1) {
+        const auto heard_of = [&] {
+            return static_cast<std::size_t>(std::count(heard.fired.begin(), heard.fired.end(), id));
+        };
+        const std::size_t target = heard_of() + times;
+        host_loop(bus, wait, clock, [&] { return heard_of() >= target; });
     }
 };
 
-// ---- tiers 3/4 rig: the real kernel, the real clock ---------------------------
+// ---- tiers 3/4 rig: the real kernel, under the host's wait -------------------------
 
 /// What the kernel-lane witness has seen: the standard answers, plus
 /// everything time makes move in these lanes.
@@ -437,10 +432,6 @@ struct Seen {
     std::vector<TimerResolution> receipts; ///< the keystone lane's own order receipts
     std::vector<std::string> declines;     ///< preparation asks a Timer refused
     std::int64_t letters_to_me = 0;        ///< clock reads the ruler took
-    loom::Switchboard* bus = nullptr;
-    std::string stop_id;           ///< stop once this TimerFired id has arrived...
-    std::int64_t stop_count = 1;   ///< ...this many times
-    std::int64_t stop_seen = 0;
 
     const Answer* find(std::uint64_t corr) const {
         for (const Answer& a : answers) {
@@ -458,9 +449,7 @@ struct WitnessState {
 };
 
 /// The lane's hand and ears: holds the manager reach, hears the standard
-/// answers, and accepts everything these lanes watch move. The REAL clock
-/// offers no test hook, so the witness's stop lever is a timer it asks for
-/// itself — the stopwatch.
+/// answers, and accepts everything these lanes watch move.
 class Witness
     : public loom::WeaveBase<Witness, WitnessState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, TimerFired,
@@ -486,13 +475,7 @@ public:
     void on(const loom::Result& r, loom::Mail& mail) { note(mail, 0, r.value); }
     void on(const loom::Ack&, loom::Mail& mail) { note(mail, 1, ""); }
     void on(const loom::Refused& r, loom::Mail& mail) { note(mail, 2, r.reason); }
-    void on(const TimerFired& f, loom::Mail&) {
-        seen_->fired.push_back(f.id);
-        if (!seen_->stop_id.empty() && f.id == seen_->stop_id &&
-            ++seen_->stop_seen >= seen_->stop_count) {
-            seen_->bus->stop();
-        }
-    }
+    void on(const TimerFired& f, loom::Mail&) { seen_->fired.push_back(f.id); }
     void on(const TimerReady&, loom::Mail&) { ++seen_->ready; }
     void on(const zengine::snake::SnakeVisual& v, loom::Mail&) { seen_->visuals.push_back(v); }
 
@@ -512,11 +495,13 @@ struct CaughtLetter {
     loom::WeaveId target{};
     loom::WeaveId sender{};
     loom::Value payload;
-    std::int64_t drives = 0; ///< beats delivered when it landed — the lane's clock
+    std::int64_t at_ms = 0; ///< the host's clock when it landed
 };
 
 struct Rig {
     loom::Switchboard bus;
+    loom::host::ManualClock clock;
+    loom::host::Reactor wait{bus, clock};
     loom::Kernel kernel{bus, loom::trust_every_artifact(
         "Zengine's test harness: it loads only this build tree's output")};
     loom::WeaveId control = loom::mount_control(kernel, bus);
@@ -526,10 +511,13 @@ struct Rig {
     std::uint64_t next_corr = 1;
     std::vector<CaughtLetter> letters;
 
-    Rig() { watch_drives(); }
+    /// The host waits on the Timer's role, as Workshop and the app do.
+    Rig() {
+        wait.trust(kTimerRole);
+        watch();
+    }
 
     loom::WeaveId mount_witness() {
-        seen.bus = &bus;
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
         reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
@@ -551,64 +539,70 @@ struct Rig {
         return loom::mount_granted<Witness>(bus, std::move(reach), seen);
     }
 
-    /// The beat watchdog, the one pump lever that works on BOTH sides of the clock's existence:
-    /// before any timer is loaded no Drive is delivered, so it never trips and the pump drains;
-    /// once a chain is alive it bounds an otherwise endless pump. Required, since loading the
-    /// timer service is what starts time (TIMER-02), so even `load()` runs under a live chain.
-    std::int64_t drives = 0;
-    std::int64_t stop_after_drives = -1;
+    /// What the tap counts: every wake the host's wait handed the Timer's role, the letters that
+    /// crossed, and how many of each shape were handled.
+    std::int64_t wakes = 0;
+    std::map<std::string, std::int64_t> handled;
+    std::string stop_on;          ///< stop the bus the moment this shape is handled...
+    std::int64_t stop_target = 0; ///< ...for this count's time
 
-    std::string stop_on_schema; ///< stop the moment a message of this shape is handled
-
-    void watch_drives() {
+    void watch() {
         bus.add_observer([this](const loom::BusEvent& ev) {
             if (ev.kind != loom::EventKind::Delivered) {
                 return;
             }
-            if (ev.schema_name == "Drive") {
-                ++drives;
-                if (stop_after_drives >= 0 && drives >= stop_after_drives) {
-                    bus.stop();
-                }
+            ++handled[ev.schema_name];
+            if (!stop_on.empty() && ev.schema_name == stop_on &&
+                handled[ev.schema_name] >= stop_target) {
+                bus.stop();
+            }
+            if (ev.target == bus.role_holder(kTimerRole) && due_wake_of(ev, ev.target)) {
+                ++wakes;
             }
             if (ev.schema_name == loom::Bequest::zen_name && ev.payload != nullptr) {
-                letters.push_back(CaughtLetter{ev.target, ev.sender, *ev.payload, drives});
-            }
-            if (!stop_on_schema.empty() && ev.schema_name == stop_on_schema) {
-                bus.stop();
+                letters.push_back(CaughtLetter{ev.target, ev.sender, *ev.payload, clock.now_ms()});
             }
         });
     }
 
-    void pump_beats(std::int64_t n) {
-        stop_after_drives = drives + n;
-        bus.drain_until_idle();
-        stop_after_drives = -1;
+    /// The bus turned until it is empty, and no time passing.
+    void settle() {
+        host_loop(bus, wait, clock, [] { return true; });
     }
 
-    /// Pump until one message of `schema` has been handled, then stop: the continuity lane's
-    /// ruler. Virtual time moves only inside a beat's nap, so stopping at a named message puts
-    /// the clock at a known instant, and every duration after it is exactly `kVirtualStepMs` per
-    /// delivered beat. The beat budget is a hang guard, not a schedule: the chain never quiesces.
-    void pump_until(std::string schema, std::int64_t max_beats = 400) {
-        stop_on_schema = std::move(schema);
-        stop_after_drives = drives + max_beats;
-        bus.drain_until_idle();
-        stop_after_drives = -1;
-        stop_on_schema.clear();
+    /// The host's loop until one more message of `schema` has been handled, stopped the moment it
+    /// is, with whatever is queued behind it left queued: the lanes' ruler. The clock moves only
+    /// when the wait rests to a time due, so stopping at a named message puts it at a known
+    /// instant, and a case can place a send between two deliveries. `bound_ms` is a hang guard,
+    /// not a schedule.
+    void pump_until(const std::string& schema, std::int64_t bound_ms = 10000) {
+        const std::int64_t target = handled[schema] + 1;
+        const std::int64_t until = clock.now_ms() + bound_ms;
+        stop_on = schema;
+        stop_target = target;
+        host_loop(bus, wait, clock, [&] { return handled[schema] >= target; }, until,
+                  /*at_once=*/true);
+        stop_on.clear();
+        REQUIRE_MESSAGE(handled[schema] >= target, schema, " was not handled within ", bound_ms,
+                        " ms");
     }
 
-    /// Read one integer field, WITHOUT the stopwatch. `poke_timed` bounds its
-    /// pump by asking the service for a one-shot, which is exactly what the
-    /// continuity lane must not do — the instrument would appear in the table
-    /// it is measuring, and in the letter it is measuring it with.
+    /// The host's loop for `ms` on the clock.
+    void run_for(std::int64_t ms) {
+        host_loop(bus, wait, clock, [] { return false; }, clock.now_ms() + ms);
+    }
+
+    /// The host's loop until the clock reads `ms`.
+    void run_until(std::int64_t ms) {
+        host_loop(bus, wait, clock, [] { return false; }, ms);
+    }
+
+    /// Read one integer field, no time passing.
     std::int64_t poke_int(loom::WeaveId target, const char* field) {
         const std::uint64_t corr = next_corr++;
         bus.send(target, loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{},
                                        witness, corr));
-        for (int i = 0; i < 8 && seen.find(corr) == nullptr; ++i) {
-            pump_beats(1);
-        }
+        settle();
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
         REQUIRE_MESSAGE(a->kind == 0, "poke refused: ", a->text);
@@ -630,9 +624,7 @@ struct Rig {
         bus.send_as(witness, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{name, path, zengine::testing::role_set(role)}), witness,
                                   witness, corr));
-        // Bounded either way: drains when no clock exists yet, and stops after a
-        // few beats when loading the timer itself has just started one.
-        pump_beats(6);
+        settle();
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
         REQUIRE_MESSAGE(a->kind == 0, "load refused: ", a->text);
@@ -684,47 +676,27 @@ struct Rig {
         return {};
     }
 
-    /// Run the LIVE chain for about `ms` of real time: upsert the stopwatch
-    /// one-shot, pump, and return when it fires. Every post-wind pump in
-    /// these lanes goes through here — the chain never quiesces on its own.
-    void pump_for(loom::WeaveId service, std::int64_t ms) {
-        seen.stop_id = "suite.stopwatch";
-        seen.stop_count = 1;
-        seen.stop_seen = 0;
-        ask(service, StartTimer{"suite.stopwatch", ms, false});
-        bus.drain_until_idle();
-        seen.stop_id.clear();
-    }
-
-    /// Run the live chain in short stopwatch steps until `done()` holds, at least one step and at
-    /// most `bound_ms` of real time: a wait for something that arrives, not a measure of time
-    /// passing, so a slow machine takes more steps rather than missing it. Fails naming `what`.
+    /// The host's loop until `done()` holds, at most `bound_ms` on the clock: a wait for
+    /// something that arrives, not a measure of time passing. Fails naming `what`.
     template <class Done>
-    void wait_until(loom::WeaveId service, Done done, const char* what,
-                    std::int64_t bound_ms = 5000) {
-        constexpr std::int64_t kStepMs = 20;
-        std::int64_t waited = 0;
-        do {
-            pump_for(service, kStepMs);
-            waited += kStepMs;
-        } while (!done() && waited < bound_ms);
+    void wait_until(Done done, const char* what, std::int64_t bound_ms = 5000) {
+        host_loop(bus, wait, clock, done, clock.now_ms() + bound_ms);
         REQUIRE_MESSAGE(done(), what, " did not arrive within ", bound_ms, " ms");
     }
 
-    /// The answer correlated `corr`, waited for under the live chain (`wait_until`); a copy, since
-    /// the ledger grows under every later pump.
-    Seen::Answer wait_answer(loom::WeaveId service, std::uint64_t corr, const char* what,
-                             std::int64_t bound_ms = 5000) {
-        wait_until(service, [&] { return seen.find(corr) != nullptr; }, what, bound_ms);
+    /// The answer correlated `corr`, waited for under the host's loop (`wait_until`); a copy,
+    /// since the ledger grows under every later pump.
+    Seen::Answer wait_answer(std::uint64_t corr, const char* what, std::int64_t bound_ms = 5000) {
+        wait_until([&] { return seen.find(corr) != nullptr; }, what, bound_ms);
         return *seen.find(corr);
     }
 
-    /// Poke under a live chain and wait for its answer (`wait_answer`).
+    /// Poke and wait for its answer (`wait_answer`).
     template <class Poke>
-    Seen::Answer poke_timed(loom::WeaveId service, loom::WeaveId target, const Poke& p) {
+    Seen::Answer poke_timed(loom::WeaveId target, const Poke& p) {
         const std::uint64_t corr = next_corr++;
         bus.send(target, loom::Message(loom::to_value(p), loom::WeaveId{}, witness, corr));
-        return wait_answer(service, corr, "timed poke");
+        return wait_answer(corr, "timed poke");
     }
 };
 
@@ -765,21 +737,10 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
                                                            ->content_id());
     CHECK(schema_of<TimerReady>()->content_id() ==
           SchemaBuilder("TimerReady", 1).build()->content_id());
-    // Drive v2 — the beat that carries its own ownership. The sender is
-    // TEXT and that is contract, not taste: a WeaveId is unsigned 64-bit and the
-    // wire's Int is signed, so an Int field would silently narrow the top half
-    // of the range. A drift back to Int is a red test.
-    CHECK(schema_of<Drive>()->content_id() == SchemaBuilder("Drive", 2)
-                                                  .field("activation_sender", Kind::Text)
-                                                  .field("activation_sequence", Kind::Int)
-                                                  .field("serial", Kind::Int)
-                                                  .build()
-                                                  ->content_id());
-    CHECK(schema_of<Drive>()->version() == 2);
-
-    // The address and the beat cap are contract too.
+    // The address is contract too, and so is the time a Timer claims while it must learn the
+    // time: a reading every clock a host's wait keeps has already passed.
     CHECK(std::string(kTimerRole) == "zengine.timer");
-    CHECK(kBeatCapMs == 1000);
+    CHECK(kTimePast == 0);
 }
 
 TEST_CASE("contract: the ordered continuity shapes are frozen the same way, and their Text fields "
@@ -835,17 +796,18 @@ TEST_CASE("contract: the ordered continuity shapes are frozen the same way, and 
               ->content_id());
     CHECK(schema_of<TimerHandoff>()->version() == 1);
 
-    // The service's state: six counters, and the table as a reload carries it, in the letter's own
-    // records -- one description of schedule progress, not two.
-    CHECK(schema_of<TimerState>()->version() == 3);
+    // The service's state: seven counters, and the table as a reload carries it, in the letter's
+    // own records -- one description of schedule progress, not two.
+    CHECK(schema_of<TimerState>()->version() == 4);
     CHECK(schema_of<TimerState>()->content_id() ==
-          SchemaBuilder("TimerState", 3)
-              .field("beats", Kind::Int)
+          SchemaBuilder("TimerState", 4)
+              .field("wakes", Kind::Int)
               .field("fired", Kind::Int)
               .field("active", Kind::Int)
               .field("dropped", Kind::Int)
               .field("deferred_dropped", Kind::Int)
               .field("inherited", Kind::Int)
+              .field("gone", Kind::Int)
               .list("standing", loom::type_message(schema_of<TimerHandoffEntry>()))
               .build()
               ->content_id());
@@ -886,7 +848,7 @@ TEST_CASE("contract: the ordered continuity shapes are frozen the same way, and 
     // The bounds are published, not discovered as leaks.
     CHECK(kMaxHandoffEntries == 32);
     CHECK(kMaxDeferredOps == 32);
-    CHECK(kBootstrapBeats == 2);
+    CHECK(kBootstrapWakes == 2);
 }
 
 TEST_CASE("contract: the handover's preparation conversation is frozen too, and it adds no second "
@@ -915,25 +877,25 @@ TEST_CASE("contract: the handover's preparation conversation is frozen too, and 
     // The two plans, spelled as they travel.
     CHECK(std::string(kInheritFromIncumbent) == "inherit");
     CHECK(std::string(kStartFresh) == "fresh");
-    CHECK(kPreparedClaimBeats == 8);
+    CHECK(kPreparedClaimWakes == 8);
 
     // THE LETTER IS THE GRACEFUL PATH'S: prepared replacement reuses `TimerHandoff` exactly, so
     // there is one interpretation of schedule progress in this package and not two.
     CHECK(schema_of<TimerHandoff>()->version() == 1);
     CHECK(schema_of<TimerHandoffEntry>()->version() == 1);
     // ...and the service's own state did not have to grow to carry a preparation.
-    CHECK(schema_of<TimerState>()->version() == 3);
+    CHECK(schema_of<TimerState>()->version() == 4);
 }
 
 // ============================================================================
-// Tier 2 — the service over a fake clock, through a real bus
+// Tier 2 — the service through a real bus, handed its time by the host's wait
 // ============================================================================
 
 // ---- the role's manual ----------------------------------------------------
 
 TEST_CASE("the Timer answers a shape's section from its own page, and its page covers every shape "
           "it accepts") {
-    // Unactivated, so no beat chain stands and the bus drains: the words are the image's, said
+    // Unactivated, so it claims nothing and the bus drains: the words are the image's, said
     // whether or not this incarnation is live.
     FakeRig r;
     const std::vector<std::string> described = described_shapes_of(r.bus, r.service);
@@ -941,35 +903,62 @@ TEST_CASE("the Timer answers a shape's section from its own page, and its page c
     CHECK(check_role_manual(r.bus, kTimerRole) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_timer::kManual, described);
 
-    // A request is answered from Commands, the Timer's own beat from Hears.
+    // A request is answered from Commands, the host's wait's word from Hears.
     ShapeDocumentReader reader(r.bus, kTimerRole);
     CHECK(reader.ask(EnsureTimer::zen_name, EnsureTimer::zen_version).group == "Commands");
-    CHECK(reader.ask(Drive::zen_name, Drive::zen_version).group == "Hears");
+    CHECK(reader.ask(loom::host::Waited::zen_name, loom::host::Waited::zen_version).group ==
+          "Hears");
     CHECK(reader.ask(TimerFired::zen_name, TimerFired::zen_version).refusal ==
           "zengine.timer does not accept `TimerFired` v1");
 }
 
 // ---- the activation law (TIMER-01) ------------------------------------------
-// With no timers standing every beat naps the cap, and a parked pump leaves exactly the
-// in-flight Drives queued -- so `pending()` IS the chain count, and `hooks.beats` the work done.
+// Time is the host's to hand over: a Timer claims the time it waits for as its role, and the
+// host's wait wakes it then. `wait.sources()` is what the wait holds of that claim.
 
-TEST_CASE("nothing drives an unactivated incarnation: a Drive before activation is inert") {
+namespace {
+
+/// The time the Timer's role claims, as the host's wait holds it: none when it claims no time.
+std::optional<std::int64_t> claimed_until(const FakeRig& r) {
+    for (const loom::host::Reactor::Source& s : r.wait.sources()) {
+        if (s.role == kTimerRole) {
+            return s.until_ms;
+        }
+    }
+    return std::nullopt;
+}
+
+/// The host's wait's word, `due` at `now_ms`, as only the host may say it.
+loom::host::Waited woke_at(std::int64_t now_ms) {
+    loom::host::Waited w;
+    w.held = true;
+    w.due = true;
+    w.now_ms = now_ms;
+    return w;
+}
+
+} // namespace
+
+TEST_CASE("nothing wakes an unactivated incarnation: the host's word before activation is inert") {
     FakeRig r;
-    // A perfectly well-formed beat, correctly stamped, arriving at a service
-    // that has not been told it is live. THIS is what makes a predecessor's
-    // queued Drive harmless after a reload — the new instance begins
-    // unactivated, so an inherited beat has nothing to own.
-    r.drive_as(r.service, "1", 1, 0);
-    r.run_beats(4); // no activation
-    CHECK(r.hooks.beats == 0);      // no nap, no work
-    CHECK(r.heard.ready == 0);      // and no availability notice
-    CHECK(r.bus.pending() == 0);    // it established no chain: the bus drained
+    // The host's own word, no sender, arriving at a service that has not been told it is live.
+    // THIS is what makes a wake meant for a predecessor harmless after a reload: the new instance
+    // begins unactivated, so it has no time to be handed.
+    r.bus.send(r.service, loom::Message(loom::to_value(woke_at(500))));
+    r.ask_as(r.ear, StartTimer{"held", 5, false});
+    r.run_wakes(4); // no activation: nothing claimed, so the host is quiet
+    CHECK(r.count("wakes") == 0);
+    CHECK(r.heard.ready == 0);
+    CHECK(r.heard.fired.empty());
+    CHECK(r.bus.pending() == 0);
+    CHECK_FALSE(claimed_until(r).has_value());
 
-    // Then activate for real, and exactly one chain appears.
-    r.run_beats(4, /*start=*/true);
-    CHECK(r.hooks.beats == 4);
+    // Then activate for real: the held ask is anchored at the first time handed over and fires
+    // its delay later, on the host's clock, not the forged word's.
+    r.run_wakes(4, /*start=*/true);
     CHECK(r.heard.ready == 1);
-    CHECK(r.bus.pending() == 1);
+    REQUIRE(r.heard.fired.size() == 1);
+    CHECK(r.heard.fired_at[0] == 5);
 }
 
 TEST_CASE("an invalid, duplicate, or non-newer activation changes nothing") {
@@ -980,145 +969,132 @@ TEST_CASE("an invalid, duplicate, or non-newer activation changes nothing") {
     // a lineage the operator never authored.
     r.activate(0);
     r.activate(-7);
-    r.run_beats(4);
-    CHECK(r.hooks.beats == 0);
+    r.settle();
     CHECK(r.heard.ready == 0);
-    CHECK(r.bus.pending() == 0);
+    CHECK_FALSE(claimed_until(r).has_value());
 
-    // A real one starts the chain.
-    r.run_beats(4, /*start=*/true); // sequence 1
+    // A real one makes it available.
+    r.activate(); // sequence 1
+    r.settle();
     CHECK(r.heard.ready == 1);
-    CHECK(r.bus.pending() == 1);
-    const std::int64_t beats_after_start = r.hooks.beats;
+    r.ask_as(r.ear, StartTimer{"beat", 10, true});
+    r.run_until(20);
+    REQUIRE(r.heard.fired.size() == 2);
 
-    // THE SAME activation again: a duplicate. It does not republish
-    // availability, does not reset the serial, and above all does not seed a
-    // second chain.
+    // THE SAME activation again: a duplicate. It does not republish availability and does not
+    // disturb the standing schedule. An OLDER sequence from the same sender is a replay: same
+    // answer.
     r.activate(1);
-    r.run_beats(4);
-    CHECK(r.heard.ready == 1);   // no second notice
-    CHECK(r.bus.pending() == 1); // no second chain
-    CHECK(r.hooks.beats > beats_after_start); // the real chain kept working
-
-    // An OLDER sequence from the same sender is a replay: same answer.
+    r.settle();
     r.activate(1);
-    r.run_beats(4);
+    r.run_until(40);
     CHECK(r.heard.ready == 1);
-    CHECK(r.bus.pending() == 1);
+    CHECK(r.heard.fired_at == std::vector<std::int64_t>{10, 20, 30, 40}); // one lattice, unmoved
 }
 
-TEST_CASE("a newer activation replaces the chain; a different sender begins a new lineage — "
-          "either way, exactly one chain") {
+TEST_CASE("a newer activation re-announces; a different sender begins a new lineage — either "
+          "way, one schedule") {
     FakeRig r;
-    r.run_beats(4, /*start=*/true); // sequence 1
+    r.ask_as(r.ear, StartTimer{"beat", 10, true});
+    r.activate(); // sequence 1
+    r.run_until(20);
     REQUIRE(r.heard.ready == 1);
-    REQUIRE(r.bus.pending() == 1);
+    REQUIRE(r.heard.fired.size() == 2);
 
-    // A NEWER activation from the same lineage. It republishes availability
-    // (the notice is once per ACCEPTED activation) and re-seeds from serial 0 —
-    // and the old chain's parked beat, now carrying a stale key, is ignored
-    // when it lands. One chain in, one chain out.
+    // A NEWER activation from the same lineage republishes availability (the notice is once per
+    // ACCEPTED activation) and keeps the table: activation is not state migration.
     r.activate(); // sequence 2
-    r.run_beats(6);
+    r.run_until(30);
     CHECK(r.heard.ready == 2);
-    CHECK(r.bus.pending() == 1);
 
-    // A DIFFERENT SENDER — a second lifecycle initiator — is a new lineage. It
-    // is accepted (the Loom attested it; activation/docs/activation.md says why
-    // an attested sender is a lineage), and note its sequence is 1: LOWER than
-    // the current one, which is exactly the point. Sequences are only comparable
-    // WITHIN a lineage, so a new sender's 1 is not a replay of the old sender's
-    // 2. It too leaves one chain.
+    // A DIFFERENT SENDER — a second lifecycle initiator — is a new lineage. It is accepted (the
+    // Loom attested it; activation/docs/activation.md says why an attested sender is a lineage),
+    // and its sequence is 1: LOWER than the current one, which is exactly the point. Sequences
+    // are only comparable WITHIN a lineage, so a new sender's 1 is not a replay of the old
+    // sender's 2.
     r.activate_as(r.other_door, /*sequence=*/1);
-    r.run_beats(6);
+    r.run_until(50);
     CHECK(r.heard.ready == 3);
-    CHECK(r.bus.pending() == 1);
+    // Every rung once, on its lattice: no activation doubled the schedule or moved it.
+    CHECK(r.heard.fired_at == std::vector<std::int64_t>{10, 20, 30, 40, 50});
 }
 
-TEST_CASE("only the current chain's next beat advances time: foreign sender, wrong key, "
-          "and old/future/replayed serials are all ignored") {
+TEST_CASE("only the host's word is time: a wake from a participant moves nothing") {
     FakeRig r;
-    r.run_beats(5, /*start=*/true);
-    REQUIRE(r.bus.pending() == 1);
-    const std::int64_t beats_before = r.hooks.beats;
-    const std::string key = r.door_text();
-    const std::int64_t seq = r.current_sequence();
+    r.ask_as(r.ear, StartTimer{"once", 50, false});
+    r.run_wakes(1, /*start=*/true); // the time learned, 0, and the deadline claimed
+    REQUIRE(r.heard.fired.empty());
+    CHECK(claimed_until(r) == std::optional<std::int64_t>(50));
+    const std::int64_t wakes = r.count("wakes");
 
-    // EACH FORGERY ISOLATES ITS OWN DEFECT: the chain is parked with one real Drive ahead of
-    // them, which advances the expected serial before any is delivered, so a forgery built with
-    // the current serial would be rejected as STALE and say nothing about its own check. They
-    // carry the serial the chain will expect when they arrive, the only wrong thing in each
-    // being the one it tests (the two about serials carry deliberately wrong ones).
-    const std::int64_t next_serial = r.hooks.beats + 1;
-    r.drive_as(r.ear, key, seq, next_serial);            // FOREIGN stamped sender, else valid
-    r.drive_as(r.service, "999999", seq, next_serial);   // wrong activation sender, else valid
-    r.drive_as(r.service, key, seq + 5, next_serial);    // wrong activation sequence
-    r.drive_as(r.service, key, seq, 0);                  // a REPLAYED consumed serial
-    r.drive_as(r.service, key, seq, next_serial + 99);   // a fabricated future serial
-    r.run_beats(5);
+    // An ordinary weave says the wait woke the Timer at 1000, through the honest API: a
+    // perfectly shaped `Waited`, stamped with its sender. It is nothing -- no time, no firing.
+    r.bus.send_as(r.ear, r.service,
+                  loom::Message(loom::to_value(woke_at(1000)), r.ear, r.ear, 0));
+    r.settle();
+    CHECK(r.heard.fired.empty());
+    CHECK(r.count("wakes") == wakes);
+    CHECK(claimed_until(r) == std::optional<std::int64_t>(50));
 
-    // HONEST SCOPE: four of the five are DISCRIMINATED here -- removing the key check or the
-    // serial check makes this case red. The FOREIGN-SENDER one is not: an honoured foreign beat
-    // displaces the real one rather than forking the chain, so every instrument reads the same
-    // either way; it is asserted as behaviour, and the service header states its status.
-
-    // Still one chain, and the work done is the chain's own: five more beats,
-    // not ten. (Every valid Drive produces exactly one beat; these produced
-    // none.)
-    CHECK(r.bus.pending() == 1);
-    CHECK(r.hooks.beats == beats_before + 5);
-    CHECK(r.heard.ready == 1); // and nothing re-announced
+    // The host's own wait still wakes it at its time.
+    r.run_wakes(1);
+    REQUIRE(r.heard.fired.size() == 1);
+    CHECK(r.heard.fired_at[0] == 50);
 }
 
-TEST_CASE("the chain's arithmetic boundary refuses to wrap") {
-    // PROOF LEVEL, stated: this is a DIRECT pin on the guard, and the
-    // behavioural path through it is true-by-construction — reaching the
-    // boundary would take 2^63 beats, and the serial is a per-incarnation plain
-    // member by design, so no revival path can place a chain near its end. The
-    // guard is extracted precisely so the boundary is assertable at all.
-    CHECK(can_advance_serial(0));
-    CHECK(can_advance_serial(1));
-    CHECK(can_advance_serial(std::numeric_limits<std::int64_t>::max() - 1));
-    // At the last representable serial the chain STOPS rather than wrapping: a
-    // wrapped serial would re-issue one already spent, and a duplicated serial
-    // is indistinguishable from a replay — which would fork time.
-    CHECK_FALSE(can_advance_serial(std::numeric_limits<std::int64_t>::max()));
-    // A negative serial has no valid continuation either; it is not normalized.
-    CHECK_FALSE(can_advance_serial(-1));
-}
-
-TEST_CASE("an activation announces availability and authors exactly one chain") {
+TEST_CASE("a deadline saturates rather than wraps: the farthest delay claims the last reading") {
+    // A wrapped deadline would read as overdue at once and fire forever; a saturated one is
+    // claimed as the last reading a clock has, and the wait rests until then.
     FakeRig r;
-    r.run_beats(3, /*start=*/true);
-    CHECK(r.heard.ready == 1); // hello on the first beat...
-    CHECK(r.hooks.beats == 3); // ...and the service kept itself alive after it
-    r.run_beats(2);
+    constexpr std::int64_t kMax = std::numeric_limits<std::int64_t>::max();
+    r.ask_as(r.ear, StartTimer{"near", 5, false});
+    r.ask_as(r.ear, StartTimer{"far", kMax, false});
+    r.activate();
+    r.run_until_fired("near");
+    CHECK(r.clock.now_ms() == 5);
+    CHECK(claimed_until(r) == std::optional<std::int64_t>(kMax));
+    CHECK(r.heard.fired == std::vector<std::string>{"near"});
+}
+
+TEST_CASE("an activation announces availability once, and a Timer with nothing standing claims "
+          "no time") {
+    FakeRig r;
+    r.run_wakes(3, /*start=*/true);
+    CHECK(r.heard.ready == 1); // hello, once the decision is made
+    // Nothing standing: the claim names no time, the bus is empty, and the host rests with
+    // nothing to wait for -- nothing is queued to keep time.
+    CHECK_FALSE(claimed_until(r).has_value());
+    CHECK(r.bus.pending() == 0);
+    const std::int64_t wakes = r.count("wakes");
+    r.run_until(10000);
     CHECK(r.heard.ready == 1); // never again, however long it runs
-    CHECK(r.hooks.beats == 5);
+    CHECK(r.count("wakes") == wakes); // and woken by nothing
 }
 
 TEST_CASE("a one-shot fires once, on time, and is gone") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"once", 25, false});
-    r.run_beats(6, /*start=*/true);
+    r.run_wakes(6, /*start=*/true);
     REQUIRE(r.heard.fired.size() == 1);
     CHECK(r.heard.fired[0] == "once");
-    CHECK(r.heard.fired_at[0] == 25); // nap-to-deadline, not nap-past-it
-    r.run_beats(6);
+    CHECK(r.heard.fired_at[0] == 25); // woken at its deadline, not past it
+    r.run_until(1000);
     CHECK(r.heard.fired.size() == 1); // spent means spent
+    CHECK_FALSE(claimed_until(r).has_value());
 }
 
-TEST_CASE("an immediate one-shot fires on the first beat; a 0ms repeat is clamped") {
+TEST_CASE("an immediate one-shot fires at the time first handed; a 0ms repeat is clamped") {
     FakeRig r;
-    r.ask_as(r.ear, StartTimer{"asap", -5, false}); // negative: next beat, now
+    r.ask_as(r.ear, StartTimer{"asap", -5, false}); // negative: due at once
     r.ask_as(r.ear, StartTimer{"fast", 0, true});   // 0ms repeat: clamped to 1ms
-    r.run_beats(4, /*start=*/true);
-    REQUIRE(r.heard.fired.size() >= 3);
+    r.activate();
+    r.run_until(2);
+    REQUIRE(r.heard.fired.size() == 3);
     CHECK(r.heard.fired[0] == "asap");
-    CHECK(r.heard.fired_at[0] == 0); // due already: the beat naps 0 and fires
-    // The clamp is what makes a "0ms" repeat a schedule instead of a hot
-    // spin: virtual time ADVANCES 1ms per firing (a nap that stays 0 forever
-    // would loop at t=0 and never satisfy these stamps).
+    CHECK(r.heard.fired_at[0] == 0); // due already: fired at the time the wait handed over
+    // The clamp is what makes a "0ms" repeat a schedule instead of a hot spin: the clock MOVES
+    // 1ms per firing (a deadline that stayed at 0 forever would wake at t=0 and never satisfy
+    // these stamps).
     CHECK(r.heard.fired[1] == "fast");
     CHECK(r.heard.fired_at[1] == 1);
     CHECK(r.heard.fired[2] == "fast");
@@ -1140,10 +1116,10 @@ std::int64_t interpreted_delay_with(zengine::op::Catalog operators, std::int64_t
                                     bool repeat) {
     FakeRig r(std::move(operators));
     r.mount_steward(Letters::Answer::Refuse);
-    r.run_beats(3, /*start=*/true);
-    // Queued so the letter is written in the SAME pump the ask lands in, before
-    // any beat can fire and retire a one-shot that is already due. Same reason
-    // the due-or-overdue letter case queues its ask this way.
+    r.run_wakes(3, /*start=*/true);
+    // Queued so the letter is written in the SAME turn the ask lands in, before any wake can
+    // fire and retire a one-shot that is already due. Same reason the due-or-overdue letter
+    // case queues its ask this way.
     r.ask_as(r.ear, StartTimer{"probe", delay_ms, repeat});
     const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
     REQUIRE(offered.size() == 1);
@@ -1158,7 +1134,7 @@ std::int64_t interpreted_delay(std::int64_t delay_ms, bool repeat) {
 
 TEST_CASE("the delay a Timer interprets, over the whole matrix") {
     // A repeating delay below 1ms is a hot spin wearing a timer's clothes; a
-    // negative delay fires on the next beat. Those two sentences are the rule,
+    // negative delay is due at once. Those two sentences are the rule,
     // and this is every edge they have.
     constexpr std::int64_t kBig = 86'400'000;               // a day
     constexpr std::int64_t kMax = std::numeric_limits<std::int64_t>::max();
@@ -1192,7 +1168,8 @@ TEST_CASE("a running Timer's delay comes from the operator, and the composition 
     FakeRig r;
     const std::uint64_t before = zengine::op::invocations();
     r.ask_as(r.ear, StartTimer{"beat", -500, true});
-    r.run_beats(4, /*start=*/true);
+    r.activate();
+    r.run_until(2);
 
     // Two maxes and a select: the three nodes of the composition, and nothing
     // beside them. A fourth node, or a native shortcut, would move this.
@@ -1212,12 +1189,12 @@ TEST_CASE("the Ensure comparison spends the same delay rule the write does") {
     // rule makes them so.
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 1, true});
-    r.run_beats(3, /*start=*/true);
+    r.run_wakes(3, /*start=*/true);
     REQUIRE(r.count("active") == 1);
 
     const std::uint64_t before = zengine::op::invocations();
     r.ask_as(r.ear, EnsureTimer{"beat", -500, true, kPreserveRemaining, ""});
-    r.run_beats(3);
+    r.run_wakes(3);
 
     // ONE evaluation, three primitive invocations: the comparison normalized the
     // draft through the composition and then preserved, so no second write
@@ -1256,9 +1233,9 @@ TEST_CASE("replace a primitive under the rule and the RUNNING Timer moves with i
 TEST_CASE("a repeating timer holds its lattice") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
-    r.run_beats(4, /*start=*/true);
-    // Beat n naps to t=10n and fires; the interrupted 4th beat's firing is
-    // parked, so exactly three have ARRIVED.
+    r.activate();
+    r.run_until(30);
+    // Anchored at the time first handed over, 0, and woken at each rung.
     REQUIRE(r.heard.fired.size() == 3);
     CHECK(r.heard.fired_at[0] == 10);
     CHECK(r.heard.fired_at[1] == 20);
@@ -1267,101 +1244,64 @@ TEST_CASE("a repeating timer holds its lattice") {
 
 TEST_CASE("a LATE repeating timer gets one firing, never a burst (the catch-up clamp)") {
     // THE NO-BURST PIN: a mutation removing the clamp once left this suite green, so this case
-    // stalls the virtual clock the way a host wedged past several periods does to the lattice.
+    // stalls the host the way one wedged past several periods does to the lattice.
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
-    r.heard.stop_on_id = "beat";
-    r.run_beats(8, /*start=*/true); // stops as the first firing arrives (t=10)
-    r.heard.stop_on_id.clear();
+    r.activate();
+    r.run_until_fired("beat"); // the first firing (t=10)
     REQUIRE(r.heard.fired.size() == 1);
     CHECK(r.heard.fired_at[0] == 10); // the lattice's second rung is due at 20
 
-    // ...and now the world stalls until t=75: rungs 20 through 70 are all in
-    // the past when the chain resumes. SIX deadlines missed, by construction.
+    // ...and now the host stalls until t=75: rungs 20 through 70 are all in the past when the
+    // wait next hands the time over. SIX deadlines missed, by construction.
     const std::int64_t resumed = 75;
-    r.hooks.now = resumed;
-    r.run_beats(4);
+    r.clock.advance_to(resumed);
+    r.run_until(resumed + 20);
 
-    // What arrives is ONE firing at the resuming instant, then a lattice
-    // re-anchored to the stall — not six stale rungs delivered back to back.
-    // Without the clamp every one of these arrives at t=75 (each beat naps 0
-    // because the next rung is still in the past), so the burst is exactly
-    // what these stamps refuse.
+    // What arrives is ONE firing at the resuming instant, then a lattice re-anchored to the
+    // stall — not six stale rungs delivered back to back. Without the clamp every one of them
+    // arrives at t=75 (each claim names a rung still in the past), so the burst is exactly what
+    // these stamps refuse.
     REQUIRE(r.heard.fired.size() == 4);
-    CHECK(r.heard.fired_at[1] == resumed);                  // the one catch-up firing
-    CHECK(r.heard.fired_at[2] == resumed + 10);             // re-anchored to NOW...
-    CHECK(r.heard.fired_at[3] == resumed + 20);             // ...and cadence restored
-    CHECK(r.heard.fired_at[2] != 80);                       // not the pre-stall lattice
-    CHECK(r.hooks.now >= resumed + 20);                     // virtual time MOVED again
+    CHECK(r.heard.fired_at[1] == resumed);      // the one catch-up firing
+    CHECK(r.heard.fired_at[2] == resumed + 10); // re-anchored to NOW...
+    CHECK(r.heard.fired_at[3] == resumed + 20); // ...and cadence restored
+    CHECK(r.heard.fired_at[2] != 80);           // not the pre-stall lattice
 }
 
-TEST_CASE("the beat cap IS the lateness bound: idle naps the cap, a nearer deadline shortens it") {
-    // kBeatCapMs is pinned as a constant in tier 1; this pins the BEHAVIOR it
-    // names over a clock that books what the Timer claims: with nothing due a
-    // beat lasts the cap, and an ask arriving behind it is seen only after it.
+TEST_CASE("a Timer is woken at its deadlines and at nothing else: one more wake an arm") {
+    // The wakes are the host's: a Timer claims the soonest time it waits for and is woken then.
+    // An ask is anchored at the next time handed over, so it claims a time already past and the
+    // wait hands over the time at once -- one wake an arm -- and then one wake a deadline.
     FakeRig r;
-    r.hooks.step = 0; // no step of its own: a beat books the cap, as a host's rest lasts it
-    r.run_beats(3, /*start=*/true);
-    CHECK(r.hooks.now == 3 * kBeatCapMs); // nothing standing: each beat naps the cap
+    r.run_wakes(4, /*start=*/true);
+    const std::int64_t settled = r.count("wakes");
+    const std::int64_t at = r.clock.now_ms();
 
-    // An ask queued behind a parked beat waits out that beat's whole nap
-    // before it is even seen. With an empty table that nap is a full cap — so
-    // a 1ms timer asked after three such beats fires one cap and a millisecond later.
-    r.ask_as(r.ear, StartTimer{"late", 1, false});
-    r.run_beats(3);
-    REQUIRE(r.heard.fired.size() == 1);
-    CHECK(r.heard.fired_at[0] == 4 * kBeatCapMs + 1);
-
-    // The other half: a deadline nearer than the cap shortens the nap to it,
-    // and a farther one is walked there in capped steps, landing exactly on it.
-    FakeRig s;
-    s.hooks.step = 0;
-    s.ask_as(s.ear, StartTimer{"soon", 4, false});
-    s.ask_as(s.ear, StartTimer{"far", 25, false});
-    s.run_beats(5, /*start=*/true);
-    REQUIRE(s.heard.fired.size() == 2);
-    CHECK(s.heard.fired_at[0] == 4);  // the deadline, not the cap
-    CHECK(s.heard.fired_at[1] == 25); // reached in capped naps, no overshoot
+    r.ask_as(r.ear, StartTimer{"soon", 4, false});
+    r.ask_as(r.ear, StartTimer{"far", 25, false});
+    r.run_until(at + 1000);
+    REQUIRE(r.heard.fired.size() == 2);
+    CHECK(r.heard.fired_at[0] == at + 4);  // the deadline, not a step past it
+    CHECK(r.heard.fired_at[1] == at + 25); // the next, with nothing between
+    CHECK(r.count("wakes") - settled == 3); // the time learned, then each deadline
+    CHECK(r.wakes == r.count("wakes"));     // every one the host's wait's own
 }
 
-// ---- the rest between turns: the shipped path, over a host's clock --------------------------
+// ---- the host rests only when the bus is empty -----------------------------------------------
 
-/// Time only a host's rest moves. The service reads this clock and has no way to move it (no
-/// `elapse_ms`, as the OS clock has none); the host's rest naps on it, booking the nap as elapsed.
-/// A nap taken while a delivery is being dispatched is counted apart: that is a nap in a handler.
-struct RestHooks {
-    std::int64_t now = 0;
-    std::int64_t naps = 0;
-    std::int64_t napped_in_handler = 0;
-    loom::Switchboard* bus = nullptr;
-};
+namespace {
 
-struct HostClock {
-    RestHooks* h = nullptr;
-    std::int64_t now_ms() { return h->now; }
-    void nap_ms(std::int64_t ms) {
-        if (h->bus != nullptr && h->bus->current_dispatch().seq != 0) {
-            ++h->napped_in_handler;
-        }
-        if (ms > 0) {
-            h->now += ms;
-        }
-        ++h->naps;
-    }
-};
-
-using HostClockService = TimerServiceT<HostClock>;
-
-/// A consumer's reply to a firing, and when it was heard.
+/// A consumer's reply to a firing.
 struct RestReply {
     std::int64_t fired_at = 0;
     ZEN_SHAPE(RestReply, 1, ZEN_FIELD(fired_at));
 };
 
 struct RestHeard {
-    std::vector<std::int64_t> fired_at;   ///< virtual now at each firing the consumer heard
-    std::vector<std::int64_t> replied_at; ///< virtual now at each reply the listener heard
-    const RestHooks* hooks = nullptr;
+    std::vector<std::int64_t> fired_at;   ///< the host's clock at each firing the consumer heard
+    std::vector<std::int64_t> replied_at; ///< the host's clock at each reply the listener heard
+    const loom::host::Clock* clock = nullptr;
     loom::WeaveId listener{};
 };
 
@@ -1371,8 +1311,8 @@ class Replier : public loom::WeaveBase<Replier, EarState, loom::Accept<TimerFire
 public:
     explicit Replier(RestHeard& heard) : heard_(&heard) {}
     void on(const TimerFired&, loom::Mail& mail) {
-        heard_->fired_at.push_back(heard_->hooks->now);
-        (void)mail.send(heard_->listener, RestReply{heard_->hooks->now});
+        heard_->fired_at.push_back(heard_->clock->now_ms());
+        (void)mail.send(heard_->listener, RestReply{heard_->clock->now_ms()});
     }
 
 private:
@@ -1383,120 +1323,108 @@ class ReplyListener
     : public loom::WeaveBase<ReplyListener, EarState, loom::Accept<RestReply>, loom::Emit<>> {
 public:
     explicit ReplyListener(RestHeard& heard) : heard_(&heard) {}
-    void on(const RestReply&, loom::Mail&) { heard_->replied_at.push_back(heard_->hooks->now); }
+    void on(const RestReply&, loom::Mail&) {
+        heard_->replied_at.push_back(heard_->clock->now_ms());
+    }
 
 private:
     RestHeard* heard_;
 };
 
-TEST_CASE("a reply to a firing is delivered in the next turn, not after a nap: the bus rests "
-          "between turns, only while the Timer's beat is all it holds") {
-    loom::Switchboard bus;
-    RestHooks hooks;
-    hooks.bus = &bus;
+} // namespace
+
+TEST_CASE("a reply to a firing is delivered in the next turn, not after a rest: the host rests "
+          "only when the bus is empty") {
+    FakeRig r;
     RestHeard heard;
-    heard.hooks = &hooks;
-    const loom::WeaveId service = mount_role<HostClockService>(
-        bus, kTimerRole, HostClock{&hooks}, zengine::timer::fallback_vocabulary());
-    heard.listener = loom::mount<ReplyListener>(bus, heard);
-    const loom::WeaveId replier = loom::mount<Replier>(bus, heard);
-    const loom::WeaveId door = zengine::testing::mount_door(bus);
-    bus.send_as(replier, service,
-                loom::Message(loom::to_value(StartTimer{"tick", 25, true}), replier, replier, 0));
-    zengine::testing::order_activation(bus, door, service, 1);
+    heard.clock = &r.clock;
+    heard.listener = loom::mount<ReplyListener>(r.bus, heard);
+    const loom::WeaveId replier = loom::mount<Replier>(r.bus, heard);
+    r.ask_as(replier, StartTimer{"tick", 25, true});
+    r.activate();
 
-    // The host's loop: a turn, then the rest. The bound is a hang guard; the clock moves only here.
-    HostClock host_clock{&hooks};
-    Rest<HostClock> rest(host_clock);
-    for (int turn = 0; turn < 400 && heard.replied_at.size() < 3; ++turn) {
-        bus.pump_pending();
-        (void)rest.after_turn(bus);
-    }
-
+    // The host's loop: a turn, then the wait. It rests -- the clock moves -- only with the bus
+    // empty, so a reply sent from a firing is delivered at the instant of that firing.
+    r.run_until(75);
     REQUIRE(heard.replied_at.size() == 3);
-    // EACH REPLY LANDS AT THE INSTANT OF THE FIRING IT ANSWERS: no nap stood between them.
     CHECK(heard.replied_at == heard.fired_at);
     CHECK(heard.fired_at == std::vector<std::int64_t>{25, 50, 75}); // each on its deadline
-    // Nothing napped inside a handler; the waiting was the host's, between turns.
-    CHECK(hooks.napped_in_handler == 0);
-    CHECK(rest.rests() > 0);
-    CHECK(rest.rests() == hooks.naps);
+    CHECK(r.wakes == r.count("wakes")); // every wake the host's own
 }
 
-TEST_CASE("the rest waits for nothing a Timer has not claimed: no Timer, no rest") {
+TEST_CASE("the wait rests for nothing a Timer has not claimed: no Timer, no time") {
     loom::Switchboard bus;
-    RestHooks hooks;
-    HostClock clock{&hooks};
-    Rest<HostClock> rest(clock);
+    loom::host::ManualClock clock;
+    loom::host::Reactor wait(bus, clock);
+    wait.trust(kTimerRole);
     RestHeard heard;
-    heard.hooks = &hooks;
+    heard.clock = &clock;
     heard.listener = loom::mount<ReplyListener>(bus, heard);
     bus.send(heard.listener, loom::Message(loom::to_value(RestReply{0})));
     CHECK(bus.pending() == 1);
-    CHECK(rest.quiet_ms(bus) == 0); // one thing queued, and no beat claimed it may wait
-    CHECK(rest.after_turn(bus) == 0);
-    CHECK(hooks.naps == 0);
+
+    // Nothing holds the Timer's role, so nothing claims a time: a wait with nothing to wait on
+    // returns at once, and the clock does not move.
+    const loom::host::Reactor::Woke woke = wait.after_turn();
+    CHECK(woke.due == 0);
+    CHECK(clock.now_ms() == 0);
+    host_loop(bus, wait, clock, [] { return true; });
+    CHECK(heard.replied_at == std::vector<std::int64_t>{0});
+    CHECK(clock.now_ms() == 0);
 }
 
-TEST_CASE("cancel before the chain starts: the timer never fires at all") {
+TEST_CASE("cancel before activation: the timer never fires at all") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"gone", 10, true});
     r.ask_as(r.ear, CancelTimer{"gone"});
-    r.run_beats(5, /*start=*/true);
+    r.run_wakes(5, /*start=*/true);
     CHECK(r.heard.fired.empty());
+    CHECK_FALSE(claimed_until(r).has_value());
 }
 
-TEST_CASE("cancel under a live chain: at most the in-flight firing lands, then silence") {
+TEST_CASE("cancel between wakes: no firing lands after it, and the Timer claims no time") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
-    r.heard.stop_on_id = "beat";
-    r.run_beats(8, /*start=*/true); // stops as the first firing arrives
-    r.heard.stop_on_id.clear();
+    r.activate();
+    r.run_until_fired("beat");
     REQUIRE(r.heard.fired.size() == 1);
 
-    // The cancel queues BEHIND the parked beat, which has already spoken:
-    // one more firing lands, and that is the whole cost — pinned, not hidden.
+    // Nothing is in flight between wakes -- the next rung is a time the wait holds, not a
+    // message on the bus -- so the cancel lands before it and nothing more arrives.
     r.ask_as(r.ear, CancelTimer{"beat"});
-    r.run_beats(6);
-    CHECK(r.heard.fired.size() == 2);
-    r.run_beats(6);
-    CHECK(r.heard.fired.size() == 2);
-    CHECK(r.hooks.beats >= 12); // the chain itself never stopped beating
+    r.run_until(100);
+    CHECK(r.heard.fired.size() == 1);
+    CHECK_FALSE(claimed_until(r).has_value());
+    CHECK(r.bus.pending() == 0);
 }
 
 TEST_CASE("asking again with the same id REPLACES the schedule (upsert)") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
-    r.heard.stop_on_id = "beat";
-    r.run_beats(8, /*start=*/true);
-    r.heard.stop_on_id.clear();
+    r.activate();
+    r.run_until_fired("beat");
     REQUIRE(r.heard.fired.size() == 1);
     CHECK(r.heard.fired_at[0] == 10);
 
-    r.ask_as(r.ear, StartTimer{"beat", 30, true}); // re-ask: new cadence
-    r.run_beats(8);
-    // The parked beat fires once more at t=20 (in flight before the re-ask
-    // was heard); after that the lattice is 30ms from the re-ask's arrival.
-    REQUIRE(r.heard.fired.size() >= 3);
-    CHECK(r.heard.fired_at[1] == 20);
-    CHECK(r.heard.fired_at[2] == 50);
-    if (r.heard.fired.size() > 3) {
-        CHECK(r.heard.fired_at[3] == 80);
-    }
+    r.ask_as(r.ear, StartTimer{"beat", 30, true}); // re-ask at t=10: new cadence
+    r.run_until(70);
+    // The old lattice's rung at 20 never fires; the new one runs 30ms from the re-ask.
+    REQUIRE(r.heard.fired.size() == 3);
+    CHECK(r.heard.fired_at[1] == 40);
+    CHECK(r.heard.fired_at[2] == 70);
 }
 
 TEST_CASE("CancelAllMyTimers kills mine and nobody else's") {
     FakeRig r;
     Heard other_heard;
-    other_heard.hooks = &r.hooks;
-    other_heard.bus = &r.bus;
+    other_heard.clock = &r.clock;
     const loom::WeaveId other = loom::mount<Ear>(r.bus, other_heard);
 
     r.ask_as(r.ear, StartTimer{"mine.a", 20, false});
     r.ask_as(r.ear, StartTimer{"mine.b", 30, false});
     r.ask_as(other, StartTimer{"theirs", 40, false});
     r.ask_as(r.ear, CancelAllMyTimers{});
-    r.run_beats(8, /*start=*/true);
+    r.run_wakes(8, /*start=*/true);
 
     CHECK(r.heard.fired.empty()); // both of mine died before firing
     REQUIRE(other_heard.fired.size() == 1);
@@ -1504,42 +1432,40 @@ TEST_CASE("CancelAllMyTimers kills mine and nobody else's") {
     CHECK(other_heard.fired_at[0] == 40);
 }
 
-TEST_CASE("CancelAllMyTimers is TOTAL — role beats die with the rest, chosen not accidental") {
-    // The shape's doc teaches WHEN to send this (a weave being replaced should
-    // leave its role beats standing for its successor; one retiring with no
-    // heir should cancel) — but the mechanism itself stays total and neutral,
-    // because succession here is AUTHORED, never guessed by a shape. This pins
-    // the totality as a decision, so it cannot erode into an accident.
+TEST_CASE("CancelAllMyTimers is TOTAL — role timers die with the rest, chosen not accidental") {
+    // The shape's doc teaches WHEN to send this (a weave being replaced should leave its role
+    // timers standing for its successor; one retiring with no heir should cancel) — but the
+    // mechanism itself stays total and neutral, because succession here is AUTHORED, never
+    // guessed by a shape. This pins the totality as a decision, so it cannot erode into an
+    // accident.
     const char* kRole = "suite.pulse.holder";
 
-    // The positive control first: without the cancel, that role beat fires.
-    // (An all-empty assertion is only meaningful next to a rig where the same
-    // asks DO produce firings.)
+    // The positive control first: without the cancel, that role timer fires. (An all-empty
+    // assertion is only meaningful next to a rig where the same asks DO produce firings.)
     {
         FakeRig c;
         Heard pulse;
-        pulse.hooks = &c.hooks;
-        pulse.bus = &c.bus;
+        pulse.clock = &c.clock;
         (void)mount_role<Ear>(c.bus, kRole, pulse);
         c.ask_as(c.ear, StartTimer{"mine", 20, false});
         c.ask_as(c.ear, StartRoleTimer{"pulse", 10, true, kRole});
-        c.run_beats(6, /*start=*/true);
-        CHECK(c.heard.fired.size() == 1);  // the requester timer fired...
-        CHECK(pulse.fired.size() >= 2);    // ...and the role beat was beating
+        c.activate();
+        c.run_until(30);
+        CHECK(c.heard.fired.size() == 1); // the requester timer fired...
+        CHECK(pulse.fired.size() >= 2);   // ...and the role timer was firing
     }
 
     FakeRig r;
     Heard pulse;
-    pulse.hooks = &r.hooks;
-    pulse.bus = &r.bus;
+    pulse.clock = &r.clock;
     (void)mount_role<Ear>(r.bus, kRole, pulse);
     r.ask_as(r.ear, StartTimer{"mine", 20, false});
     r.ask_as(r.ear, StartRoleTimer{"pulse", 10, true, kRole});
     r.ask_as(r.ear, CancelAllMyTimers{});
-    r.run_beats(6, /*start=*/true);
+    r.run_wakes(6, /*start=*/true);
 
     CHECK(r.heard.fired.empty()); // the requester-addressed timer: gone
-    CHECK(pulse.fired.empty());   // and the ROLE beat with it — that is the point
+    CHECK(pulse.fired.empty());   // and the ROLE timer with it — that is the point
 }
 
 TEST_CASE("a role timer follows the role: holder, successor, and honest vacancy") {
@@ -1553,53 +1479,53 @@ TEST_CASE("a role timer follows the role: holder, successor, and honest vacancy"
     });
 
     Heard heard_a;
-    heard_a.hooks = &r.hooks;
-    heard_a.bus = &r.bus;
+    heard_a.clock = &r.clock;
     const loom::WeaveId holder_a = mount_role<Ear>(r.bus, "suite.pulse.holder", heard_a);
     r.ask_as(r.ear, StartRoleTimer{"pulse", 10, true, "suite.pulse.holder"});
+    r.activate();
+    r.run_until(20);
+    CHECK(heard_a.fired.size() == 2); // t=10, t=20
 
-    r.run_beats(3, /*start=*/true);
-    CHECK(heard_a.fired.size() == 2); // t=10, t=20 (the 3rd beat's firing is parked)
-
-    // The holder dies; the beat keeps its address and refuses cleanly into
-    // the vacancy (an unheld role degrades like an unknown target)...
+    // The holder goes; the timer keeps its address and refuses cleanly into the vacancy (an
+    // unheld role degrades like an unknown target), and the role keeps its timer...
     (void)r.bus.unregister_weave(holder_a);
-    r.run_beats(3);
-    CHECK(fired_refused >= 2);
+    r.run_until(50);
+    CHECK(fired_refused == 3);
+    CHECK(r.count("active") == 1);
+    CHECK(r.count("gone") == 0);
 
     // ...and a SUCCESSOR simply inherits it: no re-ask, no handshake.
     Heard heard_b;
-    heard_b.hooks = &r.hooks;
-    heard_b.bus = &r.bus;
+    heard_b.clock = &r.clock;
     (void)mount_role<Ear>(r.bus, "suite.pulse.holder", heard_b);
-    r.run_beats(3);
-    CHECK(heard_b.fired.size() >= 2);
-    CHECK(heard_a.fired.size() == 2); // the dead never heard another word
+    r.run_until(80);
+    CHECK(heard_b.fired.size() == 3);
+    CHECK(heard_a.fired.size() == 2); // the gone never heard another word
 }
 
-TEST_CASE("a successor's re-ask upserts the ROLE beat instead of doubling it") {
+TEST_CASE("a successor's re-ask upserts the ROLE timer instead of doubling it") {
     FakeRig r;
     Heard heard_a;
-    heard_a.hooks = &r.hooks;
-    heard_a.bus = &r.bus;
+    heard_a.clock = &r.clock;
     const loom::WeaveId holder = mount_role<Ear>(r.bus, "suite.pulse.holder", heard_a);
 
     // Two askers, same (role, id) — the second replaces the first, so the
     // holder hears ONE lattice, not an interleaving of two.
     r.ask_as(r.ear, StartRoleTimer{"pulse", 7, true, "suite.pulse.holder"});
     r.ask_as(holder, StartRoleTimer{"pulse", 10, true, "suite.pulse.holder"});
-    r.run_beats(4, /*start=*/true);
+    r.activate();
+    r.run_until(30);
     REQUIRE(heard_a.fired.size() == 3);
     CHECK(heard_a.fired_at[0] == 10);
     CHECK(heard_a.fired_at[1] == 20);
     CHECK(heard_a.fired_at[2] == 30);
 }
 
-TEST_CASE("a dead requester's timer fires into clean refusals — the pinned V1 floor") {
-    // The service cannot SEE a requester die (a weave gets no delivery outcomes and the bus
-    // broadcasts no unloads), so the beat keeps firing at a WeaveId that no longer exists, each
-    // delivery refused NoSuchTarget (ids are never reused, so it can never hit a stranger),
-    // until someone cancels or the service is replaced -- pinned as documented behavior.
+TEST_CASE("a gone requester's timers are dropped at the bus's first refusal: one refused firing, "
+          "then none") {
+    // The service hears a weave is gone when the bus refuses a firing at it (`zen.DispatchRefused`,
+    // NoSuchTarget), and drops every timer that weave started then: ids are never reused, so none
+    // of them could ever be delivered. A role timer is not dropped -- its role may be held again.
     FakeRig r;
     std::int64_t fired_refused = 0;
     r.bus.add_observer([&](const loom::BusEvent& ev) {
@@ -1610,302 +1536,244 @@ TEST_CASE("a dead requester's timer fires into clean refusals — the pinned V1 
     });
 
     Heard orphan_heard;
-    orphan_heard.hooks = &r.hooks;
-    orphan_heard.bus = &r.bus;
+    orphan_heard.clock = &r.clock;
     const loom::WeaveId orphan = loom::mount<Ear>(r.bus, orphan_heard);
     r.ask_as(orphan, StartTimer{"orphan.beat", 10, true});
-
-    r.run_beats(2, /*start=*/true);
-    CHECK(orphan_heard.fired.size() == 1); // alive: it hears its beat
+    r.ask_as(orphan, StartTimer{"orphan.later", 500, false});
+    r.activate();
+    r.run_until(10);
+    CHECK(orphan_heard.fired.size() == 1); // alive: it hears its timer
+    REQUIRE(r.count("active") == 2);
 
     (void)r.bus.unregister_weave(orphan);
-    r.run_beats(4);
-    CHECK(fired_refused >= 3);            // dead: the beat refuses, visibly
-    CHECK(orphan_heard.fired.size() == 1); // and never lands anywhere else
+    r.run_until(1000);
+    CHECK(fired_refused == 1);              // the one firing that found it gone...
+    CHECK(r.count("gone") == 2);            // ...and both its timers dropped then
+    CHECK(r.count("active") == 0);
+    CHECK_FALSE(claimed_until(r).has_value()); // nothing left to wake it for
+    CHECK(orphan_heard.fired.size() == 1);  // and nothing landed anywhere else
 }
 
 TEST_CASE("a root ask has no one to answer: dropped, not misdelivered") {
     FakeRig r;
-    // Root sends carry no weave identity; a StartTimer from one has no
-    // requester to fire at. The service drops it (counted on its poke
-    // counter — pinned through the .so lane) rather than inventing a target.
+    // Root sends carry no weave identity; a StartTimer from one has no requester to fire at.
+    // The service drops it, counted, rather than inventing a target.
     r.bus.send(r.service, loom::Message(loom::to_value(StartTimer{"nobody", 5, true})));
-    r.run_beats(6, /*start=*/true);
+    r.run_wakes(6, /*start=*/true);
     CHECK(r.heard.fired.empty());
+    CHECK(r.count("dropped") == 1);
 }
 
 // ============================================================================
-// Tier 3 — the real library through the real Kernel, on the real clock
+// Tier 3 — the real library through the real Kernel, under the host's wait
 // ============================================================================
 
-// The shipped clock judged by what it reads and what it asks, never by how long a nap took: a
-// busy machine lengthens every wait but cannot make a reading coarser or an ask different.
-TEST_CASE("the shipped clock reads in single milliseconds, not in the scheduler's tick") {
-    MonotonicClock clock;
-    std::int64_t finest = std::numeric_limits<std::int64_t>::max();
-    int steps = 0;
-    std::int64_t last = clock.now_ms();
-    const auto give_up = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-    while (steps < 50 && std::chrono::steady_clock::now() < give_up) {
-        const std::int64_t now = clock.now_ms();
-        if (now != last) {
-            finest = std::min(finest, now - last);
-            last = now;
-            ++steps;
-        }
-    }
-    INFO("readings that moved: " << steps << ", the smallest step: " << finest << " ms");
-    REQUIRE(steps > 0);
-    CHECK(finest == 1);
-}
-
-#if defined(_WIN32)
-TEST_CASE("the shipped clock's nap asks Windows for the period it names, on a high-resolution "
-          "timer") {
-    MonotonicClock clock;
-    clock.nap_ms(3);
-    CHECK(clock.last_nap().high_resolution);
-    CHECK(clock.last_nap().due_100ns == 3 * 10000);
-    clock.nap_ms(1);
-    CHECK(clock.last_nap().high_resolution);
-    CHECK(clock.last_nap().due_100ns == 1 * 10000);
-    clock.nap_ms(0); // something already due: the nap declines and asks nothing
-    CHECK(clock.last_nap().due_100ns == 1 * 10000);
-    MonotonicClock moved(std::move(clock)); // the service holds its clock by value
-    moved.nap_ms(2);
-    CHECK(moved.last_nap().high_resolution);
-    CHECK(moved.last_nap().due_100ns == 2 * 10000);
-}
-#endif
-
-TEST_CASE("the timer .so authors its chain from its own activation — no wind, ever") {
+TEST_CASE("the timer .so is live from its own activation, and the host's wait is what wakes it") {
     Rig r;
-    // NOTHING here winds anything. Loading the service is the whole gesture:
-    // the control door activates the freshly committed incarnation and the
-    // service seeds its own chain from that.
+    // NOTHING here winds anything. Loading the service is the whole gesture: the control door
+    // activates the freshly committed incarnation, and it decides what it inherited and says so.
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    CHECK(r.seen.ready == 1);   // available, announced on the activation itself
-    CHECK(r.drives > 0);        // and already beating
-    CHECK(r.bus.pending() > 0); // on a chain that is alive and parked
+    CHECK(r.seen.ready == 1);    // available, announced on the activation itself
+    CHECK(r.bus.pending() == 0); // and the bus drained: nothing is queued to keep time
 
-    // A root ask: dropped, and honestly counted (the tier-2 pin's poke-visible
-    // half lives here, where pokes exist).
+    // A root ask: dropped, and honestly counted.
     r.bus.send(timer_so, loom::Message(loom::to_value(StartTimer{"nobody", 5, true})));
 
-    // The witness asks for a repeating beat. Everything runs on the REAL
-    // monotonic clock; the third firing stops the bus.
+    // The witness asks for a repeating timer; the host's loop runs 45 ms of its clock.
+    const std::int64_t start = r.clock.now_ms();
     r.ask(timer_so, StartTimer{"suite.tick", 15, true});
-    r.seen.stop_id = "suite.tick";
-    r.seen.stop_count = 3;
-    r.seen.stop_seen = 0;
-    r.bus.drain_until_idle();
-    r.seen.stop_id.clear();
+    r.run_for(45);
+    CHECK(std::count(r.seen.fired.begin(), r.seen.fired.end(), "suite.tick") == 3);
+    CHECK(r.clock.now_ms() == start + 45);
+    CHECK(r.bus.pending() == 0); // between wakes the bus holds nothing for the Timer
 
-    CHECK(r.seen.ready == 1); // the hello reached an accepter
-    std::size_t ticks = 0;
-    for (const std::string& id : r.seen.fired) {
-        if (id == "suite.tick") {
-            ++ticks;
-        }
-    }
-    CHECK(ticks == 3);
-    CHECK(r.bus.pending() > 0); // the parked chain: it RE-WINDS ITSELF
+    // The honest counters.
+    CHECK(r.poke_int(timer_so, "dropped") == 1);
+    CHECK(r.poke_int(timer_so, "active") == 1);
+    CHECK(r.poke_int(timer_so, "fired") == 3);
+    CHECK(r.poke_int(timer_so, "wakes") == r.wakes);
 
-    // The honest counters, poked under the live chain.
-    Seen::Answer a = r.poke_timed(timer_so, timer_so, loom::PokeRead{"dropped"});
-    CHECK(a.kind == 0);
-    CHECK(a.text == "1");
-    a = r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"});
-    CHECK(a.kind == 0);
-    // suite.tick alone: each poke_timed stopwatch is a one-shot, spent and
-    // erased before its pump stops, and THIS call's stopwatch registers
-    // after the poke answers (FIFO).
-    CHECK(a.text == "1");
-    a = r.poke_timed(timer_so, timer_so, loom::PokeRead{"fired"});
-    CHECK(a.kind == 0);
-    CHECK(std::stoll(a.text) >= 4); // 3 ticks + at least one stopwatch
-
-    // Cancel, then prove silence by outliving a fresh stopwatch window.
+    // Cancel, then prove silence by outliving several of its periods.
     r.ask(timer_so, CancelTimer{"suite.tick"});
     const std::size_t before = r.seen.fired.size();
-    r.pump_for(timer_so, 50);
-    std::size_t late_ticks = 0;
-    for (std::size_t i = before; i < r.seen.fired.size(); ++i) {
-        if (r.seen.fired[i] == "suite.tick") {
-            ++late_ticks;
-        }
-    }
-    CHECK(late_ticks <= 1); // at most the in-flight firing (the tier-2 pin, live)
+    r.run_for(100);
+    CHECK(r.seen.fired.size() == before);
 }
 
-TEST_CASE("a root Drive establishes nothing: the boot ordering hazard is gone with the wind") {
-    // A ROOT DRIVE IS NOT A LEVER. Loading is a conversation (the Manager answers LoadWeave by
-    // asking the kernel door a delivery later), so a wind queued behind unpumped boot sends would
-    // reach the role before any load ran; a service seeded by its own activation needs no wind,
-    // and a root Drive names no activation it lives under.
+TEST_CASE("a Timer with nothing standing is woken by nothing, and an arm costs two wakes") {
     Rig r;
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    CHECK(r.seen.ready == 1);
-    const std::int64_t beats_before = std::stoll(
-        r.poke_timed(timer_so, timer_so, loom::PokeRead{"beats"}).text);
+    REQUIRE(r.seen.ready == 1);
+    const std::int64_t settled = r.wakes;
 
-    // A root Drive — no stamped sender, no activation key, serial 0 — into the
-    // live role. It is DELIVERED (the role is held) and does nothing: it names
-    // no activation this incarnation is living under.
-    const std::int64_t delivered_before = r.drives;
-    r.bus.send_to_role(kTimerRole, loom::Message(loom::to_value(Drive{"", 0, 0})));
-    r.pump_for(timer_so, 30);
-    CHECK(r.drives > delivered_before); // it really did arrive...
+    // A long while of the host's clock with nothing standing: the Timer claims no time, so the
+    // wait rests with nothing to wake it for.
+    r.run_for(10000);
+    CHECK(r.wakes == settled);
 
-    // ...and it forked nothing. One chain still, and the beat count advanced
-    // only by the chain's own beats.
-    CHECK(r.bus.pending() > 0);
-    const std::int64_t beats_after = std::stoll(
-        r.poke_timed(timer_so, timer_so, loom::PokeRead{"beats"}).text);
-    CHECK(beats_after > beats_before); // the real chain kept running
-    CHECK(r.seen.ready == 1);          // and nothing re-announced
+    // One arm: the time learned at once, then the deadline.
+    const std::int64_t at = r.clock.now_ms();
+    r.ask(timer_so, StartTimer{"suite.once", 250, false});
+    r.run_for(1000);
+    REQUIRE(r.seen.fired.size() == 1);
+    CHECK(r.wakes - settled == 2);
+    CHECK(r.poke_int(timer_so, "wakes") == r.wakes);
+    CHECK(r.clock.now_ms() == at + 1000);
 }
 
 // ============================================================================
-// Tier 4 — the migration chains: the world, input and window beats, asked for
+// Tier 4 — what the Timer serves, and what the host's wait serves without it
 // ============================================================================
 
 TEST_CASE("world time comes from the timer path: ticks with nobody sending SnakeTick") {
     Rig r;
-    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
+    (void)r.load("zengine-timer", TIMER_SO, kTimerRole);
     const loom::WeaveId world_so =
         r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
 
-    r.pump_for(timer_so, 400); // ~3 ticks of the world's own 120ms beat
+    r.run_for(400); // three ticks of the world's own 120ms timer
 
     // The world seeded and MOVED — and no test code ever sent a SnakeTick.
     REQUIRE(r.seen.visuals.size() >= 2);
     CHECK(r.seen.visuals.front().snake.front().x == 12); // the seed pin
     CHECK(r.seen.visuals.front().snake.front().y == 8);
     CHECK(r.seen.visuals.back().snake.front().x > 12); // heading right, on time
-
-    const Seen::Answer a = r.poke_timed(timer_so, world_so, loom::PokeRead{"ticks"});
-    CHECK(a.kind == 0);
-    CHECK(std::stoll(a.text) >= 2);
+    CHECK(r.poke_int(world_so, "ticks") == 3);
 }
 
 // ---- TIMER-02: the load-order matrix ----------------------------------------
-// Load order decides nothing, and these two cases are the halves that prove it:
-// a consumer AFTER the timer is served by its own activation; a consumer BEFORE
-// it is served by the retry.
+// Load order decides nothing, and these two cases are the halves that prove it: a consumer AFTER
+// the timer is served by its own activation; a consumer BEFORE it is served by the retry.
+
+TEST_CASE("consumer BEFORE the timer: its declared timer waits, and TimerReady is what rescues "
+          "it") {
+    Rig r;
+    // The world is loaded into a host with NO timer service: it declares its tick, and nothing
+    // serves it. It could not retry alone, which is why TimerReady matters.
+    const loom::WeaveId world_so =
+        r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
+    r.run_for(1000);
+    CHECK(r.bus.pending() == 0);
+    CHECK(r.poke_int(world_so, "ticks") == 0); // measured, not assumed: ticked by nothing
+
+    // Now the timer arrives. Its activation publishes TimerReady, the world's binding asks
+    // AGAIN, and from then on it is served.
+    (void)r.load("zengine-timer", TIMER_SO, kTimerRole);
+    r.run_for(400);
+    CHECK(r.seen.ready >= 1);
+    CHECK(r.poke_int(world_so, "ticks") >= 2); // served, with nobody ticking it
+}
+
+TEST_CASE("a world reloaded in place asks from its own activation and does NOT double its tick") {
+    Rig r;
+    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
+    const loom::WeaveId first =
+        r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
+    r.run_for(250);
+    const std::int64_t standing_before = r.poke_int(timer_so, "active");
+    CHECK(standing_before >= 1); // the world's tick is standing
+
+    // Replace the world in place. The successor's own activation makes it ask.
+    const std::uint64_t corr = r.next_corr++;
+    r.bus.send_as(r.witness, r.manager,
+                  loom::Message(loom::to_value(loom::ReloadWeave{"snake-world-v1", WORLD_V1_SO}),
+                                r.witness, r.witness, corr));
+    const Seen::Answer reloaded = r.wait_answer(corr, "world reload");
+    REQUIRE_MESSAGE(reloaded.kind != 2, "world reload refused: ", reloaded.text);
+    const loom::WeaveId successor = r.bus.role_holder(zengine::snake::kWorldRole);
+    REQUIRE(successor.valid());
+    CHECK(successor == first); // a reload in place keeps the weave's id; its incarnation is new
+    const std::int64_t ticks_before = r.poke_int(successor, "ticks");
+    r.run_for(250);
+
+    // The successor is served...
+    CHECK(r.poke_int(successor, "ticks") > ticks_before);
+    // ...and the tick was REPLACED, not added: the successor's declaration takes the incumbent's
+    // schedule instead of standing a second one beside it.
+    CHECK(r.poke_int(timer_so, "active") == standing_before);
+}
 
 namespace {
 
-/// THE WINDOW'S OWN BEAT, counted off the bus: each delivery of its pump's firing, to whichever
-/// weave holds the window's role then.
-struct WindowBeats {
-    std::int64_t fired = 0;
+/// THE HOST'S WAKES OF A ROLE, counted off the bus: each `Waited` the wait handed whichever weave
+/// holds `role` then, its source's time come.
+struct WakesOf {
+    std::int64_t due = 0;
     loom::Switchboard& bus;
+    std::string role;
     loom::ObserverId tap;
-    explicit WindowBeats(loom::Switchboard& b) : bus(b) {
+    WakesOf(loom::Switchboard& b, std::string r) : bus(b), role(std::move(r)) {
         tap = bus.add_observer([this](const loom::BusEvent& ev) {
-            if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
-                ev.schema_name == TimerFired::zen_name &&
-                loom::from_value<TimerFired>(*ev.payload).id ==
-                    zengine::graphics::window::kPumpTimerId) {
-                ++fired;
+            if (due_wake_of(ev, bus.role_holder(role))) {
+                ++due;
             }
         });
     }
-    ~WindowBeats() { bus.remove_observer(tap); }
-    WindowBeats(const WindowBeats&) = delete;
-    WindowBeats& operator=(const WindowBeats&) = delete;
+    ~WakesOf() { bus.remove_observer(tap); }
+    WakesOf(const WakesOf&) = delete;
+    WakesOf& operator=(const WakesOf&) = delete;
 };
 
 constexpr const char* kTuiWindowRole = "zengine.window.tui";
 
 } // namespace
 
-TEST_CASE("consumer BEFORE the timer: its declared beat waits, and TimerReady "
-          "is what rescues it") {
-    Rig r;
-    WindowBeats beats(r.bus);
-    // The TUI window is loaded into a world with NO timer service: it declares its pump
-    // beat, and nothing serves it. It could not retry alone, which is why TimerReady matters.
-    (void)r.load("zengine-window-tui", WINDOW_SO, kTuiWindowRole);
-    r.bus.drain_until_idle(); // nothing is alive; this drains
-    CHECK(r.bus.pending() == 0);
-    // Measured, not assumed: it is being beaten by nothing.
-    CHECK(beats.fired == 0);
+namespace {
 
-    // Now the timer arrives. Its activation publishes TimerReady, the window's binding asks
-    // AGAIN, and from then on it is served.
-    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    r.pump_for(timer_so, 60);
-    CHECK(r.seen.ready >= 1);
-    CHECK(beats.fired > 0); // it is being served, with nobody pumping it
+/// The host's wait as it stands with `role`'s claim.
+std::optional<loom::host::Reactor::Source> source_of(const Rig& r, const char* role) {
+    for (const loom::host::Reactor::Source& s : r.wait.sources()) {
+        if (s.role == role) {
+            return s;
+        }
+    }
+    return std::nullopt;
 }
 
-TEST_CASE("a window reloaded in place asks from its own activation and does NOT double its beat") {
+} // namespace
+
+TEST_CASE("the input package is a source of the host's wait: headless, it claims nothing to read "
+          "and no time, and is woken by nothing") {
     Rig r;
-    WindowBeats beats(r.bus);
-    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    const loom::WeaveId first = r.load("zengine-window-tui", WINDOW_SO, kTuiWindowRole);
-    r.pump_for(timer_so, 60);
-    const std::int64_t standing_before =
-        std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
-    CHECK(standing_before >= 1); // the window's beat is standing
-
-    // Replace the window in place. The successor's own activation makes it ask.
-    const std::uint64_t corr = r.next_corr++;
-    r.bus.send_as(r.witness, r.manager,
-                  loom::Message(loom::to_value(loom::ReloadWeave{"zengine-window-tui",
-                                                                 WINDOW_SO}),
-                                r.witness, r.witness, corr));
-    // A reload takes what the machine gives it: wait for the answer rather than a fixed window,
-    // then give the successor beats of its own.
-    const Seen::Answer reloaded = r.wait_answer(timer_so, corr, "window reload");
-    REQUIRE_MESSAGE(reloaded.kind != 2, "window reload refused: ", reloaded.text);
-    const loom::WeaveId successor = r.bus.role_holder(kTuiWindowRole);
-    REQUIRE(successor.valid());
-    CHECK(successor == first); // a reload in place keeps the weave's id; its incarnation is new
-    const std::int64_t fired_before = beats.fired;
-    r.pump_for(timer_so, 60); // due after at least one beat (`kPumpBeatMs`)
-
-    // The successor is served...
-    CHECK(beats.fired > fired_before);
-    // ...and the beat was REPLACED, not added: the successor's declaration takes the
-    // incumbent's schedule instead of standing a second one beside it.
-    const std::int64_t standing_after =
-        std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
-    CHECK(standing_after == standing_before);
-}
-
-TEST_CASE("the input package arranges its own execution: it polls with nobody pumping") {
-    Rig r;
-    // Loaded AFTER the timer is already running; its own activation is its first breath.
-    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
+    r.wait.trust(zengine::input::kInputRole);
+    WakesOf woke(r.bus, zengine::input::kInputRole);
+    // No Timer at all: the input weave claims what its reader waits on as its role, from its own
+    // activation. Headless, its reader has nothing to read, so the claim names no handle and no
+    // time -- and nothing polls it.
     const loom::WeaveId input_so =
         r.load("zengine-input", INPUT_SO, zengine::input::kInputRole);
+    r.settle();
+    const std::optional<loom::host::Reactor::Source> claim =
+        source_of(r, zengine::input::kInputRole);
+    REQUIRE(claim.has_value());
+    CHECK(claim->claimed);
+    CHECK(claim->handles == 0);
+    CHECK_FALSE(claim->until_ms.has_value());
 
-    r.pump_for(timer_so, 80); // ~8 beats of the weave's own 10ms ask
-
-    // Headless, so it heard nothing — but it RAN, repeatedly, and not one
-    // PumpInput was sent in this entire lane.
-    Seen::Answer a = r.poke_timed(timer_so, input_so, loom::PokeRead{"pumped"});
-    CHECK(a.kind == 0);
-    CHECK(std::stoll(a.text) >= 3);
-    a = r.poke_timed(timer_so, input_so, loom::PokeRead{"emitted"});
-    CHECK(a.kind == 0);
-    CHECK(a.text == "0");
+    const std::int64_t pumped = r.poke_int(input_so, "pumped");
+    r.run_for(1000);
+    CHECK(woke.due == 0);                               // no time, so no wake
+    CHECK(r.poke_int(input_so, "pumped") == pumped);    // and no read nobody asked for
+    CHECK(r.poke_int(input_so, "emitted") == 0);
+    CHECK(r.bus.pending() == 0);
 }
 
-TEST_CASE("the window keeps itself served: beats with nobody pumping") {
+TEST_CASE("the window is a source of the host's wait: headless, it claims its wait from its own "
+          "activation and is polled by nothing") {
     Rig r;
-    WindowBeats beats(r.bus);
-    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
+    r.wait.trust(kTuiWindowRole);
+    WakesOf woke(r.bus, kTuiWindowRole);
     (void)r.load("zengine-window-tui", WINDOW_SO, kTuiWindowRole);
+    r.settle();
+    const std::optional<loom::host::Reactor::Source> claim = source_of(r, kTuiWindowRole);
+    REQUIRE(claim.has_value());
+    CHECK(claim->claimed);
 
-    r.pump_for(timer_so, 80);
-
-    // Its activation declared the beat, which has been beating its medium since -- and not one
-    // PumpSurface was sent in this entire lane.
-    CHECK(beats.fired >= 3);
+    // Not one PumpSurface in this lane, and no Timer: what wakes the window is the wait, on what
+    // it claimed -- here, nothing ready and no time, so the host rests.
+    r.run_for(1000);
+    CHECK(woke.due == 0);
+    CHECK(r.bus.pending() == 0);
 }
 
 // ============================================================================
@@ -2624,30 +2492,30 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
 }
 
 // ============================================================================
-// Tier 5 — CONTINUITY end to end, on virtual time (TIMER-03)
+// Tier 5 — CONTINUITY end to end, on the host's clock (TIMER-03)
 // ============================================================================
 // Real libraries, the real kernel and steward, a real graceful replacement and a real letter
-// through the real gate, all through `zengine-timer-virtual` -- TimerServiceT as shipped over a
-// clock whose nap books the duration and returns: one delivered beat is exactly kVirtualStepMs.
+// through the real gate, all through `zengine-timer-virtual` -- the shipped Timer, handed its
+// time by the host's wait on a clock that moves only when told. A ceremony spends no time: the
+// clock moves only when the wait rests to a time due, so every duration here is exact.
 
 namespace {
 
-/// The one thing this lane knows about the Loom's ceremony: SwapWeave ->
-/// QueryRole -> RoleInfo -> PrepareShutdown is four queue turns, and the beat
-/// chain always has exactly one parked beat ahead of whatever is enqueued next,
-/// so four napping beats pass between the command and the predecessor reading
-/// its clock. Counted rather than absorbed — that is what lets "three seconds
-/// elapsed" mean three seconds, and keeps the exact-2000 assertion a real pin.
-constexpr std::int64_t kGracefulCeremonyBeats = 4;
-
-/// Establish the probe's five-second one-shot at a KNOWN instant. The message is
-/// the very one the probe's own binding sends; `restart_delay` re-anchors it
-/// from now, and stopping the pump the moment it is handled puts the virtual
-/// clock exactly at the anchor.
-void anchor_probe(Rig& r, loom::WeaveId probe, loom::WeaveId timer) {
+/// Establish the probe's five-second one-shot at a KNOWN instant, and answer it. The message is
+/// the very one the probe's own binding sends; `restart_delay` re-anchors it at the next time the
+/// wait hands over, which is the time it was handled, since the Timer claims a time already past.
+std::int64_t anchor_probe(Rig& r, loom::WeaveId probe, loom::WeaveId timer) {
     r.ask_as(probe, timer,
              EnsureTimer{zengine::probe::kProbeTimerId, 5000, false, kRestartDelay, ""});
     r.pump_until(EnsureTimer::zen_name);
+    return r.clock.now_ms();
+}
+
+/// A one-shot of the witness's own, due `ms` after the next time handed over: what makes the
+/// host's wait hand the Timer the time then, so a letter written after it measures from it (a
+/// letter measures from the last time the Timer was handed).
+void hand_time_at(Rig& r, loom::WeaveId timer, std::int64_t ms) {
+    r.ask(timer, StartTimer{"suite.handed", ms, false});
 }
 
 } // namespace
@@ -2668,16 +2536,17 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
     CHECK(rep.fires == 0);
     CHECK(rep.reason.find("no matching schedule to preserve") != std::string::npos);
 
-    anchor_probe(r, probe, timer);
+    const std::int64_t anchored = anchor_probe(r, probe, timer);
 
-    // 3. Three seconds of virtual time, the ceremony's own beats counted in, so
-    // that when the predecessor reads its clock exactly 3000ms have passed.
-    r.pump_beats(3000 / kVirtualStepMs - kGracefulCeremonyBeats);
+    // 3. Three seconds of the host's clock, the Timer handed the time at their end.
+    hand_time_at(r, timer, 3000);
+    r.run_until(anchored + 3000);
 
     // 4. The graceful replacement. Same library, a genuinely new incarnation.
     const std::uint64_t corr = r.command(loom::SwapWeave{
         kTimerRole, "zengine-timer-virtual", TIMER_VIRTUAL_SO, /*graceful=*/true});
-    r.pump_until(TimerResolution::zen_name); // stops once the heir has answered the probe
+    r.pump_until(TimerResolution::zen_name); // once the heir has answered the probe
+    CHECK(r.clock.now_ms() == anchored + 3000); // the ceremony spent no time
 
     const Seen::Answer* swapped = r.seen.find(corr);
     REQUIRE(swapped != nullptr);
@@ -2719,18 +2588,14 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
     CHECK(rep.fires == 0);
     CHECK(rep.lifecycle == "waiting");
 
-    // 8. LESS THAN THE REMAINING TIME: NOTHING FIRES. The boundary is derived,
-    // not guessed — the heir's clock began at zero and only napping beats have
-    // moved it since the letter landed, so the beats left are exactly countable.
-    const std::int64_t napped = r.drives - r.letters[1].drives;
-    const std::int64_t to_boundary = 2000 / kVirtualStepMs - napped;
-    REQUIRE(to_boundary > 1);
-    r.pump_beats(to_boundary - 1); // one beat short of two seconds
+    // 8. A MILLISECOND SHORT OF THE REMAINING TIME: NOTHING FIRES. The heir anchored what it
+    // inherited at the first time it was handed, the swap's, so the boundary is exact.
+    r.run_until(anchored + 5000 - 1);
     CHECK(r.ask_probe(probe).fires == 0);
 
-    // 9. THE BOUNDARY BEAT: exactly once. It did not wait a fresh five seconds, which is what a
+    // 9. THE BOUNDARY: exactly once. It did not wait a fresh five seconds, which is what a
     // re-anchored schedule would have done.
-    r.pump_beats(1);
+    r.run_until(anchored + 5000);
     rep = r.ask_probe(probe);
     CHECK(rep.fires == 1);
 
@@ -2742,7 +2607,7 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
     // 11. ANOTHER AVAILABILITY NOTICE RECREATES NOTHING. This is exactly the
     // resurrection a single `desired` flag could not prevent.
     r.bus.publish(loom::Message(loom::to_value(TimerReady{})));
-    r.pump_beats(4);
+    r.settle();
     rep = r.ask_probe(probe);
     CHECK(rep.fires == 1);
     CHECK(rep.lifecycle == "spent");
@@ -2752,12 +2617,13 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
     // delay, and the receipt says restarted rather than preserved.
     r.ask(probe, zengine::probe::RestartProbe{});
     r.pump_until(TimerResolution::zen_name);
+    const std::int64_t restarted = r.clock.now_ms();
     rep = r.ask_probe(probe);
     CHECK(rep.lifecycle == "waiting");
     CHECK(rep.resolved == kResolutionRestarted);
     CHECK(r.poke_int(successor, "active") == 1);
 
-    r.pump_beats(5000 / kVirtualStepMs + 4);
+    r.run_until(restarted + 5000);
     rep = r.ask_probe(probe);
     CHECK(rep.fires == 2); // once more, and only once more
     CHECK(rep.lifecycle == "spent");
@@ -2768,8 +2634,8 @@ TEST_CASE("continuity, hard: no letter exists, so the declared fallback restarts
     Rig r;
     const loom::WeaveId timer = r.load("zengine-timer-virtual", TIMER_VIRTUAL_SO, kTimerRole);
     const loom::WeaveId probe = r.load("zengine-probe-oneshot", PROBE_ONESHOT_SO, "");
-    anchor_probe(r, probe, timer);
-    r.pump_beats(3000 / kVirtualStepMs);
+    const std::int64_t anchored = anchor_probe(r, probe, timer);
+    r.run_until(anchored + 3000);
 
     // A HARD replacement: the incumbent is never asked, so nothing is offered.
     const std::uint64_t corr = r.command(loom::SwapWeave{
@@ -2792,15 +2658,14 @@ TEST_CASE("continuity, hard: no letter exists, so the declared fallback restarts
     CHECK(rep.reason.find("fell back to 'restart_delay'") != std::string::npos);
     CHECK(rep.fires == 0);
 
-    // AND IT DOES NOT FIRE AT THE OLD BOUNDARY. Two seconds of virtual time was
-    // the whole remaining schedule a moment ago; from a full restart it is not
-    // even half of one.
-    r.pump_beats(2000 / kVirtualStepMs + 10);
+    // AND IT DOES NOT FIRE AT THE OLD BOUNDARY. Two seconds was the whole remaining schedule a
+    // moment ago; from a full restart it is not even half of one.
+    r.run_until(anchored + 5000 + 10);
     CHECK(r.ask_probe(probe).fires == 0);
 
-    // It fires at the FULL declared delay instead, which is the honest meaning
+    // It fires at the FULL declared delay from the restart instead, which is the honest meaning
     // of "restarted".
-    r.pump_beats(3000 / kVirtualStepMs + 10);
+    r.run_until(anchored + 3000 + 5000);
     CHECK(r.ask_probe(probe).fires == 1);
 }
 
@@ -2809,15 +2674,16 @@ TEST_CASE("continuity, reload: an in-place reload keeps every standing timer, on
     Rig r;
     const loom::WeaveId timer = r.load("zengine-timer-virtual", TIMER_VIRTUAL_SO, kTimerRole);
     const loom::WeaveId probe = r.load("zengine-probe-oneshot", PROBE_ONESHOT_SO, "");
-    anchor_probe(r, probe, timer);
-    // ...and a raw repeating timer nobody re-asks for: only the service can carry it.
+    const std::int64_t anchored = anchor_probe(r, probe, timer);
+    // ...and a raw repeating timer nobody re-asks for: only the service can carry it. Its
+    // firings are the wakes that hand the Timer the time.
     r.ask(timer, StartTimer{"suite.repeat", 1000, true});
-    r.pump_beats(3000 / kVirtualStepMs);
+    r.run_until(anchored + 3000);
     const auto repeats = [&] {
         return std::count(r.seen.fired.begin(), r.seen.fired.end(), "suite.repeat");
     };
     const auto repeats_before = repeats();
-    REQUIRE(repeats_before >= 2);
+    REQUIRE(repeats_before == 3);
 
     const std::uint64_t corr =
         r.command(loom::ReloadWeave{"zengine-timer-virtual", TIMER_VIRTUAL_SO});
@@ -2835,8 +2701,8 @@ TEST_CASE("continuity, reload: an in-place reload keeps every standing timer, on
     CHECK(r.poke_int(timer, "active") == 2);
     CHECK(r.poke_int(timer, "inherited") == 2);
 
-    // THE RULER: the reloaded table, read off its own letter, holds both, the one-shot with at
-    // most the two seconds it had left -- not a fresh five.
+    // THE RULER: the reloaded table, read off its own letter, holds both, the one-shot with the
+    // two seconds it had left -- not a fresh five.
     r.ask(timer, loom::PrepareShutdown{});
     r.pump_until(loom::Bequest::zen_name);
     REQUIRE(r.letters.size() == 1);
@@ -2848,16 +2714,12 @@ TEST_CASE("continuity, reload: an in-place reload keeps every standing timer, on
     REQUIRE(oneshot != held.end());
     CHECK(oneshot->requester == std::to_string(probe.value));
     CHECK(oneshot->delay_ms == 5000);
-    CHECK(oneshot->remaining_ms > 0);
-    CHECK(oneshot->remaining_ms <= 2000);
-    const std::int64_t left = oneshot->remaining_ms / kVirtualStepMs;
+    CHECK(oneshot->remaining_ms == 2000);
 
-    // IT FIRES WHEN ITS OWN TIME RUNS OUT, ONCE; THE REPEATING ONE KEEPS BEATING. Each ask and the
-    // ruler spend a beat or two of their own, so the boundary is held to a few beats either side.
-    REQUIRE(left > 6);
-    r.pump_beats(left - 6);
+    // IT FIRES WHEN ITS OWN TIME RUNS OUT, ONCE; THE REPEATING ONE KEEPS FIRING.
+    r.run_until(anchored + 5000 - 1);
     CHECK(r.ask_probe(probe).fires == 0);
-    r.pump_beats(8);
+    r.run_until(anchored + 5000);
     rep = r.ask_probe(probe);
     CHECK(rep.fires == 1);
     CHECK(rep.lifecycle == "spent");
@@ -2881,13 +2743,13 @@ TEST_CASE("continuity, required preservation: an order with no acceptable fallba
     CHECK(r.poke_int(timer, "active") == 0); // no entry, not a silently-restarted one
 
     // And it stays that way: a refused order is not a deferred one.
-    r.pump_beats(5000 / kVirtualStepMs + 20);
+    r.run_for(5200);
     CHECK(r.ask_probe(probe).fires == 0);
     CHECK(r.poke_int(timer, "active") == 0);
 }
 
 // ============================================================================
-// Tier 2 continuity — the unit pins, over the fake clock (TIMER-03)
+// Tier 2 continuity — the unit pins, on the host's wait (TIMER-03)
 // ============================================================================
 // The end-to-end lane proves the whole sentence; these prove the pieces, including those an
 // honest predecessor never produces: a letter to another version, one over the bound, a
@@ -2897,22 +2759,24 @@ TEST_CASE("letter: the predecessor describes every standing entry as a REMAINING
           "reads its clock once, and changes nothing by being asked") {
     FakeRig r;
     r.mount_steward(Letters::Answer::Refuse);
-    r.run_beats(3, /*start=*/true);
+    r.run_wakes(3, /*start=*/true);
 
     r.ask_as(r.ear, StartTimer{"mine.oneshot", 5000, false});
     r.ask_as(r.ear, StartRoleTimer{"slot.beat", 9000, true, "some.slot"});
-    r.run_beats(3);
+    // ...and a short repeating timer, so the host's wait hands the Timer the time as it passes.
+    r.ask_as(r.ear, StartTimer{"mine.tick", 400, true});
+    r.run_until(1200);
 
-    // Nothing here is anywhere near due, so the beats the letter's own pump
-    // spends provably change nothing — which is what makes the no-movement
-    // assertion at the end mean something.
+    // The two long ones are nowhere near due, and the letter is written between wakes, so
+    // writing it provably changes nothing — which is what makes the no-movement assertion at
+    // the end mean something.
     const std::int64_t fired_before = r.count("fired");
     const std::int64_t active_before = r.count("active");
-    REQUIRE(active_before == 2);
-    REQUIRE(fired_before == 0);
+    REQUIRE(active_before == 3);
+    REQUIRE(fired_before == 3);
 
     const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
-    REQUIRE(offered.size() == 2);
+    REQUIRE(offered.size() == 3);
 
     // A REQUESTER entry round-trips whole: the id, the mode (no role), the
     // declared delay, the repeat flag, and the requester as lossless decimal.
@@ -2921,11 +2785,11 @@ TEST_CASE("letter: the predecessor describes every standing entry as a REMAINING
     CHECK(offered[0].delay_ms == 5000);
     CHECK_FALSE(offered[0].repeat);
     CHECK(offered[0].requester == std::to_string(r.ear.value));
-    // The whole arithmetic claim, exactly: what is left is what was declared
-    // minus what has elapsed since the schedule was anchored — measured from the
-    // bus's own view of both instants, not from a hoped-for constant.
+    // The whole arithmetic claim, exactly: what is left is what was declared minus what has
+    // elapsed since the schedule was anchored -- the host's clock at the ask and at the letter,
+    // the Timer last handed the time at the latter -- not a hoped-for constant.
     REQUIRE(r.ask_now >= 0);
-    REQUIRE(r.letter_now >= r.ask_now);
+    REQUIRE(r.letter_now == 1200);
     CHECK(offered[0].remaining_ms == 5000 - (r.letter_now - r.ask_now));
 
     // A ROLE entry round-trips too, carrying the role it belongs to — the two
@@ -2943,11 +2807,31 @@ TEST_CASE("letter: the predecessor describes every standing entry as a REMAINING
     CHECK(r.count("active") == active_before);
 }
 
+TEST_CASE("letter: what is left is measured from the last time the Timer was handed -- the time "
+          "since its last wake is paused, as replacement downtime is") {
+    // The Timer reads no clock: it knows the time the host's wait last handed it. Between wakes
+    // the host's clock moves and the Timer is told nothing, so a letter written then measures
+    // from that wake. Pinned as the behaviour it is, beside its bound: the gap is never longer
+    // than the time to the soonest deadline, since the wait wakes the Timer then.
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_wakes(3, /*start=*/true);
+    r.ask_as(r.ear, StartTimer{"far", 5000, false});
+    r.run_wakes(1); // the time learned at once: anchored at 0, due at 5000
+    const std::int64_t wakes = r.count("wakes");
+    r.run_until(3000); // the clock moves; nothing is due, so nothing wakes the Timer
+    REQUIRE(r.count("wakes") == wakes);
+
+    const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
+    REQUIRE(offered.size() == 1);
+    CHECK(offered[0].remaining_ms == 5000); // from the time last handed, 0, not from 3000
+}
+
 TEST_CASE("letter: a due or overdue entry transfers with ZERO remaining, never a negative "
           "number") {
     FakeRig r;
     r.mount_steward(Letters::Answer::Refuse);
-    r.run_beats(3, /*start=*/true);
+    r.run_wakes(3, /*start=*/true);
 
     // Queued so the letter is written in the SAME pump, before any beat can
     // fire it: a schedule that is due right now is exactly the case an
@@ -2965,11 +2849,11 @@ TEST_CASE("letter: the published bound is the same number on both sides — the 
     // bound is published (kMaxHandoffEntries) rather than discovered as a leak.
     FakeRig w;
     w.mount_steward(Letters::Answer::Refuse);
-    w.run_beats(3, /*start=*/true);
+    w.run_wakes(3, /*start=*/true);
     for (std::size_t i = 0; i < kMaxHandoffEntries + 5; ++i) {
         w.ask_as(w.ear, StartTimer{"t" + std::to_string(i), 1000, true});
     }
-    w.run_beats(4);
+    w.run_wakes(4);
     CHECK(w.count("active") == static_cast<std::int64_t>(kMaxHandoffEntries + 5));
     CHECK(w.prepare_shutdown().size() == kMaxHandoffEntries);
 
@@ -2984,7 +2868,7 @@ TEST_CASE("letter: the published bound is the same number on both sides — the 
     }
     r.mount_steward(Letters::Answer::Letter);
     r.letters.items.push_back(loom::bequeath_item(huge));
-    r.run_beats(4, /*start=*/true);
+    r.run_wakes(4, /*start=*/true);
     CHECK(r.count("inherited") == 0);
     CHECK(r.count("active") == 0);
     CHECK(r.heard.ready == 1); // and it still became available: refusing a letter is not a hang
@@ -2997,7 +2881,7 @@ TEST_CASE("letter: bytes the gate refuses, a shape from another version, and a r
         FakeRig r;
         r.mount_steward(Letters::Answer::Letter);
         r.letters.items.push_back(loom::Bytes{0x00, 0x01, 0x02, 0x03});
-        r.run_beats(4, /*start=*/true);
+        r.run_wakes(4, /*start=*/true);
         CHECK(r.count("inherited") == 0);
         CHECK(r.heard.ready == 1);
     }
@@ -3009,7 +2893,7 @@ TEST_CASE("letter: bytes the gate refuses, a shape from another version, and a r
         FakeRig r;
         r.mount_steward(Letters::Answer::Letter);
         r.letters.items.push_back(loom::bequeath_item(HandoffV2{{}}));
-        r.run_beats(4, /*start=*/true);
+        r.run_wakes(4, /*start=*/true);
         CHECK(r.count("inherited") == 0);
         CHECK(r.count("active") == 0);
         CHECK(r.heard.ready == 1);
@@ -3024,7 +2908,7 @@ TEST_CASE("letter: bytes the gate refuses, a shape from another version, and a r
         mixed.entries.push_back(TimerHandoffEntry{"-3", "bad", "", 1000, true, 400});
         r.mount_steward(Letters::Answer::Letter);
         r.letters.items.push_back(loom::bequeath_item(mixed));
-        r.run_beats(4, /*start=*/true);
+        r.run_wakes(4, /*start=*/true);
         CHECK(r.count("inherited") == 0);
         CHECK(r.count("active") == 0);
     }
@@ -3039,7 +2923,7 @@ TEST_CASE("bootstrap: the claim is made once per activation, restoration happens
     r.mount_steward(Letters::Answer::Letter);
     r.letters.items.push_back(loom::bequeath_item(handoff));
 
-    r.run_beats(3, /*start=*/true);
+    r.run_wakes(3, /*start=*/true);
 
     // Exactly one claim, and it inherited exactly one entry.
     CHECK(r.letters.claims == 1);
@@ -3073,32 +2957,32 @@ TEST_CASE("bootstrap: the claim is made once per activation, restoration happens
     r.bus.send_as(r.steward, r.service,
                   loom::Message(loom::to_value(second), r.steward, r.steward,
                                 r.letters.last_claim_corr));
-    r.run_beats(4);
+    r.run_wakes(4);
     CHECK(r.count("inherited") == 1); // unchanged
     CHECK(r.count("active") == 1);    // "sneaky" never joined the table
     CHECK(r.heard.ready == 1);        // and nothing re-announced
 }
 
 TEST_CASE("bootstrap: a steward that never answers does not hang the service — it resolves "
-          "fresh after its own bounded beats, with no wall clock and no spin") {
+          "fresh after its own bounded wakes, with no wall clock and no spin") {
     FakeRig r;
     r.mount_steward(Letters::Answer::Silence);
     r.ask_as(r.ear, StartTimer{"pre.activation", 100, true});
 
-    r.run_beats(3, /*start=*/true);
+    r.run_wakes(3, /*start=*/true);
     CHECK(r.letters.claims == 1); // it did ask
     CHECK(r.heard.ready == 1);    // and it became available anyway
     CHECK(r.count("inherited") == 0);
 
-    // It became LIVE, not merely resolved: the entry it was holding is standing
-    // and the chain is beating.
+    // It became LIVE, not merely resolved: the entry it was holding is standing and firing.
     CHECK(r.count("active") == 1);
-    const std::int64_t beats = r.count("beats");
-    r.run_beats(3);
-    CHECK(r.count("beats") > beats);
+    const std::int64_t fired = r.count("fired");
+    r.run_wakes(3);
+    CHECK(r.count("fired") > fired);
 
-    // Exactly one chain: the bus holds one parked beat, not two.
-    CHECK(r.bus.pending() == 1);
+    // And it keeps time by its claim alone: the bus holds nothing between wakes.
+    CHECK(r.bus.pending() == 0);
+    CHECK(claimed_until(r).has_value());
 }
 
 TEST_CASE("bootstrap: operations that arrive while the decision is pending are applied AFTER "
@@ -3114,7 +2998,7 @@ TEST_CASE("bootstrap: operations that arrive while the decision is pending are a
     // arrives while the claim is still out.
     r.activate();
     r.ask_as(r.ear, EnsureTimer{"contested", 5000, false, kRestartDelay, ""});
-    r.run_beats(4);
+    r.settle(); // no time passes: the decision, the replay and the time learned, at 0
 
     // The inheritance happened AND the later request won: one entry, and its
     // schedule is the requested restart rather than the inherited 4000ms
@@ -3127,12 +3011,13 @@ TEST_CASE("bootstrap: operations that arrive while the decision is pending are a
     CHECK(r.heard.resolutions[0].resolved == kResolutionRestarted);
 
     // And it is timed as a restart: nothing at the inherited boundary...
-    r.run_beats(410); // 4100ms of virtual time, well past the inherited 4000
+    r.run_until(4100); // well past the inherited 4000
     CHECK(r.heard.fired.empty());
     // ...and a firing at the declared delay from when the order landed.
-    r.run_beats(100);
+    r.run_until(5000);
     REQUIRE(r.heard.fired.size() == 1);
     CHECK(r.heard.fired[0] == "contested");
+    CHECK(r.heard.fired_at[0] == 5000);
 }
 
 TEST_CASE("bootstrap: the hold is bounded, and overflowing it is visible both ways it can be") {
@@ -3145,7 +3030,7 @@ TEST_CASE("bootstrap: the hold is bounded, and overflowing it is visible both wa
         r.ask_as(r.ear,
                  EnsureTimer{"held" + std::to_string(i), 1000, true, kRestartDelay, ""});
     }
-    r.run_beats(4);
+    r.run_wakes(4);
 
     // The bound held: the last one did not join the table...
     CHECK(r.count("active") == static_cast<std::int64_t>(kMaxDeferredOps));
@@ -3166,23 +3051,23 @@ TEST_CASE("order: the menu resolves by MATCHING, and a changed schedule meaning 
           "masquerade as preserved") {
     FakeRig r;
     r.mount_steward(Letters::Answer::Refuse);
-    r.run_beats(3, /*start=*/true);
+    r.run_wakes(3, /*start=*/true);
 
     // Nothing standing: preservation is unavailable, the fallback restarts.
     r.ask_as(r.ear, EnsureTimer{"m", 1000, true, kPreserveRemaining, kRestartDelay});
-    r.run_beats(3);
+    r.settle();
     REQUIRE(r.heard.resolutions.size() == 1);
     CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
 
     // The SAME declaration now matches: same key, same repeat mode, same delay.
     r.ask_as(r.ear, EnsureTimer{"m", 1000, true, kPreserveRemaining, kRestartDelay});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionPreserved);
 
     // A DIFFERENT DELAY under the same id is a different schedule. The entry is
     // found, but preserving it would be describing a schedule nobody asked for.
     r.ask_as(r.ear, EnsureTimer{"m", 2000, true, kPreserveRemaining, kRestartDelay});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
     CHECK(r.heard.resolutions.back().reason.find("differs from the standing one") !=
           std::string::npos);
@@ -3190,7 +3075,7 @@ TEST_CASE("order: the menu resolves by MATCHING, and a changed schedule meaning 
     // A DIFFERENT REPEAT MODE likewise: "every two seconds" and "once, in two
     // seconds" are not the same timer wearing different clothes.
     r.ask_as(r.ear, EnsureTimer{"m", 2000, false, kPreserveRemaining, kRestartDelay});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
 
     // A DIFFERENT ADDRESSING MODE has a different key by construction, so it
@@ -3199,7 +3084,7 @@ TEST_CASE("order: the menu resolves by MATCHING, and a changed schedule meaning 
     const std::int64_t active_before = r.count("active");
     r.ask_as(r.ear,
              EnsureRoleTimer{"m", 2000, false, "some.slot", kPreserveRemaining, kRestartDelay});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
     CHECK(r.count("active") == active_before + 1);
 }
@@ -3208,29 +3093,29 @@ TEST_CASE("order: drop removes a standing schedule and declines to create one, a
           "preference is refused rather than guessed at") {
     FakeRig r;
     r.mount_steward(Letters::Answer::Refuse);
-    r.run_beats(3, /*start=*/true);
+    r.run_wakes(3, /*start=*/true);
 
     r.ask_as(r.ear, StartTimer{"d", 1000, true});
-    r.run_beats(3);
+    r.settle();
     REQUIRE(r.count("active") == 1);
 
     // Drop removes it.
     r.ask_as(r.ear, EnsureTimer{"d", 1000, true, kDrop, ""});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionDropped);
     CHECK(r.count("active") == 0);
 
     // Drop with nothing to drop declines to create one — same word, and it is
     // the truthful one either way.
     r.ask_as(r.ear, EnsureTimer{"never.existed", 1000, true, kDrop, ""});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionDropped);
     CHECK(r.count("active") == 0);
 
     // A spelling this package does not know is REFUSED. Nothing is guessed at,
     // and the reason quotes the word back so a stranger can see the typo.
     r.ask_as(r.ear, EnsureTimer{"x", 1000, true, "preserve-remaining", kRestartDelay});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionRefused);
     CHECK(r.heard.resolutions.back().reason.find("preserve-remaining") != std::string::npos);
     CHECK(r.count("active") == 0);
@@ -3238,7 +3123,7 @@ TEST_CASE("order: drop removes a standing schedule and declines to create one, a
     // An ordered ROLE request with no role is refused too — the raw shape drops
     // it silently, but an order has somewhere to hear why.
     r.ask_as(r.ear, EnsureRoleTimer{"y", 1000, true, "", kPreserveRemaining, kRestartDelay});
-    r.run_beats(3);
+    r.settle();
     CHECK(r.heard.resolutions.back().resolved == kResolutionRefused);
     CHECK(r.heard.resolutions.back().reason.find("no role") != std::string::npos);
     CHECK(r.count("active") == 0);
@@ -3358,72 +3243,53 @@ TEST_CASE("binding edges: an empty role is refused at declaration, and an invali
 }
 
 TEST_CASE("direct load: a Timer loaded straight through the control door, with NO steward in "
-          "the process at all, still becomes live — and authors exactly one chain") {
-    // The whole point of this case is what is MISSING. There is no Weave
-    // Manager, so `zen.manager` is unheld and `zen.ClaimBequest` is a shape
-    // nobody in this process accepts — the service's claim is rejected at the
-    // library seam and no answer can ever come. A bootstrap that waited on one
-    // would wait forever, on a working bus, and the operator would see a load
-    // that succeeded and a service that never spoke.
+          "the process at all, still becomes live — and keeps time by its claim alone") {
+    // The whole point of this case is what is MISSING. There is no Weave Manager, so
+    // `zen.manager` is unheld and the service's claim (`zen.ClaimBequest`) reaches nobody: the
+    // bus refuses it, and that refusal is the service's answer -- a fresh start, at once. A
+    // bootstrap that waited on an answer would wait forever, on a working bus, and the operator
+    // would see a load that succeeded and a service that never spoke.
     loom::Switchboard bus;
+    loom::host::ManualClock clock;
+    loom::host::Reactor wait(bus, clock);
+    wait.trust(kTimerRole);
     loom::Kernel kernel{bus, loom::trust_every_artifact(
         "Zengine's test harness: it loads only this build tree's output")};
     const loom::WeaveId control = loom::mount_control(kernel, bus);
 
     Seen seen;
-    seen.bus = &bus;
     loom::Grant reach = loom::load_capability(control); // the dangerous half, target-scoped
     reach.allow_to_any(StartTimer::zen_name, StartTimer::zen_version); // and one ordinary ask
     const loom::WeaveId witness = loom::mount_granted<Witness>(bus, std::move(reach), seen);
-
-    std::int64_t drives = 0;
-    std::int64_t stop_at = -1;
-    bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Delivered && ev.schema_name == "Drive") {
-            ++drives;
-            if (stop_at >= 0 && drives >= stop_at) {
-                bus.stop();
-            }
-        }
-    });
-    const auto pump_beats = [&](std::int64_t n) {
-        stop_at = drives + n;
-        bus.drain_until_idle();
-        stop_at = -1;
-    };
+    const auto settle = [&] { host_loop(bus, wait, clock, [] { return true; }); };
 
     const std::uint64_t corr = 1;
     bus.send_as(witness, control,
                 loom::Message(loom::to_value(loom::LoadLibrary{"zengine-timer-virtual",
                                                                TIMER_VIRTUAL_SO, {kTimerRole}}),
                               witness, witness, corr));
-    pump_beats(6);
+    settle();
 
     const Seen::Answer* a = seen.find(corr);
     REQUIRE(a != nullptr);
     REQUIRE_MESSAGE(a->kind == 0, "load refused: ", a->text);
 
-    // AVAILABLE: the claim went unanswered and the bootstrap resolved itself
-    // after its own bounded beats — no wall clock, no timeout, no steward.
+    // AVAILABLE: the claim reached nobody and the bootstrap resolved itself on the bus's
+    // refusal -- no wall clock, no timeout, no steward.
     CHECK(seen.ready == 1);
+    CHECK(bus.pending() == 0); // and nothing queued to keep time
 
-    // LIVE: the chain is beating, with nobody winding anything.
-    CHECK(drives >= 3);
-
-    // And it does real work, which is the difference between "resolved" and
-    // "alive": a timer asked for here fires.
+    // And it does real work, which is the difference between "resolved" and "alive": a timer
+    // asked for here fires, at its time on the host's clock.
     const loom::WeaveId service{static_cast<std::uint64_t>(std::stoll(a->text))};
+    const std::int64_t asked_at = clock.now_ms();
     bus.send_as(witness, service,
                 loom::Message(loom::to_value(StartTimer{"direct.tick", 20, false}), witness,
                               witness, 0));
-    pump_beats(6);
-    REQUIRE(seen.fired.size() >= 1);
+    host_loop(bus, wait, clock, [] { return false; }, asked_at + 100);
+    REQUIRE(seen.fired.size() == 1);
     CHECK(seen.fired[0] == "direct.tick");
-
-    // EXACTLY ONE CHAIN. With the queue quiet the only thing pending is the one
-    // parked beat: a second chain would leave a second.
-    pump_beats(1);
-    CHECK(bus.pending() == 1);
+    CHECK(bus.pending() == 0);
 }
 
 // ============================================================================
@@ -3495,7 +3361,7 @@ TEST_CASE("hostile: a forged letter with the right shape, the right correlation 
     r.activate();
     r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
                            false, 4000, static_cast<std::int64_t>(kClaimCorrelation)})));
-    r.run_beats(4);
+    r.run_wakes(4);
 
     // It really was sent and really was delivered — this is a rejection by
     // PROVENANCE, not by routing, not by a grant, and not by the gate.
@@ -3510,7 +3376,7 @@ TEST_CASE("hostile: a forged letter with the right shape, the right correlation 
     // its own bounded fallback, which is what keeps a forgery from being a
     // denial-of-service as well as an impersonation.
     CHECK(r.heard.ready == 1);
-    CHECK(r.bus.pending() == 1); // one chain, beating
+    CHECK(r.bus.pending() == 0); // and nothing queued to keep time
 }
 
 TEST_CASE("hostile: a forged REFUSAL cannot end the heir's wait early either") {
@@ -3528,7 +3394,7 @@ TEST_CASE("hostile: a forged REFUSAL cannot end the heir's wait early either") {
     r.activate();
     r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
                            true, 0, static_cast<std::int64_t>(kClaimCorrelation)})));
-    r.run_beats(4);
+    r.run_wakes(4);
 
     // The genuine letter won, because the forged refusal was never an answer.
     CHECK(r.count("inherited") == 1);
@@ -3546,14 +3412,14 @@ TEST_CASE("hostile: a forgery AFTER the legitimate answer cannot overwrite what 
     const loom::WeaveId forger = loom::mount<LetterForger>(r.bus, r.service, r.ear);
 
     r.activate();
-    r.run_beats(4);
+    r.run_wakes(4);
     REQUIRE(r.count("inherited") == 1);
     REQUIRE(r.count("active") == 1);
 
     // Late, correlated, gate-valid, and describing a completely different world.
     r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
                            false, 9000, static_cast<std::int64_t>(kClaimCorrelation)})));
-    r.run_beats(4);
+    r.run_wakes(4);
 
     CHECK(r.count("inherited") == 1); // the count is of the LAST bootstrap, unchanged
     CHECK(r.count("active") == 1);    // and "forged.tick" never joined the table
@@ -3573,7 +3439,7 @@ TEST_CASE("hostile: even the legitimate steward's own bytes, replayed ordinarily
     r.letters.items.push_back(loom::bequeath_item(handoff));
 
     r.activate();
-    r.run_beats(4);
+    r.run_wakes(4);
 
     // The steward really was asked, and really did reply.
     CHECK(r.letters.claims == 1);
@@ -3592,52 +3458,38 @@ TEST_CASE("hostile: a forged ACTIVATION cannot give a Timer a first breath, and 
     // An ordinary weave, holding only the grant for the public shape, announces
     // a perfectly plausible activation.
     r.forge_activation(1);
-    r.run_beats(4);
+    r.run_wakes(4);
     CHECK(r.heard.ready == 0);      // never became available
-    CHECK(r.count("beats") == 0);   // never authored a chain
+    CHECK(r.letters.claims == 0);   // never asked for its past
+    CHECK_FALSE(claimed_until(r).has_value()); // never claimed a time
     CHECK(r.bus.pending() == 0);    // and left nothing behind
 
     // A REAL authority, used dishonestly: Loom attests sequence 5 while the
     // payload claims 6. A proof for one activation is not a proof for another.
     r.activate_mismatched(5, 6);
-    r.run_beats(4);
+    r.run_wakes(4);
     CHECK(r.heard.ready == 0);
-    CHECK(r.count("beats") == 0);
+    CHECK(r.letters.claims == 0);
 
     // THE POSITIVE CONTROL. The same door, the same service, the two halves
     // agreeing — so the silence above is refusal, not a broken rig.
-    r.run_beats(4, /*start=*/true);
+    r.run_wakes(4, /*start=*/true);
     CHECK(r.heard.ready == 1);
-    CHECK(r.count("beats") > 0);
+    CHECK(r.letters.claims == 1);
 }
 
 // ============================================================================
 // Tier 6 — THE KEYSTONE: a LIVE Timer crosses a prepared replacement
 // ============================================================================
 // While a candidate prepares the incumbent keeps serving, so a snapshot at transaction begin is
-// stale at commit. The boundary is THE ADMISSION: the beat chain rides the role, so moving it
-// ends the incumbent's chain and stops its clock, and admission seals the incumbent at once.
+// stale at commit. The boundary is THE ADMISSION: the Timer's claim on the host's wait rides the
+// role, so moving it ends the incumbent's wakes, and admission seals the incumbent at once.
 
 namespace {
 
 /// The keystone's correlation, so a reader can tell the ceremony's letter apart
 /// from the suite's ruler reads on the wire.
 constexpr std::uint64_t kFinalizeCorrelation = 0x3C0DE;
-
-/// How many NAPPING incumbent beats pass between resuming the pump with the preparation ask
-/// enqueued and the admission that closes the boundary, counted as the graceful lane counts
-/// its ceremony: the queue reads [parked Drive, ask], the ask is answered on the turn after the
-/// beat it sits behind, and the coordinator admits on the turn after that. The exact-2000
-/// assertion below keeps it honest.
-constexpr std::int64_t kPreparedCeremonyBeats = 2;
-
-/// THE RULER'S OWN COST. Reading the clock costs queue turns, and the beat that
-/// was already parked when the read was asked for runs inside one of them — so
-/// the number a read hands back is exactly one beat old by the time the pump
-/// stops. Named rather than absorbed into the arithmetic, because an instrument
-/// that quietly perturbs what it measures is how a suite starts proving the
-/// wrong thing.
-constexpr std::int64_t kRulerTrailingBeats = 1;
 
 /// Everything the coordinator has done and been told, in one place the test can
 /// read without reaching inside a weave.
@@ -3783,11 +3635,10 @@ struct Keystone {
     loom::WeaveId coordinator{};
     loom::WeaveId incumbent{};
     loom::WeaveId probe{};
+    std::int64_t anchored = -1; ///< the host's clock when the probe's one-shot was anchored
 
-    /// `timer_path` is the incumbent artifact — the virtual-clock build for the
-    /// deterministic proofs, the SHIPPED real-clock one for the pilot. `probe`
-    /// is loaded only where a five-second one-shot is a sensible thing to wait
-    /// for, which on a real clock it is not.
+    /// `timer_path` is the incumbent artifact — the suites' build for the proofs, the SHIPPED
+    /// one for the pilot. `probe` is loaded where a five-second one-shot is the subject.
     explicit Keystone(const char* timer_path = TIMER_VIRTUAL_SO, bool with_probe = true) {
         prep.bus = &r.bus;
         loom::Grant reach;
@@ -3867,20 +3718,21 @@ struct Keystone {
         return -1;
     }
 
-    /// What is left of the probe's one-shot RIGHT NOW — the ruler's read, with
-    /// the ruler's own cost taken back off it.
-    std::int64_t probe_remaining() {
-        return remaining_now(zengine::probe::kProbeTimerId) -
-               kRulerTrailingBeats * kVirtualStepMs;
-    }
+    /// What is left of the probe's one-shot RIGHT NOW — the ruler's read. It costs no time.
+    std::int64_t probe_remaining() { return remaining_now(zengine::probe::kProbeTimerId); }
 
-    /// Advance the live Timer until exactly `want` milliseconds of the probe's
-    /// one-shot are left — measured, never assumed.
+    /// Run the host's loop until exactly `want` milliseconds of the probe's one-shot are left,
+    /// the live Timer handed that time -- a one-shot of the witness's own, due then, wakes it --
+    /// so a letter written now measures from it; then the ruler says so, measured, not assumed.
     void advance_until_remaining(std::int64_t want) {
-        const std::int64_t now = probe_remaining();
-        REQUIRE(now >= want);
-        REQUIRE((now - want) % kVirtualStepMs == 0);
-        r.pump_beats((now - want) / kVirtualStepMs);
+        REQUIRE(anchored >= 0);
+        const std::int64_t at = anchored + 5000 - want;
+        REQUIRE(at >= r.clock.now_ms());
+        if (at > r.clock.now_ms()) {
+            r.ask_role(StartTimer{"suite.handed", at - r.clock.now_ms(), false});
+        }
+        r.run_until(at);
+        REQUIRE(probe_remaining() == want);
     }
 
     /// The last letter that crossed the wire, decoded through the real gate. It REQUIREs one:
@@ -3910,6 +3762,7 @@ void anchor_required_probe(Keystone& k) {
     k.r.ask_as(k.probe, k.incumbent,
                EnsureTimer{zengine::probe::kProbeTimerId, 5000, false, kRestartDelay, ""});
     k.r.pump_until(EnsureTimer::zen_name);
+    k.anchored = k.r.clock.now_ms();
 }
 
 } // namespace
@@ -3931,10 +3784,7 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(rep.lifecycle == "waiting");
     CHECK(rep.fires == 0);
 
-    // 5-6. Three seconds of virtual time, and the one-shot has not fired. (The
-    // exact ruler read that makes "two seconds" exact comes just before the
-    // boundary; everything between here and there costs beats of its own, and
-    // measuring last is what keeps the number honest rather than predicted.)
+    // 5-6. Two and a half seconds of the host's clock, and the one-shot has not fired.
     k.advance_until_remaining(2500);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
 
@@ -3957,15 +3807,15 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(k.r.seen.receipts.back().id == "preflight.control");
     CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
     CHECK(k.field(k.incumbent, "active") == 2); // the probe's, and the control
-    CHECK(k.field(candidate, "beats") == 0);    // the candidate has no time at all
+    CHECK(k.field(candidate, "wakes") == 0);    // the candidate has no time at all
     CHECK(k.field(candidate, "active") == 0);
 
-    // 11-14. THE BOUNDARY. Wind to exactly two seconds plus the ceremony's own
-    // beats, then let it run: the ask goes through the coordinator-only door,
-    // the candidate answers for itself, and the coordinator admits it inside
-    // that same delivery.
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
-    const std::int64_t beats_before = k.field(k.incumbent, "beats");
+    // 11-14. THE BOUNDARY. Run to exactly two seconds left, then let it run: the ask goes
+    // through the coordinator-only door, the candidate answers for itself, and the coordinator
+    // admits it inside that same delivery.
+    k.advance_until_remaining(2000);
+    const std::int64_t wakes_before = k.field(k.incumbent, "wakes");
+    const std::int64_t boundary = k.r.clock.now_ms();
     k.ask(kInheritFromIncumbent);
     k.r.pump_until(TimerReady::zen_name);
     k.r.pump_until(TimerResolution::zen_name); // ...and the consumer's re-ask answered
@@ -3984,8 +3834,9 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(outcome.reason == loom::TxnReason::None);
     CHECK_FALSE(k.r.bus.take_outcome(k.r.witness, outcome)); // consumed
     CHECK(k.r.bus.active_transactions() == 0);
-    // The ceremony cost exactly the beats the constant claims.
-    CHECK(k.field(k.incumbent, "beats") - beats_before == kPreparedCeremonyBeats);
+    // The ceremony spent no time, and the incumbent was woken by nothing while it ran.
+    CHECK(k.r.clock.now_ms() == boundary);
+    CHECK(k.field(k.incumbent, "wakes") == wakes_before);
 
     // 15-17. The role moved; the incumbent is retirement-private, not merely
     // renamed; the candidate is the service, in the Kernel's books as well.
@@ -4027,18 +3878,18 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(rep.activations == 1);
 
     // 25-28. AND THE CLOCK DID NOT RESTART: one millisecond short of the remaining time nothing
-    // fires; the next beat fires exactly once -- not five seconds from the commit, as a
+    // fires; the next millisecond fires it exactly once -- not five seconds from the commit, as a
     // re-anchored schedule or a stale snapshot would. The ruler now reads the CANDIDATE (it is
     // addressed to the role), itself the proof the inherited schedule is the one it holds.
-    k.advance_until_remaining(kVirtualStepMs);
+    k.advance_until_remaining(1);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
-    k.r.pump_beats(1);
+    k.r.run_for(1);
     rep = k.r.ask_probe(k.probe);
     CHECK(rep.fires == 1);
     CHECK(rep.lifecycle == "spent");
 
     // ...and only once. A full five seconds later there is still one firing.
-    k.r.pump_beats(5000 / kVirtualStepMs);
+    k.r.run_for(5000);
     CHECK(k.r.ask_probe(k.probe).fires == 1);
 }
 
@@ -4056,19 +3907,18 @@ TEST_CASE("keystone: the incumbent moved DURING preparation, and what crossed wa
     // ONE MORE FULL SECOND, with the candidate sealed and the transaction live.
     // The transaction is stepped through part of its budget while it passes, so
     // this is a preparation genuinely in progress rather than a paused one — and
-    // the incumbent's OWN beat counter says the second really elapsed on it.
-    const std::int64_t beats_at_begin = k.field(k.incumbent, "beats");
+    // the incumbent's OWN wakes say the second really reached it.
+    const std::int64_t wakes_at_begin = k.field(k.incumbent, "wakes");
     REQUIRE(k.r.bus.tick_preparation(k.prep.txn).ok);
-    k.advance_until_remaining(1000 + kPreparedCeremonyBeats * kVirtualStepMs);
+    k.advance_until_remaining(1000);
     REQUIRE(k.r.bus.tick_preparation(k.prep.txn).ok);
     CHECK(k.r.bus.transaction_state(k.prep.txn) == loom::TxnState::Preparing);
-    CHECK(k.field(k.incumbent, "beats") - beats_at_begin ==
-          1000 / kVirtualStepMs - kPreparedCeremonyBeats);
+    CHECK(k.field(k.incumbent, "wakes") > wakes_at_begin);
 
     // ...and THE INCUMBENT WAS THE ONE SERVING THROUGH IT. Not "the role still
     // pointed at it" — it answered.
     CHECK(k.r.bus.role_holder(kTimerRole) == k.incumbent);
-    CHECK(k.field(candidate, "beats") == 0);
+    CHECK(k.field(candidate, "wakes") == 0);
 
     // Only now the boundary.
     k.ask(kInheritFromIncumbent);
@@ -4090,9 +3940,9 @@ TEST_CASE("keystone: the incumbent moved DURING preparation, and what crossed wa
     // And it fires after THAT second — not after the two the earlier snapshot
     // would have carried, which is a full second of daylight between the honest
     // answer and the plausible one.
-    k.advance_until_remaining(kVirtualStepMs);
+    k.advance_until_remaining(1);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
-    k.r.pump_beats(1);
+    k.r.run_for(1);
     CHECK(k.r.ask_probe(k.probe).fires == 1);
 }
 
@@ -4100,7 +3950,7 @@ TEST_CASE("keystone: the queue boundary — an operation ordered before the admi
           "letter, one ordered after it is held and replayed, and neither happens twice") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
+    k.advance_until_remaining(2000);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
 
@@ -4180,19 +4030,25 @@ void incumbent_never_stopped_being_the_timer(Keystone& k, loom::WeaveId candidat
     CHECK(k.r.seen.ready == 1); // no candidate ever announced itself
     CHECK(k.r.ask_probe(k.probe).fires == 0);
 
-    // EXACTLY ONE CHAIN. With the queue otherwise quiet the only pending
-    // envelope is the incumbent's one parked beat; a forked or duplicated chain
-    // would leave two.
-    k.r.pump_beats(1);
-    CHECK(k.r.bus.pending() == 1);
+    // ONE TIMER KEEPING TIME, BY ITS CLAIM: the bus holds nothing for it, and the wait holds the
+    // incumbent's claim of the probe's deadline.
+    k.r.settle();
+    CHECK(k.r.bus.pending() == 0);
+    bool claimed = false;
+    for (const loom::host::Reactor::Source& s : k.r.wait.sources()) {
+        if (s.role == kTimerRole) {
+            claimed = s.until_ms == std::optional<std::int64_t>(k.anchored + 5000);
+        }
+    }
+    CHECK(claimed);
 
     // ...and the schedule was not reset: it runs out where it always would have,
     // and fires exactly once.
-    k.advance_until_remaining(kVirtualStepMs);
+    k.advance_until_remaining(1);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
-    k.r.pump_beats(1);
+    k.r.run_for(1);
     CHECK(k.r.ask_probe(k.probe).fires == 1);
-    k.r.pump_beats(200);
+    k.r.run_for(2000);
     CHECK(k.r.ask_probe(k.probe).fires == 1); // and only once
 }
 
@@ -4294,7 +4150,7 @@ TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent 
     // dispatch are two moments, and the world may change between them.
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
+    k.advance_until_remaining(2000);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
     k.ask(kInheritFromIncumbent);
@@ -4310,7 +4166,7 @@ TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent 
 
     // Then the successor dies before it can be admitted.
     k.r.bus.kill(candidate);
-    k.r.pump_beats(4);
+    k.r.settle();
 
     // The admission refused; the transaction ended once, naming what happened;
     // no letter was ever written, because nothing ever froze the incumbent.
@@ -4322,7 +4178,7 @@ TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent 
     CHECK(k.r.bus.active_transactions() == 0);
 
     // ...and the Timer that was serving is exactly the Timer that is serving:
-    // same role, one chain, and a schedule that runs out where it always would.
+    // same role, one claim, and a schedule that runs out where it always would.
     incumbent_never_stopped_being_the_timer(k, candidate);
 }
 
@@ -4336,7 +4192,7 @@ TEST_CASE("keystone: the boundary is a POSITION IN THE QUEUE — a by-id operati
     // written, and CROSSES. Both sides of the boundary are truthful, and neither is silent.
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
+    k.advance_until_remaining(2000);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
 
@@ -4372,11 +4228,11 @@ TEST_CASE("keystone: the boundary is a POSITION IN THE QUEUE — a by-id operati
     CHECK(k.field(k.incumbent, "active") == 2);
 }
 
-TEST_CASE("keystone: on commit the incumbent's chain simply ends — because the chain rides the "
-          "role — and exactly one new chain begins") {
+TEST_CASE("keystone: on commit the incumbent is woken no more — its claim rides the role — and "
+          "the successor alone keeps the time") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
+    k.advance_until_remaining(2000);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
     k.ask(kInheritFromIncumbent);
@@ -4385,25 +4241,24 @@ TEST_CASE("keystone: on commit the incumbent's chain simply ends — because the
     REQUIRE(k.prep.commits.size() == 1);
     REQUIRE(k.prep.commits.back().ok);
 
-    // NOTHING THE OLD SERVICE HAD QUEUED ADVANCED ANYTHING. Its beats and its
-    // firings are frozen at the boundary and stay frozen through hundreds more
-    // of the successor's — because a beat addressed to the role now reaches the
-    // successor, which refuses it as a different activation's.
-    const std::int64_t beats = k.field(k.incumbent, "beats");
+    // NOTHING WAKES THE OLD SERVICE. Its wakes and its firings are frozen at the boundary and
+    // stay frozen past the probe's deadline -- because the host's wait reads the claim of the
+    // role, which is the successor's now, and the successor alone fires the probe.
+    const std::int64_t wakes = k.field(k.incumbent, "wakes");
     const std::int64_t fired = k.field(k.incumbent, "fired");
-    const std::int64_t candidate_beats = k.field(candidate, "beats");
-    k.r.pump_beats(100);
-    CHECK(k.field(k.incumbent, "beats") == beats);
+    const std::int64_t candidate_wakes = k.field(candidate, "wakes");
+    k.r.run_until(k.anchored + 5000 + 1000);
+    CHECK(k.field(k.incumbent, "wakes") == wakes);
     CHECK(k.field(k.incumbent, "fired") == fired);
-    CHECK(k.field(candidate, "beats") == candidate_beats + 100);
+    CHECK(k.field(candidate, "wakes") > candidate_wakes);
+    CHECK(k.field(candidate, "fired") == 1);
 
-    // ...and the retired service's clock stopped with it, so the letter it wrote
-    // described the boundary and not some later instant.
-    CHECK(k.field(k.incumbent, "active") == 1); // its table is frozen too
+    // ...and the retired service's table is frozen with it, so the letter it wrote described
+    // the boundary and not some later instant.
+    CHECK(k.field(k.incumbent, "active") == 1);
 
-    // EXACTLY ONE CHAIN, the successor's. Two would leave two parked beats.
-    k.r.pump_beats(1);
-    CHECK(k.r.bus.pending() == 1);
+    // And nothing is queued to keep anyone's time.
+    CHECK(k.r.bus.pending() == 0);
 }
 
 TEST_CASE("keystone: a prepared candidate told to start FRESH waits for no letter, asks nobody, "
@@ -4463,11 +4318,11 @@ TEST_CASE("keystone: a prepared candidate whose promised letter never arrives st
     CHECK(k.prep.claims == 1);  // it did ask
     CHECK(k.prep.relayed == 0); // and was never answered
 
-    // IT IS THE TIMER, AND IT WORKS. The bound is a count of its own beats, and
+    // IT IS THE TIMER, AND IT WORKS. The bound is a count of its own wakes, and
     // it spent exactly them before deciding the promise was not kept.
     CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
     CHECK(k.field(candidate, "inherited") == 0);
-    CHECK(k.field(candidate, "beats") == kPreparedClaimBeats);
+    CHECK(k.field(candidate, "wakes") == kPreparedClaimWakes);
     CHECK(k.r.seen.ready == 2);
 
     // The consumer is refused rather than silently restarted — the difference
@@ -4494,7 +4349,7 @@ TEST_CASE("keystone: a preparation ask reaches a LIVE Timer and is declined, and
     // re-point its bootstrap, reserve on its behalf, or make it wait for a
     // letter nobody is writing.
     k.r.ask(k.incumbent, PrepareTimerHandover{0, kInheritFromIncumbent});
-    k.r.pump_beats(3);
+    k.r.settle();
     REQUIRE(k.r.seen.declines.size() == 1);
     CHECK(k.r.seen.declines[0].find("already live") != std::string::npos);
     CHECK(k.field(k.incumbent, "active") == 1);
@@ -4517,7 +4372,7 @@ TEST_CASE("keystone: a preparation ask reaches a LIVE Timer and is declined, and
     // ...and the coordinator's own ordinary send, which the seal DOES deliver,
     // is answered with a decline rather than a second preparation.
     k.r.ask_as(k.coordinator, candidate, PrepareTimerHandover{0, kStartFresh});
-    k.r.pump_beats(3);
+    k.r.settle();
     CHECK(k.prep.prepared == 1);
 }
 
@@ -4525,7 +4380,7 @@ TEST_CASE("keystone: a forged letter cannot be inherited by a prepared candidate
           "wait early, and cannot overwrite what it did inherit") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
+    k.advance_until_remaining(2000);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
 
@@ -4562,7 +4417,7 @@ TEST_CASE("keystone: a forged letter cannot be inherited by a prepared candidate
     // Once resolved, always resolved.
     k.r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
                              false, 90000, static_cast<std::int64_t>(kClaimCorrelation)})));
-    k.r.pump_beats(3);
+    k.r.settle();
     CHECK(k.field(candidate, "inherited") == 1);
     CHECK(k.field(candidate, "active") == 1);
 }
@@ -4604,7 +4459,7 @@ TEST_CASE("keystone: retirement is private and finite — the old artifact unloa
           "and the new service never notices") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
+    k.advance_until_remaining(2000);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
     k.ask(kInheritFromIncumbent);
@@ -4639,45 +4494,41 @@ TEST_CASE("keystone: retirement is private and finite — the old artifact unloa
     CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
     CHECK(k.r.seen.ready == ready_before);
     CHECK(k.r.seen.fired.size() == fired_before);
-    k.advance_until_remaining(kVirtualStepMs);
+    k.advance_until_remaining(1);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
-    k.r.pump_beats(1);
+    k.r.run_for(1);
     CHECK(k.r.ask_probe(k.probe).fires == 1);
-    k.r.pump_beats(1);
-    CHECK(k.r.bus.pending() == 1); // exactly one chain, still
+    CHECK(k.r.bus.pending() == 0); // nothing queued to keep time, still
 }
 
-// ---- the pilot: the same crossing, on the REAL monotonic clock --------------
-// Virtual time is the right instrument for a semantic proof and the wrong one for whether it
-// all works on the OS's clock with real sleeps -- the shipped artifact, the real `timer.cpp`
-// clock, real deliveries. Loose about numbers, strict about MEANING: a real clock cannot promise
-// "exactly 200ms remained", so it pins that the schedule was PRESERVED rather than restarted --
-// the two answers sit a whole declared delay apart.
+// ---- the pilot: the same crossing, by the SHIPPED artifact -----------------------------------
+// The proofs above run the suites' build; this one runs the artifact a host ships (`timer.cpp`),
+// under the same host's wait, so what crossed is exact here too.
 
-TEST_CASE("keystone pilot: the SHIPPED real-clock Timer crosses a prepared replacement, and the "
-          "schedule it hands over is measured in real milliseconds") {
+TEST_CASE("keystone pilot: the SHIPPED Timer artifact crosses a prepared replacement, and the "
+          "schedule it hands over is exact") {
     Keystone k(TIMER_SO, /*with_probe=*/false);
 
     // A second real artifact from the same shipped library, sealed and its transaction begun
-    // before the schedule exists: a library load takes what the machine gives it, and none of
-    // that is the one-shot's time.
+    // before the schedule exists.
     const loom::WeaveId candidate = k.seal("zengine-timer-real-v2", TIMER_SO);
     REQUIRE(k.begin(candidate).ok);
 
-    // A 400ms one-shot, then roughly half of it spent on the real clock.
+    // A 400ms one-shot, then half of it spent, the incumbent handed the time at its end.
     const std::size_t receipts_asked = k.r.seen.receipts.size();
     k.r.ask_role(EnsureTimer{"pilot.oneshot", 400, false, kRestartDelay, ""});
-    k.r.wait_until(
-        k.incumbent, [&k, receipts_asked] { return k.r.seen.receipts.size() > receipts_asked; },
-        "the one-shot's receipt");
+    k.r.wait_until([&k, receipts_asked] { return k.r.seen.receipts.size() > receipts_asked; },
+                   "the one-shot's receipt");
     CHECK(k.r.seen.receipts.back().id == "pilot.oneshot");
     CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
-    k.r.pump_for(k.incumbent, 200);
+    const std::int64_t anchored = k.r.clock.now_ms();
+    k.r.ask_role(StartTimer{"suite.handed", 200, false});
+    k.r.run_until(anchored + 200);
 
     // The crossing, through the same coordinator. The re-ask preferring preservation is ordered at
     // the boundary -- the candidate has answered, nobody has committed -- so it reaches the
     // admitted candidate, which holds it through the restoration and answers it from what the
-    // letter carried before any beat of its own can run.
+    // letter carried before it fires anything.
     const std::size_t receipts_before = k.r.seen.receipts.size();
     k.ask(kInheritFromIncumbent);
     k.r.pump_until(PrepareTimerHandover::zen_name);
@@ -4699,40 +4550,25 @@ TEST_CASE("keystone pilot: the SHIPPED real-clock Timer crosses a prepared repla
         return std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "pilot.oneshot");
     };
 
-    // OWED OR PAID, NEVER BOTH AND NEVER NEITHER: the one-shot is in the letter exactly when it
-    // has not fired, since the incumbent fires only on its beats and its chain ends at the commit.
+    // WHAT CROSSED IS EXACT: half the 400ms is gone. A restarted schedule would read 400; a
+    // snapshot taken at the transaction's begin would not hold the one-shot at all.
     const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
     const TimerHandoffEntry* shot = k.crossed(crossed, "pilot.oneshot");
-    if (shot == nullptr) {
-        // PAID: the machine held the incumbent past the whole 400ms before the letter. It fired
-        // once, where it was always going to, and the re-ask finds nothing to preserve -- refused,
-        // with no fallback, so nothing is created and nothing fires again.
-        MESSAGE("the one-shot fired on the incumbent before its letter was written");
-        CHECK(fired() == 1);
-        CHECK(answered.front() == kResolutionRefused);
-        k.r.pump_for(candidate, 500);
-        CHECK(fired() == 1);
-        return;
-    }
-
-    // OWED, AND WHAT CROSSED IS A REAL MEASUREMENT: some of the 400ms is gone, and what is left is
-    // less than the whole delay. A restarted schedule would read 400; a snapshot taken at the
-    // transaction's begin would not hold the one-shot at all. Zero is an honest reading when the
-    // machine spent the rest before the letter.
+    REQUIRE(shot != nullptr);
     CHECK(fired() == 0);
     CHECK(shot->delay_ms == 400);
-    CHECK(shot->remaining_ms >= 0);
-    CHECK(shot->remaining_ms < 400);
+    CHECK(shot->remaining_ms == 200);
 
     // AND THE NEW SERVICE KEPT IT: the re-ask is answered `preserved_remaining` -- the receipt,
     // not an inference.
     CHECK(answered.front() == kResolutionPreserved);
 
-    // ...and it fires ONCE, inside the time that was actually left, which a schedule re-anchored
-    // at the commit would still be waiting out. The window is a stopwatch on the same service and
-    // the same clock, due after the one-shot, so a beat that fires the stopwatch has fired it too.
-    k.r.pump_for(candidate, shot->remaining_ms + 100);
+    // ...and it fires ONCE, at the time that was left, which a schedule re-anchored at the commit
+    // would still be waiting out.
+    k.r.run_until(anchored + 400 - 1);
+    CHECK(fired() == 0);
+    k.r.run_until(anchored + 400);
     CHECK(fired() == 1);
-    k.r.pump_for(candidate, 100);
+    k.r.run_for(1000);
     CHECK(fired() == 1);
 }

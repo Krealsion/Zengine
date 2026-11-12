@@ -351,7 +351,7 @@ zengine_test_definitions(zengine-editor-pane-losing ZENGINE_EDITOR_TEST_LOSSES=1
 # test cases, which stock doctest calls a success (VM-POP-04).
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
 target_link_libraries(zengine-tests
-    PRIVATE loom::kernel loom::switchboard loom::core
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy
             zengine-graphics-vocabulary zengine-input-vocabulary zengine-timer-vocabulary
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-tests PRIVATE
@@ -385,7 +385,7 @@ zengine_doctest_test(snake zengine-tests)
 # with nobody pumping them.
 add_executable(zengine-timer-tests test_timer.cpp doctest_main.cpp)
 target_link_libraries(zengine-timer-tests
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy zengine-timer-vocabulary
             zengine-input-vocabulary zengine-graphics-vocabulary zengine-operator
             zengine-operator-stranger zengine-warnings zengine-sanitize)
 target_include_directories(zengine-timer-tests PRIVATE
@@ -768,6 +768,7 @@ foreach(stem IN ITEMS thermostat boundaries high_water empty)
 endforeach()
 add_executable(zengine-flow-tests test_flow.cpp test_flow_runtime.cpp test_flow_graph.cpp test_flow_view.cpp doctest_main.cpp)
 target_link_libraries(zengine-flow-tests PRIVATE zengine-flow zengine-flow-host zengine-graphics-vocabulary loom::kernel
+                                                 loom::host-policy
                                                  zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-tests
@@ -954,7 +955,7 @@ zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphi
 # never returns.
 set(ZENGINE_WORKSHOP_LIBS
     zengine-workshop-rig-windows
-    loom::kernel loom::switchboard loom::core loom::terminal
+    loom::kernel loom::switchboard loom::core loom::terminal loom::host-policy
     # The vocabulary is the headers and the logic their bodies, compiled once
     # (workshop/CMakeLists.txt): a suite that included the bodies would emit them all again.
     zengine-workshop-vocabulary zengine-workshop-logic zengine-workshop-load
@@ -1781,7 +1782,7 @@ zengine_test_definitions(zengine-build-witness
 # behaviour lives here.
 add_executable(zengine-audit-probes test_audit_probes.cpp doctest_main.cpp)
 target_link_libraries(zengine-audit-probes
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy zengine-timer-vocabulary
             zengine-operator zengine-warnings zengine-sanitize)
 target_include_directories(zengine-audit-probes PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
