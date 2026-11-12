@@ -239,17 +239,21 @@ jobs:
         run: |
           set -eu
           set_hash=$(printf '%s\n' $BUILD_SET | sort | sha256sum | cut -c 1-16)
-          echo "key=package-linux-apt-$APT_SNAPSHOT-$set_hash" >> "$GITHUB_OUTPUT"
+          echo "key=package-linux-apt-$APT_SNAPSHOT-$set_hash-" >> "$GITHUB_OUTPUT"
           echo "The build set's hash is $set_hash, over $(printf '%s\n' $BUILD_SET | wc -l) packages."
 
+      # The newest cache of this archive and build set, whole or as far as a failed run got: a
+      # run saves under a key of its own whenever it downloaded something, so a cache that a
+      # failed download left part-filled is never the last word.
       - name: Restore the download cache
-        id: apt-restore
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/apt-archives
-          key: ${{ steps.apt-cache.outputs.key }}
+          key: ${{ steps.apt-cache.outputs.key }}${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ steps.apt-cache.outputs.key }}
 
       - name: Install the build set from the dated archive
+        id: install
         run: |
           set -eu
           export DEBIAN_FRONTEND=noninteractive
@@ -318,11 +322,23 @@ jobs:
             -o Dir::Cache::Archives="$archives" -o APT::Keep-Downloaded-Packages=true \
             $BUILD_SET > "$RUNNER_TEMP/install.log" 2>&1 || status=$?
           cat "$RUNNER_TEMP/install.log"
+          if grep -q '^Get:' "$RUNNER_TEMP/install.log"; then
+            echo "downloaded=true" >> "$GITHUB_OUTPUT"
+          fi
           if [ "$status" -eq 124 ]; then
             echo "::error title=snapshot.ubuntu.com was too slow::the build set did not arrive" \
               "from the dated archive $APT_SNAPSHOT at snapshot.ubuntu.com within" \
               "$INSTALL_LIMIT_MIN min: the archive's service was slow, not the change. Re-run" \
               "this job once snapshot.ubuntu.com answers."
+            exit 1
+          fi
+          if [ "$status" -ne 0 ] && grep -q '^E: Failed to fetch https://snapshot.ubuntu.com/' "$RUNNER_TEMP/install.log"; then
+            echo "::error title=snapshot.ubuntu.com did not answer whole::apt-get install could" \
+              "not fetch $(grep -c '^E: Failed to fetch' "$RUNNER_TEMP/install.log") of the build" \
+              "set's packages from the dated archive $APT_SNAPSHOT at snapshot.ubuntu.com" \
+              "($(grep -m 1 '^E: Failed to fetch' "$RUNNER_TEMP/install.log" | sed 's/.*\.deb *//')):" \
+              "the archive's service failed, not the change. What arrived is kept for the re-run;" \
+              "re-run this job once snapshot.ubuntu.com answers."
             exit 1
           fi
           [ "$status" -eq 0 ] || exit "$status"
@@ -333,11 +349,11 @@ jobs:
           g++ --version | head -n 1; cmake --version | head -n 1
 
       - name: Save the download cache
-        if: ${{ steps.apt-restore.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && steps.install.outputs.downloaded == 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/apt-archives
-          key: ${{ steps.apt-cache.outputs.key }}
+          key: ${{ steps.apt-cache.outputs.key }}${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Check out the chosen Zengine commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
