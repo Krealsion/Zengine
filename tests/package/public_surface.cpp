@@ -66,6 +66,10 @@
 #include "manual/manual.hpp"
 #include "manual/vocabulary.hpp"
 
+#include "builder/recipe.hpp"
+#include "builder/vocabulary.hpp"
+#include "launcher/vocabulary.hpp"
+
 #include "view/description.hpp"
 #include "view/host.hpp"
 #include "view/view.hpp"

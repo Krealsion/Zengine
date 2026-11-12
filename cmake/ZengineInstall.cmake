@@ -169,6 +169,11 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_v
                                       workshop/open_seam_vocabulary.hpp
                                       workshop/project_seam_vocabulary.hpp
                                       workshop/settings_seam_vocabulary.hpp)
+# ...and the words a pane and its host's offices both speak, installed beside the pane contract
+# though Workshop's Builder and launcher answer them: what to build and what a build came to, the
+# recipe a weaver authors (`builder/`), and what to launch (`launcher/`).
+set(zengine_public_headers_builder    builder/vocabulary.hpp builder/recipe.hpp)
+set(zengine_public_headers_launcher   launcher/vocabulary.hpp)
 # The view package: a view described as data, its renderer and the host that registers each view as
 # its own participant, the host's manual with it (below).
 set(zengine_public_headers_view view/vocabulary.hpp view/description.hpp view/view.hpp
@@ -217,7 +222,7 @@ endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
                     editor/source-transfer activation timer input ui manual component persist property
-                    operator pane view workshop editor/neovim-editor graphics graphics/elements
+                    operator pane builder launcher view workshop editor/neovim-editor graphics graphics/elements
                     graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
@@ -506,7 +511,7 @@ install(FILES ${ZENGINE_GRAPHICS_THEME_FILES}
         DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/graphics/themes)
 
 # ---- what is deliberately not in the package -----------------------------------------------
-# Workshop's own vocabularies and load plan, the Builder's, and the pane weaves' header halves:
+# Workshop's own vocabularies and load plan, the Builder's but its words, and the pane weaves' header halves:
 # Workshop being Workshop, which no stranger needs to offer it a pane (the pane protocol is in).
 # zengine-warnings and zengine-sanitize: build discipline, PRIVATE on every target. zengine-snake.
 # zengine-workshop outside the package: a build's compiles the absolute path of its CMake

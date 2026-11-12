@@ -7,7 +7,9 @@ loaded into the running program, or swapped into a weave that is already running
 its state.**
 
 A recipe says what to build and which file it makes, never which program to run: every build is
-one run of CMake. The Builder is part of Workshop; nothing here is installed for other programs.
+one run of CMake. The Builder is part of Workshop. Its words, what to build and what a build came to
+(`vocabulary.hpp`) and the recipe a weaver authors (`recipe.hpp`), are Zengine's, installed beside
+the pane contract for any pane or host to speak.
 
 ## Tutorials
 

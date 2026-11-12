@@ -17,7 +17,6 @@ side external-host/ workshop
 side workshop/menu-presenter/ zengine
 
 line app/folder.hpp workshop/load_persist.hpp 1 falls
-line app/host.hpp builder/vocabulary.hpp 1 falls
 line app/host.hpp workshop/load_execute.hpp 1 falls
 line app/host.hpp workshop/load_persist.hpp 1 falls
 line app/main.cpp workshop/bus_tally.hpp 1 falls
@@ -36,9 +35,6 @@ line editor/neovim-editor/pane.cpp workshop/pane_seam_vocabulary.hpp 1 falls
 line editor/source-transfer/material.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
 line examples/snake/play.cpp workshop/bus_tally.hpp 1 falls
 line external-host/vocabulary_weave.hpp notices/vocabulary.hpp 1 falls
-line files/files.cpp builder/vocabulary.hpp 1 falls
-line files/files.cpp launcher/vocabulary.hpp 1 falls
-line files/recipe_authoring.hpp builder/recipe.hpp 1 falls
 line flow/flow-pane/find.hpp workshop/powers_vocabulary.hpp 1 falls
 line flow/flow-pane/model.hpp workshop/powers_vocabulary.hpp 1 falls
 line flow/flow-pane/pane.cpp workshop/powers_vocabulary.hpp 1 falls
@@ -70,7 +66,6 @@ line notices/notices.cpp workshop/notice_seam_vocabulary.hpp 1 falls
 line terminal/history_and_completion.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
 line terminal/pane.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
 line terminal/view.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
-line view/view-builder/pane.cpp launcher/vocabulary.hpp 1 falls
 line workshop/authoring.hpp persist/file.hpp 1 falls
 line workshop/first-run/setup.hpp info/vocabulary.hpp 1 falls
 line workshop/first-run/setup.hpp notices/notices-pane/vocabulary.hpp 1 falls

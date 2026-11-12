@@ -52,8 +52,8 @@ its `elements/` and `window/`; the directory and the windows are artifacts, belo
 authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
 `flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`), `flow-host` (the Flow host,
-`flow/flow-host/runtime.hpp`, which Workshop and `zengine-app` both mount, its manual with it) and
-`view` (a view as data, its renderer and the view host, which both hosts compose). The optional
+`flow/flow-host/runtime.hpp`, which both hosts here mount, its manual with it) and `view` (a view as
+data, drawn, and its host). The optional
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
@@ -104,16 +104,16 @@ page does not spell them.
 
 **What is deliberately out of the developer package, and why** (each is a limit, not an
 oversight): the GUI window (`zengine-window-sdl`), because a fetched SDL is a build-tree library
-the developer package does not carry; Workshop, because a
-build's executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured
-it, so installing it would ship one machine's layout -- the package below carries both;
-the Flow pane's model and view and the View Builder, each a pane's own insides, the Flow pane's
-control vocabulary public through `zengine::flow` so another participant can drive it; the rest
-of the Workshop/Builder/introspection/composer vocabularies and the
-pane weaves that spend them (`zengine-files`, `zengine-builder-pane`), because they are Workshop
-being Workshop — a stranger's pane needs only the pane protocol, which is in, since a pane
-arrives by an authored load-plan row; the Timer's service headers, because using the Timer is
-supported and *being* one has not been measured.
+the developer package does not carry; Workshop, because a build's executable carries
+`ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured it, so installing it would
+ship one machine's layout -- the package below carries both; the panes' own insides, the Flow
+pane's model and view and the View Builder's among them, a pane's control vocabulary public where
+another participant drives it (the Flow pane's, through `zengine::flow`); Workshop's own
+vocabularies and the pane weaves that spend them (`zengine-files`, `zengine-builder-pane`),
+because they are Workshop being Workshop -- a stranger's pane needs only the pane contract and the
+words Workshop's offices answer (the Builder's and the launcher's, beside the contract), which are
+in, since a pane arrives by an authored load-plan row; the Timer's service headers, because using
+the Timer is supported and *being* one has not been measured.
 
 ## The package a stranger downloads
 
