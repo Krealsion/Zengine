@@ -15,7 +15,7 @@
 
 #include "graphics/vocabulary.hpp"
 #include "manual/manual.hpp"
-#include "workshop/pane_document.hpp"
+#include "pane/document.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -65,7 +65,7 @@ inline std::string census_line(const std::string& role, const std::string& mode,
 
 /// ...A HELD ROW'S, read from what Workshop holds of the declaration.
 inline std::string census_line(const std::string& role, const std::string& mode,
-                               const v4::PaneActionRow& a) {
+                               const zengine::pane::v4::PaneActionRow& a) {
     return census_line(role, mode, a.id, a.scancode, a.modifiers, a.causes, a.enters, a.label,
                        a.posix_scancode, a.posix_modifiers);
 }
@@ -197,7 +197,7 @@ struct RoleCensus {
 
 /// ...AND A HELD PANE'S ROWS ADDED IN ITS MODE, with what that mode says of the pane's others.
 inline void census_take(RoleCensus& into, const std::string& role, const RuntimePane& held) {
-    for (const v4::PaneActionRow& a : held.actions) {
+    for (const zengine::pane::v4::PaneActionRow& a : held.actions) {
         into.lines.push_back(census_line(role, held.mode, a));
     }
     into.elsewhere[held.pane][held.mode] = held.elsewhere;
@@ -416,7 +416,7 @@ public:
     /// ...PRESSED AS WORKSHOP SAYS A RESOLVED KEY: the row's id, to `pane` of this role, as
     /// Workshop's own role -- the press a pane hears whatever gesture made it.
     void judge(PaneRig& r, const std::string& pane, const std::string& mode,
-               const v4::PaneActionRow& row) {
+               const zengine::pane::v4::PaneActionRow& row) {
         judge(r.bus, r.bus.role_holder(role_), mode, row.id, row.causes, [&] {
             CHECK(r.workshop_action(role_, pane, row.id).delivered);
         });
@@ -509,7 +509,7 @@ void press_each_state(PressWitness& w, const std::function<std::unique_ptr<Rig>(
         const std::unique_ptr<Rig> rig = make();
         walk(*rig, [&](const RuntimePane& held) {
             std::vector<std::string> keys;
-            for (const v4::PaneActionRow& row : held.actions) {
+            for (const zengine::pane::v4::PaneActionRow& row : held.actions) {
                 keys.push_back(press_key(held.mode, row.id));
             }
             rows.push_back(std::move(keys));
@@ -526,7 +526,7 @@ void press_each_state(PressWitness& w, const std::function<std::unique_ptr<Rig>(
                 walk(*rig, [&](const RuntimePane& held) {
                     if (at++ != state) return;
                     REQUIRE(held.actions.size() == rows[state].size());
-                    const v4::PaneActionRow row = held.actions[i];
+                    const zengine::pane::v4::PaneActionRow row = held.actions[i];
                     const std::string pane = held.pane;
                     const std::string mode = held.mode;
                     w.judge(pane_rig(*rig), pane, mode, row);

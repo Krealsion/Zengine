@@ -141,7 +141,7 @@ Inventory**, does the same.
 - **Refuses:** each beginning `nothing was carried -- `: `select text first; nothing else is carried
   in its place`; `no source is open`; `the selection changed after you pointed at it`; `a copy is
   already on its way to Workshop`; the copy's own refusal past the carry's bound (`kMaxCarryBytes`,
-  `workshop/pane_carry.hpp`), never cut; and Workshop's reason when it does not approve.
+  `pane/carry.hpp`), never cut; and Workshop's reason when it does not approve.
 - **Example:** select a function, press <!-- key editor.extract -->`ctrl+e`<!-- /key -->, click
   Inventory's Snippets folder.
 

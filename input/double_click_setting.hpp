@@ -12,7 +12,7 @@
 
 #include "vocabulary.hpp"
 
-#include "workshop/pane_settings.hpp"
+#include "pane/settings.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -27,7 +27,7 @@ struct DoubleClickSetting {
     /// EVERY ACTIVATION: the setting declared to the role that keeps it, which hands it back.
     template <class Self>
     void on(Self&, const loom::Activated&, loom::Mail& mail) {
-        workshop::v2::PaneSettingRow row;
+        pane::v2::PaneSettingRow row;
         row.key = kSettingDoubleClickMs;
         row.number = kDefaultDoubleClickMs;
         row.low = kLeastDoubleClickMs;
@@ -35,18 +35,18 @@ struct DoubleClickSetting {
         row.tags = {"pointer"};
         row.summary = "how close in time two presses are one double click, in ms";
         (void)mail.as_role(kInputRole)
-            .send_to_role(workshop::kLayoutsRole, workshop::RoleSettingsDeclared{{row}});
+            .send_to_role(pane::kLayoutsRole, workshop::RoleSettingsDeclared{{row}});
     }
 
     /// THE SETTING AS THE LAYOUTS' OWNER KEEPS IT, from that role alone: a default is kept as
     /// its absence, so none is `kDefaultDoubleClickMs`.
     template <class Self>
     void on(Self& self, const workshop::RoleSettings& kept, loom::Mail& mail) {
-        if (!mail.authored_from_role(workshop::kLayoutsRole)) {
+        if (!mail.authored_from_role(pane::kLayoutsRole)) {
             return;
         }
         std::int64_t ms = kDefaultDoubleClickMs;
-        for (const workshop::PaneSetting& s : kept.settings) {
+        for (const pane::PaneSetting& s : kept.settings) {
             if (s.key == kSettingDoubleClickMs && s.number) {
                 ms = *s.number;
             }

@@ -45,7 +45,7 @@ inline constexpr const char* kArrangementPaneSummary =
 inline constexpr const char* kPowersPaneName = "Powers";
 inline constexpr const char* kPowersPaneSummary = "which operators resolve, and who supplies each";
 
-/// THE SETTINGS THE POWERS PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp):
+/// THE SETTINGS THE POWERS PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp):
 /// the columns its chrome row draws the view control and the composite control in, and the spaces
 /// between two of the row's segments.
 inline constexpr const char* kSettingViewColumns = "view-columns";

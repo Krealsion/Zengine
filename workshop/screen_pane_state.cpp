@@ -8,6 +8,7 @@
 #include "screen.hpp"
 
 namespace zengine::workshop {
+using pane::RegionPixels;
 
 using zengine::property::TextForm;
 

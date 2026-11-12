@@ -10,9 +10,9 @@
 // that name, in the graphics window that shows it, and publishes what happens in it (TdSeen,
 // TdOccurred) for whoever its host lets observe it.
 
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/drawing.hpp"
+#include "pane/rows.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"

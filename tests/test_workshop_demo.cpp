@@ -14,7 +14,7 @@ namespace {
 namespace demo = zengine::demo;
 namespace gfx = zengine::graphics;
 /// The demo controls' area in a window (D12).
-const std::string kDemoArea = zengine::workshop::pane_area(demo::kRole, demo::kControlsPane);
+const std::string kDemoArea = zengine::pane::pane_area(demo::kRole, demo::kControlsPane);
 /// A room `columns` by `rows` of a window whose text is the cell.
 RowsRoom cell_room(std::int64_t columns, std::int64_t rows) {
     return RowsRoom{columns * gfx::kCellPx, rows * gfx::kCellPx, {}};
@@ -22,10 +22,10 @@ RowsRoom cell_room(std::int64_t columns, std::int64_t rows) {
 struct DemoTestPump { ZEN_SHAPE(DemoTestPump, 1); };
 class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
     loom::Accept<DemoTestPump, loom::Ack, loom::Refused, demo::DemoWork, demo::DemoStatus,
-                 PanePassRequested, v3::PaneActions, v2::PaneOffered>,
+                 PanePassRequested, zengine::pane::v3::PaneActions, zengine::pane::v2::PaneOffered>,
     loom::Emit<demo::DemoServiceOpened, demo::DemoServiceClosed, demo::DemoWorkRequested,
                demo::DemoWorkFinished, demo::DemoResetRequested, demo::DemoReadyRequested,
-               demo::DemoStatusRequested, SetupApplyRequested, v2::PaneOffered,
+               demo::DemoStatusRequested, SetupApplyRequested, zengine::pane::v2::PaneOffered,
                PaneActionRequested, PaneCatalogRequested, gfx::ActionRequested,
                gfx::AreaButtonChanged>> {
 public:
@@ -41,10 +41,10 @@ public:
     void on(const loom::Refused& r, loom::Mail&) { refused.push_back(r.reason); }
     void on(const demo::DemoWork& w, loom::Mail& m) { CHECK(m.answers_ask()); work.push_back(w); }
     void on(const demo::DemoStatus& s, loom::Mail& m) { CHECK(m.answers_ask()); status.push_back(s); }
-    void on(const v2::PaneOffered&, loom::Mail&) {}
-    void on(const v3::PaneActions& a, loom::Mail&) {
+    void on(const zengine::pane::v2::PaneOffered&, loom::Mail&) {}
+    void on(const zengine::pane::v3::PaneActions& a, loom::Mail&) {
         rows.clear();
-        for (const v3::PaneActionRow& row : a.rows) rows.push_back(row.id);
+        for (const zengine::pane::v3::PaneActionRow& row : a.rows) rows.push_back(row.id);
     }
     void on(const PanePassRequested&, loom::Mail&) { ++passed; }
 };
@@ -128,7 +128,7 @@ TEST_CASE("the manual the Demo controls answer is the page their build embedded,
     const RuntimePane* held = d.held();
     REQUIRE(held != nullptr);
     std::set<std::string> ids;
-    for (const v4::PaneActionRow& a : held->actions) ids.insert(a.id);
+    for (const zengine::pane::v4::PaneActionRow& a : held->actions) ids.insert(a.id);
     ManualReader reader(d.r, demo::kRole);
     check_answered_manual(reader, "controls", ids);
     const PaneDocumentShown whole = reader.ask("controls", "");

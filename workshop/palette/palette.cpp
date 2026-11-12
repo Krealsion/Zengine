@@ -12,13 +12,13 @@
 
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_rows_block.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/causes.hpp"
+#include "pane/drawing.hpp"
+#include "pane/rows.hpp"
+#include "pane/rows_block.hpp"
+#include "pane/text.hpp"
+#include "pane/operation.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/actor_scope.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
@@ -29,7 +29,7 @@
 #include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -49,7 +49,7 @@ namespace gfx = zengine::graphics;
 namespace input = zengine::input;
 namespace pal = zengine::palette;
 
-constexpr const char* kWorkshop = zengine::workshop::pane_menu::kWorkshopRole;
+constexpr const char* kWorkshop = zengine::pane::pane_menu::kWorkshopRole;
 constexpr const char* kRole = ws::kPaletteRole;
 constexpr const char* kPane = ws::kPalettePane;
 
@@ -69,15 +69,15 @@ struct PaletteState {
 class Palette
     : public loom::WeaveBase<
           Palette, PaletteState,
-          loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneKey,
-                       ws::PaneTextInput, ws::PaneActionRequested, ws::KeymapShown,
+          loom::Accept<loom::Activated, zengine::pane::PaneCatalogRequested, zengine::pane::PaneKey,
+                       zengine::pane::PaneTextInput, zengine::pane::PaneActionRequested, ws::KeymapShown,
                        ws::PaneInventory, ws::CommandRunAnswered, ws::LayoutSettingsAnswered,
-                       ws::PaneOperationAnswered, zengine::launcher::LaunchCatalog,
+                       zengine::pane::PaneOperationAnswered, zengine::launcher::LaunchCatalog,
                        zengine::launcher::Launched, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
-          loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::KeymapRequested,
+          loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v3::PaneActions, ws::KeymapRequested,
                      ws::PaneInventoryRequested, ws::CommandRunRequested,
-                     ws::LayoutSettingsRequested, ws::v2::PaneOperationRequested,
+                     ws::LayoutSettingsRequested, zengine::pane::v2::PaneOperationRequested,
                      zengine::launcher::LaunchCatalogRequested, zengine::launcher::Launch,
                      gfx::Drawn, gfx::RoomAsked>> {
 public:
@@ -94,7 +94,7 @@ public:
                                                      gfx::RoomAsked{window_.area()});
         }
     }
-    void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCatalogRequested&, loom::Mail& mail) {
         if (mail.authored_from_role(kWorkshop)) {
             offer(mail);
         }
@@ -116,7 +116,7 @@ public:
     }
 
     /// THE FILTER'S KEYS: what is typed, and the text box's own editing keys.
-    void on(const ws::PaneTextInput& text, loom::Mail& mail) {
+    void on(const zengine::pane::PaneTextInput& text, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || text.pane != kPane) {
             return;
         }
@@ -134,7 +134,7 @@ public:
         filter_.type(printable);
         refiltered(mail);
     }
-    void on(const ws::PaneKey& key, loom::Mail& mail) {
+    void on(const zengine::pane::PaneKey& key, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || key.pane != kPane) {
             return;
         }
@@ -145,7 +145,7 @@ public:
 
     /// ITS ROWS, as Workshop sent them for a hand's key: the run goes out under that key's own
     /// number, which Workshop recorded as that hand's act.
-    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
+    void on(const zengine::pane::PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || asked.pane != kPane) {
             return;
         }
@@ -209,7 +209,7 @@ public:
 
     /// WORKSHOP'S WORD ON A START THIS PALETTE ASKED ABOUT, for the hand that pressed its row:
     /// allowed, the launcher is asked; refused, nothing starts and the refusal is said.
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+    void on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail) {
         if (!answers(mail, approval_ask_)) {
             return;
         }
@@ -358,19 +358,19 @@ private:
 
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kRole).send_to_role(
-            kWorkshop, ws::v2::PaneOffered{kPane, "Palette", "every action and pane, found by name",
+            kWorkshop, zengine::pane::v2::PaneOffered{kPane, "Palette", "every action and pane, found by name",
                                            18, 64});
-        ws::v3::PaneActions actions;
+        zengine::pane::v3::PaneActions actions;
         actions.pane = kPane;
-        const std::vector<ws::ActionCause> runs{ws::cause_of<ws::CommandRunRequested>()};
-        actions.rows.push_back(ws::v3::PaneActionRow{kUp, "previous entry", input::scan::kUp,
+        const std::vector<zengine::pane::ActionCause> runs{zengine::pane::cause_of<ws::CommandRunRequested>()};
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{kUp, "previous entry", input::scan::kUp,
                                                      input::mod::kNone, "", {}});
-        actions.rows.push_back(ws::v3::PaneActionRow{kDown, "next entry", input::scan::kDown,
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{kDown, "next entry", input::scan::kDown,
                                                      input::mod::kNone, "", {}});
-        actions.rows.push_back(ws::v3::PaneActionRow{
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{
             kRun, "run the entry", input::scan::kReturn, input::mod::kNone, "",
-            {ws::cause_of<ws::CommandRunRequested>(), ws::cause_of<zengine::launcher::Launch>()}});
-        actions.rows.push_back(ws::v3::PaneActionRow{kClose, "put the palette down",
+            {zengine::pane::cause_of<ws::CommandRunRequested>(), zengine::pane::cause_of<zengine::launcher::Launch>()}});
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{kClose, "put the palette down",
                                                      input::scan::kEscape, input::mod::kNone, "",
                                                      runs});
         (void)mail.as_role(kRole).send_to_role(kWorkshop, actions);
@@ -380,7 +380,7 @@ private:
         (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::KeymapRequested{});
         (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{});
         layouts_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole, ws::LayoutSettingsRequested{},
+        (void)mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole, ws::LayoutSettingsRequested{},
                                                  layouts_ask_);
         listing_ask_ = ++asks_;
         (void)mail.as_role(kRole).send_to_role(zengine::launcher::kLauncherRole,
@@ -402,7 +402,7 @@ private:
             show(mail);
             return;
         }
-        ws::v2::PaneOperationRequested asked;
+        zengine::pane::v2::PaneOperationRequested asked;
         asked.pane = kPane;
         asked.gesture = static_cast<std::int64_t>(mail.correlation());
         asked.classes = {ws::scope::kBuild, ws::scope::kWrite};
@@ -498,7 +498,7 @@ private:
                          gfx::colors::background);
         sketch.fill_rect("head", 0, 0, window_.width(), kHead * text.line, head_ground());
 
-        ws::RowsBlock<Line> head;
+        zengine::pane::RowsBlock<Line> head;
         head.begin(kHead, columns());
         const std::string prefix = "find: ";
         (void)head.push({prefix + filter_.text(), gfx::colors::accent});
@@ -509,10 +509,10 @@ private:
                      " left out past " + std::to_string(pal::kMaxEntries);
         }
         // Fitted, so a start the row cannot hold is cut with a mark instead of dropped at the area's edge.
-        const std::string started = ws::pane_text::fit(started_, columns());
-        (void)head.push(!notice_.empty()    ? ws::TextRow{notice_, gfx::colors::alert}
-                        : !started_.empty() ? ws::TextRow{started, gfx::colors::accent}
-                                            : ws::TextRow{count, gfx::colors::quiet});
+        const std::string started = zengine::pane::pane_text::fit(started_, columns());
+        (void)head.push(!notice_.empty()    ? zengine::pane::TextRow{notice_, gfx::colors::alert}
+                        : !started_.empty() ? zengine::pane::TextRow{started, gfx::colors::accent}
+                                            : zengine::pane::TextRow{count, gfx::colors::quiet});
         head.caret().row = 0;
         head.caret().column = static_cast<std::int64_t>(prefix.size() + filter_.caret());
         const auto always = [](const Line&) { return true; };
@@ -558,13 +558,13 @@ private:
     zengine::component::TextBox filter_;
     zengine::component::Clipboard clipboard_;
     std::size_t cursor_ = 0, first_ = 0;
-    ws::RowsBlock<Line> entries_;   ///< the entries' lines last drawn, and what each means
+    zengine::pane::RowsBlock<Line> entries_;   ///< the entries' lines last drawn, and what each means
     std::string notice_;
     std::string started_; ///< the palette's own start, said where no refusal stands
     bool in_flight_ = false;
     std::uint64_t asked_ = 0;
     std::string running_;
-    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)};
+    zengine::pane::WindowDrawing window_{kRole, zengine::pane::pane_area(kRole, kPane)};
     zengine::ActivationCursor activation_;
 };
 

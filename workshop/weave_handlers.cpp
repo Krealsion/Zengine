@@ -7,6 +7,7 @@
 #include "weave.hpp"
 
 namespace zengine::workshop {
+using pane::PaneCatalogRequested;
 
 // The terminal door reads the same host this weave does.
 WorkshopWeave::WorkshopWeave(HostContext& host) : Weave(host), host_(&host) {}

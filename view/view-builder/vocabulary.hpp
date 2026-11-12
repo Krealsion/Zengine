@@ -18,7 +18,7 @@ namespace zengine::view_builder {
 inline constexpr const char* kRole = "zengine.view.builder";
 inline constexpr const char* kPane = "view-builder";
 
-/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): how
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp): how
 /// near, in pixels, an edge placed by hand snaps to another, and the size `new` makes a view at.
 inline constexpr const char* kSettingSnapReach = "snap-reach";
 inline constexpr const char* kSettingNewWidth = "new-width";

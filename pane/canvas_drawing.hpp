@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_CANVAS_DRAWING_HPP
-#define ZENGINE_WORKSHOP_PANE_CANVAS_DRAWING_HPP
+#ifndef ZENGINE_PANE_CANVAS_DRAWING_HPP
+#define ZENGINE_PANE_CANVAS_DRAWING_HPP
 
 // A pane's canvas picture as a graphics window draws it: its rectangles, labels and runs of text in
 // the order Workshop paints them, then each part it names painted again over its own place, clipped
@@ -13,8 +13,8 @@
 #include "graphics/canvas.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/vocabulary.hpp"
-#include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_picture.hpp"
+#include "pane/canvas_text.hpp"
+#include "pane/picture.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// A graphics window's room as a pane draws in it: `width` by `height` pixels, in the window's unit
 /// and its text. A window that shows every pixel (`cell_px` above zero) is a graphical room a pixel
@@ -214,6 +214,6 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
     return out;
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_CANVAS_DRAWING_HPP
+#endif // ZENGINE_PANE_CANVAS_DRAWING_HPP

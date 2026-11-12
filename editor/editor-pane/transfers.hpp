@@ -11,7 +11,7 @@
 // other place.
 // Workshop law: agents/workshop/editor-transfers.md
 
-// The pane's half of Workshop's value carry (`workshop/pane_carry.hpp`): Workshop carries owned
+// The pane's half of Workshop's value carry (`pane/carry.hpp`): Workshop carries owned
 // bytes and interprets none of them; this pane decides what a drop means for its document
 // (`editor/source-transfer/material.hpp`), and asks Workshop to approve every acquisition and every
 // open for the gesture that caused it. Nothing here saves, builds, sends or runs.
@@ -23,10 +23,10 @@
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_operation.hpp"
+#include "pane/rows.hpp"
+#include "pane/carry.hpp"
+#include "pane/menu.hpp"
+#include "pane/operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
@@ -49,30 +49,30 @@ namespace {
 /// hands the press back. A press landed on another line than the rows show now is refused in words;
 /// on its line in a drawing whose meaning moved since, it is ordinary (WL-EDIT-18).
 // WL-PRESS-07 -- agents/workshop/press-chain.md
-inline void EditorPaneWeave::on_window(const std::optional<ws::WindowPointer>& p,
+inline void EditorPaneWeave::on_window(const std::optional<zengine::pane::WindowPointer>& p,
                                        loom::Mail& mail) {
     if (!p) {
         return;
     }
     const std::int64_t gesture =
-        p->phase == ws::canvas_pointer::kLost ? held_ : static_cast<std::int64_t>(p->press);
+        p->phase == zengine::pane::canvas_pointer::kLost ? held_ : static_cast<std::int64_t>(p->press);
     const bool current = !p->moved && (!p->told || p->drawing == picture_);
-    pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, gesture,
+    pointer(p->phase, p->phase == zengine::pane::canvas_pointer::kMove ? 1 : p->button, p->at, gesture,
             p->dy, p->moved, current, mail);
 }
 
 /// ONE MOMENT OF THE POINTER at a cell of the rows the pane drew: `moved` when the window drew
 /// another line there, `current` when the press names the drawing the pane holds now.
 inline void EditorPaneWeave::pointer(std::int64_t phase, std::int64_t button,
-                                     const ws::RowCell& at, std::int64_t gesture, double dy,
+                                     const zengine::pane::RowCell& at, std::int64_t gesture, double dy,
                                      bool moved, bool current, loom::Mail& mail) {
-    if (phase == ws::canvas_pointer::kPress && (button == 1 || button == 3) && moved) {
+    if (phase == zengine::pane::canvas_pointer::kPress && (button == 1 || button == 3) && moved) {
         held_ = 0;
         notice("nothing was pressed -- the text moved under the press; press again", true);
         say(mail);
         return;
     }
-    if (phase == ws::canvas_pointer::kPress && button == 1) {
+    if (phase == zengine::pane::canvas_pointer::kPress && button == 1) {
         held_ = at.shown ? gesture : 0;
         if (at.shown) {
             press_at(at.row, at.column, current, mail);
@@ -80,16 +80,16 @@ inline void EditorPaneWeave::pointer(std::int64_t phase, std::int64_t button,
             end_grab();
             drag_ = Drag{};
         }
-    } else if (phase == ws::canvas_pointer::kPress && button == 3) {
+    } else if (phase == zengine::pane::canvas_pointer::kPress && button == 3) {
         right_press(at, current, mail);
-    } else if (phase == ws::canvas_pointer::kMove && button == 1 && held_ != 0 &&
+    } else if (phase == zengine::pane::canvas_pointer::kMove && button == 1 && held_ != 0 &&
                gesture == held_) {
         dragged(at.row, at.column, mail);
-    } else if ((phase == ws::canvas_pointer::kRelease || phase == ws::canvas_pointer::kLost) &&
+    } else if ((phase == zengine::pane::canvas_pointer::kRelease || phase == zengine::pane::canvas_pointer::kLost) &&
                button == 1 && gesture == held_) {
         held_ = 0;
         drag_ = Drag{};
-    } else if (phase == ws::canvas_pointer::kWheel) {
+    } else if (phase == zengine::pane::canvas_pointer::kWheel) {
         wheel(dy, mail);
     }
 }
@@ -230,11 +230,11 @@ inline void EditorPaneWeave::wheel(double dy, loom::Mail& mail) {
 /// file's location first (WL-EDIT-19). One beside the rows, in an empty Editor or in one a switch
 /// holds still is handed back, so the host's pane menu opens there.
 // WL-EDIT-22 -- agents/workshop/editor-transfers.md
-inline void EditorPaneWeave::right_press(const ws::RowCell& at, bool current, loom::Mail& mail) {
+inline void EditorPaneWeave::right_press(const zengine::pane::RowCell& at, bool current, loom::Mail& mail) {
     // HELD STILL BY A SWITCH, the Editor offers nothing, and a press that changes no document
     // is handed back rather than counted as refused.
     if (holding_.active || !at.shown || !e_.open_document()) {
-        (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
+        (void)zengine::pane::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
         return;
     }
     end_grab();
@@ -262,7 +262,7 @@ inline void EditorPaneWeave::right_press(const ws::RowCell& at, bool current, lo
 /// insertion back; nothing is saved. Refused material leaves the document, its selection and
 /// its history exactly as they were. Its place in the area reads back to the row and column of
 /// the rows drawn there it fell on.
-inline void EditorPaneWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
+inline void EditorPaneWeave::on(const zengine::pane::PaneCanvasValueDrop& drop, loom::Mail& mail) {
     if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kEditorPane ||
         drop.area != window_.area()) {
         return;
@@ -279,7 +279,7 @@ inline void EditorPaneWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mail&
     say(mail);
 }
 
-inline void EditorPaneWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
+inline void EditorPaneWeave::on(const zengine::pane::PaneMenuAnswered& answer, loom::Mail& mail) {
     if (drop_.pending && drop_.menu.pending() && answer.subject == kDropSubject) {
         const std::string chosen = drop_.menu.take(mail, answer);
         if (drop_.menu.pending()) {
@@ -323,7 +323,7 @@ inline void EditorPaneWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail& 
 /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy
 /// (a pickup), or open a dropped location (`role::answer_operation`). An approved open is
 /// settled against whether it names this document, and this document's mark now.
-inline void EditorPaneWeave::on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+inline void EditorPaneWeave::on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail) {
     const auto stamp = [this](Locate& l) {
         l.same_path = e_.open_document() && e_.path == l.loc.path;
         l.snapshot = mark_now();
@@ -335,7 +335,7 @@ inline void EditorPaneWeave::on(const ws::PaneOperationAnswered& answer, loom::M
 }
 
 /// WORKSHOP TOOK THE COPY, OR SAID WHY NOT. The document was never touched either way.
-inline void EditorPaneWeave::on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+inline void EditorPaneWeave::on(const zengine::pane::PaneCarryAnswered& answer, loom::Mail& mail) {
     if (role::settle_carry(answer, mail, pickup_, "this document is unchanged", noticing())) {
         say(mail);
     }
@@ -373,7 +373,7 @@ inline void EditorPaneWeave::offer_menu(std::optional<Take> first, std::int64_t 
                                         std::int64_t column, loom::Mail& mail) {
     menu_mark_ = mark_now();
     const bool selection = e_.buffer.has_selection();
-    ws::pane_menu::Offer menu(pane::kEditorPane, first == Take::Selection  ? "selection"
+    zengine::pane::pane_menu::Offer menu(pane::kEditorPane, first == Take::Selection  ? "selection"
                                                  : first == Take::Location ? "location"
                                                                            : "document");
     menu.at(row, column);
@@ -527,7 +527,7 @@ inline Landing EditorPaneWeave::landing(std::int64_t prow, std::int64_t pcol) co
     return l;
 }
 
-inline void EditorPaneWeave::receive(const loom::Bytes& data, const ws::RowCell& drop,
+inline void EditorPaneWeave::receive(const loom::Bytes& data, const zengine::pane::RowCell& drop,
                                      bool current, bool same, loom::Mail& mail) {
     const std::string bytes(data.begin(), data.end());
     st::Material m = st::read_material(bytes);
@@ -576,7 +576,7 @@ inline void EditorPaneWeave::receive(const loom::Bytes& data, const ws::RowCell&
     drop_.material = std::move(m);
     drop_.at = at;
     drop_.mark = mark_now();
-    drop_.menu = ws::pane_menu::Offer(pane::kEditorPane, kDropSubject)
+    drop_.menu = zengine::pane::pane_menu::Offer(pane::kEditorPane, kDropSubject)
                      .at(drop.row, drop.column)
                      .row(kInsertLine, "Insert its Terminal line")
                      .row(kInsertCpp, cpp == st::CppDocument::Yes ? "Generate C++ that builds it"

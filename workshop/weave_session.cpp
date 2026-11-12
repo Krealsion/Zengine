@@ -12,6 +12,7 @@
 #include <cstdio>
 
 namespace zengine::workshop {
+using pane::kLayoutsRole;
 
 using zengine::persist::Written;
 

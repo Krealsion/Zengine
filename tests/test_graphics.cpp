@@ -47,7 +47,7 @@
 #include "manuals/zengine.window.tui.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
-#include "workshop/pane_facets.hpp"
+#include "pane/facets.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -4083,7 +4083,7 @@ loom::WeaveId mount_as(Rig& r, const std::string& role) {
 /// The area of the TUI window for a role's pane, `<role>.<pane>`, at its corner, 62
 /// cells by 10, wearing the classic palette.
 void place_pane(Rig& r, const std::string& role, const std::string& pane) {
-    const std::string area = ws::pane_area(role, pane);
+    const std::string area = zengine::pane::pane_area(role, pane);
     r.to_role(gfx::kGraphicsRole, gfx::themes::night());
     r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, "night"});
     r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTuiWindow, role, 0, 0,
@@ -4135,7 +4135,7 @@ struct AttentionWindow : TypedWindow {
         r.bus.role_send_to_role_as(
             window, window_role(), apane::kAttentionPaneRole,
             loom::Message(loom::to_value(gfx::ActionRequested{
-                ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane), action})));
+                zengine::pane::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane), action})));
         r.drain();
     }
     /// What the pane drew since `mark`, as its role.
@@ -4154,15 +4154,15 @@ struct GraphicsTestPaneTurn {
 /// A PANE ON THE DRAWING FACET, as a stranger writes one, shown in a window alone: each turn draws
 /// again, and a broken turn draws a node in a parent it never drew, which the window refuses. Its
 /// manual is any page; nothing asks for it.
-using TestDrawing = ws::PaneDrawingFacet<kTestPane, kTestPane,
+using TestDrawing = zengine::pane::PaneDrawingFacet<kTestPane, kTestPane,
                                          zengine::manual::pages::zengine_window_tui::kManual>;
 
 class TestPane
     : public zengine::With<TestDrawing>::Weave<TestPane, GraphicsTestOwner,
                                                loom::Accept<GraphicsTestPaneTurn>> {
 public:
-    ws::v2::PaneOffered offering() const {
-        return ws::v2::PaneOffered{kTestPane, "test", "a pane the suite draws", 1, 10};
+    zengine::pane::v2::PaneOffered offering() const {
+        return zengine::pane::v2::PaneOffered{kTestPane, "test", "a pane the suite draws", 1, 10};
     }
     void on_room(loom::Mail& mail) { this->template facet<TestDrawing>().show(*this, mail); }
     void on(const GraphicsTestPaneTurn& turn, loom::Mail& mail) {
@@ -4190,13 +4190,13 @@ constexpr const char* kButtonPane = "test.button";
 
 /// A PANE ON THE DRAWING FACET THAT DRAWS A BUTTON: a filled face eight cells by three, its label
 /// inside, the group named `go`; it counts the presses that asked `go`, and those it refused.
-using ButtonDrawing = ws::PaneDrawingFacet<kButtonPane, kButtonPane,
+using ButtonDrawing = zengine::pane::PaneDrawingFacet<kButtonPane, kButtonPane,
                                            zengine::manual::pages::zengine_window_tui::kManual>;
 class ButtonPane
     : public zengine::With<ButtonDrawing>::Weave<ButtonPane, GraphicsTestOwner, loom::Accept<>> {
 public:
-    ws::v2::PaneOffered offering() const {
-        return ws::v2::PaneOffered{kButtonPane, "button", "a button the suite presses", 4, 12};
+    zengine::pane::v2::PaneOffered offering() const {
+        return zengine::pane::v2::PaneOffered{kButtonPane, "button", "a button the suite presses", 4, 12};
     }
     void on_room(loom::Mail& mail) { this->template facet<ButtonDrawing>().show(*this, mail); }
     void picture(gfx::Sketch& f) const {
@@ -4228,7 +4228,7 @@ TEST_CASE("a pane on the drawing facet is pressed over a drawn button's whole fa
     const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), kButtonPane);
     button->zen_set_self(id);
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::night());
-    const std::string area = ws::pane_area(kButtonPane, kButtonPane);
+    const std::string area = zengine::pane::pane_area(kButtonPane, kButtonPane);
     gfx::AreaPlaced placed{area, gfx::kTuiWindow, kButtonPane, 0, 0,
                            20 * gfx::kCellPx, 6 * gfx::kCellPx, 0};
     placed.pointer = true;
@@ -4263,14 +4263,14 @@ constexpr const char* kRestPane = "test.rest";
 
 /// A PANE ON THE DRAWING FACET THAT IS TOLD WHERE THE POINTER RESTS: the button `go` and room
 /// beside it; it keeps each part a rest named, in order, and counts the leaves.
-using RestDrawing = ws::PaneDrawingFacet<kRestPane, kRestPane,
+using RestDrawing = zengine::pane::PaneDrawingFacet<kRestPane, kRestPane,
                                          zengine::manual::pages::zengine_window_tui::kManual,
-                                         ws::v2::PaneOffered, ws::kHearsRest>;
+                                         zengine::pane::v2::PaneOffered, zengine::pane::kHearsRest>;
 class RestPane
     : public zengine::With<RestDrawing>::Weave<RestPane, GraphicsTestOwner, loom::Accept<>> {
 public:
-    ws::v2::PaneOffered offering() const {
-        return ws::v2::PaneOffered{kRestPane, "rest", "a pane the pointer rests on", 4, 12};
+    zengine::pane::v2::PaneOffered offering() const {
+        return zengine::pane::v2::PaneOffered{kRestPane, "rest", "a pane the pointer rests on", 4, 12};
     }
     void on_room(loom::Mail& mail) { this->template facet<RestDrawing>().show(*this, mail); }
     void picture(gfx::Sketch& f) const {
@@ -4298,7 +4298,7 @@ TEST_CASE("a pane on the drawing facet is handed the part the pointer rests on, 
     const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), kRestPane);
     pane->zen_set_self(id);
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::night());
-    const std::string area = ws::pane_area(kRestPane, kRestPane);
+    const std::string area = zengine::pane::pane_area(kRestPane, kRestPane);
     gfx::AreaPlaced placed{area, gfx::kTuiWindow, kRestPane, 0, 0, 20 * gfx::kCellPx,
                            6 * gfx::kCellPx, 0};
     placed.pointer = true;
@@ -4376,7 +4376,7 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
 /// A ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
 class RowForger
     : public loom::WeaveBase<RowForger, GraphicsTestOwner, loom::Accept<>,
-                             loom::Emit<ws::v2::PaneSettings>> {};
+                             loom::Emit<zengine::pane::v2::PaneSettings>> {};
 
 TEST_CASE("the Attention pane draws nothing in its room before it holds its row, takes a row from "
           "the layouts' owner alone, and draws whole once it holds one") {
@@ -4391,7 +4391,7 @@ TEST_CASE("the Attention pane draws nothing in its room before it holds its row,
     const loom::WeaveId forger = mount_as<RowForger>(a.r, "test.forger");
     a.r.bus.role_send_to_role_as(
         forger, "test.forger", apane::kAttentionPaneRole,
-        loom::Message(loom::to_value(ws::v2::PaneSettings{apane::kAttentionPane, 9, {}})));
+        loom::Message(loom::to_value(zengine::pane::v2::PaneSettings{apane::kAttentionPane, 9, {}})));
     a.r.drain();
     CHECK(a.drawn(0).empty());
     // ...AND THE OWNER'S ROW DRAWS THE ROOM IT ALREADY HAD, whole.
@@ -4444,7 +4444,7 @@ TEST_CASE("the Attention pane draws in a graphics window: whole on its room, the
     a.press(4, 3);
     const auto asked = a.r.read<gfx::ActionRequested>(mark, window_role());
     REQUIRE(asked.size() == 1);
-    CHECK(asked[0].area == ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane));
+    CHECK(asked[0].area == zengine::pane::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane));
     CHECK(asked[0].action == "condition:b.two");
     drawn = a.drawn(mark);
     REQUIRE(drawn.size() == 1);
@@ -4478,7 +4478,7 @@ TEST_CASE("the Attention pane draws in a graphics window: whole on its room, the
     mark = a.r.log.size();
     a.ask("attention.no-such-action");
     a.r.to_role(apane::kAttentionPaneRole,
-                gfx::ActionRequested{ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane),
+                gfx::ActionRequested{zengine::pane::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane),
                                     apane::kActionUp});
     a.r.drain();
     CHECK(a.drawn(mark).empty());

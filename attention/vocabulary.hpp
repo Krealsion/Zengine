@@ -43,7 +43,7 @@ inline constexpr const char* kAttentionPaneSummary = "what is true right now";
 /// must agree on it.
 inline constexpr const char* kAttentionPaneStem = "zengine-attention-pane";
 
-// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
+// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, pane/vocabulary.hpp) ---------
 //
 // The ids a weaver's keymap file names to move them, carrying the built-in's own spellings
 // unchanged. What each one DOES is the weave's (pane.cpp); what KEY requests it is
@@ -53,7 +53,7 @@ inline constexpr const char* kActionUp = "attention.up";
 inline constexpr const char* kActionDown = "attention.down";
 inline constexpr const char* kActionDismiss = "attention.dismiss";
 
-/// THE ONE SETTING THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp):
+/// THE ONE SETTING THE PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp):
 /// whether the cursor's condition is explained beneath it in a layout, on unless the layout keeps
 /// it off.
 inline constexpr const char* kSettingDetail = "detail";

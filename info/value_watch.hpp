@@ -10,8 +10,8 @@
 
 #include "vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/operation.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/weave/role_request.hpp>
 #include <zen/weave/standard_shapes.hpp>
@@ -69,8 +69,8 @@ public:
         watch_.reference = entry;
         watch_.subject = entry.owner + ":" + entry.entry;
         const auto correlation = ++c.asks;
-        const bool queued = watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::workshop::pane_menu::kWorkshopRole,
-            workshop::PaneObservationRequested{pane, inventory::kInventoryRole, inventory::InventoryRead::zen_name,
+        const bool queued = watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::pane::pane_menu::kWorkshopRole,
+            pane::PaneObservationRequested{pane, inventory::kInventoryRole, inventory::InventoryRead::zen_name,
                 inventory::InventoryRead::zen_version, static_cast<std::int64_t>(c.mail.correlation()), watch_.subject},
             correlation);
         if (!queued) { watch_ = Watch{}; return "Watch request could not be queued"; }
@@ -93,8 +93,8 @@ public:
         if (watch_.state == Watch::State::off && !watch_.ask.pending()) return {};
         if (watch_.state == Watch::State::requesting && watch_.ask.pending()) ending_ = watch_.ask;
         else if (tell && watch_.lease)
-            (void)c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
-                workshop::PaneObservationEnded{pane, watch_.lease});
+            (void)c.mail.as_role(kInfoPaneRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                pane::PaneObservationEnded{pane, watch_.lease});
         const auto kept_good = watch_.last_good, kept_failure = watch_.last_failure;
         watch_ = Watch{};
         watch_.last_good = kept_good; watch_.last_failure = kept_failure;
@@ -111,15 +111,15 @@ public:
 
     /// WORKSHOP ANSWERED A WATCH REQUEST. `revision` is the base the view's draft holds, which a
     /// watch that begins names.
-    Heard hear(const workshop::PaneObservationAnswered& answer, const std::string& pane, std::int64_t revision,
+    Heard hear(const pane::PaneObservationAnswered& answer, const std::string& pane, std::int64_t revision,
                ViewContext& c) {
         if (ending_.matches_answer(c.mail)) {
             // A WATCH STOPPED BEFORE WORKSHOP ANSWERED IT: a lease granted now is ended now, and
             // nothing here starts watching again.
             ending_.forget();
             if (answer.allowed && answer.lease)
-                (void)c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
-                    workshop::PaneObservationEnded{pane, answer.lease});
+                (void)c.mail.as_role(kInfoPaneRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                    pane::PaneObservationEnded{pane, answer.lease});
             return {true, {}};
         }
         if (!watch_.ask.matches_answer(c.mail)) return {};
@@ -203,8 +203,8 @@ private:
 
     std::string cycle(const std::string& pane, ViewContext& c) {
         const auto correlation = ++c.asks;
-        if (!watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::workshop::pane_menu::kWorkshopRole,
-                workshop::PaneObservationContinued{pane, watch_.lease, watch_.subject}, correlation))
+        if (!watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::pane::pane_menu::kWorkshopRole,
+                pane::PaneObservationContinued{pane, watch_.lease, watch_.subject}, correlation))
             return stop(pane, c, "Watch ended: its observation could not be queued", true);
         return {};
     }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PANE_TEXT_FIT_HPP
-#define ZENGINE_WORKSHOP_PANE_TEXT_FIT_HPP
+#ifndef ZENGINE_PANE_TEXT_FIT_HPP
+#define ZENGINE_PANE_TEXT_FIT_HPP
 
 // How much prose a bounded region holds: a region's pixel bounds and a medium's text metric
 // resolved into a viewport, a local origin and a capacity, the one arithmetic a drawer and the
@@ -14,7 +14,7 @@
 
 #include <cstdint>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// The breathing room inside a text region, in device pixels, on every side. Here and not in a
 /// renderer: `fit_region` subtracts it from the columns it tells the publisher and adds it to
@@ -185,6 +185,6 @@ inline constexpr RowSpan selection_span_of_row(const Range& r, std::int64_t row,
     return begin < end ? RowSpan{begin, end} : RowSpan{};
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_TEXT_FIT_HPP
+#endif // ZENGINE_PANE_TEXT_FIT_HPP

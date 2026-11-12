@@ -8,7 +8,7 @@ page](README.md) says how an entry reads and how `tests/mutants/run.py` runs it.
 
 A pane's picture sets its rows a cell apart in every window, whatever the face's line.
 
-In `workshop/pane_drawing.hpp`:
+In `pane/drawing.hpp`:
 
 ```diff
 -    const std::int64_t line = room.text.line;
@@ -141,7 +141,7 @@ Red in `zengine-workshop-panes-tests`:
 A row's fold mark is drawn as an outline in a room of cells and as its character where the room
 sets type: each medium gets the other's mark.
 
-In `workshop/pane_drawing.hpp`:
+In `pane/drawing.hpp`:
 
 ```diff
 -        const bool outlined = !room.cells && mark >= 0 &&

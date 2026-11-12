@@ -27,6 +27,9 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::RegionFit;
+using pane::RowPart;
+using pane::fit_region;
 
 using zengine::component::Fingerprint;
 

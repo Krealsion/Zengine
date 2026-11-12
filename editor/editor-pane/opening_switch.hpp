@@ -18,7 +18,7 @@
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
@@ -83,7 +83,7 @@ inline void EditorPaneWeave::on(const ws::v3::PrepareSourceRequested& asked, loo
     if (!mail.authored_from_role(ws::kOpeningRole)) {
         return;
     }
-    const ws::RowsRoom room = role::EditorWindow::room_of(asked.room);
+    const zengine::pane::RowsRoom room = role::EditorWindow::room_of(asked.room);
     Preparation p = prepare(asked.op, asked.path, room.rows(), room.columns(), mail);
     if (!p.refusal.empty()) {
         (void)mail.answer(not_prepared(asked.op, std::move(p.refusal)));

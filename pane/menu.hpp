@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PANE_MENU_HPP
-#define ZENGINE_WORKSHOP_PANE_MENU_HPP
+#ifndef ZENGINE_PANE_MENU_HPP
+#define ZENGINE_PANE_MENU_HPP
 
 // The small helpers a pane uses to spend the second button and ask for a menu, installed beside
-// the protocol (`workshop/pane_vocabulary.hpp`) and optional: a few lines over the raw shapes. They
+// the protocol (`pane/vocabulary.hpp`) and optional: a few lines over the raw shapes. They
 // echo the gesture's correlation on every continuation and check an answer before a pane acts on
 // it (`Asked::take`). They perform no operation: what a chosen row means is the pane's.
 // Reference: workshop/docs/workshop-panes.md#the-second-button-and-a-menu-a-pane-asks-for
@@ -28,7 +28,7 @@
 //         else if (id == "mine.forget") forget(a.subject, mail);  // to judge against what you hold
 //     }
 
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -37,14 +37,14 @@
 #include <string_view>
 #include <utility>
 
-namespace zengine::workshop::pane_menu {
+namespace zengine::pane::pane_menu {
 
 /// THE ROLE WORKSHOP HOLDS, spelled here so a pane that includes only the installed protocol
 /// need not spell it. A stranger's pane addresses Workshop by this name and no other.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
 
 /// THE ROLE THAT PRESENTS A MENU AND ANSWERS IT (`workshop::kPresenterRole`).
-inline constexpr const char* kPresenterRole = ::zengine::workshop::kPresenterRole;
+inline constexpr const char* kPresenterRole = ::zengine::pane::kPresenterRole;
 
 /// ONE MENU THIS IMAGE ASKED FOR, UNTIL IT IS ANSWERED: the request's number, and the pane and
 /// subject it was about. What makes an answer safe to act on is checked here in one read --
@@ -215,6 +215,6 @@ inline loom::Ticket manage(loom::Mail& mail, std::string_view role, std::string 
         mail.correlation());
 }
 
-} // namespace zengine::workshop::pane_menu
+} // namespace zengine::pane::pane_menu
 
-#endif // ZENGINE_WORKSHOP_PANE_MENU_HPP
+#endif // ZENGINE_PANE_MENU_HPP

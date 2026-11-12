@@ -8,7 +8,7 @@
 // reload's bytes revive a successor that applies: the repair a real reload witnesses. A fixture.
 
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 
@@ -26,8 +26,8 @@ namespace ws = zengine::workshop;
 using zengine::workshop::EditorDocument;
 using zengine::workshop::ManagedOpenProgress;
 using zengine::workshop::ManagedOpenSettled;
-using zengine::workshop::PaneCatalogRequested;
-using zengine::workshop::PaneOffered;
+using zengine::pane::PaneCatalogRequested;
+using zengine::pane::PaneOffered;
 
 /// The role and pane the real Editor holds, spelled as strings: a stand-in is a stranger
 /// to the Editor's own headers, exactly as any other image would be.

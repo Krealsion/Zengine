@@ -31,10 +31,10 @@
 #include "workshop/weave.hpp"
 #include "workshop/grant.hpp"
 #include "workshop/opening.hpp" // the opening manager the host mounts
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/drawing.hpp"
+#include "pane/menu.hpp"
+#include "pane/parts.hpp"
+#include "pane/rows.hpp"
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/window/store.hpp"
@@ -117,6 +117,8 @@
 #include <vector>
 
 using namespace zengine::workshop;
+
+using namespace zengine::pane;
 using loom::schema_of;
 namespace component = zengine::component;
 namespace input = zengine::input;
@@ -626,7 +628,7 @@ inline std::string layout_tab_text(const SetupState& run, std::size_t at) {
 /// every other.
 template <class Shape>
 inline constexpr bool kLayoutsDoor =
-    std::is_same_v<Shape, PaneSettingsDeclared> || std::is_same_v<Shape, v2::PaneSettingsDeclared> ||
+    std::is_same_v<Shape, PaneSettingsDeclared> || std::is_same_v<Shape, zengine::pane::v2::PaneSettingsDeclared> ||
     std::is_same_v<Shape, PaneSettingsAsked> || std::is_same_v<Shape, PaneSettingUnused> ||
     std::is_same_v<Shape, RoleSettingsDeclared> || std::is_same_v<Shape, PaneSettingsRequested> ||
     std::is_same_v<Shape, PaneSettingCommitRequested> ||
@@ -2358,7 +2360,7 @@ class DoorAsker
                                         // sentences a stranger might forge at the managed
                                         // opening's three parties, so the forgery cases prove
                                         // the parties' refusals and not the bus's.
-                                        ManagedOpenSettled, v3::SourcePrepared, PresentationAdmitted,
+                                        ManagedOpenSettled, zengine::workshop::v3::SourcePrepared, PresentationAdmitted,
                                         loom::DispatchRefused>> {
 public:
     explicit DoorAsker(std::string role) : role_(std::move(role)) {}
@@ -2815,11 +2817,11 @@ inline void keep_settings(Rig& t, const PaneRef& ref, std::vector<PaneSetting> s
 
 /// WHAT A PANE'S COUNTED DECLARATION TAKES, as the layouts' store counts it; none for none.
 template <class Rig>
-inline std::vector<v2::PaneSettingRow> declared_settings(Rig& t, const PaneRef& ref) {
+inline std::vector<zengine::pane::v2::PaneSettingRow> declared_settings(Rig& t, const PaneRef& ref) {
     const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
     REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
-    const std::vector<v2::PaneSettingRow>* counted = t.owner->layouts().counted(ref);
-    return counted != nullptr ? *counted : std::vector<v2::PaneSettingRow>{};
+    const std::vector<zengine::pane::v2::PaneSettingRow>* counted = t.owner->layouts().counted(ref);
+    return counted != nullptr ? *counted : std::vector<zengine::pane::v2::PaneSettingRow>{};
 }
 
 /// ...AND WHAT ITS HOLDER SAID IT CANNOT USE, each `<key>: <why>`, as the layouts' owner keeps it,
@@ -2934,8 +2936,9 @@ class ProviderSeat
                                           PaneActionRequested, PaneKeys, gfx::AreaRoom,
                                           gfx::DrawnRefused, gfx::AreaButtonChanged,
                                           gfx::AreaWheelTurned, PaneCanvasValueDrop, SeatDo>,
-                             loom::Emit<PaneOffered, PaneActions, v2::PaneActions, v3::PaneActions,
-                                        v4::PaneActions, PaneEscapeUnspent, PanePassRequested,
+                             loom::Emit<PaneOffered, PaneActions, zengine::pane::v2::PaneActions,
+                                        zengine::pane::v3::PaneActions,
+                                        zengine::pane::v4::PaneActions, PaneEscapeUnspent, PanePassRequested,
                                         gfx::Drawn,
                                         gfx::AreaButtonChanged>> {
 public:
@@ -3042,7 +3045,7 @@ public:
         offered(o.pane);
         (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
     }
-    void offer(loom::Mail& mail, const v2::PaneOffered& o) {
+    void offer(loom::Mail& mail, const zengine::pane::v2::PaneOffered& o) {
         offered(o.pane);
         (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
     }
@@ -3099,15 +3102,15 @@ public:
     }
     /// The SECOND published version of the declaration -- the one that can name an action this
     /// pane owns. A provider built before it existed sends the shape above.
-    void declare_v2(loom::Mail& mail, const v2::PaneActions& a) {
+    void declare_v2(loom::Mail& mail, const zengine::pane::v2::PaneActions& a) {
         (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
     /// ...and the THIRD, which says what each press may cause and the modes.
-    void declare_v3(loom::Mail& mail, const v3::PaneActions& a) {
+    void declare_v3(loom::Mail& mail, const zengine::pane::v3::PaneActions& a) {
         (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
     /// ...and the FOURTH, whose rows may name a key for a POSIX terminal.
-    void declare_v4(loom::Mail& mail, const v4::PaneActions& a) {
+    void declare_v4(loom::Mail& mail, const zengine::pane::v4::PaneActions& a) {
         (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
     /// FORGE A PRESS AT SOMEBODY ELSE'S AREA -- deliberately authored, and deliberately by a
@@ -3284,10 +3287,10 @@ private:
 /// `send_to_role`. Two spellings, one holder, opposite outcomes.
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
-                             loom::Accept<PaneOffered, v2::PaneOffered, SeatDo>,
+                             loom::Accept<PaneOffered, zengine::pane::v2::PaneOffered, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneKeys, gfx::AreaButtonChanged>> {
 public:
-    void on(const v2::PaneOffered& o, loom::Mail& mail) {
+    void on(const zengine::pane::v2::PaneOffered& o, loom::Mail& mail) {
         on(PaneOffered{o.pane, o.name, o.summary}, mail);
     }
     void on(const PaneOffered& o, loom::Mail& mail) {
@@ -3538,8 +3541,8 @@ struct PaneRig {
         loom::Grant arrange;
         arrange.allow_to_role(PresentationTrialRequested::zen_name,
                               PresentationTrialRequested::zen_version, kWorkshopProvider);
-        arrange.allow_to_role(v3::PresentationAdmitRequested::zen_name,
-                              v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
+        arrange.allow_to_role(zengine::workshop::v3::PresentationAdmitRequested::zen_name,
+                              zengine::workshop::v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
         arrange.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                               kWorkshopProvider);
         arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
@@ -3548,8 +3551,8 @@ struct PaneRig {
                               kEditorRole);
         arrange.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                               kEditorRole); // the `apply` word, as workshop.cpp grants it
-        arrange.allow_to_role(v3::PrepareSourceRequested::zen_name,
-                              v3::PrepareSourceRequested::zen_version, kEditorRole);
+        arrange.allow_to_role(zengine::workshop::v3::PrepareSourceRequested::zen_name,
+                              zengine::workshop::v3::PrepareSourceRequested::zen_version, kEditorRole);
         arrange.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
         // ...and what a shape it accepts does, from its own page, as workshop.cpp grants it.
         arrange.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
@@ -3608,11 +3611,11 @@ struct PaneRig {
         ProviderSeat* raw = seat.get();
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-        grant.allow_to_any(v2::PaneOffered::zen_name, v2::PaneOffered::zen_version);
+        grant.allow_to_any(zengine::pane::v2::PaneOffered::zen_name, zengine::pane::v2::PaneOffered::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
-        grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
-        grant.allow_to_any(v3::PaneActions::zen_name, v3::PaneActions::zen_version);
-        grant.allow_to_any(v4::PaneActions::zen_name, v4::PaneActions::zen_version);
+        grant.allow_to_any(zengine::pane::v2::PaneActions::zen_name, zengine::pane::v2::PaneActions::zen_version);
+        grant.allow_to_any(zengine::pane::v3::PaneActions::zen_name, zengine::pane::v3::PaneActions::zen_version);
+        grant.allow_to_any(zengine::pane::v4::PaneActions::zen_name, zengine::pane::v4::PaneActions::zen_version);
         // ...and that an Escape it was sent was unspent, which is how a pane asks to be put down,
         // and that a press was not its own.
         grant.allow_to_any(PaneEscapeUnspent::zen_name, PaneEscapeUnspent::zen_version);
@@ -4228,7 +4231,8 @@ struct PaneRig {
         ArrangementDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
-        say.allow_to_any(v2::ResolvedArrangement::zen_name, v2::ResolvedArrangement::zen_version);
+        say.allow_to_any(zengine::workshop::v2::ResolvedArrangement::zen_name,
+                         zengine::workshop::v2::ResolvedArrangement::zen_version);
         say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
                          zengine::manual::ShapeDocumentShown::zen_version);
         const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
@@ -5210,12 +5214,14 @@ class DesktopSeat
     : public loom::WeaveBase<DesktopSeat, SeatState,
                              loom::Accept<AppActionRequested, ActionsJudged, ActionsWithdrawn,
                                           PaneLaunchAnswered, PaneCloseAnswered,
-                                          v1::PaneLaunchAnswered, v2::PaneCloseAnswered,
-                                          v1::PaneToggleAnswered, SeatDo>,
+                                          zengine::workshop::v1::PaneLaunchAnswered,
+                                          zengine::workshop::v2::PaneCloseAnswered,
+                                          zengine::workshop::v1::PaneToggleAnswered, SeatDo>,
                              loom::Emit<AppActions, DeselectRequested, PaneLaunchRequested,
-                                        PaneCloseRequested, v1::PaneLaunchRequested,
-                                        v2::PaneLaunchRequested, v1::PaneCloseRequested,
-                                        v1::PaneToggleRequested>> {
+                                        PaneCloseRequested, zengine::workshop::v1::PaneLaunchRequested,
+                                        zengine::workshop::v2::PaneLaunchRequested,
+                                        zengine::workshop::v1::PaneCloseRequested,
+                                        zengine::workshop::v1::PaneToggleRequested>> {
 public:
     void on(const AppActionRequested& asked, loom::Mail& mail) {
         asked_.push_back(asked.id);
@@ -5245,9 +5251,9 @@ public:
     void on(const PaneLaunchAnswered& said, loom::Mail&) { launched_.push_back(said); }
     void on(const PaneCloseAnswered& said, loom::Mail&) { closed_.push_back(said); }
     /// ...AND AS A PANE BUILT ON AN EARLIER VOCABULARY HEARS THEM, the role named `office`.
-    void on(const v1::PaneLaunchAnswered& said, loom::Mail&) { launched_v1_.push_back(said); }
-    void on(const v2::PaneCloseAnswered& said, loom::Mail&) { closed_v2_.push_back(said); }
-    void on(const v1::PaneToggleAnswered& said, loom::Mail&) { toggled_v1_.push_back(said); }
+    void on(const zengine::workshop::v1::PaneLaunchAnswered& said, loom::Mail&) { launched_v1_.push_back(said); }
+    void on(const zengine::workshop::v2::PaneCloseAnswered& said, loom::Mail&) { closed_v2_.push_back(said); }
+    void on(const zengine::workshop::v1::PaneToggleAnswered& said, loom::Mail&) { toggled_v1_.push_back(said); }
 
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -5276,19 +5282,19 @@ public:
     /// The same asks in an earlier vocabulary's versions.
     void launch_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
         (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, v1::PaneLaunchRequested{office, pane});
+            .send_to_role(kWorkshopProvider, zengine::workshop::v1::PaneLaunchRequested{office, pane});
     }
     void launch_v2(loom::Mail& mail, const std::string& office, const std::string& pane, bool keys) {
         (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, v2::PaneLaunchRequested{office, pane, keys});
+            .send_to_role(kWorkshopProvider, zengine::workshop::v2::PaneLaunchRequested{office, pane, keys});
     }
     void close_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
         (void)mail.as_role(kDesktopRole)
-            .send_to_role(kLayoutsRole, v1::PaneCloseRequested{office, pane});
+            .send_to_role(kLayoutsRole, zengine::workshop::v1::PaneCloseRequested{office, pane});
     }
     void toggle_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
         (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, v1::PaneToggleRequested{office, pane});
+            .send_to_role(kWorkshopProvider, zengine::workshop::v1::PaneToggleRequested{office, pane});
     }
     /// A DESELECT ANSWER THAT ECHOES A NUMBER OF ITS OWN CHOOSING -- for the cases about an
     /// answer to an ask that is over, and about one that echoes nothing at all.
@@ -5310,9 +5316,9 @@ public:
     const std::vector<ActionsWithdrawn>& withdrawals() const { return withdrawals_; }
     const std::vector<PaneLaunchAnswered>& launched() const { return launched_; }
     const std::vector<PaneCloseAnswered>& closed() const { return closed_; }
-    const std::vector<v1::PaneLaunchAnswered>& launched_v1() const { return launched_v1_; }
-    const std::vector<v2::PaneCloseAnswered>& closed_v2() const { return closed_v2_; }
-    const std::vector<v1::PaneToggleAnswered>& toggled_v1() const { return toggled_v1_; }
+    const std::vector<zengine::workshop::v1::PaneLaunchAnswered>& launched_v1() const { return launched_v1_; }
+    const std::vector<zengine::workshop::v2::PaneCloseAnswered>& closed_v2() const { return closed_v2_; }
+    const std::vector<zengine::workshop::v1::PaneToggleAnswered>& toggled_v1() const { return toggled_v1_; }
     /// THE NUMBER THE LAST ASK ARRIVED UNDER -- what an honest answer echoes, and what a case
     /// about a DISHONEST one has to be able to miss on purpose.
     std::uint64_t last_ask() const { return last_ask_; }
@@ -5337,9 +5343,9 @@ private:
     std::vector<ActionsWithdrawn> withdrawals_;
     std::vector<PaneLaunchAnswered> launched_;
     std::vector<PaneCloseAnswered> closed_;
-    std::vector<v1::PaneLaunchAnswered> launched_v1_;
-    std::vector<v2::PaneCloseAnswered> closed_v2_;
-    std::vector<v1::PaneToggleAnswered> toggled_v1_;
+    std::vector<zengine::workshop::v1::PaneLaunchAnswered> launched_v1_;
+    std::vector<zengine::workshop::v2::PaneCloseAnswered> closed_v2_;
+    std::vector<zengine::workshop::v1::PaneToggleAnswered> toggled_v1_;
     std::uint64_t last_ask_ = 0;
 };
 
@@ -5386,13 +5392,17 @@ inline DesktopSeat* mount_desktop(Rig& t, AppActions rows = shipped_app_actions(
     grant.allow_to_role(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version,
                         kLayoutsRole);
     // ...AND THE SAME ASKS IN AN EARLIER VOCABULARY'S VERSIONS, as a pane built on one says them.
-    grant.allow_to_role(v1::PaneLaunchRequested::zen_name, v1::PaneLaunchRequested::zen_version,
+    grant.allow_to_role(zengine::workshop::v1::PaneLaunchRequested::zen_name,
+                        zengine::workshop::v1::PaneLaunchRequested::zen_version,
                         kWorkshopProvider);
-    grant.allow_to_role(v2::PaneLaunchRequested::zen_name, v2::PaneLaunchRequested::zen_version,
+    grant.allow_to_role(zengine::workshop::v2::PaneLaunchRequested::zen_name,
+                        zengine::workshop::v2::PaneLaunchRequested::zen_version,
                         kWorkshopProvider);
-    grant.allow_to_role(v1::PaneToggleRequested::zen_name, v1::PaneToggleRequested::zen_version,
+    grant.allow_to_role(zengine::workshop::v1::PaneToggleRequested::zen_name,
+                        zengine::workshop::v1::PaneToggleRequested::zen_version,
                         kWorkshopProvider);
-    grant.allow_to_role(v1::PaneCloseRequested::zen_name, v1::PaneCloseRequested::zen_version,
+    grant.allow_to_role(zengine::workshop::v1::PaneCloseRequested::zen_name,
+                        zengine::workshop::v1::PaneCloseRequested::zen_version,
                         kLayoutsRole);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(seat), std::move(grant), std::string(kDesktopRole));
@@ -5426,7 +5436,7 @@ inline std::int64_t live_offer_pane(Live& t, const char* role, const char* pane,
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
     grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
     grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
-    grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
+    grant.allow_to_any(zengine::pane::v2::PaneActions::zen_name, zengine::pane::v2::PaneActions::zen_version);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(seat), std::move(grant), std::string(role));
     raw->zen_set_self(id);

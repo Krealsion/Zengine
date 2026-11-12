@@ -50,8 +50,8 @@ driven by `kInventoryPaneCensus` in `tests/test_workshop_inventory_info.cpp`.
   loads them at `zengine.inventory`, `zengine.inventory-pane`.
 - `workshop/admission.hpp` admits the `zengine.inventory` role with `inventory_grant()` and the
   answer to `ShapeDocumentRequested` (`inventory_role_grant()`).
-- The pane asks Workshop through `workshop/pane_operation.hpp` (permission, actor scope),
-  `workshop/pane_carry.hpp`, `workshop/pane_shortcuts.hpp` (hotkeys, at the Desktop) and
+- The pane asks Workshop through `pane/operation.hpp` (permission, actor scope),
+  `pane/carry.hpp`, `workshop/pane_shortcuts.hpp` (hotkeys, at the Desktop) and
   `workshop/desktop_seam_vocabulary.hpp` (opening a portable view); `workshop/actor_scope.hpp`
   classes a toolbox save as a write.
 - `workshop/guests.hpp`, `workshop/guests.cpp`: a guest's `inventory` and `toolbox` powers.

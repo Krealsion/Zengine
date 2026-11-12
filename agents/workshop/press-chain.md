@@ -135,7 +135,7 @@ on the gear anchors there, and a tab carried along the run reorders it"
 `graphics/vocabulary.hpp` AreaButtonChanged Drawn
 `graphics/canvas.hpp` part_at
 `graphics/window/window.hpp` say_under
-`workshop/pane_drawing.hpp` press_moved WindowDrawing::moved WindowPointer
+`pane/drawing.hpp` press_moved WindowDrawing::moved WindowPointer
 `builder/builder-pane/pane.cpp` press
 `editor/editor-pane/transfers.hpp` on_window
 `tests/test_workshop_panes_canvas.cpp` "a pane's drawings judge a press by what the window drew
@@ -164,7 +164,7 @@ carries the window's word from its release, though Flow repainted meanwhile"
 omitted tab has no span and cannot be pressed" "no press outside the painted run reaches a layout"
 
 ### WL-PRESS-06
-`workshop/pane_vocabulary.hpp` PanePassRequested
+`pane/vocabulary.hpp` PanePassRequested
 `workshop/weave.hpp` SecondaryContinuation end_lost_holds
 `workshop/weave_external.cpp` end_lost_holds
 `workshop/weave_handlers.cpp` on(AreaHoldEnded)

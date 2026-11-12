@@ -8,7 +8,7 @@
 // library's gesture grammar.
 // Workshop law: agents/workshop/keyboard.md (+7 registers; agents/workshop.md routes)
 
-#include "pane_vocabulary.hpp" // ActionCause and an action id's bound
+#include "pane/vocabulary.hpp" // ActionCause and an action id's bound
 
 #include "input/gesture_grammar.hpp"
 #include "input/vocabulary.hpp"
@@ -21,6 +21,9 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::ActionCause;
+using pane::kMaxPaneActionIdLen;
+using pane::kMaxPaneMenuIdLen;
 
 /// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values.
 // WL-KEY-03, WL-KEY-05 -- agents/workshop/keyboard.md

@@ -19,14 +19,14 @@
 #include "view/view-builder/vocabulary.hpp"
 #include "view/host.hpp"
 #include "workshop/actor_scope.hpp"
-#include "workshop/pane_canvas_drawing.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_picture.hpp"
-#include "workshop/pane_operation.hpp"
+#include "pane/canvas_drawing.hpp"
+#include "pane/carry.hpp"
+#include "pane/drawing.hpp"
+#include "pane/picture.hpp"
+#include "pane/operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/settings.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
 #include <zen/kernel/kernel.hpp>
@@ -45,12 +45,12 @@ namespace vb = zengine::view_builder;
 namespace view = zengine::view;
 namespace ws = zengine::workshop;
 /// The View Builder's area in a window (D12).
-const std::string kBuilderArea = ws::pane_area(vb::kRole, vb::kPane);
+const std::string kBuilderArea = zengine::pane::pane_area(vb::kRole, vb::kPane);
 namespace shape = zengine::flow::shape;
 namespace gfx = zengine::graphics;
 namespace pw = zengine::testing::pane_window;
 constexpr const char* workshop_role = "zengine.workshop";
-constexpr auto unit = ws::kPaneCanvasUnit;
+constexpr auto unit = zengine::pane::kPaneCanvasUnit;
 
 bool has_words(const std::string& text, const std::string& part) { return text.find(part) != std::string::npos; }
 
@@ -117,7 +117,7 @@ TEST_CASE("the View Builder makes a view from its kinds: number fields, a button
 namespace {
 /// A ROOM AS A WINDOW GIVES ONE, and the incarnation it gives it under: a GUI window's, in
 /// pixels with its measured text, or a terminal's, in cells.
-struct Room : ws::CanvasRoom {
+struct Room : zengine::pane::CanvasRoom {
     std::int64_t grant = 1;
 };
 Room window_room(std::int64_t grant = 1) {
@@ -140,7 +140,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(area.y % unit == 0);
         // ONE RENDERER: everything the view's own picture code draws in a room exactly the view's
         // size is in the builder's picture, moved by the area's corner and nothing else.
-        const ws::CanvasRoom inner{m.description.width, m.description.height + view::notice_band(room),
+        const zengine::pane::CanvasRoom inner{m.description.width, m.description.height + view::notice_band(room),
                                    room.grain, room.graphical, room.text_advance_px, room.text_line_px};
         const auto own = view::picture(m.description, {}, view::Presentation{}, inner);
         REQUIRE_FALSE(own.content.texts.empty());
@@ -206,7 +206,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(pic.view.y == area.y - 300);
         CHECK(pic.view.w == 1400);
         CHECK(pic.view.h == 1000 + view::notice_band(room));
-        const ws::CanvasRoom inner{pic.view.w, pic.view.h, room.grain, room.graphical,
+        const zengine::pane::CanvasRoom inner{pic.view.w, pic.view.h, room.grain, room.graphical,
                                    room.text_advance_px, room.text_line_px};
         const auto own = view::picture(wide.description, {}, view::Presentation{}, inner);
         std::size_t inside = 0;
@@ -263,8 +263,8 @@ TEST_CASE("WL-HAND-06: the View Builder names its controls, kinds, boxes, list r
         vb::Presentation none;
         const auto pic = vb::picture(m, none, room);
         const auto said = vb::named(pic, m.description);
-        CHECK(ws::canvas_parts_problem(said.parts).empty());
-        const auto part = [&](const std::string& name) -> const ws::CanvasPart* {
+        CHECK(zengine::pane::canvas_parts_problem(said.parts).empty());
+        const auto part = [&](const std::string& name) -> const zengine::pane::CanvasPart* {
             for (const auto& p : said.parts)
                 if (p.name == name) return &p;
             return nullptr;
@@ -409,24 +409,26 @@ public:
     bool allow = true;
     loom::WeaveId self{};
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::v3::PaneOffered>(),
-                loom::schema_of<ws::v3::PaneActions>(),
-                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
-                loom::schema_of<ws::PaneRevealRequested>(), loom::schema_of<ws::PaneMenuRequested>(),
-                loom::schema_of<ws::PaneOperationRequested>(), loom::schema_of<ws::v2::PaneOperationRequested>(),
-                loom::schema_of<ws::PaneValueCarryRequested>(),
-                loom::schema_of<ws::PaneQuitAnswered>(), loom::schema_of<vb::ViewEdited>(),
-                loom::schema_of<ws::v2::PaneSettingsDeclared>(),
-                loom::schema_of<ws::PaneSettingsAsked>(), loom::schema_of<ws::PaneSettingUnused>()};
+        return {loom::schema_of<zengine::pane::v2::PaneOffered>(), loom::schema_of<zengine::pane::v3::PaneOffered>(),
+                loom::schema_of<zengine::pane::v3::PaneActions>(),
+                loom::schema_of<zengine::pane::PaneEscapeUnspent>(), loom::schema_of<zengine::pane::PanePassRequested>(),
+                loom::schema_of<zengine::pane::PaneRevealRequested>(), loom::schema_of<zengine::pane::PaneMenuRequested>(),
+                loom::schema_of<zengine::pane::PaneOperationRequested>(),
+                loom::schema_of<zengine::pane::v2::PaneOperationRequested>(),
+                loom::schema_of<zengine::pane::PaneValueCarryRequested>(),
+                loom::schema_of<zengine::pane::PaneQuitAnswered>(), loom::schema_of<vb::ViewEdited>(),
+                loom::schema_of<zengine::pane::v2::PaneSettingsDeclared>(),
+                loom::schema_of<zengine::pane::PaneSettingsAsked>(), loom::schema_of<zengine::pane::PaneSettingUnused>()};
     }
     void handle(const loom::Message& in, loom::Bus& bus) override {
-        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()) ||
-            loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v2::PaneOperationRequested>()))
-            (void)bus.answer(loom::Message(loom::to_value(ws::PaneOperationAnswered{allow, allow ? "" : "not now"}), self));
-        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v3::PaneActions>()) &&
+        if (loom::same_identity(in.payload.schema(), *loom::schema_of<zengine::pane::PaneOperationRequested>()) ||
+            loom::same_identity(in.payload.schema(), *loom::schema_of<zengine::pane::v2::PaneOperationRequested>()))
+            (void)bus.answer(loom::Message(
+                loom::to_value(zengine::pane::PaneOperationAnswered{allow, allow ? "" : "not now"}), self));
+        if (loom::same_identity(in.payload.schema(), *loom::schema_of<zengine::pane::v3::PaneActions>()) &&
             in.provenance.authored_role() == vb::kRole) {
             rows.clear();
-            for (const auto& row : loom::from_value<ws::v3::PaneActions>(in.payload).rows) rows.push_back(row.id);
+            for (const auto& row : loom::from_value<zengine::pane::v3::PaneActions>(in.payload).rows) rows.push_back(row.id);
         }
         heard.push_back(in);
     }
@@ -498,8 +500,8 @@ struct Rig {
         desk->self = workshop;
         auto o = std::make_unique<Desk>();
         owner = o.get();
-        owner->self = bus.register_weave(std::move(o), loom::Grant{}.allow_any(), ws::kLayoutsRole);
-        menus = bus.register_weave(std::make_unique<Menus>(), loom::Grant{}.allow_any(), ws::kPresenterRole);
+        owner->self = bus.register_weave(std::move(o), loom::Grant{}.allow_any(), zengine::pane::kLayoutsRole);
+        menus = bus.register_weave(std::make_unique<Menus>(), loom::Grant{}.allow_any(), zengine::pane::kPresenterRole);
         if (!project.empty()) {
             auto stub = std::make_unique<ProjectStub>(project);
             ProjectStub* raw = stub.get();
@@ -537,15 +539,15 @@ struct Rig {
         std::size_t asks = 0;
         for (const auto& m : owner->heard) {
             const bool asked =
-                loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneSettingsAsked>());
+                loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneSettingsAsked>());
             asks += asked && m.provenance.authored_role() == vb::kRole ? 1u : 0u;
         }
         REQUIRE(asks == static_cast<std::size_t>(lives));
-        layouts(ws::v2::PaneSettings{vb::kPane, ++handed, {}});
+        layouts(zengine::pane::v2::PaneSettings{vb::kPane, ++handed, {}});
     }
     /// ...or any row, sent as the layouts' owner sends one.
-    void layouts(const ws::v2::PaneSettings& row) {
-        REQUIRE(bus.role_send_to_role_as(owner->self, ws::kLayoutsRole, vb::kRole,
+    void layouts(const zengine::pane::v2::PaneSettings& row) {
+        REQUIRE(bus.role_send_to_role_as(owner->self, zengine::pane::kLayoutsRole, vb::kRole,
                                            loom::Message(loom::to_value(row), owner->self, {}, 0))
                     .valid());
         pump();
@@ -588,14 +590,14 @@ struct Rig {
     /// WHAT THE WINDOW SHOWING THE BUILDER'S AREA SHOWS, read as its picture, kept while the window
     /// holds the same drawing -- and every one names only controls its rows in force declare
     /// (WL-HAND-07).
-    const ws::CanvasPicture& picture() const {
+    const zengine::pane::CanvasPicture& picture() const {
         const gfx::window::WinArea* a = shown->held(kBuilderArea);
         REQUIRE(a != nullptr);
         const auto key = std::make_tuple(static_cast<const void*>(shown), shown->weave().heard.size(), a->w,
                                          a->h, a->nodes.size());
         if (!read_ || key != read_key_) {
             last_ = zengine::testing::shown_picture(
-                *a, ws::canvas_window_room(a->w, a->h, shown->cell_px(), shown->measure()));
+                *a, zengine::pane::canvas_window_room(a->w, a->h, shown->cell_px(), shown->measure()));
             read_ = true;
             read_key_ = key;
             std::vector<std::string> names;
@@ -606,7 +608,7 @@ struct Rig {
         }
         return last_;
     }
-    const ws::CanvasText* text(const std::string& start) const {
+    const zengine::pane::CanvasText* text(const std::string& start) const {
         for (const auto& t : picture().texts)
             if (t.text.rfind(start, 0) == 0) return &t;
         return nullptr;
@@ -615,27 +617,29 @@ struct Rig {
     /// Whether any line of the latest picture holds `words`: a notice wraps over its rows.
     bool says(const std::string& words) const {
         return std::any_of(picture().texts.begin(), picture().texts.end(),
-                           [&](const ws::CanvasText& t) { return has_words(t.text, words); });
+                           [&](const zengine::pane::CanvasText& t) { return has_words(t.text, words); });
     }
     void press(const std::string& start, std::int64_t button = 1) {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
-        pointer(ws::canvas_pointer::kPress, t->x + 4, t->y + 4, -static_cast<std::int64_t>(correlation + 1), button);
+        pointer(zengine::pane::canvas_pointer::kPress, t->x + 4, t->y + 4,
+                -static_cast<std::int64_t>(correlation + 1), button);
     }
     /// A MOMENT OF THE POINTER as the window showing the area gives it, at a local place: a press
     /// under a fresh number, which an acquisition it begins echoes, and its moves and release under
     /// the same; a hold lost, as the window ends one.
     void pointer(std::int64_t phase, std::int64_t x, std::int64_t y, std::int64_t gesture, std::int64_t button = 1,
                  std::int64_t modifiers = 0) {
-        if (phase == ws::canvas_pointer::kPress) presses[gesture] = ++correlation;
+        if (phase == zengine::pane::canvas_pointer::kPress) presses[gesture] = ++correlation;
         const auto at = presses.find(gesture);
         const std::uint64_t n = at == presses.end() ? 0 : at->second;
-        if (phase == ws::canvas_pointer::kPress || phase == ws::canvas_pointer::kRelease) {
-            shown->tell(kBuilderArea, gfx::AreaButtonChanged{kBuilderArea, button, phase == ws::canvas_pointer::kPress,
+        if (phase == zengine::pane::canvas_pointer::kPress || phase == zengine::pane::canvas_pointer::kRelease) {
+            shown->tell(kBuilderArea, gfx::AreaButtonChanged{kBuilderArea, button,
+                                                             phase == zengine::pane::canvas_pointer::kPress,
                                                           x, y, modifiers}, n);
-        } else if (phase == ws::canvas_pointer::kMove) {
+        } else if (phase == zengine::pane::canvas_pointer::kMove) {
             shown->tell(kBuilderArea, gfx::AreaPointerMoved{kBuilderArea, x, y, 0, 0, modifiers}, n);
-        } else if (phase == ws::canvas_pointer::kLost) {
+        } else if (phase == zengine::pane::canvas_pointer::kLost) {
             shown->hold_ended(kBuilderArea, button);
         }
         pump();
@@ -644,7 +648,7 @@ struct Rig {
     /// window does -- a move with no press held, or the pointer leaving the area.
     void hover(std::int64_t x, std::int64_t y, bool over = true, bool carrying = false) {
         if (carrying) {
-            host(ws::PaneCanvasHover{vb::kPane, kBuilderArea, x, y, over});
+            host(zengine::pane::PaneCanvasHover{vb::kPane, kBuilderArea, x, y, over});
         } else if (over) {
             shown->tell(kBuilderArea, gfx::AreaPointerMoved{kBuilderArea, x, y, 0, 0, 0});
             pump();
@@ -661,7 +665,7 @@ struct Rig {
         return {};
     }
     /// A line on the design canvas beginning `start`: drawn by the view's own picture.
-    const ws::CanvasText* drawn(const std::string& start) const {
+    const zengine::pane::CanvasText* drawn(const std::string& start) const {
         const auto area = design();
         for (const auto& t : picture().texts)
             if (t.text.rfind(start, 0) == 0 && area.within({t.x, t.y, 1, 1}).w == 1) return &t;
@@ -684,7 +688,7 @@ struct Rig {
     }
     /// A line beside the design area that reads exactly `words`: a value in its box, the blank a
     /// caret after it stands on not read.
-    const ws::CanvasText* value(const std::string& words) const {
+    const zengine::pane::CanvasText* value(const std::string& words) const {
         const auto area = design();
         for (const auto& t : picture().texts)
             if (t.text.substr(0, t.text.find_last_not_of(' ') + 1) == words &&
@@ -702,12 +706,12 @@ struct Rig {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
         const auto bytes = zengine::inventory::encode_pair(value, {});
-        host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, t->x + 4, t->y + 4,
+        host(zengine::pane::PaneCanvasValueDrop{vb::kPane, kBuilderArea, t->x + 4, t->y + 4,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     }
 
 private:
-    mutable ws::CanvasPicture last_;
+    mutable zengine::pane::CanvasPicture last_;
     mutable bool read_ = false;
     mutable std::tuple<const void*, std::size_t, std::int64_t, std::int64_t, std::size_t> read_key_{};
 };
@@ -833,10 +837,10 @@ TEST_CASE("Discard throws away what is unsaved at one press: a view goes back to
     const auto type_into = [&](const std::string& value) {
         const auto* box = rig.value(value);
         REQUIRE_MESSAGE(box != nullptr, value);
-        rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, ++gesture);
-        rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, gesture);
-        rig.host(ws::PaneKey{vb::kPane, scan::kA, zengine::input::mod::kCtrl});
-        rig.host(ws::PaneTextInput{vb::kPane, "1st"});
+        rig.pointer(zengine::pane::canvas_pointer::kPress, box->x + 8, box->y + 8, ++gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, box->x + 8, box->y + 8, gesture);
+        rig.host(zengine::pane::PaneKey{vb::kPane, scan::kA, zengine::input::mod::kCtrl});
+        rig.host(zengine::pane::PaneTextInput{vb::kPane, "1st"});
         REQUIRE(rig.value("1st") != nullptr);
     };
     REQUIRE(rig.edit("select", {"0"}).ok);
@@ -874,7 +878,7 @@ TEST_CASE("Discard throws away what is unsaved at one press: a view goes back to
 
     // ASKED BY ITS ACTION ID, as a key or the palette asks it: the same discard, back to the file.
     REQUIRE(rig.edit("stop").ok);
-    rig.host(ws::PaneActionRequested{vb::kPane, "view.discard"});
+    rig.host(zengine::pane::PaneActionRequested{vb::kPane, "view.discard"});
     back = rig.now();
     CHECK(back.elements.size() == 2);
     CHECK(rig.says("Discarded the unsaved changes"));
@@ -891,25 +895,25 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
     rig.press("says tally.panel.", 3);
     const loom::Message* menu = nullptr;
     for (const auto& m : rig.desk->heard)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>())) menu = &m;
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneMenuRequested>())) menu = &m;
     REQUIRE(menu != nullptr);
     CHECK(menu->correlation == pressed); // it continues the right press
-    const auto asked = loom::from_value<ws::PaneMenuRequested>(menu->payload);
+    const auto asked = loom::from_value<zengine::pane::PaneMenuRequested>(menu->payload);
     REQUIRE(asked.rows.size() == 1);
     CHECK(asked.rows[0].id == "carry");
     CHECK(asked.subject == "tally.panel.Count");
 
     // The presenter's answer, as its role, under the menu's number.
-    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, vb::kRole,
-        loom::Message(loom::to_value(ws::PaneMenuAnswered{vb::kPane, "tally.panel.Count", true, "carry", ""}),
+    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, zengine::pane::kPresenterRole, vb::kRole,
+        loom::Message(loom::to_value(zengine::pane::PaneMenuAnswered{vb::kPane, "tally.panel.Count", true, "carry", ""}),
                       rig.menus, {}, pressed)).valid());
     rig.pump();
     const loom::Message* carry = nullptr;
     for (const auto& m : rig.desk->heard)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carry = &m;
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneValueCarryRequested>())) carry = &m;
     REQUIRE(carry != nullptr);
     CHECK(carry->correlation == pressed); // the acquisition continues the same gesture
-    const auto carried = loom::from_value<ws::PaneValueCarryRequested>(carry->payload);
+    const auto carried = loom::from_value<zengine::pane::PaneValueCarryRequested>(carry->payload);
     CHECK_FALSE(carried.drag);
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(carried.data.data()), carried.data.size())).item;
@@ -918,7 +922,8 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
 
     // A right press elsewhere means nothing here: it is handed back.
     rig.press("Elements (5)", 3);
-    CHECK(loom::same_identity(rig.desk->heard.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
+    CHECK(loom::same_identity(rig.desk->heard.back().payload.schema(),
+                              *loom::schema_of<zengine::pane::PanePassRequested>()));
 }
 
 TEST_CASE("a press the window landed on the View Builder where it now draws another part makes "
@@ -955,14 +960,14 @@ TEST_CASE("a kind dragged from the palette is made where it is let go on the des
     };
     const auto area = rig.design();
     auto [x, y] = chip("Number");
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 1);
-    rig.pointer(ws::canvas_pointer::kMove, area.x + 30, area.y + 40, 1);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 1);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, area.x + 30, area.y + 40, 1);
     // Where it would be made is marked while the hand holds it, and nothing is made yet.
     CHECK(rig.now().elements.empty());
     CHECK(rig.marked(zengine::graphics::colors::quiet,
                      vb::element_area(area, view::Element{"", view::Kind::number, "", 30, 40, 144, 24, ""}),
                      gfx::kPixelGrainPx));
-    rig.pointer(ws::canvas_pointer::kRelease, area.x + 30, area.y + 40, 1);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, area.x + 30, area.y + 40, 1);
     auto d = rig.now();
     REQUIRE(d.elements.size() == 1);
     CHECK(d.elements[0].kind == view::Kind::number);
@@ -971,17 +976,17 @@ TEST_CASE("a kind dragged from the palette is made where it is let go on the des
     CHECK(d.elements[0].w == 144);
     // A CLICK on a kind makes one below the last.
     std::tie(x, y) = chip("Button");
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 2);
-    rig.pointer(ws::canvas_pointer::kRelease, x, y, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, x, y, 2);
     d = rig.now();
     REQUIRE(d.elements.size() == 2);
     CHECK(d.elements[1].kind == view::Kind::button);
     CHECK(d.elements[1].y == 40 + 24 + 4);
     // LET GO OVER THE LEFT COLUMN, nothing is made, and the builder says where to let go.
     std::tie(x, y) = chip("Label");
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 3);
-    rig.pointer(ws::canvas_pointer::kMove, x + 40, y + 40, 3);
-    rig.pointer(ws::canvas_pointer::kRelease, x + 40, y + 40, 3);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 3);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, x + 40, y + 40, 3);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, x + 40, y + 40, 3);
     CHECK(rig.now().elements.size() == 2);
     CHECK(rig.notice() == "Let go over the canvas to make a label there");
 }
@@ -997,8 +1002,8 @@ TEST_CASE("an element dragged on the design canvas moves and a corner resizes it
     // bottom edge, two pixels from limit's top, to that edge, whose line the canvas shows while
     // the hand holds it.
     auto [x, y] = rig.middle(d.elements[0]);
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 7);
-    rig.pointer(ws::canvas_pointer::kMove, x + 10, y + 6, 7);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 7);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, x + 10, y + 6, 7);
     CHECK(rig.now().elements[0].x == 10);
     CHECK(rig.now().elements[0].y == 4);
     const auto area = rig.design();
@@ -1009,7 +1014,7 @@ TEST_CASE("an element dragged on the design canvas moves and a corner resizes it
         });
     };
     CHECK(line(28));
-    rig.pointer(ws::canvas_pointer::kRelease, x + 10, y + 6, 7);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, x + 10, y + 6, 7);
     CHECK_FALSE(line(28));
     d = rig.now();
     CHECK(d.elements[0].x == 10);
@@ -1018,18 +1023,18 @@ TEST_CASE("an element dragged on the design canvas moves and a corner resizes it
     CHECK(rig.text("[Save*]") != nullptr);
     // RESIZED by its bottom-right handle, the selected element's own, by whole pixels.
     const auto at = vb::element_area(rig.design(), d.elements[0]);
-    rig.pointer(ws::canvas_pointer::kPress, at.x + at.w, at.y + at.h, 8);
-    rig.pointer(ws::canvas_pointer::kMove, at.x + at.w + 20, at.y + at.h + 12, 8);
-    rig.pointer(ws::canvas_pointer::kRelease, at.x + at.w + 20, at.y + at.h + 12, 8);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, at.x + at.w, at.y + at.h, 8);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, at.x + at.w + 20, at.y + at.h + 12, 8);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, at.x + at.w + 20, at.y + at.h + 12, 8);
     d = rig.now();
     CHECK(d.elements[0].x == 10);
     CHECK(d.elements[0].w == 164);
     CHECK(d.elements[0].h == 36);
     // ...and by its top-left one, which moves the corner and keeps the opposite one where it was.
     const auto again = vb::element_area(rig.design(), d.elements[0]);
-    rig.pointer(ws::canvas_pointer::kPress, again.x, again.y, 9);
-    rig.pointer(ws::canvas_pointer::kMove, again.x + 10, again.y - 100, 9);
-    rig.pointer(ws::canvas_pointer::kRelease, again.x + 10, again.y - 100, 9);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, again.x, again.y, 9);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, again.x + 10, again.y - 100, 9);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, again.x + 10, again.y - 100, 9);
     d = rig.now();
     CHECK(d.elements[0].x == 20);
     CHECK(d.elements[0].y == 0); // never above the view's top
@@ -1038,35 +1043,35 @@ TEST_CASE("an element dragged on the design canvas moves and a corner resizes it
     // A VALUE TYPED INTO ITS BOX changes the same element, exactly.
     const auto* box = rig.value("20");
     REQUIRE(box != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 10);
-    rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, 10);
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
-    rig.host(ws::PaneTextInput{vb::kPane, "50"});
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    rig.pointer(zengine::pane::canvas_pointer::kPress, box->x + 8, box->y + 8, 10);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, box->x + 8, box->y + 8, 10);
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "50"});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
     CHECK(rig.now().elements[0].x == 50);
     // AN ARROW KEY moves it a pixel, exactly too.
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kRight, 0});
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kDown, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kRight, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kDown, 0});
     CHECK(rig.now().elements[0].x == 51);
     CHECK(rig.now().elements[0].y == 1);
     // A DRAG THAT ENDS LOST puts back what it moved.
     d = rig.now();
     std::tie(x, y) = rig.middle(d.elements[0]);
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 11);
-    rig.pointer(ws::canvas_pointer::kMove, x + 30, y + 30, 11);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 11);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, x + 30, y + 30, 11);
     CHECK(rig.now().elements[0].x == 81);
-    rig.pointer(ws::canvas_pointer::kLost, x + 30, y + 30, 11);
+    rig.pointer(zengine::pane::canvas_pointer::kLost, x + 30, y + 30, 11);
     CHECK(rig.now().elements[0].x == 51);
     CHECK(rig.now().elements[0].y == 1);
     CHECK(rig.notice() == "start is back where it was: the drag ended before it was let go");
     // AN ELEMENT REMOVED MID-DRAG ends the drag: the one that takes its index is not moved.
     std::tie(x, y) = rig.middle(rig.now().elements[0]);
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 12);
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kDelete, 0});
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 12);
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kDelete, 0});
     const auto left = rig.now();
     REQUIRE(left.elements[0].id == "limit");
-    rig.pointer(ws::canvas_pointer::kMove, x + 30, y + 30, 12);
-    rig.pointer(ws::canvas_pointer::kLost, x + 30, y + 30, 12);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, x + 30, y + 30, 12);
+    rig.pointer(zengine::pane::canvas_pointer::kLost, x + 30, y + 30, 12);
     CHECK(rig.now().elements[0].x == left.elements[0].x);
     CHECK(rig.now().elements[0].y == left.elements[0].y);
 }
@@ -1143,22 +1148,22 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
         return out;
     };
     // THE THREE SETTINGS, AS THE LAYOUTS' OWNER IS TOLD THEM BESIDE THE OFFER.
-    std::vector<ws::v2::PaneSettingsDeclared> declared;
+    std::vector<zengine::pane::v2::PaneSettingsDeclared> declared;
     for (const auto& m : rig.owner->heard) {
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneSettingsDeclared>()) &&
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::v2::PaneSettingsDeclared>()) &&
             m.provenance.authored_role() == vb::kRole) {
-            declared.push_back(loom::from_value<ws::v2::PaneSettingsDeclared>(m.payload));
+            declared.push_back(loom::from_value<zengine::pane::v2::PaneSettingsDeclared>(m.payload));
         }
     }
     REQUIRE_FALSE(declared.empty());
     CHECK(declared.back().pane == vb::kPane);
     const auto pixels = [](const char* key, std::int64_t made, std::int64_t low, const char* says) {
-        return ws::v2::PaneSettingRow{key, std::nullopt, made, std::nullopt, {}, low, view::kMaxPixels,
+        return zengine::pane::v2::PaneSettingRow{key, std::nullopt, made, std::nullopt, {}, low, view::kMaxPixels,
                                       {"layout"}, false, says};
     };
     CHECK(declared.back().rows ==
-          std::vector<ws::v2::PaneSettingRow>{
-              ws::v2::PaneSettingRow{vb::kSettingSnapReach, std::nullopt, vb::kSnapReach, std::nullopt, {}, 0,
+          std::vector<zengine::pane::v2::PaneSettingRow>{
+              zengine::pane::v2::PaneSettingRow{vb::kSettingSnapReach, std::nullopt, vb::kSnapReach, std::nullopt, {}, 0,
                                      vb::kMostSnapReach, {"layout", "input"}, true,
                                      "snap reach in pixels when dragging"},
               pixels(vb::kSettingNewWidth, vb::kNewViewWidth, view::kMinWidthPx,
@@ -1167,29 +1172,29 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
                      "initial height in pixels of a new view")});
 
     // A LAYOUT'S VALUES, HANDED AS THE LAYOUTS' OWNER HANDS THEM: no reach, and a larger new view.
-    rig.layouts(ws::v2::PaneSettings{vb::kPane, 11,
-                                  {ws::PaneSetting{vb::kSettingNewHeight, {}, 300, {}},
-                                   ws::PaneSetting{vb::kSettingNewWidth, {}, 600, {}},
-                                   ws::PaneSetting{vb::kSettingSnapReach, {}, 0, {}}}});
-    CHECK(said(ws::PaneSettingUnused{}).empty());
+    rig.layouts(zengine::pane::v2::PaneSettings{vb::kPane, 11,
+                                  {zengine::pane::PaneSetting{vb::kSettingNewHeight, {}, 300, {}},
+                                   zengine::pane::PaneSetting{vb::kSettingNewWidth, {}, 600, {}},
+                                   zengine::pane::PaneSetting{vb::kSettingSnapReach, {}, 0, {}}}});
+    CHECK(said(zengine::pane::PaneSettingUnused{}).empty());
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     CHECK(rig.now().width == 600);
     CHECK(rig.now().height == 300);
     // ...the drag the default reach brings to limit's top, two pixels off, now lands where it is let go.
     auto [x, y] = rig.middle(rig.now().elements[0]);
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 7);
-    rig.pointer(ws::canvas_pointer::kMove, x + 10, y + 6, 7);
-    rig.pointer(ws::canvas_pointer::kRelease, x + 10, y + 6, 7);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 7);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, x + 10, y + 6, 7);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, x + 10, y + 6, 7);
     CHECK(rig.now().elements[0].x == 10);
     CHECK(rig.now().elements[0].y == 6);
 
     // A HAND-OFF THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT: the reach snaps again, and
     // `new` makes today's size.
-    rig.layouts(ws::v2::PaneSettings{vb::kPane, 12, {}});
+    rig.layouts(zengine::pane::v2::PaneSettings{vb::kPane, 12, {}});
     std::tie(x, y) = rig.middle(rig.now().elements[0]);
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 8);
-    rig.pointer(ws::canvas_pointer::kMove, x, y - 5, 8);
-    rig.pointer(ws::canvas_pointer::kRelease, x, y - 5, 8);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 8);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, x, y - 5, 8);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, x, y - 5, 8);
     CHECK(rig.now().elements[0].y == 0); // its top edge, a pixel off, to the view's
     REQUIRE(rig.edit("new", {"other.view", "discard"}).ok);
     CHECK(rig.now().width == vb::kNewViewWidth);
@@ -1197,10 +1202,10 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
 
     // A REACH PAST A CELL leaves the default, said against the revision it was handed at; a key the
     // pane does not declare is passed over.
-    rig.layouts(ws::v2::PaneSettings{vb::kPane, 13,
-                                  {ws::PaneSetting{vb::kSettingSnapReach, {}, vb::kMostSnapReach + 1, {}},
-                                   ws::PaneSetting{"zoom", true, {}, {}}}});
-    const auto unused = said(ws::PaneSettingUnused{});
+    rig.layouts(zengine::pane::v2::PaneSettings{vb::kPane, 13,
+                                  {zengine::pane::PaneSetting{vb::kSettingSnapReach, {}, vb::kMostSnapReach + 1, {}},
+                                   zengine::pane::PaneSetting{"zoom", true, {}, {}}}});
+    const auto unused = said(zengine::pane::PaneSettingUnused{});
     REQUIRE(unused.size() == 1);
     CHECK(unused[0].revision == 13);
     CHECK(unused[0].key == vb::kSettingSnapReach);
@@ -1217,9 +1222,9 @@ TEST_CASE("each side of the selected element has a handle that moves that side a
     auto d = rig.now();
     auto at = vb::element_area(rig.design(), d.elements[4]);
     const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture) {
-        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
-        rig.pointer(ws::canvas_pointer::kMove, x + dx, y + dy, gesture);
-        rig.pointer(ws::canvas_pointer::kRelease, x + dx, y + dy, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kMove, x + dx, y + dy, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, x + dx, y + dy, gesture);
     };
     drag(at.x + at.w, at.y + at.h / 2, 40, 30, 20);
     auto e = rig.now().elements[4];
@@ -1301,9 +1306,9 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     // A MIDDLE DRAG on the canvas pans it: the view follows the hand.
     const auto cx = area.x + area.w / 2, cy = area.y + area.h / 2;
     const std::int64_t pan_x = 1200, pan_y = 600;
-    rig.pointer(ws::canvas_pointer::kPress, cx, cy, 30, 2);
-    rig.pointer(ws::canvas_pointer::kMove, cx - pan_x, cy - pan_y, 30, 2);
-    rig.pointer(ws::canvas_pointer::kRelease, cx - pan_x, cy - pan_y, 30, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, cx, cy, 30, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, cx - pan_x, cy - pan_y, 30, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, cx - pan_x, cy - pan_y, 30, 2);
     const vb::Area placed{area.x - pan_x, area.y - pan_y, 0, 0};
     auto distant = vb::element_area(placed, rig.now().elements[5]);
     REQUIRE(area.within(distant).w == distant.w);
@@ -1317,27 +1322,27 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     rig.hover(distant.x + distant.w / 2, distant.y + distant.h / 2);
     CHECK(rig.marked(ink::text, distant, gfx::kPixelGrainPx));
     // PRESSED AND DRAGGED where it is drawn: selected and moved.
-    rig.pointer(ws::canvas_pointer::kPress, distant.x + distant.w / 2, distant.y + distant.h / 2, 31);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, distant.x + distant.w / 2, distant.y + distant.h / 2, 31);
     CHECK(rig.text("far (button) ") != nullptr);
-    rig.pointer(ws::canvas_pointer::kMove, distant.x + distant.w / 2 - 24, distant.y + distant.h / 2 + 12, 31);
-    rig.pointer(ws::canvas_pointer::kRelease, distant.x + distant.w / 2 - 24, distant.y + distant.h / 2 + 12, 31);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, distant.x + distant.w / 2 - 24, distant.y + distant.h / 2 + 12, 31);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, distant.x + distant.w / 2 - 24, distant.y + distant.h / 2 + 12, 31);
     auto e = rig.now().elements[5];
     CHECK(e.x == 1476);
     CHECK(e.y == 912);
     // A KIND LET GO while panned is made where it was let go, in the view's pixels.
     const auto* chip = rig.text("[Label]");
     REQUIRE(chip != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, chip->x + 8, chip->y + 8, 32);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, chip->x + 8, chip->y + 8, 32);
     const auto lx = placed.x + 1500, ly = placed.y + 1008;
-    rig.pointer(ws::canvas_pointer::kMove, lx, ly, 32);
-    rig.pointer(ws::canvas_pointer::kRelease, lx, ly, 32);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, lx, ly, 32);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, lx, ly, 32);
     REQUIRE(rig.now().elements.size() == 7);
     CHECK(rig.now().elements[6].x == 1500);
     CHECK(rig.now().elements[6].y == 1008);
     // A VALUE DROPPED on a label while panned binds the label it was dropped on.
     const auto made = vb::element_area(placed, rig.now().elements[6]);
     const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*total_shape()), {});
-    rig.host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, made.x + made.w / 2, made.y + made.h / 2,
+    rig.host(zengine::pane::PaneCanvasValueDrop{vb::kPane, kBuilderArea, made.x + made.w / 2, made.y + made.h / 2,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     CHECK(rig.now().shown("label1") != nullptr);
     // THE PAN IS NEVER SAVED: the far button put back and the label removed, the file is the
@@ -1355,9 +1360,9 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     CHECK(rig.drawn("Far") != nullptr); // an edit from elsewhere keeps the pan
     // THE PAN'S REACH: the view's far edges, and a cell beyond them where its handles sit, no
     // further left or up than the canvas's own, however far the hand goes.
-    rig.pointer(ws::canvas_pointer::kPress, cx, cy, 33, 2);
-    rig.pointer(ws::canvas_pointer::kMove, cx - 5000, cy - 5000, 33, 2);
-    rig.pointer(ws::canvas_pointer::kRelease, cx - 5000, cy - 5000, 33, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, cx, cy, 33, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, cx - 5000, cy - 5000, 33, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, cx - 5000, cy - 5000, 33, 2);
     const auto [reach_x, reach_y] = vb::pan_reach(rig.now(), area, view::notice_band(window_room()));
     const vb::Area reached{area.x - reach_x, area.y - reach_y, 0, 0};
     distant = vb::element_area(reached, rig.now().elements[5]);
@@ -1366,15 +1371,15 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     CHECK(std::abs(reached.y + 1200 + view::notice_band(window_room()) - (area.y + area.h)) <=
           1); // the notice rows beneath the size in sight too
     // ...and back to the view's corner, no further.
-    rig.pointer(ws::canvas_pointer::kPress, cx, cy, 34, 2);
-    rig.pointer(ws::canvas_pointer::kMove, cx + 9000, cy + 9000, 34, 2);
-    rig.pointer(ws::canvas_pointer::kRelease, cx + 9000, cy + 9000, 34, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, cx, cy, 34, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, cx + 9000, cy + 9000, 34, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, cx + 9000, cy + 9000, 34, 2);
     CHECK(rig.drawn("start: 0") != nullptr);
     CHECK(rig.drawn("Far") == nullptr);
     // A NEW VIEW, or one opened, is shown from its corner.
-    rig.pointer(ws::canvas_pointer::kPress, cx, cy, 35, 2);
-    rig.pointer(ws::canvas_pointer::kMove, cx - pan_x, cy - pan_y, 35, 2);
-    rig.pointer(ws::canvas_pointer::kRelease, cx - pan_x, cy - pan_y, 35, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, cx, cy, 35, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, cx - pan_x, cy - pan_y, 35, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, cx - pan_x, cy - pan_y, 35, 2);
     REQUIRE(rig.drawn("Far") != nullptr);
     REQUIRE(rig.edit("open", {(dir.directory / "far.view").string(), "discard"}).ok);
     CHECK(rig.drawn("start: 0") != nullptr);
@@ -1391,9 +1396,10 @@ TEST_CASE("in a terminal the middle button pans the design canvas by whole cells
     REQUIRE(rig.edit("select", {"0"}).ok);
     const auto area = rig.design();
     CHECK(rig.drawn("Far") == nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, area.x + 2 * unit, area.y + 2 * unit, 50, 2);
-    rig.pointer(ws::canvas_pointer::kMove, area.x + 2 * unit - 60 * unit, area.y + 2 * unit - 30 * unit, 50, 2);
-    rig.pointer(ws::canvas_pointer::kRelease, area.x + 2 * unit - 60 * unit, area.y + 2 * unit - 30 * unit, 50, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, area.x + 2 * unit, area.y + 2 * unit, 50, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, area.x + 2 * unit - 60 * unit, area.y + 2 * unit - 30 * unit, 50, 2);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, area.x + 2 * unit - 60 * unit,
+                area.y + 2 * unit - 30 * unit, 50, 2);
     const auto* distant = rig.drawn("Far");
     REQUIRE(distant != nullptr);
     for (const auto& t : rig.picture().texts) {
@@ -1405,9 +1411,9 @@ TEST_CASE("in a terminal the middle button pans the design canvas by whole cells
     CHECK(distant->x >= at.x);
     CHECK(distant->y >= at.y);
     // ...and an element pressed there is the one drawn there, moved by whole cells.
-    rig.pointer(ws::canvas_pointer::kPress, at.x + unit, at.y, 51);
-    rig.pointer(ws::canvas_pointer::kMove, at.x + 2 * unit, at.y + unit, 51);
-    rig.pointer(ws::canvas_pointer::kRelease, at.x + 2 * unit, at.y + unit, 51);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, at.x + unit, at.y, 51);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, at.x + 2 * unit, at.y + unit, 51);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, at.x + 2 * unit, at.y + unit, 51);
     CHECK(rig.now().elements[5].x == 1200 + gfx::kCellPx);
     CHECK(rig.now().elements[5].y == 600 + gfx::kCellPx);
 }
@@ -1444,9 +1450,9 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     };
     CHECK(ground(480, 240 + 60) == 1); // the size, and its three notice rows of 20 pixels
     const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture,
-                          std::int64_t phase = ws::canvas_pointer::kRelease) {
-        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
-        rig.pointer(ws::canvas_pointer::kMove, x + dx, y + dy, gesture);
+                          std::int64_t phase = zengine::pane::canvas_pointer::kRelease) {
+        rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kMove, x + dx, y + dy, gesture);
         rig.pointer(phase, x + dx, y + dy, gesture);
     };
     const auto px = [](std::int64_t v) { return v; };
@@ -1465,11 +1471,11 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     // TYPED into its box, the width is exact.
     const auto* box = rig.value("516");
     REQUIRE(box != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 63);
-    rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, 63);
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
-    rig.host(ws::PaneTextInput{vb::kPane, "500"});
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    rig.pointer(zengine::pane::canvas_pointer::kPress, box->x + 8, box->y + 8, 63);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, box->x + 8, box->y + 8, 63);
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "500"});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
     CHECK(rig.now().width == 500);
     CHECK(rig.notice() == "The view is 500 by 288");
     // AN ELEMENT'S EDGE SNAPS TO THE VIEW'S: total's right edge, three pixels short of it, comes to it.
@@ -1483,7 +1489,7 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     drag(area.x + px(250), area.y + px(288), 0, -152, 65);
     CHECK(rig.now().height == 132);
     // A DRAG CUT SHORT puts the size back.
-    drag(area.x + px(500), area.y + px(66), 120, 0, 66, ws::canvas_pointer::kLost);
+    drag(area.x + px(500), area.y + px(66), 120, 0, 66, zengine::pane::canvas_pointer::kLost);
     CHECK(rig.now().width == 500);
     CHECK(rig.notice() == "The view's size is back where it was: the drag ended before it was let go");
     // IN A TERMINAL each of its handles is the cell beyond its edge.
@@ -1520,18 +1526,18 @@ TEST_CASE("nothing sits outside the view: a dragged element stops at its edge, a
     const auto area = rig.design();
     const auto px = [](std::int64_t v) { return v; };
     const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture) {
-        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
-        rig.pointer(ws::canvas_pointer::kMove, x + px(dx), y + px(dy), gesture);
-        rig.pointer(ws::canvas_pointer::kRelease, x + px(dx), y + px(dy), gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kMove, x + px(dx), y + px(dy), gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, x + px(dx), y + px(dy), gesture);
     };
     const auto type_into = [&](const std::string& shown, const std::string& value) {
         const auto* box = rig.value(shown);
         REQUIRE_MESSAGE(box != nullptr, shown);
-        rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 70);
-        rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, 70);
-        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
-        rig.host(ws::PaneTextInput{vb::kPane, value});
-        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+        rig.pointer(zengine::pane::canvas_pointer::kPress, box->x + 8, box->y + 8, 70);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, box->x + 8, box->y + 8, 70);
+        rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+        rig.host(zengine::pane::PaneTextInput{vb::kPane, value});
+        rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
     };
     // THE SIZE CANNOT SHRINK PAST AN ELEMENT: its edge, dragged in, stops at total's far edges...
     drag(area.x + px(480), area.y + px(120), -400, 0, 71);
@@ -1542,12 +1548,12 @@ TEST_CASE("nothing sits outside the view: a dragged element stops at its edge, a
     type_into("192", "150");
     CHECK(rig.now().width == 192);
     CHECK(rig.notice() == "`total` reaches to 192,136, past the view's size of 150 by 136");
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kEscape, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kEscape, 0});
     // A KIND MADE BELOW THE LAST, where the view has no room, is refused in words.
     const auto* chip = rig.text("[Label]");
     REQUIRE(chip != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, chip->x + 8, chip->y + 8, 73);
-    rig.pointer(ws::canvas_pointer::kRelease, chip->x + 8, chip->y + 8, 73);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, chip->x + 8, chip->y + 8, 73);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, chip->x + 8, chip->y + 8, 73);
     CHECK(rig.now().elements.size() == 5);
     CHECK(has_words(rig.notice(), "past the view's size of 192 by 136"));
     REQUIRE(rig.edit("size", {"480", "240"}).ok);
@@ -1568,22 +1574,22 @@ TEST_CASE("nothing sits outside the view: a dragged element stops at its edge, a
     // A KIND LET GO AT THE EDGE is made inside it.
     const auto* number = rig.text("[Number]");
     REQUIRE(number != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, number->x + 8, number->y + 8, 76);
-    rig.pointer(ws::canvas_pointer::kMove, area.x + px(470), area.y + px(10), 76);
-    rig.pointer(ws::canvas_pointer::kRelease, area.x + px(470), area.y + px(10), 76);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, number->x + 8, number->y + 8, 76);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, area.x + px(470), area.y + px(10), 76);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, area.x + px(470), area.y + px(10), 76);
     REQUIRE(rig.now().elements.size() == 6);
     CHECK(rig.now().elements[5].x + rig.now().elements[5].w == 480);
 
     // A KEY THAT WOULD CROSS AN EDGE is refused in words: start sits on the right and bottom edges.
     REQUIRE(rig.edit("select", {"0"}).ok);
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kRight, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kRight, 0});
     CHECK(rig.now().elements[0].x == 336);
     CHECK(rig.notice() == "`start` reaches to 481,240, past the view's size of 480 by 240");
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kDown, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kDown, 0});
     CHECK(rig.now().elements[0].y == 216);
     // ...and on the left, where the view begins.
     REQUIRE(rig.edit("place", {"0", "0", "0", "144", "24"}).ok);
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kLeft, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kLeft, 0});
     CHECK(rig.now().elements[0].x == 0);
     CHECK(has_words(rig.notice(), "`start` sits at a place and a size of whole pixels, each from 0"));
     // A TYPED VALUE THAT WOULD CROSS IT is refused in words, the box kept for repair.
@@ -1599,18 +1605,18 @@ TEST_CASE("the grid is the weaver's: none by default, so a place by hand moves b
     const auto px = [](std::int64_t v) { return v; };
     const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture,
                           std::int64_t modifiers = 0) {
-        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture, 1, modifiers);
-        rig.pointer(ws::canvas_pointer::kMove, x + px(dx), y + px(dy), gesture, 1, modifiers);
-        rig.pointer(ws::canvas_pointer::kRelease, x + px(dx), y + px(dy), gesture, 1, modifiers);
+        rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, gesture, 1, modifiers);
+        rig.pointer(zengine::pane::canvas_pointer::kMove, x + px(dx), y + px(dy), gesture, 1, modifiers);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, x + px(dx), y + px(dy), gesture, 1, modifiers);
     };
     const auto set_grid = [&](const std::string& shown, const std::string& value) {
         const auto* box = rig.value(shown);
         REQUIRE_MESSAGE(box != nullptr, shown);
-        rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 80);
-        rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, 80);
-        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
-        rig.host(ws::PaneTextInput{vb::kPane, value});
-        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+        rig.pointer(zengine::pane::canvas_pointer::kPress, box->x + 8, box->y + 8, 80);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, box->x + 8, box->y + 8, 80);
+        rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+        rig.host(zengine::pane::PaneTextInput{vb::kPane, value});
+        rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
     };
     // NO GRID BY DEFAULT: the grid's box says 1, and a place by hand is the pixel it was left at.
     CHECK(rig.text("px: none") != nullptr);
@@ -1628,10 +1634,10 @@ TEST_CASE("the grid is the weaver's: none by default, so a place by hand moves b
     // ...a grid it cannot be is refused in words, and the grid stays.
     set_grid("20", "0");
     CHECK(rig.notice() == "the grid is whole pixels from 1, which is none, to 96; 0 is not");
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kEscape, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kEscape, 0});
     set_grid("20", "97");
     CHECK(has_words(rig.notice(), "97 is not"));
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kEscape, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kEscape, 0});
     // ...an edit from elsewhere keeps it, and it is never in the view.
     REQUIRE(rig.edit("select", {"0"}).ok);
     CHECK(rig.value("20") != nullptr);
@@ -1663,9 +1669,9 @@ TEST_CASE("a view shrunk to its elements while its notice shows keeps every elem
     rig.drop(loom::encode_schema(*total_shape()), "  total  label");
     REQUIRE(rig.now().shown("total") != nullptr);
     const auto drag = [&](std::int64_t x, std::int64_t y, std::int64_t dx, std::int64_t dy, std::int64_t gesture) {
-        rig.pointer(ws::canvas_pointer::kPress, x, y, gesture);
-        rig.pointer(ws::canvas_pointer::kMove, x + dx, y + dy, gesture);
-        rig.pointer(ws::canvas_pointer::kRelease, x + dx, y + dy, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kMove, x + dx, y + dy, gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, x + dx, y + dy, gesture);
     };
     // SHRUNK BY HAND to its elements: Total's bottom edge, 136, is the size's.
     const auto area = rig.design();
@@ -1731,15 +1737,18 @@ TEST_CASE("a value typed into its box is kept by Return or Tab, refused in words
         const auto* box = rig.value(words);
         REQUIRE_MESSAGE(box != nullptr, words);
         const auto x = box->x + 8, y = box->y + 8;
-        rig.pointer(ws::canvas_pointer::kPress, x, y, 20);
-        rig.pointer(ws::canvas_pointer::kRelease, x, y, 20);
+        rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 20);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, x, y, 20);
     };
-    const auto key = [&](std::int64_t scancode, std::int64_t mods = 0) { rig.host(ws::PaneKey{vb::kPane, scancode, mods}); };
+    const auto key = [&](std::int64_t scancode,
+                         std::int64_t mods = 0) { rig.host(zengine::pane::PaneKey{vb::kPane,
+                                                                                  scancode,
+                                                                                  mods}); };
     namespace scan = zengine::input::scan;
     // REFUSED: the id is said not to be one, the element keeps its id, and the box keeps the text.
     press_value("start");
     key(scan::kA, zengine::input::mod::kCtrl);
-    rig.host(ws::PaneTextInput{vb::kPane, "1st"});
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "1st"});
     key(scan::kReturn);
     CHECK(rig.notice().find("`1st` is not") != std::string::npos);
     CHECK(rig.now().elements[0].id == "start");
@@ -1751,19 +1760,19 @@ TEST_CASE("a value typed into its box is kept by Return or Tab, refused in words
     // TAB keeps the label and moves to the starting text, which takes typing in turn.
     press_value("start"); // the id box; Tab walks from it
     key(scan::kTab);
-    rig.host(ws::PaneTextInput{vb::kPane, "From"}); // Tab selected the label whole: typing replaces it
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "From"}); // Tab selected the label whole: typing replaces it
     key(scan::kTab);
     CHECK(rig.now().elements[0].label == "From");
-    rig.host(ws::PaneTextInput{vb::kPane, "5"});
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "5"});
     key(scan::kReturn);
     CHECK(rig.now().elements[0].text == "5");
     // A press elsewhere keeps a value being typed before it acts.
     press_value("0");
     key(scan::kEnd);
-    rig.host(ws::PaneTextInput{vb::kPane, "8"});
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "8"});
     const auto* list = rig.text("  limit  number");
     REQUIRE(list != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, list->x + 8, list->y + 8, 21);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, list->x + 8, list->y + 8, 21);
     const auto d = rig.now();
     CHECK(d.elements[0].x == 8);
     CHECK(rig.text("limit (number) ") != nullptr);
@@ -1776,7 +1785,7 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     REQUIRE(rig.edit("set", {"4", "label", long_label}).ok);
     REQUIRE(rig.edit("select", {"4"}).ok);
     // The label's box, beside the design area, holding the front of the label.
-    const auto boxed = [&](const std::string& start) -> const ws::CanvasText* {
+    const auto boxed = [&](const std::string& start) -> const zengine::pane::CanvasText* {
         const auto area = rig.design();
         for (const auto& t : rig.picture().texts)
             if (t.text.rfind(start, 0) == 0 && t.x >= area.x + area.w) return &t;
@@ -1784,10 +1793,10 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     };
     const auto* box = boxed("abcdefgh");
     REQUIRE(box != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 50);
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kEnd, 0});
+    rig.pointer(zengine::pane::canvas_pointer::kPress, box->x + 8, box->y + 8, 50);
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kEnd, 0});
     // Typing at its end scrolls the box: it shows the label's tail, not its front.
-    const auto* scrolled = [&]() -> const ws::CanvasText* {
+    const auto* scrolled = [&]() -> const zengine::pane::CanvasText* {
         for (const auto& t : rig.picture().texts)
             if (t.ink == zengine::graphics::colors::accent && !t.text.empty() &&
                 long_label.size() >= t.text.size() &&
@@ -1799,11 +1808,11 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     const auto first = long_label.size() - scrolled->text.size();
     REQUIRE(first > 5);
     // A PRESS ON ITS SIXTH SHOWN COLUMN puts the caret before the byte drawn there.
-    const auto metrics = ws::canvas_text_metrics(window_room());
+    const auto metrics = zengine::pane::canvas_text_metrics(window_room());
     const auto x = scrolled->x + metrics.inset + 5 * metrics.advance + metrics.advance / 2;
-    rig.pointer(ws::canvas_pointer::kPress, x, scrolled->y + 8, 51);
-    rig.host(ws::PaneTextInput{vb::kPane, "#"});
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, scrolled->y + 8, 51);
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "#"});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
     auto expected = long_label;
     expected.insert(first + 5, "#");
     CHECK(rig.now().elements[4].label == expected);
@@ -1816,19 +1825,19 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
     // Is `[name]` drawn whole inside its column, so a press on it chooses that field? The values
     // sit right of the design area in a wide pane, and left of it in a narrow one.
     auto room = window_room();
-    const auto offered = [&](const std::string& name) -> const ws::CanvasText* {
+    const auto offered = [&](const std::string& name) -> const zengine::pane::CanvasText* {
         const auto* t = rig.text("[" + name + "]");
         if (!t || t->text != "[" + name + "]") return nullptr;
         const auto area = rig.design();
         const auto right = t->x >= area.x + area.w ? room.width : area.x;
-        const auto metrics = ws::canvas_text_metrics(room);
+        const auto metrics = zengine::pane::canvas_text_metrics(room);
         return t->x + static_cast<std::int64_t>(t->text.size()) * metrics.advance <= right ? t : nullptr;
     };
     std::int64_t gesture = 60;
     const auto choose = [&](const std::string& name) {
         const auto* t = offered(name);
         REQUIRE_MESSAGE(t != nullptr, name);
-        rig.pointer(ws::canvas_pointer::kPress, t->x + 4, t->y + 4, ++gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kPress, t->x + 4, t->y + 4, ++gesture);
     };
     const auto shown = [&] {
         const auto d = rig.now();
@@ -1883,7 +1892,7 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
             choose("More");
         } else {
             const std::string before = first_offered();
-            rig.host(ws::PaneActionRequested{vb::kPane, "view.choices"});
+            rig.host(zengine::pane::PaneActionRequested{vb::kPane, "view.choices"});
             CHECK(first_offered() != before);
         }
     }
@@ -1901,7 +1910,7 @@ TEST_CASE("a value dropped on no label is refused in words whatever is selected;
     const auto total = loom::encode_schema(*total_shape());
     const auto drop_at = [&](std::int64_t x, std::int64_t y) {
         const auto bytes = zengine::inventory::encode_pair(total, {});
-        rig.host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, x, y,
+        rig.host(zengine::pane::PaneCanvasValueDrop{vb::kPane, kBuilderArea, x, y,
                                          loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     };
     const std::string refused = "Not shown: drop a shape or a field on a label, on the canvas or in the list";
@@ -1937,7 +1946,7 @@ TEST_CASE("a label bound to a shape named beyond plain ASCII leaves the builder'
     const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*grosse), {});
     // ON THE LABEL ON THE CANVAS: bound.
     auto [x, y] = rig.middle(rig.now().elements[4]);
-    rig.host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, x, y,
+    rig.host(zengine::pane::PaneCanvasValueDrop{vb::kPane, kBuilderArea, x, y,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     const auto d = rig.now();
     REQUIRE(d.shows.size() == 1);
@@ -1983,12 +1992,13 @@ TEST_CASE("a carried shape brings the shapes it nests: a label binds a field of 
     REQUIRE(rig.edit("select", {"3"}).ok);
     const auto* says = rig.text("says tally.panel.");
     REQUIRE(says != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, says->x + 8, says->y + 8, 70);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, says->x + 8, says->y + 8, 70);
     const loom::Message* carried = nullptr;
     for (const auto& m : rig.desk->heard)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+        if (loom::same_identity(m.payload.schema(),
+                                *loom::schema_of<zengine::pane::PaneValueCarryRequested>())) carried = &m;
     REQUIRE(carried != nullptr);
-    const auto bytes = loom::from_value<ws::PaneValueCarryRequested>(carried->payload).data;
+    const auto bytes = loom::from_value<zengine::pane::PaneValueCarryRequested>(carried->payload).data;
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())).item;
     CHECK(item.schema().name() == "zengine.flow.CarriedShape");
@@ -1998,10 +2008,11 @@ TEST_CASE("a carried shape brings the shapes it nests: a label binds a field of 
 TEST_CASE("a control in the values column is drawn whole inside it whatever the words before it: Unshow, Remove and the intent's box") {
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
-    const auto metrics = ws::canvas_text_metrics(window_room());
+    const auto metrics = zengine::pane::canvas_text_metrics(window_room());
     // Is exactly `words` drawn, whole, right of the design area and inside the room -- on the row
     // of `beside` when it is named?
-    const auto whole = [&](const std::string& words, const ws::CanvasText* beside = nullptr) -> const ws::CanvasText* {
+    const auto whole = [&](const std::string& words,
+                           const zengine::pane::CanvasText* beside = nullptr) -> const zengine::pane::CanvasText* {
         const auto area = rig.design();
         for (const auto& t : rig.picture().texts)
             if (t.text == words && t.x >= area.x + area.w && (!beside || t.y == beside->y) &&
@@ -2010,9 +2021,9 @@ TEST_CASE("a control in the values column is drawn whole inside it whatever the 
         return nullptr;
     };
     std::int64_t gesture = 80;
-    const auto press = [&](const ws::CanvasText& t) {
-        rig.pointer(ws::canvas_pointer::kPress, t.x + 8, t.y + 8, ++gesture);
-        rig.pointer(ws::canvas_pointer::kRelease, t.x + 8, t.y + 8, gesture);
+    const auto press = [&](const zengine::pane::CanvasText& t) {
+        rig.pointer(zengine::pane::canvas_pointer::kPress, t.x + 8, t.y + 8, ++gesture);
+        rig.pointer(zengine::pane::canvas_pointer::kRelease, t.x + 8, t.y + 8, gesture);
     };
 
     // UNSHOW after a long binding.
@@ -2040,9 +2051,9 @@ TEST_CASE("a control in the values column is drawn whole inside it whatever the 
     const auto* box = whole("Count", says);
     REQUIRE(box != nullptr);
     press(*box);
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
-    rig.host(ws::PaneTextInput{vb::kPane, "Sum"});
-    rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kA, zengine::input::mod::kCtrl});
+    rig.host(zengine::pane::PaneTextInput{vb::kPane, "Sum"});
+    rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
     const auto d = rig.now();
     REQUIRE(d.intents.size() == 1);
     CHECK(d.intents[0].shape->name() == "tally.panel.with.the.longest.nm.Sum");
@@ -2054,19 +2065,21 @@ TEST_CASE("a press on what a button says asks under that press to drag its inten
     REQUIRE(rig.edit("select", {"3"}).ok);
     const auto* says = rig.text("says tally.panel.");
     REQUIRE(says != nullptr);
-    rig.pointer(ws::canvas_pointer::kPress, says->x + 8, says->y + 8, 30);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, says->x + 8, says->y + 8, 30);
     const auto pressed = rig.correlation;
     const loom::Message* asked = nullptr;
     const loom::Message* carried = nullptr;
     for (const auto& m : rig.desk->heard) {
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>())) asked = &m;
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneOperationRequested>())) asked = &m;
+        if (loom::same_identity(m.payload.schema(),
+                                *loom::schema_of<zengine::pane::PaneValueCarryRequested>())) carried = &m;
     }
     REQUIRE(asked != nullptr);
-    CHECK(loom::from_value<ws::PaneOperationRequested>(asked->payload).gesture == static_cast<std::int64_t>(pressed));
+    CHECK(loom::from_value<zengine::pane::PaneOperationRequested>(asked->payload).gesture ==
+          static_cast<std::int64_t>(pressed));
     REQUIRE(carried != nullptr);
     CHECK(carried->correlation == pressed);
-    const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
+    const auto value = loom::from_value<zengine::pane::PaneValueCarryRequested>(carried->payload);
     CHECK(value.drag);
     CHECK(value.label == "tally.panel.Count");
 }
@@ -2078,8 +2091,8 @@ std::pair<bool, bool> offered_and_shown(const Desk& desk, const std::string& rol
     bool offered = false, shown = false;
     for (const auto& m : desk.heard) {
         if (m.provenance.authored_role() != role) continue;
-        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
-        shown |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::v3::PaneOffered>());
+        shown |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneRevealRequested>());
     }
     return {offered, shown};
 }
@@ -2313,9 +2326,9 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
     const auto d = rig.now();
     const auto at = vb::element_area(area, d.elements[0]);
     const auto x = at.x + unit, y = at.y;
-    rig.pointer(ws::canvas_pointer::kPress, x, y, 40);
-    rig.pointer(ws::canvas_pointer::kMove, x + 2 * unit, y + unit, 40);
-    rig.pointer(ws::canvas_pointer::kRelease, x + 2 * unit, y + unit, 40);
+    rig.pointer(zengine::pane::canvas_pointer::kPress, x, y, 40);
+    rig.pointer(zengine::pane::canvas_pointer::kMove, x + 2 * unit, y + unit, 40);
+    rig.pointer(zengine::pane::canvas_pointer::kRelease, x + 2 * unit, y + unit, 40);
     CHECK(rig.now().elements[0].x == 2 * gfx::kCellPx);
     CHECK(rig.now().elements[0].y == gfx::kCellPx);
 
@@ -2410,8 +2423,8 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         // ...ON A BOX opens it on its value with the caret after it, where Workshop's typing lands.
         REQUIRE(window.press(kBuilderArea, "box:name"));
         rig.pump();
-        rig.host(ws::PaneTextInput{vb::kPane, "x"});
-        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+        rig.host(zengine::pane::PaneTextInput{vb::kPane, "x"});
+        rig.host(zengine::pane::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
         CHECK(rig.now().name == "tally.panelx");
         // ...ANOTHER WINDOW, or an action the picture shown there does not name, does nothing.
         const auto heard = seen.heard.size();
@@ -2537,8 +2550,8 @@ TEST_CASE("an export Workshop refuses writes nothing, and says why") {
     bool write_asked = false;
     for (auto i = asked; i < x.rig.desk->heard.size(); ++i) {
         const auto& m = x.rig.desk->heard[i];
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneOperationRequested>()))
-            write_asked = loom::from_value<ws::v2::PaneOperationRequested>(m.payload).classes ==
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::v2::PaneOperationRequested>()))
+            write_asked = loom::from_value<zengine::pane::v2::PaneOperationRequested>(m.payload).classes ==
                           std::vector<std::string>{ws::scope::kWrite};
     }
     CHECK(write_asked);
@@ -2742,8 +2755,9 @@ TEST_CASE("Run app asks Workshop for a build and a write for the hand, then the 
     CHECK(launcher->asked.empty());
     std::vector<std::string> classes;
     for (auto i = before; i < x.rig.desk->heard.size(); ++i)
-        if (loom::same_identity(x.rig.desk->heard[i].payload.schema(), *loom::schema_of<ws::v2::PaneOperationRequested>()))
-            classes = loom::from_value<ws::v2::PaneOperationRequested>(x.rig.desk->heard[i].payload).classes;
+        if (loom::same_identity(x.rig.desk->heard[i].payload.schema(),
+                                *loom::schema_of<zengine::pane::v2::PaneOperationRequested>()))
+            classes = loom::from_value<zengine::pane::v2::PaneOperationRequested>(x.rig.desk->heard[i].payload).classes;
     CHECK(classes == std::vector<std::string>{ws::scope::kBuild, ws::scope::kWrite});
 
     // ALLOWED: the launcher is asked for the app by its name, and its answer said.

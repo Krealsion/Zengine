@@ -324,6 +324,6 @@ its own, publishing its intents' shapes to whoever accepts them
 - [`zengine.view.host`](zengine.view.host.md): the view host's manual, every ask it answers.
 - The shapes: the view host's asks in [view/vocabulary.hpp](../vocabulary.hpp); the builder's own in
   [view/view-builder/vocabulary.hpp](../view-builder/vocabulary.hpp); the pane protocol's in
-  [workshop/pane_vocabulary.hpp](../../workshop/pane_vocabulary.hpp),
-  [workshop/pane_operation.hpp](../../workshop/pane_operation.hpp) and
-  [workshop/pane_carry.hpp](../../workshop/pane_carry.hpp).
+  [pane/vocabulary.hpp](../../pane/vocabulary.hpp),
+  [pane/operation.hpp](../../pane/operation.hpp) and
+  [pane/carry.hpp](../../pane/carry.hpp).

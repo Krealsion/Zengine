@@ -13,15 +13,14 @@
 
 #include "terminal/vocabulary.hpp"
 
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/facets.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include "component/text_box.hpp"
 #include "graphics/colors.hpp"
-#include "workshop/pane_rows.hpp"
 
 #include <zen/weave.hpp>
 
@@ -33,9 +32,9 @@
 
 namespace {
 
-using zengine::workshop::pane_text::printable;
-using zengine::workshop::pane_text::fit;
-using zengine::workshop::pane_text::wrap;
+using zengine::pane::pane_text::printable;
+using zengine::pane::pane_text::fit;
+using zengine::pane::pane_text::wrap;
 
 /// How wide the line's box stands while it is empty, the gesture that answers it said after it...
 constexpr std::int64_t kEmptyLineBox = 12;
@@ -232,9 +231,9 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     list_first_row_ = -1;
     list_row_count_ = 0;
     list_shown_first_ = 0;
-    std::vector<zengine::workshop::TextRow> out;
+    std::vector<zengine::pane::TextRow> out;
     const auto push = [&out, this](std::string text, gfx::Color ink) {
-        out.push_back(zengine::workshop::TextRow{printable(fit(std::move(text), columns())), ink});
+        out.push_back(zengine::pane::TextRow{printable(fit(std::move(text), columns())), ink});
     };
     if (rows() <= 0 || columns() <= 0) {
         (void)room().map().settle();
@@ -359,7 +358,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     const std::int64_t whole = columns() - kPromptCols;
     const std::int64_t empty = line_cells_ ? kEmptyLinePlain : kEmptyLineBox;
     const std::int64_t wide = prompting ? (std::min)(whole, empty) : whole;
-    line_box_ = ws::row_box_plain(line_, kPromptCols, wide > 0 ? wide : 0, line_cells_);
+    line_box_ = zengine::pane::row_box_plain(line_, kPromptCols, wide > 0 ? wide : 0, line_cells_);
     input_row_ = static_cast<std::int64_t>(out.size());
     push(prompt_ + " " + std::string(static_cast<std::size_t>(line_box_.columns), ' ') +
              (prompting ? "  Tab: what can this terminal say?  Up: recall a command" : ""),
@@ -373,13 +372,13 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
         input_row_ = -1; // cut away: there is no row to put a caret on
     }
     (void)room().map().settle();
-    std::vector<ws::RowPart> parts = named_rows(static_cast<std::int64_t>(out.size()));
+    std::vector<zengine::pane::RowPart> parts = named_rows(static_cast<std::int64_t>(out.size()));
     send(std::move(out), std::move(parts), mail);
 }
 
 /// THE ROWS DRAWN in the pane's area, its caret and selection standing in them.
-inline void TerminalPaneWeave::send(std::vector<zengine::workshop::TextRow> out,
-                                    std::vector<ws::RowPart> parts, loom::Mail& mail) {
+inline void TerminalPaneWeave::send(std::vector<zengine::pane::TextRow> out,
+                                    std::vector<zengine::pane::RowPart> parts, loom::Mail& mail) {
     room().caret() = caret();
     room().send(mail, std::move(out), std::move(parts));
 }
@@ -427,15 +426,15 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
 /// ONE MEASURER: the column comes from the same window the row was written against and
 /// the same one a press is answered with, so a caret cannot land where the text is not
 /// and a click cannot land where the caret would not.
-inline ws::RowsCaret TerminalPaneWeave::caret() const {
-    ws::RowsCaret caret;
+inline zengine::pane::RowsCaret TerminalPaneWeave::caret() const {
+    zengine::pane::RowsCaret caret;
     if (input_row_ < 0) {
         return caret;
     }
     // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range, from the
     // box the row was written with, where its room puts its text. A selection scrolled wholly off
     // the slice says nothing, which is the truthful picture of a row that shows none of it.
-    caret = ws::box_caret(line_box_, input_row_, line_cells_);
+    caret = zengine::pane::box_caret(line_box_, input_row_, line_cells_);
     return caret;
 }
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_CANVAS_TEXT_HPP
-#define ZENGINE_WORKSHOP_PANE_CANVAS_TEXT_HPP
+#ifndef ZENGINE_PANE_CANVAS_TEXT_HPP
+#define ZENGINE_PANE_CANVAS_TEXT_HPP
 
-#include "pane_picture.hpp"
-#include "pane_text_fit.hpp"
+#include "pane/picture.hpp"
+#include "pane/text_fit.hpp"
 #include "component/text.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/colors.hpp"
@@ -15,7 +15,7 @@
 // How a run of a canvas picture's text stands in its room: the window's measure for it, and the run
 // clipped to whole glyphs and rows. Reference: workshop/docs/workshop-panes.md.
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 struct CanvasTextBox {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
@@ -133,5 +133,5 @@ inline CanvasTextLayout clip_canvas_text(const CanvasText& text, const CanvasTex
     return detail::clip_canvas_text_by(text, clip, room, 0, 0);
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 #endif

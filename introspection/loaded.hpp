@@ -17,8 +17,8 @@
 
 #include "component/text_box.hpp"
 #include "graphics/colors.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/rows.hpp"
+#include "pane/text.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -56,7 +56,7 @@ inline constexpr const char* kNotInProcess = "in-process weaves are not in the k
 inline constexpr const char* kSnapshotSource = "snapshot from zen.ListLoaded";
 
 /// The mark this view leaves where it could not show everything: the panes' own three dots.
-inline constexpr const char* kElided = workshop::pane_text::kElided;
+inline constexpr const char* kElided = pane::pane_text::kElided;
 
 /// What a row says instead of a role when the kernel bound none.
 inline constexpr const char* kNoRole = "(no role)";
@@ -72,11 +72,11 @@ inline constexpr const char* kUnselectedMark = "  ";
 inline constexpr std::int64_t kNoEntry = -1;
 
 /// Fit `text` into `columns`, and say so when it did not fit: the panes' shared fit, in columns,
-/// cut at whole characters (`workshop/pane_text.hpp`), not Workshop's private one -- a provider is
+/// cut at whole characters (`pane/text.hpp`), not Workshop's private one -- a provider is
 /// a stranger to Workshop's own composition. Not a second measurer: `workshop::fit_region`
 /// measured, and this spends it.
 inline std::string fit(std::string text, std::int64_t columns) {
-    return workshop::pane_text::fit(std::move(text), columns);
+    return pane::pane_text::fit(std::move(text), columns);
 }
 
 /// The Manager's answer, read: `name@r1+r2,name,...` from `Kernel::loaded()`, a weave's roles
@@ -120,7 +120,7 @@ inline std::vector<LoadedWeave> parse_loaded(std::string_view blob) {
 /// A plan's or a loader's words -- a stem, a role, a path, a refusal -- as a row shows them: every
 /// character as written, a control character a space (`pane_text::printable`).
 inline std::string spelled(const std::string& text) {
-    return workshop::pane_text::printable(text);
+    return pane::pane_text::printable(text);
 }
 
 /// One row per weave: the mark, the name and the role, fitted whole so marked and unmarked rows
@@ -161,11 +161,11 @@ inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name)
 /// `listed` is how many weaves the search keeps, and `search` the search's box on the heading,
 /// typed in or empty, none where the heading has no room for one.
 struct LoadedView {
-    std::vector<workshop::TextRow> rows;
+    std::vector<pane::TextRow> rows;
     std::vector<LoadedWeave> shown;
     std::vector<std::int64_t> entry_of_row;
     std::size_t listed = 0;
-    workshop::RowBox search;
+    pane::RowBox search;
 };
 
 /// The fewest columns the search's box takes on the heading, room allowing: a search a few
@@ -267,7 +267,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
     }
     view.listed = weaves.size();
     // Every row appended pairs with one map entry, so no row can lose its entry.
-    const auto say = [&view](workshop::TextRow row, std::int64_t which) {
+    const auto say = [&view](pane::TextRow row, std::int64_t which) {
         view.rows.push_back(std::move(row));
         view.entry_of_row.push_back(which);
     };
@@ -287,10 +287,10 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
         const std::int64_t width = std::min<std::int64_t>(
             box_room, std::max<std::int64_t>(kSearchBoxLeast,
                                          static_cast<std::int64_t>(search.size()) + 3));
-        view.search = workshop::row_box(*box, static_cast<std::int64_t>(lead.size()), width);
+        view.search = pane::row_box(*box, static_cast<std::int64_t>(lead.size()), width);
         heading = lead + std::string(static_cast<std::size_t>(width), ' ');
     }
-    workshop::TextRow top{fit(heading, columns), graphics::colors::accent};
+    pane::TextRow top{fit(heading, columns), graphics::colors::accent};
     top.box = view.search;
     say(std::move(top), kNoEntry);
 
@@ -312,14 +312,14 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
         for (std::size_t i = origin; i < origin + shown; ++i) {
             // Copied into `shown` as it is drawn, so a press answers with what the weaver saw.
             view.shown.push_back(weaves[i]);
-            say(workshop::TextRow{entry_row(weaves[i], false, columns), entry_ink(false),
+            say(pane::TextRow{entry_row(weaves[i], false, columns), entry_ink(false),
                                         entry_ground(false)},
                 static_cast<std::int64_t>(view.shown.size()) - 1);
         }
         budget -= static_cast<std::int64_t>(shown);
         if (shown < weaves.size()) {
             // `kNoEntry`: a population fact, not a hidden entry. See `LoadedView`.
-            say(workshop::TextRow{
+            say(pane::TextRow{
                     fit("  " + std::string(kElided) + " " +
                             (origin ? std::to_string(origin) + " earlier, " : "") +
                             std::to_string(weaves.size() - origin - shown) + " more",
@@ -333,13 +333,13 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
     // is the LAST claim on the budget, so it never costs an entry or a note.
     if (budget > 0 && caveat > 0) {
         // `colors::text`, not `no_color()`: that is the absence of a background, never an ink.
-        say(workshop::TextRow{std::string(), graphics::colors::text}, kNoEntry);
+        say(pane::TextRow{std::string(), graphics::colors::text}, kNoEntry);
     }
     if (caveat > 0) {
-        say(workshop::TextRow{fit(kNotInProcess, columns), graphics::colors::quiet}, kNoEntry);
+        say(pane::TextRow{fit(kNotInProcess, columns), graphics::colors::quiet}, kNoEntry);
     }
     if (source > 0) {
-        say(workshop::TextRow{fit(kSnapshotSource, columns), graphics::colors::quiet},
+        say(pane::TextRow{fit(kSnapshotSource, columns), graphics::colors::quiet},
             kNoEntry);
     }
     return view;

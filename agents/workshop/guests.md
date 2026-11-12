@@ -195,7 +195,7 @@ row its own credential admitted"
 
 ### WL-GUEST-03
 `workshop/actor_scope.hpp` judge judge_all GuestRowFacts HostFact
-`workshop/pane_operation.hpp` PaneOperationRequested
+`pane/operation.hpp` PaneOperationRequested
 `workshop/weave_operation.cpp` approve_gesture judge_classes on(PaneOperationRequested)
 `workshop/weave.hpp` HostContext::guest_row HostContext::host_fact
 `tests/test_workshop_guests.cpp` "action classes: a guest builds only with build, writes nothing and
@@ -209,7 +209,7 @@ recipe before any write, and still lists names" "on a weaver's host a guest open
 through Files is refused, and another file opens"
 
 ### WL-GUEST-04
-`workshop/pane_operation.hpp` ActorScopeRequested ActorScopeJudged
+`pane/operation.hpp` ActorScopeRequested ActorScopeJudged
 `workshop/weave_operation.cpp` approve_gesture
 `workshop/guest_door.hpp` on(ActorScopeRequested) guest_door_grant
 `workshop/actor_scope.hpp` classes_of_send judge_send

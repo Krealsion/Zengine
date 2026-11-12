@@ -17,7 +17,7 @@
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/palette/entries.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 
 #include "component/text.hpp"
 
@@ -41,7 +41,8 @@ class CommandAsker
     : public loom::WeaveBase<CommandAsker, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneActionRequested,
                                           CommandRunAnswered, SeatDo>,
-                             loom::Emit<v2::PaneOffered, v3::PaneActions, CommandRunRequested>> {
+                             loom::Emit<zengine::pane::v2::PaneOffered,
+                                        zengine::pane::v3::PaneActions, CommandRunRequested>> {
 public:
     explicit CommandAsker(std::string role) : role_(std::move(role)) {}
     std::vector<std::uint64_t> asks;
@@ -76,8 +77,8 @@ Asker mount_asker(PaneRig& r, const std::string& role) {
     auto weave = std::make_unique<CommandAsker>(role);
     CommandAsker* raw = weave.get();
     loom::Grant grant;
-    grant.allow_to_any(v2::PaneOffered::zen_name, v2::PaneOffered::zen_version);
-    grant.allow_to_any(v3::PaneActions::zen_name, v3::PaneActions::zen_version);
+    grant.allow_to_any(zengine::pane::v2::PaneOffered::zen_name, zengine::pane::v2::PaneOffered::zen_version);
+    grant.allow_to_any(zengine::pane::v3::PaneActions::zen_name, zengine::pane::v3::PaneActions::zen_version);
     grant.allow_to_any(CommandRunRequested::zen_name, CommandRunRequested::zen_version);
     const loom::WeaveId id = r.bus.register_weave(std::move(weave), std::move(grant), role);
     raw->zen_set_self(id);
@@ -119,9 +120,9 @@ void start(PaneRig& r, ProviderSeat*& tools) {
     r.drive(tools, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"alpha", "Alpha", "a fixture"});
         s.offer(m, PaneOffered{"beta", "Beta", "a fixture"});
-        v3::PaneActions rows;
+        zengine::pane::v3::PaneActions rows;
         rows.pane = "alpha";
-        rows.rows.push_back(v3::PaneActionRow{"alpha.poke", "poke the fixture",
+        rows.rows.push_back(zengine::pane::v3::PaneActionRow{"alpha.poke", "poke the fixture",
                                               input::scan::kUnknown, input::mod::kNone, "", {}});
         (void)m.as_role(kTools).send_to_role(kWorkshopProvider, rows);
     });
@@ -152,13 +153,13 @@ const CensusDriverOf kPaletteCensus{kPaletteRole, [] {
 
 /// THE PALETTE'S PRESSES: each row on a palette made afresh.
 const PressDriverOf kPalettePresses{kPaletteRole, [](PressWitness& w) {
-    std::vector<v4::PaneActionRow> rows;
+    std::vector<zengine::pane::v4::PaneActionRow> rows;
     {
         PaneRig r;
         ProviderSeat* tools = nullptr;
         rows = palette_held(r, tools).actions;
     }
-    for (const v4::PaneActionRow& row : rows) {
+    for (const zengine::pane::v4::PaneActionRow& row : rows) {
         PaneRig r;
         ProviderSeat* tools = nullptr;
         (void)palette_held(r, tools);
@@ -450,10 +451,10 @@ TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own u
     const Asker stranger = mount_asker(r, "zengine.test.stranger");
     drive(r, own, [](CommandAsker& a, loom::Mail& m) {
         (void)m.as_role(a.role()).send_to_role(
-            kWorkshopProvider, v2::PaneOffered{kPalettePane, "Palette", "a stand-in", 10, 40});
-        v3::PaneActions rows;
+            kWorkshopProvider, zengine::pane::v2::PaneOffered{kPalettePane, "Palette", "a stand-in", 10, 40});
+        zengine::pane::v3::PaneActions rows;
         rows.pane = kPalettePane;
-        rows.rows.push_back(v3::PaneActionRow{"palette.run", "run", input::scan::kReturn,
+        rows.rows.push_back(zengine::pane::v3::PaneActionRow{"palette.run", "run", input::scan::kReturn,
                                               input::mod::kNone, "", {}});
         (void)m.as_role(a.role()).send_to_role(kWorkshopProvider, rows);
     });
@@ -870,7 +871,7 @@ TEST_CASE("the palette's start line fits its row or is cut with a mark at its de
         if (zengine::component::text_columns(full) <= width) {
             CHECK(line == full);
         } else {
-            CHECK(line == zengine::workshop::pane_text::fit(full, columns));
+            CHECK(line == zengine::pane::pane_text::fit(full, columns));
         }
     }
 }

@@ -276,5 +276,5 @@ The panes read and write no file. `Project`'s last row names the plan file the h
   [what a contribution says about itself](../../operator/docs/operator-providers.md#what-a-contribution-says-about-itself).
 - [Inventory to Compose](../../inventory/docs/inventory-compose.md), where a weave chosen in
   `Loaded` is composed for.
-- The pane protocol the panes speak: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp);
-  the manual's: [`workshop/pane_document.hpp`](../../workshop/pane_document.hpp).
+- The pane protocol the panes speak: [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp);
+  the manual's: [`pane/document.hpp`](../../pane/document.hpp).

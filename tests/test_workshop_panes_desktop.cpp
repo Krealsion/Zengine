@@ -14,7 +14,7 @@
 #include "pane_window.hpp"
 
 #include "workshop/desktop-pane/vocabulary.hpp"
-#include "workshop/pane_seat.hpp"
+#include "pane/seat.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -380,9 +380,9 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
             named.push_back({"pane:" + std::to_string(i), i, 0, 40});
             named.push_back({"mark:" + std::to_string(i), i, 2, 6});
         }
-        const zengine::workshop::RowsDrawing big = zengine::workshop::rows_drawing(
+        const zengine::pane::RowsDrawing big = zengine::pane::rows_drawing(
             many, named,
-            zengine::workshop::RowsRoom{40 * zengine::graphics::kCellPx,
+            zengine::pane::RowsRoom{40 * zengine::graphics::kCellPx,
                                         3000 * zengine::graphics::kCellPx, {}},
             40);
         zengine::graphics::Drawn all;
@@ -1040,7 +1040,7 @@ const PressDriverOf kDesktopPresses{kDesktopRole, [](PressWitness& w) {
             const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
             REQUIRE(held != nullptr);
             REQUIRE(r.session().panes.keyboard == held->kind);
-            const v4::PaneActionRow row = held->actions[i];
+            const zengine::pane::v4::PaneActionRow row = held->actions[i];
             judge(r, held->mode, row.id, row.scancode, row.modifiers, row.causes);
         }
     }
@@ -1053,7 +1053,7 @@ const PressDriverOf kDesktopPresses{kDesktopRole, [](PressWitness& w) {
         REQUIRE(rows > 0);
         for (std::size_t i = 0; i < rows; ++i) {
             Keys k("desktop-press");
-            const v4::PaneActionRow row = hotkeys_in(k, mode)->actions[i];
+            const zengine::pane::v4::PaneActionRow row = hotkeys_in(k, mode)->actions[i];
             w.judge(k.r, dp::kHotkeysPane, mode, row);
         }
     }
@@ -1689,7 +1689,7 @@ void queue_digit(PaneRig& r, std::int64_t scancode, const char* text) {
 
 /// SAY SOMETHING TO THE DESKTOP AS `role`, from the weave that holds it -- a host-root forgery of
 /// role speech, so a case can put an AUTHENTICATED but wrong answer in front of the requester.
-void say_as(PaneRig& r, loom::WeaveId as, const char* role, const ws::PaneMenuAnswered& a,
+void say_as(PaneRig& r, loom::WeaveId as, const char* role, const zengine::pane::PaneMenuAnswered& a,
             std::uint64_t number) {
     REQUIRE(r.bus.role_send_to_role_as(as, role, kDesktopRole,
                                          loom::Message(loom::to_value(a), as, as, number))
@@ -1736,13 +1736,13 @@ TEST_CASE("WL-CTX-10: the desktop acts only on the presenter's answer to an ask 
     const std::uint64_t asked = d.r.session().presented.correlation;
     const std::string alpha = d.r.session().presented.subject;
     REQUIRE(alpha == std::string("zengine.test.tools\x1f") + "alpha");
-    const ws::PaneMenuAnswered open_alpha{dp::kLauncherPane, alpha, true, dp::kMenuOpen, ""};
+    const zengine::pane::PaneMenuAnswered open_alpha{dp::kLauncherPane, alpha, true, dp::kMenuOpen, ""};
     // PROVENANCE: the host's role cannot choose, however well the answer is shaped.
     say_as(d.r, d.r.workshop_id, kWorkshopProvider, open_alpha, asked);
     CHECK_FALSE(d.open("alpha"));
     // THE SUBJECT: an answer about a subject this ask was not about acts on nothing.
     say_as(d.r, d.presenter, kPresenterRole,
-           ws::PaneMenuAnswered{dp::kLauncherPane, std::string("zengine.test.tools\x1f") + "gamma",
+           zengine::pane::PaneMenuAnswered{dp::kLauncherPane, std::string("zengine.test.tools\x1f") + "gamma",
                                 true, dp::kMenuOpen, ""},
            asked);
     CHECK_FALSE(d.open("gamma"));
@@ -1768,7 +1768,7 @@ TEST_CASE("WL-CTX-10: the desktop acts only on the presenter's answer to an ask 
     d.r.bus.drain_until_idle();
     REQUIRE(d.r.load_refusals.empty());
     say_as(d.r, d.presenter, kPresenterRole,
-           ws::PaneMenuAnswered{dp::kLauncherPane, std::string("zengine.test.tools\x1f") + "beta",
+           zengine::pane::PaneMenuAnswered{dp::kLauncherPane, std::string("zengine.test.tools\x1f") + "beta",
                                 true, dp::kMenuOpen, ""},
            before_reload);
     CHECK_FALSE(d.open("beta"));

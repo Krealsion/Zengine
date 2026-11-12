@@ -4,6 +4,27 @@
 #include "workshop/weave.hpp"
 
 namespace zengine::workshop {
+using pane::ActionsJudged;
+using pane::ActionsWithdrawn;
+using pane::MenuGranted;
+using pane::MenuInput;
+using pane::MenuWithdrawn;
+using pane::PaneActionRequested;
+using pane::PaneCanvasDrop;
+using pane::PaneCanvasHover;
+using pane::PaneCanvasValueDrop;
+using pane::PaneCarryAnswered;
+using pane::PaneCatalogRequested;
+using pane::PaneKey;
+using pane::PaneKeys;
+using pane::PaneMenuAnswered;
+using pane::PaneObservationAnswered;
+using pane::PaneOperationAnswered;
+using pane::PaneQuitRequested;
+using pane::PaneRevealAnswered;
+using pane::PaneTextInput;
+using pane::kLayoutsRole;
+using pane::kPresenterRole;
 // Shared by the native host and its fixtures. Answers target the actual requester;
 // role-scoped requests retain their explicit destination. No manifest-derived grants.
 loom::Grant workshop_grant() {

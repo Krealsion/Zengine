@@ -12,9 +12,9 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_seat.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/menu.hpp"
+#include "pane/seat.hpp"
+#include "pane/text.hpp"
 
 #include "component/list_window.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -29,16 +29,16 @@
 namespace zengine::desktop_pane {
 
 namespace ws = zengine::workshop;
-namespace pane_menu = zengine::workshop::pane_menu;
+namespace pane_menu = zengine::pane::pane_menu;
 
-using ws::pane_text::admissible;
-using ws::pane_text::fit;
-using ws::pane_text::pad;
-using ws::pane_text::printable;
+using pane::pane_text::admissible;
+using pane::pane_text::fit;
+using pane::pane_text::pad;
+using pane::pane_text::printable;
 
 /// WHO THIS WEAVE IS TALKING TO -- the host's role, read from the installed pane protocol as
 /// every other provider reads it.
-using zengine::workshop::pane_menu::kWorkshopRole;
+using zengine::pane::pane_menu::kWorkshopRole;
 
 /// THE TOOL THE TERMINAL LAUNCH POINTS AT, as a `PaneRef`'s two durable halves. (!) THESE ARE
 /// SPELLED HERE, IN THE DESKTOP, AND THAT IS THE POINT: which tool `Ctrl+t` opens is an
@@ -123,7 +123,7 @@ inline void launch(loom::Mail& mail, const std::string& role, const std::string&
 inline void close(loom::Mail& mail, const std::string& role, const std::string& pane_key,
                   std::uint64_t& launches) {
     (void)mail.as_role(kDesktopRole)
-        .send_to_role(ws::kLayoutsRole, ws::PaneCloseRequested{role, pane_key}, ++launches);
+        .send_to_role(pane::kLayoutsRole, ws::PaneCloseRequested{role, pane_key}, ++launches);
 }
 
 /// WHERE A PRESS LANDED in one of this weave's panes: the row and column of the rows drawn there,
@@ -146,7 +146,7 @@ struct Declared {
 };
 
 /// ONE PANE'S AREA: the window that shows it, and the rows and columns it composes for there.
-using PaneCanvas = ws::PaneCanvasSeat;
+using PaneCanvas = pane::PaneCanvasSeat;
 
 } // namespace zengine::desktop_pane
 

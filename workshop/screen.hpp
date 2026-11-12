@@ -27,8 +27,7 @@
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
 #include "workshop/screen_planes.hpp"
-#include "workshop/pane_text_fit.hpp"
-#include "pane_text_fit.hpp"
+#include "pane/text_fit.hpp"
 
 #include <zen/terminal/session.hpp> // the participant this host holds, for the door
 
@@ -45,6 +44,10 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::RegionFit;
+using pane::fit_region;
+using pane::kTextInsetPx;
+using pane::region_px_for;
 
 using zengine::property::Row;
 using zengine::persist::Written;
@@ -1447,7 +1450,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
 // ---- A PANE'S MENU, AS ITS PRESENTER SHOWED IT -------------------------------------------------
 //
 // The popup's frame and place are this host's; the presenter participant draws its lines in an
-// area of its own inside the frame (presenter_vocabulary.hpp), which this host places there.
+// area of its own inside the frame (pane/presenter_vocabulary.hpp), which this host places there.
 
 /// THE MOST A PRESENTED MENU CAN SHOW AT AN ANCHOR on this screen -- the room `MenuGranted` hands
 /// the presenter: the biggest popup that fits there, read as rows and columns of prose.

@@ -92,7 +92,7 @@ never pages across it" "the tool keeps the last few operations' output, and an o
 is said, not replaced"
 
 ### WL-OUT-03
-`workshop/pane_text.hpp` printable
+`pane/text.hpp` printable
 `builder/builder-pane/pane.cpp` say
 `builder/builder-pane/view.hpp` publish
 `builder/builder-pane/output_reader.hpp` say_output

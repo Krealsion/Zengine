@@ -18,17 +18,17 @@
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_seat.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/causes.hpp"
+#include "pane/document.hpp"
+#include "pane/seat.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "property_view.hpp"
 #include "value_view.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_escape.hpp"
+#include "pane/menu.hpp"
+#include "pane/escape.hpp"
 #include "workshop/setup_control.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
@@ -59,20 +59,20 @@ namespace ws = zengine::workshop;
 namespace pane = zengine::info_pane;
 
 using ws::InspectPaneRequested;
-using ws::PaneActionRequested;
-using ws::v4::PaneActionRow;
-using ws::v4::PaneActions;
+using zengine::pane::PaneActionRequested;
+using zengine::pane::v4::PaneActionRow;
+using zengine::pane::v4::PaneActions;
 using ws::PaneCommitRequested;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
-using ws::PaneKey;
-using ws::v2::PaneOffered;
-using ws::PaneOperationRequested;
-using ws::PaneOperationAnswered;
+using zengine::pane::PaneKey;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PaneOperationRequested;
+using zengine::pane::PaneOperationAnswered;
 using ws::PaneSubjectActed;
 using ws::PaneSubjectRequested;
 using ws::PaneSubjectShown;
-using ws::PaneTextInput;
+using zengine::pane::PaneTextInput;
 
 using pane::kWorkshopRole;
 
@@ -82,34 +82,39 @@ using pane::kWorkshopRole;
 
 /// THE ROLE OF THE FOUR VIEWS: its activation, its offers on Workshop's catalog request, and
 /// the manual of any view it offers, the whole page the weave's.
-using Role = ws::MultiPaneFacet<pane::kInfoPaneRole, pane::kInfoPane,
+using Role = zengine::pane::MultiPaneFacet<pane::kInfoPaneRole, pane::kInfoPane,
                                   zengine::manual::pages::zengine_info::kManual>;
 
 class InfoPaneWeave
     : public zengine::With<Role>::Weave<
           InfoPaneWeave, pane::InfoPaneState,
-          loom::Accept<ws::PaneCarryAnswered, ws::PaneResetRequested, ws::PaneCanvasDrop, ws::PaneCanvasValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
+          loom::Accept<zengine::pane::PaneCarryAnswered, ws::PaneResetRequested,
+                       zengine::pane::PaneCanvasDrop, zengine::pane::PaneCanvasValueDrop,
+                       PaneOperationAnswered, zengine::inventory::InventoryEntry,
                        InspectPaneRequested,
                        loom::Refused, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, ws::PaneSettingsAnswered, ws::PaneSettingCommitAnswered,
                        loom::DispatchRefused, gfx::ClipboardCopy,
-                       gfx::ClipboardText, ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
+                       gfx::ClipboardText, zengine::pane::PaneMenuAnswered,
+                       zengine::pane::PaneObservationAnswered, zengine::inventory::InventoryChanged,
                        loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered>,
-          loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
+          loom::Emit<zengine::pane::PaneValueCarryRequested, PaneOperationRequested,
+                     zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneSubjectActed, PaneCommitRequested,
                      ws::PaneSettingsRequested, ws::PaneSettingCommitRequested,
-                     gfx::ClipboardCopy, gfx::ClipboardTextRequested, ws::PanePassRequested,
-                     ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
-                     ws::PaneEscapeUnspent,
-                     ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
+                     gfx::ClipboardCopy, gfx::ClipboardTextRequested, zengine::pane::PanePassRequested,
+                     zengine::pane::PaneMenuRequested, zengine::pane::PaneObservationRequested,
+                     zengine::pane::PaneObservationContinued,
+                     zengine::pane::PaneEscapeUnspent,
+                     zengine::pane::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
                      ws::PaneCloseRequested>> {
 public:
     InfoPaneWeave() {
         for (std::size_t slot = 1; slot <= pane::kMaxInfoViews; ++slot) {
             views_.emplace_back(pane::view_key(slot), slot, state_);
-            canvases_[slot - 1] = ws::PaneCanvasSeat(pane::view_key(slot), pane::kInfoPaneRole);
+            canvases_[slot - 1] = zengine::pane::PaneCanvasSeat(pane::view_key(slot), pane::kInfoPaneRole);
         }
         views_.front().allocate();
     }
@@ -168,11 +173,11 @@ public:
     /// A VALUE OR A REFERENCE PLACED ON A VIEW'S AREA. A value's place reads back to the row and
     /// column of the rows drawn there it fell on, which only a field copy spends, and only on a
     /// value view; a whole value and a reference open their subject wherever they land.
-    void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCanvasValueDrop& drop, loom::Mail& mail) {
         dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, false,
                 DropWord{drop.under, drop.part, drop.drawing}, mail);
     }
-    void on(const ws::PaneCanvasDrop& drop, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCanvasDrop& drop, loom::Mail& mail) {
         dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, true,
                 DropWord{drop.under, drop.part, drop.drawing}, mail);
     }
@@ -195,20 +200,20 @@ public:
             if (reference) {
                 v->drop_reference(data, c);
             } else {
-                const ws::RowCell at = canvas_of(*v).cell_at(x, y);
+                const zengine::pane::RowCell at = canvas_of(*v).cell_at(x, y);
                 v->drop_value(data, at.row, at.column, value_mode(*v) && !moved, c);
             }
             if (v->is_default() && !v->active) properties_.tell(v->notice());
         }
         declare(*v, mail); say(*v, mail);
     }
-    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCarryAnswered& answer, loom::Mail& mail) {
         for (auto& v : views_) if (v.hear(answer, mail)) { declare(v, mail); say(v, mail); return; }
     }
     void on(const PaneOperationAnswered& answer, loom::Mail& mail) { route(answer, mail); }
     void on(const zengine::inventory::InventoryEntry& answer, loom::Mail& mail) { route(answer, mail); }
     void on(const loom::Refused& answer, loom::Mail& mail) { route(answer, mail); }
-    void on(const ws::PaneObservationAnswered& answer, loom::Mail& mail) { route(answer, mail); }
+    void on(const zengine::pane::PaneObservationAnswered& answer, loom::Mail& mail) { route(answer, mail); }
     void on(const loom::PokeStructure& answer, loom::Mail& mail) { route(answer, mail); }
 
     /// AN INVALIDATION FROM THE INVENTORY ROLE, never a value: watching views run one cycle.
@@ -251,7 +256,7 @@ public:
     /// EACH VIEW'S SEAT, where a window that shows the view's area finds it.
     template <class F>
     void each_seat(F&& visit) {
-        for (ws::PaneCanvasSeat& seat : canvases_) visit(seat);
+        for (zengine::pane::PaneCanvasSeat& seat : canvases_) visit(seat);
     }
 
     /// A view composed again for the room a window gave it.
@@ -265,21 +270,21 @@ public:
     /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows drawn there: a press arms a value
     /// view's field pickup under the window's number for it, its motion spends it, the wheel walks
     /// the fields and a right press opens the view's menu.
-    void on_window_pointer(const std::string& key, const ws::WindowPointer& p, bool,
+    void on_window_pointer(const std::string& key, const zengine::pane::WindowPointer& p, bool,
                            loom::Mail& mail) {
         pane::ValueView* v = view_of(key);
         if (!v) return;
         const auto number = static_cast<std::int64_t>(p.press);
-        if (p.phase == ws::canvas_pointer::kWheel) {
+        if (p.phase == zengine::pane::canvas_pointer::kWheel) {
             if (value_mode(*v) && v->wheel(p.dy)) say(*v, mail);
-        } else if (p.phase == ws::canvas_pointer::kMove) {
+        } else if (p.phase == zengine::pane::canvas_pointer::kMove) {
             if (value_mode(*v) && number != 0 && number == held_of(*v)) {
                 pane::ViewContext c{mail, asked_};
                 v->dragged(p.at.row, p.at.column, c);
             }
-        } else if (p.phase == ws::canvas_pointer::kPress && p.button == 3) {
+        } else if (p.phase == zengine::pane::canvas_pointer::kPress && p.button == 3) {
             right_press(*v, p.at, /*current=*/!p.moved, mail);
-        } else if (p.phase == ws::canvas_pointer::kPress && p.button == 1) {
+        } else if (p.phase == zengine::pane::canvas_pointer::kPress && p.button == 1) {
             held_of(*v) = p.at.shown && value_mode(*v) && !p.moved ? number : 0;
             if (p.at.shown || p.moved) press(*v, p.at, /*current=*/!p.moved, mail);
         } else if (p.button == 1) {
@@ -295,14 +300,14 @@ public:
         pane::ValueView* v = view_of(key);
         if (!v) return;
         held_of(*v) = 0;
-        press(*v, ws::RowCell{row, column, true}, /*current=*/true, mail);
+        press(*v, zengine::pane::RowCell{row, column, true}, /*current=*/true, mail);
     }
 
     /// A RIGHT PRESS on the view's rows opens its own menu; one beside them, where a prose press
     /// would have named no row, is handed back, so Workshop's own pane menu opens there.
-    void right_press(pane::ValueView& v, const ws::RowCell& at, bool current, loom::Mail& mail) {
+    void right_press(pane::ValueView& v, const zengine::pane::RowCell& at, bool current, loom::Mail& mail) {
         if (!at.shown) {
-            (void)ws::pane_menu::pass_back(mail, pane::kInfoPaneRole, v.key());
+            (void)zengine::pane::pane_menu::pass_back(mail, pane::kInfoPaneRole, v.key());
             return;
         }
         if (!value_mode(v) && !current) {
@@ -312,7 +317,7 @@ public:
         }
         if (!value_mode(v)) {
             // THE PANE-PROPERTY VIEW'S OWN MENU: the two ways out of it.
-            auto offer_menu = ws::pane_menu::Offer(v.key(), "properties").at(at.row, at.column)
+            auto offer_menu = zengine::pane::pane_menu::Offer(v.key(), "properties").at(at.row, at.column)
                                   .row(pane::kActionViewNew, "New value view");
             if (v.has_entry()) offer_menu.row(pane::kActionInventory, "Show the value view");
             menus_[v.slot() - 1] = offer_menu.send(mail, pane::kInfoPaneRole);
@@ -321,7 +326,7 @@ public:
         if (!current) { v.say("This view changed -- press again"); say(v, mail); return; }
         open_menu(v, at.row, at.column, mail);
     }
-    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
+    void on(const zengine::pane::PaneMenuAnswered& answer, loom::Mail& mail) {
         for (auto& v : views_) {
             const std::string id = menus_[v.slot() - 1].take(mail, answer);
             if (id.empty()) continue;
@@ -343,7 +348,7 @@ public:
         for (const auto& v : views_)
             if (!v.watching())
                 (void)mail.as_role(pane::kInfoPaneRole)
-                    .send_to_role(kWorkshopRole, ws::PaneObservationEnded{v.key(), 0});
+                    .send_to_role(kWorkshopRole, zengine::pane::PaneObservationEnded{v.key(), 0});
     }
 
     /// THE ONE INVENTORY, AS THE HOST SAYS IT -- published when it changes, or answered to this
@@ -434,7 +439,7 @@ public:
     /// A PRESS NAMES A ROW OF A VIEW'S ROOM, and the view knows what that row is because it
     /// composed it: `current` says the press was aimed at what the view shows now, so a stale or
     /// clipped place is refused.
-    void press(pane::ValueView& v, const ws::RowCell& at, bool current, loom::Mail& mail) {
+    void press(pane::ValueView& v, const zengine::pane::RowCell& at, bool current, loom::Mail& mail) {
         if (!value_mode(v)) {
             if (!current) {
                 properties_.tell("This view changed -- press again");
@@ -460,7 +465,7 @@ public:
         }
         // Escape's default: a view holds nothing selected (its drafts answer Escape with their own
         // rows), so Escape goes back to Workshop.
-        if (ws::pane_escape::answer(key, mail, pane::kInfoPaneRole, [] { return false; })) {
+        if (zengine::pane::pane_escape::answer(key, mail, pane::kInfoPaneRole, [] { return false; })) {
             return;
         }
         if (value_mode(*v)) { v->key(key); say(*v, mail); return; }
@@ -586,7 +591,7 @@ private:
         if (views_.front().has_entry()) rows.push_back({pane::kActionInventory, "inventory entry",
             input::scan::kI, input::mod::kCtrl, {}, {}, {}, input::scan::kRight, input::mod::kAlt});
         rows.push_back({pane::kActionViewNew, "new value view", input::scan::kN, input::mod::kCtrl,
-            {}, {ws::cause_of<ws::PaneLaunchRequested>(), ws::cause_of<ws::PaneSettingsRequested>()}});
+            {}, {zengine::pane::cause_of<ws::PaneLaunchRequested>(), zengine::pane::cause_of<ws::PaneSettingsRequested>()}});
         return rows;
     }
 
@@ -621,20 +626,20 @@ private:
 
     /// ONE VIEW'S AREA (`ws::PaneCanvasSeat`): the window that shows it and the rows drawn there.
     /// Kept here, per slot, so a view's retirement keeps the room.
-    ws::PaneCanvasSeat& canvas_of(const pane::ValueView& v) { return canvases_[v.slot() - 1]; }
+    zengine::pane::PaneCanvasSeat& canvas_of(const pane::ValueView& v) { return canvases_[v.slot() - 1]; }
     /// The gesture of the last primary press on a view, while it was on a value view's rows.
     std::int64_t& held_of(const pane::ValueView& v) { return held_[v.slot() - 1]; }
 
     /// The rows and columns a view composes for, as its seat measured them -- and, for the
     /// default view, the property view's too.
     void fit_room(pane::ValueView& v) {
-        const ws::PaneCanvasSeat& canvas = canvas_of(v);
+        const zengine::pane::PaneCanvasSeat& canvas = canvas_of(v);
         v.room(canvas.rows(), canvas.columns());
         if (v.is_default()) properties_.room(canvas.rows(), canvas.columns());
     }
 
     /// THE ROWS DRAWN in the view's area, the caret and selection standing in them.
-    void send(pane::ValueView& v, ws::ComposedRows said, const ws::RowsCaret& caret,
+    void send(pane::ValueView& v, zengine::pane::ComposedRows said, const zengine::pane::RowsCaret& caret,
               loom::Mail& mail) {
         canvas_of(v).publish_rows(mail, std::move(said.rows), std::move(said.parts), caret,
                                   said.number);
@@ -726,11 +731,11 @@ private:
         pane::ViewContext c{mail, asked_};
         if (v.retire(c, {})) offer(v, mail);
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(ws::kLayoutsRole, ws::PaneCloseRequested{pane::kInfoPaneRole, v.key()}, ++asked_);
+            .send_to_role(zengine::pane::kLayoutsRole, ws::PaneCloseRequested{pane::kInfoPaneRole, v.key()}, ++asked_);
     }
 
     void open_menu(pane::ValueView& v, std::int64_t row, std::int64_t column, loom::Mail& mail) {
-        auto menu = ws::pane_menu::Offer(v.key(), "view").at(row, column);
+        auto menu = zengine::pane::pane_menu::Offer(v.key(), "view").at(row, column);
         for (const auto& [id, label] : v.menu_rows()) menu.row(id, label);
         menus_[v.slot() - 1] = menu.send(mail, pane::kInfoPaneRole);
         if (!menus_[v.slot() - 1].pending()) { v.say("The actions menu could not be requested"); say(v, mail); }
@@ -765,9 +770,9 @@ private:
         if (!properties_.granted()) {
             return;
         }
-        std::vector<ws::TextRow> rows = properties_.compose();
+        std::vector<zengine::pane::TextRow> rows = properties_.compose();
         const auto said = static_cast<std::int64_t>(rows.size());
-        send(views_.front(), ws::ComposedRows{std::move(rows), properties_.named_rows(said)},
+        send(views_.front(), zengine::pane::ComposedRows{std::move(rows), properties_.named_rows(said)},
              properties_.caret(), mail);
     }
 
@@ -787,9 +792,9 @@ private:
     /// THE DEFAULT PANE'S PANE-PROPERTY VIEW, shown while `info` holds no value.
     pane::PropertyView properties_;
     /// Each view's one outstanding menu -- image-local, so a reload cancels them.
-    std::array<ws::pane_menu::Asked, pane::kMaxInfoViews> menus_{};
+    std::array<zengine::pane::pane_menu::Asked, pane::kMaxInfoViews> menus_{};
     /// Each view's rooms -- image-local: a reload waits for a fresh room -- and its held press.
-    std::array<ws::PaneCanvasSeat, pane::kMaxInfoViews> canvases_{};
+    std::array<zengine::pane::PaneCanvasSeat, pane::kMaxInfoViews> canvases_{};
     std::array<std::int64_t, pane::kMaxInfoViews> held_{};
     /// Launches this image asked for, so a refused one can report to the view that asked.
     struct Launch {

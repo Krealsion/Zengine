@@ -247,7 +247,7 @@ belongs to"
 
 ### WL-TERM-07
 `terminal/view.hpp` entry_line entry_wrapped wrap_record legend_text omission_text
-`workshop/pane_text.hpp` wrap
+`pane/text.hpp` wrap
 `terminal/door.hpp` submit_terminal_line
 `tests/test_workshop_panes_terminal.cpp` "a weaver presses in, types a line, and the participant
 runs it"
@@ -258,7 +258,7 @@ runs it"
 `tests/test_workshop_panes_terminal.cpp` "the image that presents a participant cannot reach one"
 
 ### WL-TERM-09
-`workshop/pane_facets.hpp` PaneRowsFacet::on(AreaButtonChanged)
+`pane/facets.hpp` PaneRowsFacet::on(AreaButtonChanged)
 `terminal/pane.cpp` press
 `terminal/view.hpp` caret
 `workshop/terminal_seam_vocabulary.hpp` TerminalCompletionOffered
@@ -267,7 +267,7 @@ aimed" "the pane draws its caret in its own picture, in its area of the window"
 
 ### WL-TERM-10
 `terminal/view.hpp` say caret kChromeRows
-`workshop/pane_rows.hpp` RowsCaret
+`pane/rows.hpp` RowsCaret
 `tests/test_workshop_panes_terminal.cpp` "a refusal is said BESIDE the line it is about, never in
 place of it" "in a room too small for both, the LINE is what survives"
 

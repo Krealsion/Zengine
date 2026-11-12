@@ -713,7 +713,7 @@ namespace {
 /// the settings doors and keeps their answers. Apart from `SettingsSeat`, which takes v1.
 class RevisionSeat
     : public loom::WeaveBase<RevisionSeat, SeatState,
-                             loom::Accept<PaneCatalogRequested, gfx::AreaRoom, v2::PaneSettings,
+                             loom::Accept<PaneCatalogRequested, gfx::AreaRoom, zengine::pane::v2::PaneSettings,
                                           PaneSettingsAnswered, PaneSettingCommitAnswered, RoleSettings,
                                           RoleSettingsAnswered, RoleSettingCommitAnswered,
                                           PaneSettingPinAnswered,
@@ -721,7 +721,7 @@ class RevisionSeat
                                           SettingsWriteAnswered, gfx::AreaButtonChanged,
                                           OfficeSettingsAnswered, OfficeSettingCommitAnswered,
                                           SeatDo>,
-                             loom::Emit<PaneOffered, v2::PaneSettingsDeclared,
+                             loom::Emit<PaneOffered, zengine::pane::v2::PaneSettingsDeclared,
                                         PaneSettingsRequested, PaneSettingCommitRequested,
                                         PaneSettingUnused, RoleSettingsDeclared,
                                         RoleSettingsRequested, RoleSettingCommitRequested,
@@ -734,7 +734,7 @@ public:
 
     void on(const PaneCatalogRequested&, loom::Mail&) {}
     void on(const gfx::AreaRoom&, loom::Mail&) { heard.push_back("room"); }
-    void on(const v2::PaneSettings& s, loom::Mail& mail) {
+    void on(const zengine::pane::v2::PaneSettings& s, loom::Mail& mail) {
         heard.push_back("settings");
         handed.push_back(s);
         authors.push_back(std::string(mail.authored_role()));
@@ -797,7 +797,7 @@ public:
 
     std::function<void(RevisionSeat&, loom::Mail&)> next;
     std::vector<std::string> heard;
-    std::vector<v2::PaneSettings> handed;
+    std::vector<zengine::pane::v2::PaneSettings> handed;
     std::vector<std::string> authors;
     std::vector<PaneSettingsAnswered> shown;
     std::vector<PaneSettingCommitAnswered> acted;
@@ -822,7 +822,8 @@ RevisionSeat* mount_revision_seat(PaneRig& r, const std::string& role, loom::Wea
     RevisionSeat* raw = seat.get();
     loom::Grant grant;
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-    grant.allow_to_any(v2::PaneSettingsDeclared::zen_name, v2::PaneSettingsDeclared::zen_version);
+    grant.allow_to_any(zengine::pane::v2::PaneSettingsDeclared::zen_name,
+                       zengine::pane::v2::PaneSettingsDeclared::zen_version);
     grant.allow_to_any(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version);
     grant.allow_to_any(PaneSettingCommitRequested::zen_name,
                        PaneSettingCommitRequested::zen_version);
@@ -853,9 +854,9 @@ void drive(PaneRig& r, loom::WeaveId id, RevisionSeat* seat,
     r.bus.drain_until_idle();
 }
 
-v2::PaneSettingRow v2_row(const PaneSettingRow& v1, std::vector<std::string> tags, bool pinned,
+zengine::pane::v2::PaneSettingRow v2_row(const PaneSettingRow& v1, std::vector<std::string> tags, bool pinned,
                           std::string summary) {
-    v2::PaneSettingRow row = widen_setting_row(v1);
+    zengine::pane::v2::PaneSettingRow row = widen_setting_row(v1);
     row.tags = std::move(tags);
     row.pinned = pinned;
     row.summary = std::move(summary);
@@ -863,9 +864,9 @@ v2::PaneSettingRow v2_row(const PaneSettingRow& v1, std::vector<std::string> tag
 }
 
 /// THE DIAL AS v2 SAYS IT: the legend pinned, every row tagged and summarised.
-v2::PaneSettingsDeclared dial_declared_v2() {
+zengine::pane::v2::PaneSettingsDeclared dial_declared_v2() {
     const PaneSettingsDeclared v1 = dial_declared();
-    return v2::PaneSettingsDeclared{
+    return zengine::pane::v2::PaneSettingsDeclared{
         kDial,
         {v2_row(v1.rows[0], {"chrome", "help"}, true, "show the dial's legend"),
          v2_row(v1.rows[1], {"chrome"}, false, "how wide the dial draws"),
@@ -901,7 +902,7 @@ struct RevisionRig {
     void offer() {
         drive(r, seat_id, seat, [](RevisionSeat& s, loom::Mail& m) { s.say(m, dial_offer()); });
     }
-    void declare(const v2::PaneSettingsDeclared& d) {
+    void declare(const zengine::pane::v2::PaneSettingsDeclared& d) {
         drive(r, seat_id, seat, [d](RevisionSeat& s, loom::Mail& m) { s.say(m, d); });
     }
     PaneSettingsAnswered read(bool personally = false) {
@@ -1075,29 +1076,29 @@ TEST_CASE("a v2 declaration says how each setting is found, and each of its boun
               "`" + std::string(reserved) + "` is a tab of its own, never a setting's tag");
     }
 
-    const v2::PaneSettingsDeclared sound = dial_declared_v2();
-    CHECK(v2::pane_settings_declared_problem(sound).empty());
+    const zengine::pane::v2::PaneSettingsDeclared sound = dial_declared_v2();
+    CHECK(zengine::pane::v2::pane_settings_declared_problem(sound).empty());
     struct Case {
         const char* what;
-        std::function<void(v2::PaneSettingsDeclared&)> make;
+        std::function<void(zengine::pane::v2::PaneSettingsDeclared&)> make;
         const char* said;
     };
     const std::vector<Case> cases = {
-        {"a reserved tag", [](v2::PaneSettingsDeclared& d) { d.rows[1].tags = {"all"}; },
+        {"a reserved tag", [](zengine::pane::v2::PaneSettingsDeclared& d) { d.rows[1].tags = {"all"}; },
          "setting `mode`: `all` is a tab of its own, never a setting's tag"},
         {"a tag past its bound",
-         [](v2::PaneSettingsDeclared& d) { d.rows[1].tags = {"abcdefghijklmnopq"}; },
+         [](zengine::pane::v2::PaneSettingsDeclared& d) { d.rows[1].tags = {"abcdefghijklmnopq"}; },
          "setting `mode`: a setting's tag is at most 16 bytes -- `abcdefghijklmnopq` has 17"},
-        {"an uppercase tag", [](v2::PaneSettingsDeclared& d) { d.rows[1].tags = {"Wide"}; },
+        {"an uppercase tag", [](zengine::pane::v2::PaneSettingsDeclared& d) { d.rows[1].tags = {"Wide"}; },
          "setting `mode`: a setting's tag is `a`-`z`, `0`-`9` and `-` -- `Wide` is not"},
         {"a tag twice on one row",
-         [](v2::PaneSettingsDeclared& d) { d.rows[2].tags = {"input", "input"}; },
+         [](zengine::pane::v2::PaneSettingsDeclared& d) { d.rows[2].tags = {"input", "input"}; },
          "setting `step` names the tag `input` twice"},
         {"five tags on one row",
-         [](v2::PaneSettingsDeclared& d) { d.rows[2].tags = {"a", "b", "c", "d", "e"}; },
+         [](zengine::pane::v2::PaneSettingsDeclared& d) { d.rows[2].tags = {"a", "b", "c", "d", "e"}; },
          "setting `step` is listed under 5 tags -- a setting takes at most 4"},
         {"thirteen tags between the rows",
-         [](v2::PaneSettingsDeclared& d) {
+         [](zengine::pane::v2::PaneSettingsDeclared& d) {
              d.rows[0].tags = {"t1", "t2", "t3", "t4"};
              d.rows[1].tags = {"t5", "t6", "t7", "t8"};
              d.rows[2].tags = {"t9", "t10", "t11", "t12"};
@@ -1105,30 +1106,30 @@ TEST_CASE("a v2 declaration says how each setting is found, and each of its boun
          },
          "a pane's settings name at most 12 tags between them -- these name 13"},
         {"four pins",
-         [](v2::PaneSettingsDeclared& d) {
-             for (v2::PaneSettingRow& row : d.rows) row.pinned = true;
+         [](zengine::pane::v2::PaneSettingsDeclared& d) {
+             for (zengine::pane::v2::PaneSettingRow& row : d.rows) row.pinned = true;
              d.rows.push_back(v2_row(flag_row("zoom", false), {}, true, ""));
          },
          "a pane pins at most 3 settings by default -- this pins 4"},
         {"a summary a pane cannot draw",
-         [](v2::PaneSettingsDeclared& d) { d.rows[0].summary = std::string(65, 'x'); },
+         [](zengine::pane::v2::PaneSettingsDeclared& d) { d.rows[0].summary = std::string(65, 'x'); },
          "setting `legend`'s summary is past 64 bytes of printable ASCII"},
-        {"v1's own rules", [](v2::PaneSettingsDeclared& d) { d.rows[2].low = 10; },
+        {"v1's own rules", [](zengine::pane::v2::PaneSettingsDeclared& d) { d.rows[2].low = 10; },
          "setting `step`'s low is above its high"},
     };
     for (const Case& c : cases) {
         CAPTURE(c.what);
-        v2::PaneSettingsDeclared d = sound;
+        zengine::pane::v2::PaneSettingsDeclared d = sound;
         c.make(d);
-        CHECK(v2::pane_settings_declared_problem(d) == c.said);
+        CHECK(zengine::pane::v2::pane_settings_declared_problem(d) == c.said);
     }
     // ...AND TWELVE TAGS AND THREE PINS ARE STILL A DECLARATION.
-    v2::PaneSettingsDeclared full = sound;
+    zengine::pane::v2::PaneSettingsDeclared full = sound;
     full.rows[0].tags = {"t1", "t2", "t3", "t4"};
     full.rows[1].tags = {"t5", "t6", "t7", "t8"};
     full.rows[2].tags = {"t9", "t10", "t11", "t12"};
-    for (v2::PaneSettingRow& row : full.rows) row.pinned = true;
-    CHECK(v2::pane_settings_declared_problem(full).empty());
+    for (zengine::pane::v2::PaneSettingRow& row : full.rows) row.pinned = true;
+    CHECK(zengine::pane::v2::pane_settings_declared_problem(full).empty());
 
     // THROUGH WORKSHOP: a v2 declaration counts in both versions; a refused one is said and the
     // declaration in force stands.
@@ -1137,7 +1138,7 @@ TEST_CASE("a v2 declaration says how each setting is found, and each of its boun
     REQUIRE(t.r.owner->layouts().counted(dial_ref()) != nullptr);
     CHECK(*t.r.owner->layouts().counted(dial_ref()) == sound.rows);
     CHECK(*t.r.owner->layouts().counted_v1(dial_ref()) == dial_declared().rows);
-    v2::PaneSettingsDeclared reserved = sound;
+    zengine::pane::v2::PaneSettingsDeclared reserved = sound;
     reserved.rows[1].tags = {"kept"};
     t.declare(reserved);
     CHECK(t.r.last_notice() ==
@@ -1152,7 +1153,7 @@ TEST_CASE("a v1 declaration is read as v2 rows, untagged, unpinned and unsummari
     t.offer();
     t.declare(dial_declared());
     REQUIRE(t.r.owner->layouts().counted(dial_ref()) != nullptr);
-    const std::vector<v2::PaneSettingRow>& rows = *t.r.owner->layouts().counted(dial_ref());
+    const std::vector<zengine::pane::v2::PaneSettingRow>& rows = *t.r.owner->layouts().counted(dial_ref());
     REQUIRE(rows.size() == 3);
     for (std::size_t i = 0; i < rows.size(); ++i) {
         CHECK(narrow_setting_row(rows[i]) == dial_declared().rows[i]);
@@ -1187,7 +1188,7 @@ TEST_CASE("a holder that takes v2 is handed its row's revision, moved by a write
     RevisionRig t;
     t.open({legend_off()});
     REQUIRE_FALSE(t.seat->handed.empty());
-    const v2::PaneSettings first = t.seat->handed.back();
+    const zengine::pane::v2::PaneSettings first = t.seat->handed.back();
     CHECK(first.pane == kDial);
     CHECK(first.revision > 0);
     CHECK(first.settings == std::vector<PaneSetting>{legend_off()});
@@ -1203,7 +1204,7 @@ TEST_CASE("a holder that takes v2 is handed its row's revision, moved by a write
     // a v1 holder is handed nothing (above) -- and each switch back moves it again.
     duplicate_live_layout(t.r);
     REQUIRE(t.seat->handed.size() == handed + 1);
-    const v2::PaneSettings copy = t.seat->handed.back();
+    const zengine::pane::v2::PaneSettings copy = t.seat->handed.back();
     CHECK(copy.settings == first.settings);
     CHECK(copy.revision > first.revision);
     layout_key(t.r, Act::kLayoutNext);
@@ -1475,7 +1476,7 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     CHECK(shown.role == kWorkshopProvider);
     CHECK(shown.revision > 0);
     std::vector<std::string> keys;
-    for (const v2::PaneSettingRow& row : shown.rows) {
+    for (const zengine::pane::v2::PaneSettingRow& row : shown.rows) {
         keys.push_back(row.key);
     }
     CHECK(keys == std::vector<std::string>{
@@ -1488,13 +1489,13 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     // declaration's rules but its `workshop.` key.
     std::vector<std::string> pinned;
     std::vector<std::string> tags;
-    for (const v2::PaneSettingRow& row : shown.rows) {
+    for (const zengine::pane::v2::PaneSettingRow& row : shown.rows) {
         if (row.pinned) {
             pinned.push_back(row.key);
         }
-        v2::PaneSettingRow as_pane = row;
+        zengine::pane::v2::PaneSettingRow as_pane = row;
         as_pane.key = row.key.substr(std::string("workshop.").size());
-        CHECK_MESSAGE(v2::pane_setting_row_problem(as_pane).empty(), row.key);
+        CHECK_MESSAGE(zengine::pane::v2::pane_setting_row_problem(as_pane).empty(), row.key);
         for (const std::string& tag : row.tags) {
             if (std::find(tags.begin(), tags.end(), tag) == tags.end()) {
                 tags.push_back(tag);
@@ -1505,13 +1506,13 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     CHECK(pinned.size() <= kMaxDefaultPins);
     CHECK(tags.size() <= kMaxDeclaredTags);
     const auto row_of = [&shown](const char* key) {
-        for (const v2::PaneSettingRow& row : shown.rows) {
+        for (const zengine::pane::v2::PaneSettingRow& row : shown.rows) {
             if (row.key == key) {
                 return row;
             }
         }
         FAIL("no row ", key);
-        return v2::PaneSettingRow{};
+        return zengine::pane::v2::PaneSettingRow{};
     };
     CHECK(row_of("workshop.completion-order").text == std::string("declared"));
     CHECK(row_of("workshop.completion-order").choices ==
@@ -1656,7 +1657,7 @@ TEST_CASE("a role commit is refused in words with nothing written: a stale revis
 TEST_CASE("a role declares the role-wide settings it takes, is handed what is kept, and its settings are written by message") {
     RevisionRig t;
     t.open();
-    v2::PaneSettingRow face;
+    zengine::pane::v2::PaneSettingRow face;
     face.key = "face";
     face.number = 12;
     face.low = 8;
@@ -1670,7 +1671,7 @@ TEST_CASE("a role declares the role-wide settings it takes, is handed what is ke
     CHECK(t.seat->role_handed.back().settings.empty());
     CHECK(t.seat->authors.back() == kLayoutsRole);
     const RoleSettingsAnswered shown = t.read_role(kDialRole);
-    CHECK(shown.rows == std::vector<v2::PaneSettingRow>{face});
+    CHECK(shown.rows == std::vector<zengine::pane::v2::PaneSettingRow>{face});
     CHECK(shown.revision == t.seat->role_handed.back().revision);
     RoleSettingCommitRequested bigger;
     bigger.role = kDialRole;
@@ -1692,13 +1693,13 @@ TEST_CASE("a role declares the role-wide settings it takes, is handed what is ke
     CHECK_FALSE(big.accepted);
     CHECK(big.refusal == "face takes a whole number from 8 to 32, not a number `99`");
     // A DECLARATION REFUSED BY A PANE'S RULES IS SAID, AND THE ONE IN FORCE STANDS.
-    v2::PaneSettingRow own = face;
+    zengine::pane::v2::PaneSettingRow own = face;
     own.key = "workshop.face";
     drive(t.r, t.seat_id, t.seat,
           [own](RevisionSeat& s, loom::Mail& m) { s.say(m, RoleSettingsDeclared{{own}}); });
     CHECK(t.r.last_notice().rfind("role-wide settings of test.dial: refused -- setting "
                                   "`workshop.face` is Workshop's own", 0) == 0);
-    CHECK(t.read_role(kDialRole).rows == std::vector<v2::PaneSettingRow>{face});
+    CHECK(t.read_role(kDialRole).rows == std::vector<zengine::pane::v2::PaneSettingRow>{face});
 }
 
 // ---- Pins ---------------------------------------------------------------------------------

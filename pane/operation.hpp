@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_OPERATION_HPP
-#define ZENGINE_WORKSHOP_PANE_OPERATION_HPP
+#ifndef ZENGINE_PANE_OPERATION_HPP
+#define ZENGINE_PANE_OPERATION_HPP
 #include <zen/weave/shape.hpp>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 // Continue a current pane gesture, named separately from this request’s correlation. The application checks
 // the initiating actor's live authority for this operation. This does not widen the pane's
 // own grant or license later operations; the pane must still make its ordinary gated send.
@@ -101,5 +101,5 @@ struct PaneObservationEnded {
     std::int64_t lease = 0;
     ZEN_SHAPE(PaneObservationEnded, 1, ZEN_FIELD(pane), ZEN_FIELD(lease));
 };
-} // namespace zengine::workshop
+} // namespace zengine::pane
 #endif

@@ -4,7 +4,7 @@
 #include "flow/workspace.hpp"
 #include "flow/flow-host/vocabulary.hpp"
 #include "flow/flow-pane/vocabulary.hpp"
-#include "workshop/pane_canvas_text.hpp"
+#include "pane/canvas_text.hpp"
 #include <iostream>
 
 namespace md = zengine::message_draft;
@@ -20,8 +20,8 @@ int main() {
         require(workspace.graph.project.definition.name == "my_flow", "installed workspace round trip failed");
         require(loom::schema_of<zengine::flow_host::FlowRun>()->find("project") != nullptr, "runtime protocol missing");
         require(loom::schema_of<zengine::flow_pane::FlowEdit>()->find("action") != nullptr, "authoring protocol missing");
-        const zengine::workshop::CanvasRoom room{960, 480, 4, true, 8, 18};
-        const auto text = zengine::workshop::clip_canvas_text(
+        const zengine::pane::CanvasRoom room{960, 480, 4, true, 8, 18};
+        const auto text = zengine::pane::clip_canvas_text(
             {0, 0, "native", zengine::graphics::colors::text, 3, 1, 4},
             {0, 0, room.width, room.height}, room);
         require(text.visible() && text.fit.graphical() && text.fit.columns == 6,

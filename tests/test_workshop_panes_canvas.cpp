@@ -6,8 +6,8 @@
 
 #include "doctest.h"
 #include "workshop_support.hpp"
-#include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_picture.hpp"
+#include "pane/canvas_text.hpp"
+#include "pane/picture.hpp"
 #include "view/host.hpp"
 #include "flow/shape.hpp"
 #include <limits>
@@ -32,7 +32,7 @@ std::string drawn_words(std::int64_t kind) {
 } // namespace
 
 TEST_CASE("a pane's drawings judge a press by what the window drew under the hand: a named part redrawn takes it over its whole face, another part or none refuses it, and an unnamed place takes it only under the drawing's number") {
-    using zengine::workshop::press_moved;
+    using zengine::pane::press_moved;
     const gfx::TextMeasure text{12, 12};
     const std::string area = "test.area";
     // A BUTTON: a filled face, its label inside, the group named `save`; and an unnamed note.
@@ -436,7 +436,7 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
         if (e.kind == loom::EventKind::Delivered && e.payload != nullptr &&
             e.schema_name == zengine::graphics::AreaPlaced::zen_name) {
             const auto p = loom::from_value<zengine::graphics::AreaPlaced>(*e.payload);
-            if (p.area == zengine::workshop::pane_area("tally.panel", view::kPane))
+            if (p.area == zengine::pane::pane_area("tally.panel", view::kPane))
                 placed.push_back(p);
         }
     });

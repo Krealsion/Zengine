@@ -15,9 +15,9 @@
 #include "flow/flow-pane/vocabulary.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/colors.hpp"
-#include "workshop/pane_canvas_drawing.hpp"
-#include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_parts.hpp"
+#include "pane/canvas_drawing.hpp"
+#include "pane/canvas_text.hpp"
+#include "pane/parts.hpp"
 #include <iterator>
 #include <limits>
 #include <map>
@@ -36,8 +36,8 @@ inline constexpr std::int64_t kPlaceX = 1056, kPlaceY = 96;
 // the medium's independent horizontal advance and padded text-row height.
 struct GridProjection {
     std::int64_t advance = unit, row = unit, padding = 0;
-    explicit GridProjection(const ws::CanvasRoom& room) {
-        const auto metrics = ws::canvas_text_metrics(room);
+    explicit GridProjection(const pane::CanvasRoom& room) {
+        const auto metrics = pane::canvas_text_metrics(room);
         advance = std::max<std::int64_t>(1, metrics.advance);
         row = std::max<std::int64_t>(1, gfx::add_cells(metrics.line, 2 * metrics.inset));
         const auto pad = 2 * metrics.inset * unit;
@@ -148,7 +148,7 @@ inline std::pair<std::int64_t, std::int64_t> point_of(const Picture& p, const Gr
     return {gfx::add_cells(canvas_left(p, grid), grid.x(gfx::add_cells(scale(gfx::sub_px(x, kPlaceX)), p.pan_x))),
             gfx::add_cells(c.y, grid.y(gfx::add_cells(scale(gfx::sub_px(y, kPlaceY)), p.pan_y)))};
 }
-inline std::pair<std::int64_t, std::int64_t> place_at(const Picture& p, const ws::CanvasRoom& room,
+inline std::pair<std::int64_t, std::int64_t> place_at(const Picture& p, const pane::CanvasRoom& room,
                                                       std::int64_t x, std::int64_t y) {
     const GridProjection grid(room);
     const auto zoom = std::max<std::int64_t>(1, p.zoom);
@@ -168,7 +168,7 @@ enum class Icon { None, Play, Square, Chevron, Gear };
 struct Pen {
     Picture& p;
     Measure m;
-    const ws::CanvasRoom& room;
+    const pane::CanvasRoom& room;
     void rect(Box b, gfx::Color fill, gfx::Color stroke = gfx::no_color(), std::int64_t radius = 0,
               bool dashed = false, std::optional<Box> clip = std::nullopt) {
         if (b.empty()) return;
@@ -2019,7 +2019,7 @@ inline void wire_list(Pen& pen, const Model& model, const Box& within) {
 
 /// A partial graph would look like a different graph. A view too dense to show is this bounded
 /// recovery picture instead, keeping save/export and view controls available.
-inline Picture recovery_picture(Picture view, const ws::CanvasRoom& room) {
+inline Picture recovery_picture(Picture view, const pane::CanvasRoom& room) {
     using namespace view_detail;
     const auto revision = view.revision;
     view = Picture{};
@@ -2056,7 +2056,7 @@ inline Picture recovery_picture(Picture view, const ws::CanvasRoom& room) {
 
 namespace view_detail {
 /// THE PICTURE KEPT IN ITS ROOM, or the recovery picture where it draws more than its bounds.
-inline Picture finish(Picture view, const ws::CanvasRoom& room) {
+inline Picture finish(Picture view, const pane::CanvasRoom& room) {
     keep_in_room(view, room);
     std::size_t bytes = 0;
     for (const auto& k : view.marks) bytes += k.words.size();
@@ -2065,7 +2065,7 @@ inline Picture finish(Picture view, const ws::CanvasRoom& room) {
 }
 } // namespace view_detail
 
-inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
+inline Picture picture(const Model& model, const pane::CanvasRoom& room) {
     using namespace view_detail;
     Picture out;
     out.revision = model.workspace.graph.project.definition.revision;
@@ -2304,7 +2304,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
 
 /// Pan a graph that runs past the bottom of its canvas up, as far as its topmost node allows, so a
 /// workspace opened in a short pane shows its nodes whole where the room can hold them.
-inline void reveal_graph(Model& model, const ws::CanvasRoom& room) {
+inline void reveal_graph(Model& model, const pane::CanvasRoom& room) {
     if (room.width <= 0 || room.height <= 0) return;
     const auto drawn = picture(model, room);
     if (!drawn.graph_extent || !drawn.canvas) return;
@@ -2319,7 +2319,7 @@ inline void reveal_graph(Model& model, const ws::CanvasRoom& room) {
 /// Pan the graph so the selected node's whole card -- its head, body slot, ports and answer -- sits
 /// inside the canvas, as this room draws it. A node just added is then seen whole; one already in
 /// view does not move.
-inline void reveal_selected(Model& model, const ws::CanvasRoom& room) {
+inline void reveal_selected(Model& model, const pane::CanvasRoom& room) {
     if (!model.node || room.width <= 0 || room.height <= 0) return;
     const auto drawn = picture(model, room);
     if (!drawn.node_extent || !drawn.canvas) return;
@@ -2343,7 +2343,7 @@ struct WindowPicture {
     gfx::Sketch sketch;
     std::map<std::string, Hit> parts;
 };
-inline WindowPicture window_picture(const Model& model, const ws::CanvasRoom& room) {
+inline WindowPicture window_picture(const Model& model, const pane::CanvasRoom& room) {
     WindowPicture out{picture(model, room), {}, {}};
     auto drawn = sketch_of(out.picture, room);
     if (!drawn.over.empty()) {

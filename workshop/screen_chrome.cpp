@@ -17,6 +17,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::RegionFit;
+using pane::fit_region;
 
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
 

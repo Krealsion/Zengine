@@ -10,9 +10,9 @@
 // Workshop law: agents/workshop/desk-read.md (+3 registers; agents/workshop.md routes)
 
 #include "decoded_cells.hpp"
-#include "pane_rows.hpp"
+#include "pane/rows.hpp"
 #include "pane_view.hpp"
-#include "pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 #include "panes.hpp"
 #include "reply_bytes.hpp"
 #include "screen.hpp"
@@ -23,8 +23,7 @@
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "workshop/screen_planes.hpp"
-#include "workshop/pane_text_fit.hpp"
-#include "pane_text_fit.hpp"
+#include "pane/text_fit.hpp"
 
 #include <zen/weave/standard_shapes.hpp>
 
@@ -40,6 +39,8 @@
 #include <vector>
 
 namespace zengine::workshop::desk_read {
+using pane::RegionFit;
+using pane::RowPart;
 
 /// What a reading's handler says: the shape, or a refusal in words.
 template <class T>

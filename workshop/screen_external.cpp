@@ -7,6 +7,7 @@
 #include "screen.hpp"
 
 namespace zengine::workshop {
+using pane::TextRow;
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 

@@ -13,9 +13,9 @@
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/own.hpp"
-#include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_picture.hpp"
+#include "pane/canvas_text.hpp"
+#include "pane/parts.hpp"
+#include "pane/picture.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -105,8 +105,8 @@ struct Measure {
     std::int64_t tall = gfx::kCellPx; ///< a control's height
     std::int64_t card = gfx::kCellPx; ///< a card's row
     std::int64_t grain = gfx::kCellPx;
-    explicit Measure(const ws::CanvasRoom& room) {
-        const auto m = ws::canvas_text_metrics(room);
+    explicit Measure(const pane::CanvasRoom& room) {
+        const auto m = pane::canvas_text_metrics(room);
         light = m.graphical;
         ch = std::max<std::int64_t>(1, m.advance);
         line = std::max<std::int64_t>(1, m.line);
@@ -291,20 +291,20 @@ struct Drawing {
 /// clip and the room, a run shortened marked with dots where it was cut; each rectangle cut to
 /// its clip; any other mark kept whole inside its clip, left out wholly outside it, and kept with
 /// its clip where it crosses one. What the room cannot show at all goes.
-inline void keep_in_room(Drawing& d, const ws::CanvasRoom& room) {
+inline void keep_in_room(Drawing& d, const pane::CanvasRoom& room) {
     const Box whole{0, 0, room.width, room.height};
     std::vector<Mark> kept;
     kept.reserve(d.marks.size());
     for (auto& m : d.marks) {
         const Box clip = m.clip ? m.clip->cut(whole) : whole;
         if (m.op == Mark::Op::Text) {
-            ws::CanvasText run{m.x, m.y, m.words, m.fill, m.caret_col, m.sel_begin_col,
+            pane::CanvasText run{m.x, m.y, m.words, m.fill, m.caret_col, m.sel_begin_col,
                                m.sel_end_col};
             const auto original = m.words.size();
             // A clip keeps a run's glyphs, whose padding may stand the inset left of it.
-            const auto inset = ws::canvas_text_metrics(room).inset;
+            const auto inset = pane::canvas_text_metrics(room).inset;
             const Box glyphs = Box{clip.x - inset, clip.y, clip.w + inset, clip.h}.cut(whole);
-            auto layout = ws::clip_canvas_text(run, {glyphs.x, glyphs.y, glyphs.w, glyphs.h}, room);
+            auto layout = pane::clip_canvas_text(run, {glyphs.x, glyphs.y, glyphs.w, glyphs.h}, room);
             if (!layout.visible()) continue;
             const bool left_cut = layout.first_column > 0;
             const bool right_cut = layout.first_column + layout.text.text.size() < original;
@@ -379,10 +379,10 @@ inline std::string part_name(const Hit& hit) {
 
 /// THE PLACES OF A PICTURE AS IT IS SAID: each place a press means something, in the order a press
 /// reads them, under its name (`part_name`), or unnamed where an earlier place took its name.
-inline ws::CanvasPicture named(const Drawing& d) {
-    ws::PartNames<ws::CanvasPart> gathered;
-    for (const auto& h : d.hits) (void)gathered.add(ws::CanvasPart{part_name(h), h.x, h.y, h.w, h.h});
-    ws::CanvasPicture out;
+inline pane::CanvasPicture named(const Drawing& d) {
+    pane::PartNames<pane::CanvasPart> gathered;
+    for (const auto& h : d.hits) (void)gathered.add(pane::CanvasPart{part_name(h), h.x, h.y, h.w, h.h});
+    pane::CanvasPicture out;
     out.parts = gathered.take();
     return out;
 }
@@ -398,13 +398,13 @@ struct Sketched {
 /// name, the marks meeting it painted again there so a press lands on it wherever it shows; each
 /// run's selection and caret in a `marks` group. Rounded corners, dashes and curves are paths where
 /// the room is light; a room of characters is given rectangles and lines (`Mark`, `Measure`).
-inline Sketched sketch_of(const Drawing& d, const ws::CanvasRoom& room) {
+inline Sketched sketch_of(const Drawing& d, const pane::CanvasRoom& room) {
     Sketched out;
     const Measure m(room);
     // EACH PLACE UNDER ITS NAME, as Workshop gathers a pane's parts: one a name another took, or
     // the judge refuses, stays a place unnamed, and past the bound the earliest go.
-    std::vector<ws::CanvasPart> parts = named(d).parts;
-    std::erase_if(parts, [](const ws::CanvasPart& p) { return p.w <= 0 || p.h <= 0; });
+    std::vector<pane::CanvasPart> parts = named(d).parts;
+    std::erase_if(parts, [](const pane::CanvasPart& p) { return p.w <= 0 || p.h <= 0; });
     // A mark as nodes, at `path`, drawn `dx`, `dy` back from where the picture stands it.
     const auto put = [&](gfx::Sketch& s, const std::string& path, const Mark& k, std::int64_t dx,
                          std::int64_t dy) {

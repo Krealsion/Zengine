@@ -13,12 +13,12 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/causes.hpp"
+#include "pane/drawing.hpp"
+#include "pane/operation.hpp"
+#include "pane/rows.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -27,7 +27,7 @@
 #include "input/vocabulary.hpp"
 #include "launcher/vocabulary.hpp"
 #include "view/vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -50,7 +50,7 @@ namespace fr = zengine::first_run;
 namespace launcher = zengine::launcher;
 namespace view = zengine::view;
 
-constexpr const char* kWorkshop = zengine::workshop::pane_menu::kWorkshopRole;
+constexpr const char* kWorkshop = zengine::pane::pane_menu::kWorkshopRole;
 constexpr const char* kRole = fr::kFirstRunRole;
 constexpr const char* kPane = fr::kSetupPane;
 constexpr const char* kStory = fr::kStoryPane;
@@ -81,17 +81,17 @@ constexpr std::size_t kMakeView = 0, kWireButton = 1, kShowAnswer = 2, kMakeApp 
 class FirstRun
     : public loom::WeaveBase<
           FirstRun, FirstRunState,
-          loom::Accept<loom::Activated, ws::PaneCatalogRequested,
-                       ws::PaneActionRequested, ws::RoleSettings, ws::RoleSettingsAnswered,
+          loom::Accept<loom::Activated, zengine::pane::PaneCatalogRequested,
+                       zengine::pane::PaneActionRequested, ws::RoleSettings, ws::RoleSettingsAnswered,
                        ws::PaneInventory, ws::RoleSettingCommitAnswered, ws::PaneLaunchAnswered,
-                       ws::PaneCloseAnswered, ws::PaneOperationAnswered, ws::EditorSwitchAnswered,
+                       ws::PaneCloseAnswered, zengine::pane::PaneOperationAnswered, ws::EditorSwitchAnswered,
                        launcher::LaunchCatalog, launcher::Launched, view::ViewWiring,
                        loom::DispatchRefused, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
-          loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::RoleSettingsDeclared,
+          loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v3::PaneActions, ws::RoleSettingsDeclared,
                      ws::RoleSettingsRequested, ws::RoleSettingCommitRequested,
                      ws::PaneLaunchRequested, ws::PaneCloseRequested,
-                     ws::PaneInventoryRequested, ws::v2::PaneOperationRequested,
+                     ws::PaneInventoryRequested, zengine::pane::v2::PaneOperationRequested,
                      ws::EditorSwitchRequested, ws::EditorSwitchConfirmed,
                      ws::EditorSwitchQuietStatusRequested, launcher::LaunchCatalogRequested,
                      launcher::Launch, view::ViewWiringRequested, gfx::Drawn, gfx::RoomAsked>> {
@@ -106,18 +106,18 @@ public:
         offer(mail);
         declare(mail);
         settings_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole,
+        (void)mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole,
                                                  ws::RoleSettingsRequested{kRole},
                                                  settings_ask_);
         ask_status(mail);
         ask_facts(mail);
-        for (const ws::WindowDrawing* w : {&window_, &story_window_}) {
+        for (const zengine::pane::WindowDrawing* w : {&window_, &story_window_}) {
             if (!w->shown()) {
                 (void)mail.as_role(kRole).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{w->area()});
             }
         }
     }
-    void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCatalogRequested&, loom::Mail& mail) {
         if (mail.authored_from_role(kWorkshop)) {
             offer(mail);
         }
@@ -147,7 +147,7 @@ public:
         (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{}, fresh_ask_);
     }
     void on(const ws::RoleSettings& kept, loom::Mail& mail) {
-        if (mail.authored_from_role(ws::kLayoutsRole)) {
+        if (mail.authored_from_role(zengine::pane::kLayoutsRole)) {
             read(kept.revision, kept.settings, mail);
         }
     }
@@ -327,7 +327,7 @@ public:
             } else {
                 moment_.notice = "not kept: " + acted.refusal;
             }
-            (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole,
+            (void)mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole,
                                                      ws::PaneCloseRequested{kRole, kPane}, ++asks_);
             show(mail);
             if (!fr::story_done(ticks_)) {
@@ -348,7 +348,7 @@ public:
 
     /// WORKSHOP'S WORD ON A START THE QUICK SETUP ASKED ABOUT, judged for the hand that pressed:
     /// allowed, the launcher is asked.
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+    void on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail) {
         if (!answers(mail, approval_ask_)) {
             return;
         }
@@ -416,7 +416,7 @@ public:
 
     /// ITS ROWS, as Workshop sent them for a hand's key: the key's number goes with a start, so
     /// Workshop judges it for that hand.
-    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
+    void on(const zengine::pane::PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop)) {
             return;
         }
@@ -476,21 +476,21 @@ private:
 
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kRole).send_to_role(
-            kWorkshop, ws::v2::PaneOffered{kPane, "Quick setup",
+            kWorkshop, zengine::pane::v2::PaneOffered{kPane, "Quick setup",
                                            "how you edit text, and the ready-to-use setups", 36, 80});
         (void)mail.as_role(kRole).send_to_role(
-            kWorkshop, ws::v2::PaneOffered{kStory, "Start here",
+            kWorkshop, zengine::pane::v2::PaneOffered{kStory, "Start here",
                                            "the story a step at a time, each ticked as it happens",
                                            34, 80});
         const auto rows = [](const char* pane, const char* up, const char* down, const char* choose,
-                             std::vector<ws::ActionCause> causes) {
-            ws::v3::PaneActions actions;
+                             std::vector<zengine::pane::ActionCause> causes) {
+            zengine::pane::v3::PaneActions actions;
             actions.pane = pane;
-            actions.rows.push_back(ws::v3::PaneActionRow{up, "previous item", input::scan::kUp,
+            actions.rows.push_back(zengine::pane::v3::PaneActionRow{up, "previous item", input::scan::kUp,
                                                          input::mod::kNone, "", {}});
-            actions.rows.push_back(ws::v3::PaneActionRow{down, "next item", input::scan::kDown,
+            actions.rows.push_back(zengine::pane::v3::PaneActionRow{down, "next item", input::scan::kDown,
                                                          input::mod::kNone, "", {}});
-            actions.rows.push_back(ws::v3::PaneActionRow{choose, "choose the item",
+            actions.rows.push_back(zengine::pane::v3::PaneActionRow{choose, "choose the item",
                                                          input::scan::kReturn, input::mod::kNone,
                                                          "", std::move(causes)});
             return actions;
@@ -498,29 +498,29 @@ private:
         (void)mail.as_role(kRole).send_to_role(
             kWorkshop,
             rows(kPane, fr::kActionUp, fr::kActionDown, fr::kActionChoose,
-                 {ws::cause_of<ws::EditorSwitchRequested>(), ws::cause_of<ws::EditorSwitchConfirmed>(),
-                  ws::cause_of<ws::RoleSettingCommitRequested>(),
-                  ws::cause_of<ws::PaneCloseRequested>(), ws::cause_of<launcher::Launch>(),
-                  ws::cause_of<ws::PaneLaunchRequested>()}));
+                 {zengine::pane::cause_of<ws::EditorSwitchRequested>(), zengine::pane::cause_of<ws::EditorSwitchConfirmed>(),
+                  zengine::pane::cause_of<ws::RoleSettingCommitRequested>(),
+                  zengine::pane::cause_of<ws::PaneCloseRequested>(), zengine::pane::cause_of<launcher::Launch>(),
+                  zengine::pane::cause_of<ws::PaneLaunchRequested>()}));
         (void)mail.as_role(kRole).send_to_role(
             kWorkshop, rows(kStory, fr::kStoryUp, fr::kStoryDown, fr::kStoryChoose,
-                            {ws::cause_of<ws::RoleSettingCommitRequested>(),
-                             ws::cause_of<ws::PaneLaunchRequested>()}));
+                            {zengine::pane::cause_of<ws::RoleSettingCommitRequested>(),
+                             zengine::pane::cause_of<ws::PaneLaunchRequested>()}));
     }
 
     /// ITS TWO SETTINGS, role-wide: `answered`, off by default, and `story`, no step ticked.
     void declare(loom::Mail& mail) {
-        ws::v2::PaneSettingRow answered;
+        zengine::pane::v2::PaneSettingRow answered;
         answered.key = fr::kAnsweredKey;
         answered.flag = false;
         answered.tags = {"chrome"};
         answered.summary = "the quick setup was answered or skipped"; // at most 64 characters
-        ws::v2::PaneSettingRow story;
+        zengine::pane::v2::PaneSettingRow story;
         story.key = fr::kStoryKey;
         story.text = std::string();
         story.tags = {"chrome"};
         story.summary = "the story's steps ticked, h for one you ticked"; // at most 64 characters
-        (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole,
+        (void)mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole,
                                                  ws::RoleSettingsDeclared{{answered, story}});
     }
 
@@ -562,11 +562,11 @@ private:
 
     /// THE SETTINGS READ: `answered`, and the ticks the file keeps joined to those heard this run
     /// before it was read, written back when they differ.
-    void read(std::int64_t revision, const std::vector<ws::PaneSetting>& settings, loom::Mail& mail) {
+    void read(std::int64_t revision, const std::vector<zengine::pane::PaneSetting>& settings, loom::Mail& mail) {
         revision_ = revision;
         answered_ = false;
         std::string kept;
-        for (const ws::PaneSetting& s : settings) {
+        for (const zengine::pane::PaneSetting& s : settings) {
             if (s.key == fr::kAnsweredKey) {
                 answered_ = s.flag.value_or(false);
             } else if (s.key == fr::kStoryKey) {
@@ -613,7 +613,7 @@ private:
         commit.text = now;
         writing_ = now;
         commit_ask_ = ++asks_;
-        if (!mail.as_role(kRole).send_to_role(ws::kLayoutsRole, commit, commit_ask_).valid()) {
+        if (!mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole, commit, commit_ask_).valid()) {
             commit_ask_ = 0;
             story_says("the layouts' owner could not be asked to keep the ticks");
             return;
@@ -671,7 +671,7 @@ private:
         commit.key = fr::kAnsweredKey;
         commit.flag = true;
         const std::uint64_t asked = ++asks_;
-        if (!mail.as_role(kRole).send_to_role(ws::kLayoutsRole, commit, asked).valid()) {
+        if (!mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole, commit, asked).valid()) {
             moment_.notice = "the layouts' owner could not be asked to keep the answer";
             show(mail);
             return;
@@ -692,7 +692,7 @@ private:
             show(mail);
             return;
         }
-        ws::v2::PaneOperationRequested asked;
+        zengine::pane::v2::PaneOperationRequested asked;
         asked.pane = kPane;
         asked.gesture = static_cast<std::int64_t>(gesture);
         asked.classes = {ws::scope::kBuild, ws::scope::kWrite};
@@ -741,7 +741,7 @@ private:
         show_story(mail);
     }
 
-    void pressed_setup(const ws::WindowPointer& p, const gfx::AreaButtonChanged& b,
+    void pressed_setup(const zengine::pane::WindowPointer& p, const gfx::AreaButtonChanged& b,
                        loom::Mail& mail) {
         const std::vector<fr::Line> lines = fr::lines_of(moment_, columns(window_));
         if (!b.pressed || b.button != 1 || !p.at.shown || p.at.row < 0 ||
@@ -759,7 +759,7 @@ private:
             choose(mail, mail.correlation());
         }
     }
-    void pressed_story(const ws::WindowPointer& p, const gfx::AreaButtonChanged& b,
+    void pressed_story(const zengine::pane::WindowPointer& p, const gfx::AreaButtonChanged& b,
                        loom::Mail& mail) {
         const std::vector<fr::StoryLine> lines = fr::story_lines(story_, columns(story_window_));
         if (!b.pressed || b.button != 1 || !p.at.shown || p.at.row < 0 ||
@@ -790,17 +790,17 @@ private:
         return true;
     }
 
-    static std::int64_t rows(const ws::WindowDrawing& w) { return w.rows_room().rows(); }
-    static std::int64_t columns(const ws::WindowDrawing& w) { return w.rows_room().columns(); }
+    static std::int64_t rows(const zengine::pane::WindowDrawing& w) { return w.rows_room().rows(); }
+    static std::int64_t columns(const zengine::pane::WindowDrawing& w) { return w.rows_room().columns(); }
 
     /// LINES DRAWN in `w`'s area, each with its colour, numbered by what their items mean -- the
     /// line each item stands on -- so a notice under them, which no press chooses, moves nothing.
     template <class Line>
-    static void draw(ws::WindowDrawing& w, const std::vector<Line>& lines, loom::Mail& mail) {
+    static void draw(zengine::pane::WindowDrawing& w, const std::vector<Line>& lines, loom::Mail& mail) {
         if (!w.shown() || rows(w) <= 0 || columns(w) <= 0) {
             return;
         }
-        std::vector<ws::TextRow> drawn;
+        std::vector<zengine::pane::TextRow> drawn;
         std::uint64_t meaning = 1469598103934665603ULL;
         std::uint64_t at = 0;
         for (const Line& l : lines) {
@@ -820,8 +820,8 @@ private:
             }
             drawn.push_back({l.text, ink});
         }
-        ws::RowsDrawing rows_drawn = ws::rows_drawing(drawn, std::vector<ws::RowPart>{},
-                                                      w.rows_room(), columns(w), ws::RowsCaret{},
+        zengine::pane::RowsDrawing rows_drawn = zengine::pane::rows_drawing(drawn, std::vector<zengine::pane::RowPart>{},
+                                                      w.rows_room(), columns(w), zengine::pane::RowsCaret{},
                                                       rows(w));
         rows_drawn.sketch.number(static_cast<std::int64_t>(meaning >> 1));
         w.draw(rows_drawn.sketch, mail);
@@ -859,8 +859,8 @@ private:
                   start_ask_ = 0, story_launch_ask_ = 0, show_me_ask_ = 0;
     std::int64_t op_ = 0;
     std::string consent_;
-    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)};
-    ws::WindowDrawing story_window_{kRole, ws::pane_area(kRole, kStory)};
+    zengine::pane::WindowDrawing window_{kRole, zengine::pane::pane_area(kRole, kPane)};
+    zengine::pane::WindowDrawing story_window_{kRole, zengine::pane::pane_area(kRole, kStory)};
     zengine::ActivationCursor activation_;
 };
 

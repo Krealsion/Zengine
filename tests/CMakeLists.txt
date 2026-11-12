@@ -268,7 +268,7 @@ endif()
 
 # ...AND THE SECOND EXAMPLE, THE GUARD: the game-like consumer of the second button, which
 # blocks while the right button is held and never asks for a menu. Compiled here on Tally's
-# terms and loaded by the button suite, so the shipped helper (`workshop/pane_menu.hpp`) is
+# terms and loaded by the button suite, so the shipped helper (`pane/menu.hpp`) is
 # exercised from a pane that links only what a stranger's recipe links.
 zengine_weave(zengine-example-guard ${CMAKE_SOURCE_DIR}/examples/guard-pane/guard.cpp)
 target_link_libraries(zengine-example-guard

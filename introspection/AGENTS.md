@@ -41,7 +41,7 @@ a Compose target picked on the Loaded pane).
 
 - Booted by `workshop/default-load-plan.json` (an optional row, role `zengine.introspection`); staged and listed as a pane weave in
   `workshop/CMakeLists.txt`.
-- Its panes cross the external pane protocol: `workshop/pane_vocabulary.hpp` and the
+- Its panes cross the external pane protocol: `pane/vocabulary.hpp` and the
   `workshop/pane_*.hpp` parts `introspection.cpp` includes.
 - The doors it asks, mounted in `workshop/workshop.cpp`: `zengine.arrangement`
   (`workshop/arrangement.hpp`, `workshop/arrangement_vocabulary.hpp`), `zengine.powers`

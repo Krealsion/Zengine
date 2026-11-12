@@ -15,7 +15,7 @@
 #include "builder/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
@@ -284,7 +284,7 @@ inline std::string BuilderPaneWeave::active_role_prompt() const {
 /// The columns the role line's box takes beside `prompt`: the rest of the row, its value inside,
 /// a caret after it standing on the box's blank room.
 inline std::int64_t BuilderPaneWeave::role_value_columns(const std::string& prompt) const {
-    const std::int64_t prompt_cols = zengine::workshop::pane_text::columns_of(prompt);
+    const std::int64_t prompt_cols = zengine::pane::pane_text::columns_of(prompt);
     return columns() > prompt_cols + 2 * zengine::graphics::kTextBoxInset
                ? columns() - prompt_cols
                : 2 * zengine::graphics::kTextBoxInset + 1;
@@ -292,8 +292,8 @@ inline std::int64_t BuilderPaneWeave::role_value_columns(const std::string& prom
 
 inline void BuilderPaneWeave::say_role() {
     const std::string prompt = active_role_prompt();
-    const std::int64_t at = zengine::workshop::pane_text::columns_of(prompt);
-    const zengine::workshop::RowBox box = zengine::workshop::row_box(role_.line, at, role_value_columns(prompt));
+    const std::int64_t at = zengine::pane::pane_text::columns_of(prompt);
+    const zengine::pane::RowBox box = zengine::pane::row_box(role_.line, at, role_value_columns(prompt));
     const bool room_left = static_cast<std::int64_t>(room().composing().size()) < rows();
     if (room_left) {
         // THE CARET STANDS AFTER WHAT IS DRAWN BEFORE IT, inside the box, at the column the box

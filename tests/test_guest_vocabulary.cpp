@@ -13,7 +13,7 @@
 
 #include "external-host/vocabulary_weave.hpp"
 #include "workshop/guide_vocabulary.hpp"
-#include "workshop/pane_document.hpp"
+#include "pane/document.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
@@ -60,8 +60,8 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::InventoryPane>(), loom::schema_of<ws::KeymapRequested>(),
             loom::schema_of<ws::KeymapShown>(), loom::schema_of<ws::ShownBinding>(),
             loom::schema_of<ws::GuideRequested>(),
-            loom::schema_of<ws::GuideAnswered>(), loom::schema_of<ws::PaneDocumentRequested>(),
-            loom::schema_of<ws::PaneDocumentShown>(), loom::schema_of<ws::PaneDocumentSection>(),
+            loom::schema_of<ws::GuideAnswered>(), loom::schema_of<zengine::pane::PaneDocumentRequested>(),
+            loom::schema_of<zengine::pane::PaneDocumentShown>(), loom::schema_of<zengine::pane::PaneDocumentSection>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
             loom::schema_of<gfx::SurfaceCaptureRequested>(), loom::schema_of<gfx::SurfaceCaptured>(),

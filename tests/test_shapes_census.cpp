@@ -299,8 +299,8 @@ TEST_CASE("a weave the census cannot make is named in the words it refused to be
 TEST_CASE("every weave that takes a pane's row asks the layouts' owner for it, and none hands one") {
     // ⚔ MUTATION (tests/mutants/shapes_census.md#facet-never-asks): a pane role that takes
     // `PaneSettings` without the settings facet -- it never asks for its row, and draws no room.
-    const std::string takes = ::zengine::workshop::PaneSettings::zen_name;
-    const std::string asks = ::zengine::workshop::PaneSettingsAsked::zen_name;
+    const std::string takes = zengine::pane::PaneSettings::zen_name;
+    const std::string asks = zengine::pane::PaneSettingsAsked::zen_name;
     std::set<std::string> taking;
     for (const std::string& path : lines_of(ZENGINE_CENSUS_WEAVES)) {
         std::string why;

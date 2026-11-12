@@ -8,6 +8,11 @@
 #include "component/text.hpp"
 
 namespace zengine::workshop {
+using pane::RowBox;
+using pane::RowsCaret;
+using pane::TextRow;
+using pane::kNoCaret;
+using pane::row_box;
 
 // ---- THE SETUP LINE: which arrangement this is, and whether it is written down -----------
 

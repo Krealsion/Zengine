@@ -358,7 +358,7 @@ shows keeps it, a press there opens them, a move a held press carries is no rest
 the peek"
 
 ### WL-FILES-19
-`workshop/pane_text.hpp` path_root fit_path
+`pane/text.hpp` path_root fit_path
 `files/browser_view.hpp` say_header place_text
 `tests/test_workshop_files.cpp` "a pane fits a path by its middle -- its root, the mark and as much of
 its end as fits -- and a resting pointer scrubs the whole of it across a row"
@@ -367,7 +367,7 @@ in the middle, and under a resting pointer stands whole across the row, scrolled
 pointer's column puts it, until the pointer leaves"
 
 ### WL-FILES-20
-`workshop/pane_text.hpp` scrub
+`pane/text.hpp` scrub
 `files/files.cpp` rest pointer_left Reveal
 `files/browser_view.hpp` say_header say_places
 `tests/test_workshop_panes_files.cpp` "Files' path keeps its root and as much of its end as fits, cut

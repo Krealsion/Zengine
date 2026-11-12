@@ -12,9 +12,9 @@
 #include "external-host/connections-pane/vocabulary.hpp"
 
 #include "workshop/guest_seam_vocabulary.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/facets.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "graphics/vocabulary.hpp"
 
@@ -38,20 +38,20 @@ namespace pane = zengine::connections_pane;
 using ws::v3::GuestConnection;
 using ws::v3::GuestConnections;
 using ws::v3::GuestConnectionsRequested;
-using ws::v2::PaneOffered;
+using zengine::pane::v2::PaneOffered;
 
 /// THE GUESTS FILE'S WORD for a host whose guests write and build as its weaver does.
 constexpr const char* kDevelopmentHost = "development";
 
-using zengine::workshop::pane_text::printable;
-using zengine::workshop::pane_text::fit;
-using zengine::workshop::pane_text::omitted_text;
+using zengine::pane::pane_text::printable;
+using zengine::pane::pane_text::fit;
+using zengine::pane::pane_text::omitted_text;
 
 /// The pane's room and its one picture: in a graphics window, and in Workshop on its canvas while
 /// it holds one and as prose to a host granting none. Nothing in it is a part: a press is nothing
 /// here, and a right press in Workshop is handed back, so Workshop's own pane menu opens where it
 /// was made.
-using Drawing = ws::PaneDrawingFacet<pane::kConnectionsPane, pane::kConnectionsPaneRole,
+using Drawing = zengine::pane::PaneDrawingFacet<pane::kConnectionsPane, pane::kConnectionsPaneRole,
                                      zengine::manual::pages::zengine_connections::kManual>;
 
 class ConnectionsPaneWeave

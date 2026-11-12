@@ -28,14 +28,14 @@
 #include "inventory/observation.hpp"
 #include "inventory/pane_client.hpp"
 #include "message-draft/transfer.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/operation.hpp"
+#include "pane/parts.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/weave/poke.hpp>
 #include <zen/weave/role_request.hpp>
@@ -323,7 +323,7 @@ public:
         for (std::int64_t n = 0; n < std::abs(notches); ++n) step(fields, notches > 0 ? -1 : 1);
         return whole != 0.0;
     }
-    void key(const workshop::PaneKey& key) {
+    void key(const pane::PaneKey& key) {
         if (pickup_ != Pickup::idle || !editing()) return;
         if (line_.consume(key.scancode, key.modifiers, clipboard_) && editing_) ++edits_;
     }
@@ -466,12 +466,12 @@ public:
     // Each returns true when the answer settled a record of THIS view. The weave asks every
     // view in turn; correlations are unique across views, so at most one can match.
 
-    bool hear(const workshop::PaneOperationAnswered& answer, ViewContext& c) {
+    bool hear(const pane::PaneOperationAnswered& answer, ViewContext& c) {
         if (pickup_ == Pickup::permission && c.mail.answers_ask() && c.mail.correlation() == pickup_ask_) {
             if (!answer.allowed) { finish_pickup("Field pickup refused: " + answer.reason); return true; }
             pickup_ = Pickup::carry;
-            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
-                workshop::PaneValueCarryRequested{key_, pickup_label_, pickup_bytes_, pickup_drag_}, pickup_gesture_);
+            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                pane::PaneValueCarryRequested{key_, pickup_label_, pickup_bytes_, pickup_drag_}, pickup_gesture_);
             if (!pickup_ticket_.valid()) finish_pickup("Field pickup could not be queued");
             return true;
         }
@@ -498,7 +498,7 @@ public:
         return after_client(c);
     }
 
-    bool hear(const workshop::PaneObservationAnswered& answer, ViewContext& c) {
+    bool hear(const pane::PaneObservationAnswered& answer, ViewContext& c) {
         return heard(watch_.hear(answer, key_, saved_.revision, c));
     }
 
@@ -526,11 +526,11 @@ public:
     }
 
     bool hear(const loom::DispatchRefused& refused, ViewContext& c) {
-        const auto* shape = pickup_ == Pickup::permission ? workshop::PaneOperationRequested::zen_name
-                                                         : workshop::PaneValueCarryRequested::zen_name;
+        const auto* shape = pickup_ == Pickup::permission ? pane::PaneOperationRequested::zen_name
+                                                         : pane::PaneValueCarryRequested::zen_name;
         if (pickup_ != Pickup::idle && c.mail.dispatch_refused() && pickup_ticket_.valid() &&
             refused.refused_attempt().seq == pickup_ticket_.seq && refused.shape == shape &&
-            refused.version == 1 && refused.role == zengine::workshop::pane_menu::kWorkshopRole && refused.target.empty()) {
+            refused.version == 1 && refused.role == zengine::pane::pane_menu::kWorkshopRole && refused.target.empty()) {
             finish_pickup("Field pickup was not delivered: " + refused.reason);
             return true;
         }
@@ -555,7 +555,7 @@ public:
 
     /// A CARRY WORKSHOP TOOK IS WORKSHOP'S TO SAY, for as long as the copy is in hand: an accepted
     /// pickup leaves no sentence here to outlive it.
-    bool hear(const workshop::PaneCarryAnswered& answer, loom::Mail& mail) {
+    bool hear(const pane::PaneCarryAnswered& answer, loom::Mail& mail) {
         if (pickup_ != Pickup::carry || !mail.answers_ask() || mail.correlation() != pickup_gesture_) return false;
         finish_pickup(answer.carried ? std::string() : "Field pickup refused: " + answer.reason);
         if (answer.carried && !pickup_drag_) notice_.clear();
@@ -600,18 +600,18 @@ public:
     /// THE ROWS IN FORCE, each with what its press may send beside the pane protocol: the
     /// Inventory's read and writes, the observation a watch holds and ends, the description a
     /// sample asks, a field carried, and a view launched or closed.
-    std::vector<workshop::v4::PaneActionRow> actions() const {
+    std::vector<pane::v4::PaneActionRow> actions() const {
         using namespace input;
-        using workshop::cause_of;
+        using pane::cause_of;
         if (!allocated_) return {{kActionViewUse, "use this view", scan::kReturn, mod::kNone}};
         if (editing_) return {{kActionFieldAccept, "keep field edit", scan::kReturn, mod::kNone},
                               {kActionFieldCancel, "cancel field edit", scan::kEscape, mod::kNone}};
         if (renaming_) return {{kActionRenameAccept, "rename view", scan::kReturn, mod::kNone},
                                {kActionRenameCancel, "cancel rename", scan::kEscape, mod::kNone}};
-        const workshop::ActionCause ended = cause_of<workshop::PaneObservationEnded>();
-        const workshop::ActionCause launched = cause_of<workshop::PaneLaunchRequested>();
-        const workshop::ActionCause reread = cause_of<workshop::PaneSettingsRequested>();
-        std::vector<workshop::v4::PaneActionRow> rows = {
+        const pane::ActionCause ended = cause_of<pane::PaneObservationEnded>();
+        const pane::ActionCause launched = cause_of<workshop::PaneLaunchRequested>();
+        const pane::ActionCause reread = cause_of<workshop::PaneSettingsRequested>();
+        std::vector<pane::v4::PaneActionRow> rows = {
             {kValueUp, "previous field", scan::kUp, mod::kNone},
             {kValueDown, "next field", scan::kDown, mod::kNone},
             {kValueEdit, "edit field", scan::kReturn, mod::kNone},
@@ -625,14 +625,14 @@ public:
             {kActionRefresh, "refresh from inventory", scan::kR, mod::kCtrl, {},
              {cause_of<inventory::InventoryRead>()}},
             {kActionWatch, "watch or pause", scan::kL, mod::kCtrl, {},
-             {cause_of<workshop::PaneObservationRequested>(), cause_of<inventory::InventoryRead>(),
+             {cause_of<pane::PaneObservationRequested>(), cause_of<inventory::InventoryRead>(),
               ended}},
             {kActionSample, "sample the source", scan::kE, mod::kCtrl, {},
              {cause_of<loom::PokeDescribe>()}},
             {kActionPreset, "make independent preset copy", scan::kB, mod::kCtrl, {}, {ended}},
             {kActionUnset, "unset preset field", scan::kU, mod::kCtrl},
             {kActionGrab, "pick up typed field copy", scan::kG, mod::kCtrl, {},
-             {cause_of<workshop::PaneValueCarryRequested>()}},
+             {cause_of<pane::PaneValueCarryRequested>()}},
             {kActionDiscard, "discard local edits", scan::kD, mod::kCtrl},
             // A VIEW OPENED OR CLOSED MOVES THE DESK, and the default pane reads its subject's
             // settings again from the layouts' owner.
@@ -670,9 +670,9 @@ public:
 
     /// THE PICTURE: one composition of rows and their meanings, and its parts named by what each
     /// means. `can_create` says whether the weave has a free slot, which only the weave knows.
-    workshop::ComposedRows draw(bool can_create) {
-        workshop::ComposedRows out = compose(can_create);
-        out.parts = workshop::row_parts(picture_.map(), columns_, [](const Meaning& m) { return part_name(m); });
+    pane::ComposedRows draw(bool can_create) {
+        pane::ComposedRows out = compose(can_create);
+        out.parts = pane::row_parts(picture_.map(), columns_, [](const Meaning& m) { return part_name(m); });
         out.number = picture_.map().picture();
         return out;
     }
@@ -693,10 +693,10 @@ public:
                message_draft::path_label(ref.path);
     }
 
-    workshop::ComposedRows compose(bool can_create) { return picture_.compose(shown(can_create), line_, hint_); }
+    pane::ComposedRows compose(bool can_create) { return picture_.compose(shown(can_create), line_, hint_); }
 
     /// WHERE THE LINE BEING TYPED HAS ITS CARET AND SELECTION in the rows last composed, or none.
-    const workshop::RowsCaret& caret() const noexcept { return picture_.caret(); }
+    const pane::RowsCaret& caret() const noexcept { return picture_.caret(); }
     static std::string label_of(const std::string& id) {
         static const std::vector<std::pair<std::string, std::string>> names = {
             {kActionSave, "Save"}, {kActionSaveCopy, "Save copy"}, {kActionRefresh, "Refresh"},
@@ -1193,8 +1193,8 @@ private:
         sample_.role = route.first;
         sample_.original = recorded_responder();
         const auto correlation = ++c.asks;
-        if (!sample_.permission.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::workshop::pane_menu::kWorkshopRole,
-                workshop::PaneOperationRequested{key_, sample_.role, loom::PokeDescribe::zen_name,
+        if (!sample_.permission.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::pane::pane_menu::kWorkshopRole,
+                pane::PaneOperationRequested{key_, sample_.role, loom::PokeDescribe::zen_name,
                     loom::PokeDescribe::zen_version, static_cast<std::int64_t>(c.mail.correlation())}, correlation)) {
             notice_ = "Sample permission request could not be queued";
             return;
@@ -1215,14 +1215,14 @@ private:
                 ? message_draft::grab_field(message_draft::Draft(metadata_[static_cast<std::size_t>(ref.metadata)]), ref.path)
                 : message_draft::grab_field(*item_, ref.path);
             const auto encoded = inventory::encode_pair(value, {});
-            if (encoded.size() > workshop::kMaxCarryBytes) throw std::invalid_argument("Field copy exceeds the carry limit");
+            if (encoded.size() > pane::kMaxCarryBytes) throw std::invalid_argument("Field copy exceeds the carry limit");
             pickup_bytes_.assign(encoded.begin(), encoded.end());
-            pickup_label_ = (title_ + ": " + f->label).substr(0, workshop::kMaxCarryLabelBytes);
+            pickup_label_ = (title_ + ": " + f->label).substr(0, pane::kMaxCarryLabelBytes);
             pickup_gesture_ = gesture; pickup_ask_ = ++c.asks; pickup_drag_ = drag;
             pickup_ = Pickup::permission;
-            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
-                workshop::PaneOperationRequested{key_, zengine::workshop::pane_menu::kWorkshopRole,
-                    workshop::PaneValueCarryRequested::zen_name, 1, static_cast<std::int64_t>(pickup_gesture_)}, pickup_ask_);
+            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                pane::PaneOperationRequested{key_, zengine::pane::pane_menu::kWorkshopRole,
+                    pane::PaneValueCarryRequested::zen_name, 1, static_cast<std::int64_t>(pickup_gesture_)}, pickup_ask_);
             if (!drag) notice_ = "Checking field acquisition authority";
             if (!pickup_ticket_.valid()) finish_pickup("Field permission request could not be queued");
         } catch (const std::exception& e) { notice_ = e.what(); }

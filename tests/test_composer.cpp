@@ -27,7 +27,6 @@
 #include <vector>
 
 namespace cmp = zengine::composer;
-namespace rows = zengine::workshop;
 namespace gfx = zengine::graphics;
 
 namespace {
@@ -664,7 +663,7 @@ TEST_CASE("the value being edited is WINDOWED with a caret the medium draws; a r
     REQUIRE(editing.caret_row >= 0);
     // The value is a box, read here as a row of cells shows it.
     const std::string end =
-        rows::row_text_shown(editing.rows[static_cast<std::size_t>(editing.caret_row)].row, true);
+        zengine::pane::row_text_shown(editing.rows[static_cast<std::size_t>(editing.caret_row)].row, true);
     CHECK(end.size() <= 30u);
     CHECK(end.substr(end.size() - 2) == "_]");
     CHECK(editing.caret_col == static_cast<std::int64_t>(end.size()) - 2);
@@ -675,7 +674,7 @@ TEST_CASE("the value being edited is WINDOWED with a caret the medium draws; a r
     // The same field with the cursor elsewhere: no caret, and a marked cut.
     c.cursor = 1;
     const cmp::ComposerView resting = cmp::project(c, 20, 30);
-    CHECK(resting.caret_row == rows::kNoCaret);
+    CHECK(resting.caret_row == zengine::pane::kNoCaret);
     CHECK(any_row(resting, cmp::kElided));
 }
 
@@ -689,14 +688,14 @@ TEST_CASE("a caret moved inside the edited value moves no character of its row")
     REQUIRE(at_end.caret_row >= 0);
     REQUIRE(inside.caret_row == at_end.caret_row);
     const std::string row =
-        rows::row_text_shown(inside.rows[static_cast<std::size_t>(inside.caret_row)].row, true);
-    CHECK(row == rows::row_text_shown(at_end.rows[static_cast<std::size_t>(at_end.caret_row)].row, true));
+        zengine::pane::row_text_shown(inside.rows[static_cast<std::size_t>(inside.caret_row)].row, true);
+    CHECK(row == zengine::pane::row_text_shown(at_end.rows[static_cast<std::size_t>(at_end.caret_row)].row, true));
     CHECK(row.find("[hello_") != std::string::npos);
     CHECK(row[static_cast<std::size_t>(inside.caret_col)] == 'e');
     CHECK(inside.caret_col == at_end.caret_col - 4);
     // ...and a row too narrow for its value's room says no caret, rather than one on a cut.
     const cmp::ComposerView narrow = cmp::project(c, 20, 6);
-    CHECK(narrow.caret_row == rows::kNoCaret);
+    CHECK(narrow.caret_row == zengine::pane::kNoCaret);
 }
 
 TEST_CASE("every row of every projection fits the room it was granted") {

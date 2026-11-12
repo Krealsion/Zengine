@@ -9,6 +9,7 @@
 #include <stdexcept>
 
 namespace zengine::workshop {
+using pane::PaneQuitRequested;
 
 namespace {
 

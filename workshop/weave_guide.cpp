@@ -16,6 +16,7 @@
 #include <algorithm>
 
 namespace zengine::workshop {
+using pane::ActionCause;
 
 namespace {
 

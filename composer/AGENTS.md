@@ -36,9 +36,9 @@ action census driver, `tests/actions/zengine.composer.txt`, and its manual witne
 - Boot: the optional `zengine.composer` row in `workshop/default-load-plan.json`;
   `workshop/CMakeLists.txt` stages it and lists it among
   the development setup's pane weaves.
-- Seam: no seam vocabulary of its own; the pane protocol `workshop/pane_vocabulary.hpp` and the
-  pane parts it includes (`workshop/pane_parts.hpp`, `pane_menu.hpp`, `pane_carry.hpp`, ...).
-- Submit: `PaneOperationRequested` (`workshop/pane_operation.hpp`), judged for the gesture's actor
+- Seam: no seam vocabulary of its own; the pane protocol `pane/vocabulary.hpp` and the
+  pane parts it includes (`pane/parts.hpp`, `pane/menu.hpp`, `pane/carry.hpp`, ...).
+- Submit: `PaneOperationRequested` (`pane/operation.hpp`), judged for the gesture's actor
   in `workshop/weave_operation.cpp` with `workshop/actor_scope.hpp`.
 - Grants: `workshop/guests.cpp` lets the `demo` power reset its pane.
 - Owners it asks: the target role (`zen.DescribeAccepted`), Introspection (`LoadedSelected`,

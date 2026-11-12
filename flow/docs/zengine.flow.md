@@ -773,4 +773,4 @@ the Events read as they did; it keeps no wait on the host, no search, preview or
 - [Make and run a Flow definition](flow-guide.md), the standalone workbench.
 - [The Flow host](flow-runtime.md), its manual [`zengine.flow.host`](zengine.flow.host.md), and
   [the Flow reference](flow-reference.md).
-- The pane protocol's shapes: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp).
+- The pane protocol's shapes: [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp).

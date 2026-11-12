@@ -17,16 +17,16 @@
 #include "editor/source-transfer/material.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_operation.hpp"
+#include "pane/rows.hpp"
+#include "pane/carry.hpp"
+#include "pane/drawing.hpp"
+#include "pane/operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_seat.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/seat.hpp"
+#include "pane/vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/weave.hpp>
 
@@ -45,9 +45,9 @@ namespace zengine::editor_role {
 namespace st = zengine::source_transfer;
 namespace ws = zengine::workshop;
 
-/// The role Workshop holds, read from the installed pane protocol (`workshop/pane_menu.hpp`) as
+/// The role Workshop holds, read from the installed pane protocol (`pane/menu.hpp`) as
 /// a stranger's pane reads it.
-using zengine::workshop::pane_menu::kWorkshopRole;
+using zengine::pane::pane_menu::kWorkshopRole;
 
 /// One column of every document row the text may not use: the caret's own, so a caret after the
 /// end of a full row stays inside the room (WL-EDIT-08).
@@ -306,12 +306,12 @@ void begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture, const 
     pickup.gesture = gesture;
     pickup.drag = drag;
     pickup.bytes.assign(pair.bytes.begin(), pair.bytes.end());
-    pickup.label = label.substr(0, ws::kMaxCarryLabelBytes);
+    pickup.label = label.substr(0, pane::kMaxCarryLabelBytes);
     pickup.what = std::move(what);
     pickup.ticket = mail.as_role(role).send_to_role(
         kWorkshopRole,
-        ws::PaneOperationRequested{pane, kWorkshopRole, ws::PaneValueCarryRequested::zen_name,
-                                   ws::PaneValueCarryRequested::zen_version,
+        pane::PaneOperationRequested{pane, kWorkshopRole, pane::PaneValueCarryRequested::zen_name,
+                                   pane::PaneValueCarryRequested::zen_version,
                                    static_cast<std::int64_t>(gesture)},
         pickup.ask);
     if (!pickup.ticket.valid()) {
@@ -347,7 +347,7 @@ void ask_location(const st::Material& m, loom::Mail& mail, const char* role, con
     locate.ask = ++asked_seq;
     locate.ticket = mail.as_role(role).send_to_role(
         kWorkshopRole,
-        ws::PaneOperationRequested{pane, ws::kOpeningRole, ws::OpenSourceRequested::zen_name,
+        pane::PaneOperationRequested{pane, ws::kOpeningRole, ws::OpenSourceRequested::zen_name,
                                    ws::OpenSourceRequested::zen_version,
                                    static_cast<std::int64_t>(mail.correlation())},
         locate.ask);
@@ -363,7 +363,7 @@ void ask_location(const st::Material& m, loom::Mail& mail, const char* role, con
 /// against when it settles. A refusal, or an ask that queued nothing, is said through
 /// `notice(text, bad)` and its record released. True when the pane has a notice to say.
 template <class SnapshotT, class StampFn, class NoticeFn>
-bool answer_operation(const ws::PaneOperationAnswered& answer, loom::Mail& mail,
+bool answer_operation(const pane::PaneOperationAnswered& answer, loom::Mail& mail,
                       const char* role, const char* pane, std::uint64_t& asked_seq,
                       Pickup& pickup, LocateOf<SnapshotT>& locate, StampFn&& stamp,
                       NoticeFn&& notice) {
@@ -378,7 +378,7 @@ bool answer_operation(const ws::PaneOperationAnswered& answer, loom::Mail& mail,
         }
         pickup.stage = Pickup::Stage::Carry;
         pickup.ticket = mail.as_role(role).send_to_role(
-            kWorkshopRole, ws::PaneValueCarryRequested{pane, pickup.label, pickup.bytes, pickup.drag},
+            kWorkshopRole, pane::PaneValueCarryRequested{pane, pickup.label, pickup.bytes, pickup.drag},
             pickup.gesture);
         if (!pickup.ticket.valid()) {
             pickup = Pickup{};
@@ -416,7 +416,7 @@ bool answer_operation(const ws::PaneOperationAnswered& answer, loom::Mail& mail,
 /// `notice(text, bad)`, `unchanged` naming what the copy left as it was. False when this answers
 /// no pickup in flight.
 template <class NoticeFn>
-bool settle_carry(const ws::PaneCarryAnswered& answer, loom::Mail& mail, Pickup& pickup,
+bool settle_carry(const pane::PaneCarryAnswered& answer, loom::Mail& mail, Pickup& pickup,
                   const std::string& unchanged, NoticeFn&& notice) {
     if (pickup.stage != Pickup::Stage::Carry || !mail.answers_ask() ||
         mail.correlation() != pickup.gesture) {
@@ -523,7 +523,7 @@ inline std::string generated_cpp_words(const st::GeneratedCpp& g, const std::str
 class EditorWindow {
 public:
     EditorWindow(const char* role, const char* pane)
-        : role_(role), window_(role, ws::pane_area(role, pane)) {}
+        : role_(role), window_(role, pane::pane_area(role, pane)) {}
 
     const std::string& area() const noexcept { return window_.area(); }
     /// A graphics window shows the area.
@@ -558,25 +558,25 @@ public:
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: the
     /// place of the part `asked.action` names in the rows last drawn there. None for another area
     /// or speaker, or an action those rows name no part by.
-    std::optional<ws::RowCell> part(const graphics::ActionRequested& asked,
+    std::optional<pane::RowCell> part(const graphics::ActionRequested& asked,
                                     const loom::Mail& mail) const {
         if (!window_.from_window(asked.area, mail)) {
             return std::nullopt;
         }
         const auto at = places_.find(asked.action);
-        return at == places_.end() ? std::nullopt : std::optional<ws::RowCell>(at->second);
+        return at == places_.end() ? std::nullopt : std::optional<pane::RowCell>(at->second);
     }
 
     /// WHERE A POINT OF THE AREA FALLS ON THE ROWS DRAWN THERE: a drop's place.
-    ws::RowCell cell_at(std::int64_t x, std::int64_t y) const {
-        return ws::window_cell(x, y, rows(), columns(), window_.text());
+    pane::RowCell cell_at(std::int64_t x, std::int64_t y) const {
+        return pane::window_cell(x, y, rows(), columns(), window_.text());
     }
 
     /// The room a trial says the area will have, in the rows and columns the Editor composes for:
     /// a line of the window's text and an advance of it, a cell each where text is a cell.
-    static ws::RowsRoom room_of(const ws::OpeningRoom& r) {
+    static pane::RowsRoom room_of(const ws::OpeningRoom& r) {
         const bool type = r.cell_px > 0 && r.text_advance_px > 0 && r.text_line_px > 0;
-        return ws::RowsRoom{r.width, r.height,
+        return pane::RowsRoom{r.width, r.height,
                             type ? graphics::TextMeasure{r.text_advance_px, r.text_line_px}
                                  : graphics::TextMeasure{},
                             !type};
@@ -585,10 +585,10 @@ public:
     /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's role, read onto
     /// the rows drawn there (`ws::WindowDrawing::pointer`). None for another area or speaker.
     template <class Moment>
-    std::optional<ws::WindowPointer> pointer(const Moment& moment, const loom::Mail& mail) const {
+    std::optional<pane::WindowPointer> pointer(const Moment& moment, const loom::Mail& mail) const {
         return window_.pointer(moment, mail, rows(), columns());
     }
-    std::optional<ws::WindowPointer> pointer(const graphics::AreaHoldEnded& ended,
+    std::optional<pane::WindowPointer> pointer(const graphics::AreaHoldEnded& ended,
                                              const loom::Mail& mail) const {
         return window_.pointer(ended, mail);
     }
@@ -596,14 +596,14 @@ public:
     /// THE EDITOR'S ROWS, DRAWN in the window that shows the area, as many as its room holds, the
     /// caret and the selection standing in them (`ws::rows_drawing`): what changed there since the
     /// drawing last sent, or the whole after a new room or a refused change.
-    void draw(loom::Mail& mail, const std::vector<ws::TextRow>& said,
-              const std::vector<ws::RowPart>& parts, const ws::RowsCaret& caret,
+    void draw(loom::Mail& mail, const std::vector<pane::TextRow>& said,
+              const std::vector<pane::RowPart>& parts, const pane::RowsCaret& caret,
               std::int64_t number = 0) {
         if (!in_window() || rows() <= 0 || columns() <= 0) {
             return;
         }
-        ws::RowsDrawing drawn =
-            ws::rows_drawing(said, parts, window_.rows_room(), columns(), caret, rows());
+        pane::RowsDrawing drawn =
+            pane::rows_drawing(said, parts, window_.rows_room(), columns(), caret, rows());
         drawn.sketch.number(number);
         places_ = std::move(drawn.places);
         window_.draw(drawn.sketch, mail);
@@ -618,9 +618,9 @@ public:
 
 private:
     const char* role_;
-    ws::WindowDrawing window_;
+    pane::WindowDrawing window_;
     /// Where a press in the window reaches each named part of the rows last drawn there.
-    std::map<std::string, ws::RowCell> places_;
+    std::map<std::string, pane::RowCell> places_;
 };
 
 } // namespace zengine::editor_role

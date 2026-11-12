@@ -207,7 +207,7 @@ freed slot lets the next open take"
 coordination begun on the same bus before its application notice was consumed"
 
 ### WL-OPEN-07
-`workshop/pane_facets.hpp` AskFacet::on(DispatchRefused)
+`pane/facets.hpp` AskFacet::on(DispatchRefused)
 `files/files.cpp` on_refused open_file
 `builder/builder-pane/pane.cpp` on_refused edit_source
 `editor/editor-pane/pane.cpp` on(DispatchRefused) Relay

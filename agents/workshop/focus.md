@@ -172,7 +172,7 @@ release, and one it gives a pane's area is the pane's, Workshop told where it la
 `workshop/weave_external.cpp` holder_accepts_on
 `workshop/weave.hpp` HostContext::holder_accepts
 `files/files.cpp` press open
-`workshop/pane_facets.hpp` RowPress::keys_went_here
+`pane/facets.hpp` RowPress::keys_went_here
 `tests/test_workshop_panes_files.cpp` "a press on Files' selected row after its open moved the keys
 to the Editor selects that row and takes the keys back, and opens nothing" "the keys leave Files by
 a press into the Editor and Files is told nothing, so only Workshop can say a later press on Files'
@@ -185,8 +185,8 @@ second press on the same row activates" "the wheel moves the cursor, and a heade
 entry"
 `workshop/weave_run.cpp` tell_keys
 `workshop/weave_handlers.cpp` area_pressed
-`workshop/pane_facets.hpp` PaneRowsFacet
-`workshop/pane_vocabulary.hpp` PaneKeys
+`pane/facets.hpp` PaneRowsFacet
+`pane/vocabulary.hpp` PaneKeys
 `tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
 tells it where the keys were, hands its press back, opens its menu and carries what it drags out
 or picks up"

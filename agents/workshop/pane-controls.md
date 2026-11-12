@@ -91,7 +91,7 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ### WL-HAND-01
 `component/control_strip.hpp` Control PlacedControl ControlStrip control_face pack_controls
-`workshop/pane_facets.hpp` PaneRowsFacet::push_controls
+`pane/facets.hpp` PaneRowsFacet::push_controls
 `files/browser_view.hpp` browser_controls say_controls
 `builder/builder-pane/view.hpp` builder_controls say_controls
 `tests/test_workshop_panes_files.cpp` "every control the browser draws is a target, and pressing it
@@ -101,7 +101,7 @@ menu, and the menu keeps them"
 ### WL-HAND-02
 `component/list_window.hpp` ListWindow::markers cursor_window earlier_marker more_marker
 `component/control_strip.hpp` kMaxStripRows strip_budget strip_rows_for
-`workshop/pane_facets.hpp` PaneRowsFacet::strip_rows PaneRowsFacet::push_window
+`pane/facets.hpp` PaneRowsFacet::strip_rows PaneRowsFacet::push_window
 `files/browser_view.hpp` body_budget say_entries
 `builder/builder-pane/view.hpp` publish
 `builder/builder-pane/output_reader.hpp` output_body_rows
@@ -116,8 +116,8 @@ and closed by hand"
 
 ### WL-HAND-03
 `component/row_map.hpp` RowMap::begin RowMap::settle RowMap::picture
-`workshop/pane_facets.hpp` PaneRowsFacet
-`workshop/pane_drawing.hpp` window_cell
+`pane/facets.hpp` PaneRowsFacet
+`pane/drawing.hpp` window_cell
 `files/browser_view.hpp` say_entries
 `tests/test_workshop_panes_files.cpp` "two queued presses on the row painted as one entry open THAT
 entry"

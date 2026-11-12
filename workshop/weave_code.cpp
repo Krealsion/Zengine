@@ -10,6 +10,9 @@
 #include <utility>
 
 namespace zengine::workshop {
+using pane::PaneCanvasDrop;
+using pane::PaneCanvasValueDrop;
+using pane::kPresenterRole;
 
 namespace {
 

@@ -3,13 +3,13 @@
 
 // Numbered Presenter: an ordinary replacement for the presenter Workshop ships
 // (`workshop/menu-presenter/`), loaded under `zengine.presenter` in its place; the seam is
-// `workshop/presenter_vocabulary.hpp`, what it does differently its walkthrough's
+// `pane/presenter_vocabulary.hpp`, what it does differently its walkthrough's
 // (workshop/docs/panes.md, "Replacing the menu presenter"). It draws the menu in the area granted
 // and hears the pointer there. One source file, built with zengine::pane, zengine::graphics, zengine::activation,
 // zengine::component, zengine::input, loom::switchboard, and loaded by a load-plan row.
 
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/presenter_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/presenter_vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
@@ -28,12 +28,11 @@
 
 namespace {
 
-namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 namespace component = zengine::component;
 namespace scan = zengine::input::scan;
 
-constexpr const char* kWorkshopRole = ws::pane_menu::kWorkshopRole;
+constexpr const char* kWorkshopRole = zengine::pane::pane_menu::kWorkshopRole;
 
 // ---- CHANGE THIS FIRST -------------------------------------------------------------------------
 //
@@ -70,15 +69,16 @@ std::int64_t digit_row(std::int64_t scancode, std::int64_t modifiers) {
 
 /// WHAT THE OFFER MAY BE: empty when it can be shown. A line spends four columns, "> 1 ", before
 /// a row's label.
-std::string refusal_of(const ws::MenuGranted& g) { return ws::menu_refusal_of(g, 4); }
+std::string refusal_of(const zengine::pane::MenuGranted& g) { return zengine::pane::menu_refusal_of(g, 4); }
 
 class NumberedPresenter
     : public loom::WeaveBase<
-          NumberedPresenter, ws::HeldMenu,
-          loom::Accept<loom::Activated, ws::MenuGranted, ws::MenuInput, ws::MenuWithdrawn,
+          NumberedPresenter, zengine::pane::HeldMenu,
+          loom::Accept<loom::Activated, zengine::pane::MenuGranted, zengine::pane::MenuInput, zengine::pane::MenuWithdrawn,
                        gfx::AreaRoom, gfx::DrawnRefused, gfx::AreaButtonChanged>,
-          loom::Emit<ws::MenuShown, ws::MenuClosed, ws::MenuReturned, ws::PresenterReady,
-                     ws::PaneMenuAnswered, gfx::Drawn, gfx::RoomAsked>> {
+          loom::Emit<zengine::pane::MenuShown, zengine::pane::MenuClosed,
+                     zengine::pane::MenuReturned, zengine::pane::PresenterReady,
+                     zengine::pane::PaneMenuAnswered, gfx::Drawn, gfx::RoomAsked>> {
 public:
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) {
@@ -86,7 +86,7 @@ public:
         }
         // WHAT THIS IMAGE CARRIES: after a reload in another presenter's place, that one's open
         // menu -- which is shown again, numbered, where it stands, and answered by this image.
-        ws::announce_presenter_ready(mail, state_);
+        zengine::pane::announce_presenter_ready(mail, state_);
         drawing_.stand_in(state_.area);
         if (state_.menu != 0) {
             show(mail);
@@ -94,8 +94,8 @@ public:
         }
     }
 
-    void on(const ws::MenuGranted& g, loom::Mail& mail) {
-        if (ws::accept_menu_grant(g, mail, state_, refusal_of(g))) {
+    void on(const zengine::pane::MenuGranted& g, loom::Mail& mail) {
+        if (zengine::pane::accept_menu_grant(g, mail, state_, refusal_of(g))) {
             pictures_.first = 0;
             pressed_row_ = -1;
             drawing_.stand_in(state_.area);
@@ -103,7 +103,7 @@ public:
         }
     }
 
-    void on(const ws::MenuInput& in, loom::Mail& mail) {
+    void on(const zengine::pane::MenuInput& in, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || in.menu <= 0) {
             return;
         }
@@ -114,16 +114,16 @@ public:
             return;
         }
         switch (in.kind) {
-        case ws::menu_input::kKey: key(in, mail); break;
-        case ws::menu_input::kOutside: close(mail, false, std::string(), "dismissed", in.input); break;
+        case zengine::pane::menu_input::kKey: key(in, mail); break;
+        case zengine::pane::menu_input::kOutside: close(mail, false, std::string(), "dismissed", in.input); break;
         default: break;
         }
     }
 
     /// ...AND THE HOST'S CANCELLATION OF ONE IT DOES NOT HOLD IS GIVEN BACK TOO: this image keeps
     /// the shipped presenter's answer discipline exactly, timing included, by the same helper.
-    void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
-        ws::settle_menu_withdrawn(w, mail, state_);
+    void on(const zengine::pane::MenuWithdrawn& w, loom::Mail& mail) {
+        zengine::pane::settle_menu_withdrawn(w, mail, state_);
         drawing_.stand_in(state_.area);
     }
 
@@ -169,20 +169,20 @@ public:
 
 private:
     /// AN INTERACTION THIS IMAGE CANNOT CARRY, HANDED BACK (`workshop::give_back_menu`).
-    void give_back(std::int64_t menu, loom::Mail& mail) { ws::give_back_menu(mail, menu); }
+    void give_back(std::int64_t menu, loom::Mail& mail) { zengine::pane::give_back_menu(mail, menu); }
 
     /// EVERY ROW SHOWN: the requester's, then the host's standard rows.
     std::int64_t count() const {
         return static_cast<std::int64_t>(state_.rows.size() + state_.standard.size());
     }
     /// Row `row` of that run, and whether it is a standard row (the host's to spend).
-    const ws::PaneMenuRow& row_of(std::int64_t row, bool& standard) const {
+    const zengine::pane::PaneMenuRow& row_of(std::int64_t row, bool& standard) const {
         const std::size_t r = static_cast<std::size_t>(row);
         standard = r >= state_.rows.size();
         return standard ? state_.standard[r - state_.rows.size()] : state_.rows[r];
     }
 
-    void key(const ws::MenuInput& in, loom::Mail& mail) {
+    void key(const zengine::pane::MenuInput& in, loom::Mail& mail) {
         const std::int64_t count = this->count();
         const std::int64_t named = digit_row(in.scancode, in.modifiers);
         if (named >= 0) {
@@ -192,16 +192,16 @@ private:
             return;
         }
         switch (in.verb) {
-        case ws::menu_verb::kUp:
+        case zengine::pane::menu_verb::kUp:
             state_.cursor = state_.cursor > 0 ? state_.cursor - 1 : count - 1; // wraps
             show(mail);
             break;
-        case ws::menu_verb::kDown:
+        case zengine::pane::menu_verb::kDown:
             state_.cursor = state_.cursor + 1 < count ? state_.cursor + 1 : 0; // wraps
             show(mail);
             break;
-        case ws::menu_verb::kChoose: choose(mail, state_.cursor, in.input, 0); break;
-        case ws::menu_verb::kBack: close(mail, false, std::string(), "dismissed", in.input); break;
+        case zengine::pane::menu_verb::kChoose: choose(mail, state_.cursor, in.input, 0); break;
+        case zengine::pane::menu_verb::kBack: close(mail, false, std::string(), "dismissed", in.input); break;
         default: break;
         }
     }
@@ -212,7 +212,7 @@ private:
             return;
         }
         bool standard = false;
-        const ws::PaneMenuRow& chosen = row_of(row, standard);
+        const zengine::pane::PaneMenuRow& chosen = row_of(row, standard);
         if (standard) {
             close(mail, false, std::string(), "a standard row was chosen", input, chosen.id, press);
             return;
@@ -223,7 +223,7 @@ private:
     void close(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why,
                std::int64_t input, const std::string& standard = std::string(),
                std::uint64_t press = 0) {
-        ws::close_held_menu(mail, state_, chosen, id, why, input, standard, press);
+        zengine::pane::close_held_menu(mail, state_, chosen, id, why, input, standard, press);
         pressed_row_ = -1;
         drawing_.stand_in(state_.area);
     }
@@ -256,43 +256,43 @@ private:
         const component::ListWindow w = window();
         const std::size_t earlier = component::earlier_marker(w);
         const std::size_t more = component::more_marker(w);
-        std::vector<ws::MenuLine> lines;
+        std::vector<zengine::pane::MenuLine> lines;
         if (earlier > 0) {
-            lines.push_back(ws::MenuLine{fitted("  ^ " + std::to_string(earlier) + " above"),
+            lines.push_back(zengine::pane::MenuLine{fitted("  ^ " + std::to_string(earlier) + " above"),
                                          gfx::colors::quiet, std::string()});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const bool here = static_cast<std::int64_t>(i) == state_.cursor;
             bool standard = false;
-            const ws::PaneMenuRow& row = row_of(static_cast<std::int64_t>(i), standard);
-            lines.push_back(ws::MenuLine{line_for(i, row.label, here, state_.room_columns),
+            const zengine::pane::PaneMenuRow& row = row_of(static_cast<std::int64_t>(i), standard);
+            lines.push_back(zengine::pane::MenuLine{line_for(i, row.label, here, state_.room_columns),
                                          here ? gfx::colors::accent : gfx::colors::text,
                                          std::string()});
         }
         if (more > 0) {
-            lines.push_back(ws::MenuLine{fitted("  v " + std::to_string(more) + " below"),
+            lines.push_back(zengine::pane::MenuLine{fitted("  v " + std::to_string(more) + " below"),
                                          gfx::colors::quiet, std::string()});
         }
         std::int64_t width = 1;
-        for (const ws::MenuLine& line : lines) {
+        for (const zengine::pane::MenuLine& line : lines) {
             width = static_cast<std::int64_t>(line.text.size()) > width
                         ? static_cast<std::int64_t>(line.text.size())
                         : width;
         }
-        ws::MenuShown said;
+        zengine::pane::MenuShown said;
         said.menu = state_.menu;
         said.picture = pictures_.shown(w.first, w.count, earlier > 0, state_.menu);
         said.area = state_.area;
         said.rows = static_cast<std::int64_t>(lines.size());
         said.columns = width;
-        (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshopRole, said);
+        (void)mail.as_role(zengine::pane::kPresenterRole).send_to_role(kWorkshopRole, said);
         drawing_.draw(lines, mail);
     }
 
     // NOT STATE: this image's layout and drawing, and a press it armed -- a successor lays the
     // menu out afresh and arms nothing a hand began under another image.
-    ws::MenuPictureTracker pictures_;
-    ws::MenuDrawing drawing_;
+    zengine::pane::MenuPictureTracker pictures_;
+    zengine::pane::MenuDrawing drawing_;
     std::int64_t pressed_row_ = -1;
     std::uint64_t pressed_press_ = 0;
     zengine::ActivationCursor activation_;

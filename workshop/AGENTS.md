@@ -19,7 +19,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `keymap.hpp`, with its part `keymap_join.hpp` | the action catalog and the keymap, spelled by `input/gesture_grammar.hpp`; override admission and the joins of a pane's and an application's rows |
 | `setup.hpp`, with its part `setup_reconcile.hpp` | the setup: its value, its checks and its edits; what the live panes make of it |
 | `layouts/` | the desk's owner, `zengine.layouts`, mounted in-process: the run of layouts and its store (`run.hpp`, `store.hpp`), the role (`owner.hpp`), its vocabulary, and the session it alone writes (`session_persist.hpp`, `session_history.hpp`); its law: layouts, tab-run, session-restore, settings, setting-locks |
-| `pane_vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |
+| `pane/vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |
 | `*_seam_vocabulary.hpp`, `pane_doors.hpp` | the seams to loaded panes and guests; the doors |
 | `*_persist.hpp` | the files: setup, keymap, preferences, recipes, load plan, and Workshop's window file |
 | `load_*.hpp`, `*-load-plan.json` | load plan and executor (`zengine-workshop-load`); the plans |

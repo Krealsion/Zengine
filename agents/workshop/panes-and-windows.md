@@ -216,7 +216,7 @@ visible pane occupies the pointer space it covers"
 `workshop/screen_external.cpp` external_body_place paint_external
 `workshop/screen.hpp` kExternalHeaderRows
 `workshop/weave_run.cpp` arrange_graphics
-`workshop/pane_text_fit.hpp` fit_region
+`pane/text_fit.hpp` fit_region
 `workshop/panes.hpp` ExternalPane
 `tests/test_workshop_panes_seam.cpp` "an external grant follows the widened body through fit_region"
 "opening an external pane gives its area exactly the fit_region room, authored as the window"
@@ -310,7 +310,7 @@ arranging"
 `workshop/setup_reconcile.hpp` preferred_extent fit_extent fit_offer within_a_pixel offered_extent admit_pane_offer PaneBody
 `workshop/panes.hpp` PaneOfferedBody RuntimePane::latest RuntimePane::standing
 `workshop/screen_pane_state.cpp` pane_fit_note
-`workshop/pane_vocabulary.hpp` kMaxPaneBodyPx
+`pane/vocabulary.hpp` kMaxPaneBodyPx
 `workshop/screen.hpp` stack_capacity
 `workshop/screen_chrome.cpp` project_pane bounds_of pane_measure
 `view/view.hpp` offered

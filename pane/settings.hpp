@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_SETTINGS_HPP
-#define ZENGINE_WORKSHOP_PANE_SETTINGS_HPP
+#ifndef ZENGINE_PANE_SETTINGS_HPP
+#define ZENGINE_PANE_SETTINGS_HPP
 
 // A pane's settings: the choices a pane makes about how it presents itself, which the layouts'
 // owner keeps per layout in the pane's setup row and hands back to it. A setting is a key and a
@@ -20,7 +20,7 @@
 #include <string_view>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// THE ROLE THAT KEEPS EVERY LAYOUT AND WHAT EACH KEEPS -- `zengine.layouts`: a pane declares its
 /// settings here, and every settings door is its.
@@ -435,13 +435,13 @@ namespace v2 {
 /// WHY A DECLARED SETTING DOES NOT TAKE A VALUE, as v1's row says it.
 template <class Valued>
 inline std::string pane_setting_refused_by(const PaneSettingRow& row, const Valued& v) {
-    return ::zengine::workshop::pane_setting_refused_by(narrow_setting_row(row), v);
+    return ::zengine::pane::pane_setting_refused_by(narrow_setting_row(row), v);
 }
 
 /// WHAT IS WRONG WITH ONE DECLARED SETTING, or empty: v1's rules, then its tags -- at most
 /// `kMaxSettingTags`, each sound, none twice -- and a summary of printable text.
 inline std::string pane_setting_row_problem(const PaneSettingRow& row) {
-    if (std::string v1 = ::zengine::workshop::pane_setting_row_problem(narrow_setting_row(row));
+    if (std::string v1 = ::zengine::pane::pane_setting_row_problem(narrow_setting_row(row));
         !v1.empty()) {
         return v1;
     }
@@ -543,6 +543,6 @@ inline std::vector<PaneSetting> pane_held_settings(const std::vector<PaneSetting
     return out;
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_SETTINGS_HPP
+#endif // ZENGINE_PANE_SETTINGS_HPP

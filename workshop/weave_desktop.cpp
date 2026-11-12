@@ -10,6 +10,11 @@
 #include <memory>
 
 namespace zengine::workshop {
+using pane::ActionCause;
+using pane::ActionsJudged;
+using pane::ActionsWithdrawn;
+using pane::action_causes_problem;
+using pane::kMaxActionCauses;
 
 using zengine::persist::Written;
 
@@ -521,7 +526,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
     }
     if (!known) {
         for (const RuntimePane& row : session_.panes.runtime.entries) {
-            for (const v4::PaneActionRow& d : row.actions) {
+            for (const pane::v4::PaneActionRow& d : row.actions) {
                 if (d.id == asked.action) {
                     declared = Gesture{d.scancode, d.modifiers};
                     known = true;

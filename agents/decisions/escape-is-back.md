@@ -50,7 +50,7 @@ Escape that is over cannot borrow the next Escape's identity"`.
 
 **A default, and where it lives.** Silence keeping Escape meant every pane written without a
 thought for Escape kept the weaver there. Escape now deselects by default: a pane that holds the
-keys drops what it has selected, then says the Escape was unspent (`workshop/pane_escape.hpp`,
+keys drops what it has selected, then says the Escape was unspent (`pane/escape.hpp`,
 pane-side, because only the pane knows its selection). A holder declares that it judges its own
 Escape by listing `PaneEscapeUnspent` in what it emits; Workshop sends a bare Escape to no other,
 so a pane made later that never mentions Escape is put down by it -- a declaration read, as the

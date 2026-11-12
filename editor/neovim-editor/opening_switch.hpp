@@ -22,7 +22,7 @@
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
@@ -78,7 +78,7 @@ inline void NeovimEditorWeave::on(const ws::v3::PrepareSourceRequested& asked, l
     if (!mail.authored_from_role(ws::kOpeningRole)) {
         return;
     }
-    const ws::RowsRoom room = role::EditorWindow::room_of(asked.room);
+    const zengine::pane::RowsRoom room = role::EditorWindow::room_of(asked.room);
     const auto due = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
     prepare(asked.op, asked.path, room.rows(), room.columns(), mail,
             [due](ws::v3::SourcePrepared prepared, loom::Mail& later) {

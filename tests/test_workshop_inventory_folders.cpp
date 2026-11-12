@@ -206,7 +206,7 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
             if (e.kind == loom::EventKind::Delivered && e.sender == role &&
                 (e.schema_name == PaneOperationRequested::zen_name ||
                  e.schema_name == inv::InventoryRead::zen_name ||
-                 e.schema_name == v2::PaneValueCarryRequested::zen_name)) {
+                 e.schema_name == zengine::pane::v2::PaneValueCarryRequested::zen_name)) {
                 ++reads;
             }
         });
@@ -245,7 +245,7 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
             if (e.schema_version == 1) {
                 gestures.push_back(loom::from_value<PaneOperationRequested>(*e.payload).gesture);
             } else {
-                gestures.push_back(loom::from_value<v2::PaneOperationRequested>(*e.payload).gesture);
+                gestures.push_back(loom::from_value<zengine::pane::v2::PaneOperationRequested>(*e.payload).gesture);
             }
         });
         const auto cell = w.cell_of(area, entry->name);

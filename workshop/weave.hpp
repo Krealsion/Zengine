@@ -39,15 +39,15 @@
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.workshop.hpp" // this role's manual, compiled in from its page
-#include "pane_operation.hpp"
+#include "pane/operation.hpp"
 #include "pane_shortcuts.hpp"
 #include "command_vocabulary.hpp" // a command run by name, from the palette
-#include "pane_carry.hpp"
-#include "pane_drawing.hpp" // Workshop's own area in a graphics window, as its drawer keeps it
+#include "pane/carry.hpp"
+#include "pane/drawing.hpp" // Workshop's own area in a graphics window, as its drawer keeps it
 #include "pane_view.hpp"
 #include "guide_vocabulary.hpp" // a guest's mark on one control, for the weaver to see
-#include "pane_parts.hpp" // the form a pane's names are admitted in
-#include "pane_causes.hpp" // the form a declaration's causes and modes are admitted in
+#include "pane/parts.hpp" // the form a pane's names are admitted in
+#include "pane/causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
@@ -74,6 +74,36 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::ActionsJudged;
+using pane::ActionsWithdrawn;
+using pane::MenuClosed;
+using pane::MenuReturned;
+using pane::MenuShown;
+using pane::PaneActions;
+using pane::PaneCanvasDrop;
+using pane::PaneCanvasValueDrop;
+using pane::PaneCarryAnswered;
+using pane::PaneCarryRequested;
+using pane::PaneEscapeUnspent;
+using pane::PaneKeyboardRequested;
+using pane::PaneManageRequested;
+using pane::PaneMenuRequested;
+using pane::PaneObservationAnswered;
+using pane::PaneObservationContinued;
+using pane::PaneObservationEnded;
+using pane::PaneObservationRequested;
+using pane::PaneOffered;
+using pane::PaneOperationAnswered;
+using pane::PaneOperationRequested;
+using pane::PanePassRequested;
+using pane::PaneQuitAnswered;
+using pane::PaneRevealRequested;
+using pane::PaneSetting;
+using pane::PaneValueCarryRequested;
+using pane::PresenterReady;
+using pane::WindowDrawing;
+using pane::current;
+using pane::kLayoutsRole;
 
 using zengine::persist::Written;
 
@@ -420,20 +450,28 @@ class WorkshopWeave
     : public zengine::With<TerminalDoorFacet,
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
           Weave<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, v2::PaneOperationRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, CommandRunRequested,
+                                          PaneViewRequested, PanePointRequested, DeskReadRequested,
+                                          PaneObservationRequested, PaneObservationContinued,
+                                          PaneObservationEnded, input::AttributedInput,
+                                          PaneOperationRequested, PaneCarryRequested,
+                                          PaneValueCarryRequested,
+                                          pane::v2::PaneValueCarryRequested,
+                                          pane::v2::PaneOperationRequested,
+                                          zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::KeyReleased,
                                           zengine::graphics::SurfacePlacement,
                                           zengine::graphics::SurfaceCloseRequested,
                                           zengine::graphics::ClipboardText,
                                           zengine::graphics::ClipboardCopy,
-                                          zengine::workshop::PaneOffered,
-                                          zengine::workshop::v2::PaneOffered,
-                                          zengine::workshop::v3::PaneOffered,
+                                          zengine::pane::PaneOffered,
+                                          zengine::pane::v2::PaneOffered,
+                                          zengine::pane::v3::PaneOffered,
                                           zengine::workshop::WorkshopQuitRequested,
-                                          zengine::workshop::PaneActions,
-                                          zengine::workshop::v2::PaneActions,
-                                          zengine::workshop::v3::PaneActions,
-                                          zengine::workshop::v4::PaneActions,
+                                          zengine::pane::PaneActions,
+                                          zengine::pane::v2::PaneActions,
+                                          zengine::pane::v3::PaneActions,
+                                          zengine::pane::v4::PaneActions,
                                           // the layouts' owner: the live layout, what an edit,
                                           // Workshop's own settings and the save came to, and its
                                           // one question of the judge
@@ -443,17 +481,17 @@ class WorkshopWeave
                                           zengine::workshop::RoleSettingCommitAnswered,
                                           zengine::workshop::SessionSaveAnswered,
                                           zengine::workshop::WeaversActRequested,
-                                          zengine::workshop::PaneRevealRequested,
+                                          zengine::pane::PaneRevealRequested,
                                           zengine::workshop::GuideRequested,
-                                          zengine::workshop::PaneEscapeUnspent,
+                                          zengine::pane::PaneEscapeUnspent,
                                           // the second button's continuations: a press
                                           // handed back, a menu asked for, a subject to manage
-                                          zengine::workshop::PanePassRequested,
-                                          zengine::workshop::PaneKeyboardRequested,
-                                          zengine::workshop::PaneMenuRequested,
-                                          zengine::workshop::PaneManageRequested,
-                                          zengine::workshop::v1::PaneManageRequested,
-                                          zengine::workshop::PaneQuitAnswered,
+                                          zengine::pane::PanePassRequested,
+                                          zengine::pane::PaneKeyboardRequested,
+                                          zengine::pane::PaneMenuRequested,
+                                          zengine::pane::PaneManageRequested,
+                                          zengine::pane::v1::PaneManageRequested,
+                                          zengine::pane::PaneQuitAnswered,
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           // an inspector's pane subject: which pane, the
                                           // picture now, and one write through its owner
@@ -487,10 +525,10 @@ class WorkshopWeave
                                           zengine::workshop::SourceOpened,
                                           // the presenter participant's half of a pane's menu:
                                           // what it shows, when it ends it, and that it arrived
-                                          zengine::workshop::MenuShown,
-                                          zengine::workshop::MenuClosed,
-                                          zengine::workshop::MenuReturned,
-                                          zengine::workshop::PresenterReady,
+                                          zengine::pane::MenuShown,
+                                          zengine::pane::MenuClosed,
+                                          zengine::pane::MenuReturned,
+                                          zengine::pane::PresenterReady,
                                           // ...and the host's own fence behind a menu it
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
@@ -529,24 +567,24 @@ class WorkshopWeave
                                           zengine::theme::ThemesPlacedRequested,
                                           zengine::theme::StackSaid>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
-                                        zengine::workshop::PaneCanvasHover,
+                                        zengine::pane::PaneCanvasHover,
                                         zengine::graphics::ClipboardCopy,
                                         zengine::graphics::ClipboardTextRequested,
                                         zengine::graphics::SurfacePlacementRemembered,
                                         zengine::graphics::WindowShaped,
-                                        zengine::workshop::PaneCatalogRequested,
+                                        zengine::pane::PaneCatalogRequested,
                                         zengine::workshop::LayoutEditRequested,
                                         zengine::workshop::RoleSettingsDeclared,
                                         zengine::workshop::RoleSettingCommitRequested,
                                         zengine::workshop::SessionSaveRequested,
                                         zengine::workshop::WeaversActAnswered,
-                                        zengine::workshop::PaneMenuAnswered,
-                                        zengine::workshop::PaneKey,
-                                        zengine::workshop::PaneTextInput,
-                                        zengine::workshop::PaneActionRequested,
+                                        zengine::pane::PaneMenuAnswered,
+                                        zengine::pane::PaneKey,
+                                        zengine::pane::PaneTextInput,
+                                        zengine::pane::PaneActionRequested,
                                         zengine::workshop::AppActionRequested,
-                                        zengine::workshop::ActionsJudged,
-                                        zengine::workshop::ActionsWithdrawn,
+                                        zengine::pane::ActionsJudged,
+                                        zengine::pane::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
                                         zengine::workshop::PaneToggleAnswered,
                                         zengine::workshop::v1::PaneLaunchAnswered,
@@ -554,8 +592,8 @@ class WorkshopWeave
                                         zengine::workshop::KeymapEditAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::KeymapShown,
-                                        zengine::workshop::PaneQuitRequested,
-                                        zengine::workshop::PaneRevealAnswered,
+                                        zengine::pane::PaneQuitRequested,
+                                        zengine::pane::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
                                         zengine::workshop::NoticeSaid,
                                         zengine::workshop::PaneSubjectShown,
@@ -565,9 +603,9 @@ class WorkshopWeave
                                         zengine::workshop::PresentationAdmitted,
                                         zengine::workshop::OpenSourceRequested,
                                         zengine::workshop::PaneSourceOpened,
-                                        zengine::workshop::MenuGranted,
-                                        zengine::workshop::MenuInput,
-                                        zengine::workshop::MenuWithdrawn,
+                                        zengine::pane::MenuGranted,
+                                        zengine::pane::MenuInput,
+                                        zengine::pane::MenuWithdrawn,
                                         zengine::workshop::WithdrawalFence,
                                         zengine::graphics::AreaPlaced,
                                         zengine::graphics::PaletteChosen,
@@ -575,7 +613,7 @@ class WorkshopWeave
                                         zengine::theme::ThemesWorn,
                                         zengine::graphics::RoomAsked,
                                         zengine::graphics::Drawn,
-                                        zengine::workshop::PaneKeys,
+                                        zengine::pane::PaneKeys,
                                         zengine::input::PointerTimingAsked>,
                              loom::WeaveBase,
                              // the one latest claim
@@ -767,7 +805,7 @@ public:
                                 const std::string& subject = {}, InputActor* approved = nullptr);
     std::string authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
-    void on(const v2::PaneOperationRequested& asked, loom::Mail& mail);
+    void on(const pane::v2::PaneOperationRequested& asked, loom::Mail& mail);
     /// A seated pane's refusal, said whole: its row paints the same sentence cut at its width.
     void on(const PaneRefusalRequested& asked, loom::Mail& mail);
     /// A guest's mark on one control or part, for the weaver to see: judged against the row's
@@ -796,7 +834,7 @@ public:
     void on(const TerminalValueRequested& asked, loom::Mail& mail);
     void on(const PaneCarryRequested& asked, loom::Mail& mail);
     void on(const PaneValueCarryRequested& asked, loom::Mail& mail);
-    void on(const v2::PaneValueCarryRequested& asked, loom::Mail& mail);
+    void on(const pane::v2::PaneValueCarryRequested& asked, loom::Mail& mail);
     void accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail,
                       std::string token = {});
     /// WHERE A POINT OF THE DESK FALLS ON A PANE'S AREA: the front-most area this desk placed for
@@ -917,8 +955,8 @@ public:
     /// A ROLE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail);
-    void on(const v2::PaneOffered& offer, loom::Mail& mail);
-    void on(const v3::PaneOffered& offer, loom::Mail& mail);
+    void on(const pane::v2::PaneOffered& offer, loom::Mail& mail);
+    void on(const pane::v3::PaneOffered& offer, loom::Mail& mail);
     void accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
                            std::int64_t rows, std::int64_t columns, PaneBody body = {});
 
@@ -930,18 +968,18 @@ public:
 
     /// The same declaration, in the version that can name an action the pane owns.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    void on(const v2::PaneActions& actions, loom::Mail& mail);
+    void on(const pane::v2::PaneActions& actions, loom::Mail& mail);
 
     /// ...and in the version that says what each press may cause, and the modes.
-    void on(const v3::PaneActions& actions, loom::Mail& mail);
+    void on(const pane::v3::PaneActions& actions, loom::Mail& mail);
 
     /// ...and in the version whose rows may name a key for a POSIX terminal (WL-KEY-08).
-    void on(const v4::PaneActions& actions, loom::Mail& mail);
+    void on(const pane::v4::PaneActions& actions, loom::Mail& mail);
 
     /// THE ONE BODY EVERY VERSION SPENDS, over the host's own row type: the rows, their causes and
     /// the modes, judged whole and held together.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    void declare_pane_actions(const v4::PaneActions& declared, loom::Mail& mail);
+    void declare_pane_actions(const pane::v4::PaneActions& declared, loom::Mail& mail);
 
     /// PUT THE POSIX LAYER IN FORCE, OR TAKE IT DOWN, and join every pane's rows again under it,
     /// saying what the re-join refused; nothing when it is already as asked.
@@ -1135,7 +1173,7 @@ public:
     /// route to a pane that is covered, closed or consumes every right press; judged against
     /// the menu answer it continues.
     void on(const PaneManageRequested& asked, loom::Mail& mail);
-    void on(const v1::PaneManageRequested& asked, loom::Mail& mail) { on(current(asked), mail); }
+    void on(const pane::v1::PaneManageRequested& asked, loom::Mail& mail) { on(current(asked), mail); }
 
     /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
     /// last answer decides -- every permission ends the process, any refusal keeps it open,
@@ -1876,7 +1914,7 @@ private:
         InputActor actor; ///< whose gesture approved it
     };
     ApprovedOperation approved_operation_;
-    /// OBSERVATIONS A CURRENT GESTURE APPROVED (`pane_operation.hpp`): one per pane, bounded, and
+    /// OBSERVATIONS A CURRENT GESTURE APPROVED (`pane/operation.hpp`): one per pane, bounded, and
     /// re-judged at every continuation. Never a grant, never reload-kept.
     struct ObservationLease {
         std::int64_t id = 0;

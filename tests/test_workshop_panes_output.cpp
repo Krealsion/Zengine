@@ -17,7 +17,7 @@
 #include "builder/weave.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 
 #include <algorithm>
 #include <string>
@@ -271,7 +271,7 @@ struct OutputRig {
         const RuntimePane* seat =
             r.session().panes.runtime.find(bpane::kBuilderPaneRole, bpane::kBuilderPane);
         REQUIRE(seat != nullptr);
-        for (const v4::PaneActionRow& a : seat->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         return ids;

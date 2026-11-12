@@ -201,7 +201,7 @@ UNWITNESSED — the handed document carried back when Neovim ends before it serv
 `editor/neovim-editor/pane.cpp` absorb on(ClipboardText)
 `editor/neovim-editor/common.hpp` join_lines paste_lines
 `tests/test_workshop_neovim.cpp` "a copy in Neovim reaches its medium, and a paste in Neovim asks it"
-`workshop/pane_drawing.hpp` WindowDrawing::clipboard_role
+`pane/drawing.hpp` WindowDrawing::clipboard_role
 
 ### WL-NVIM-08
 `editor/neovim-editor/opening_switch.hpp` on(NeovimStartRequested) on(NeovimStopRequested)

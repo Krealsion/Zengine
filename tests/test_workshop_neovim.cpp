@@ -192,7 +192,7 @@ std::set<std::string> declared_ids(SwitchRig& s) {
     const RuntimePane* row = s.r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
     REQUIRE(row != nullptr);
     std::set<std::string> ids;
-    for (const v4::PaneActionRow& a : row->actions) ids.insert(a.id);
+    for (const zengine::pane::v4::PaneActionRow& a : row->actions) ids.insert(a.id);
     return ids;
 }
 
@@ -391,11 +391,11 @@ TEST_CASE("the Neovim editor declares `profile` and `status`: `status` off gives
     const PaneRef editor{pane::kEditorPaneRole, pane::kEditorPane};
 
     // THE TWO SETTINGS, AS WORKSHOP COUNTS THEM: the profile one of the two words, never a file.
-    const std::vector<v2::PaneSettingRow> declared{
-        v2::PaneSettingRow{nve::kSettingProfile, std::nullopt, std::nullopt, std::string("clean"),
+    const std::vector<zengine::pane::v2::PaneSettingRow> declared{
+        zengine::pane::v2::PaneSettingRow{nve::kSettingProfile, std::nullopt, std::nullopt, std::string("clean"),
                            {"clean", "user"}, std::nullopt, std::nullopt, {"editing"}, true,
                            "Neovim profile name when ZENGINE_NEOVIM_PROFILE is unset"},
-        v2::PaneSettingRow{nve::kSettingStatus, true, std::nullopt, std::nullopt, {}, std::nullopt,
+        zengine::pane::v2::PaneSettingRow{nve::kSettingStatus, true, std::nullopt, std::nullopt, {}, std::nullopt,
                            std::nullopt, {"chrome"}, false, "show the status row above Neovim"}};
     CHECK(declared_settings(s.r, editor) == declared);
 

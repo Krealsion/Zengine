@@ -158,7 +158,7 @@ that asked it.
 ### `PaneRevealRequested`
 
 `PaneRevealRequested` asks Workshop to show the asker's own pane and give it the keys
-([`pane_vocabulary.hpp`](../pane_vocabulary.hpp)).
+([`pane/vocabulary.hpp`](../../pane/vocabulary.hpp)).
 
 - **Takes:** `pane`, a pane the asking role offered.
 - **Answers:** `PaneRevealAnswered{pane, seated, refusal}`, to the asker alone; the band says
@@ -242,7 +242,7 @@ weaver sees them ([`pane_view.hpp`](../pane_view.hpp)).
 ### `PaneOperationRequested`
 
 `PaneOperationRequested` asks whether the gesture a pane was just handed may make one operation:
-the approval a pane asks before an act a hand caused ([`pane_operation.hpp`](../pane_operation.hpp)).
+the approval a pane asks before an act a hand caused ([`pane/operation.hpp`](../../pane/operation.hpp)).
 
 - **Takes:** `pane`; `gesture`, the correlation of the press, action, menu choice or shortcut that
   reached it; `role`, `shape` and `version`, the send it would make. v2 adds `classes`, each of
@@ -310,7 +310,7 @@ one role, about one subject.
 ### `PaneCarryRequested`
 
 `PaneCarryRequested` asks Workshop to hold a reference the hand picks up, continuing an acquisition
-[`PaneOperationRequested`](#paneoperationrequested) approved ([`pane_carry.hpp`](../pane_carry.hpp)).
+[`PaneOperationRequested`](#paneoperationrequested) approved ([`pane/carry.hpp`](../../pane/carry.hpp)).
 
 - **Takes:** `pane`, `label` and `data`, bounded by `kMaxCarryBytes` and `kMaxCarryLabelBytes`;
   under the approved gesture's correlation.
@@ -410,7 +410,7 @@ handed -- a secondary press, a declared action, or a primary press.
   carry: `the presenter left -- <why>`, `the presenter was replaced`, `the presenter could not be
   reached`, `the presenter could not answer it -- <why>`.
 - **Example:** `pane_menu::Offer(pane, subject).at(row, col).row(id, label).send(mail, role)`
-  ([`pane_menu.hpp`](../pane_menu.hpp)).
+  ([`pane/menu.hpp`](../../pane/menu.hpp)).
 
 ### `PanePassRequested`
 
@@ -605,7 +605,7 @@ run.
 
 ### `PaneOffered`
 
-`PaneOffered`, from any pane's role: it has a pane ([`pane_vocabulary.hpp`](../pane_vocabulary.hpp)).
+`PaneOffered`, from any pane's role: it has a pane ([`pane/vocabulary.hpp`](../../pane/vocabulary.hpp)).
 v1 `{pane, name, summary}`; v2 adds the `rows` and `columns` it likes; v3 a canvas body, `width`,
 `height`, `text_rows`. A new key joins the catalog; a known one refreshes its name and summary and
 waits for a new room. A refusal is said on the band, never answered: ``a pane's name cannot be
@@ -645,7 +645,7 @@ act, Workshop answers it as the desk's own: the desktop's row for a bare Escape
 ### `MenuShown`
 
 `MenuShown` v3, from `zengine.presenter`: the open menu is drawn in its area, so many lines of
-so many characters, numbered as a picture ([`presenter_vocabulary.hpp`](../presenter_vocabulary.hpp)).
+so many characters, numbered as a picture ([`pane/presenter_vocabulary.hpp`](../../pane/presenter_vocabulary.hpp)).
 Workshop places the area to fit inside the popup's frame, in front of the desk. A menu past the
 granted room, or in an area it was not granted, is withdrawn, its requester told why: `the
 presenter showed a line wider than its room`.

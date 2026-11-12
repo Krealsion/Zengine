@@ -17,11 +17,11 @@
 #include "workshop/guest_door.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/guests.hpp"
-#include "workshop/pane_document.hpp"
+#include "pane/document.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/notice_seam_vocabulary.hpp"
-#include "workshop/pane_carry.hpp"
+#include "pane/carry.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
 #include "workshop/setup_control.hpp"
@@ -1443,9 +1443,9 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
     CHECK_FALSE(live.permits_role(ws::GuideRequested::zen_name, 1, "zengine.workshop",
                                   door("zengine.desktop/launcher")));
     // ...THE MANUALS OF THE ROLES ITS DOORS NAME, and no other...
-    CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.builder-pane"));
-    CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.desktop"));
-    CHECK_FALSE(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
+    CHECK(g.permits_role(zengine::pane::PaneDocumentRequested::zen_name, 1, "zengine.builder-pane"));
+    CHECK(g.permits_role(zengine::pane::PaneDocumentRequested::zen_name, 1, "zengine.desktop"));
+    CHECK_FALSE(g.permits_role(zengine::pane::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
     // ...AND NOT WHAT CARRIES EVERY PANE: the picture.
     const std::string terminal = std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
     CHECK_FALSE(g.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, terminal));
@@ -1456,7 +1456,7 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
     CHECK(whole.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, terminal));
     CHECK(whole.permits_role(ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version,
                            "zengine.workshop"));
-    CHECK(whole.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
+    CHECK(whole.permits_role(zengine::pane::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
 }
 
 namespace {
@@ -1678,7 +1678,7 @@ TEST_CASE("action classes: a guest's send is its shape's classes -- a toolbox sa
           std::vector<std::string>{scope::kWrite});
     CHECK(scope::classes_of_send(ws::WorkshopQuitRequested::zen_name) == std::vector<std::string>{scope::kWrite});
     CHECK(scope::classes_of_send(ws::OpenSourceRequested::zen_name) == std::vector<std::string>{scope::kOpen});
-    CHECK(scope::classes_of_send(ws::PaneValueCarryRequested::zen_name).empty());
+    CHECK(scope::classes_of_send(zengine::pane::PaneValueCarryRequested::zen_name).empty());
     scope::GuestRowFacts guest;
     guest.admitted = true;
     guest.name = "agent";
@@ -1699,7 +1699,7 @@ TEST_CASE("action classes: a guest's send is its shape's classes -- a toolbox sa
           std::string::npos);
     CHECK(scope::judge_send(guest, development, ws::OpenSourceRequested::zen_name).empty());
     CHECK(scope::judge_send(scope::GuestRowFacts{}, weaver, ws::OpenSourceRequested::zen_name).empty());
-    CHECK(scope::judge_send(guest, weaver, ws::PaneValueCarryRequested::zen_name).empty());
+    CHECK(scope::judge_send(guest, weaver, zengine::pane::PaneValueCarryRequested::zen_name).empty());
 }
 
 TEST_CASE("action classes: a guest builds only with build, writes nothing and opens no guests file on a weaver's host, and no class narrows a participant no door admitted") {
@@ -2009,10 +2009,10 @@ struct ScopeTurn {
 /// question it holds, in the name of the role it was registered under or, when `anonymous`, of
 /// none, and keeps every answer Loom says is the answer to its ask.
 class ScopeAsker
-    : public loom::WeaveBase<ScopeAsker, EarsState, loom::Accept<ScopeTurn, ws::ActorScopeJudged>,
-                             loom::Emit<ws::ActorScopeRequested>> {
+    : public loom::WeaveBase<ScopeAsker, EarsState, loom::Accept<ScopeTurn, zengine::pane::ActorScopeJudged>,
+                             loom::Emit<zengine::pane::ActorScopeRequested>> {
 public:
-    explicit ScopeAsker(std::vector<ws::ActorScopeJudged>& told) : told_(&told) {}
+    explicit ScopeAsker(std::vector<zengine::pane::ActorScopeJudged>& told) : told_(&told) {}
     void on(const ScopeTurn&, loom::Mail& mail) {
         if (anonymous) {
             (void)mail.send_to_role(ws::kGuestsRole, question);
@@ -2020,18 +2020,18 @@ public:
             (void)mail.as_role(role).send_to_role(ws::kGuestsRole, question);
         }
     }
-    void on(const ws::ActorScopeJudged& judged, loom::Mail& mail) {
+    void on(const zengine::pane::ActorScopeJudged& judged, loom::Mail& mail) {
         if (mail.answers_ask()) {
             told_->push_back(judged);
         }
     }
 
-    ws::ActorScopeRequested question;
+    zengine::pane::ActorScopeRequested question;
     std::string role;
     bool anonymous = false;
 
 private:
-    std::vector<ws::ActorScopeJudged>* told_;
+    std::vector<zengine::pane::ActorScopeJudged>* told_;
 };
 
 } // namespace
@@ -2054,13 +2054,13 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     }));
     // EACH ASKER HOLDS ITS ROLE and the one rule this question needs: the Inventory pane's, which
     // asks before a toolbox save sent straight to it, and Workshop's.
-    std::vector<ws::ActorScopeJudged> told;
+    std::vector<zengine::pane::ActorScopeJudged> told;
     const auto asker_in = [&](const char* role) {
         auto made = std::make_unique<ScopeAsker>(told);
         ScopeAsker* raw = made.get();
         raw->role = role;
         loom::Grant grant;
-        grant.allow_to_role(ws::ActorScopeRequested::zen_name, ws::ActorScopeRequested::zen_version,
+        grant.allow_to_role(zengine::pane::ActorScopeRequested::zen_name, zengine::pane::ActorScopeRequested::zen_version,
                             ws::kGuestsRole);
         const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(grant), std::string(role));
         raw->zen_set_self(id);
@@ -2072,7 +2072,9 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     loom::WeaveId asker_id = pane_id;
     // ONE QUESTION IN FLIGHT AT A TIME, so each answer is the one to the question just asked.
     const auto ask = [&](std::int64_t session, std::vector<std::string> classes) {
-        asker->question = ws::ActorScopeRequested{session, "inventory", std::move(classes), "InventoryToolboxSave"};
+        asker->question = zengine::pane::ActorScopeRequested{session, "inventory",
+                                                             std::move(classes),
+                                                             "InventoryToolboxSave"};
         const std::size_t before = told.size();
         (void)r.bus.send(asker_id, loom::Message(loom::to_value(ScopeTurn{})));
         r.bus.drain_until_idle();
@@ -2082,7 +2084,7 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     const auto session_of = [](const Guest& g) { return static_cast<std::int64_t>(g.client->session()); };
 
     // The weaver's own hand, session 0, is not narrowed, whatever its classes.
-    ws::ActorScopeJudged judged = ask(0, {zengine::workshop::scope::kWrite, zengine::workshop::scope::kBuild});
+    zengine::pane::ActorScopeJudged judged = ask(0, {zengine::workshop::scope::kWrite, zengine::workshop::scope::kBuild});
     CHECK(judged.allowed);
     CHECK(judged.refusal.empty());
     // An admitted guest within its row: `build` is the builder's.
@@ -2126,7 +2128,8 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     CHECK(judged.refusal.find("has no `build`") != std::string::npos);
     // ONLY A ROLE IS ANSWERED: the same question in no role's name hears nothing.
     asker->anonymous = true;
-    asker->question = ws::ActorScopeRequested{session_of(builder), "inventory", {"build"}, "InventoryToolboxSave"};
+    asker->question = zengine::pane::ActorScopeRequested{session_of(builder), "inventory",
+                                                         {"build"}, "InventoryToolboxSave"};
     const std::size_t before = told.size();
     (void)r.bus.send(asker_id, loom::Message(loom::to_value(ScopeTurn{})));
     r.bus.drain_until_idle();
@@ -2134,8 +2137,8 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     // ...and no guest's grant asks it at all, whatever its row's powers.
     guests::GuestRow every;
     every.may = {"input", "capture", "inspect", "inventory", "toolbox", "demo", "build", "open"};
-    CHECK_FALSE(guests::grant_for(every).permits_role(ws::ActorScopeRequested::zen_name,
-                                                      ws::ActorScopeRequested::zen_version,
+    CHECK_FALSE(guests::grant_for(every).permits_role(zengine::pane::ActorScopeRequested::zen_name,
+                                                      zengine::pane::ActorScopeRequested::zen_version,
                                                       ws::kGuestsRole));
 }
 
@@ -2736,10 +2739,10 @@ TEST_CASE("inventory power permits field pickup but input and inspection alone d
     zengine::workshop::guests::GuestRow row;
     row.may = {"inventory"};
     CHECK(zengine::workshop::guests::grant_for(row).permits_role(
-        zengine::workshop::PaneValueCarryRequested::zen_name, 1, "zengine.workshop"));
+        zengine::pane::PaneValueCarryRequested::zen_name, 1, "zengine.workshop"));
     row.may = {"input", "inspect"};
     CHECK_FALSE(zengine::workshop::guests::grant_for(row).permits_role(
-        zengine::workshop::PaneValueCarryRequested::zen_name, 1, "zengine.workshop"));
+        zengine::pane::PaneValueCarryRequested::zen_name, 1, "zengine.workshop"));
 }
 
 TEST_CASE("open power reaches only the managed opening, and no other power opens a source") {

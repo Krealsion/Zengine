@@ -10,10 +10,10 @@
 #include "timeline.hpp"
 #include "attention/vocabulary.hpp"
 #include "graphics/themes.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 #include "workshop/screen_planes.hpp"
 #include "workshop/desk_read.hpp"
-#include "workshop/pane_canvas_text.hpp"
+#include "pane/canvas_text.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "view/view-builder/picture.hpp"
 #include "view/view.hpp"
@@ -353,7 +353,7 @@ class SketchSeat : public loom::WeaveBase<SketchSeat, SeatState,
     loom::Accept<PaneCatalogRequested, gfx::AreaRoom, gfx::DrawnRefused, gfx::AreaButtonChanged,
                  gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded, PaneCanvasHover,
                  SeatDo>,
-    loom::Emit<v3::PaneOffered, gfx::Drawn, PanePassRequested, gfx::RoomAsked>> {
+    loom::Emit<zengine::pane::v3::PaneOffered, gfx::Drawn, PanePassRequested, gfx::RoomAsked>> {
 public:
     explicit SketchSeat(std::string role = kCanvasRole, std::string pane = kCanvasPane)
         : role_(role), window_(role, pane_area(role, pane)) {}
@@ -411,7 +411,7 @@ private:
 /// What a canvas seat may say: its offer, its drawing, and a press handed back.
 loom::Grant sketch_grant() {
     loom::Grant grant;
-    grant.allow_to_any(v3::PaneOffered::zen_name, v3::PaneOffered::zen_version);
+    grant.allow_to_any(zengine::pane::v3::PaneOffered::zen_name, zengine::pane::v3::PaneOffered::zen_version);
     grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
     grant.allow_to_any(PanePassRequested::zen_name, PanePassRequested::zen_version);
     grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
@@ -434,7 +434,7 @@ struct SketchRig : DeskRig {
         sketch->zen_set_self(sketch_id);
         drive([](SketchSeat&, loom::Mail& m) {
             (void)m.as_role(kCanvasRole).send_to_role(kWorkshopProvider,
-                v3::PaneOffered{kCanvasPane, "Sketch", "a local picture", 40 * kPaneCanvasUnit,
+                zengine::pane::v3::PaneOffered{kCanvasPane, "Sketch", "a local picture", 40 * kPaneCanvasUnit,
                                 12 * kPaneCanvasUnit, 0});
         });
         r.pick(PaneRef{kCanvasRole, kCanvasPane});
@@ -2112,7 +2112,7 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
         const std::string area = held_area_of(d.alpha_kind);
         drive([area](SketchSeat&, loom::Mail& m) {
             (void)m.as_role(kAlphaRole).send_to_role(kWorkshopProvider,
-                v3::PaneOffered{"alpha", "Seat", "the same pane, drawn as a picture",
+                zengine::pane::v3::PaneOffered{"alpha", "Seat", "the same pane, drawn as a picture",
                                 40 * kPaneCanvasUnit, 12 * kPaneCanvasUnit, 0});
             (void)m.as_role(kAlphaRole).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{area});
         });
@@ -3412,11 +3412,11 @@ TEST_CASE("each graphics area wears the palette named for the live layout's them
     // THE PANE'S ROW, `night`, laid over the layout's: its area and its frame alone move, and the
     // pane is handed none of it -- a row's theme is kept beside its settings.
     from = d.directory->chosen.size();
-    std::vector<v2::PaneSettings> rows_handed;
+    std::vector<zengine::pane::v2::PaneSettings> rows_handed;
     const loom::ObserverId tap = d.r.bus.add_observer([&rows_handed](const loom::BusEvent& ev) {
         if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
-            ev.schema_name == v2::PaneSettings::zen_name && ev.authored_role == kLayoutsRole) {
-            rows_handed.push_back(loom::from_value<v2::PaneSettings>(*ev.payload));
+            ev.schema_name == zengine::pane::v2::PaneSettings::zen_name && ev.authored_role == kLayoutsRole) {
+            rows_handed.push_back(loom::from_value<zengine::pane::v2::PaneSettings>(*ev.payload));
         }
     });
     const SettingsWriteAnswered own = d.row("night");

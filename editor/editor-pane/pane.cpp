@@ -29,17 +29,17 @@
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/keymap.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_operation.hpp"
+#include "pane/rows.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/document.hpp"
+#include "pane/menu.hpp"
+#include "pane/operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
@@ -72,10 +72,10 @@ namespace input = zengine::input;
 // =============================================================================
 
 /// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<pane::kEditorPane, pane::kEditorPaneRole>;
+using Settings = zengine::pane::PaneSettingsFacet<pane::kEditorPane, pane::kEditorPaneRole>;
 
 class EditorPaneWeave
-    : public zengine::With<ws::PaneManualFacet<
+    : public zengine::With<zengine::pane::PaneManualFacet<
           pane::kEditorPane, zengine::manual::pages::zengine_editor::kManual>, Settings>::Weave<
           EditorPaneWeave, pane::EditorPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneKey, PaneTextInput,
@@ -86,20 +86,22 @@ class EditorPaneWeave
                        graphics::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
-                       ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                       ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
+                       zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneMenuAnswered,
+                       zengine::pane::PaneOperationAnswered,
+                       zengine::pane::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                        graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                        graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::KeymapShown>,
-          loom::Emit<PaneOffered, ws::v3::PaneActions,
-                     ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
+          loom::Emit<PaneOffered, zengine::pane::v3::PaneActions,
+                     zengine::pane::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                      PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
                      OpenSourceRequested,
                      ProjectRootRequested, graphics::ClipboardCopy,
                      graphics::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
-                     ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked,
-                     ws::v2::PaneSettingsDeclared, ws::KeymapRequested>,
+                     zengine::pane::PaneMenuRequested, zengine::pane::PanePassRequested,
+                     zengine::pane::PaneOperationRequested,
+                     zengine::pane::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked,
+                     zengine::pane::v2::PaneSettingsDeclared, ws::KeymapRequested>,
           loom::WeaveBase, loom::Claims<EditorDocument>> {
 public:
     using Base = Weave;
@@ -184,7 +186,7 @@ public:
     /// a press at the first column of that part, from which no carry begins, and leaving no sweep
     /// armed, since the window says the press and its release as one act.
     void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
-        if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
+        if (const std::optional<zengine::pane::RowCell> at = window_.part(asked, mail)) {
             press_at(at->row, at->column, false, mail);
             drag_ = Drag{};
             grab_ = Grab{};
@@ -195,7 +197,7 @@ public:
     /// facet took them whole. The tab stop and the undo steps are the buffer's, so every document
     /// this pane holds or prepares wears them (`wear`). Held as plain members, never reload state:
     /// a reloaded image asks for them again, and draws no room before it holds them.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         tab_width_ = taken.number(pane::kSettingTabWidth);
         status_shown_ = taken.flag(pane::kSettingStatus);
         wheel_lines_ = taken.number(pane::kSettingWheelLines);
@@ -206,8 +208,8 @@ public:
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
     /// the tab stop and the status row, pinned; the wheel's lines a notch; the undo steps kept,
     /// which the byte budget bounds whatever it says.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow tab;
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        zengine::pane::v2::PaneSettingRow tab;
         tab.key = pane::kSettingTabWidth;
         tab.number = ws::kEditorTabStop;
         tab.low = ws::kEditorTabStopLow;
@@ -215,20 +217,20 @@ public:
         tab.tags = {"editing", "text"};
         tab.pinned = true;
         tab.summary = "columns between tab stops";
-        ws::v2::PaneSettingRow status;
+        zengine::pane::v2::PaneSettingRow status;
         status.key = pane::kSettingStatus;
         status.flag = true;
         status.tags = {"chrome"};
         status.pinned = true;
         status.summary = "show the status row";
-        ws::v2::PaneSettingRow wheel;
+        zengine::pane::v2::PaneSettingRow wheel;
         wheel.key = pane::kSettingWheelLines;
         wheel.number = ws::kEditorWheelLines;
         wheel.low = ws::kEditorWheelLinesLow;
         wheel.high = ws::kEditorWheelLinesHigh;
         wheel.tags = {"input", "scroll"};
         wheel.summary = "lines scrolled per wheel notch";
-        ws::v2::PaneSettingRow undo;
+        zengine::pane::v2::PaneSettingRow undo;
         undo.key = pane::kSettingUndoDepth;
         undo.number = static_cast<std::int64_t>(ws::kEditorUndoDepth);
         undo.low = static_cast<std::int64_t>(ws::kEditorUndoDepthLow);
@@ -313,8 +315,8 @@ public:
 
     // ---- The pointer, defined in `transfers.hpp` --------------------------------------------
 
-    void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
-    void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at,
+    void on_window(const std::optional<zengine::pane::WindowPointer>& p, loom::Mail& mail);
+    void pointer(std::int64_t phase, std::int64_t button, const zengine::pane::RowCell& at,
                  std::int64_t gesture, double dy, bool moved, bool current, loom::Mail& mail);
     void press_at(std::int64_t prow, std::int64_t pcol, bool current, loom::Mail& mail);
     void dragged(std::int64_t drow, std::int64_t dcol, loom::Mail& mail);
@@ -389,11 +391,11 @@ public:
 
     // ---- Transfers, defined in `transfers.hpp` ----------------------------------------------
 
-    void right_press(const ws::RowCell& at, bool current, loom::Mail& mail);
-    void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail);
-    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail);
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail);
-    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail);
+    void right_press(const zengine::pane::RowCell& at, bool current, loom::Mail& mail);
+    void on(const zengine::pane::PaneCanvasValueDrop& drop, loom::Mail& mail);
+    void on(const zengine::pane::PaneMenuAnswered& answer, loom::Mail& mail);
+    void on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail);
+    void on(const zengine::pane::PaneCarryAnswered& answer, loom::Mail& mail);
 
     // ---- The exit ------------------------------------------------------------------------
 
@@ -501,7 +503,7 @@ private:
     void acquire(Take what, bool drag, std::uint64_t gesture, const Mark& at, loom::Mail& mail);
     std::string insertion_refusal() const;
     Landing landing(std::int64_t prow, std::int64_t pcol) const;
-    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool current, bool same,
+    void receive(const loom::Bytes& data, const zengine::pane::RowCell& drop, bool current, bool same,
                  loom::Mail& mail);
     bool insert_lines(const std::string& text, const Landing& at, const std::string& note,
                       bool select);
@@ -519,8 +521,8 @@ private:
                                                      pane::kEditorPaneSummary, 20, 84});
         declare(mail);
         (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(ws::kLayoutsRole,
-                          ws::v2::PaneSettingsDeclared{pane::kEditorPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole,
+                          zengine::pane::v2::PaneSettingsDeclared{pane::kEditorPane, setting_rows()});
     }
 
     /// A DOCUMENT WEARS THE LAYOUT'S TAB STOP AND UNDO STEPS, live or prepared: a lower depth
@@ -536,20 +538,21 @@ private:
     void declare(loom::Mail& mail) {
         // Each row says what it stands in for among Workshop's own actions, and what its press may
         // send beside the pane protocol: a carry, once Workshop allows the acquisition.
-        ws::v3::PaneActions actions;
+        zengine::pane::v3::PaneActions actions;
         actions.pane = pane::kEditorPane;
         const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
                                     std::int64_t mods, const char* stands_for = "",
-                                    std::vector<ws::ActionCause> causes = {}) {
+                                    std::vector<zengine::pane::ActionCause> causes = {}) {
             actions.rows.push_back(
-                ws::v3::PaneActionRow{id, label, sc, mods, stands_for, std::move(causes)});
+                zengine::pane::v3::PaneActionRow{id, label, sc, mods, stands_for, std::move(causes)});
         };
-        const std::vector<ws::ActionCause> carried{ws::cause_of<ws::PaneValueCarryRequested>()};
+        const std::vector<zengine::pane::ActionCause> carried{
+            zengine::pane::cause_of<zengine::pane::PaneValueCarryRequested>()};
         // The save row still names `document.save` as what it stands in for (WL-KEY-15): a host
         // after that row retired admits a name standing in for nothing, and a host from before
         // still declares it, where the name keeps `ctrl+s` this pane's -- one image loads in both.
         row(pane::kActionSave, "save source", input::scan::kS, input::mod::kCtrl,
-            ws::kOwnableDocumentSave);
+            zengine::pane::kOwnableDocumentSave);
         row(pane::kActionNewline, "newline", input::scan::kReturn, input::mod::kNone);
         row(pane::kActionTab, "insert tab", input::scan::kTab, input::mod::kNone);
         row(pane::kActionDiscard, "discard source edits", input::scan::kD, input::mod::kCtrl);
@@ -931,7 +934,7 @@ private:
                                bool status) {
         Composition out;
         const auto push = [&out, columns](std::string text, graphics::Color ink) {
-            out.rows.push_back(ws::TextRow{printable(fit(std::move(text), columns)), ink});
+            out.rows.push_back(zengine::pane::TextRow{printable(fit(std::move(text), columns)), ink});
         };
         if (rows >= 1 && !status) {
             if (!note.empty()) {
@@ -959,7 +962,7 @@ private:
             const std::size_t shown = static_cast<std::size_t>(out.doc_rows);
             last = view.first_row + shown < total ? view.first_row + shown : total;
             for (std::size_t r = view.first_row; r < last; ++r) {
-                out.rows.push_back(ws::TextRow{
+                out.rows.push_back(zengine::pane::TextRow{
                     ws::expanded_slice(doc.buffer.line(r), view.first_col, text_cols,
                                        doc.buffer.tab_width()),
                     graphics::colors::text});
@@ -973,10 +976,10 @@ private:
     /// Where the caret is and what is selected in the rows. The caret is said only while its row
     /// is in the window; the selection is clamped into the window, and a range past the last shown
     /// row ends at `(rows, 0)`. A selection may stand with no caret (`kNoCaret`).
-    static ws::RowsCaret caret_of(const EditorState& doc, const Viewport& view,
+    static zengine::pane::RowsCaret caret_of(const EditorState& doc, const Viewport& view,
                                   std::int64_t chrome_rows, std::int64_t doc_rows,
                                   std::size_t last, std::int64_t text_cols) {
-        ws::RowsCaret caret;
+        zengine::pane::RowsCaret caret;
         if (doc.open_document() && doc_rows > 0) {
             const std::size_t cr = doc.buffer.caret_row();
             if (cr >= view.first_row && cr < last) {
@@ -1235,7 +1238,7 @@ private:
     std::size_t undo_depth_ = ws::kEditorUndoDepth;
     Grab grab_;
     Pickup pickup_;
-    ws::pane_menu::Asked menu_;
+    zengine::pane::pane_menu::Asked menu_;
     Mark menu_mark_;
     /// THE KEY IN FORCE FOR EACH OF THIS PANE'S DECLARED ROWS, by id, and how the weaver spells keys,
     /// as the keymap's projection last said them: image state, asked again on every activation.

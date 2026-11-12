@@ -338,7 +338,7 @@ struct BuilderRig {
         std::vector<std::string> ids;
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
-        for (const v4::PaneActionRow& a : seat->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         return ids;

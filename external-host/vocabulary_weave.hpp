@@ -29,7 +29,7 @@
 #include "workshop/pane_view.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/notice_seam_vocabulary.hpp"
-#include "workshop/pane_document.hpp"
+#include "pane/document.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 #include "external-host/demo-control/vocabulary.hpp"
@@ -51,7 +51,9 @@ class GuestVocabulary final
           loom::Emit<zengine::inventory_pane::InventoryViewEdit, zengine::inventory_pane::InventoryViewsRequested,
                      zengine::inventory_pane::InventoryToolboxSave, zengine::inventory_pane::InventoryToolboxRestore,
                      zengine::inventory_pane::InventoryToolboxFinished,
-                     zengine::inventory_pane::InventoryViews, zengine::workshop::SetupApplyRequested, zengine::workshop::PaneResetRequested, zengine::workshop::WorkshopQuitRequested,
+                     zengine::inventory_pane::InventoryViews,
+                     zengine::workshop::SetupApplyRequested, zengine::workshop::PaneResetRequested,
+                     zengine::workshop::WorkshopQuitRequested,
                      zengine::demo::DemoServiceOpened, zengine::demo::DemoServiceClosed,
                      zengine::demo::DemoWorkRequested, zengine::demo::DemoWork, zengine::demo::DemoWorkFinished,
                      zengine::demo::DemoResetRequested, zengine::demo::DemoStatusRequested, zengine::demo::DemoStatus,
@@ -65,7 +67,7 @@ class GuestVocabulary final
                      zengine::workshop::PanePointRequested, zengine::workshop::PanePoint,
                      zengine::workshop::DeskStamps,
                      zengine::workshop::GuideRequested, zengine::workshop::GuideAnswered,
-                     zengine::workshop::PaneDocumentRequested, zengine::workshop::PaneDocumentShown,
+                     zengine::pane::PaneDocumentRequested, zengine::pane::PaneDocumentShown,
                      zengine::workshop::PaneInventoryRequested, zengine::workshop::PaneInventory,
                      zengine::workshop::KeymapRequested, zengine::workshop::KeymapShown,
                      zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,

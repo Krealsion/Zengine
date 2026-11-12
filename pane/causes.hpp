@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_CAUSES_HPP
-#define ZENGINE_WORKSHOP_PANE_CAUSES_HPP
+#ifndef ZENGINE_PANE_CAUSES_HPP
+#define ZENGINE_PANE_CAUSES_HPP
 
 // What a press may cause and the modes a declaration says, judged by their form: the rules
 // Workshop admits a pane's or the application's declaration by beside its rows, which a declarer
@@ -9,8 +9,8 @@
 // was said; it resolves nothing, and no cause is read from anywhere but the row.
 // Reference: workshop/docs/workshop-panes.md#what-a-press-may-cause.
 
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/parts.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// The words a cause's subject opens with: the part a press lands on, or one pane always.
 inline constexpr std::string_view kCauseOnPart = "on ";
@@ -218,6 +218,6 @@ inline v4::PaneActionRow action_row_of(const v3::PaneActionRow& r) {
                              r.supersedes, r.causes, r.enters};
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_CAUSES_HPP
+#endif // ZENGINE_PANE_CAUSES_HPP

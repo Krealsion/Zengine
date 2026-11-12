@@ -245,7 +245,7 @@ launch says it is not here yet"
 settled, and is owed nothing once every such row resolved or was stepped over"
 
 ### WL-DESK-06
-`workshop/pane_vocabulary.hpp` ActionsJudged ActionsWithdrawn
+`pane/vocabulary.hpp` ActionsJudged ActionsWithdrawn
 `workshop/weave.hpp` answer_declaration say_withdrawn rejoin_app_rows
 `workshop/weave_desktop.cpp` answer_declaration say_withdrawn rejoin_app_rows
 `workshop/weave_seam.cpp` declare_pane_actions rejoin_pane_rows

@@ -159,28 +159,28 @@ const CensusDriverOf kFirstRunCensus{fr::kFirstRunRole, [] {
 
 /// THE QUICK SETUP'S PRESSES: each row on a quick setup made afresh.
 const PressDriverOf kFirstRunPresses{fr::kFirstRunRole, [](PressWitness& w) {
-    std::vector<v4::PaneActionRow> rows;
+    std::vector<zengine::pane::v4::PaneActionRow> rows;
     {
         TempDir dir("first-run-rows");
         PaneRig r;
         (void)start(r, dir.file("prefs.json"));
         rows = r.session().panes.runtime.find(fr::kFirstRunRole, fr::kSetupPane)->actions;
     }
-    for (const v4::PaneActionRow& row : rows) {
+    for (const zengine::pane::v4::PaneActionRow& row : rows) {
         TempDir dir("first-run-press");
         PaneRig r;
         (void)start(r, dir.file("prefs.json"));
         w.judge(r, fr::kSetupPane, "", row);
     }
     // ...AND "START HERE"'S, on one opened afresh by Done.
-    std::vector<v4::PaneActionRow> story_rows;
+    std::vector<zengine::pane::v4::PaneActionRow> story_rows;
     {
         TempDir dir("first-run-story-rows");
         PaneRig r;
         (void)start(r, dir.file("prefs.json"));
         story_rows = r.session().panes.runtime.find(fr::kFirstRunRole, fr::kStoryPane)->actions;
     }
-    for (const v4::PaneActionRow& row : story_rows) {
+    for (const zengine::pane::v4::PaneActionRow& row : story_rows) {
         TempDir dir("first-run-story-press");
         PaneRig r;
         (void)start(r, dir.file("prefs.json"));
@@ -520,7 +520,7 @@ class ViewStandIn
     : public loom::WeaveBase<ViewStandIn, SeatState,
                              loom::Accept<PaneCatalogRequested, zengine::view::ViewWiringRequested,
                                           SeatDo>,
-                             loom::Emit<v2::PaneOffered, zengine::view::ViewWiring>> {
+                             loom::Emit<zengine::pane::v2::PaneOffered, zengine::view::ViewWiring>> {
 public:
     zengine::view::ViewWiring wiring;
     std::int64_t asked = 0;
@@ -650,7 +650,7 @@ TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the in
     tally->wiring = wired;
     drive_any<ViewStandIn>(r, view_id, tally, [](ViewStandIn&, loom::Mail& m) {
         (void)m.as_role(kTallyPanel).send_to_role(kWorkshopProvider,
-                                                  v2::PaneOffered{"view", "Tally", "the panel", 10, 30});
+                                                  zengine::pane::v2::PaneOffered{"view", "Tally", "the panel", 10, 30});
     });
     CHECK(tally->asked >= 1);
     CHECK(story_kept(prefs) == "1 2 3 4");
@@ -776,7 +776,7 @@ TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone 
     tally->role = kTallyPanel;
     drive_any<ViewStandIn>(r, view_id, tally, [](ViewStandIn&, loom::Mail& m) {
         (void)m.as_role(kTallyPanel).send_to_role(kWorkshopProvider,
-                                                  v2::PaneOffered{"view", "Tally", "the panel", 10, 30});
+                                                  zengine::pane::v2::PaneOffered{"view", "Tally", "the panel", 10, 30});
     });
     CHECK(story_kept(prefs) == "1");
     CHECK(rows_say(r, story, "[x] 1. Make a view -- done"));
@@ -858,10 +858,10 @@ TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and
                                la::LaunchCatalogRequested::zen_version, la::kLauncherRole));
     CHECK_FALSE(v.grant.permits_role(la::LaunchCatalogRequested::zen_name,
                                      la::LaunchCatalogRequested::zen_version, "zengine.stranger"));
-    CHECK(v.grant.permits_role(v2::PaneOperationRequested::zen_name,
-                               v2::PaneOperationRequested::zen_version, kWorkshopProvider));
-    CHECK_FALSE(v.grant.permits_role(v2::PaneOperationRequested::zen_name,
-                                     v2::PaneOperationRequested::zen_version, la::kLauncherRole));
+    CHECK(v.grant.permits_role(zengine::pane::v2::PaneOperationRequested::zen_name,
+                               zengine::pane::v2::PaneOperationRequested::zen_version, kWorkshopProvider));
+    CHECK_FALSE(v.grant.permits_role(zengine::pane::v2::PaneOperationRequested::zen_name,
+                                     zengine::pane::v2::PaneOperationRequested::zen_version, la::kLauncherRole));
     CHECK(v.grant.permits_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
                                kWorkshopProvider));
     CHECK(v.grant.permits_role(zengine::view::ViewWiringRequested::zen_name,

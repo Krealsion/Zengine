@@ -13,7 +13,7 @@ The window that shows a pane's area tells the area's owner role of a press there
 `AreaButtonChanged`: the button, whether it went down, the point in the area's pixels, under the
 window's number for the press -- and tells Workshop, which placed the area, where it landed
 (`AreaPressed`, in the window's pixels, under the same number). The pane reads the point against
-what it drew there (`WindowDrawing::pointer`, `window_cell`, `workshop/pane_drawing.hpp`); nothing
+what it drew there (`WindowDrawing::pointer`, `window_cell`, `pane/drawing.hpp`); nothing
 lets a provider locate itself on a screen.
 
 - **Workshop learns of the press as the arranger, and the press is still the pane's.**
@@ -55,7 +55,7 @@ lets a provider locate itself on a screen.
 
 ## Input authority and carried data
 
-Inventory acquisitions and edits use `workshop/pane_operation.hpp`: a pane echoes the current
+Inventory acquisitions and edits use `pane/operation.hpp`: a pane echoes the current
 input/menu-choice correlation and names the exact owner operation. Workshop verifies that the
 gesture belongs to that pane, is current and unspent **for its own hand** -- each hand, the weaver's
 and each guest's, keeps its own gestures and records, so one hand's act never makes another's
@@ -82,7 +82,7 @@ injected hand reaches by key or press still answers it as the weaver's. A door a
 the owner asking the guest door `ActorScopeRequested` about its sender (WL-GUEST-04). No guest is granted
 `BuildRequested`, a realization ask or a clipboard door as a shape.
 
-`workshop/pane_carry.hpp` transports one owned reference envelope from an approved acquisition.
+`pane/carry.hpp` transports one owned reference envelope from an approved acquisition.
 The same actor picks it up and places it; Escape cancels. Workshop interprets no payload fields.
 The destination receives a pane-local row, column and aimed picture, plus a fresh gesture
 correlation. A destination owns its decoding and must authorize a subsequent read/write.
@@ -151,14 +151,14 @@ complete reference is [`workshop/docs/workshop-panes.md`](../workshop/docs/works
 host's laws are [`workshop/canvas.md`](workshop/canvas.md). The provider owns its picture, hit
 testing and every semantic action. No node, wire or pan behavior belongs in the host.
 
-- **Two helpers draw, and a pane may use neither.** `rows_drawing` (`workshop/pane_drawing.hpp`)
+- **Two helpers draw, and a pane may use neither.** `rows_drawing` (`pane/drawing.hpp`)
   draws rows and the parts they name, with the caret and the selection as marks in the run they
-  stand in, for the room a window gives (`RowsRoom`), and `RowsBlock` (`workshop/pane_rows_block.hpp`)
+  stand in, for the room a window gives (`RowsRoom`), and `RowsBlock` (`pane/rows_block.hpp`)
   puts rows, their meanings and the row tools inside any picture; `canvas_sketch`
-  (`workshop/pane_canvas_drawing.hpp`) draws a picture of rectangles, labels, measured text and
-  named parts (`workshop/pane_picture.hpp`), each part painted again over its own place, clipped
+  (`pane/canvas_drawing.hpp`) draws a picture of rectangles, labels, measured text and
+  named parts (`pane/picture.hpp`), each part painted again over its own place, clipped
   there, under a group whose record asks the part's name. `WindowDrawing` keeps the area's room
-  and sends a drawing to the window. The facets (`workshop/pane_facets.hpp`) seat a pane on them.
+  and sends a drawing to the window. The facets (`pane/facets.hpp`) seat a pane on them.
 - **A room is the window's to give.** A holder arriving with nothing asks it (`RoomAsked`); a new
   room starts the drawing afresh; a reloaded provider keeps no room, picture map or gesture.
 - **A drawing past what a window keeps is said, never refused.** `canvas_sketch` draws a picture
@@ -202,7 +202,7 @@ screen says so, is Workshop routing law
   that it judges its own Escape. It drops what it has selected, or, with nothing selected, says
   `PaneEscapeUnspent{pane}` as the role that offered the pane, **echoing the correlation that
   Escape arrived under**, and Workshop puts the pane down while the pane still has the desk and
-  the keys and that Escape is still the last gesture the host handled. `workshop/pane_escape.hpp`
+  the keys and that Escape is still the last gesture the host handled. `pane/escape.hpp`
   is that default (`pane_escape::answer`). What counts as a selection is the pane's: a chosen row
   it can let go (Loaded, Powers), never a marker that always rests on a row (Files, Inventory and
   its views, the Desktop's lists, a field cursor). A pane whose Escape means more spends it (the
@@ -240,7 +240,7 @@ behind it. Workshop routes only the wheel its own area hears.
 
 ## The reveal and the quit cross as four more shapes
 
-The Editor's extraction added these shapes and no powers, all in `workshop/pane_vocabulary.hpp`
+The Editor's extraction added these shapes and no powers, all in `pane/vocabulary.hpp`
 beside the shapes before them, and each is an ordinary optional capability any pane may spend
 (a sweep, which crossed beside them, is the pane's own now: it hears its press's moves in its
 area from the window):
@@ -290,7 +290,7 @@ button 2 or 3), and Workshop, the area's arranger, as `AreaPressed`. `PanePassRe
 provider → Workshop as the role that offered the pane; `PaneMenuAnswered v1`
 `{pane, subject, chosen, id, refusal}`, the presenter (or, for an ask it refused or one no
 presenter can answer, Workshop) → provider. Between Workshop
-and the participant holding `zengine.presenter`, `workshop/presenter_vocabulary.hpp`:
+and the participant holding `zengine.presenter`, `pane/presenter_vocabulary.hpp`:
 `MenuGranted`, `MenuInput` and `MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed`
 and `PresenterReady` presenter → Workshop, and `HeldMenu`, the reload state the shipped
 presenters share. The pane shapes ADDED
@@ -306,7 +306,7 @@ every party declares them from the one installed header, not because they are fl
 side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08),
 `workshop/pane-menu.md` (WL-CTX-09) and `workshop/desktop-presenting.md` (WL-DESK-14); the
 presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pane may use are
-`workshop/pane_menu.hpp`, installed beside the protocol.
+`pane/menu.hpp`, installed beside the protocol.
 
 - **The pane is first, and delivery is the disposition.** A secondary press in a pane's area is
   the pane's, heard from the window where its role takes `AreaButtonChanged`: no menu, no
@@ -602,14 +602,14 @@ in force in place of the default, and the default stands everywhere else; one ac
 choices, low?, high?}`, provider → the layouts' owner (`zengine.layouts`), sent beside the offer;
 `PaneSettingsAsked v1` `{pane}`, provider → the layouts' owner, once in each life when it
 arrives; `PaneSettings v1` `{pane, settings}` of `PaneSetting v1` `{key, flag?, number?, text?}`,
-the layouts' owner → the role's holder (`workshop/pane_settings.hpp`). Version 2 of each adds
+the layouts' owner → the role's holder (`pane/settings.hpp`). Version 2 of each adds
 how a weaver finds a setting and which row a hand-off was: `PaneSettingRow v2` adds `tags`,
 `pinned` and `summary`, so `PaneSettingsDeclared v2` carries those rows, and `PaneSettings v2`
 `{pane, revision, settings}` names the revision of the live layout's row it was handed at. A pane
 that speaks about what it was handed says `PaneSettingUnused` `{pane, revision, key, why}` back to
 the layouts' owner. None names a provider: the role is Loom's stamp. The owner's side is
 Workshop's law, [`workshop/settings.md`](workshop/settings.md); a pane's side is
-`PaneSettingsFacet` (`workshop/pane_settings_taken.hpp`).
+`PaneSettingsFacet` (`pane/settings_taken.hpp`).
 
 - **A setting is a key and exactly one value, in its kind's own field**: a flag, a number or a
   text. Loom admits a value with none or two, so judging "exactly one" is every reader's, and
@@ -930,13 +930,13 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
 ## Preferred space and demo owner operations
 
 `PaneOffered v1` is unchanged. `workshop::v2::PaneOffered` is version 2 with `rows` and
-`columns`: requested body text units, both 1..`workshop::kMaxPaneComfort` or zero/zero for the fallback. The first
+`columns`: requested body text units, both 1..`pane::kMaxPaneComfort` or zero/zero for the fallback. The first
 accepted offer fixes the preference for that runtime pane identity. A later offer refreshes
 the label/summary but keeps the preference; authored geometry wins per axis. Workshop owns
 metric conversion, title/chrome allowance, fitting and stack seating. This is a preference,
 not a minimum size or a rectangle the provider may enforce. Simple v1 examples remain supported.
 `workshop::v3::PaneOffered` is version 3 with `width`, `height` and `text_rows`: a canvas body in
-canvas pixels, each 1..`workshop::kMaxPaneBodyPx`, and rows of the medium's own text beneath it,
+canvas pixels, each 1..`pane::kMaxPaneBodyPx`, and rows of the medium's own text beneath it,
 or zero/zero. Workshop places that body exactly as the pane's area, rounded up to the cells that
 hold it in a terminal; the view host, Flow and the View Builder offer it.
 

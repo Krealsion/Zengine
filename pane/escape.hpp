@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PANE_ESCAPE_HPP
-#define ZENGINE_WORKSHOP_PANE_ESCAPE_HPP
+#ifndef ZENGINE_PANE_ESCAPE_HPP
+#define ZENGINE_PANE_ESCAPE_HPP
 
 // Escape's default in a pane that holds the keys, installed beside the protocol
-// (`workshop/pane_vocabulary.hpp`): a bare Escape drops what the pane has selected, and with
+// (`pane/vocabulary.hpp`): a bare Escape drops what the pane has selected, and with
 // nothing selected goes back to Workshop unspent, so Workshop puts the pane down. A holder that
 // sends the word lists `PaneEscapeUnspent` in its `Emit<...>`; Workshop sends a bare Escape to no
 // other holder, so a pane that never mentions Escape is put down by it without asking.
@@ -18,15 +18,15 @@
 //     }
 
 #include "input/vocabulary.hpp"
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/weave.hpp>
 
 #include <string>
 #include <string_view>
 
-namespace zengine::workshop::pane_escape {
+namespace zengine::pane::pane_escape {
 
 /// Escape with no modifier: the only key this default answers.
 inline bool bare(const PaneKey& key) noexcept {
@@ -36,7 +36,7 @@ inline bool bare(const PaneKey& key) noexcept {
 /// Hand the Escape this delivery carried back to Workshop unspent, echoing its number, from
 /// `role`, which offered `pane` (WL-ARR-15).
 inline void unspent(loom::Mail& mail, std::string_view role, const std::string& pane) {
-    (void)mail.as_role(role).send_to_role(zengine::workshop::pane_menu::kWorkshopRole, PaneEscapeUnspent{pane},
+    (void)mail.as_role(role).send_to_role(zengine::pane::pane_menu::kWorkshopRole, PaneEscapeUnspent{pane},
                                             mail.correlation());
 }
 
@@ -54,6 +54,6 @@ bool answer(const PaneKey& key, loom::Mail& mail, std::string_view role, Drop&& 
     return true;
 }
 
-} // namespace zengine::workshop::pane_escape
+} // namespace zengine::pane::pane_escape
 
-#endif // ZENGINE_WORKSHOP_PANE_ESCAPE_HPP
+#endif // ZENGINE_PANE_ESCAPE_HPP

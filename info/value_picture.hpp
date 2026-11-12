@@ -13,9 +13,9 @@
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
 #include "message-draft/draft.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -111,14 +111,14 @@ class ValuePicture {
 public:
     /// LAY OUT WHAT THE VIEW SHOWS for its pane. `line` is the line being typed, scrolled here to
     /// keep its caret in sight; `first` is the field window's first row, which follows the selection.
-    workshop::ComposedRows compose(const Shown& s, component::TextBox& line, std::size_t& first) {
-        workshop::ComposedRows out;
+    pane::ComposedRows compose(const Shown& s, component::TextBox& line, std::size_t& first) {
+        pane::ComposedRows out;
         map_.begin();
         caret_ = {};
         const auto width = s.columns;
         const auto push = [&](std::string text, graphics::Color ink, graphics::Color ground = graphics::no_color()) {
             if (static_cast<std::int64_t>(out.rows.size()) < s.rows)
-                out.rows.push_back({workshop::pane_text::printable(workshop::pane_text::fit(std::move(text), width)), ink, ground});
+                out.rows.push_back({pane::pane_text::printable(pane::pane_text::fit(std::move(text), width)), ink, ground});
         };
         if (!s.used) {
             push(s.title + " -- unused view slot", graphics::colors::accent, graphics::colors::quiet);
@@ -134,9 +134,9 @@ public:
             if (!s.notice.empty()) push(s.notice, graphics::colors::alert);
             push(s.typing, graphics::colors::text);
             const std::int64_t room = std::max<std::int64_t>(0, width - 2);
-            const workshop::RowBox box = workshop::row_box(line, 2, room);
+            const pane::RowBox box = pane::row_box(line, 2, room);
             if (room > 0 && static_cast<std::int64_t>(out.rows.size()) < s.rows) {
-                caret_ = workshop::box_caret(box, static_cast<std::int64_t>(out.rows.size()));
+                caret_ = pane::box_caret(box, static_cast<std::int64_t>(out.rows.size()));
                 push("> " + std::string(static_cast<std::size_t>(room), ' '), graphics::colors::accent);
                 out.rows.back().box = box;
             }
@@ -157,7 +157,7 @@ public:
         const auto window = component::cursor_window(s.fields.size(), s.selected, first, budget);
         first = window.first;
         if (const std::size_t earlier = component::earlier_marker(window); earlier > 0)
-            push(workshop::pane_text::omitted_text(earlier, "earlier"), graphics::colors::quiet);
+            push(pane::pane_text::omitted_text(earlier, "earlier"), graphics::colors::quiet);
         for (std::size_t i = window.first; i < window.end(); ++i) {
             const FieldLine& f = s.fields[i];
             const auto row = static_cast<std::int64_t>(out.rows.size());
@@ -173,7 +173,7 @@ public:
                  f.metadata ? graphics::colors::quiet : graphics::colors::text);
         }
         if (const std::size_t more = component::more_marker(window); more > 0)
-            push(workshop::pane_text::omitted_text(more, "more"), graphics::colors::quiet);
+            push(pane::pane_text::omitted_text(more, "more"), graphics::colors::quiet);
         (void)map_.settle();
         return out;
     }
@@ -182,12 +182,12 @@ public:
     const Meaning* at(std::int64_t row, std::int64_t column) const noexcept { return map_.at(row, column); }
     const component::RowMap<Meaning>& map() const noexcept { return map_; }
     /// WHERE THE LINE BEING TYPED HAS ITS CARET AND SELECTION in the rows last composed, or none.
-    const workshop::RowsCaret& caret() const noexcept { return caret_; }
+    const pane::RowsCaret& caret() const noexcept { return caret_; }
 
 private:
     /// LAY OUT THE CONTROLS GREEDILY OVER `lines` ROWS, keeping `[...]` last so every act stays one
     /// press away. A control the width cannot hold whole is not drawn, so it is never a target.
-    void controls(const Shown& s, workshop::ComposedRows& out, std::int64_t lines) {
+    void controls(const Shown& s, pane::ComposedRows& out, std::int64_t lines) {
         const auto& items = s.controls;
         const bool menu = items.size() > 1;
         const std::int64_t reserve = menu ? 6 : 0; // room for " [...]" on whichever line is last
@@ -206,7 +206,7 @@ private:
                 text += word;
                 ++next;
             }
-            out.rows.push_back({workshop::pane_text::printable(text), graphics::colors::text, graphics::no_color()});
+            out.rows.push_back({pane::pane_text::printable(text), graphics::colors::text, graphics::no_color()});
             last_row = row; last_text = text;
             if (next >= items.size()) break;
         }
@@ -217,13 +217,13 @@ private:
                 if (!last_text.empty()) last_text += ' ';
                 map_.span(last_row, start, 5, s.columns, Meaning{Meaning::kControl, kActionViewMenu, {}});
                 last_text += "[...]";
-                out.rows[static_cast<std::size_t>(last_row)].text = workshop::pane_text::printable(last_text);
+                out.rows[static_cast<std::size_t>(last_row)].text = pane::pane_text::printable(last_text);
             }
         }
     }
 
     component::RowMap<Meaning> map_;
-    workshop::RowsCaret caret_;
+    pane::RowsCaret caret_;
 };
 
 } // namespace zengine::info_pane

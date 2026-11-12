@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
-#define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
+#ifndef ZENGINE_PANE_VOCABULARY_HPP
+#define ZENGINE_PANE_VOCABULARY_HPP
 
 // The pane protocol: every shape a weave and Workshop exchange to offer, present and drive a
 // pane (workshop/docs/workshop-panes.md). No shape names a provider: the provider is the role
@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// Workshop -> everyone: who has panes? It carries nothing; a field would be a filter.
 struct PaneCatalogRequested {
@@ -386,7 +386,7 @@ inline constexpr std::size_t kMaxPaneMenuLabelLen = 64;
 /// Provider -> Workshop: present these rows beside this place in my area -- a row and a column of
 /// the window's text there, from the area's corner -- and say which was chosen. Echoes the
 /// gesture's correlation; judged where the menu would open and granted to the presenter
-/// (`presenter_vocabulary.hpp`). A menu continuing a press opens where the press was made.
+/// (`pane/presenter_vocabulary.hpp`). A menu continuing a press opens where the press was made.
 /// `subject` is the pane's own word, echoed in the answer.
 struct PaneMenuRequested {
     std::string pane;
@@ -453,6 +453,6 @@ inline constexpr std::size_t kMaxPanePartNameLen = 256;
 inline constexpr std::size_t kMaxCauseSubjectLen = 3 + kMaxPanePartNameLen;
 
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
+#endif // ZENGINE_PANE_VOCABULARY_HPP

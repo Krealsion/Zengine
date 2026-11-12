@@ -153,7 +153,7 @@ public:
 /// participant does not do its part.
 class BrokenEditor
     : public loom::WeaveBase<BrokenEditor, SeenState,
-                             loom::Accept<PaneCatalogRequested, v3::PrepareSourceRequested,
+                             loom::Accept<PaneCatalogRequested, zengine::workshop::v3::PrepareSourceRequested,
                                           ManagedOpenSettled, SeatDo>,
                              loom::Emit<PaneOffered>, loom::Claims<EditorDocument>> {
 public:
@@ -165,7 +165,7 @@ public:
             .send_to_role(kWorkshopProvider,
                           PaneOffered{pane::kEditorPane, "Editor", "a stand-in that cannot prepare"});
     }
-    void on(const v3::PrepareSourceRequested&, loom::Mail&) {
+    void on(const zengine::workshop::v3::PrepareSourceRequested&, loom::Mail&) {
         ++asked;
         if (throws) {
             throw std::runtime_error("the stand-in's preparation failed abnormally");
@@ -455,7 +455,8 @@ struct EditorRig {
         // settlement, preparation, admission or dispatch refusal must reach its party to be
         // dropped by it.
         grant.allow_to_any(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version);
-        grant.allow_to_any(v3::SourcePrepared::zen_name, v3::SourcePrepared::zen_version);
+        grant.allow_to_any(zengine::workshop::v3::SourcePrepared::zen_name,
+                           zengine::workshop::v3::SourcePrepared::zen_version);
         grant.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
         grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
         const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant),
@@ -837,7 +838,7 @@ struct EditorRig {
         const RuntimePane* one = row();
         REQUIRE(one != nullptr);
         std::vector<std::string> ids;
-        for (const v4::PaneActionRow& a : one->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : one->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -968,7 +969,7 @@ TEST_CASE("the four keys are the pane's rows, on the built-in's own spellings") 
     const RuntimePane* held = e.r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
     REQUIRE(held != nullptr);
     bool unbound = false;
-    for (const v4::PaneActionRow& a : held->actions) {
+    for (const zengine::pane::v4::PaneActionRow& a : held->actions) {
         unbound = unbound || (a.id == pane::kActionClose && a.scancode == input::scan::kUnknown);
     }
     CHECK(unbound);
@@ -1350,13 +1351,13 @@ TEST_CASE("the Editor declares four settings, and a layout's tab stop, status ro
     namespace w = zengine::workshop;
     const auto number = [](const char* key, std::int64_t made, std::int64_t low, std::int64_t high,
                            std::vector<std::string> tags, bool pinned, const char* says) {
-        return v2::PaneSettingRow{key, std::nullopt, made, std::nullopt, {}, low, high, std::move(tags),
+        return zengine::pane::v2::PaneSettingRow{key, std::nullopt, made, std::nullopt, {}, low, high, std::move(tags),
                                   pinned, says};
     };
-    const std::vector<v2::PaneSettingRow> declared{
+    const std::vector<zengine::pane::v2::PaneSettingRow> declared{
         number(pane::kSettingTabWidth, w::kEditorTabStop, w::kEditorTabStopLow, w::kEditorTabStopHigh,
                {"editing", "text"}, true, "columns between tab stops"),
-        v2::PaneSettingRow{pane::kSettingStatus, true, std::nullopt, std::nullopt, {}, std::nullopt,
+        zengine::pane::v2::PaneSettingRow{pane::kSettingStatus, true, std::nullopt, std::nullopt, {}, std::nullopt,
                            std::nullopt, {"chrome"}, true, "show the status row"},
         number(pane::kSettingWheelLines, w::kEditorWheelLines, w::kEditorWheelLinesLow,
                w::kEditorWheelLinesHigh, {"input", "scroll"}, false, "lines scrolled per wheel notch"),
@@ -3139,7 +3140,7 @@ TEST_CASE("an opening in flight is a candidate and never a second document") {
             (void)mail.as_role(kDoorAskerRole)
                 .send_to_role(kWorkshopProvider,
                               ManagedOpenSettled{op + 1, false, false, "forged refusal", b_path});
-            v3::SourcePrepared forged;
+            zengine::workshop::v3::SourcePrepared forged;
             forged.op = op + 1;
             forged.ok = true;
             (void)mail.as_role(kDoorAskerRole).send_to_role(kOpeningRole, forged);
@@ -3582,7 +3583,7 @@ TEST_CASE("an application row a pane stands in for belongs to every context that
                                  "desktop.terminal", "terminal",
                                  Gesture{input::scan::kT, input::mod::kCtrl}, 0}})
                 .accepted);
-    const v2::PaneActionRow own{"x.term", "terminal here", input::scan::kE, input::mod::kCtrl,
+    const zengine::pane::v2::PaneActionRow own{"x.term", "terminal here", input::scan::kE, input::mod::kCtrl,
                                 "desktop.terminal"};
     REQUIRE(join_pane_rows(k, 7, {own}).accepted);
     const AppRow* term = k.app_row_of_id("desktop.terminal");
@@ -3608,11 +3609,11 @@ TEST_CASE("a pane that owns one action may put its other rows on that action's k
     Keymap k;
     REQUIRE(join_app_rows(k, app).accepted);
     const Gesture term{input::scan::kT, input::mod::kCtrl};
-    std::vector<v2::PaneActionRow> rows;
-    rows.push_back(v2::PaneActionRow{"x.term", "terminal here", input::scan::kE,
+    std::vector<zengine::pane::v2::PaneActionRow> rows;
+    rows.push_back(zengine::pane::v2::PaneActionRow{"x.term", "terminal here", input::scan::kE,
                                      input::mod::kCtrl, "desktop.terminal"});
     rows.push_back(
-        v2::PaneActionRow{"x.newline", "newline", term.scancode, term.modifiers, std::string()});
+        zengine::pane::v2::PaneActionRow{"x.newline", "newline", term.scancode, term.modifiers, std::string()});
     const Written joined = join_pane_rows(k, kSomePane, rows);
     CHECK_MESSAGE(joined.accepted, joined.refusal);
     REQUIRE(k.pane_rows(kSomePane) != nullptr);
@@ -3625,10 +3626,10 @@ TEST_CASE("a pane that owns one action may put its other rows on that action's k
     // A GENUINE COLLISION IS STILL REFUSED: `^p` is a row this pane did not say it owns.
     Keymap other;
     REQUIRE(join_app_rows(other, app).accepted);
-    std::vector<v2::PaneActionRow> clash;
-    clash.push_back(v2::PaneActionRow{"x.term", "terminal here", input::scan::kE,
+    std::vector<zengine::pane::v2::PaneActionRow> clash;
+    clash.push_back(zengine::pane::v2::PaneActionRow{"x.term", "terminal here", input::scan::kE,
                                       input::mod::kCtrl, "desktop.terminal"});
-    clash.push_back(v2::PaneActionRow{"x.keys", "keys", input::scan::kP, input::mod::kCtrl,
+    clash.push_back(zengine::pane::v2::PaneActionRow{"x.keys", "keys", input::scan::kP, input::mod::kCtrl,
                                       std::string()});
     const Written refused = join_pane_rows(other, kSomePane, clash);
     CHECK_FALSE(refused.accepted);
@@ -4390,8 +4391,8 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
             loom::DispatchRefused forged;
             forged.attempt = std::to_string(attempt);
             forged.role = kWorkshopProvider;
-            forged.shape = v3::PresentationAdmitRequested::zen_name;
-            forged.version = v3::PresentationAdmitRequested::zen_version;
+            forged.shape = zengine::workshop::v3::PresentationAdmitRequested::zen_name;
+            forged.version = zengine::workshop::v3::PresentationAdmitRequested::zen_version;
             forged.reason = "NoSuchTarget";
             (void)mail.as_role(kDoorAskerRole).send_to_role(kOpeningRole, forged);
         };
@@ -4811,9 +4812,9 @@ struct CoordinatorState {
 /// its hook, reachable by no mechanism but this instrumentation.
 class DeskOnlyOperator
     : public loom::WeaveBase<DeskOnlyOperator, CoordinatorState,
-                             loom::Accept<SeatDo, v3::PresentationTrial, PresentationAdmitted,
+                             loom::Accept<SeatDo, zengine::workshop::v3::PresentationTrial, PresentationAdmitted,
                                           loom::JointApplied>,
-                             loom::Emit<PresentationTrialRequested, v3::PresentationAdmitRequested,
+                             loom::Emit<PresentationTrialRequested, zengine::workshop::v3::PresentationAdmitRequested,
                                         ManagedOpenSettled>> {
 public:
     void on(const SeatDo&, loom::Mail& mail) {
@@ -4836,7 +4837,7 @@ public:
             released = mail.release_joint(authority, op);
         }
     }
-    void on(const v3::PresentationTrial& said, loom::Mail& mail) {
+    void on(const zengine::workshop::v3::PresentationTrial& said, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
         }
@@ -4844,7 +4845,7 @@ public:
         if (!said.ok) {
             return;
         }
-        v3::PresentationAdmitRequested admit;
+        zengine::workshop::v3::PresentationAdmitRequested admit;
         admit.op = static_cast<std::int64_t>(op);
         admit.provider = pane.provider;
         admit.pane = pane.pane;
@@ -4878,7 +4879,7 @@ public:
     loom::JointBegin begun{};
     loom::JointResult committed{};
     loom::JointResult released{};
-    v3::PresentationTrial trial{};
+    zengine::workshop::v3::PresentationTrial trial{};
     PresentationAdmitted admitted{};
     std::vector<loom::JointApplied> applied;
     std::vector<loom::JointStatus> applied_status;
@@ -4970,8 +4971,8 @@ TEST_CASE("the real desk, shown a presentation it holds no trial for, answers th
     loom::Grant arrange;
     arrange.allow_to_role(PresentationTrialRequested::zen_name, PresentationTrialRequested::zen_version,
                           kWorkshopProvider);
-    arrange.allow_to_role(v3::PresentationAdmitRequested::zen_name,
-                          v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
+    arrange.allow_to_role(zengine::workshop::v3::PresentationAdmitRequested::zen_name,
+                          zengine::workshop::v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
     arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
                           kWorkshopProvider);
     const loom::WeaveId op_id =
@@ -5955,7 +5956,7 @@ void open_neovim_selecting(EditorRig& e) {
     e.open(160, 48, true, false, EditorRig::Project::kDoor, true, nve::kNeovimEditorStem);
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
     const auto declares_extract = [&e] {
-        for (const v4::PaneActionRow& a : e.row()->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : e.row()->actions) {
             if (a.id == nve::kActionExtract) return true;
         }
         return false;
@@ -6030,11 +6031,11 @@ TEST_CASE("the manual the standard Editor answers is the role's page, naming exa
         EditorRig other("edit-manual-neovim");
         NeovimEnvironment env(other.root, NEOVIM_FIXTURE, "visual");
         open_neovim_selecting(other);
-        for (const v4::PaneActionRow& a : other.row()->actions) declared.insert(a.id);
+        for (const zengine::pane::v4::PaneActionRow& a : other.row()->actions) declared.insert(a.id);
     }
     EditorRig e("edit-manual");
     e.open();
-    for (const v4::PaneActionRow& a : e.row()->actions) declared.insert(a.id);
+    for (const zengine::pane::v4::PaneActionRow& a : e.row()->actions) declared.insert(a.id);
     ManualReader reader(e.r, pane::kEditorPaneRole);
     check_answered_manual(reader, pane::kEditorPane, declared);
     // ...AND A PANE THE ROLE DOES NOT OFFER IS REFUSED, naming it.

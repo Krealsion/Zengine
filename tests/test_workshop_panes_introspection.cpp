@@ -2118,7 +2118,7 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
                 e.schema_name == ws::kFindPowersName || e.schema_name == "DescribePower") {
                 ++questions;
             }
-            if (e.schema_name == ws::PaneOperationRequested::zen_name) ++carries;
+            if (e.schema_name == zengine::pane::PaneOperationRequested::zen_name) ++carries;
         });
         pw::Window w(r.bus);
         // A PANE WORKSHOP SEATS NOWHERE: the window's room asks its owner once, and the answer
@@ -2365,14 +2365,14 @@ TEST_CASE("Powers declares its chrome row's widths as settings, and a layout's w
     // THE THREE SETTINGS, AS WORKSHOP COUNTS THEM: a control's column never narrower than its label.
     namespace d = intro::detail;
     const auto columns = [](const char* key, std::int64_t label, bool pinned, const char* says) {
-        return v2::PaneSettingRow{key, std::nullopt, label, std::nullopt, {}, label,
+        return zengine::pane::v2::PaneSettingRow{key, std::nullopt, label, std::nullopt, {}, label,
                                   d::kMostControlWidth, {"layout"}, pinned, says};
     };
-    const std::vector<v2::PaneSettingRow> declared{
+    const std::vector<zengine::pane::v2::PaneSettingRow> declared{
         columns(intro::kSettingViewColumns, d::kViewWidth, true, "width of the view column"),
         columns(intro::kSettingCompositeColumns, d::kCompositeWidth, false,
                 "width of the composite column"),
-        v2::PaneSettingRow{intro::kSettingGap, std::nullopt, d::kGap, std::nullopt, {}, d::kFewestGap,
+        zengine::pane::v2::PaneSettingRow{intro::kSettingGap, std::nullopt, d::kGap, std::nullopt, {}, d::kFewestGap,
                            d::kMostGap, {"layout"}, false, "spaces between columns"}};
     CHECK(declared_settings(r, powers) == declared);
 
@@ -2411,7 +2411,7 @@ TEST_CASE("the manual the introspection role answers for each of its panes is th
     for (const char* pane : panes) {
         const RuntimePane* held = intro_row(r, pane);
         REQUIRE(held != nullptr);
-        for (const v4::PaneActionRow& a : held->actions) declared.insert(a.id);
+        for (const zengine::pane::v4::PaneActionRow& a : held->actions) declared.insert(a.id);
     }
     ManualReader reader(r, kIntroRole);
     for (const char* pane : panes) {

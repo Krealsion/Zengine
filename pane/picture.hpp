@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_PICTURE_HPP
-#define ZENGINE_WORKSHOP_PANE_PICTURE_HPP
+#ifndef ZENGINE_PANE_PICTURE_HPP
+#define ZENGINE_PANE_PICTURE_HPP
 
 // A canvas pane's picture as a value: its rectangles, labels, runs of text and the parts it names,
 // in its area's own pixels, and the room it is composed for. A pane composes one and draws it in
-// its area (`canvas_sketch`, pane_canvas_drawing.hpp); none of it crosses as a message. The pane
+// its area (`canvas_sketch`, pane/canvas_drawing.hpp); none of it crosses as a message. The pane
 // owns what it shows and what a press on it means.
 
 #include "graphics/pixels.hpp"
@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// One canvas cell: a label byte's advance, and the grain of a room whose device unit is the cell.
 inline constexpr std::int64_t kPaneCanvasUnit = graphics::kCellPx;
@@ -88,6 +88,6 @@ struct CanvasPicture {
     bool operator==(const CanvasPicture&) const = default;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_PICTURE_HPP
+#endif // ZENGINE_PANE_PICTURE_HPP

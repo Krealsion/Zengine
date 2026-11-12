@@ -32,6 +32,10 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneSettingUnused;
+using pane::PaneSettings;
+using pane::PaneSettingsAsked;
+using pane::PaneSettingsDeclared;
 
 /// WHAT THE OWNER HAS DONE: counters only.
 struct LayoutsOwnerState {
@@ -61,7 +65,7 @@ class LayoutsOwner
     : public zengine::With<manual::ManualFacet<manual::pages::zengine_layouts::kManual>>::Weave<
           LayoutsOwner, LayoutsOwnerState,
           loom::Accept<LayoutEditRequested, SessionSaveRequested, SetupApplyRequested,
-                       PaneSettingsDeclared, v2::PaneSettingsDeclared, RoleSettingsDeclared,
+                       PaneSettingsDeclared, pane::v2::PaneSettingsDeclared, RoleSettingsDeclared,
                        PaneSettingsAsked, PaneSettingUnused, PaneSettingsRequested,
                        PaneSettingCommitRequested, RoleSettingsRequested,
                        RoleSettingCommitRequested, PaneSettingPinRequested,
@@ -71,7 +75,7 @@ class LayoutsOwner
                        v1::PaneCloseRequested, OfficeSettingsDeclared, OfficeSettingsRequested,
                        OfficeSettingCommitRequested>,
           loom::Emit<LiveLayout, LayoutEditAnswered, SessionSaveAnswered, loom::Ack, loom::Refused,
-                     PaneSettings, v2::PaneSettings, PaneSettingsAnswered,
+                     PaneSettings, pane::v2::PaneSettings, PaneSettingsAnswered,
                      PaneSettingCommitAnswered, RoleSettings, RoleSettingsAnswered,
                      RoleSettingCommitAnswered, PaneSettingPinAnswered, PaneSettingLockAnswered,
                      LayoutSettingsAnswered, SettingsWriteAnswered, WeaversActRequested,
@@ -96,7 +100,7 @@ public:
 
     // ---- What each pane and role takes ----------------------------------------------------
     void on(const PaneSettingsDeclared& declared, loom::Mail& mail);
-    void on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail);
+    void on(const pane::v2::PaneSettingsDeclared& declared, loom::Mail& mail);
     void on(const RoleSettingsDeclared& declared, loom::Mail& mail);
     void on(const OfficeSettingsDeclared& declared, loom::Mail& mail) { on(current(declared), mail); }
 

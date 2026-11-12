@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_FACETS_HPP
-#define ZENGINE_WORKSHOP_PANE_FACETS_HPP
+#ifndef ZENGINE_PANE_FACETS_HPP
+#define ZENGINE_PANE_FACETS_HPP
 
 // The conversations every pane role holds with Workshop and the graphics window that shows its
 // area, as facets composed with `zengine::With` (activation/activation.hpp): its offer and manual
@@ -16,15 +16,15 @@
 #include "component/row_map.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/vocabulary.hpp"
-#include "pane_document.hpp"
-#include "pane_drawing.hpp"
-#include "pane_menu.hpp"
-#include "pane_operation.hpp"
-#include "pane_parts.hpp"
-#include "pane_rows.hpp"
-#include "pane_rows_block.hpp"
-#include "pane_text.hpp"
-#include "pane_vocabulary.hpp"
+#include "pane/document.hpp"
+#include "pane/drawing.hpp"
+#include "pane/menu.hpp"
+#include "pane/operation.hpp"
+#include "pane/parts.hpp"
+#include "pane/rows.hpp"
+#include "pane/rows_block.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 #include <zen/weave/ask_book.hpp>
@@ -42,7 +42,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// THE PANE ITS ROLE OFFERS, ITS ROOM AND ITS MANUAL: the activation the role lives under,
 /// the offer (`Offer`, from the weave's `offering()`) on each one and on Workshop's catalog
@@ -322,7 +322,7 @@ public:
 
     /// BEGIN A PICTURE: no rows, no meanings, no caret, in the room the window gave. What the last
     /// picture meant is kept aside until `publish` compares the two. The row tools are a
-    /// `RowsBlock`'s, the area's whole room its room (workshop/pane_rows_block.hpp).
+    /// `RowsBlock`'s, the area's whole room its room (pane/rows_block.hpp).
     void begin() { block_.begin(this->rows(), this->columns()); }
     /// Whether the window showing the area counts in cells (`RowsRoom::cells`): the room a row's box
     /// is measured for and a press on it is read in.
@@ -892,6 +892,6 @@ private:
     std::vector<Entry> acts_;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_FACETS_HPP
+#endif // ZENGINE_PANE_FACETS_HPP

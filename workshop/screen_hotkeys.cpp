@@ -10,6 +10,7 @@
 #include <string_view>
 
 namespace zengine::workshop {
+using pane::ActionCause;
 
 // WL-DESK-11 -- agents/workshop/desktop-presenting.md
 std::string keyboard_context_name(const Session& s, KeyContext ctx) {
@@ -132,13 +133,13 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             named != nullptr ? "pane " + named->name + " @" + named->provider : "a pane";
         const std::string role = named != nullptr ? named->provider : std::string();
         const std::string pane = named != nullptr ? named->pane : std::string();
-        std::map<std::string_view, const v4::PaneActionRow*> by_id;
+        std::map<std::string_view, const pane::v4::PaneActionRow*> by_id;
         if (named != nullptr) {
-            for (const v4::PaneActionRow& d : named->actions) by_id.emplace(d.id, &d);
+            for (const pane::v4::PaneActionRow& d : named->actions) by_id.emplace(d.id, &d);
         }
         for (const PaneRow& row : p.rows) {
             const auto found = by_id.find(row.id);
-            const v4::PaneActionRow* declared = found != by_id.end() ? found->second : nullptr;
+            const pane::v4::PaneActionRow* declared = found != by_id.end() ? found->second : nullptr;
             add(group, role, pane, row.id, row.label, row.gesture, authored_for(k, row.id),
                 true, declared != nullptr ? declared->causes : std::vector<ActionCause>{},
                 declared != nullptr ? declared->enters : std::string());

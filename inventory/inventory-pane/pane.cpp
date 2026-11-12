@@ -5,16 +5,16 @@
 #include "presentation.hpp"
 #include "command.hpp"
 #include "toolbox.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_escape.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_seat.hpp"
+#include "pane/rows.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/escape.hpp"
+#include "pane/menu.hpp"
+#include "pane/parts.hpp"
+#include "pane/seat.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_document.hpp"
+#include "pane/document.hpp"
 #include "manuals/zengine.inventory-pane.hpp" // this pane's manual, compiled in from its page
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
@@ -39,22 +39,23 @@ struct InventoryPaneState {
 /// THE ROLE OF MAIN INVENTORY AND EVERY VIEW IT MADE: its activation, its offers on Workshop's
 /// catalog request, and the manual of any pane it offers, one page for all of them.
 using Role =
-    ws::MultiPaneFacet<own_role, pane, zengine::manual::pages::zengine_inventory_pane::kManual>;
+    zengine::pane::MultiPaneFacet<own_role, pane, zengine::manual::pages::zengine_inventory_pane::kManual>;
 class InventoryPane : public zengine::With<Role>::Weave<InventoryPane, InventoryPaneState,
-    loom::Accept<ws::PaneResetRequested, ws::PaneKey, ws::PaneTextInput,
-        ws::PaneCanvasValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered,
-        ws::PaneOperationAnswered, ws::ActorScopeJudged, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
+    loom::Accept<ws::PaneResetRequested, zengine::pane::PaneKey, zengine::pane::PaneTextInput,
+        zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneActionRequested, zengine::pane::PaneMenuAnswered,
+        zengine::pane::PaneOperationAnswered, zengine::pane::ActorScopeJudged,
+        zengine::pane::PaneCarryAnswered, ws::PaneShortcutsAnswered,
         ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn, ws::PaneLaunchAnswered,
         slots::InventoryViewEdit, slots::InventoryViewsRequested, inv::InventoryEntry,
         inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryChanged,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::v2::PaneOffered, ws::v4::PaneActions,
-        ws::PaneMenuRequested, ws::PaneEscapeUnspent,
-        ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested,
-        ws::v2::PaneOperationRequested, ws::ActorScopeRequested, ws::PaneCarryRequested,
-        ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
+    loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v4::PaneActions,
+        zengine::pane::PaneMenuRequested, zengine::pane::PaneEscapeUnspent,
+        zengine::pane::PanePassRequested, zengine::pane::PaneKeyboardRequested, zengine::pane::PaneOperationRequested,
+        zengine::pane::v2::PaneOperationRequested, zengine::pane::ActorScopeRequested, zengine::pane::PaneCarryRequested,
+        zengine::pane::PaneValueCarryRequested, zengine::pane::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::v2::InventoryList, inv::InventoryRead,
         inv::v2::InventoryAdd, inv::InventoryRename, inv::InventoryRemove, inv::InventoryFile,
         inv::InventoryFolderCreate, inv::InventoryFolderRename, inv::InventoryFolderMove,
@@ -98,7 +99,7 @@ public:
         toolbox_.begin(request.path, true, request.replace, state_.layout, m, asks_, m.defer_answer());
         notice_ = toolbox_.notice; draw(m);
     }
-    void on(const ws::ActorScopeJudged& judged, loom::Mail& m) {
+    void on(const zengine::pane::ActorScopeJudged& judged, loom::Mail& m) {
         if (toolbox_.hear(judged, m, asks_)) { notice_ = toolbox_.notice; draw(m); }
     }
     void on(const inv::v2::InventorySnapshot& snapshot, loom::Mail& m) {
@@ -151,10 +152,10 @@ public:
     /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows drawn there: a press, the wheel and a
     /// right press, the keys' place told by Workshop, and a press on an entry dragging it out under
     /// the window's number for it.
-    void on_window_pointer(const std::string& id,const ws::WindowPointer& p,bool keys_went_here,loom::Mail& m) {
+    void on_window_pointer(const std::string& id,const zengine::pane::WindowPointer& p,bool keys_went_here,loom::Mail& m) {
         if(!known(id)) return;
-        if(p.phase==ws::canvas_pointer::kWheel) { wheel(id,p.dy,m); return; }
-        if(p.phase!=ws::canvas_pointer::kPress) return;
+        if(p.phase==zengine::pane::canvas_pointer::kWheel) { wheel(id,p.dy,m); return; }
+        if(p.phase!=zengine::pane::canvas_pointer::kPress) return;
         if(p.button==3) right_press(id,p.at,/*current=*/!p.moved,m);
         else if(p.button==1 && (p.at.shown || p.moved))
             press(id,p.at.row,p.at.column,/*current=*/!p.moved,keys_went_here,/*carry=*/true,m);
@@ -199,9 +200,10 @@ private:
     }
     /// A RIGHT PRESS on the view's rows offers its menu; one beside them, where a prose press named
     /// no row, is handed back, as is one while an edit or an ask is in flight.
-    void right_press(const std::string& view,const ws::RowCell& at,bool current,loom::Mail& m) {
+    void right_press(const std::string& view,const zengine::pane::RowCell& at,bool current,loom::Mail& m) {
         // AN EDIT OR AN ASK IN FLIGHT OFFERS NOTHING NOW: the press is handed back, not dropped.
-        if (!at.shown || editing_!=Editing::none || busy()) { (void)ws::pane_menu::pass_back(m, own_role, view); return; }
+        if (!at.shown || editing_!=Editing::none || busy()) {
+            (void)zengine::pane::pane_menu::pass_back(m, own_role, view); return; }
         remove_armed_=false; current_=view; menu_folder_.reset(); pressed_folder_.clear();
         if (!current) { notice_="That picture moved; try again"; draw(m); return; }
         const auto* e=pointed(view,at.row,at.column,current); target_={}; if(e) select(*e,view);
@@ -209,7 +211,7 @@ private:
             if(const auto f=slots::folder_meant(*meaning,listing_.owner)) if(const auto* state=listing_.folder(*f)) {
                 menu_folder_=*state; views_[pane].selected=*meaning;
             }
-        auto menu=ws::pane_menu::Offer(view,e?e->label:menu_folder_?menu_folder_->name+"/":"Inventory view").at(at.row,at.column);
+        auto menu=zengine::pane::pane_menu::Offer(view,e?e->label:menu_folder_?menu_folder_->name+"/":"Inventory view").at(at.row,at.column);
         if(menu_folder_) {
             menu.row("folder-open","Open folder").row("folder-rename","Rename folder...")
                 .row("pick","Move to another folder...").row("folder-remove","Remove empty folder");
@@ -247,7 +249,7 @@ private:
         step(view,-static_cast<int>(std::clamp(whole,-reach,reach))); remove_armed_=false; draw(m);
     }
 public:
-    void on(const ws::PaneMenuAnswered& a, loom::Mail& m) {
+    void on(const zengine::pane::PaneMenuAnswered& a, loom::Mail& m) {
         const auto choice=menu_.take(m,a); if(choice.empty()) return;
         // Open is navigation and waits for no key, so the keys stay where the weaver put them.
         if(choice=="folder-open" && menu_folder_) { open_folder(menu_folder_->folder.folder); draw(m); return; }
@@ -282,7 +284,7 @@ public:
         }
         declare_all(m); draw(m);
     }
-    void on(const ws::PaneActionRequested& a, loom::Mail& m) {
+    void on(const zengine::pane::PaneActionRequested& a, loom::Mail& m) {
         if(!host(m) || !known(a.pane)) return;
         pressed_folder_.clear();
         if(editing_!=Editing::none && a.pane!=current_) {
@@ -330,7 +332,7 @@ public:
                 if(client_.begin(inv::InventoryRemove{target_.reference,target_.revision},current_,own_role,m,asks_)) removed_="Removed "+target_.label;
             } else if(folder && (a.id=="inventory.rename" || a.id=="inventory.remove" || a.id=="inventory.live")) {
                 if(a.id=="inventory.rename") {
-                    m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneKeyboardRequested{current_},m.correlation());
+                    m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,zengine::pane::PaneKeyboardRequested{current_},m.correlation());
                     rename_folder(*folder);
                 } else if(a.id=="inventory.remove") arm_folder_removal(*folder);
                 else notice_="A folder is not a value; Enter opens it";
@@ -345,13 +347,13 @@ public:
         if(a.id!="inventory.remove") remove_armed_=false;
         declare_all(m); draw(m);
     }
-    void on(const ws::PaneKey& k, loom::Mail& m) {
+    void on(const zengine::pane::PaneKey& k, loom::Mail& m) {
         // Escape's default: a view's marker rests on a row as a cursor does, not a selection, so
         // Escape goes back to Workshop.
-        if(host(m) && known(k.pane) && ws::pane_escape::answer(k,m,own_role,[] { return false; })) return;
+        if(host(m) && known(k.pane) && zengine::pane::pane_escape::answer(k,m,own_role,[] { return false; })) return;
         if(host(m) && k.pane==current_ && editing_!=Editing::none && editing_!=Editing::toolbox_confirm && line_.consume(k.scancode,k.modifiers,clipboard_)) draw(m);
     }
-    void on(const ws::PaneTextInput& t, loom::Mail& m) {
+    void on(const zengine::pane::PaneTextInput& t, loom::Mail& m) {
         if(!host(m) || t.pane!=current_ || editing_==Editing::none || editing_==Editing::toolbox_confirm) return;
         if(std::all_of(t.text.begin(),t.text.end(),[](unsigned char c){return c>=32 && c<=126;})) line_.type(t.text);
         draw(m);
@@ -359,7 +361,7 @@ public:
     /// A VALUE PLACED ON A VIEW'S AREA: its place reads back to the row and column of the rows drawn
     /// there it fell on. A drag begun in an Inventory view moves that entry by its own transfer
     /// token; any other value is stored as a copy.
-    void on(const ws::PaneCanvasValueDrop& v, loom::Mail& m) {
+    void on(const zengine::pane::PaneCanvasValueDrop& v, loom::Mail& m) {
         if(!host(m) || !known(v.pane) || editing_!=Editing::none) return;
         const auto found=canvases_.find(v.pane);
         if(found==canvases_.end() || found->second.area()!=v.area) return;
@@ -383,7 +385,7 @@ public:
         if(const auto* before=pointed(v.pane,at.row,at.column,current)) op.before=before->reference;
         authorize(op,m);
     }
-    void on(const ws::PaneOperationAnswered& a, loom::Mail& m) {
+    void on(const zengine::pane::PaneOperationAnswered& a, loom::Mail& m) {
         if(toolbox_.hear(a,m,asks_)) notice_=toolbox_.notice;
         else if(edit_ && m.answers_ask() && m.correlation()==edit_->correlation) {
             auto op=edit_->op; edit_.reset(); if(a.allowed) apply(op,m); else notice_=a.reason;
@@ -417,9 +419,9 @@ public:
         };
         if(toolbox_.hear(a,m,asks_)) notice_=toolbox_.notice;
         else if(matches(list_,inv::kInventoryRole,inv::v2::InventoryList::zen_name,2)) { list_={}; notice_="Inventory list unavailable: "+a.reason; }
-        else if(matches(carry_,ws::pane_menu::kWorkshopRole,carry_shape_,carry_version_)) { carry_={}; notice_="Pickup refused: "+a.reason; }
+        else if(matches(carry_,zengine::pane::pane_menu::kWorkshopRole,carry_shape_,carry_version_)) { carry_={}; notice_="Pickup refused: "+a.reason; }
         else if(read_ && matches(read_->ticket,inv::kInventoryRole,inv::InventoryRead::zen_name)) { read_.reset(); notice_="Entry read refused: "+a.reason; }
-        else if(edit_ && matches(edit_->ticket,ws::pane_menu::kWorkshopRole,ws::PaneOperationRequested::zen_name)) { edit_.reset(); notice_="View change refused: "+a.reason; }
+        else if(edit_ && matches(edit_->ticket,zengine::pane::pane_menu::kWorkshopRole,zengine::pane::PaneOperationRequested::zen_name)) { edit_.reset(); notice_="View change refused: "+a.reason; }
         else if(registration_ && matches(registration_->ticket,ws::kDesktopRole,ws::PaneShortcuts::zen_name)) finish_registration(false,a.reason,m);
         else if(command_.hear(a,m)) notice_=command_.notice;
         else if(client_.hear(a,m)) { notice_=client_.notice; settle_pickup(); }
@@ -460,8 +462,8 @@ public:
                 target_={}; target_.reference=e.reference; target_.revision=e.revision;
                 views_[current_].selected=slots::key(e.reference);
                 begin_edit(Editing::rename,{});
-                m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
-                    ws::PaneKeyboardRequested{current_},client_.gesture);
+                m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                    zengine::pane::PaneKeyboardRequested{current_},client_.gesture);
             }
             drop_into_=pane; propose(std::move(candidate),m);
             if(mode_==Mode::store) notice_="Name this new item; Enter saves, Escape keeps its generated name";
@@ -476,22 +478,23 @@ public:
                 // it is the name at pickup, never an identity or authority.
                 auto named=target_; named.revision=e.revision;
                 const auto encoded=inv::encode_pair(loom::to_value(e.reference),{loom::to_value(named)});
-                carry_shape_=ws::PaneCarryRequested::zen_name;
-                carry_=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
-                    ws::PaneCarryRequested{current_,label,loom::Bytes(encoded.begin(),encoded.end())},client_.gesture);
+                carry_shape_=zengine::pane::PaneCarryRequested::zen_name;
+                carry_=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                    zengine::pane::PaneCarryRequested{current_,label,loom::Bytes(encoded.begin(),encoded.end())},
+                    client_.gesture);
             } else if(mode_==Mode::drag) {
                 // The folder recorded when the press began the pickup, never the listing now.
                 if(!from) { notice_="That pickup ended before its entry arrived; drag it again"; draw(m); return; }
                 transfers_.clear(); const auto token=nonce_+"."+std::to_string(++asks_);
                 auto target=target_; target.revision=e.revision;
                 transfers_[token]={target,current_,layout_revision_,*from};
-                carry_shape_=ws::v2::PaneValueCarryRequested::zen_name; carry_version_=2;
-                carry_=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
-                    ws::v2::PaneValueCarryRequested{current_,label,e.pair,true,token},client_.gesture);
+                carry_shape_=zengine::pane::v2::PaneValueCarryRequested::zen_name; carry_version_=2;
+                carry_=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                    zengine::pane::v2::PaneValueCarryRequested{current_,label,e.pair,true,token},client_.gesture);
             } else {
-                carry_shape_=ws::PaneValueCarryRequested::zen_name;
-                carry_=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,
-                    ws::PaneValueCarryRequested{current_,label,e.pair,false},client_.gesture);
+                carry_shape_=zengine::pane::PaneValueCarryRequested::zen_name;
+                carry_=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                    zengine::pane::PaneValueCarryRequested{current_,label,e.pair,false},client_.gesture);
             }
             notice_=carry_.valid()?"Entry acquired; finish the gesture to place it":"Pickup could not be queued";
         } catch(const std::exception& error) { notice_=error.what(); } draw(m);
@@ -514,7 +517,7 @@ public:
         }
         refresh(m); draw(m);
     }
-    void on(const ws::PaneCarryAnswered& a, loom::Mail& m) {
+    void on(const zengine::pane::PaneCarryAnswered& a, loom::Mail& m) {
         if(!carry_.valid() || !m.answers_ask() || m.correlation()!=client_.gesture) return;
         carry_={}; notice_=!a.carried?a.reason:mode_==Mode::drag?
             "Drag moves between inventory views; other panes receive a copy":"Click a receiving pane; Escape cancels"; draw(m);
@@ -536,7 +539,7 @@ public:
         }
     }
 private:
-    static bool host(const loom::Mail& m) { return m.authored_from_role(ws::pane_menu::kWorkshopRole); }
+    static bool host(const loom::Mail& m) { return m.authored_from_role(zengine::pane::pane_menu::kWorkshopRole); }
     static std::string_view bytes(const loom::Bytes& b) { return {reinterpret_cast<const char*>(b.data()),b.size()}; }
     bool known(const std::string& id) const {
         return id==pane || std::any_of(state_.layout.views.begin(),state_.layout.views.end(),[&](const auto& v){return v.id==id;});
@@ -673,7 +676,7 @@ private:
     /// Delete to confirm, a picked item waiting for Ctrl+V or Escape -- asks for the keys the menu
     /// left where they were. Workshop grants them once, and only while the choice is still the
     /// weaver's latest act, so a press or key the weaver made since keeps them (WL-CTX-09).
-    void take_keys(loom::Mail& m) { (void)ws::pane_menu::take_keyboard(m,own_role,current_); }
+    void take_keys(loom::Mail& m) { (void)zengine::pane::pane_menu::take_keyboard(m,own_role,current_); }
     /// Is the picked item still in the collection this pane lists?
     bool picked_here() const {
         if(!pick_) return false;
@@ -782,7 +785,8 @@ private:
     }
     void authorize(const slots::InventoryViewEdit& op,loom::Mail& m) {
         const auto correlation=++asks_;
-        auto ticket=m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneOperationRequested{
+        auto ticket=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                                                     zengine::pane::PaneOperationRequested{
             current_,own_role,slots::InventoryViewEdit::zen_name,1,static_cast<std::int64_t>(m.correlation())},correlation);
         if(ticket.valid()) {edit_=Edit{op,correlation,ticket}; notice_="Checking authority for this view change";}
         else notice_="View permission request could not be queued";
@@ -831,7 +835,7 @@ private:
     }
     void open(const std::string& id,loom::Mail& m) {
         if(id.empty()) return;
-        launch_ask_=++asks_; m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{own_role,id},launch_ask_);
+        launch_ask_=++asks_; m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{own_role,id},launch_ask_);
     }
 public:
     /// EVERY PANE OFFERED AND DECLARED, the listing asked for and the hotkeys proposed: at each
@@ -847,21 +851,22 @@ private:
     /// for that pane, as for a reloaded image arriving; so offering an unchanged view again would
     /// close a menu open on it, and cost a message a view.
     void announce_views(loom::Mail& m,bool all=false) {
-        const auto offer=[&](const ws::v2::PaneOffered& o) {
+        const auto offer=[&](const zengine::pane::v2::PaneOffered& o) {
             const std::string said=o.name+"\n"+o.summary+"\n"+std::to_string(o.rows)+"x"+std::to_string(o.columns);
             auto& heard=offered_[o.pane];
             if(!all && heard==said) return;
-            heard=said; m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,o);
+            heard=said; m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,o);
         };
-        offer(ws::v2::PaneOffered{pane,"Inventory","Owned entries and portable toolboxes",7,54});
-        for(const auto& v:state_.layout.views) offer(ws::v2::PaneOffered{v.id,"Inventory "+v.kind+" "+v.id.substr(10),
+        offer(zengine::pane::v2::PaneOffered{pane,"Inventory","Owned entries and portable toolboxes",7,54});
+        for(const auto& v:state_.layout.views)
+            offer(zengine::pane::v2::PaneOffered{v.id,"Inventory "+v.kind+" "+v.id.substr(10),
             "Drag to move; right-click to name, copy or configure",v.kind=="column"?15:7,v.kind=="row"?41:slots::kSlotColumns});
     }
     void declare_all(loom::Mail& m,const slots::InventoryViews* candidate=nullptr) {
         declare(pane,m,candidate); for(const auto& v:state_.layout.views) declare(v.id,m,candidate);
     }
     void declare(const std::string& id,loom::Mail& m,const slots::InventoryViews* candidate) {
-        using namespace input; std::vector<ws::v4::PaneActionRow> rows;
+        using namespace input; std::vector<zengine::pane::v4::PaneActionRow> rows;
         if(editing_!=Editing::none && id==current_) rows={
             {"inventory.name.save","save",scan::kReturn,mod::kNone},{"inventory.name.cancel","cancel",scan::kEscape,mod::kNone}};
         else {
@@ -882,17 +887,18 @@ private:
         }
         if(id==pane) for(const auto& b:(candidate?*candidate:state_.layout).bindings) rows.push_back({slots::action(b),"run inventory command",0,0});
         for(auto& row:rows) row.causes=causes_of(row.id);
-        m.as_role(own_role).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneActions{id,{},std::move(rows)});
+        m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                                         zengine::pane::v4::PaneActions{id,{},std::move(rows)});
     }
     /// WHAT A PRESS OF ONE ROW MAY SEND BESIDE THE PANE PROTOCOL, its asks' answers followed: the
     /// owner's read and the carry a pickup ends in, the owner's change and the listing after it,
     /// and for a name line the toolbox's snapshot, restore and shortcut reset. A command row reads
     /// its entry; the message the entry holds goes to its target, a shape no row can name ahead.
-    static std::vector<ws::ActionCause> causes_of(const std::string& id) {
-        using ws::cause_of;
-        const ws::ActionCause listed=cause_of<inv::v2::InventoryList>();
-        if(id=="inventory.copy") return {cause_of<inv::InventoryRead>(),cause_of<ws::PaneValueCarryRequested>()};
-        if(id=="inventory.live") return {cause_of<inv::InventoryRead>(),cause_of<ws::PaneCarryRequested>()};
+    static std::vector<zengine::pane::ActionCause> causes_of(const std::string& id) {
+        using zengine::pane::cause_of;
+        const zengine::pane::ActionCause listed=cause_of<inv::v2::InventoryList>();
+        if(id=="inventory.copy") return {cause_of<inv::InventoryRead>(),cause_of<zengine::pane::PaneValueCarryRequested>()};
+        if(id=="inventory.live") return {cause_of<inv::InventoryRead>(),cause_of<zengine::pane::PaneCarryRequested>()};
         if(id=="inventory.refresh") return {listed};
         if(id=="inventory.remove") return {cause_of<inv::InventoryRemove>(),cause_of<inv::InventoryFolderRemove>(),listed};
         if(id=="inventory.move.here") return {cause_of<inv::InventoryFolderMove>(),cause_of<inv::InventoryFile>(),listed};
@@ -931,17 +937,17 @@ private:
             if(v.selected.empty()) if(const auto keys=row_keys(id); !keys.empty()) v.selected=keys.front();
             std::string edit_text;
             const auto room=std::max<std::int64_t>(0,v.columns); // the line is a box the row wide
-            ws::RowBox box;
+            zengine::pane::RowBox box;
             if(*label) {
-                box=ws::row_box(line_,0,room);
+                box=zengine::pane::row_box(line_,0,room);
                 edit_text=std::string(static_cast<std::size_t>(room),' ');
             }
             auto rows=slots::render(state_.layout,id,v,entries,notice_,label,edit_text,id==pane?browse():slots::Browse{});
             // THE CARET STANDS IN THE LINE, on its character or the blank after the last, and
             // writes nothing into it; a selection is drawn over its characters.
-            ws::RowsCaret caret;
+            zengine::pane::RowsCaret caret;
             if(*label && v.line_row>=0) {
-                caret=ws::box_caret(box,v.line_row);
+                caret=zengine::pane::box_caret(box,v.line_row);
                 if(v.line_row<static_cast<std::int64_t>(rows.size())) rows[static_cast<std::size_t>(v.line_row)].box=box;
             }
             const std::int64_t picture=v.map.settle();
@@ -951,7 +957,7 @@ private:
                 same_rows(said->second.rows,rows) && same_caret(said->second.caret,caret)) continue;
             sent_[id]=Sent{rows,picture,caret};
             const bool editing=editing_!=Editing::none;
-            auto parts=ws::row_parts(v.map,v.columns,[editing](const std::string& meaning) { return part_name(meaning,editing); });
+            auto parts=zengine::pane::row_parts(v.map,v.columns,[editing](const std::string& meaning) { return part_name(meaning,editing); });
             seat_of(id).publish_rows(m,std::move(rows),std::move(parts),caret,v.map.picture());
         }
     }
@@ -974,8 +980,8 @@ private:
         if (meaning.rfind("crumb:", 0) == 0) return meaning;
         return meaning.empty() ? std::string() : "entry:" + meaning;
     }
-    static bool same_rows(const std::vector<zengine::workshop::TextRow>& a,
-                          const std::vector<zengine::workshop::TextRow>& b) {
+    static bool same_rows(const std::vector<zengine::pane::TextRow>& a,
+                          const std::vector<zengine::pane::TextRow>& b) {
         if (a.size() != b.size()) return false;
         for (std::size_t i = 0; i < a.size(); ++i) {
             if (a[i].text != b[i].text || a[i].ink != b[i].ink ||
@@ -986,21 +992,21 @@ private:
         return true;
     }
     static std::string nonce() { std::random_device rng; std::ostringstream s; s<<std::hex<<rng()<<rng()<<rng()<<rng(); return s.str(); }
-    ws::pane_menu::Asked menu_;
+    zengine::pane::pane_menu::Asked menu_;
     inv::PaneClient client_;
     slots::Command command_;
     slots::Toolbox toolbox_;
     std::map<std::string,slots::View> views_;
     std::map<std::string,std::string> offered_; // each pane's offer as this image last sent it
-    struct Sent { std::vector<zengine::workshop::TextRow> rows; std::int64_t picture=0; ws::RowsCaret caret; };
-    static bool same_caret(const ws::RowsCaret& a,const ws::RowsCaret& b) {
+    struct Sent { std::vector<zengine::pane::TextRow> rows; std::int64_t picture=0; zengine::pane::RowsCaret caret; };
+    static bool same_caret(const zengine::pane::RowsCaret& a,const zengine::pane::RowsCaret& b) {
         return a.row==b.row && a.column==b.column && a.sel_begin_row==b.sel_begin_row && a.sel_begin_col==b.sel_begin_col &&
             a.sel_end_row==b.sel_end_row && a.sel_end_col==b.sel_end_col;
     }
     /// ONE VIEW'S AREA: the window that shows it and the rows drawn there -- each view's,
     /// image-local: a reload waits for fresh rooms.
-    std::map<std::string,ws::PaneCanvasSeat> canvases_;
-    ws::PaneCanvasSeat& seat_of(const std::string& id) {
+    std::map<std::string,zengine::pane::PaneCanvasSeat> canvases_;
+    zengine::pane::PaneCanvasSeat& seat_of(const std::string& id) {
         return canvases_.try_emplace(id,id,own_role).first->second;
     }
     std::map<std::string,Sent> sent_; // each view's picture as drawn since its room was given

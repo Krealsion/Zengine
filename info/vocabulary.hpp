@@ -44,7 +44,7 @@ inline constexpr const char* kInfoPaneSummary = "one pane's properties";
 /// must agree on it.
 inline constexpr const char* kInfoPaneStem = "zengine-info-pane";
 
-// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
+// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, pane/vocabulary.hpp) ---------
 
 inline constexpr const char* kActionUp = "info.up";     ///< the property cursor, up
 inline constexpr const char* kActionDown = "info.down"; ///< ...and down

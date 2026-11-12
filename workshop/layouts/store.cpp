@@ -20,6 +20,23 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneSetting;
+using pane::PaneSettingRow;
+using pane::PaneSettingUnused;
+using pane::PaneSettings;
+using pane::SettingKind;
+using pane::find_pane_setting;
+using pane::kMaxPaneSettingTextLen;
+using pane::kMaxPaneSettingsPerRow;
+using pane::narrow_setting_row;
+using pane::pane_held_settings;
+using pane::pane_setting_key_problem;
+using pane::pane_setting_problem;
+using pane::pane_setting_refused_by;
+using pane::pane_setting_text_ok;
+using pane::row_setting_absence;
+using pane::setting_kind;
+using pane::setting_value_text;
 
 using zengine::persist::Written;
 
@@ -70,7 +87,7 @@ Setup& desk_at(SetupState& s, std::size_t at) {
 }
 
 /// The declared row under `key` in `rows`, or nullptr.
-const v2::PaneSettingRow* row_named(const std::vector<v2::PaneSettingRow>* rows,
+const pane::v2::PaneSettingRow* row_named(const std::vector<pane::v2::PaneSettingRow>* rows,
                                     std::string_view key) {
     for (std::size_t i = 0; rows != nullptr && i < rows->size(); ++i) {
         if ((*rows)[i].key == key) {
@@ -160,7 +177,7 @@ bool LayoutStore::counts(loom::WeaveId from, std::int64_t incarnation,
 
 // WL-SETTING-03 -- agents/workshop/settings.md
 std::string LayoutStore::declare_pane(std::string_view role, const std::string& pane,
-                                      std::vector<v2::PaneSettingRow> rows, loom::WeaveId from) {
+                                      std::vector<pane::v2::PaneSettingRow> rows, loom::WeaveId from) {
     if (const Written o = check_pane_key(role, "provider"); !o.accepted) {
         return o.refusal;
     }
@@ -169,7 +186,7 @@ std::string LayoutStore::declare_pane(std::string_view role, const std::string& 
     }
     const PaneRef ref{std::string(role), pane};
     // JUDGED WHOLE BY THE DECLARATION'S OWN RULES; only an accepted one replaces what stands.
-    if (const std::string wrong = v2::pane_settings_declared_problem(v2::PaneSettingsDeclared{pane, rows});
+    if (const std::string wrong = pane::v2::pane_settings_declared_problem(pane::v2::PaneSettingsDeclared{pane, rows});
         !wrong.empty()) {
         return name_of(ref) + " @" + ref.provider + ": its settings were not taken -- " + wrong;
     }
@@ -188,7 +205,7 @@ std::string LayoutStore::declare_pane(std::string_view role, const std::string& 
         kept = pane_declarations_.end() - 1;
     }
     kept->narrow.clear();
-    for (const v2::PaneSettingRow& one : rows) {
+    for (const pane::v2::PaneSettingRow& one : rows) {
         kept->narrow.push_back(narrow_setting_row(one));
     }
     kept->rows = std::move(rows);
@@ -199,7 +216,7 @@ std::string LayoutStore::declare_pane(std::string_view role, const std::string& 
 }
 
 // WL-SETTING-03 -- agents/workshop/settings.md
-const std::vector<v2::PaneSettingRow>* LayoutStore::counted(const PaneRef& ref) const {
+const std::vector<pane::v2::PaneSettingRow>* LayoutStore::counted(const PaneRef& ref) const {
     for (const PaneDeclaration& d : pane_declarations_) {
         if (d.ref == ref) {
             return counts(d.from, d.incarnation, ref.provider) ? &d.rows : nullptr;
@@ -218,20 +235,20 @@ const std::vector<PaneSettingRow>* LayoutStore::counted_v1(const PaneRef& ref) c
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-const std::vector<v2::PaneSettingRow>* LayoutStore::role_rows(std::string_view role) const {
+const std::vector<pane::v2::PaneSettingRow>* LayoutStore::role_rows(std::string_view role) const {
     for (const RoleDeclaration& d : role_declarations_) {
         if (d.role == role && counts(d.from, d.incarnation, d.role)) {
             return &d.rows;
         }
     }
     // WORKSHOP'S OWN ARE KNOWN HERE TOO, so its settings are judged before its declaration comes.
-    static const std::vector<v2::PaneSettingRow> own = prefs_persist::workshop_role_rows();
+    static const std::vector<pane::v2::PaneSettingRow> own = prefs_persist::workshop_role_rows();
     return role == kWorkshopProvider ? &own : nullptr;
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 std::string LayoutStore::declare_role(const std::string& role,
-                                        const std::vector<v2::PaneSettingRow>& rows,
+                                        const std::vector<pane::v2::PaneSettingRow>& rows,
                                         loom::WeaveId from) {
     const std::string at = "role-wide settings of " + role + ": ";
     if (role == kWorkshopProvider) {
@@ -239,8 +256,8 @@ std::string LayoutStore::declare_role(const std::string& role,
         if (rows != prefs_persist::workshop_role_rows()) {
             return at + "refused -- Workshop declares the settings this build keeps for it";
         }
-    } else if (const std::string wrong = v2::pane_settings_declared_problem(
-                   v2::PaneSettingsDeclared{std::string(), rows});
+    } else if (const std::string wrong = pane::v2::pane_settings_declared_problem(
+                   pane::v2::PaneSettingsDeclared{std::string(), rows});
                !wrong.empty()) {
         return at + "refused -- " + wrong;
     }
@@ -281,11 +298,11 @@ std::int64_t LayoutStore::row_revision(const PaneRef& ref) {
     if (seat == nullptr) {
         return 0;
     }
-    const std::vector<v2::PaneSettingRow>* rows = counted(ref);
+    const std::vector<pane::v2::PaneSettingRow>* rows = counted(ref);
     // THE HOLDER IS NOT MINTED IN: a new holder is handed the row at the revision it stands at, and
     // the presenter keeps a word from any other weave off the row.
     SettingsRevision now{ref, 0, run_.put_live, seat->settings,
-                         rows != nullptr ? *rows : std::vector<v2::PaneSettingRow>{}};
+                         rows != nullptr ? *rows : std::vector<pane::v2::PaneSettingRow>{}};
     for (SettingsRevision& kept : settings_revisions_) {
         if (!(kept.ref == ref)) {
             continue;
@@ -303,7 +320,7 @@ std::int64_t LayoutStore::row_revision(const PaneRef& ref) {
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 std::int64_t LayoutStore::role_revision(const std::string& role) {
-    const std::vector<v2::PaneSettingRow>* rows = role_rows(role);
+    const std::vector<pane::v2::PaneSettingRow>* rows = role_rows(role);
     if (rows == nullptr) {
         return 0;
     }
@@ -381,7 +398,7 @@ std::optional<std::pair<loom::WeaveId, bool>> LayoutStore::taker_of(const PaneRe
         return std::nullopt;
     }
     // THE NEWEST VERSION IT TAKES, whether or not, and whenever, it declared.
-    if (host_->holder_accepts(ref.provider, *loom::schema_of<v2::PaneSettings>())) {
+    if (host_->holder_accepts(ref.provider, *loom::schema_of<pane::v2::PaneSettings>())) {
         return std::make_pair(holder, true);
     }
     if (host_->holder_accepts(ref.provider, *loom::schema_of<PaneSettings>())) {
@@ -415,7 +432,7 @@ std::vector<PaneHandOff> LayoutStore::pane_hand_offs() {
             continue; // what it holds is what this layout keeps: saying so again is noise
         }
         out.push_back(PaneHandOff{row.ref, taker->first, taker->second,
-                                  v2::PaneSettings{row.ref.pane, revision, std::move(held)}});
+                                  pane::v2::PaneSettings{row.ref.pane, revision, std::move(held)}});
     }
     // A PANE A WINDOW SHOWS WHILE THE LIVE LAYOUT SEATS IT NOWHERE has no row: what it asked for is
     // every setting at its default, and it is handed that once.
@@ -423,7 +440,7 @@ std::vector<PaneHandOff> LayoutStore::pane_hand_offs() {
         const std::optional<std::pair<loom::WeaveId, bool>> taker = taker_of(ref);
         if (taker && pane_of(run_.active, ref) == nullptr) {
             out.push_back(PaneHandOff{ref, taker->first, taker->second,
-                                      v2::PaneSettings{ref.pane, 0, {}}});
+                                      pane::v2::PaneSettings{ref.pane, 0, {}}});
         }
     }
     asked_unseated_.clear();
@@ -678,8 +695,8 @@ std::vector<std::string> LayoutStore::effective_pins(const PaneRef& ref, std::si
         return wide->keys;
     }
     std::vector<std::string> declared;
-    if (const std::vector<v2::PaneSettingRow>* rows = counted(ref)) {
-        for (const v2::PaneSettingRow& row : *rows) {
+    if (const std::vector<pane::v2::PaneSettingRow>* rows = counted(ref)) {
+        for (const pane::v2::PaneSettingRow& row : *rows) {
             if (row.pinned) {
                 declared.push_back(row.key);
             }
@@ -738,7 +755,7 @@ bool LayoutStore::pin_everywhere_locks(Setup& desk) const {
 // A ROW THE LIVE DESK SEATS WEARS EVERY EVERYWHERE LOCK ON ITS PANE, one seated since included.
 void LayoutStore::settle_live() { (void)pin_everywhere_locks(live_desk(run_)); }
 
-const v2::PaneSettingRow* LayoutStore::declared_row(const PaneRef& ref,
+const pane::v2::PaneSettingRow* LayoutStore::declared_row(const PaneRef& ref,
                                                     const std::string& key) const {
     return row_named(counted(ref), key);
 }
@@ -757,7 +774,7 @@ PaneSettingsAnswered LayoutStore::read_pane(const std::string& refused,
     }
     const PaneRef ref{asked.provider, asked.pane};
     load_prefs();
-    if (const std::vector<v2::PaneSettingRow>* rows = counted(ref)) {
+    if (const std::vector<pane::v2::PaneSettingRow>* rows = counted(ref)) {
         shown.rows = *rows;
     }
     shown.pins = effective_pins(ref, live_at(run_));
@@ -867,7 +884,7 @@ RoleSettingsAnswered LayoutStore::read_role(const std::string& refused,
         shown.written = "settings withheld: " + refused;
         return shown;
     }
-    if (const std::vector<v2::PaneSettingRow>* rows = role_rows(asked.role)) {
+    if (const std::vector<pane::v2::PaneSettingRow>* rows = role_rows(asked.role)) {
         shown.rows = *rows;
     }
     if (const prefs_persist::RoleSettingsKept* kept =
@@ -907,7 +924,7 @@ RoleSettingCommitAnswered LayoutStore::commit_role(const std::string& refused,
     if (!refused.empty()) {
         return refuse("settings commit withheld: " + refused, 0);
     }
-    const std::vector<v2::PaneSettingRow>* rows = role_rows(asked.role);
+    const std::vector<pane::v2::PaneSettingRow>* rows = role_rows(asked.role);
     if (rows == nullptr) {
         return refuse("nothing declares role-wide settings for `" + asked.role + "` here", 0);
     }
@@ -924,7 +941,7 @@ RoleSettingCommitAnswered LayoutStore::commit_role(const std::string& refused,
                           "remove it, then relaunch",
                       current);
     }
-    const v2::PaneSettingRow* declared = row_named(rows, asked.key);
+    const pane::v2::PaneSettingRow* declared = row_named(rows, asked.key);
     const int fields = (asked.flag ? 1 : 0) + (asked.number ? 1 : 0) + (asked.text ? 1 : 0);
     if (asked.clear && fields != 0) {
         return refuse("a clear takes no value -- name the key alone", current);
@@ -941,7 +958,7 @@ RoleSettingCommitAnswered LayoutStore::commit_role(const std::string& refused,
     std::optional<PaneSetting> value;
     if (!asked.clear) {
         const PaneSetting candidate{asked.key, asked.flag, asked.number, asked.text};
-        if (const std::string wrong = v2::pane_setting_refused_by(*declared, candidate);
+        if (const std::string wrong = pane::v2::pane_setting_refused_by(*declared, candidate);
             !wrong.empty()) {
             return refuse(wrong, current);
         }
@@ -1014,7 +1031,7 @@ PaneSettingPinAnswered LayoutStore::pin(const std::string& refused,
         return refuse(gone(asked.layout), {});
     }
     std::vector<std::string> pins = effective_pins(ref, *at);
-    const std::vector<v2::PaneSettingRow>* rows = counted(ref);
+    const std::vector<pane::v2::PaneSettingRow>* rows = counted(ref);
     if (rows == nullptr) {
         return refuse("nothing here declares settings for " + ref_text(ref), pins);
     }
@@ -1173,7 +1190,7 @@ PaneSettingLockAnswered LayoutStore::lock(const std::string& refused,
     std::string done;
     if (target.find('/') == std::string::npos) {
         // A ROLE-WIDE SETTING HAS ONE VALUE, so a lock on it holds everywhere and pins nothing.
-        const std::vector<v2::PaneSettingRow>* rows = role_rows(target);
+        const std::vector<pane::v2::PaneSettingRow>* rows = role_rows(target);
         if (rows == nullptr) {
             return refuse("nothing declares role-wide settings for `" + target + "` here");
         }
@@ -1334,7 +1351,7 @@ LayoutSettingsAnswered LayoutStore::layout_settings_reading() const {
     }
     // WHAT EACH PANE TAKES, and what each role takes.
     for (const PaneDeclaration& p : pane_declarations_) {
-        const std::vector<v2::PaneSettingRow>* rows = counted(p.ref);
+        const std::vector<pane::v2::PaneSettingRow>* rows = counted(p.ref);
         if (rows == nullptr) {
             continue;
         }
@@ -1343,7 +1360,7 @@ LayoutSettingsAnswered LayoutStore::layout_settings_reading() const {
     out.declared.push_back(
         DeclaredSettings{kWorkshopProvider, std::string(), *role_rows(kWorkshopProvider)});
     for (const RoleDeclaration& d : role_declarations_) {
-        if (const std::vector<v2::PaneSettingRow>* rows = role_rows(d.role)) {
+        if (const std::vector<pane::v2::PaneSettingRow>* rows = role_rows(d.role)) {
             out.declared.push_back(DeclaredSettings{d.role, std::string(), *rows});
         }
     }
@@ -1428,9 +1445,9 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
             } else if (prefs_bad_) {
                 wrong = "Workshop's settings file " + host_->prefs_path +
                         " could not be read at launch and is never written over";
-            } else if (const v2::PaneSettingRow* row = row_named(role_rows(w.target), w.key);
+            } else if (const pane::v2::PaneSettingRow* row = row_named(role_rows(w.target), w.key);
                        row != nullptr && !w.clear) {
-                wrong = v2::pane_setting_refused_by(*row, candidate);
+                wrong = pane::v2::pane_setting_refused_by(*row, candidate);
             }
         } else if (wrong.empty() && !ref) {
             wrong = "a write's target is `<role>/<pane>`, or `<role>` for a role-wide "
@@ -1438,8 +1455,8 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
         } else if (wrong.empty() && !place_of(w.layout)) {
             wrong = gone(w.layout);
         } else if (wrong.empty() && !w.clear) {
-            if (const v2::PaneSettingRow* row = declared_row(*ref, w.key)) {
-                wrong = v2::pane_setting_refused_by(*row, candidate);
+            if (const pane::v2::PaneSettingRow* row = declared_row(*ref, w.key)) {
+                wrong = pane::v2::pane_setting_refused_by(*row, candidate);
             }
         }
         if (!wrong.empty()) {
@@ -1488,7 +1505,7 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
         const auto index = static_cast<std::int64_t>(i);
         const PaneSetting candidate{w.key, w.flag, w.number, w.text};
         if (w.target.find('/') == std::string::npos) {
-            const v2::PaneSettingRow* row = row_named(role_rows(w.target), w.key);
+            const pane::v2::PaneSettingRow* row = row_named(role_rows(w.target), w.key);
             if (prefs_persist::lock_on(kept, w.target, w.key) != nullptr) {
                 results.push_back({index, kWriteLocked, locked_setting_refusal(w.key)});
                 continue;
@@ -1525,7 +1542,7 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
             results.push_back({index, kWriteLocked, locked_setting_refusal(w.key)});
             continue;
         }
-        const v2::PaneSettingRow* row = declared_row(ref, w.key);
+        const pane::v2::PaneSettingRow* row = declared_row(ref, w.key);
         if (row == nullptr && !w.clear) {
             results.push_back({index, kWriteNotTaken,
                                w.target + " has no counted setting `" + w.key + "`"});

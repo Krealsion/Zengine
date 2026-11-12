@@ -84,12 +84,12 @@ and the role is answered what the host said"
 
 ### WL-CTRL-06
 `info/property_view.hpp` compose
-`workshop/pane_rows.hpp` TextRow TextRow::background
+`pane/rows.hpp` TextRow TextRow::background
 `tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
 over the host's subject, and the panes are the Pane Manager's to list"
 
 ### WL-CTRL-07
-`workshop/pane_drawing.hpp` rows_drawing window_cell RowsRoom
+`pane/drawing.hpp` rows_drawing window_cell RowsRoom
 `info/pane.cpp` fit_room press
 `tests/test_workshop_panes_info.cpp` "Info draws its properties on its canvas on the medium's own
 ground, and a draft's caret and selection stand in its row where the weaver types, moving no

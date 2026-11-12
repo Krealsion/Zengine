@@ -14,6 +14,11 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneKeys;
+using pane::PaneQuitAnswered;
+using pane::PaneQuitRequested;
+using pane::WindowDrawing;
+using pane::kPresenterRole;
 
 // ---- THE RUN: what is true now, the picture published, and the way out --------------
 

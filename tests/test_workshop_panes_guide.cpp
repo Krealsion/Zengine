@@ -21,7 +21,7 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/guests.hpp"
 #include "workshop/guide_vocabulary.hpp"
-#include "workshop/pane_document.hpp"
+#include "pane/document.hpp"
 
 #include <zen/host/grant_wiring.hpp>
 #include <zen/switchboard/door.hpp>

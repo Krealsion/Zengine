@@ -23,10 +23,10 @@ Timer's beat is all its bus holds), `surface`, `input`, `ui`,
 `component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
 `columns`, the control strip, and pure `motion::Path` sampling: every header
 `zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the protocol
-header `workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
-helpers beside them, `workshop/pane_menu.hpp`, `workshop/pane_canvas_text.hpp`,
-`workshop/pane_text_fit.hpp` and `workshop/pane_canvas_rows.hpp`,
-plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_settings.hpp`,
+header `pane/vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
+helpers beside them, `pane/menu.hpp`, `pane/canvas_text.hpp`,
+`pane/text_fit.hpp` and `workshop/pane_canvas_rows.hpp`,
+plus `pane/operation.hpp`, `pane/carry.hpp`, `pane/settings.hpp`,
 `workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
 installed under `include/zengine/workshop/`), `neovim` (the one
 header `editor/neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and

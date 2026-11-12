@@ -53,15 +53,15 @@
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_canvas_drawing.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_picture.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_rows_block.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/parts.hpp"
+#include "pane/causes.hpp"
+#include "pane/canvas_drawing.hpp"
+#include "pane/drawing.hpp"
+#include "pane/facets.hpp"
+#include "pane/picture.hpp"
+#include "pane/rows.hpp"
+#include "pane/rows_block.hpp"
 #include "manual/manual.hpp"
 #include "workshop/setup_control.hpp"
 
@@ -75,9 +75,9 @@
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
 #include "workshop/pane_shortcuts.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_settings.hpp"
+#include "pane/operation.hpp"
+#include "pane/carry.hpp"
+#include "pane/settings.hpp"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -238,19 +238,19 @@ void operator_surface() {
 // ---- zengine::pane ---------------------------------------------------------------------
 void pane_surface() {
     namespace ws = zengine::workshop;
-    check(loom::schema_of<ws::v2::PaneOffered>()->version() == 2, "preferred-size offer version");
+    check(loom::schema_of<zengine::pane::v2::PaneOffered>()->version() == 2, "preferred-size offer version");
     check(loom::to_value(ws::SetupApplyRequested{"{}"}).schema().name() == "SetupApplyRequested", "setup command installed");
     check(loom::to_value(ws::PaneResetRequested{"info"}).schema().name() == "PaneResetRequested", "pane reset installed");
     // What a one-file pane says first, and what Workshop grants it: the protocol's own shapes,
     // spelled from the installed header, with no Workshop behind them. A schema identity is
     // what crosses, so the names are what a stranger's weave and Workshop agree on.
-    const ws::PaneOffered offer{"tally", "Tally", "a count that survives a reload"};
+    const zengine::pane::PaneOffered offer{"tally", "Tally", "a count that survives a reload"};
     check(offer.pane == "tally", "a pane offer names the pane it offers");
-    check(loom::schema_of<ws::PaneOffered>()->name() == "PaneOffered",
+    check(loom::schema_of<zengine::pane::PaneOffered>()->name() == "PaneOffered",
           "and crosses under the protocol's own schema name");
 
-    std::vector<ws::TextRow> said;
-    said.push_back(ws::TextRow{"Tally: 3"});
+    std::vector<zengine::pane::TextRow> said;
+    said.push_back(zengine::pane::TextRow{"Tally: 3"});
     check(said.size() == 1 && said[0].ink == zengine::graphics::colors::text,
           "a pane's rows are the pane helpers' own plain values");
 
@@ -260,12 +260,12 @@ void pane_surface() {
     map.begin();
     map.row(0, "count");
     (void)map.settle();
-    const std::vector<ws::RowPart> parts =
-        ws::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
+    const std::vector<zengine::pane::RowPart> parts =
+        zengine::pane::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
     check(parts.size() == 1 && parts[0].name == "row:count" && parts[0].columns == 20,
           "a row map's parts are named by what they mean");
-    check(ws::row_parts_problem(parts, 1, 20).empty() &&
-              !ws::row_parts_problem(std::vector<ws::RowPart>{parts[0], parts[0]}, 1, 20).empty(),
+    check(zengine::pane::row_parts_problem(parts, 1, 20).empty() &&
+              !zengine::pane::row_parts_problem(std::vector<zengine::pane::RowPart>{parts[0], parts[0]}, 1, 20).empty(),
           "and judged as Workshop judges them: a name once");
     // ...listed as a press reads them: a control recorded before its row comes after it, the last
     // of the parts that hold its place, as it is what the map answers there.
@@ -273,50 +273,50 @@ void pane_surface() {
     (void)map.span(0, 2, 4, 20, "save");
     map.row(0, "count");
     (void)map.settle();
-    const std::vector<ws::RowPart> pressed =
-        ws::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
+    const std::vector<zengine::pane::RowPart> pressed =
+        zengine::pane::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
     check(map.press_order() == std::vector<std::size_t>{1, 0} && pressed.size() == 2 &&
               pressed[1].name == "row:save" && *map.at(0, 3) == "save",
           "a row map's parts are listed in the order its press reads them");
     // ...and the same rows, drawn in the window that shows the pane's area, name the same parts
     // where they stand, and a point of the area reads back to its row and column.
     const zengine::graphics::TextMeasure text{8, 16};
-    const ws::RowsRoom room{20 * 8, 3 * 16, text};
-    const ws::RowsDrawing drawn = ws::rows_drawing(said, parts, room, room.columns());
+    const zengine::pane::RowsRoom room{20 * 8, 3 * 16, text};
+    const zengine::pane::RowsDrawing drawn = zengine::pane::rows_drawing(said, parts, room, room.columns());
     check(room.rows() == 3 && room.columns() == 20 && drawn.places.count("row:count") == 1 &&
               !drawn.sketch.records().empty() && drawn.sketch.records()[0].action == "row:count",
           "a pane's rows are drawn in its area naming the parts they named");
-    const ws::RowCell cell = ws::window_cell(3 * 8, 0, 1, room.columns(), text);
+    const zengine::pane::RowCell cell = zengine::pane::window_cell(3 * 8, 0, 1, room.columns(), text);
     check(cell.shown && cell.row == 0 && cell.column == 3,
           "a point of the area reads back to a row and a column of the rows drawn there");
     // ...and a picture of the pane's own, the helpers' plain value, is drawn for the window's room.
-    ws::CanvasPicture picture;
-    picture.rects.push_back(ws::CanvasRect{0, 0, 40, 16, zengine::graphics::colors::accent});
-    picture.parts.push_back(ws::CanvasPart{"box", 0, 0, 40, 16});
-    const ws::CanvasSketch sketched =
-        ws::canvas_sketch(picture, ws::canvas_window_room(160, 48, 0, text));
+    zengine::pane::CanvasPicture picture;
+    picture.rects.push_back(zengine::pane::CanvasRect{0, 0, 40, 16, zengine::graphics::colors::accent});
+    picture.parts.push_back(zengine::pane::CanvasPart{"box", 0, 0, 40, 16});
+    const zengine::pane::CanvasSketch sketched =
+        zengine::pane::canvas_sketch(picture, zengine::pane::canvas_window_room(160, 48, 0, text));
     check(!sketched.sketch.nodes().empty() && !sketched.sketch.records().empty() &&
               sketched.sketch.records()[0].action == "box",
           "a pane's own picture is drawn in its area naming its parts");
 
-    ws::PaneActions actions;
+    zengine::pane::PaneActions actions;
     actions.pane = offer.pane;
     actions.rows.push_back(
-        ws::PaneActionRow{"tally.add", "add one", zengine::input::scan::kSpace, 0});
+        zengine::pane::PaneActionRow{"tally.add", "add one", zengine::input::scan::kSpace, 0});
     check(actions.rows.front().id == "tally.add", "a declared action is an id a keymap can move");
 
     // ...and in its third version, what a press of it may cause and the modes, judged by the
     // installed judge before it is sent; a part says whether its operation applies now.
-    ws::v3::PaneActions said_causes{offer.pane, "count", {}, {}};
-    said_causes.rows.push_back(ws::v3::PaneActionRow{
+    zengine::pane::v3::PaneActions said_causes{offer.pane, "count", {}, {}};
+    said_causes.rows.push_back(zengine::pane::v3::PaneActionRow{
         "tally.add", "add one", zengine::input::scan::kSpace, 0, {},
-        {ws::cause_of<zengine::timer::StartTimer>(ws::to_pane("tally.role", "tally"))}, {}});
-    check(ws::pane_declaration_problem(said_causes).empty(),
+        {zengine::pane::cause_of<zengine::timer::StartTimer>(zengine::pane::to_pane("tally.role", "tally"))}, {}});
+    check(zengine::pane::pane_declaration_problem(said_causes).empty(),
           "a press's causes are said beside its keys, in the form Workshop admits");
-    said_causes.rows.front().causes.push_back(ws::ActionCause{"Bad Name", 1, ""});
-    check(!ws::pane_declaration_problem(said_causes).empty(),
+    said_causes.rows.front().causes.push_back(zengine::pane::ActionCause{"Bad Name", 1, ""});
+    check(!zengine::pane::pane_declaration_problem(said_causes).empty(),
           "and a cause out of form is refused before it is sent");
-    const std::vector<ws::RowPart> available = ws::row_parts(
+    const std::vector<zengine::pane::RowPart> available = zengine::pane::row_parts(
         map, 20, [](const std::string& m) { return "row:" + m; },
         [](const std::string& m) { return m != "save"; });
     check(available.size() == 2 && available[0].available && !available[1].available,
@@ -324,17 +324,17 @@ void pane_surface() {
 
     // A pane declares the settings it takes, judged by the installed judge before it is sent, and
     // reads what it is handed by the same words a refusal uses.
-    ws::PaneSettingRow step;
+    zengine::pane::PaneSettingRow step;
     step.key = "step";
     step.number = 1;
     step.low = 0;
     step.high = 9;
-    const ws::PaneSettingsDeclared declared{offer.pane, {step}};
-    check(ws::pane_settings_declared_problem(declared).empty(),
+    const zengine::pane::PaneSettingsDeclared declared{offer.pane, {step}};
+    check(zengine::pane::pane_settings_declared_problem(declared).empty(),
           "a declared setting is judged as Workshop judges it");
-    const ws::PaneSettings handed{offer.pane, {ws::PaneSetting{"step", {}, 12, {}}}};
-    check(ws::setting_kind(handed.settings.front()) == ws::SettingKind::kNumber &&
-              ws::pane_setting_refused_by(step, handed.settings.front()) ==
+    const zengine::pane::PaneSettings handed{offer.pane, {zengine::pane::PaneSetting{"step", {}, 12, {}}}};
+    check(zengine::pane::setting_kind(handed.settings.front()) == zengine::pane::SettingKind::kNumber &&
+              zengine::pane::pane_setting_refused_by(step, handed.settings.front()) ==
                   "step takes a whole number from 0 to 9, not a number `12`",
           "a handed setting the pane cannot use is said in the words Workshop refuses it in");
 }
@@ -479,11 +479,11 @@ int main() {
     const auto listed_back = loom::from_value<zengine::inventory::InventoryListed>(loom::to_value(listed));
     check(listed_back.entries.size() == 1 && listed_back.entries[0].reference.entry == reference.entry,
           "inventory collection summaries retain entry identity through the installed vocabulary");
-    check(loom::schema_of<zengine::workshop::PaneValueCarryRequested>()->fields().size() == 4,
+    check(loom::schema_of<zengine::pane::PaneValueCarryRequested>()->fields().size() == 4,
           "installed panes can request value dragging");
-    check(loom::schema_of<zengine::workshop::PaneCanvasValueDrop>()->find("area") != nullptr,
+    check(loom::schema_of<zengine::pane::PaneCanvasValueDrop>()->find("area") != nullptr,
           "installed panes receive copy drops at a point of their area, separately from references");
-    check(loom::schema_of<zengine::workshop::PaneCanvasValueDrop>()->find("source_role") != nullptr,
+    check(loom::schema_of<zengine::pane::PaneCanvasValueDrop>()->find("source_role") != nullptr,
           "installed copy drops preserve attributed source separately from pure bytes");
     check(loom::schema_of<zengine::workshop::PaneShortcuts>()->find("rows") != nullptr,
           "installed panes can propose shortcuts through Desktop");
@@ -528,15 +528,15 @@ int main() {
         zengine::inventory::decode_pair(reference_pair).item);
     check(restored_reference.owner == reference.owner && restored_reference.entry == reference.entry,
           "an installed consumer can transport a typed reference independently of item schemas");
-    check(loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("area") != nullptr &&
-              loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("x") != nullptr,
+    check(loom::schema_of<zengine::pane::PaneCanvasDrop>()->find("area") != nullptr &&
+              loom::schema_of<zengine::pane::PaneCanvasDrop>()->find("x") != nullptr,
           "a reference placed on a pane names the area it was placed on and the point there");
-    check(loom::schema_of<zengine::workshop::PaneOperationRequested>()->find("shape") != nullptr,
+    check(loom::schema_of<zengine::pane::PaneOperationRequested>()->find("shape") != nullptr,
           "an installed pane can name the operation whose initiating actor needs authority");
-    check(loom::schema_of<zengine::workshop::PaneObservationRequested>()->find("subject") != nullptr &&
-          loom::schema_of<zengine::workshop::PaneObservationContinued>()->find("lease") != nullptr &&
-          loom::schema_of<zengine::workshop::PaneObservationAnswered>()->find("lease") != nullptr &&
-          loom::schema_of<zengine::workshop::PaneObservationEnded>()->find("lease") != nullptr,
+    check(loom::schema_of<zengine::pane::PaneObservationRequested>()->find("subject") != nullptr &&
+          loom::schema_of<zengine::pane::PaneObservationContinued>()->find("lease") != nullptr &&
+          loom::schema_of<zengine::pane::PaneObservationAnswered>()->find("lease") != nullptr &&
+          loom::schema_of<zengine::pane::PaneObservationEnded>()->find("lease") != nullptr,
           "an installed pane can ask for a bounded, re-judged observation of one subject");
     check(loom::schema_of<zengine::inventory::InventoryCaptured>()->fields().size() == 1,
           "the capture reply carries its own pair");

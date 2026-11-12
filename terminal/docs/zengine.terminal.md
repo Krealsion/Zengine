@@ -281,4 +281,4 @@ run: a new launch starts with none.
 - [Terminal](terminal.md): keep a command or a reply in Inventory, find a power, hide the legend in
   one layout, and take a completion or run the line as typed.
 - [The terminal seam](../../workshop/terminal_seam_vocabulary.hpp), the shapes the pane and Workshop
-  exchange, and [the pane protocol](../../workshop/pane_vocabulary.hpp).
+  exchange, and [the pane protocol](../../pane/vocabulary.hpp).

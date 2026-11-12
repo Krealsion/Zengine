@@ -15,7 +15,7 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "editor/editor-pane/vocabulary.hpp"
 #include "weavelib/legacy_pane_protocol.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 
 #include <zen/registry.hpp>
 
@@ -23,10 +23,10 @@
 
 namespace {
 
-v2::PaneActionRow declared(const char* id, const char* label, std::int64_t scancode,
+zengine::pane::v2::PaneActionRow declared(const char* id, const char* label, std::int64_t scancode,
                        std::int64_t modifiers = input::mod::kNone,
                        const char* supersedes = "") {
-    v2::PaneActionRow row;
+    zengine::pane::v2::PaneActionRow row;
     row.id = id;
     row.label = label;
     row.scancode = scancode;
@@ -37,17 +37,17 @@ v2::PaneActionRow declared(const char* id, const char* label, std::int64_t scanc
 
 /// A VERSION-ONE DECLARATION, built from rows written in the host's own row type -- see
 /// `narrowed` below for why the suite writes them that way and sends them this way.
-PaneActions actions_for(const char* pane, const std::vector<v2::PaneActionRow>& rows);
+PaneActions actions_for(const char* pane, const std::vector<zengine::pane::v2::PaneActionRow>& rows);
 
 /// Offer a pane AND declare its actions in one breath, as a real provider does, then open it
 /// through the launch door. Answers the pane's runtime handle. ⚠ THESE SEND VERSION ONE: the rows
 /// are written in the host's later row type for one spelling across the suite and NARROWED here
 /// to the four fields a provider built before ownership can say, so every case not about
 /// ownership drives the older door, with the real shape, through the real seam.
-inline PaneActions actions_for(const char* pane, const std::vector<v2::PaneActionRow>& rows) {
+inline PaneActions actions_for(const char* pane, const std::vector<zengine::pane::v2::PaneActionRow>& rows) {
     PaneActions out;
     out.pane = pane;
-    for (const v2::PaneActionRow& row : rows) {
+    for (const zengine::pane::v2::PaneActionRow& row : rows) {
         REQUIRE_MESSAGE(row.supersedes.empty(),
                         "a row that owns a host action cannot be said in version one");
         out.rows.push_back(PaneActionRow{row.id, row.label, row.scancode, row.modifiers});
@@ -56,7 +56,7 @@ inline PaneActions actions_for(const char* pane, const std::vector<v2::PaneActio
 }
 
 std::int64_t seat_pane_declared(PaneRig& r, ProviderSeat* seat, const char* role,
-                                const char* pane, std::vector<v2::PaneActionRow> rows) {
+                                const char* pane, std::vector<zengine::pane::v2::PaneActionRow> rows) {
     r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
         s.declare(m, actions_for(pane, rows));
@@ -68,10 +68,10 @@ std::int64_t seat_pane_declared(PaneRig& r, ProviderSeat* seat, const char* role
 
 /// ...AND THE SECOND VERSION, for a pane that owns one of Workshop's actions.
 std::int64_t seat_pane_declared_v2(PaneRig& r, ProviderSeat* seat, const char* role,
-                                   const char* pane, std::vector<v2::PaneActionRow> rows) {
+                                   const char* pane, std::vector<zengine::pane::v2::PaneActionRow> rows) {
     r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
-        s.declare_v2(m, v2::PaneActions{pane, rows});
+        s.declare_v2(m, zengine::pane::v2::PaneActions{pane, rows});
     });
     r.pick(PaneRef{role, pane});
     const RuntimePane* row = r.session().panes.runtime.find(role, pane);
@@ -80,13 +80,13 @@ std::int64_t seat_pane_declared_v2(PaneRig& r, ProviderSeat* seat, const char* r
 
 /// Declare again, for a pane already offered -- a refresh, or an attempt at one.
 void redeclare(PaneRig& r, ProviderSeat* seat, const char* pane,
-               std::vector<v2::PaneActionRow> rows) {
+               std::vector<zengine::pane::v2::PaneActionRow> rows) {
     r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
         s.declare(m, actions_for(pane, rows));
     });
 }
 
-const std::vector<v4::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
+const std::vector<zengine::pane::v4::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
     const RuntimePane* row = r.session().panes.runtime.of_kind(kind);
     REQUIRE(row != nullptr);
     return row->actions;
@@ -147,7 +147,7 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
     // four fields; the field that lets a pane name an action it owns lives in a version of its
     // own, because a published `(name, version)` is frozen and its identity is derived from the
     // shape (Loom GATE-04).
-    const std::shared_ptr<const loom::Schema> row2 = loom::schema_of<v2::PaneActionRow>();
+    const std::shared_ptr<const loom::Schema> row2 = loom::schema_of<zengine::pane::v2::PaneActionRow>();
     REQUIRE(row2 != nullptr);
     CHECK(row2->name() == "PaneActionRow");
     CHECK(row2->version() == 2u);
@@ -160,7 +160,7 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
     CHECK(row2->fields()[4].type.kind == loom::Kind::Text);
     CHECK_FALSE(loom::same_identity(*row, *row2)); // two shapes, and the bus knows it
 
-    const std::shared_ptr<const loom::Schema> declared2 = loom::schema_of<v2::PaneActions>();
+    const std::shared_ptr<const loom::Schema> declared2 = loom::schema_of<zengine::pane::v2::PaneActions>();
     REQUIRE(declared2 != nullptr);
     CHECK(declared2->name() == "PaneActions");
     CHECK(declared2->version() == 2u);
@@ -198,8 +198,8 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
 TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: what a declaration says beside its keys is judged by its form "
           "-- each cause, the mode in force, the other modes and the mode a row enters") {
     const auto with = [](std::vector<ActionCause> causes, std::string enters = {}) {
-        v3::PaneActions d{"p", "browse", {}, {ModeCauses{"list", {}}}};
-        d.rows.push_back(v3::PaneActionRow{"p.go", "go", input::scan::kG, input::mod::kNone, {},
+        zengine::pane::v3::PaneActions d{"p", "browse", {}, {ModeCauses{"list", {}}}};
+        d.rows.push_back(zengine::pane::v3::PaneActionRow{"p.go", "go", input::scan::kG, input::mod::kNone, {},
                                            std::move(causes), std::move(enters)});
         return d;
     };
@@ -230,7 +230,7 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: what a declaration says beside its keys is 
     refused({}, "enters `table`, a mode this declaration does not name", "table");
     // THE MODES: named in form, each other mode once and never the mode in force, and a pane naming
     // other modes names its own.
-    v3::PaneActions modes = with({});
+    zengine::pane::v3::PaneActions modes = with({});
     modes.mode = "Browse";
     CHECK(pane_declaration_problem(modes).find("lowercase letters") != std::string::npos);
     modes = with({});
@@ -247,7 +247,7 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: what a declaration says beside its keys is 
     modes.elsewhere[0].causes = {ActionCause{"BuildRequested", 0, ""}};
     CHECK(pane_declaration_problem(modes).find("mode `list`:") != std::string::npos);
     // A PANE WITH ONE MODE NAMES NONE, OR ITS ONE.
-    CHECK(pane_declaration_problem(v3::PaneActions{"p", "", {}, {}}).empty());
+    CHECK(pane_declaration_problem(zengine::pane::v3::PaneActions{"p", "", {}, {}}).empty());
 }
 
 TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its mode and what the "
@@ -257,16 +257,16 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its 
     r.mount_workshop();
     r.ready();
     ProviderSeat* seat = r.mount_provider(kHelloRole);
-    const auto declared = [&](const v3::PaneActions& d) {
+    const auto declared = [&](const zengine::pane::v3::PaneActions& d) {
         r.drive(seat, [d](ProviderSeat& s, loom::Mail& m) { s.declare_v3(m, d); });
     };
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const RuntimePane* row = r.session().panes.runtime.find(kHelloRole, kHelloPane);
     REQUIRE(row != nullptr);
-    v3::PaneActions good{kHelloPane, "browse", {},
+    zengine::pane::v3::PaneActions good{kHelloPane, "browse", {},
                          {ModeCauses{"list", {cause_of<PaneCloseRequested>()}}}};
-    good.rows.push_back(v3::PaneActionRow{"hello.go", "go", input::scan::kUnknown,
+    good.rows.push_back(zengine::pane::v3::PaneActionRow{"hello.go", "go", input::scan::kUnknown,
                                           input::mod::kNone, {},
                                           {cause_of<PaneLaunchRequested>(on_part("pane:"))},
                                           "list"});
@@ -302,7 +302,7 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its 
     }
     CHECK(modes);
     // A MALFORMED CAUSE REFUSES THE WHOLE DECLARATION, and the rows, causes and modes in force stand.
-    v3::PaneActions bad = good;
+    zengine::pane::v3::PaneActions bad = good;
     bad.rows[0].id = "hello.other";
     bad.rows[0].causes = {ActionCause{"BuildRequested", 0, ""}};
     declared(bad);
@@ -313,7 +313,7 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its 
                   r.last_notice());
     // ...AND AN EARLIER VERSION IS WIDENED WITH NONE: no causes, no mode, no other modes.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.declare_v2(m, v2::PaneActions{kHelloPane, {v2::PaneActionRow{"hello.up", "up",
+        s.declare_v2(m, zengine::pane::v2::PaneActions{kHelloPane, {zengine::pane::v2::PaneActionRow{"hello.up", "up",
                                                                         input::scan::kUp,
                                                                         input::mod::kNone, ""}}});
     });
@@ -327,14 +327,14 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its 
 
 TEST_CASE("the join judges a declaration whole, in order, and a refusal writes nothing") {
     Keymap k;
-    const auto refused = [&k](std::vector<v2::PaneActionRow> rows) {
+    const auto refused = [&k](std::vector<zengine::pane::v2::PaneActionRow> rows) {
         Keymap candidate = k;
         const Written w = join_pane_rows(candidate, kSomePane, rows);
         CHECK_FALSE(w.accepted);
         CHECK(candidate.pane_rows(kSomePane) == nullptr); // nothing written
         return w.refusal;
     };
-    const auto accepted = [&k](std::vector<v2::PaneActionRow> rows) {
+    const auto accepted = [&k](std::vector<zengine::pane::v2::PaneActionRow> rows) {
         Keymap candidate = k;
         const Written w = join_pane_rows(candidate, kSomePane, rows);
         CHECK_MESSAGE(w.accepted, w.refusal);
@@ -343,7 +343,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
     };
 
     SUBCASE("the row count is bounded, and the bound is said") {
-        std::vector<v2::PaneActionRow> many;
+        std::vector<zengine::pane::v2::PaneActionRow> many;
         for (std::size_t i = 0; i <= kMaxPaneActionRows; ++i) {
             many.push_back(declared(("x.r" + std::to_string(i)).c_str(), "row",
                                     input::scan::kUnknown));
@@ -919,10 +919,10 @@ std::size_t times_in(const std::string& text, const std::string& part) {
 } // namespace
 
 /// A FOURTH-VERSION ROW: a default, and a key for a POSIX terminal (`kUnknown` for none).
-static v4::PaneActionRow posix_row(const char* id, const char* label, std::int64_t scancode,
+static zengine::pane::v4::PaneActionRow posix_row(const char* id, const char* label, std::int64_t scancode,
                                    std::int64_t modifiers, std::int64_t posix_scancode = 0,
                                    std::int64_t posix_modifiers = 0) {
-    return v4::PaneActionRow{id, label, scancode, modifiers, {}, {}, {}, posix_scancode,
+    return zengine::pane::v4::PaneActionRow{id, label, scancode, modifiers, {}, {}, {}, posix_scancode,
                              posix_modifiers};
 }
 
@@ -933,9 +933,9 @@ TEST_CASE("WL-KEY-08: a row's POSIX key stands in place of its default in the PO
     const std::int64_t kCtrlShift = input::mod::kCtrl | input::mod::kShift;
     const Gesture natural{sc::kS, kCtrlShift};
     const Gesture posix{sc::kEnd, input::mod::kAlt};
-    const v4::PaneActionRow copy = posix_row("x.copy", "copy", sc::kS, kCtrlShift, sc::kEnd,
+    const zengine::pane::v4::PaneActionRow copy = posix_row("x.copy", "copy", sc::kS, kCtrlShift, sc::kEnd,
                                              input::mod::kAlt);
-    const v4::PaneActionRow shifted = posix_row("x.r", "row", sc::k1, input::mod::kShift);
+    const zengine::pane::v4::PaneActionRow shifted = posix_row("x.r", "row", sc::k1, input::mod::kShift);
     const Gesture shift_one{sc::k1, input::mod::kShift};
     const std::vector<std::string> only_shifted{
         gap_sentence("shift+1", "x.r", posix_gap(shift_one))};
@@ -1020,7 +1020,7 @@ TEST_CASE("WL-KEY-08: a pane row on a gesture the terminal cannot produce is joi
     const std::string gap = gap_sentence(gesture_word(shift_one), "x.r", posix_gap(shift_one));
     REQUIRE(posix_gap(shift_one) != nullptr);
     Keymap k;
-    const std::vector<v2::PaneActionRow> rows{
+    const std::vector<zengine::pane::v2::PaneActionRow> rows{
         declared("x.r", "row", input::scan::k1, input::mod::kShift),
         declared("x.s", "other row", input::scan::kU, input::mod::kCtrl)};
 
@@ -1070,7 +1070,7 @@ TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts
         r.mount_workshop();
         r.ready();
         ProviderSeat* seat = r.mount_provider(kHelloRole);
-        const std::vector<v2::PaneActionRow> rows{
+        const std::vector<zengine::pane::v2::PaneActionRow> rows{
             declared("hello.up", "row up", input::scan::k1, input::mod::kShift),
             declared("hello.down", "row down", input::scan::kDown)};
         r.drive(seat, [&rows](ProviderSeat& s, loom::Mail& m) {
@@ -1244,7 +1244,7 @@ TEST_CASE("Powers declares its actions, acts on the resolved id, and its typing 
                                        intro::kPowersActionSources, intro::kPowersActionOperators,
                                        intro::kPowersActionComposite};
     std::vector<std::string> declared;
-    for (const v4::PaneActionRow& row : retained(r, kind)) declared.push_back(row.id);
+    for (const zengine::pane::v4::PaneActionRow& row : retained(r, kind)) declared.push_back(row.id);
     CHECK(declared == ids);
     // LOADED DECLARES NONE, and Project its two rows alone.
     {
@@ -1257,7 +1257,7 @@ TEST_CASE("Powers declares its actions, acts on the resolved id, and its typing 
         const RuntimePane* row = intro_row(r, intro::kArrangementPane);
         REQUIRE(row != nullptr);
         std::vector<std::string> project;
-        for (const v4::PaneActionRow& action : row->actions) project.push_back(action.id);
+        for (const zengine::pane::v4::PaneActionRow& action : row->actions) project.push_back(action.id);
         CHECK(project == std::vector<std::string>{intro::kProjectActionUp, intro::kProjectActionDown});
     }
     const PaneRows* rows = r.session().keymap.pane_rows(kind);
@@ -1378,7 +1378,7 @@ TEST_CASE("a pane built against the published version one still registers, decla
     CHECK(loom::same_identity(*loom::schema_of<legacy::PaneActions>(),
                               *loom::schema_of<PaneActions>()));
     CHECK_FALSE(loom::same_identity(*loom::schema_of<legacy::PaneActions>(),
-                                    *loom::schema_of<v2::PaneActions>()));
+                                    *loom::schema_of<zengine::pane::v2::PaneActions>()));
 
     // ...AND IT WORKS, ON A REAL BUS, WITH THE REAL HOST, BESIDE A PANE THAT OWNS AN ACTION.
     PaneRig r;
@@ -1453,8 +1453,8 @@ TEST_CASE("a pane provider built as its own image against the published protocol
     REQUIRE_FALSE(source.empty());
     // THE DIRECTIVE, not the name: the fixture's own comment names the header it refuses to
     // include, and a tripwire that read the comment would refuse the explanation.
-    CHECK(source.find("#include \"workshop/pane_vocabulary.hpp\"") == std::string::npos);
-    CHECK(source.find("#include <workshop/pane_vocabulary.hpp>") == std::string::npos);
+    CHECK(source.find("#include \"pane/vocabulary.hpp\"") == std::string::npos);
+    CHECK(source.find("#include <pane/vocabulary.hpp>") == std::string::npos);
     CHECK(source.find("#include \"legacy_pane_protocol.hpp\"") != std::string::npos);
     MESSAGE("legacy image: ", WORKSHOP_SO_LEGACY_PANE, ", ",
             std::filesystem::file_size(WORKSHOP_SO_LEGACY_PANE), " bytes");
@@ -1486,7 +1486,7 @@ TEST_CASE("a pane provider built as its own image against the published protocol
         zengine::editor_pane::kEditorPaneRole, zengine::editor_pane::kEditorPane);
     REQUIRE_MESSAGE(editor != nullptr, "the Editor image's offer was not admitted");
     bool owns = false;
-    for (const v4::PaneActionRow& row : editor->actions) {
+    for (const zengine::pane::v4::PaneActionRow& row : editor->actions) {
         owns = owns || row.supersedes == kOwnableDocumentSave;
     }
     CHECK(owns); // the version-two declaration, admitted in the same session
@@ -1559,7 +1559,7 @@ TEST_CASE("two builds of one published version cannot both register, and that is
         loom::Registry vocabulary;
         loom::SchemaClaimScope old_pane = vocabulary.claim({loom::schema_of<legacy::PaneActions>()});
         loom::SchemaClaimScope current = vocabulary.claim(
-            {loom::schema_of<PaneActions>(), loom::schema_of<v2::PaneActions>()});
+            {loom::schema_of<PaneActions>(), loom::schema_of<zengine::pane::v2::PaneActions>()});
         CHECK(true); // no conflict: one identity for v1, a different one for v2
     }
 }
@@ -1804,7 +1804,7 @@ TEST_CASE("a pane's row and an above-the-modes application row collide unless th
           "stands in, in both arrival orders") {
     const auto row = [](const char* id, std::int64_t sc, std::int64_t mods,
                         const char* supersedes) {
-        v2::PaneActionRow r;
+        zengine::pane::v2::PaneActionRow r;
         r.id = id;
         r.label = "x";
         r.scancode = sc;
@@ -2756,7 +2756,7 @@ void posix_key_shown(bool posix_terminal) {
     r.extent(200, 60);
     load_real_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloRole);
-    const v4::PaneActions declared{
+    const zengine::pane::v4::PaneActions declared{
         kHelloPane,
         {},
         {posix_row("hello.copy", "save a new copy", sc::kS, kCtrlShift, sc::kEnd,
@@ -2952,10 +2952,10 @@ TEST_CASE("the Hotkeys pane declares its `help` setting, and a layout keeping it
     r.extent(200, 60);
 
     // THE ONE SETTING, AS WORKSHOP COUNTS IT: a flag on by default, pinned, found under help and chrome.
-    const v2::PaneSettingRow help{dp::kSettingHelp, true, std::nullopt, std::nullopt, {},
+    const zengine::pane::v2::PaneSettingRow help{dp::kSettingHelp, true, std::nullopt, std::nullopt, {},
                                   std::nullopt, std::nullopt, {"help", "chrome"}, true,
                                   "show the footer help lines"};
-    CHECK(declared_settings(r, hotkeys) == std::vector<v2::PaneSettingRow>{help});
+    CHECK(declared_settings(r, hotkeys) == std::vector<zengine::pane::v2::PaneSettingRow>{help});
 
     // ON, AS EVERY LAYOUT HAS IT TODAY: the file this run reads and how a key is written there --
     // every section open, so the list is longer than its room.

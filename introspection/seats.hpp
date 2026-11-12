@@ -23,17 +23,17 @@
 #include "operator/reference.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_seat.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/operation.hpp"
+#include "pane/parts.hpp"
+#include "pane/seat.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/kernel/manager.hpp>
 #include <zen/weave.hpp>
@@ -51,8 +51,8 @@
 namespace zengine::introspection {
 
 /// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
-/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
-using zengine::workshop::pane_menu::kWorkshopRole;
+/// (`pane/menu.hpp`) as a stranger's pane reads it.
+using zengine::pane::pane_menu::kWorkshopRole;
 
 /// WHAT A SEAT SPEAKS WITH ON ONE DELIVERY: the mail it answers, the weave's own id (the sender a
 /// value sent as a message names), and the one counter every question this role asks is
@@ -72,7 +72,7 @@ public:
     explicit PaneSeat(const char* key) : room_(key, kIntrospectionRole) {}
 
     /// THE PANE'S AREA ITSELF, where a graphics window that shows it finds the pane.
-    workshop::PaneCanvasSeat& room() noexcept { return room_; }
+    pane::PaneCanvasSeat& room() noexcept { return room_; }
 
     /// The owner declined, or the ask reached nobody: the question is retired and nothing is said.
     void retire(std::uint64_t correlation) {
@@ -123,15 +123,15 @@ protected:
 
     /// SAY WHAT THE PANE SHOWS, the one place its content leaves: its rows, their parts, the caret
     /// standing in them and what a press on them means (`press_meaning`), drawn in its area.
-    void say_rows(loom::Mail& mail, std::vector<workshop::TextRow> shown,
-                  std::vector<workshop::RowPart> parts = {}, const workshop::RowsCaret& caret = {},
+    void say_rows(loom::Mail& mail, std::vector<pane::TextRow> shown,
+                  std::vector<pane::RowPart> parts = {}, const pane::RowsCaret& caret = {},
                   const std::string& meaning = {}) {
         room_.publish_rows(mail, std::move(shown), std::move(parts), caret,
                            meaning.empty() ? 0 : meaning_number(meaning));
     }
 
 private:
-    workshop::PaneCanvasSeat room_;
+    pane::PaneCanvasSeat room_;
     std::uint64_t pending_ = 0;
     bool awaiting_ = false;
 };
@@ -148,8 +148,8 @@ class LoadedSeat : public PaneSeat {
 public:
     LoadedSeat() : PaneSeat(kLoadedPane) {}
 
-    static workshop::v2::PaneOffered offering() {
-        return workshop::v2::PaneOffered{kLoadedPane, kLoadedPaneName, kLoadedPaneSummary, 7, 54};
+    static pane::v2::PaneOffered offering() {
+        return pane::v2::PaneOffered{kLoadedPane, kLoadedPaneName, kLoadedPaneSummary, 7, 54};
     }
 
     /// A ROOM GRANTED: the projection goes with the old room, so no press is read against rows no
@@ -191,7 +191,7 @@ public:
     bool press(std::int64_t pressed_row, loom::Mail& mail, std::int64_t pressed_column = -1) {
         // THE SEARCH'S BOX, pressed anywhere in it, its blank room and border included: the caret
         // goes where the press names, and nothing is selected.
-        const workshop::RowBox& box = view_.search;
+        const pane::RowBox& box = view_.search;
         if (pressed_row == 0 && box.present() && pressed_column >= box.column &&
             pressed_column < box.column + box.columns) {
             component::text_box_press(search_,
@@ -246,7 +246,7 @@ public:
 
     /// A KEY WHILE LOADED HOLDS THE KEYBOARD: its search's editing vocabulary. The clipboard's
     /// chords are left alone, since nothing here reads or writes the clipboard.
-    void on_key(Voice voice, const workshop::PaneKey& key) {
+    void on_key(Voice voice, const pane::PaneKey& key) {
         if ((key.modifiers & input::mod::kCtrl) != 0 &&
             (key.scancode == input::scan::kC || key.scancode == input::scan::kX ||
              key.scancode == input::scan::kV)) {
@@ -262,7 +262,7 @@ public:
     /// TYPED CHARACTERS: the search, refused whole unless every byte is printable ASCII, a row's
     /// contract.
     void on_typed(Voice voice, const std::string& text) {
-        if (text.empty() || !workshop::pane_text::admissible(text)) {
+        if (text.empty() || !pane::pane_text::admissible(text)) {
             return;
         }
         const std::string searched = search_.text();
@@ -271,11 +271,11 @@ public:
     }
 
     /// WHAT LOADED CALLS ITS ROWS: a loaded weave's row by its name, `weave:<name>`.
-    std::vector<workshop::RowPart> loaded_parts() const {
-        workshop::PartNames<workshop::RowPart> named;
+    std::vector<pane::RowPart> loaded_parts() const {
+        pane::PartNames<pane::RowPart> named;
         for (std::size_t row = 0; row < view_.rows.size(); ++row) {
             if (const LoadedWeave* entry = entry_at_row(view_, static_cast<std::int64_t>(row))) {
-                (void)named.add(workshop::RowPart{
+                (void)named.add(pane::RowPart{
                     "weave:" + entry->name, static_cast<std::int64_t>(row), 0, columns()});
             }
         }
@@ -297,11 +297,11 @@ private:
     /// Loaded's rows, each press meaning the weave it names, and the search's caret after it on
     /// the heading.
     void say(loom::Mail& mail) {
-        workshop::RowsCaret caret;
+        pane::RowsCaret caret;
         if (view_.search.present() && !view_.rows.empty()) {
-            view_.search = workshop::row_box(search_, view_.search.column, view_.search.columns);
+            view_.search = pane::row_box(search_, view_.search.column, view_.search.columns);
             view_.rows[0].box = view_.search;
-            caret = workshop::box_caret(view_.search, 0);
+            caret = pane::box_caret(view_.search, 0);
         }
         say_rows(mail, view_.rows, loaded_parts(), caret, press_meaning(view_));
     }
@@ -327,20 +327,20 @@ class ArrangementSeat : public PaneSeat {
 public:
     ArrangementSeat() : PaneSeat(kArrangementPane) {}
 
-    static workshop::v2::PaneOffered offering() {
-        return workshop::v2::PaneOffered{kArrangementPane, kArrangementPaneName,
+    static pane::v2::PaneOffered offering() {
+        return pane::v2::PaneOffered{kArrangementPane, kArrangementPaneName,
                                          kArrangementPaneSummary, 9, 64};
     }
 
     /// What it answers to: its list moved an artifact, a question to the door each.
-    static workshop::v3::PaneActions actions() {
-        const std::vector<workshop::ActionCause> asks{
-            workshop::cause_of<workshop::ArrangementRequested>()};
-        workshop::v3::PaneActions declared;
+    static pane::v3::PaneActions actions() {
+        const std::vector<pane::ActionCause> asks{
+            pane::cause_of<workshop::ArrangementRequested>()};
+        pane::v3::PaneActions declared;
         declared.pane = kArrangementPane;
-        declared.rows.push_back(workshop::v3::PaneActionRow{
+        declared.rows.push_back(pane::v3::PaneActionRow{
             kProjectActionUp, "scroll up", input::scan::kUp, input::mod::kNone, {}, asks});
-        declared.rows.push_back(workshop::v3::PaneActionRow{
+        declared.rows.push_back(pane::v3::PaneActionRow{
             kProjectActionDown, "scroll down", input::scan::kDown, input::mod::kNone, {}, asks});
         return declared;
     }
@@ -421,30 +421,30 @@ class PowersSeat : public PaneSeat {
 public:
     PowersSeat() : PaneSeat(kPowersPane) {}
 
-    static workshop::v2::PaneOffered offering() {
-        return workshop::v2::PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58};
+    static pane::v2::PaneOffered offering() {
+        return pane::v2::PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58};
     }
 
     /// WHAT POWERS ANSWERS TO: its actions with their shipped defaults (`input::scan` and
     /// `input::mod` numbers), each with what its press may ask the door or the sampler -- what
     /// `on_action` reads. Applying a weaver's keymap is Workshop's.
-    static workshop::v3::PaneActions actions() {
-        const workshop::ActionCause found{
+    static pane::v3::PaneActions actions() {
+        const pane::ActionCause found{
             workshop::find_powers_schema()->name(),
             static_cast<std::int64_t>(workshop::find_powers_schema()->version()), {}};
-        const workshop::ActionCause described = workshop::cause_of<workshop::DescribePower>();
-        workshop::v3::PaneActions declared;
+        const pane::ActionCause described = pane::cause_of<workshop::DescribePower>();
+        pane::v3::PaneActions declared;
         declared.pane = kPowersPane;
         const auto row = [&declared](const char* id, const char* label, std::int64_t sc,
-                                     std::vector<workshop::ActionCause> causes) {
-            declared.rows.push_back(workshop::v3::PaneActionRow{id, label, sc, input::mod::kNone,
+                                     std::vector<pane::ActionCause> causes) {
+            declared.rows.push_back(pane::v3::PaneActionRow{id, label, sc, input::mod::kNone,
                                                                 {}, std::move(causes)});
         };
         row(kPowersActionView, "switch view", input::scan::kTab, {found, described});
         row(kPowersActionUp, "row up", input::scan::kUp, {described});
         row(kPowersActionDown, "row down", input::scan::kDown, {described});
         row(kPowersActionSample, "sample", input::scan::kReturn,
-            {workshop::cause_of<workshop::SampleRequested>()});
+            {pane::cause_of<workshop::SampleRequested>()});
         row(kPowersActionSources, "show sources", input::scan::kUnknown, {found, described});
         row(kPowersActionOperators, "show operators", input::scan::kUnknown, {found, described});
         row(kPowersActionComposite, "composite only, on or off", input::scan::kUnknown, {found});
@@ -540,7 +540,7 @@ public:
     /// what the pane commands arrives as a resolved id (`on_action`). A copy is said once; a paste
     /// is asked of the role that holds the platform (`begin_clipboard_paste`), since only an
     /// owner can read the clipboard's current value.
-    void on_key(Voice voice, const workshop::PaneKey& key) {
+    void on_key(Voice voice, const pane::PaneKey& key) {
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         const std::string searched = ui_.query.text();
@@ -622,7 +622,7 @@ public:
     /// of the window's text. Every road into the query passes this door: typed text, a mirrored
     /// copy, a paste.
     void on_typed(Voice voice, const std::string& text) {
-        if (text.empty() || !workshop::pane_text::admissible(text)) {
+        if (text.empty() || !pane::pane_text::admissible(text)) {
             return;
         }
         ui_.query.type(text);
@@ -633,7 +633,7 @@ public:
     /// A copy said anywhere in the process, mirrored so a Terminal copy pastes into the query and
     /// gated as typing is. `writes` counts only this pane's copies, so nothing echoes.
     void on_copy(const graphics::ClipboardCopy& said) {
-        if (workshop::pane_text::admissible(said.text)) {
+        if (pane::pane_text::admissible(said.text)) {
             clip_.text = said.text;
         }
     }
@@ -655,7 +655,7 @@ public:
             return; // the query left the state that asked; the payload is discarded
         }
         if (a.readable) {
-            if (!workshop::pane_text::admissible(a.text)) {
+            if (!pane::pane_text::admissible(a.text)) {
                 return; // refused WHOLE, at this pane's door, for `on_typed`'s reason
             }
             clip_.text = a.text; // the platform's current truth, asked for by this paste
@@ -737,9 +737,9 @@ public:
         carry_.ask = voice.next();
         (void)voice.mail.as_role(kIntrospectionRole)
             .send_to_role(kWorkshopRole,
-                          workshop::PaneOperationRequested{
+                          pane::PaneOperationRequested{
                               kPowersPane, kWorkshopRole,
-                              workshop::PaneValueCarryRequested::zen_name, 1,
+                              pane::PaneValueCarryRequested::zen_name, 1,
                               static_cast<std::int64_t>(carry_.gesture)},
                           carry_.ask);
     }
@@ -753,7 +753,7 @@ public:
 
     /// Workshop's answer to that acquisition: allowed, the reference is handed over to carry under
     /// the press's own number; refused, nothing is carried.
-    void on_approval(const workshop::PaneOperationAnswered& answer, loom::Mail& mail) {
+    void on_approval(const pane::PaneOperationAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || carry_.ask == 0 || mail.correlation() != carry_.ask) {
             return;
         }
@@ -763,7 +763,7 @@ public:
         }
         (void)mail.as_role(kIntrospectionRole)
             .send_to_role(kWorkshopRole,
-                          workshop::PaneValueCarryRequested{kPowersPane, carry_.identity,
+                          pane::PaneValueCarryRequested{kPowersPane, carry_.identity,
                                                             carry_.bytes, true},
                           carry_.gesture);
     }
@@ -773,8 +773,8 @@ public:
 
     /// WHAT POWERS CALLS ITS PARTS: a power's row by its identity, `power:<identity>`, and each
     /// control by the action it performs, `control:<id>`.
-    std::vector<workshop::RowPart> powers_parts() const {
-        workshop::PartNames<workshop::RowPart> named;
+    std::vector<pane::RowPart> powers_parts() const {
+        pane::PartNames<pane::RowPart> named;
         const auto control = [](const char* action) { return std::string("control:") + action; };
         for (const PowersSpan& span : shown_.spans) {
             std::string name;
@@ -786,7 +786,7 @@ public:
             case powers_control::kEntry: name = "power:" + span.identity; break;
             default: break;
             }
-            (void)named.add(workshop::RowPart{std::move(name), span.row, span.first,
+            (void)named.add(pane::RowPart{std::move(name), span.row, span.first,
                                                   span.last - span.first + 1});
         }
         return named.take();
@@ -802,7 +802,7 @@ private:
         }
         ui_.query.keep_caret_visible(query_capacity(ui_, columns()));
         shown_ = project_powers_ui(ui_, rows(), columns());
-        workshop::RowsCaret caret;
+        pane::RowsCaret caret;
         caret.row = shown_.caret_row;
         caret.column = shown_.caret_col;
         say_rows(mail, shown_.rows, powers_parts(), caret, press_meaning(shown_));

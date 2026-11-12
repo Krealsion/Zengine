@@ -165,7 +165,7 @@ Red in `zengine-workshop-panes-tests`:
 
 A pane's list window says nothing of the entries above it.
 
-In `workshop/pane_rows_block.hpp`:
+In `pane/rows_block.hpp`:
 
 ```diff
 -        marker(component::earlier_marker(win), "earlier");

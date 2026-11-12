@@ -8,7 +8,7 @@ reader of the repository reads on GitHub.
 
 Source: [`manual/manual.hpp`](../manual.hpp) · [`manual/vocabulary.hpp`](../vocabulary.hpp) ·
 [`cmake/ZengineManual.cmake`](../../cmake/ZengineManual.cmake) ·
-[`workshop/pane_document.hpp`](../../workshop/pane_document.hpp). The first manuals are the
+[`pane/document.hpp`](../../pane/document.hpp). The first manuals are the
 Builder's: [the Builder pane](../../builder/docs/zengine.builder-pane.md) and
 [the Builder](../../builder/docs/zengine.builder.md).
 
@@ -118,26 +118,26 @@ sections, `PaneDocumentSection` v2 `{key, group, text, keys}`, in page order -- 
 `section`, or the whole page when `section` is empty. Each of a section's `keys` is a
 `PaneDocumentKey` v1 `{id, at, length, written}`: the action a marker names, the byte offset and
 length of the whole marker in `text`, and the default written in it.
-`workshop::pane_document(ask, pane, kManual)` is the whole answer, so a pane answers in one line:
+`pane::pane_document(ask, pane, kManual)` is the whole answer, so a pane answers in one line:
 
 ```cpp
-void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-    (void)mail.answer(ws::pane_document(ask, kMyPane, manual::pages::my_role::kManual));
+void on(const pane::PaneDocumentRequested& ask, loom::Mail& mail) {
+    (void)mail.answer(pane::pane_document(ask, kMyPane, manual::pages::my_role::kManual));
 }
 ```
 
-A role offering one pane composes that line instead: `workshop::PaneManualFacet<Pane, Page>`
-(`workshop/pane_document.hpp`, with `zengine::With`) accepts `PaneDocumentRequested`, emits
+A role offering one pane composes that line instead: `pane::PaneManualFacet<Pane, Page>`
+(`pane/document.hpp`, with `zengine::With`) accepts `PaneDocumentRequested`, emits
 `PaneDocumentShown` and answers as above, so the weave lists neither shape and writes no handler:
 
 ```cpp
-class MyPane : public zengine::With<ws::PaneManualFacet<kMyPane,
+class MyPane : public zengine::With<pane::PaneManualFacet<kMyPane,
                                         manual::pages::my_role::kManual>>::Weave<
                    MyPane, MyState, loom::Accept<...>, loom::Emit<...>> { ... };
 ```
 
-A role that composes `workshop::PaneFacet`, `workshop::PaneRowsFacet` or
-`workshop::PaneDrawingFacet` (`workshop/pane_facets.hpp`), which hold its offer and its room, is
+A role that composes `pane::PaneFacet`, `pane::PaneRowsFacet` or
+`pane::PaneDrawingFacet` (`pane/facets.hpp`), which hold its offer and its room, is
 answered by them the same way.
 
 A weave that claims, as the Editor claims its document, names its `loom::Claims<...>` after

@@ -31,7 +31,7 @@ routed by the root.
 
 ## Host side
 
-`workshop/pane_document.hpp` is the pane protocol's side: `PaneDocumentRequested`,
+`pane/document.hpp` is the pane protocol's side: `PaneDocumentRequested`,
 `PaneDocumentShown` and `pane_document`, the answer a pane gives. Workshop holds none of it; it grants
 the Builder role its answer in `workshop/workshop.cpp`.
 

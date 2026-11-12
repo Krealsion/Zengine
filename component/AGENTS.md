@@ -55,7 +55,7 @@ accordion, `workshop_document`
   `cmake/ZengineInstall.cmake` installs its headers and exports `zengine::component`.
 - `workshop/screen.hpp` holds the session's `Clipboard`; `workshop/setup.hpp` `LayoutNaming` and
   `workshop/weave_session.cpp` `naming_key` are the name editor's `TextBox`.
-- `workshop/pane_parts.hpp` reads a `RowMap`; `workshop/keymap.hpp` reads `kEditingVocabulary`.
+- `pane/parts.hpp` reads a `RowMap`; `workshop/keymap.hpp` reads `kEditingVocabulary`.
 - Consumers: `builder/builder-pane/`, `editor/editor-pane/`, `files/`, `flow/flow-pane/`,
   `info/`, `inventory/inventory-pane/`, `terminal/`, `workshop/desktop-pane/`,
   `workshop/menu-presenter/`, `composer/draft.hpp`, `view/`, `introspection/powers.hpp`;

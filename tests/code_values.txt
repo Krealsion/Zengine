@@ -92,8 +92,8 @@ kPaneSnapReachPx                workshop/screen.hpp                       kPaneS
 kStackRows                      workshop/screen.hpp                       kStackRows
 kStackW                         workshop/screen.hpp                       kStackW
 kScreenMinW                     workshop/screen.hpp                       kScreenMinW
-kMaxPaneMenuLabelLen            workshop/pane_vocabulary.hpp              kMaxPaneMenuLabelLen
-kMaxMenuLineLen                 workshop/presenter_vocabulary.hpp         kMaxMenuLineLen
+kMaxPaneMenuLabelLen            pane/vocabulary.hpp              kMaxPaneMenuLabelLen
+kMaxMenuLineLen                 pane/presenter_vocabulary.hpp         kMaxMenuLineLen
 kMaxHeldInput                   workshop/weave.hpp                        kMaxHeldInput
 kPurposeQuoted                  input/input_weave.hpp                     kPurposeQuoted
 kMaxLayouts                     workshop/setup.hpp                        kMaxLayouts
@@ -109,11 +109,11 @@ kMaxAppActionRows               workshop/keymap.hpp                       kMaxAp
 kMaxPaneActionRows              workshop/keymap.hpp                       kMaxPaneActionRows
 
 # ---- the panes' rows, the pixels and input
-kNoCaret                        workshop/pane_rows.hpp                    kNoCaret
-kNoSelection                    workshop/pane_rows.hpp                    kNoSelection
+kNoCaret                        pane/rows.hpp                    kNoCaret
+kNoSelection                    pane/rows.hpp                    kNoSelection
 kCellGrainPx                    graphics/pixels.hpp                       kCellGrainPx
 kPixelGrainPx                   graphics/pixels.hpp                       kPixelGrainPx
-kTextInsetPx                    workshop/pane_text_fit.hpp                kTextInsetPx
+kTextInsetPx                    pane/text_fit.hpp                kTextInsetPx
 kMaxScancode                    input/vocabulary.hpp                      kMaxScancode
 kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys
 kDefaultDoubleClickMs           input/vocabulary.hpp                      kDefaultDoubleClickMs
@@ -161,8 +161,8 @@ kMaxStackThemes                 theme/stack_name.hpp                      kMaxSt
 kMaxStacksWorn                  theme/stack_name.hpp                      kMaxStacksWorn
 
 # ---- carrying text
-kMaxCarryBytes                  workshop/pane_carry.hpp                   kMaxCarryBytes
-kMaxCarryLabelBytes             workshop/pane_carry.hpp                   kMaxCarryLabelBytes
+kMaxCarryBytes                  pane/carry.hpp                   kMaxCarryBytes
+kMaxCarryLabelBytes             pane/carry.hpp                   kMaxCarryLabelBytes
 
 # ---- finding powers
 kMaxPowerRows                   workshop/powers_vocabulary.hpp            kMaxPowerRows
@@ -219,14 +219,14 @@ name  zengine.introspection      introspection/vocabulary.hpp           kIntrosp
 name  zengine.inventory          inventory/vocabulary.hpp               kInventoryRole
 name  zengine.inventory-pane     inventory/inventory-pane/vocabulary.hpp kRole
 name  zengine.launcher           launcher/vocabulary.hpp                kLauncherRole
-name  zengine.layouts            workshop/pane_settings.hpp             kLayoutsRole
+name  zengine.layouts            pane/settings.hpp             kLayoutsRole
 name  zengine.notices            notices/vocabulary.hpp                 kNoticesRole
 name  zengine.notices-pane       notices/notices-pane/vocabulary.hpp    kNoticesPaneRole
 copy  zengine.notices-pane       workshop/panes.hpp                     kNoticesPaneProvider
 name  zengine.opening            workshop/open_seam_vocabulary.hpp      kOpeningRole
 name  zengine.palette            workshop/command_vocabulary.hpp        kPaletteRole
 name  zengine.powers             workshop/powers_vocabulary.hpp         kPowersRole
-name  zengine.presenter          workshop/pane_vocabulary.hpp           kPresenterRole
+name  zengine.presenter          pane/vocabulary.hpp           kPresenterRole
 name  zengine.project            workshop/pane_seam_vocabulary.hpp      kProjectRole
 name  zengine.realization        builder/vocabulary.hpp                 kRealizationRole
 name  zengine.sources            workshop/sample_vocabulary.hpp         kSampleRole
@@ -237,7 +237,7 @@ name  zengine.timer              timer/vocabulary.hpp                   kTimerRo
 name  zengine.view.builder       view/view-builder/vocabulary.hpp       kRole
 copy  zengine.view.builder       workshop/desktop-pane/desktop_common.hpp kViewBuilderRole
 name  zengine.view.host          view/vocabulary.hpp                    kViewHostRole
-name  zengine.workshop           workshop/pane_menu.hpp                 kWorkshopRole
+name  zengine.workshop           pane/menu.hpp                 kWorkshopRole
 fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredFilesProvider
 fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredBuilderProvider
 fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredInfoProvider

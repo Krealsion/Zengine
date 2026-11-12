@@ -138,7 +138,7 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
         e.key = "-";
         const std::string to = "to " + p.role + "/" + p.pane;
         for (const workshop::ShownBinding& row : keys.rows) {
-            for (const workshop::ActionCause& c : row.causes) {
+            for (const pane::ActionCause& c : row.causes) {
                 if (c.subject == to && !row.shown.empty() && e.key == "-") {
                     e.key = row.shown;
                 }

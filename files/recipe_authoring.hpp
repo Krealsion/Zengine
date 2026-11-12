@@ -14,9 +14,9 @@
 #include "files/vocabulary.hpp"
 #include "builder/recipe.hpp" // what a drafted one-file recipe makes, said when it is written
 #include "workshop/actor_scope.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
@@ -105,7 +105,7 @@ inline bool cache_is_multi_config(const std::filesystem::path& cache_file) {
     return false;
 }
 
-using zengine::workshop::pane_text::fitted_label;
+using zengine::pane::pane_text::fitted_label;
 
 /// The floor the active field's value never gives up, however long its label: in a thirty-column
 /// body `package prefix (comma-separated)> ` alone fills the room, and typing was accepted and
@@ -607,10 +607,10 @@ inline void FilesWeave::say_field(std::size_t i) {
         const std::string prompt = active_prompt();
         const std::int64_t prompt_cols = static_cast<std::int64_t>(prompt.size());
         const std::int64_t cols = columns() > prompt_cols + 3 ? columns() - prompt_cols : 3;
-        const zengine::workshop::RowBox box = zengine::workshop::row_box(authoring_.line, prompt_cols, cols);
+        const zengine::pane::RowBox box = zengine::pane::row_box(authoring_.line, prompt_cols, cols);
         const bool room_left = room().next_row() < rows();
         if (room_left) {
-            room().caret() = zengine::workshop::box_caret(box, room().next_row());
+            room().caret() = zengine::pane::box_caret(box, room().next_row());
         }
         push_row(prompt + std::string(static_cast<std::size_t>(cols), ' '),
                  zengine::graphics::colors::accent,

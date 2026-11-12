@@ -8,8 +8,8 @@
 #include "maker_fixture.hpp"
 #include "role_manual.hpp"
 #include "view/host.hpp"
-#include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_picture.hpp"
+#include "pane/canvas_text.hpp"
+#include "pane/picture.hpp"
 
 #include <algorithm>
 #include <map>
@@ -20,13 +20,12 @@
 
 namespace {
 namespace view = zengine::view;
-namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 namespace shape = zengine::flow::shape;
 using loom::WeaveId;
 
 /// THE AREA A VIEW DRAWS IN: its pane's, `<name>.view`.
-std::string area_of(const std::string& view) { return ws::pane_area(view, view::kPane); }
+std::string area_of(const std::string& view) { return zengine::pane::pane_area(view, view::kPane); }
 /// ...and the view that owns an area of that name.
 std::string view_of(const std::string& area) {
     const std::string tail = std::string(".") + view::kPane;
@@ -85,9 +84,9 @@ class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
-                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
-                loom::schema_of<ws::PaneRevealRequested>()};
+        return {loom::schema_of<zengine::pane::v3::PaneOffered>(), loom::schema_of<zengine::pane::v3::PaneActions>(),
+                loom::schema_of<zengine::pane::PaneEscapeUnspent>(), loom::schema_of<zengine::pane::PanePassRequested>(),
+                loom::schema_of<zengine::pane::PaneRevealRequested>()};
     }
     void handle(const loom::Message& in, loom::Bus&) override { heard.push_back(in); }
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("viewtest.Desk", 1, {})); }
@@ -333,12 +332,12 @@ struct Rig {
     void room(const std::string& role, bool terminal = false) { room_px(role, 12 * 40, 12 * 16, terminal); }
     /// THE PICTURE THE WINDOW HOLDS OF A VIEW'S AREA, read back as the view drew it: its rectangles
     /// and runs of text in the order drawn, each run where its box stands.
-    const ws::CanvasPicture* latest(const std::string& role) const {
-        static ws::CanvasPicture kept;
+    const zengine::pane::CanvasPicture* latest(const std::string& role) const {
+        static zengine::pane::CanvasPicture kept;
         const auto room = rooms.find(role);
         const gfx::window::WinArea* a = window == nullptr ? nullptr : window->find(role);
         if (a == nullptr || a->nodes.empty() || room == rooms.end()) return nullptr;
-        const auto inset = ws::canvas_text_metrics(
+        const auto inset = zengine::pane::canvas_text_metrics(
             view::window_room(room->second.w, room->second.h, room->second.cell_px, room->second.measure())).inset;
         const auto at = gfx::window::index_of(*a);
         std::vector<const gfx::window::KeptNode*> order;
@@ -346,24 +345,27 @@ struct Rig {
         std::stable_sort(order.begin(), order.end(), [&](const auto* x, const auto* y) {
             return gfx::window::key_of(at, x->node.path) < gfx::window::key_of(at, y->node.path);
         });
-        kept = ws::CanvasPicture{};
+        kept = zengine::pane::CanvasPicture{};
         for (const auto* k : order) {
             if (k->node.op == gfx::op::kRect) {
                 if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args))
-                    kept.rects.push_back(ws::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(r->fill)});
+                    kept.rects.push_back(zengine::pane::CanvasRect{r->x, r->y, r->w, r->h,
+                                                                   zengine::graphics::pool_color_of(r->fill)});
             } else if (k->node.op == gfx::op::kText) {
                 if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args))
-                    kept.texts.push_back(ws::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::pool_color_of(t->ink)});
+                    kept.texts.push_back(zengine::pane::CanvasText{t->x - inset, t->y - inset,
+                                                                   t->text,
+                                                                   zengine::graphics::pool_color_of(t->ink)});
             }
         }
         return &kept;
     }
     /// The latest actions a view declared, or none.
-    std::optional<ws::v3::PaneActions> declared(const std::string& role) const {
+    std::optional<zengine::pane::v3::PaneActions> declared(const std::string& role) const {
         for (auto it = desk->heard.rbegin(); it != desk->heard.rend(); ++it) {
             if (it->provenance.authored_role() == role &&
-                loom::same_identity(it->payload.schema(), *loom::schema_of<ws::v3::PaneActions>()))
-                return loom::from_value<ws::v3::PaneActions>(it->payload);
+                loom::same_identity(it->payload.schema(), *loom::schema_of<zengine::pane::v3::PaneActions>()))
+                return loom::from_value<zengine::pane::v3::PaneActions>(it->payload);
         }
         return std::nullopt;
     }
@@ -397,8 +399,8 @@ struct Rig {
     void fill(const std::string& role, const view::Element& e, const std::string& text) {
         press(role, e);
         for (int i = 0; i < 12; ++i)
-            tell(role, ws::PaneKey{view::kPane, zengine::input::scan::kBackspace, 0});
-        tell(role, ws::PaneTextInput{view::kPane, text});
+            tell(role, zengine::pane::PaneKey{view::kPane, zengine::input::scan::kBackspace, 0});
+        tell(role, zengine::pane::PaneTextInput{view::kPane, text});
     }
     std::int64_t total() const { return tally.weave->state().get("total")->as_int(); }
 };
@@ -501,10 +503,10 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     const auto run = rig.ask(view::ViewRun{"builder", bytes_of(d)});
     REQUIRE_MESSAGE(run.ok, run.reason);
     // ASKED FOR ITS SIZE, in canvas pixels, and the notice's three rows of text beneath it.
-    std::optional<ws::v3::PaneOffered> offered;
+    std::optional<zengine::pane::v3::PaneOffered> offered;
     for (const auto& m : rig.desk->heard)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>()))
-            offered = loom::from_value<ws::v3::PaneOffered>(m.payload);
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::v3::PaneOffered>()))
+            offered = loom::from_value<zengine::pane::v3::PaneOffered>(m.payload);
     REQUIRE(offered);
     CHECK(offered->width == 600);
     CHECK(offered->height == 300);
@@ -544,8 +546,8 @@ TEST_CASE("no size the rules accept puts an element under the notice: its rows l
     d.width = 192;
     d.height = 136;
     REQUIRE(view::problem(d).empty());
-    const ws::CanvasRoom window{12 * 40, 12 * 40, 1, true, 8, 16};
-    const ws::CanvasRoom terminal{12 * 40, 12 * 40, 12, false, 0, 0};
+    const zengine::pane::CanvasRoom window{12 * 40, 12 * 40, 1, true, 8, 16};
+    const zengine::pane::CanvasRoom terminal{12 * 40, 12 * 40, 12, false, 0, 0};
     for (const auto& room : {window, terminal}) {
         INFO("graphical: " << room.graphical);
         const auto p = view::picture(d, {}, view::Presentation{}, room);
@@ -640,8 +642,8 @@ TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run as
     bool offered = false, seat = false;
     for (const auto& m : rig.desk->heard) {
         if (m.provenance.authored_role() != "tally.panel") continue;
-        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
-        seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::v3::PaneOffered>());
+        seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneRevealRequested>());
     }
     CHECK(offered);
     CHECK_FALSE(seat);
@@ -656,7 +658,7 @@ TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run as
     seat = false;
     for (const auto& m : rig.desk->heard)
         if (m.provenance.authored_role() == "tally.panel")
-            seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+            seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneRevealRequested>());
     CHECK(seat);
 }
 
@@ -670,7 +672,7 @@ TEST_CASE("a view registered afresh at its own name asks nothing of the desk, so
         bool seat = false;
         for (const auto& m : rig.desk->heard)
             if (m.provenance.authored_role() == role)
-                seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+                seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneRevealRequested>());
         return seat;
     };
     rig.desk->heard.clear();
@@ -706,8 +708,8 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     bool offered = false, seat = false;
     for (const auto& m : rig.desk->heard) {
         if (m.provenance.authored_role() != "tally.panel") continue;
-        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
-        seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+        offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::v3::PaneOffered>());
+        seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneRevealRequested>());
     }
     CHECK(offered);
     CHECK(seat);
@@ -715,8 +717,10 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     // Its grant is what the description declares and the pane conversation to Workshop alone.
     const auto grant = view::view_grant(panel());
     CHECK(grant.permits("tally.panel.Count", 1, rig.tally.id));
-    CHECK(grant.permits_role(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version, view::kWorkshopRole));
-    CHECK_FALSE(grant.permits_role(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version, "tally"));
+    CHECK(grant.permits_role(zengine::pane::v3::PaneOffered::zen_name,
+                             zengine::pane::v3::PaneOffered::zen_version, view::kWorkshopRole));
+    CHECK_FALSE(grant.permits_role(zengine::pane::v3::PaneOffered::zen_name,
+                                   zengine::pane::v3::PaneOffered::zen_version, "tally"));
     CHECK_FALSE(grant.permits("tally.Total", 1, rig.tally.id));
     CHECK_FALSE(grant.permits("zen.PokeWrite", 1, rig.tally.id));
     CHECK_FALSE(grant.permits(view::ViewRun::zen_name, view::ViewRun::zen_version, rig.views.id()));
@@ -793,7 +797,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
     rig.fill("tally.panel", d.elements[1], "10");
     rig.fill("tally.panel", d.elements[2], "3");
     // Return in a field uses the control whose intent takes it.
-    rig.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kReturn, 0});
+    rig.tell("tally.panel", zengine::pane::PaneKey{view::kPane, zengine::input::scan::kReturn, 0});
     CHECK(rig.total() == 18);
     CHECK(has(rig.words("tally.panel"), "Total: 18|"));
 
@@ -904,7 +908,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         owned.views.pair("tally.panel", tallying);
         REQUIRE(owned.ask(view::ViewRun{"tally", bytes_of(panel())}).ok);
         owned.room("tally.panel");
-        owned.tell("tally.panel", ws::PaneActionRequested{view::kPane, "count"});
+        owned.tell("tally.panel", zengine::pane::PaneActionRequested{view::kPane, "count"});
         CHECK(ran == 1);
         CHECK(owned.total() == 45);
         CHECK(has(owned.words("tally.panel"), "Total: 45|"));
@@ -1030,13 +1034,13 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK_FALSE(w.window->holds("caret"));
         shown.press("tally.panel", d.elements[0]);
         bar_at(8); // after `start: 0`
-        shown.tell("tally.panel", ws::PaneTextInput{view::kPane, "5"});
+        shown.tell("tally.panel", zengine::pane::PaneTextInput{view::kPane, "5"});
         CHECK(has(w.window->words("text:start").value_or(""), "start: 05"));
         bar_at(9);
-        shown.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kLeft, 0});
+        shown.tell("tally.panel", zengine::pane::PaneKey{view::kPane, zengine::input::scan::kLeft, 0});
         bar_at(8);
         CHECK_FALSE(w.window->drawn.back().whole);
-        shown.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kEscape, 0});
+        shown.tell("tally.panel", zengine::pane::PaneKey{view::kPane, zengine::input::scan::kEscape, 0});
         CHECK_FALSE(w.window->holds("caret"));
 
         // WHAT IT IS TOLD changes its label's node alone, sent as a change.
@@ -1164,7 +1168,7 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     // AN ESCAPE FROM THE WINDOW the view has no use for goes nowhere: Workshop did not send it.
     const auto escapes = [&] {
         return std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const loom::Message& m) {
-            return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>());
+            return loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneEscapeUnspent>());
         });
     };
     key(in::scan::kEscape); // the focus goes
@@ -1268,7 +1272,7 @@ TEST_CASE("a view hears the pointer of the window that shows its area: a field p
     // A RIGHT PRESS is handed back to Workshop under the press's number.
     const auto passes = [&] {
         return std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const loom::Message& m) {
-            return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PanePassRequested>());
+            return loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PanePassRequested>());
         });
     };
     const auto before = passes();
@@ -1318,16 +1322,16 @@ TEST_CASE("a view declares one action per intent -- its button's id, no default 
     CHECK(row.causes[0].shape == count_shape()->name());
     CHECK(row.causes[0].version == static_cast<std::int64_t>(count_shape()->version()));
     CHECK(row.causes[0].subject.empty());
-    CHECK(ws::pane_declaration_problem(*declared).empty());
+    CHECK(zengine::pane::pane_declaration_problem(*declared).empty());
     // ASKED BY ITS ID, AS WORKSHOP ASKS A KEYED ACTION: the intent is said as a press says it.
-    rig.tell("tally.panel", ws::PaneActionRequested{view::kPane, "count"});
+    rig.tell("tally.panel", zengine::pane::PaneActionRequested{view::kPane, "count"});
     CHECK(rig.total() == 45);
     // ...AND AN ID THE VIEW DID NOT DECLARE, OR ANOTHER PANE'S, SAYS NOTHING.
-    rig.tell("tally.panel", ws::PaneActionRequested{view::kPane, "total"});
-    rig.tell("tally.panel", ws::PaneActionRequested{"other", "count"});
+    rig.tell("tally.panel", zengine::pane::PaneActionRequested{view::kPane, "total"});
+    rig.tell("tally.panel", zengine::pane::PaneActionRequested{"other", "count"});
     CHECK(rig.total() == 45);
     // A DECLARATION WORKSHOP REFUSES IS SAID on the notice row.
-    rig.tell("tally.panel", ws::ActionsJudged{view::kPane, false, 0, "a reason in Workshop's words"});
+    rig.tell("tally.panel", zengine::pane::ActionsJudged{view::kPane, false, 0, "a reason in Workshop's words"});
     CHECK(has(rig.said("tally.panel"), "no key can name these buttons: a reason in Workshop's words"));
 }
 
@@ -1380,7 +1384,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     refusal.notice = "refused: tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10";
     refusal.alert = true;
     const auto up = [](std::int64_t px) { return (px + 11) / 12 * 12; };
-    const ws::CanvasRoom asked{up(o.width), up(o.height) + 12 * o.text_rows, 12, false, 0, 0};
+    const zengine::pane::CanvasRoom asked{up(o.width), up(o.height) + 12 * o.text_rows, 12, false, 0, 0};
     std::string notice;
     for (const auto& t : view::picture(d, {}, refusal, asked).content.texts)
         if (t.ink == zengine::graphics::colors::alert) notice += t.text + " ";
@@ -1409,7 +1413,8 @@ TEST_CASE("the names and refusals a view only carries reach its notice row as th
     CHECK(judged().empty());
 
     // REFUSED A SEAT, in the desk's words, its dash a dash.
-    rig.tell("tally.panel", ws::PaneRevealAnswered{view::kPane, false, "the desk is full \xE2\x80\x94 caf\xC3\xA9 holds it"});
+    rig.tell("tally.panel", zengine::pane::PaneRevealAnswered{view::kPane, false,
+                                                              "the desk is full \xE2\x80\x94 caf\xC3\xA9 holds it"});
     CHECK(has(rig.words("tally.panel"), "no seat on the desk: the desk is full \xE2\x80\x94 caf\xC3\xA9 holds it|"));
     CHECK(judged().empty());
 
@@ -1428,7 +1433,7 @@ TEST_CASE("the names and refusals a view only carries reach its notice row as th
     // TYPED TEXT outside plain ASCII, which no number is written in, is refused at the door and said;
     // the field keeps its text.
     rig.press("tally.panel", d.elements[0]);
-    rig.tell("tally.panel", ws::PaneTextInput{view::kPane, "1\xC2\xB2"});
+    rig.tell("tally.panel", zengine::pane::PaneTextInput{view::kPane, "1\xC2\xB2"});
     CHECK(has(rig.words("tally.panel"), "start: 0|"));
     CHECK(has(rig.words("tally.panel"), "not typed -- a number field holds plain ASCII|"));
     CHECK(rig.latest("tally.panel")->texts.back().ink == zengine::graphics::colors::alert);
@@ -1786,8 +1791,8 @@ TEST_CASE("a stopped view leaves a picture that says it stopped, and its role is
 
 TEST_CASE("a view's terminal picture is the window's picture floored to cells, its text fitted to the cell") {
     const auto d = panel();
-    const ws::CanvasRoom window{12 * 40, 12 * 12, 1, true, 8, 16};
-    const ws::CanvasRoom terminal{12 * 40, 12 * 12, 12, false, 0, 0};
+    const zengine::pane::CanvasRoom window{12 * 40, 12 * 12, 1, true, 8, 16};
+    const zengine::pane::CanvasRoom terminal{12 * 40, 12 * 12, 12, false, 0, 0};
     const auto a = view::picture(d, {}, {}, window);
     const auto b = view::picture(d, {}, {}, terminal);
     REQUIRE(a.content.rects.size() == b.content.rects.size());
@@ -1840,19 +1845,19 @@ TEST_CASE("a view hands back a right press and an Escape it has no use for") {
     const auto d = panel();
     rig.press("tally.panel", d.elements[4], 3);
     const auto passed = std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const auto& m) {
-        return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PanePassRequested>());
+        return loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PanePassRequested>());
     });
     CHECK(passed == 1);
-    rig.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kEscape, 0});
+    rig.tell("tally.panel", zengine::pane::PaneKey{view::kPane, zengine::input::scan::kEscape, 0});
     const auto unspent = std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const auto& m) {
-        return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>());
+        return loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneEscapeUnspent>());
     });
     CHECK(unspent == 1);
     // With a field focused, Escape is spent putting the focus down.
     rig.press("tally.panel", d.elements[0]);
-    rig.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kEscape, 0});
+    rig.tell("tally.panel", zengine::pane::PaneKey{view::kPane, zengine::input::scan::kEscape, 0});
     CHECK(std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const auto& m) {
-        return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>());
+        return loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneEscapeUnspent>());
     }) == 1);
 }
 

@@ -11,6 +11,15 @@
 #include <algorithm>
 
 namespace zengine::workshop {
+using pane::ActionsJudged;
+using pane::ActionsWithdrawn;
+using pane::PaneActionRow;
+using pane::PaneActions;
+using pane::PaneOffered;
+using pane::PaneRevealAnswered;
+using pane::PaneRevealRequested;
+using pane::action_row_of;
+using pane::pane_declaration_problem;
 
 using zengine::persist::Written;
 
@@ -20,12 +29,12 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     accept_pane_offer(offer, mail, 0, 0);
 }
 
-void WorkshopWeave::on(const v2::PaneOffered& offer, loom::Mail& mail) {
+void WorkshopWeave::on(const pane::v2::PaneOffered& offer, loom::Mail& mail) {
     accept_pane_offer(PaneOffered{offer.pane, offer.name, offer.summary}, mail,
                       offer.rows, offer.columns);
 }
 
-void WorkshopWeave::on(const v3::PaneOffered& offer, loom::Mail& mail) {
+void WorkshopWeave::on(const pane::v3::PaneOffered& offer, loom::Mail& mail) {
     accept_pane_offer(PaneOffered{offer.pane, offer.name, offer.summary}, mail, 0, 0,
                       PaneBody{offer.width, offer.height, offer.text_rows});
 }
@@ -84,7 +93,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
 /// for nothing), no causes and no POSIX key, so everything below reads one population.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
-    v4::PaneActions widened{actions.pane, std::string(), {}, {}};
+    pane::v4::PaneActions widened{actions.pane, std::string(), {}, {}};
     widened.rows.reserve(actions.rows.size());
     for (const PaneActionRow& row : actions.rows) {
         widened.rows.push_back(action_row_of(row));
@@ -94,10 +103,10 @@ void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
 
 /// ...and from a pane built before causes existed: its rows cause nothing a reader can know.
 // WL-KEY-15 -- agents/workshop/keyboard.md
-void WorkshopWeave::on(const v2::PaneActions& actions, loom::Mail& mail) {
-    v4::PaneActions widened{actions.pane, std::string(), {}, {}};
+void WorkshopWeave::on(const pane::v2::PaneActions& actions, loom::Mail& mail) {
+    pane::v4::PaneActions widened{actions.pane, std::string(), {}, {}};
     widened.rows.reserve(actions.rows.size());
-    for (const v2::PaneActionRow& row : actions.rows) {
+    for (const pane::v2::PaneActionRow& row : actions.rows) {
         widened.rows.push_back(action_row_of(row));
     }
     declare_pane_actions(widened, mail);
@@ -105,24 +114,24 @@ void WorkshopWeave::on(const v2::PaneActions& actions, loom::Mail& mail) {
 
 /// ...and from a pane built before POSIX keys existed: its rows name none.
 // WL-CAUSE-01 -- agents/workshop/action-causes.md
-void WorkshopWeave::on(const v3::PaneActions& actions, loom::Mail& mail) {
-    v4::PaneActions widened{actions.pane, actions.mode, {}, actions.elsewhere};
+void WorkshopWeave::on(const pane::v3::PaneActions& actions, loom::Mail& mail) {
+    pane::v4::PaneActions widened{actions.pane, actions.mode, {}, actions.elsewhere};
     widened.rows.reserve(actions.rows.size());
-    for (const v3::PaneActionRow& row : actions.rows) {
+    for (const pane::v3::PaneActionRow& row : actions.rows) {
         widened.rows.push_back(action_row_of(row));
     }
     declare_pane_actions(widened, mail);
 }
 
 // WL-KEY-15 -- agents/workshop/keyboard.md
-void WorkshopWeave::on(const v4::PaneActions& actions, loom::Mail& mail) {
+void WorkshopWeave::on(const pane::v4::PaneActions& actions, loom::Mail& mail) {
     declare_pane_actions(actions, mail);
 }
 
 // WL-KEY-15 -- agents/workshop/keyboard.md; WL-CAUSE-01 -- agents/workshop/action-causes.md
-void WorkshopWeave::declare_pane_actions(const v4::PaneActions& declared, loom::Mail& mail) {
+void WorkshopWeave::declare_pane_actions(const pane::v4::PaneActions& declared, loom::Mail& mail) {
     const std::string& pane = declared.pane;
-    const std::vector<v4::PaneActionRow>& rows = declared.rows;
+    const std::vector<pane::v4::PaneActionRow>& rows = declared.rows;
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
         return; // personal speech: no rows, no notice, no catalog change (the offer's rule)

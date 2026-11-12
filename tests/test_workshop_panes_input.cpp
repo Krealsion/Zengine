@@ -2176,7 +2176,7 @@ TEST_CASE("the manual Compose answers names exactly the commands it declares, wi
     ComposeRig r;
     std::set<std::string> declared;
     const auto take = [&] {
-        for (const v4::PaneActionRow& a : compose_held(r).actions) declared.insert(a.id);
+        for (const zengine::pane::v4::PaneActionRow& a : compose_held(r).actions) declared.insert(a.id);
     };
     take();
     r.with_timer();
@@ -3913,8 +3913,8 @@ TEST_CASE("the focus actions move with a weaver's keymap, and focus.leave's chor
 
     // ...AND A PANE DECLARING IT IS REFUSED, NAMING THE ROW IT MET; moved, the pane's row joins.
     Keymap fresh;
-    const std::vector<v3::PaneActionRow> row{
-        v3::PaneActionRow{"probe.go", "go", input::scan::kQ, input::mod::kCtrl, "", {}, {}}};
+    const std::vector<zengine::pane::v3::PaneActionRow> row{
+        zengine::pane::v3::PaneActionRow{"probe.go", "go", input::scan::kQ, input::mod::kCtrl, "", {}, {}}};
     const Written joined = join_pane_rows(fresh, kFirstRuntimeKind, row);
     CHECK_FALSE(joined.accepted);
     CHECK(joined.refusal.find("focus.leave") != std::string::npos);

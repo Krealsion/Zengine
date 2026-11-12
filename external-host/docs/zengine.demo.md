@@ -91,17 +91,17 @@ during reset`. Answered `zen.Ack`; refused `not the attached demo service`.
 ### `PaneCatalogRequested`
 
 `PaneCatalogRequested` v1, from `zengine.workshop`: the pane is offered again, with its one action.
-Shape: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp).
+Shape: [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp).
 
 ### `PaneActionRequested`
 
 `PaneActionRequested` v1, from `zengine.workshop`: the action [`reset`](#reset), as the menu line asks it.
-From anyone else it does nothing. Shape: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp).
+From anyone else it does nothing. Shape: [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp).
 
 ### `PaneDocumentRequested`
 
 `PaneDocumentRequested` v1, from any weave: answered `PaneDocumentShown` from this page, to the asker alone.
-Shape: [`workshop/pane_document.hpp`](../../workshop/pane_document.hpp).
+Shape: [`pane/document.hpp`](../../pane/document.hpp).
 
 ### `AreaRoom`
 

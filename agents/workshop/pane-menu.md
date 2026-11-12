@@ -55,9 +55,9 @@ WHY — `agents/decisions/the-editors-right-press-offers-its-acts.md`
 ## Proven by
 
 ### WL-CTX-09
-`workshop/pane_vocabulary.hpp` PaneMenuRow PaneMenuRequested PaneMenuAnswered PaneManageRequested
+`pane/vocabulary.hpp` PaneMenuRow PaneMenuRequested PaneMenuAnswered PaneManageRequested
 PaneKeyboardRequested kPresenterRole
-`workshop/presenter_vocabulary.hpp` MenuGranted MenuShown MenuInput MenuClosed MenuWithdrawn
+`pane/presenter_vocabulary.hpp` MenuGranted MenuShown MenuInput MenuClosed MenuWithdrawn
 MenuGranted::standard MenuGranted::pane_name MenuGranted::area MenuClosed::standard
 `workshop/context.hpp` PresentedMenu MenuPress kMaxMenuPresses context_population
 `workshop/weave.hpp` grant_menu Hand::press_sent withdraw_menu end_menu_unanswered
@@ -107,7 +107,7 @@ key, and anchored in the pane's own body" "WL-CTX-09: a chosen row may continue 
 pane menu on a subject the pane names -- once, while the choice is the weaver's latest act, and
 never for a pane the inventory lacks" "WL-CTX-09: a chosen row that begins an edit may take the
 keyboard -- once, while the choice is the weaver's latest act, and never under another number"
-`workshop/pane_menu.hpp` take_keyboard take_keyboard_continuing
+`pane/menu.hpp` take_keyboard take_keyboard_continuing
 `files/files.cpp` take_keys
 `builder/builder-pane/pane.cpp` take_keys
 `tests/test_workshop_panes_files.cpp` "a Files menu choice that begins authoring takes the keyboard
@@ -121,14 +121,14 @@ tells it where the keys were, hands its press back, opens its menu and carries w
 or picks up"
 
 ### WL-CTX-10
-`workshop/presenter_vocabulary.hpp` HeldMenu HeldMenu::standard HeldMenu::pane_name HeldMenu::area
+`pane/presenter_vocabulary.hpp` HeldMenu HeldMenu::standard HeldMenu::pane_name HeldMenu::area
 PresenterReady MenuClosed MenuReturned MenuShown kMaxMenuLines MenuDrawing MenuLine
 close_held_menu
 `workshop/menu-presenter/presenter.cpp` MenuPresenter refusal_of MenuPresenter::give_back
 MenuPresenter::row_of MenuPresenter::is_rule rule_line menu_line
 `examples/numbered-presenter/presenter.cpp` NumberedPresenter digit_row line_for
 NumberedPresenter::give_back NumberedPresenter::row_of
-`workshop/pane_menu.hpp` Asked Asked::take Offer
+`pane/menu.hpp` Asked Asked::take Offer
 `workshop/desktop-pane/launcher_view.hpp` launcher_asked_
 `workshop/desktop-pane/hotkeys_view.hpp` keys_asked_
 `workshop/weave_external.cpp` on(PresenterReady) on(MenuShown) answer_withdrawn end_refused_menu
@@ -169,9 +169,9 @@ ends its menu, answered by the host; with none in the role a menu is refused in 
 host's own menu still opens; one loaded afresh does not carry the old menu, which ends answered"
 
 ### WL-CTX-11
-`workshop/pane_vocabulary.hpp` kMenuKeyMark
-`workshop/pane_menu.hpp` Offer::row
-`workshop/presenter_vocabulary.hpp` MenuRowWords menu_row_words MenuWidths menu_widths
+`pane/vocabulary.hpp` kMenuKeyMark
+`pane/menu.hpp` Offer::row
+`pane/presenter_vocabulary.hpp` MenuRowWords menu_row_words MenuWidths menu_widths
 menu_row_text
 `workshop/menu-presenter/presenter.cpp` MenuPresenter::show
 `tests/test_workshop_panes_button.cpp` "WL-CTX-11: the shipped presenter draws the key a row's

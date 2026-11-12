@@ -141,32 +141,22 @@ set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/provider.hpp
                                       operator/provider_abi.h
                                       operator/provider_host.hpp)
-# The pane protocol, spelled `#include "workshop/pane_vocabulary.hpp"` as the house does: the
-# protocol, the helpers a pane draws its rows and picture in its area with, the facets a pane is
-# built on (with the manual page they answer from), and the presenter seam. Nothing else under
-# workshop/ is public. The guest seam beside it says what this Workshop reports of the hosts
-# connected to it, so a probe on another host can ask for the inventory it is in.
-set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_operation.hpp workshop/pane_view.hpp
-                                      workshop/pane_carry.hpp
-                                      workshop/pane_settings.hpp
-                                      workshop/pane_settings_taken.hpp
+# The pane contract, spelled `#include "pane/vocabulary.hpp"` as the house does: the shapes a pane
+# and its host exchange, the helpers a pane draws its rows and picture in its area with and seats
+# itself with, the facets a pane is built on (with the manual page they answer from), and the
+# presenter seam.
+set(zengine_public_headers_pane       pane/vocabulary.hpp pane/operation.hpp pane/carry.hpp
+                                      pane/settings.hpp pane/settings_taken.hpp pane/parts.hpp
+                                      pane/causes.hpp pane/canvas_text.hpp pane/text_fit.hpp
+                                      pane/text.hpp pane/rows.hpp pane/picture.hpp pane/drawing.hpp
+                                      pane/canvas_drawing.hpp pane/document.hpp pane/facets.hpp
+                                      pane/rows_block.hpp pane/menu.hpp pane/escape.hpp
+                                      pane/seat.hpp pane/presenter_vocabulary.hpp)
+# ...and Workshop's own, installed beside it: a desk's reading, its shortcuts and setup's control.
+# Nothing else under workshop/ is public. The guest seam says what this Workshop reports of the
+# hosts connected to it, so a probe on another host can ask for the inventory it is in.
+set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_view.hpp
                                       workshop/pane_shortcuts.hpp
-                                      workshop/pane_vocabulary.hpp
-                                      workshop/pane_parts.hpp
-                                      workshop/pane_causes.hpp
-                                      workshop/pane_canvas_text.hpp
-                                      workshop/pane_text_fit.hpp
-                                      workshop/pane_text.hpp
-                                      workshop/pane_rows.hpp
-                                      workshop/pane_picture.hpp
-                                      workshop/pane_drawing.hpp
-                                      workshop/pane_canvas_drawing.hpp
-                                      workshop/pane_document.hpp
-                                      workshop/pane_facets.hpp
-                                      workshop/pane_rows_block.hpp
-                                      workshop/pane_menu.hpp
-                                      workshop/pane_escape.hpp
-                                      workshop/presenter_vocabulary.hpp
                                       workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
@@ -212,7 +202,7 @@ endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
                     editor/source-transfer activation timer input ui manual component persist property
-                    operator workshop editor/neovim-editor graphics graphics/elements
+                    operator pane workshop editor/neovim-editor graphics graphics/elements
                     graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})

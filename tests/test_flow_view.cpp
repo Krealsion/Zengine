@@ -3,8 +3,8 @@
 #include "doctest.h"
 #include "flow/flow-pane/gesture.hpp"
 #include "flow/flow-pane/view.hpp"
-#include "workshop/pane_canvas_drawing.hpp"
-#include "workshop/pane_picture.hpp"
+#include "pane/canvas_drawing.hpp"
+#include "pane/picture.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "graphics/themes.hpp"
 #include "graphics/window/palette.hpp"
@@ -21,12 +21,12 @@ constexpr auto unit = pane::unit;
 /// A room's cell, in its pixels: one character where no face is measured.
 constexpr std::int64_t cell = gfx::kCellPx;
 
-ws::CanvasRoom room() { return {100 * cell, 45 * cell, 1, true}; }
+zengine::pane::CanvasRoom room() { return {100 * cell, 45 * cell, 1, true}; }
 /// A window of light, its text set in a face eight pixels across and eighteen tall.
-ws::CanvasRoom light_room() { return {1080, 840, 1, true, 8, 18}; }
+zengine::pane::CanvasRoom light_room() { return {1080, 840, 1, true, 8, 18}; }
 
 /// What a graphics window would refuse of a picture drawn for `room`: none when it keeps it all.
-std::string window_refuses(const pane::Picture& p, const ws::CanvasRoom& at = room()) {
+std::string window_refuses(const pane::Picture& p, const zengine::pane::CanvasRoom& at = room()) {
     return pane::sketch_of(p, at).over;
 }
 pane::Model graph(std::size_t nodes) {
@@ -154,7 +154,7 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         for (auto& place : stacked.workspace.graph.places) { place.x = pane::kPlaceX; place.y = pane::kPlaceY + unit; }
         CHECK_FALSE(text_has(pane::picture(stacked, room()), "View limit reached"));
         const auto window = pane::window_picture(
-            stacked, ws::canvas_window_room(100 * cell, 45 * cell, 0, {}));
+            stacked, zengine::pane::canvas_window_room(100 * cell, 45 * cell, 0, {}));
         CHECK(text_has(window.picture, "View limit reached"));
         CHECK(window.sketch.nodes().size() <= gfx::kMaxNodesPerArea);
         // THE ROOM'S GROUND FIRST, all of it, so nothing behind the area shows through.
@@ -169,11 +169,11 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         CHECK(window.parts.count("control:zoom-in") == 1);
         CHECK(std::none_of(window.parts.begin(), window.parts.end(),
                            [](const auto& part) { return part.second.action == "node"; }));
-        ws::CanvasPicture many;
+        zengine::pane::CanvasPicture many;
         many.rects.push_back({0, 0, 120, 120, gfx::colors::background});
         for (std::size_t i = 0; i <= gfx::kMaxElementsPerArea; ++i)
             many.parts.push_back({"part " + std::to_string(i), 0, 0, cell, cell});
-        const auto said = ws::canvas_sketch(many, ws::canvas_window_room(120, 120, 0, {}));
+        const auto said = zengine::pane::canvas_sketch(many, zengine::pane::canvas_window_room(120, 120, 0, {}));
         CHECK(said.over.find("more than a graphics window keeps") != std::string::npos);
         CHECK(said.sketch.records().empty());
         CHECK(said.sketch.nodes().size() == 3);
@@ -448,8 +448,8 @@ TEST_CASE("Flow projects node places and hit regions through the room's independ
     CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
     for (const auto& k : view.marks) {
         if (k.op != pane::Mark::Op::Text || k.words.empty()) continue;
-        ws::CanvasText run{k.x, k.y, k.words, zengine::graphics::pool_color_of(k.fill)};
-        const auto layout = ws::clip_canvas_text(run, {0, 0, native_room.width, native_room.height}, native_room);
+        zengine::pane::CanvasText run{k.x, k.y, k.words, zengine::graphics::pool_color_of(k.fill)};
+        const auto layout = zengine::pane::clip_canvas_text(run, {0, 0, native_room.width, native_room.height}, native_room);
         REQUIRE(layout.visible());
         CHECK(layout.text.text == k.words);
     }
@@ -498,7 +498,7 @@ TEST_CASE("the fold node's picture fits: its words inside its card, and a node j
     model.preview = "math.add";
     model.page = pane::Page::Graph;
     REQUIRE(model.node.has_value());
-    ws::CanvasRoom offered{88 * cell, 22 * cell, cell, false};
+    zengine::pane::CanvasRoom offered{88 * cell, 22 * cell, cell, false};
     // Placed low, its answer row is under the canvas's floor: brought into view.
     model.workspace.graph.places.front().y = pane::kPlaceY + 12 * unit;
     const auto before = pane::picture(model, offered);
@@ -518,7 +518,7 @@ TEST_CASE("the fold node's picture fits: its words inside its card, and a node j
     opened.node.reset();
     opened.preview.clear();
     opened.workspace.pan_y = 0;
-    ws::CanvasRoom short_room{88 * cell, 22 * cell, cell, false};
+    zengine::pane::CanvasRoom short_room{88 * cell, 22 * cell, cell, false};
     const auto low = pane::picture(opened, short_room);
     REQUIRE(low.graph_extent.has_value());
     CHECK(low.graph_extent->second > low.canvas->bottom());
@@ -1275,7 +1275,7 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     CHECK(light.parts.count("say:0") == 1);
 
     // IN A TERMINAL, THE SAME RULE IN CHARACTERS: no curve and no ellipse, its parts named alike.
-    const auto cells = pane::window_picture(m, ws::canvas_window_room(170 * cell, 60 * cell, 0, {}));
+    const auto cells = pane::window_picture(m, zengine::pane::canvas_window_room(170 * cell, 60 * cell, 0, {}));
     CHECK(cells.sketch.nodes().size() <= gfx::kMaxNodesPerArea);
     for (const auto& node : cells.sketch.nodes()) {
         CHECK(node.op != gfx::op::kPath);

@@ -14,7 +14,7 @@
 #include "builder/builder-pane/vocabulary.hpp"
 #include "builder/vocabulary.hpp"
 #include "graphics/colors.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 
 #include <cstddef>
 #include <cstdint>

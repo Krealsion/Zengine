@@ -15,13 +15,13 @@
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/notice_seam_vocabulary.hpp" // a refusal said whole, beside the painted row
 #include "workshop/open_seam_vocabulary.hpp" // the opening role the open is asked of
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/causes.hpp"
+#include "pane/facets.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/text.hpp"
 
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_escape.hpp"
+#include "pane/menu.hpp"
+#include "pane/escape.hpp"
 
 #include "builder/vocabulary.hpp"
 #include "component/list_window.hpp"
@@ -29,7 +29,7 @@
 #include "component/text_box.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 
 #include "manuals/zengine.builder-pane.hpp" // this pane's manual, compiled in from its page
 
@@ -56,13 +56,13 @@ namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::builder_pane;
 namespace builder = zengine::builder;
-namespace pane_menu = zengine::workshop::pane_menu;
+namespace pane_menu = zengine::pane::pane_menu;
 
-using ws::v3::PaneActionRow;
-using ws::PaneKey;
-using ws::v2::PaneOffered;
-using ws::PanePassRequested;
-using ws::PaneTextInput;
+using zengine::pane::v3::PaneActionRow;
+using zengine::pane::PaneKey;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PanePassRequested;
+using zengine::pane::PaneTextInput;
 using ws::PlanNames;
 using ws::PlanNamesRequested;
 using ws::PlanRowRequested;
@@ -76,21 +76,21 @@ using ws::RecipeSourceSaid;
 using ws::SourceOpened;
 
 /// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
-/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
-using zengine::workshop::pane_menu::kWorkshopRole;
+/// (`pane/menu.hpp`) as a stranger's pane reads it.
+using zengine::pane::pane_menu::kWorkshopRole;
 
 // ---- The text helpers the composition spends ------------------------------------------
 //
-// Workshop's own text helpers, shared through `workshop/pane_text.hpp`, because `screen.hpp`
+// Workshop's own text helpers, shared through `pane/text.hpp`, because `screen.hpp`
 // is the host's presentation and not a header a loaded image may include.
 
-using zengine::workshop::pane_text::printable;
-using zengine::workshop::pane_text::fit;
-using zengine::workshop::pane_text::fitted_label;
-using zengine::workshop::pane_text::pad;
-using zengine::workshop::pane_text::wrap;
-constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
-constexpr const char* kElided = zengine::workshop::pane_text::kElided;
+using zengine::pane::pane_text::printable;
+using zengine::pane::pane_text::fit;
+using zengine::pane::pane_text::fitted_label;
+using zengine::pane::pane_text::pad;
+using zengine::pane::pane_text::wrap;
+constexpr std::int64_t kWrapIndent = zengine::pane::pane_text::kWrapIndent;
+constexpr const char* kElided = zengine::pane::pane_text::kElided;
 
 /// A labelled row, in the pane's own nine-column gutter.
 std::string labelled_row(const char* label, const std::string& value) {
@@ -101,7 +101,7 @@ std::string labelled_row(const char* label, const std::string& value) {
 /// refuses an empty or malformed one in the plan's words); this only keeps control characters
 /// and newlines out of a single-line field (`pane_text::admissible`).
 bool admissible(std::string_view text) {
-    return zengine::workshop::pane_text::admissible(std::string(text));
+    return zengine::pane::pane_text::admissible(std::string(text));
 }
 
 /// The sentence for a press the window landed on a row this pane has since replaced there: a press
@@ -188,12 +188,12 @@ inline auto of_kind(Act act) {
 // The weave
 // =============================================================================
 
-using Rows = ws::PaneRowsFacet<pane::kBuilderPane, pane::kBuilderPaneRole,
+using Rows = zengine::pane::PaneRowsFacet<pane::kBuilderPane, pane::kBuilderPaneRole,
                                zengine::manual::pages::zengine_builder_pane::kManual,
                                BuilderMeaning>;
-using Asks = ws::AskFacet<pane::kBuilderPane, pane::kBuilderPaneRole, BuilderAsk>;
-using Actions = ws::PaneActionFacet<pane::kBuilderPane, pane::kBuilderPaneRole>;
-using Menu = ws::PaneMenuFacet<pane::kBuilderPane, pane::kBuilderPaneRole>;
+using Asks = zengine::pane::AskFacet<pane::kBuilderPane, pane::kBuilderPaneRole, BuilderAsk>;
+using Actions = zengine::pane::PaneActionFacet<pane::kBuilderPane, pane::kBuilderPaneRole>;
+using Menu = zengine::pane::PaneMenuFacet<pane::kBuilderPane, pane::kBuilderPaneRole>;
 
 class BuilderPaneWeave
     : public zengine::With<Rows, Asks, Actions, Menu>::Weave<
@@ -205,7 +205,7 @@ class BuilderPaneWeave
           loom::Emit<builder::StatusRequested, builder::BuildRequested, builder::PromoteArtifact,
                      builder::RevertArtifact, ProjectFrontierRequested, PlanNamesRequested,
                      PlanRowRequested, RecipeSourceRequested, OpenSourceRequested,
-                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
+                     zengine::pane::PaneKeyboardRequested, zengine::pane::PaneEscapeUnspent, gfx::ClipboardCopy,
                      gfx::ClipboardTextRequested, builder::BuildOutputRequested,
                      ws::PaneRefusalRequested>> {
 public:
@@ -235,7 +235,7 @@ public:
             return;
         }
         // Escape's default: this pane holds nothing selected, so it hands Escape back.
-        if (ws::pane_escape::answer(key, mail, pane::kBuilderPaneRole, [] { return false; })) {
+        if (zengine::pane::pane_escape::answer(key, mail, pane::kBuilderPaneRole, [] { return false; })) {
             return;
         }
         if (!role_.open) {
@@ -651,7 +651,7 @@ public:
     /// answer to one of this pane's own asks, matched by `AskFacet`. Refused, nothing of the act
     /// happens and Workshop's reason is said in the pane's row; allowed, the act captured at the
     /// gesture is done (`carry_out`).
-    void on_approval(const BuilderAsk& a, const ws::PaneOperationAnswered& answer,
+    void on_approval(const BuilderAsk& a, const zengine::pane::PaneOperationAnswered& answer,
                      loom::Mail& mail) {
         if (!answer.allowed) {
             say_undone(a, answer.reason, mail);
@@ -768,7 +768,7 @@ public:
     // WL-PRESS-07 -- agents/workshop/press-chain.md
     /// A PRESS THE WINDOW LANDED ON ANOTHER ROW than the one the rows show there now is refused in
     /// words, never resolved against whatever row has since moved into its place.
-    void press(const ws::RowPress& at, loom::Mail& mail) {
+    void press(const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (at.moved) {
             notice_ = kMovedSentence;
             say(mail);
@@ -820,7 +820,7 @@ public:
                     // box's text standing after the prompt and its inset.
                     const std::string prompt = active_role_prompt();
                     role_.line.place(role_.line.position_at_column(
-                        column - zengine::workshop::pane_text::columns_of(prompt) -
+                        column - zengine::pane::pane_text::columns_of(prompt) -
                         zengine::graphics::kTextBoxInset));
                     say(mail);
                 }
@@ -832,7 +832,7 @@ public:
     /// the press, continuing it; a right press on anything else is handed back to the host,
     /// whose own pane menu answers (WL-CTX-08). A middle press means nothing here and is
     /// consumed.
-    bool right_press(const BuilderMeaning& m, const ws::RowPress& at, loom::Mail& mail) {
+    bool right_press(const BuilderMeaning& m, const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (m.kind == builder_row::kNone) {
             return false;
         }
@@ -979,7 +979,7 @@ private:
         const std::string in = mode();
         this->template facet<Actions>().declare(
             mail, rows_of(in), in,
-            ws::causes_elsewhere(
+            zengine::pane::causes_elsewhere(
                 {pane::kModeBrowse, pane::kModeRecipes, pane::kModeOutput, pane::kModeRoleLine}, in,
                 [](const std::string& m) { return rows_of(m); }));
     }
@@ -1006,18 +1006,18 @@ private:
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
                                  std::int64_t mods = input::mod::kNone,
-                                 std::vector<ws::ActionCause> causes = {},
+                                 std::vector<zengine::pane::ActionCause> causes = {},
                                  const char* enters = "") {
             rows.push_back(PaneActionRow{id, label, sc, mods, {}, std::move(causes), enters});
         };
-        const std::vector<ws::ActionCause> build{ws::cause_of<BuildRequested>()};
-        const std::vector<ws::ActionCause> page{ws::cause_of<BuildOutputRequested>()};
-        const std::vector<ws::ActionCause> source{ws::cause_of<RecipeSourceRequested>(),
-                                                  ws::cause_of<OpenSourceRequested>()};
+        const std::vector<zengine::pane::ActionCause> build{zengine::pane::cause_of<BuildRequested>()};
+        const std::vector<zengine::pane::ActionCause> page{zengine::pane::cause_of<BuildOutputRequested>()};
+        const std::vector<zengine::pane::ActionCause> source{zengine::pane::cause_of<RecipeSourceRequested>(),
+                                                  zengine::pane::cause_of<OpenSourceRequested>()};
         if (in == pane::kModeRoleLine) {
             row(pane::kActionCommit, "load it", input::scan::kReturn, input::mod::kNone,
-                {ws::cause_of<PlanRowRequested>(), ws::cause_of<BuildRequested>(),
-                 ws::cause_of<ProjectFrontierRequested>()},
+                {zengine::pane::cause_of<PlanRowRequested>(), zengine::pane::cause_of<BuildRequested>(),
+                 zengine::pane::cause_of<ProjectFrontierRequested>()},
                 pane::kModeBrowse);
             // And the menu declares no default key while the role line is open: Workshop resolves
             // a key transition before the character it produced arrives, so `Shift+M` would open
@@ -1065,15 +1065,15 @@ private:
         row(pane::kActionBuildRealize, "load after build", input::scan::kB, input::mod::kShift,
             build);
         row(pane::kActionPromote, "promote image", input::scan::kP, input::mod::kShift,
-            {ws::cause_of<builder::PromoteArtifact>()});
+            {zengine::pane::cause_of<builder::PromoteArtifact>()});
         row(pane::kActionRevert, "revert image", input::scan::kR, input::mod::kShift,
-            {ws::cause_of<builder::RevertArtifact>()});
+            {zengine::pane::cause_of<builder::RevertArtifact>()});
         row(pane::kActionLoadIt, "load it", input::scan::kO, input::mod::kNone,
-            {ws::cause_of<PlanNamesRequested>()}, pane::kModeRoleLine);
+            {zengine::pane::cause_of<PlanNamesRequested>()}, pane::kModeRoleLine);
         row(pane::kActionRecipeNext, "recipe", input::scan::kC);
         row(pane::kActionRecipeBack, "recipe back", input::scan::kC, input::mod::kShift);
         row(pane::kActionFrontier, "frontier", input::scan::kF, input::mod::kNone,
-            {ws::cause_of<ProjectFrontierRequested>(), ws::cause_of<BuildRequested>()});
+            {zengine::pane::cause_of<ProjectFrontierRequested>(), zengine::pane::cause_of<BuildRequested>()});
         row(pane::kActionEditSource, "edit source", input::scan::kE, input::mod::kNone, source);
         row(pane::kActionOutput, "read output", input::scan::kL, input::mod::kNone, page,
             pane::kModeOutput);
@@ -1648,7 +1648,7 @@ private:
         if (meaning.kind != builder_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(zengine::workshop::TextRow{fitted(text), ink},
+        (void)room().push(zengine::pane::TextRow{fitted(text), ink},
                           std::move(means)); // a row past the room names nothing
     }
 

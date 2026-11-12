@@ -14,6 +14,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneSetting;
+using pane::kLayoutsRole;
 
 // ---- Workshop's own role-wide settings ------------------------------------------------------
 

@@ -178,12 +178,12 @@ struct SeamTap {
                     keys_went_here.push_back(keys_here ? 1 : 0);
                 }
             }
-            if (ev.sender == browser && ev.schema_name == v2::PaneOperationRequested::zen_name &&
-                ev.schema_version == v2::PaneOperationRequested::zen_version &&
+            if (ev.sender == browser && ev.schema_name == zengine::pane::v2::PaneOperationRequested::zen_name &&
+                ev.schema_version == zengine::pane::v2::PaneOperationRequested::zen_version &&
                 (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
                 ++asks;
                 if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr) {
-                    const auto asked = loom::from_value<v2::PaneOperationRequested>(*ev.payload);
+                    const auto asked = loom::from_value<zengine::pane::v2::PaneOperationRequested>(*ev.payload);
                     for (const std::string& c : asked.classes) open_asks += c == "open" ? 1u : 0u;
                 }
             }
@@ -419,7 +419,7 @@ struct FilesRig {
         std::vector<std::string> ids;
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
-        for (const v4::PaneActionRow& a : seat->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -609,10 +609,10 @@ TEST_CASE("the pane declares its rows with the ids a weaver's keymap already kno
     FilesRig f("files-actions");
     f.open();
     REQUIRE(f.row() != nullptr);
-    const std::vector<v4::PaneActionRow>& declared = f.row()->actions;
+    const std::vector<zengine::pane::v4::PaneActionRow>& declared = f.row()->actions;
     REQUIRE_MESSAGE(!declared.empty(), "the pane declared no actions at all");
     std::vector<std::string> ids;
-    for (const v4::PaneActionRow& row : declared) {
+    for (const zengine::pane::v4::PaneActionRow& row : declared) {
         ids.push_back(row.id);
     }
     for (const char* id : {files::kActionUp, files::kActionDown, files::kActionOpen,
@@ -700,7 +700,7 @@ TEST_CASE("the manual Files answers names exactly the commands it declares in ea
     ManualReader reader(f.r, files::kFilesRole);
     std::set<std::string> declared;
     each_files_step(f, [&](const char*) {
-        for (const v4::PaneActionRow& a : f.row()->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : f.row()->actions) {
             declared.insert(a.id);
         }
     });
@@ -1002,18 +1002,18 @@ TEST_CASE("Files declares its wheel and its listing's bound as settings, and a l
     f.open(160, 14);
 
     // THE TWO SETTINGS, AS WORKSHOP COUNTS THEM.
-    const v2::PaneSettingRow wheel{files::kSettingWheelRows, std::nullopt, 3, std::nullopt, {}, 1,
+    const zengine::pane::v2::PaneSettingRow wheel{files::kSettingWheelRows, std::nullopt, 3, std::nullopt, {}, 1,
                                    24, {"input", "scroll"}, true, "rows scrolled per wheel notch"};
     const auto most = static_cast<std::int64_t>(zengine::workshop::kMaxListedEntries);
-    const v2::PaneSettingRow listed{files::kSettingListedEntries, std::nullopt, most, std::nullopt, {},
+    const zengine::pane::v2::PaneSettingRow listed{files::kSettingListedEntries, std::nullopt, most, std::nullopt, {},
                                     static_cast<std::int64_t>(zengine::workshop::kFewestListedEntries),
                                     most, {"limits"}, false,
                                     "the most entries one directory listing holds"};
-    const v2::PaneSettingRow places{files::kSettingPlaces, false, std::nullopt, std::nullopt, {},
+    const zengine::pane::v2::PaneSettingRow places{files::kSettingPlaces, false, std::nullopt, std::nullopt, {},
                                     std::nullopt, std::nullopt, {"view"}, false,
                                     "the places section open: origin, marks, roots"};
     CHECK(declared_settings(f.r, files_ref()) ==
-          std::vector<v2::PaneSettingRow>{wheel, listed, places});
+          std::vector<zengine::pane::v2::PaneSettingRow>{wheel, listed, places});
 
     const CellRect body = external_body_rect(f.r.session(), f.kind);
     // ONE NOTCH FROM THE TOP OF THE LIST, walked there as a weaver walks.
@@ -2684,7 +2684,7 @@ TEST_CASE("an open the desk cannot show opens nothing, and Files says why") {
 TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
     // `u` on a file that is not JSON asks the project door, whose `from_text` answers with Loom's
     // `Error::message()`, and that message carries a UTF-8 em dash in its `detail`, which a row
-    // shows as itself (`printable`, `workshop/pane_text.hpp`). The answer is `from_text`'s own, not
+    // shows as itself (`printable`, `pane/text.hpp`). The answer is `from_text`'s own, not
     // mocked: 96 bytes with the dash at byte 60; the notice is 180 bytes, 178 columns.
     FilesRig f("files-nonascii-refusal");
     put_file(f.root / "not-a-catalog.txt", "not json at all\n");
@@ -3784,9 +3784,9 @@ struct AskedAndOpened {
             if (ev.kind != loom::EventKind::Delivered || ev.payload == nullptr) {
                 return;
             }
-            if (ev.sender == browser && ev.schema_name == v2::PaneOperationRequested::zen_name &&
-                ev.schema_version == v2::PaneOperationRequested::zen_version) {
-                const auto asked = loom::from_value<v2::PaneOperationRequested>(*ev.payload);
+            if (ev.sender == browser && ev.schema_name == zengine::pane::v2::PaneOperationRequested::zen_name &&
+                ev.schema_version == zengine::pane::v2::PaneOperationRequested::zen_version) {
+                const auto asked = loom::from_value<zengine::pane::v2::PaneOperationRequested>(*ev.payload);
                 std::string line = "asked";
                 for (const std::string& c : asked.classes) {
                     line += " " + c;
@@ -4186,7 +4186,7 @@ TEST_CASE("Files' places are a section of the pane: shut at first and saying how
     CHECK(rows[3].find("filesystem root") != std::string::npos);
     if (cut) {
         CHECK(rows[2 + shown] ==
-              "  " + zengine::workshop::pane_text::omitted_text(held - shown, "more"));
+              "  " + zengine::pane::pane_text::omitted_text(held - shown, "more"));
         REQUIRE(rows.size() > static_cast<std::size_t>(listing) + 1);
         CHECK(rows[static_cast<std::size_t>(listing) + 1].rfind("[menu]", 0) == 0);
         CHECK(static_cast<std::int64_t>(rows.size()) == f.granted_rows());
@@ -4306,7 +4306,7 @@ TEST_CASE("Files' path keeps its root and as much of its end as fits, cut in the
     REQUIRE(whole.size() > static_cast<std::size_t>(kColumns));
 
     // THE ROOT, THE MARK, AND AS MUCH OF THE END AS THE ROW HOLDS.
-    const std::size_t root = zengine::workshop::pane_text::path_root(whole);
+    const std::size_t root = zengine::pane::pane_text::path_root(whole);
     const std::size_t from = header.find(whole.substr(0, root) + "...");
     REQUIRE(from != std::string::npos);
     CHECK(header.size() == static_cast<std::size_t>(kColumns));
@@ -4318,7 +4318,7 @@ TEST_CASE("Files' path keeps its root and as much of its end as fits, cut in the
     // it -- and the row is the path's now, its first column the start and its last the end.
     const auto at = static_cast<std::int64_t>(from);
     window.move(area, at, 0);
-    CHECK(window.rows(area)[0] == zengine::workshop::pane_text::scrub(whole, kColumns, at));
+    CHECK(window.rows(area)[0] == zengine::pane::pane_text::scrub(whole, kColumns, at));
     window.move(area, 0, 0);
     CHECK(window.rows(area)[0] == whole.substr(0, static_cast<std::size_t>(kColumns)));
     window.move(area, kColumns - 1, 0);
@@ -4332,7 +4332,7 @@ TEST_CASE("Files' path keeps its root and as much of its end as fits, cut in the
     CHECK(window.rows(area)[0] == header);
     window.move(area, at, 0);
     window.move(area, 2, 0); // over `Files` -- but while the path shows, the row is the path's
-    CHECK(window.rows(area)[0] == zengine::workshop::pane_text::scrub(whole, kColumns, 2));
+    CHECK(window.rows(area)[0] == zengine::pane::pane_text::scrub(whole, kColumns, 2));
     window.move(area, 2, 2);
     CHECK(window.rows(area)[0] == header);
     CHECK(window.weave().refusals.empty());

@@ -180,7 +180,7 @@ WHY — `agents/decisions/a-colour-is-a-name-the-window-paints.md`
 ## Proven by
 
 ### WL-SETTING-01
-`workshop/pane_settings.hpp` PaneSetting setting_kind pane_setting_problem pane_setting_key_problem
+`pane/settings.hpp` PaneSetting setting_kind pane_setting_problem pane_setting_key_problem
 pane_setting_text_ok kMaxPaneSettingKeyLen kMaxPaneSettingTextLen
 `workshop/setup_persist.hpp` setup_in
 `tests/test_workshop_persistence.cpp` "a setting rides its row through the setup file in its own
@@ -191,7 +191,7 @@ key, and changes nothing"
 ### WL-SETTING-02
 `workshop/setup.hpp` check_pane_settings kMaxPaneSettingsPerDesk desk_setting_count check_setup
 SetupPane::settings desk_units
-`workshop/pane_settings.hpp` kMaxPaneSettingsPerRow kDeskSettingPrefix is_desk_setting_key
+`pane/settings.hpp` kMaxPaneSettingsPerRow kDeskSettingPrefix is_desk_setting_key
 `tests/test_workshop_panes_settings.cpp` "a row keeps no `workshop.` key among its settings: its theme stands beside them, a commit
 of `workshop.skin` is refused, and a version-7 setup's is read as the row's theme"
 `tests/test_workshop_persistence.cpp` "a setting holding no value, or two, is refused by every
@@ -203,7 +203,7 @@ its bound, and a value moved on a full desk is kept"
 ### WL-SETTING-03
 `workshop/setup_reconcile.hpp` admit_pane_settings
 `workshop/weave_seam.cpp` accept_pane_offer
-`workshop/pane_settings.hpp` PaneSettingsDeclared PaneSettingRow pane_settings_declared_problem
+`pane/settings.hpp` PaneSettingsDeclared PaneSettingRow pane_settings_declared_problem
 pane_setting_row_problem pane_setting_refused_by pane_setting_tag_problem widen_setting_row
 narrow_setting_row kMaxTagLen kMaxSettingTags kMaxDeclaredTags kMaxDefaultPins kReservedTags
 `workshop/layouts/owner.cpp` on(PaneSettingsDeclared)
@@ -220,8 +220,8 @@ declares, and an identical declaration keeps a draft"
 ### WL-SETTING-04
 `workshop/layouts/store.cpp` pane_hand_offs pane_handed pane_asked taker_of live_layout
 `workshop/layouts/owner.cpp` hand_rows settle on(PaneSettingsAsked) layouts_grant
-`workshop/pane_settings.hpp` PaneSettings PaneSettingsAsked pane_held_settings
-`workshop/pane_settings_taken.hpp` PaneSettingsFacet take_pane_settings SettingsTaken
+`pane/settings.hpp` PaneSettings PaneSettingsAsked pane_held_settings
+`pane/settings_taken.hpp` PaneSettingsFacet take_pane_settings SettingsTaken
 `tests/test_workshop_panes_settings.cpp` "a row keeps no `workshop.` key among its settings: its theme stands beside them, a commit
 of `workshop.skin` is refused, and a version-7 setup's is read as the row's theme" "the
 layouts' owner hands a seated pane its row's settings, whether or not it declared" "a holder that
@@ -243,7 +243,7 @@ its row is handed"
 
 ### WL-SETTING-05
 `workshop/setup.hpp` author_pane_setting
-`workshop/pane_settings.hpp` row_setting_absence
+`pane/settings.hpp` row_setting_absence
 `workshop/layouts/store.cpp` handed_fact
 `info/settings_rows.hpp` value_text rows_of Typed
 `info/property_view.hpp` merge
@@ -279,7 +279,7 @@ clear takes back what the row keeps, declared or not, and clearing nothing chang
 them: the wheel reads its rows a notch and the line wears its prompt"
 
 ### WL-SETTING-08
-`workshop/pane_settings.hpp` PaneSettingUnused
+`pane/settings.hpp` PaneSettingUnused
 `workshop/layouts/store.cpp` keep_unused unused_of pane_handed
 `workshop/layouts/owner.cpp` on(PaneSettingUnused)
 `workshop/layouts/vocabulary.hpp` RowSettingUnused LiveLayout::unused
