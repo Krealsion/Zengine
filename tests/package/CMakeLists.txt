@@ -123,6 +123,17 @@ foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
             "file nobody installed is worse than an empty one.")
     endif()
 endforeach()
+# The GUI window arrives with the SDL it was built against, beside it, where the package's build
+# fetched one; zengine_stage_sdl() above stages them beside the host.
+if("zengine-window-sdl" IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
+    list(LENGTH ZENGINE_SDL_RUNTIME zengine_sdl_count)
+    if(NOT zengine_sdl_count EQUAL 2)
+        message(FATAL_ERROR
+            "kitchen: the package carries the GUI window, and ZENGINE_SDL_RUNTIME names "
+            "'${ZENGINE_SDL_RUNTIME}', not SDL3 and SDL3_ttf beside it in ${ZENGINE_ARTIFACT_DIR}")
+    endif()
+    message(STATUS "kitchen: the GUI window arrives with its SDL, ${ZENGINE_SDL_RUNTIME}")
+endif()
 message(STATUS
     "kitchen: the installed package advertises ${ZENGINE_RUNTIME_ARTIFACTS} in "
     "${ZENGINE_ARTIFACT_DIR} -- weaves and a provider in one list, which is why they are "

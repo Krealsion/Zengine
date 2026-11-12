@@ -62,7 +62,9 @@ starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by an
 Loom host, a session, to speak Workshop's guest shapes), the graphics directory and TUI
 window (`zengine-graphics`, `zengine-window-tui`), which paints with its own painter, and every
 pane and office Workshop stages, so a host built against the package stages them from there
-(`workshop/CMakeLists.txt`). They install as FILES, not as
+(`workshop/CMakeLists.txt`); and the GUI window (`zengine-window-sdl`) with the SDL3 and SDL3_ttf
+it was built against beside it, where the build fetched them, which the config names as
+`ZENGINE_SDL_RUNTIME` for `zengine_stage_sdl()`. They install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys and their
@@ -101,10 +103,10 @@ CTest entry keeps the retired spellings from coming back — it owns the list of
 page does not spell them.
 
 **What is deliberately out of the developer package, and why** (each is a limit, not an
-oversight): the GUI window (`zengine-window-sdl`), because a fetched SDL is a build-tree library
-the developer package does not carry; Workshop, because a build's executable carries
+oversight): the GUI window over a system SDL3, which is the system's to carry; Workshop, because
+a build's executable carries
 `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured it, so installing it would
-ship one machine's layout -- the package below carries both; the panes' own insides, the Flow
+ship one machine's layout -- the package below carries it; the panes' own insides, the Flow
 pane's model and view and the View Builder's among them, a pane's control vocabulary public where
 another participant drives it (the Flow pane's, through `zengine::flow`); Workshop's own
 vocabularies and weaves (`zengine-builder-pane` among them), because they are Workshop being

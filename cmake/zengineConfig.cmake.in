@@ -57,6 +57,15 @@ include("${CMAKE_CURRENT_LIST_DIR}/ZengineManual.cmake")
 # Loom's reloadable-lifetime contract applied (loom_weave_build_contract(), from the Loom found
 # above), and the SDL runtime this package carries, ZENGINE_SDL_RUNTIME, staged beside a host.
 set(ZENGINE_SDL_RUNTIME "")
+if("zengine-window-sdl" IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
+    # The names the loader asks for: on ELF each library's soname, a link to the file beside it.
+    file(GLOB _zengine_sdl_files "${ZENGINE_ARTIFACT_DIR}/*SDL3*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
+    foreach(_zengine_sdl_file IN LISTS _zengine_sdl_files)
+        if(WIN32 OR IS_SYMLINK "${_zengine_sdl_file}")
+            list(APPEND ZENGINE_SDL_RUNTIME "${_zengine_sdl_file}")
+        endif()
+    endforeach()
+endif()
 include("${CMAKE_CURRENT_LIST_DIR}/ZengineWeave.cmake")
 
 @ZENGINE_WASM_WEAVE_CONFIG@check_required_components(zengine)

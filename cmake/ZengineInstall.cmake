@@ -246,9 +246,9 @@ set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
 # The panes and the offices beside them are Zengine's, every one, and a host built against this
 # package stages them from here as Workshop stages them beside itself (workshop/CMakeLists.txt).
-# Out of the developer package: the GUI window (a fetched SDL is a build-tree library this package
-# does not carry); Workshop's own weaves; the snake example; every test fixture. The package a
-# stranger downloads (ZENGINE_PACKAGE, below) carries Workshop with the SDL it built, in bin/.
+# The GUI window joins them with the SDL this build fetched (below). Out of the developer package:
+# Workshop's own weaves; the snake example; every test fixture. The package a stranger downloads
+# (ZENGINE_PACKAGE, below) carries Workshop with the SDL it built, in bin/.
 set(zengine_installable_artifacts
     zengine-app-weave            # weave: an app's own weave, which zengine-app runs
     zengine-timer                # weave
@@ -293,6 +293,27 @@ foreach(artifact IN LISTS zengine_installable_artifacts)
         list(APPEND ZENGINE_INSTALLED_ARTIFACTS ${artifact})
     endif()
 endforeach()
+
+# ...AND THE GUI WINDOW, WITH THE SDL IT WAS BUILT AGAINST, where this build fetched that SDL: the
+# window and both SDL libraries in the one directory, which a host stages beside itself
+# (zengine_stage_sdl(), handed ZENGINE_SDL_RUNTIME by the config). A window over a system SDL3
+# stays out: that SDL is the system's to carry.
+if(TARGET zengine-window-sdl AND zengine_sdl_fetched AND zengine_sdl_ttf_fetched)
+    if(WIN32)
+        install(FILES $<TARGET_FILE:zengine-window-sdl> ${ZENGINE_SDL_RUNTIME}
+                DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR})
+    else()
+        # By target, so the build tree's RUNPATH becomes $ORIGIN, where the SDL beside it is.
+        get_target_property(zengine_dev_sdl SDL3::SDL3 ALIASED_TARGET)
+        get_target_property(zengine_dev_ttf SDL3_ttf::SDL3_ttf ALIASED_TARGET)
+        set_target_properties(zengine-window-sdl ${zengine_dev_sdl} ${zengine_dev_ttf}
+                              PROPERTIES INSTALL_RPATH "$ORIGIN")
+        install(TARGETS zengine-window-sdl LIBRARY DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR})
+        install(TARGETS ${zengine_dev_sdl} ${zengine_dev_ttf}
+                LIBRARY DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR} NAMELINK_SKIP)
+    endif()
+    list(APPEND ZENGINE_INSTALLED_ARTIFACTS zengine-window-sdl)
+endif()
 
 if(NOT ZENGINE_INSTALLED_ARTIFACTS)
     message(STATUS
