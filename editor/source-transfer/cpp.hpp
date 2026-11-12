@@ -145,6 +145,10 @@ inline const char* kind_name(loom::Kind k) {
     case loom::Kind::Bytes: return "Bytes";
     case loom::Kind::Message: return "Message";
     case loom::Kind::List: return "List";
+#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
+    case loom::Kind::Union: return "Union";
+    case loom::Kind::Any: return "Any";
+#endif
     }
     return "?";
 }

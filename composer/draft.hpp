@@ -38,6 +38,10 @@ inline Composability composability(loom::Kind k) noexcept {
         return Composability::kNoSpelling;
     case loom::Kind::Message:
     case loom::Kind::List:
+#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
+    case loom::Kind::Union:
+    case loom::Kind::Any:
+#endif
         break;
     }
     return Composability::kNotFlat;

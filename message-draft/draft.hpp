@@ -133,6 +133,10 @@ inline std::string summary(const loom::Cell* cell) {
     case loom::Kind::Bytes: return std::to_string(cell->as_bytes().size()) + " bytes";
     case loom::Kind::Message: return "message";
     case loom::Kind::List: return std::to_string(cell->as_list().size()) + " items";
+#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
+    case loom::Kind::Union: return "one of its cases";
+    case loom::Kind::Any: return "message"; // a cell holds a Message or a Union, never Any
+#endif
     }
     return {};
 }
