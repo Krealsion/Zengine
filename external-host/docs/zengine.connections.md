@@ -4,7 +4,7 @@
 reports them. It is a *weave*: a piece of Workshop that is loaded, replaced and spoken to by
 messages, built as `zengine-connections-pane`. Other weaves reach it by its *role*, the name it
 answers to, `zengine.connections`, and it offers one pane, `connections`. The connections themselves
-are the guest door's, [`zengine.guests`](zengine.guests.md).
+are the guest door's, [`zengine.guests`](../../workshop/docs/zengine.guests.md).
 
 ## About
 
@@ -30,7 +30,7 @@ until one does. A connection that ends is shown `closed` once, then dropped.
 The pane's rows follow the door's inventory, `GuestConnections` v3 from `zengine.guests`: asked once
 when the pane goes live, then taken whole at each publication. A word about connections from anyone
 else is not taken. An observer follows the door instead of reading the pane
-([Follow](zengine.guests.md#follow)); a guest asks for its own row there.
+([Follow](../../workshop/docs/zengine.guests.md#follow)); a guest asks for its own row there.
 
 ## Shows
 
@@ -71,9 +71,9 @@ and room is left for the line.
 
 ## Files
 
-The pane reads no file. The guests file is the door's ([Files](zengine.guests.md#files)).
+The pane reads no file. The guests file is the door's ([Files](../../workshop/docs/zengine.guests.md#files)).
 
 ## See also
 
-- [`zengine.guests`](zengine.guests.md), the door whose inventory this is.
+- [`zengine.guests`](../../workshop/docs/zengine.guests.md), the door whose inventory this is.
 - [Drive Workshop from another host](external-host.md): say who may connect, and link a host.

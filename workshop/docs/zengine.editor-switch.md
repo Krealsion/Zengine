@@ -4,13 +4,13 @@
 editor holding it to another the load plan authors, carrying the document across, answering to the
 role `zengine.editor-switch` (a role is the name a weave answers to). Workshop mounts it; it is
 not a file you load. A weaver asks it from Workshop's Terminal; another weave reaches it by the
-messages below. The Editor it switches is [`zengine.editor`](zengine.editor.md).
+messages below. The Editor it switches is [`zengine.editor`](../../editor/docs/zengine.editor.md).
 
 ## About
 
 The load plan authors the *choices* a role may be switched between, each an artifact under a
 name, and which one holds the role at the start ([the load plan's
-choices](../../workshop/docs/load-plan.md)). Both shipped plans author `standard`, the standard
+choices](load-plan.md)). Both shipped plans author `standard`, the standard
 Editor, which starts, and `neovim`, the Neovim-backed Editor. Every other choice is loaded only when
 a switch asks for it.
 
@@ -19,7 +19,7 @@ document through a handoff every editor speaks: the editor in role judges what a
 lose, the destination is loaded sealed and started, the editor in role hands over the exact
 document and holds still, the destination adopts it, the role moves, the successor proves it
 serves, and the retired editor is unloaded. What crosses exactly, what is reset and what needs your
-consent is [what crosses a switch](editor-switch.md).
+consent is [what crosses a switch](../../editor/docs/editor-switch.md).
 
 Before the role moves, every ending moves nothing: the destination is discarded, and the editor in
 role is told, resumes and says so on its pane. After it, nothing is rolled back. One switch runs
@@ -33,11 +33,11 @@ Open the Terminal, <!-- key desktop.terminal -->`ctrl+t`<!-- /key -->, and type
 as Workshop's notice, in the Notices pane, `editor switch 1: switched -- ...`, and while a switch is under way the
 Attention pane keeps it standing, with the line that cancels it. When a switch would lose
 something, the notice gives the exact line that confirms it, `op` and `consent` filled in; type it,
-or cancel. [`EditorSwitchStatusRequested`](#editorswitchstatusrequested) says where you are.
+or cancel. [`EditorSwitchStatusRequested`](zengine.editor-switch.md#editorswitchstatusrequested) says where you are.
 
 Who may send: Workshop's Terminal is granted the first four commands to this role and the
 answer, and nothing else of it; the quick setup is granted the same with
-[`EditorSwitchQuietStatusRequested`](#editorswitchquietstatusrequested) in place of the status.
+[`EditorSwitchQuietStatusRequested`](zengine.editor-switch.md#editorswitchquietstatusrequested) in place of the status.
 Every command is an ask, answered with `EditorSwitchAnswered` v1 to the asker.
 
 ## Commands
@@ -71,7 +71,7 @@ Every command is an ask, answered with `EditorSwitchAnswered` v1 to the asker.
 goes on.
 
 - **Takes:** `op`, the switch; `consent`, the digest its `needs-confirmation` answer carried.
-- **Answers:** `EditorSwitchAnswered` as [`EditorSwitchRequested`](#editorswitchrequested) once the
+- **Answers:** `EditorSwitchAnswered` as [`EditorSwitchRequested`](zengine.editor-switch.md#editorswitchrequested) once the
   switch ends. When what would be lost changed before the editor in role held still, the answer is
   `needs-confirmation` again, with a new consent, and nothing crosses on the old one.
 - **Refuses:** `switch 3 is not awaiting confirmation`; `` that consent is not the one this switch
@@ -107,7 +107,7 @@ is under way.
 ### `EditorSwitchQuietStatusRequested`
 
 `EditorSwitchQuietStatusRequested` v1 asks what
-[`EditorSwitchStatusRequested`](#editorswitchstatusrequested) asks, for a pane that shows the
+[`EditorSwitchStatusRequested`](zengine.editor-switch.md#editorswitchstatusrequested) asks, for a pane that shows the
 answer itself: it is answered to the asker alone, and nothing of it is said in Notices.
 
 - **Takes:** nothing.
@@ -124,7 +124,7 @@ answer itself: it is answered to the asker alone, and nothing of it is said in N
 `EditorHandoffJudged` v1, from `zengine.editor`, the editor in the role: what a switch away would lose, reset or
 refuse, and the room the document is shown in. A refusal ends the switch, `the editor in role
 refused: <its words>`; losses ask for your consent first. The handoff's shapes are
-[`workshop/editor_handoff_vocabulary.hpp`](../../workshop/editor_handoff_vocabulary.hpp).
+[`workshop/editor_handoff_vocabulary.hpp`](../editor_handoff_vocabulary.hpp).
 
 ### `EditorWarmed`
 
@@ -178,7 +178,7 @@ as its notice, `editor switch <op>: <outcome> -- <words>`. The stages are `judgi
 
 ## See also
 
-- [`zengine.editor`](zengine.editor.md), the Editor the switch moves.
-- [What crosses a switch](editor-switch.md): the document, its caret and selection, what is reset
+- [`zengine.editor`](../../editor/docs/zengine.editor.md), the Editor the switch moves.
+- [What crosses a switch](../../editor/docs/editor-switch.md): the document, its caret and selection, what is reset
   and what needs consent, each way.
-- [Neovim in Workshop](neovim.md): switching while you work, walked through.
+- [Neovim in Workshop](../../editor/docs/neovim.md): switching while you work, walked through.

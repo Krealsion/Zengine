@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_SAMPLE_DOOR_HPP
 
 // The one role that may cause a Source to be evaluated, `zengine.sources` (its manual, which it
-// carries and answers: introspection/docs/zengine.sources.md): `SampleRequested{identity}` in, then
+// carries and answers: workshop/docs/zengine.sources.md): `SampleRequested{identity}` in, then
 // `op::sample`, `render_value` and `SourceSampled` out. Not the arrangement door, which runs
 // nothing and must be able to say so, and not a generic host-RPC door. It holds a const reference
 // to the catalog (`main`'s local, which outlives it) and remembers nothing, so two samples run the

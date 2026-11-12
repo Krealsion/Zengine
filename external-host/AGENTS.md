@@ -72,8 +72,9 @@ and their manual); `graphics`
 
 - [Author and check a recipe through an ELH](docs/elh-recipe-journey.md)
 - [Drive Workshop from another host](docs/external-host.md)
-- The manuals, each carried by the weave it describes: [`zengine.guests`](docs/zengine.guests.md)
-  (by `zengine-workshop-guests`, `workshop/CMakeLists.txt`), [`zengine.connections`](docs/zengine.connections.md)
+- The manuals, each carried by the weave it describes: [`zengine.guests`](../workshop/docs/zengine.guests.md)
+  (beside the door, `workshop/guest_door.hpp`, carried by `zengine-workshop-guests`),
+  [`zengine.connections`](docs/zengine.connections.md)
   and [`zengine.demo`](docs/zengine.demo.md); the census of the Demo pane's row,
   `tests/actions/zengine.demo.txt`
 

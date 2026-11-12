@@ -3,7 +3,7 @@
 **Manual.** The one role that may run a Source, answering to `zengine.sources` (a role is the
 name a weave answers to): asked for one Source by its identity, it runs it once, now, and answers
 with what it returned, as lines of text. Workshop mounts it in its own process; it is not a file you
-load. The `Powers` pane of [`zengine.introspection`](zengine.introspection.md#powerssample) asks it
+load. The `Powers` pane of [`zengine.introspection`](../../introspection/docs/zengine.introspection.md#powerssample) asks it
 when you sample.
 
 ## About
@@ -29,7 +29,7 @@ no edit here. A host that mounts no such door holds no `zengine.sources`, and an
 
 ## Use
 
-Ask [`SampleRequested`](#samplerequested) as a role you hold, once for each sample you mean: no
+Ask [`SampleRequested`](zengine.sources.md#samplerequested) as a role you hold, once for each sample you mean: no
 timer, subscription or cache stands behind it.
 
 ## Commands
@@ -52,7 +52,7 @@ timer, subscription or cache stands behind it.
 
 ## See also
 
-- [`zengine.introspection`](zengine.introspection.md#powerssample), the pane that samples.
+- [`zengine.introspection`](../../introspection/docs/zengine.introspection.md#powerssample), the pane that samples.
 - [`zengine.powers`](zengine.powers.md), which says what a Source would yield without running it.
-- The shapes: [`workshop/sample_vocabulary.hpp`](../../workshop/sample_vocabulary.hpp).
+- The shapes: [`workshop/sample_vocabulary.hpp`](../sample_vocabulary.hpp).
 - [Sources](../../operator/docs/operator-sources.md).

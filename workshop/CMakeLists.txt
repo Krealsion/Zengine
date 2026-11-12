@@ -36,8 +36,8 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.layouts.md)
 # The manuals of two doors among the vocabulary's headers, the discovery door (`powers_door.hpp`)
 # and the sample door (`sample_door.hpp`), compiled into whatever mounts them: each answers a
 # shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.powers.md)
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.sources.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.powers.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.sources.md)
 
 # ---- The authored load plan: its shape, its file, its execution, and the observation door ----
 #
@@ -52,7 +52,7 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengi
 add_library(zengine-workshop-load INTERFACE)
 target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
 # The observation door's manual, compiled into whatever mounts it.
-zengine_manual(zengine-workshop-load INTERFACE ../introspection/docs/zengine.arrangement.md)
+zengine_manual(zengine-workshop-load INTERFACE docs/zengine.arrangement.md)
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
                                                       zengine-builder-vocabulary
                                                       zengine::operator
@@ -119,7 +119,7 @@ target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE workshop-warnings workshop-sanitize)
 # The editor switch's manual, compiled into whatever mounts the role
 # (`editor_switch.hpp`): it answers a shape's section from this page (`ShapeDocumentRequested`).
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../editor/docs/zengine.editor-switch.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.editor-switch.md)
 
 # The host needs a Loom that can host .so weaves: it loads a window and an Input producer.
 if(NOT TARGET loom::kernel)
@@ -150,7 +150,7 @@ target_link_libraries(zengine-workshop-guests
     PRIVATE workshop-warnings workshop-sanitize)
 # ...and the door's manual, compiled into whatever mounts the door: it answers a shape's section
 # from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
-zengine_manual(zengine-workshop-guests INTERFACE ../external-host/docs/zengine.guests.md)
+zengine_manual(zengine-workshop-guests INTERFACE docs/zengine.guests.md)
 
 # The bus tally (`bus_tally.hpp`): where a running bus spends its time, off Loom's own stamps, by a
 # host's observer. Header-only; Workshop, `zengine-app` and the snake keep one and say it at the end.

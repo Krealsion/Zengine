@@ -70,7 +70,7 @@ and `--tui` takes the TUI window alone. Workshop's own code is identical in both
 | `--dump <path>` | none | what the volatile recorder still held when Workshop quit |
 | `--document <path>` | `workshop.json` in the project, when there is one | an object document from before the object canvas retired: named once at startup and left exactly as it is |
 | `--marks <path>` | `workshop-marks.json`, in your **per-user state folder** | the places you marked in the Files pane ([the marks file](../../files/docs/zengine.files.md#files)) |
-| `--guests <path>` | none: no listener | who may connect to this Workshop from another host, and what each may say ([the guests file](../../external-host/docs/zengine.guests.md)) |
+| `--guests <path>` | none: no listener | who may connect to this Workshop from another host, and what each may say ([the guests file](zengine.guests.md)) |
 | `--read-log <path>` | none | show a journal `--log` wrote, and start nothing ([diagnostics](make-a-workshop-tool.md#find-a-missing-reply-grant)) |
 | `--log-refusals` | off | keep refusals in the `--log` journal, which it needs; it grants nothing ([diagnostics](make-a-workshop-tool.md#find-a-missing-reply-grant)) |
 | `--demo-history` | off | keep more recent delivery metadata for `--dump` ([diagnostics](make-a-workshop-tool.md#find-a-missing-reply-grant)) |

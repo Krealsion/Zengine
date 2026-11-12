@@ -38,7 +38,7 @@ Start here, with [`story.up`](#storyup), [`story.down`](#storydown) and
 The quick setup's items, top to bottom:
 
 - **Edit text with Neovim** asks the editor switch
-  ([`zengine.editor-switch`](../../editor/docs/zengine.editor-switch.md)) to switch the Editor's
+  ([`zengine.editor-switch`](zengine.editor-switch.md)) to switch the Editor's
   role to the plan's `neovim` choice, or back to `standard` when it is unchecked. The box shows
   which choice holds the role, as the switch says it. A switch that would lose something asks
   first: the pane says what, and choosing the box again confirms it. The choice holding the role
@@ -85,9 +85,9 @@ Chooses the quick setup's item under the cursor.
 - **Takes:** the item under the cursor. Default key
   <!-- key first-run.choose -->`return`<!-- /key -->.
 - **Answers:** on the box, asks the editor switch
-  ([`EditorSwitchRequested`](../../editor/docs/zengine.editor-switch.md#editorswitchrequested)) for
+  ([`EditorSwitchRequested`](zengine.editor-switch.md#editorswitchrequested)) for
   the other choice, or confirms the consent it asked
-  ([`EditorSwitchConfirmed`](../../editor/docs/zengine.editor-switch.md#editorswitchconfirmed)); the
+  ([`EditorSwitchConfirmed`](zengine.editor-switch.md#editorswitchconfirmed)); the
   switch's answer is shown under the box. On a setup's Start, asks the launcher for it
   ([`Launch`](../../launcher/docs/zengine.launcher.md#launch)) once Workshop allowed the hand. On
   The story, Done or Skip, writes `answered`

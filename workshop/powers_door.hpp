@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_POWERS_DOOR_HPP
 
 // The host's discovery door (its manual, which it carries and answers:
-// introspection/docs/zengine.powers.md): two derivations, pure over the live `op::Catalog` they
+// workshop/docs/zengine.powers.md): two derivations, pure over the live `op::Catalog` they
 // read, and the participant that answers them in the role `zengine.powers`. It derives every
 // answer at the ask and keeps nothing between asks, describes and cannot evaluate (sampling is
 // `zengine.sources`'), answers only whoever asked, publishes nothing, and refuses in words an ask

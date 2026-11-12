@@ -13,7 +13,7 @@ holders' manual. New to it? Start with [The source editor](editor.md) or
 The role has one pane, `editor`, and whichever weave holds the role draws it: in Workshop, and
 in a graphics window that shows the area `zengine.editor` (`AreaRoom`, below). The load plan
 names the weave that starts and the choices a weaver may switch to, `standard` and `neovim` in
-both shipped plans; the switch is the role [`zengine.editor-switch`](zengine.editor-switch.md),
+both shipped plans; the switch is the role [`zengine.editor-switch`](../../workshop/docs/zengine.editor-switch.md),
 which moves the document across: its bytes, unsaved edits, caret, selection and scroll. The pane's
 title says which holder you are in, `Editor @zengine.editor` or `Neovim @zengine.editor`.
 
@@ -55,7 +55,7 @@ Neovim's own except on its Visual highlight or the `status` row.
 To switch holders, ask the switch from Workshop's Terminal,
 <!-- key desktop.terminal -->`ctrl+t`<!-- /key -->:
 `ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim`, or `destination=standard`
-([`EditorSwitchRequested`](zengine.editor-switch.md#editorswitchrequested)).
+([`EditorSwitchRequested`](../../workshop/docs/zengine.editor-switch.md#editorswitchrequested)).
 
 Each layout keeps the Editor's settings, set in Info or by message
 ([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)), and each
@@ -341,7 +341,7 @@ declared fields with `zen.PokeRead`: the standard Editor's `EditorPaneState`
 which a poke does not read); the Neovim-backed Editor's `NeovimEditorState`
 ([`editor/neovim-editor/vocabulary.hpp`](../neovim-editor/vocabulary.hpp)), with `running`,
 `ready`, `profile`, `path`, `modified` and `mode`, written from what Neovim last said. A switch's
-own account is the switch's ([Follow](zengine.editor-switch.md#follow)). Beside its picture it
+own account is the switch's ([Follow](../../workshop/docs/zengine.editor-switch.md#follow)). Beside its picture it
 tells the layouts' owner only `PaneSettingsAsked`, for its row when it arrives, and
 `PaneSettingUnused`, about a setting a layout handed it and it cannot use; the standard Editor asks
 Workshop for the keys in force, `KeymapRequested`, as it starts.
@@ -381,6 +381,6 @@ own row under `status` until your next act, or in its place in a room too small 
 
 - [The source editor](editor.md) and [Neovim in Workshop](neovim.md): editing, carrying and
   switching, walked through.
-- [`zengine.editor-switch`](zengine.editor-switch.md), the switch, and
+- [`zengine.editor-switch`](../../workshop/docs/zengine.editor-switch.md), the switch, and
   [what crosses a switch](editor-switch.md).
 - [Source material](source-transfer.md): what a carried selection, command or location holds.

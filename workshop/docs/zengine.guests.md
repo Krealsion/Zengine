@@ -4,8 +4,8 @@
 admits each by the guests file you wrote, and keeps the inventory of who is connected. It answers to
 the role `zengine.guests` (a role is the name a weave answers to). Workshop mounts it when it
 is launched with `--guests <file>`, and only then; it is not a file you load. Its pane is
-[`zengine.connections`](zengine.connections.md). How to write the guests file and link a host to
-it: [Drive Workshop from another host](external-host.md).
+[`zengine.connections`](../../external-host/docs/zengine.connections.md). How to write the guests file and link a host to
+it: [Drive Workshop from another host](../../external-host/docs/external-host.md).
 
 ## About
 
@@ -32,12 +32,12 @@ Launch Workshop with `--guests <file>`; it says where it listens and which weave
 `zengine-workshop - guests: listening on 127.0.0.1:7654 for 1 guest(s) named in guests.json (door:
 weave #12; the Connections pane lists them)`.
 Then any admitted session may ask for its own row
-([`GuestRowDescribedRequested`](#guestrowdescribedrequested)) and where the plan is
-([`GuestPlanRequested`](#guestplanrequested)); a row with `inspect` may ask for the inventory
-([`GuestConnectionsRequested`](#guestconnectionsrequested)), as Workshop's own participants do. A
+([`GuestRowDescribedRequested`](zengine.guests.md#guestrowdescribedrequested)) and where the plan is
+([`GuestPlanRequested`](zengine.guests.md#guestplanrequested)); a row with `inspect` may ask for the inventory
+([`GuestConnectionsRequested`](zengine.guests.md#guestconnectionsrequested)), as Workshop's own participants do. A
 guest without the power is refused by the bus, before the door hears it. An owner a session sent a
 message straight to asks, in its role's name, what that session's row lets it do
-([`ActorScopeRequested`](#actorscoperequested)).
+([`ActorScopeRequested`](zengine.guests.md#actorscoperequested)).
 
 ## Commands
 
@@ -151,11 +151,11 @@ guests: <the reason>`, then `nothing was mounted and nothing was loaded.` It may
 listener alone: `guests file '<path>': listen must be loopback (127.0.0.1:<port>)`. When it names a
 `port_file`, the port the door listens on is written there before
 the plan is realized. What a row holds, its powers, the file's versions and hosts:
-[Say who may connect](external-host.md#1-say-who-may-connect).
+[Say who may connect](../../external-host/docs/external-host.md#1-say-who-may-connect).
 
 ## See also
 
-- [`zengine.connections`](zengine.connections.md), the pane that shows the inventory.
-- [Drive Workshop from another host](external-host.md), and
-  [author and check a recipe through an ELH](elh-recipe-journey.md).
-- The shapes: [`workshop/guest_seam_vocabulary.hpp`](../../workshop/guest_seam_vocabulary.hpp).
+- [`zengine.connections`](../../external-host/docs/zengine.connections.md), the pane that shows the inventory.
+- [Drive Workshop from another host](../../external-host/docs/external-host.md), and
+  [author and check a recipe through an ELH](../../external-host/docs/elh-recipe-journey.md).
+- The shapes: [`workshop/guest_seam_vocabulary.hpp`](../guest_seam_vocabulary.hpp).

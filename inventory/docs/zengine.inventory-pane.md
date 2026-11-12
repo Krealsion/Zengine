@@ -339,7 +339,7 @@ chord and switch. Main Inventory's view is `inventory`.
 
 `InventoryToolboxSave` v1 `{path}`, from any weave granted it, saves a toolbox file, as
 [`inventory.toolbox.save`](#inventorytoolboxsave): the guest door first judges whether its sender
-may write ([`ActorScopeRequested`](../../external-host/docs/zengine.guests.md#actorscoperequested));
+may write ([`ActorScopeRequested`](../../workshop/docs/zengine.guests.md#actorscoperequested));
 with no door there is no guest. Answers `InventoryToolboxFinished` v1 `{operation, path, entries}`,
 `save` and the absolute path, or `zen.Refused` with the reason.
 

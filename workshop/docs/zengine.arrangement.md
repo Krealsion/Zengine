@@ -3,7 +3,7 @@
 **Manual.** The role that says what your project asked for and what came of it, answering to
 `zengine.arrangement` (a role is the name a weave answers to). Workshop mounts it in its own
 process before it performs your project's plan; it is not a file you load. The `Project` pane of
-[`zengine.introspection`](zengine.introspection.md#arrangement) shows its answer, and any role may
+[`zengine.introspection`](../../introspection/docs/zengine.introspection.md#arrangement) shows its answer, and any role may
 ask it the same question.
 
 ## About
@@ -24,7 +24,7 @@ A host that mounts no such door holds no `zengine.arrangement`, and an ask reach
 
 ## Use
 
-Ask [`ArrangementRequested`](#arrangementrequested) as a role you hold, and read the answer that
+Ask [`ArrangementRequested`](zengine.arrangement.md#arrangementrequested) as a role you hold, and read the answer that
 comes to you alone: Loom marks it as the answer to your ask, so no other sender can supply it.
 
 ## Commands
@@ -55,6 +55,6 @@ row.
 
 ## See also
 
-- [`zengine.introspection`](zengine.introspection.md), whose `Project` pane shows this answer.
-- The shapes: [`workshop/arrangement_vocabulary.hpp`](../../workshop/arrangement_vocabulary.hpp).
+- [`zengine.introspection`](../../introspection/docs/zengine.introspection.md), whose `Project` pane shows this answer.
+- The shapes: [`workshop/arrangement_vocabulary.hpp`](../arrangement_vocabulary.hpp).
 - [`zengine.powers`](zengine.powers.md), which answers which powers resolve.
