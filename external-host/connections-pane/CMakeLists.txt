@@ -12,4 +12,4 @@ endif()
 # Its manual is compiled in, and answered to whoever asks for it.
 zengine_weave(zengine-connections-pane pane.cpp MANUAL ../docs/zengine.connections.md)
 target_link_libraries(zengine-connections-pane PRIVATE zengine-workshop-vocabulary
-                                                       zengine-activation)
+                                                       zengine::activation)

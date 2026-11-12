@@ -10,7 +10,7 @@ endif()
 
 zengine_weave(zengine-palette palette.cpp MANUAL ../docs/zengine.palette.md)
 target_link_libraries(zengine-palette PRIVATE zengine-workshop-vocabulary
-                                              zengine-graphics-vocabulary
-                                              zengine-input-vocabulary
-                                              zengine-activation
-                                              zengine-component)
+                                              zengine::graphics
+                                              zengine::input
+                                              zengine::activation
+                                              zengine::component)

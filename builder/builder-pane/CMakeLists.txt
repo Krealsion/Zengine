@@ -18,5 +18,5 @@ endif()
 zengine_weave(zengine-builder-pane pane.cpp MANUAL ../docs/zengine.builder-pane.md)
 target_link_libraries(zengine-builder-pane PRIVATE zengine-workshop-vocabulary
                                                    zengine-builder-vocabulary
-                                                   zengine-component zengine-input-vocabulary
-                                                   zengine-activation)
+                                                   zengine::component zengine::input
+                                                   zengine::activation)

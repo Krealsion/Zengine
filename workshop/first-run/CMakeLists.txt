@@ -10,6 +10,6 @@ endif()
 
 zengine_weave(zengine-first-run first_run.cpp MANUAL ../docs/zengine.first-run.md)
 target_link_libraries(zengine-first-run PRIVATE zengine-workshop-vocabulary
-                                                zengine-graphics-vocabulary
-                                                zengine-input-vocabulary
-                                                zengine-activation)
+                                                zengine::graphics
+                                                zengine::input
+                                                zengine::activation)

@@ -10,14 +10,14 @@
 # neither process authority nor the dynamic loader (`zengine-workshop-load` loads).
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-vocabulary
-                                                            zengine-ui-vocabulary
-                                                            zengine-component
+target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine::graphics
+                                                            zengine::ui
+                                                            zengine::component
                                                             zengine-builder-vocabulary
                                                             zengine-manual
-                                                            zengine-operator
-                                                            zengine-persist
-                                                            zengine-property
+                                                            zengine::operator
+                                                            zengine::persist
+                                                            zengine::property
                                                             zengine-theme-vocabulary
                                                             loom::core
                                                             loom::terminal)
@@ -36,7 +36,7 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.layouts.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.powers.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.sources.md)
 # ...and the Flow host's (`flow/flow-host/runtime.hpp`, which Workshop mounts and does not
-# install): it rides Workshop's vocabulary, not the exported `zengine-flow`.
+# install): it rides Workshop's vocabulary, not the exported `zengine::flow`.
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../flow/docs/zengine.flow.host.md)
 
 # ---- The authored load plan: its shape, its file, its execution, and the observation door ----
@@ -55,7 +55,7 @@ target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
 zengine_manual(zengine-workshop-load INTERFACE ../introspection/docs/zengine.arrangement.md)
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
                                                       zengine-builder-vocabulary
-                                                      zengine-operator
+                                                      zengine::operator
                                                       loom::core
                                                       loom::switchboard)
 # ...and the realization owner's manual, compiled into whatever mounts the plan booter: it
@@ -134,7 +134,7 @@ endif()
 # means nothing outside a Workshop run (cmake/ZengineInstall.cmake).
 zengine_provider(zengine-workshop-session-history session_migration_provider.cpp)
 target_link_libraries(zengine-workshop-session-history
-    PRIVATE zengine-workshop-vocabulary zengine-operator)
+    PRIVATE zengine-workshop-vocabulary zengine::operator)
 
 # ---- The guests file and the door's policy, compiled once --------------------------------
 #
@@ -145,7 +145,7 @@ add_library(zengine-workshop-guests STATIC guests.cpp)
 target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-guests
     PUBLIC loom::bridge loom::switchboard loom::core
-           zengine-input-vocabulary zengine-graphics-vocabulary zengine-timer-vocabulary
+           zengine::input zengine::graphics zengine::timer
            zengine-workshop-vocabulary zengine::inventory zengine-builder-vocabulary
     PRIVATE zengine-warnings zengine-sanitize)
 # ...and the door's manual, compiled into whatever mounts the door: it answers a shape's section
@@ -156,8 +156,8 @@ zengine_manual(zengine-workshop-guests INTERFACE ../external-host/docs/zengine.g
 # host's observer. Header-only; Workshop, `zengine-app` and the snake keep one and say it at the end.
 add_library(zengine-workshop-bus-tally INTERFACE)
 target_include_directories(zengine-workshop-bus-tally INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine-graphics-vocabulary
-                                                           zengine-input-vocabulary loom::switchboard)
+target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine::graphics
+                                                           zengine::input loom::switchboard)
 
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
@@ -171,16 +171,16 @@ target_link_libraries(zengine-workshop
             # ...and the bodies, compiled once (the logic target above): this host reaches
             # every one of them, and its object is where the ceiling was measured.
             zengine-workshop-logic
-            zengine-graphics-vocabulary zengine-ui-vocabulary
-            zengine-timer-vocabulary zengine-builder-vocabulary
+            zengine::graphics zengine::ui
+            zengine::timer zengine-builder-vocabulary
             # The graphics and timer vocabularies are here because this host writes grants and a
             # log selection in their shapes; what to load is the plan's, so no package is named
             # here to save a plan row. The operator package is the host half of the catalog this host
             # owns, which starts empty and is filled by mounting providers.
-            zengine-operator
+            zengine::operator
             # ...and the rest between turns, on the OS clock (timer/rest.hpp), and the tally of
             # where the bus spends its time (workshop/bus_tally.hpp).
-            zengine-timer-rest zengine-workshop-bus-tally
+            zengine::timer-rest zengine-workshop-bus-tally
             # ...and the load plan: the typed plan, its codec and its executor.
             zengine-workshop-load
             # ...and the view host this host composes beside the Flow host.

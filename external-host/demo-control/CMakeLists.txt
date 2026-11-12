@@ -5,5 +5,5 @@ if(NOT TARGET loom::kernel)
 endif()
 # Its manual is compiled in: the pane's, and its role's shapes, answered to whoever asks.
 zengine_weave(zengine-demo-control control.cpp MANUAL ../docs/zengine.demo.md)
-target_link_libraries(zengine-demo-control PRIVATE zengine-pane-vocabulary zengine-activation
-    zengine-input-vocabulary zengine-warnings zengine-sanitize)
+target_link_libraries(zengine-demo-control PRIVATE zengine::pane zengine::activation
+    zengine::input zengine-warnings zengine-sanitize)

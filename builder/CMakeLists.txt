@@ -11,8 +11,8 @@
 add_library(zengine-builder-vocabulary INTERFACE)
 target_include_directories(zengine-builder-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-builder-vocabulary INTERFACE loom::core
-                                                          zengine-timer-vocabulary
-                                                          zengine-activation)
+                                                          zengine::timer
+                                                          zengine::activation)
 # ...and the manuals of the Builder role and its runner, compiled into whatever mounts them:
 # each answers a shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_manual(zengine-builder-vocabulary INTERFACE docs/zengine.builder.md)
