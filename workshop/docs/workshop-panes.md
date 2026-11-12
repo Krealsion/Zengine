@@ -7,10 +7,10 @@ task-shaped walkthrough is [making a Workshop tool](make-a-workshop-tool.md). Wh
 with each shape it accepts -- its answer, to whom, and each refusal in its words -- is
 [Workshop's manual](zengine.workshop.md); this page holds what spans them.
 
-Source: [`workshop/pane_vocabulary.hpp`](../pane_vocabulary.hpp) ·
-[`workshop/pane_carry.hpp`](../pane_carry.hpp) ·
-[`workshop/pane_picture.hpp`](../pane_picture.hpp) ·
-[`workshop/pane_settings.hpp`](../pane_settings.hpp) ·
+Source: [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp) ·
+[`pane/carry.hpp`](../../pane/carry.hpp) ·
+[`pane/picture.hpp`](../../pane/picture.hpp) ·
+[`pane/settings.hpp`](../../pane/settings.hpp) ·
 [`workshop/setup.hpp`](../setup.hpp) ·
 [`workshop/panes.hpp`](../panes.hpp) ·
 [`workshop/arrangement.hpp`](../arrangement.hpp) ·
@@ -447,7 +447,7 @@ authored setup                 resolved presentation          session interactio
 
 A pane can keep **choices about how it presents itself in each layout** — a row shown or hidden,
 a step, a mode — in the layout's own setup row, beside the pane's place and size
-(`workshop/pane_settings.hpp`).
+(`pane/settings.hpp`).
 
 - **A setting is a key and exactly one value, in the field of its kind**: `flag` (on or off),
   `number` (a whole number) or `text` (printable ASCII). A row's settings are written in key
@@ -494,7 +494,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   so back to the layouts' owner, `PaneSettingUnused` naming the revision it was handed, and the
   owner keeps it with the row until a later revision is handed or the pane asks again; a reading
   of the row says it, and so does Attention. A pane takes its row through the settings facet,
-  `PaneSettingsFacet` (`workshop/pane_settings_taken.hpp`, installed): it asks, takes a row from
+  `PaneSettingsFacet` (`pane/settings_taken.hpp`, installed): it asks, takes a row from
   the layouts' owner alone and whole against the pane's `setting_rows()`, says each value it cannot
   use, and calls the pane's `on_settings(taken, mail)`, `taken.revision` the revision it came at;
   its `held()` says whether the pane may draw.
@@ -524,7 +524,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
 A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, and a
 rectangle a weaver can open, which Workshop places as the pane's own area in the window that shows
 the desk. The pane draws there and hears the pointer there, from the window; Workshop draws only
-its frame. The protocol's core (`workshop/pane_vocabulary.hpp`, which declares every pane shape
+its frame. The protocol's core (`pane/vocabulary.hpp`, which declares every pane shape
 that crosses today) is the offer, the keys and the window's own shapes
 (`graphics/vocabulary.hpp`):
 
@@ -626,7 +626,7 @@ Workshop's last meaning for `Esc` is to put the selected pane down, and every pa
 keys answers a bare `Esc` the same way unless it means more there: it **drops what it has
 selected**, and with nothing selected it says so — `PaneEscapeUnspent{pane}`, sent as the role
 that offered the pane and **under the correlation the Escape arrived on** — and Workshop puts the
-pane down. That default is `workshop/pane_escape.hpp`, installed beside the protocol:
+pane down. That default is `pane/escape.hpp`, installed beside the protocol:
 
 ```cpp
 void on(const PaneKey& key, loom::Mail& mail) {
@@ -669,7 +669,7 @@ plugin SDK. **No Loom change of any kind.**
 ### A caret and a selection
 
 A pane with an insertion point draws it, and what it has selected, in its own picture: the shipped
-helpers draw both as marks in the run they stand in (`RowsCaret`, in `workshop/pane_rows.hpp`, for
+helpers draw both as marks in the run they stand in (`RowsCaret`, in `pane/rows.hpp`, for
 `rows_drawing`; a run's `caret_col` and selection columns for `canvas_sketch`). Workshop judges
 neither and draws neither.
 
@@ -685,7 +685,7 @@ neither and draws neither.
 
 A pane role here writes what its pane shows and what its acts mean; the conversations every
 pane holds with Workshop are facets it composes with `zengine::With`
-([`workshop/pane_facets.hpp`](../pane_facets.hpp)), and the shapes they carry are the facets'
+([`pane/facets.hpp`](../../pane/facets.hpp)), and the shapes they carry are the facets'
 `Accept` and `Emit` lists, never the weave's. What each facet calls on the weave is a public member
 of the weave; a member the facet calls only when present is optional.
 
@@ -703,7 +703,7 @@ of the weave; a member the facet calls only when present is optional.
   (`component::RowMap<Meaning>`, `map()`), the caret (`caret()`), and `publish`, which sends the
   rows to the graphics window that shows the area named `Role` (`graphics::AreaRoom`, from that
   window's role, runs `on_room`) as a drawing
-  ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp), `rows_drawing`): the room's ground, the
+  ([`pane/drawing.hpp`](../../pane/drawing.hpp), `rows_drawing`): the room's ground, the
   whole of it, then each row's text a line of the window's text down and a character an advance of
   it across (`AreaRoom::measure`), in its role over its ground, cut into runs where a part begins
   or ends, each run a named part holds
@@ -791,7 +791,7 @@ of the weave; a member the facet calls only when present is optional.
   queued nothing is never held (`Asked::kUnqueued`), and the weave says either in its own words.
   The table is the image's alone: a reloaded pane asked nothing, so no earlier answer settles it.
 - **`PaneSettingsFacet<Pane, Role>`: the pane's row.**
-  ([`workshop/pane_settings_taken.hpp`](../pane_settings_taken.hpp)) Once in each life, after the
+  ([`pane/settings_taken.hpp`](../../pane/settings_taken.hpp)) Once in each life, after the
   first message the life delivers, it asks the layouts' owner for `Pane`'s row as `Role`
   (`PaneSettingsAsked`), and again after a delivery whose ask queued nothing. A `v2::PaneSettings`
   authored by `zengine.layouts` for `Pane` is taken whole against the weave's static
@@ -802,7 +802,7 @@ of the weave; a member the facet calls only when present is optional.
 
 ## A pane's picture
 
-A pane draws in one of three ways ([`workshop/pane_facets.hpp`](../pane_facets.hpp)):
+A pane draws in one of three ways ([`pane/facets.hpp`](../../pane/facets.hpp)):
 
 - **Rows.** A pane on `PaneRowsFacet` pushes rows of text, each with what it means, and the facet
   draws them for its whole area through one `RowsBlock`, below: Files, the Terminal, the Builder,
@@ -814,12 +814,12 @@ A pane draws in one of three ways ([`workshop/pane_facets.hpp`](../pane_facets.h
   draws it with `canvas_sketch`, as this section says: the views the View Builder makes, and Flow.
 
 A canvas picture is a value a pane composes and draws in its own area
-([`workshop/pane_picture.hpp`](../pane_picture.hpp)): rectangles (`CanvasRect`), labels
+([`pane/picture.hpp`](../../pane/picture.hpp)): rectangles (`CanvasRect`), labels
 (`CanvasLabel`, a canvas cell a column of its characters), runs of text in the window's measure
 (`CanvasText`) and the parts it names (`CanvasPart`), for the room it is composed in
 (`CanvasRoom`: the area's size, the window's grain -- one pixel where it shows every pixel, a cell
 where its unit is the cell -- and how it sets text). None of it crosses as a message: the pane draws
-it with `canvas_sketch` ([`workshop/pane_canvas_drawing.hpp`](../pane_canvas_drawing.hpp)), and
+it with `canvas_sketch` ([`pane/canvas_drawing.hpp`](../../pane/canvas_drawing.hpp)), and
 the window shows what it draws.
 
 A canvas pane asks for its body with `v3::PaneOffered{pane, name, summary, width, height,
@@ -843,11 +843,11 @@ view runs in a 680 by 360 room.
 - **Measured text.** A `CanvasText`'s `x,y` name its padded region's origin, or with `padded`
   false its first character's cell, so unpadded runs one line apart stack as rows do; its caret and
   selection are byte columns of its text; `background` is a ground under its characters.
-  `workshop/pane_canvas_text.hpp`'s `canvas_text_metrics(room)` and `clip_canvas_text` give the
-  same sizing and clip, for hit tests; `fit_region` (`workshop/pane_text_fit.hpp`) is the one
+  `pane/canvas_text.hpp`'s `canvas_text_metrics(room)` and `clip_canvas_text` give the
+  same sizing and clip, for hit tests; `fit_region` (`pane/text_fit.hpp`) is the one
   answer to how much text a region holds.
 - **Rows.** A pane whose picture is rows of text draws them with `rows_drawing`
-  ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp)) for the room a window gives (`RowsRoom`): a
+  ([`pane/drawing.hpp`](../../pane/drawing.hpp)) for the room a window gives (`RowsRoom`): a
   row a line of the window's text and a character an advance of it, on the medium's own ground,
   each run a named part holds asking that part's name, the caret and the selection as marks
   (`RowsCaret`); `window_cell` reads a point of the area back to a row and a column.
@@ -874,7 +874,7 @@ graph's durable coordinates.
 ### Text inside a picture
 
 A pane's picture is free: whatever shapes and colours it draws, where it puts them. Rows of text are
-a helper inside it, never the picture's limit ([`workshop/pane_rows_block.hpp`](../pane_rows_block.hpp)):
+a helper inside it, never the picture's limit ([`pane/rows_block.hpp`](../../pane/rows_block.hpp)):
 
 - **`RowsBlock<Meaning>`** holds the row tools for a room of rows and columns: rows pushed with what
   each row and run of columns means (`component::RowMap`), a control strip (`push_controls`), a
@@ -979,7 +979,7 @@ of any kind**, and no setup format movement.
 > state.**
 
 A secondary press reaches the pane from the window as any press does, under the window's number
-for it. What a pane may do with it is an ordinary optional door in `workshop/pane_vocabulary.hpp`,
+for it. What a pane may do with it is an ordinary optional door in `pane/vocabulary.hpp`,
 none of which changes a pane that does not take it:
 
 ```text
@@ -1046,8 +1046,8 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (role, t
   request is refused in words rather than opened over whatever the weaver did next. The primary
   press is what lets a pane that draws its own controls answer a click on a `[menu]` of its own;
   it moves no keys and no selection, exactly as the other two do not.
-- **The helpers are optional and installed beside the protocol.** `workshop/pane_escape.hpp` is
-  Escape's default ([above](#escape-in-a-pane-that-holds-the-keys)). `workshop/pane_menu.hpp`:
+- **The helpers are optional and installed beside the protocol.** `pane/escape.hpp` is
+  Escape's default ([above](#escape-in-a-pane-that-holds-the-keys)). `pane/menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, role)` builds and sends the
   request continuing the delivery's gesture and returns its `Asked`; `.row(id, label, key)` is a
   row beside the key that does what it does now, carried in its label after `kMenuKeyMark`, which
@@ -1070,7 +1070,7 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (role, t
 
 > **Presenting a pane's menu is a role, held by an ordinary weave.**
 
-`workshop/presenter_vocabulary.hpp`, installed beside the protocol (`zengine::pane`), is the whole
+`pane/presenter_vocabulary.hpp`, installed beside the protocol (`zengine::pane`), is the whole
 seam between Workshop and the participant in `zengine.presenter`:
 
 ```text
@@ -1253,8 +1253,8 @@ What Workshop does with each shape a pane or another weave sends it -- the appro
 and cells are ([`PaneViewRequested`](zengine.workshop.md#paneviewrequested),
 [`PanePointRequested`](zengine.workshop.md#panepointrequested)) and the desk
 ([`DeskReadRequested`](zengine.workshop.md#deskreadrequested)) -- and each answer and refusal, is
-[Workshop's manual](zengine.workshop.md). The carry's shapes are `workshop/pane_carry.hpp`'s, the
-approval's and the lease's `workshop/pane_operation.hpp`'s, and the readings'
+[Workshop's manual](zengine.workshop.md). The carry's shapes are `pane/carry.hpp`'s, the
+approval's and the lease's `pane/operation.hpp`'s, and the readings'
 `workshop/pane_view.hpp`'s. The first consumers of the carry are
 [Inventory](../../inventory/docs/zengine.inventory-pane.md) and [Info](../../info/docs/info-views.md): the
 reference route carries an `InventoryReference`, the value route the item itself and its
@@ -1271,7 +1271,7 @@ A pane names the parts a weaver acts on -- a row, a control inside one, an eleme
 they name, each the action a record asks of the place it paints: a run of a row's columns
 (`RowPart{name, row, column, columns, available}`, drawn by `rows_drawing`) or a rectangle of the
 picture (`CanvasPart{name, x, y, w, h, available}`, drawn by `canvas_sketch`), plain values of
-`workshop/pane_parts.hpp` and `workshop/pane_picture.hpp` that never cross as messages. A presenter names its menu's lines in its own drawing, each by the id of the row it shows (a
+`pane/parts.hpp` and `pane/picture.hpp` that never cross as messages. A presenter names its menu's lines in its own drawing, each by the id of the row it shows (a
 record's action, `MenuDrawing`), and the desk read says them as the window shows them.
 
 - **A name is the pane's.** Workshop names nothing inside a pane, and the window says each name as
@@ -1284,7 +1284,7 @@ record's action, `MenuDrawing`), and the desk read says them as the window shows
   element, as each shipped canvas pane reads a press on the hits it drew. A place a press reaches
   that the pane names nothing is listed with an empty name wherever it lies over a part the pane
   names; it shares its name with nothing, and Workshop says no such place.
-- **The helpers are installed beside the protocol** (`workshop/pane_parts.hpp`).
+- **The helpers are installed beside the protocol** (`pane/parts.hpp`).
   `row_parts(map, columns, name_of)` names what a `component::RowMap` recorded -- a whole row
   across the room's columns, a run as itself -- from what each means, and lists the spans in
   `RowMap::press_order`: on a row the widest first, so the span `at` answers is the last that holds
@@ -1322,7 +1322,7 @@ Workshop answers each part beside the pane's words in its reading (`PaneView`,
 - **A pane drawing in an area of its own is read from the window** that shows it: each record its
   drawing names an action by is a part, its place the box its drawing shows there, its point where
   the window's own judge lands a press on it, and its availability what the record says
-  (`graphics::PartFace`, `part_available` in `workshop/pane_drawing.hpp`).
+  (`graphics::PartFace`, `part_available` in `pane/drawing.hpp`).
 - **A part the body does not show is not said**, and one it cuts is said as far as it shows.
 - **Workshop names its own surfaces' parts**: its menu's lines by the action or the group each
   shows, and Layouts' tabs ([below](#the-desk-said-whole)); a pane's menu is named by its
@@ -1364,7 +1364,7 @@ v2::AppActions      desktop  -> Workshop   v2::AppActionRow: AppActionRow's fiel
   another form, an `enters` naming no mode `elsewhere` names, or another mode named twice or as the
   one in force refuses the declaration, and the rows in force stand. An earlier version is read
   with no causes and no modes.
-- **The helpers are installed beside the protocol** (`workshop/pane_causes.hpp`):
+- **The helpers are installed beside the protocol** (`pane/causes.hpp`):
   `cause_of<Shape>(subject)` names a cause by its shape's own name and version, `on_part` and
   `to_pane` spell a subject, `causes_elsewhere(modes, mode, rows_of)` says `elsewhere` from the
   function that declares each mode's rows, and `pane_declaration_problem` is the judge's words.

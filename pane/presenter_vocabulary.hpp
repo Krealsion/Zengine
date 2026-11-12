@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PRESENTER_VOCABULARY_HPP
-#define ZENGINE_WORKSHOP_PRESENTER_VOCABULARY_HPP
+#ifndef ZENGINE_PANE_PRESENTER_VOCABULARY_HPP
+#define ZENGINE_PANE_PRESENTER_VOCABULARY_HPP
 
 // The seam between Workshop and the participant that presents a pane's menu, installed beside the
 // pane protocol so a presenter built against the package can hold `zengine.presenter` and be
@@ -15,8 +15,8 @@
 // answers the requester exactly once per grant (`PaneMenuAnswered`, as this role). A menu's
 // number is Workshop's, minted per grant; a word about any other number moves nothing.
 
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/menu.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "component/text.hpp"
 #include "graphics/canvas.hpp"
@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// Display bounds on one menu's lines, so a presenter cannot make the host hold or paint without
 /// limit; the popup's room (`MenuGranted::room_rows`, `room_columns`) is narrower still.
@@ -544,6 +544,6 @@ private:
     bool fresh_ = true, drew_whole_ = true, refused_whole_ = false, asked_ = false;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PRESENTER_VOCABULARY_HPP
+#endif // ZENGINE_PANE_PRESENTER_VOCABULARY_HPP

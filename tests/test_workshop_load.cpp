@@ -26,7 +26,7 @@
 #include "workshop/load_persist.hpp"
 #include "workshop/load_plan.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/powers_door.hpp"
 #include "workshop/provenance.hpp"
 #include "workshop/recipes.hpp"
@@ -6327,9 +6327,9 @@ public:
 class HostSeat
     : public loom::WeaveBase<
           HostSeat, HostSeatState,
-          loom::Accept<workshop::PaneOffered, workshop::v2::PaneOffered, workshop::PaneActions,
-                       workshop::PaneRevealRequested, workshop::SourceOpened,
-                       workshop::PaneQuitAnswered, Nudge,
+          loom::Accept<zengine::pane::PaneOffered, zengine::pane::v2::PaneOffered, zengine::pane::PaneActions,
+                       zengine::pane::PaneRevealRequested, workshop::SourceOpened,
+                       zengine::pane::PaneQuitAnswered, Nudge,
                        // A pane built against the published protocol alone says its rows to its
                        // host as that protocol spelled them; this seat hears them so.
                        legacy_protocol::PaneContent,
@@ -6339,10 +6339,10 @@ class HostSeat
                        // presentation, and is shown it.
                        workshop::PresentationTrialRequested, workshop::v3::PresentationAdmitRequested,
                        workshop::ManagedOpenProgress, workshop::ManagedOpenSettled>,
-          loom::Emit<workshop::PaneCatalogRequested, workshop::PaneKey,
-                     workshop::PaneTextInput, workshop::OpenSourceRequested,
-                     workshop::PaneQuitRequested, workshop::PaneRevealAnswered,
-                     workshop::PaneActionRequested, legacy_protocol::PaneRoom,
+          loom::Emit<zengine::pane::PaneCatalogRequested, zengine::pane::PaneKey,
+                     zengine::pane::PaneTextInput, workshop::OpenSourceRequested,
+                     zengine::pane::PaneQuitRequested, zengine::pane::PaneRevealAnswered,
+                     zengine::pane::PaneActionRequested, legacy_protocol::PaneRoom,
                      workshop::v3::PresentationTrial, workshop::PresentationAdmitted>,
           loom::Claims<workshop::PanePresentation>> {
 public:
@@ -6393,12 +6393,12 @@ public:
     }
     void on(const workshop::ManagedOpenProgress&, loom::Mail&) {}
     void on(const workshop::ManagedOpenSettled& said, loom::Mail&) { settled.push_back(said); }
-    std::vector<workshop::PaneOffered> offers;
-    std::vector<workshop::PaneActions> declared;
+    std::vector<zengine::pane::PaneOffered> offers;
+    std::vector<zengine::pane::PaneActions> declared;
     /// The rows a pane of the published protocol said, as it spelled them.
     std::vector<legacy_protocol::PaneContent> contents;
     std::vector<workshop::SourceOpened> opens;
-    std::vector<workshop::PaneQuitAnswered> quits;
+    std::vector<zengine::pane::PaneQuitAnswered> quits;
     int reveals = 0;
     /// WHAT THIS DESK DOES WITH A REVEAL. A real Workshop seats the pane in the delivery that
     /// answers; this stand-in answers whichever a case asked for, a refusal included, because the
@@ -6413,23 +6413,23 @@ public:
     std::string held_pane;
     std::function<void(HostSeat&, loom::Mail&)> next;
 
-    void on(const workshop::v2::PaneOffered& o, loom::Mail&) {
+    void on(const zengine::pane::v2::PaneOffered& o, loom::Mail&) {
         ++state_.heard; offers.push_back({o.pane, o.name, o.summary});
     }
-    void on(const workshop::PaneOffered& o, loom::Mail&) {
+    void on(const zengine::pane::PaneOffered& o, loom::Mail&) {
         ++state_.heard;
         offers.push_back(o);
     }
-    void on(const workshop::PaneActions& a, loom::Mail&) { declared.push_back(a); }
+    void on(const zengine::pane::PaneActions& a, loom::Mail&) { declared.push_back(a); }
     void on(const legacy_protocol::PaneContent& c, loom::Mail&) { contents.push_back(c); }
-    void on(const workshop::PaneRevealRequested& asked, loom::Mail& mail) {
+    void on(const zengine::pane::PaneRevealRequested& asked, loom::Mail& mail) {
         ++reveals;
         if (answer_later) {
             held = mail.defer_answer();
             held_pane = asked.pane;
             return;
         }
-        (void)mail.answer(workshop::PaneRevealAnswered{asked.pane, seats,
+        (void)mail.answer(zengine::pane::PaneRevealAnswered{asked.pane, seats,
                                                        seats ? std::string() : refusal});
     }
     /// SPEND THE HELD ANSWER NOW, and hand back its ticket so a case can read its fate off
@@ -6437,10 +6437,10 @@ public:
     loom::Ticket answer_held(loom::Mail& mail, bool seated) {
         return loom::answer_deferred(
             held, mail,
-            workshop::PaneRevealAnswered{held_pane, seated, seated ? std::string() : refusal});
+            zengine::pane::PaneRevealAnswered{held_pane, seated, seated ? std::string() : refusal});
     }
     void on(const workshop::SourceOpened& s, loom::Mail&) { opens.push_back(s); }
-    void on(const workshop::PaneQuitAnswered& a, loom::Mail&) { quits.push_back(a); }
+    void on(const zengine::pane::PaneQuitAnswered& a, loom::Mail&) { quits.push_back(a); }
     void on(const Nudge&, loom::Mail& mail) {
         if (next) {
             auto what = next;
@@ -6476,19 +6476,19 @@ struct EditorReloadRig {
         auto seat = std::make_unique<HostSeat>();
         host = seat.get();
         loom::Grant say;
-        say.allow_to_any(workshop::PaneCatalogRequested::zen_name,
-                         workshop::PaneCatalogRequested::zen_version);
+        say.allow_to_any(zengine::pane::PaneCatalogRequested::zen_name,
+                         zengine::pane::PaneCatalogRequested::zen_version);
         say.allow_to_any(legacy_protocol::PaneRoom::zen_name, legacy_protocol::PaneRoom::zen_version);
-        say.allow_to_any(workshop::PaneKey::zen_name, workshop::PaneKey::zen_version);
-        say.allow_to_any(workshop::PaneTextInput::zen_name, workshop::PaneTextInput::zen_version);
+        say.allow_to_any(zengine::pane::PaneKey::zen_name, zengine::pane::PaneKey::zen_version);
+        say.allow_to_any(zengine::pane::PaneTextInput::zen_name, zengine::pane::PaneTextInput::zen_version);
         say.allow_to_any(workshop::OpenSourceRequested::zen_name,
                          workshop::OpenSourceRequested::zen_version);
-        say.allow_to_any(workshop::PaneQuitRequested::zen_name,
-                         workshop::PaneQuitRequested::zen_version);
-        say.allow_to_any(workshop::PaneRevealAnswered::zen_name,
-                         workshop::PaneRevealAnswered::zen_version);
-        say.allow_to_any(workshop::PaneActionRequested::zen_name,
-                         workshop::PaneActionRequested::zen_version);
+        say.allow_to_any(zengine::pane::PaneQuitRequested::zen_name,
+                         zengine::pane::PaneQuitRequested::zen_version);
+        say.allow_to_any(zengine::pane::PaneRevealAnswered::zen_name,
+                         zengine::pane::PaneRevealAnswered::zen_version);
+        say.allow_to_any(zengine::pane::PaneActionRequested::zen_name,
+                         zengine::pane::PaneActionRequested::zen_version);
         say.allow_to_any(workshop::v3::PresentationTrial::zen_name,
                          workshop::v3::PresentationTrial::zen_version);
         say.allow_to_any(workshop::PresentationAdmitted::zen_name,
@@ -6565,7 +6565,7 @@ struct EditorReloadRig {
         // THE PANE OFFERED ITSELF AT ACTIVATION, to a role that answered; ask once more the
         // way the host does at boot, and give its area a room in the window.
         drive([](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kRole).publish(workshop::PaneCatalogRequested{});
+            (void)m.as_role(HostSeat::kRole).publish(zengine::pane::PaneCatalogRequested{});
         });
         REQUIRE_FALSE(host->offers.empty());
         CHECK(host->offers.back().pane == "editor");
@@ -6579,15 +6579,15 @@ struct EditorReloadRig {
     zengine::testing::pane_window::Window window{rig.bus};
     std::int64_t epoch = 0;
     void room(std::int64_t rows, std::int64_t columns) {
-        window.room(workshop::pane_area("zengine.editor", "editor"), "zengine.editor", columns,
+        window.room(zengine::pane::pane_area("zengine.editor", "editor"), "zengine.editor", columns,
                     rows, ++epoch);
         rig.drain(16);
     }
     /// The rows the Editor draws in its area now, and its caret there.
     std::vector<std::string> rows() {
-        return window.rows(workshop::pane_area("zengine.editor", "editor"));
+        return window.rows(zengine::pane::pane_area("zengine.editor", "editor"));
     }
-    workshop::RowsCaret caret() { return window.caret(workshop::pane_area("zengine.editor", "editor")); }
+    zengine::pane::RowsCaret caret() { return window.caret(zengine::pane::pane_area("zengine.editor", "editor")); }
 
     workshop::SourceOpened open(const std::string& path) {
         const std::size_t before = host->opens.size();
@@ -6602,20 +6602,20 @@ struct EditorReloadRig {
     void type(const std::string& text) {
         drive([text](HostSeat&, loom::Mail& m) {
             (void)m.as_role(HostSeat::kRole)
-                .send_to_role("zengine.editor", workshop::PaneTextInput{"editor", text});
+                .send_to_role("zengine.editor", zengine::pane::PaneTextInput{"editor", text});
         });
     }
 
     void key(std::int64_t sc, std::int64_t mods = 0) {
         drive([sc, mods](HostSeat&, loom::Mail& m) {
             (void)m.as_role(HostSeat::kRole)
-                .send_to_role("zengine.editor", workshop::PaneKey{"editor", sc, mods});
+                .send_to_role("zengine.editor", zengine::pane::PaneKey{"editor", sc, mods});
         });
     }
 
     /// THE WHEEL, turned over the pane's area.
     void wheel(double dy) {
-        window.wheel(workshop::pane_area("zengine.editor", "editor"), 0, 1, dy);
+        window.wheel(zengine::pane::pane_area("zengine.editor", "editor"), 0, 1, dy);
         rig.drain(16);
     }
 
@@ -6634,10 +6634,10 @@ struct EditorReloadRig {
         return std::string();
     }
 
-    workshop::PaneQuitAnswered ask_quit() {
+    zengine::pane::PaneQuitAnswered ask_quit() {
         const std::size_t before = host->quits.size();
         drive([](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kRole).publish(workshop::PaneQuitRequested{});
+            (void)m.as_role(HostSeat::kRole).publish(zengine::pane::PaneQuitRequested{});
         });
         REQUIRE(host->quits.size() == before + 1);
         return host->quits.back();
@@ -6741,7 +6741,7 @@ TEST_CASE("a four-megabyte dirty document rides a reload in place, and the reloa
     CHECK(w.rows()[1].rfind("Zyy", 0) == 0);
     CHECK(w.status().rfind("UNSAVED", 0) == 0);
     // AND THE EXIT IS STILL JUDGED ON THE DOCUMENT THAT SURVIVED.
-    const workshop::PaneQuitAnswered no = w.ask_quit();
+    const zengine::pane::PaneQuitAnswered no = w.ask_quit();
     CHECK_FALSE(no.permitted);
     CHECK(no.refusal.find("unsaved changes") != std::string::npos);
     CHECK(no.refusal.find("witness.txt") != std::string::npos);
@@ -6826,7 +6826,7 @@ TEST_CASE("the reloaded pane reads live, not out of the snapshot it revived from
     w.type("Y"); // the caret rode across too, so this lands where the weaver left it
     CHECK(w.read("text") == "XYabc\n"); // ...and the read surface is the live one
     CHECK(w.read("path") == w.file.generic_string());
-    const workshop::PaneQuitAnswered no = w.ask_quit();
+    const zengine::pane::PaneQuitAnswered no = w.ask_quit();
     CHECK_FALSE(no.permitted);
 #endif
 }
@@ -6847,7 +6847,7 @@ TEST_CASE("an Editor with no document reloads to no document, and permits the qu
     CHECK(w.rig.ears->answers[0].realized);
     w.room(8, 60);
     CHECK(w.status().rfind("no source open", 0) == 0);
-    const workshop::PaneQuitAnswered yes = w.ask_quit();
+    const zengine::pane::PaneQuitAnswered yes = w.ask_quit();
     CHECK(yes.permitted);
     CHECK(yes.refusal.empty());
 #endif
@@ -6885,7 +6885,7 @@ TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late
     CHECK(w.window.weave().clipboard_reads == 1);
     // WHILE IT IS OUTSTANDING, THE DOCUMENT'S CONVERSATION IS OPEN: the quit is refused in
     // words, and so is another source (the open would strand the weaver's own paste).
-    const workshop::PaneQuitAnswered busy = w.ask_quit();
+    const zengine::pane::PaneQuitAnswered busy = w.ask_quit();
     CHECK_FALSE(busy.permitted);
     CHECK(busy.refusal.find("clipboard answer") != std::string::npos);
     const std::string b_path = b.generic_string();
@@ -6908,7 +6908,7 @@ TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late
     CHECK(w.read("path") == a.generic_string());
     CHECK(w.read("text") == "one\n");
     CHECK(w.status().rfind("saved", 0) == 0);
-    const workshop::PaneQuitAnswered free = w.ask_quit();
+    const zengine::pane::PaneQuitAnswered free = w.ask_quit();
     CHECK_MESSAGE(free.permitted, free.refusal); // no orphan flag refuses the exit
 
     // THE WINDOW'S LATE ANSWER. Loom refuses to deliver it: the pane at that id is not the
@@ -6952,8 +6952,8 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     REQUIRE_FALSE(source.empty());
     // THE DIRECTIVE, not the name: the fixture's own comment names the header it refuses to
     // include, and a tripwire that read the comment would refuse the explanation.
-    CHECK(source.find("#include \"workshop/pane_vocabulary.hpp\"") == std::string::npos);
-    CHECK(source.find("#include <workshop/pane_vocabulary.hpp>") == std::string::npos);
+    CHECK(source.find("#include \"pane/vocabulary.hpp\"") == std::string::npos);
+    CHECK(source.find("#include <pane/vocabulary.hpp>") == std::string::npos);
     CHECK(source.find("#include \"legacy_pane_protocol.hpp\"") != std::string::npos);
     MESSAGE("legacy image: ", LEGACY_PANE_SO, ", ", std::filesystem::file_size(LEGACY_PANE_SO),
             " bytes");
@@ -6963,7 +6963,7 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     const loom::WeaveId old_pane = w.rig.kernel.weave_id("zengine-legacy-pane");
     REQUIRE(old_pane.value != 0);
     w.drive([](HostSeat&, loom::Mail& m) {
-        (void)m.as_role(HostSeat::kRole).publish(workshop::PaneCatalogRequested{});
+        (void)m.as_role(HostSeat::kRole).publish(zengine::pane::PaneCatalogRequested{});
     });
     REQUIRE_FALSE(w.host->offers.empty());
     CHECK(w.host->offers.back().pane == "old");
@@ -6981,7 +6981,7 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     CHECK(w.host->rows()[1] == "acted 0");
     w.drive([](HostSeat&, loom::Mail& m) {
         (void)m.as_role(HostSeat::kRole)
-            .send_to_role("zengine.test.legacy", workshop::PaneActionRequested{"old", "old.mark"});
+            .send_to_role("zengine.test.legacy", zengine::pane::PaneActionRequested{"old", "old.mark"});
     });
     REQUIRE(w.host->rows().size() == 2);
     CHECK(w.host->rows()[1] == "acted 1: old.mark");
@@ -7005,7 +7005,7 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     CHECK(w.host->rows()[1] == "acted 1: old.mark");
     w.drive([](HostSeat&, loom::Mail& m) {
         (void)m.as_role(HostSeat::kRole)
-            .send_to_role("zengine.test.legacy", workshop::PaneActionRequested{"old", "old.up"});
+            .send_to_role("zengine.test.legacy", zengine::pane::PaneActionRequested{"old", "old.up"});
     });
     REQUIRE(w.host->rows().size() == 2);
     CHECK(w.host->rows()[1] == "acted 2: old.up");

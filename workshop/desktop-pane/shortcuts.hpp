@@ -4,8 +4,8 @@
 #define ZENGINE_DESKTOP_SHORTCUTS_HPP
 #include "workshop/pane_shortcuts.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/causes.hpp"
+#include "pane/menu.hpp"
 #include <zen/weave.hpp>
 #include <map>
 #include <optional>
@@ -28,8 +28,8 @@ class Shortcuts {
         for (const auto& [role, owner] : owners) for (const auto& row : owner.rows)
             result.push_back({id(role, row.id), row.label, row.scancode, row.modifiers,
                               workshop::app_precedence::kAboveModes,
-                              {workshop::cause_of<workshop::PaneShortcutInvoked>(
-                                  workshop::to_pane(role, row.pane))}});
+                              {pane::cause_of<workshop::PaneShortcutInvoked>(
+                                  pane::to_pane(role, row.pane))}});
     }
 public:
     bool pending() const { return pending_.has_value(); }
@@ -56,7 +56,7 @@ public:
         auto due = mail.defer_answer();
         if (!due.valid()) return refuse("This registration cannot retain its answer");
         pending_.emplace(Pending{std::move(candidate), std::move(due), attempt, {}});
-        const auto sent = mail.as_role(workshop::kDesktopRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
+        const auto sent = mail.as_role(workshop::kDesktopRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
             workshop::v2::AppActions{std::move(base)}, attempt);
         pending_->ticket = sent;
         if (!sent.valid()) finish(false, "Application shortcut declaration could not be queued", mail);
@@ -70,7 +70,7 @@ public:
         if (!pending_ || !mail.dispatch_refused() || refusal.refused_attempt().seq != pending_->ticket.seq ||
             refusal.shape != workshop::v2::AppActions::zen_name ||
             refusal.version != workshop::v2::AppActions::zen_version ||
-            refusal.role != zengine::workshop::pane_menu::kWorkshopRole || !refusal.target.empty()) return false;
+            refusal.role != zengine::pane::pane_menu::kWorkshopRole || !refusal.target.empty()) return false;
         finish(false, "Shortcut declaration was not delivered: " + refusal.reason, mail); return true;
     }
     void withdrawn(const std::string& reason, loom::Mail& mail) const {
@@ -82,7 +82,7 @@ public:
     bool invoke(const std::string& action, loom::Mail& mail) const {
         for (const auto& [role, owner] : owners_) for (const auto& row : owner.rows)
             if (id(role, row.id) == action) {
-                mail.as_role(workshop::kDesktopRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
+                mail.as_role(workshop::kDesktopRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
                     workshop::PaneShortcutInvoked{role, row.pane, row.action,
                         static_cast<std::int64_t>(owner.holder.value)}, mail.correlation());
                 return true;

@@ -7,6 +7,20 @@
 #include <limits>
 
 namespace zengine::workshop {
+using pane::PaneActionRequested;
+using pane::PaneCanvasDrop;
+using pane::PaneCanvasHover;
+using pane::PaneCanvasValueDrop;
+using pane::PaneCarryAnswered;
+using pane::PaneCarryRequested;
+using pane::PaneObservationContinued;
+using pane::PaneObservationEnded;
+using pane::PaneObservationRequested;
+using pane::PaneOperationAnswered;
+using pane::PaneOperationRequested;
+using pane::PaneValueCarryRequested;
+using pane::kMaxCarryBytes;
+using pane::kMaxCarryLabelBytes;
 // ONE HAND PER ACTOR: the weaver's for platform input and input no actor was attributed to, and
 // one per guest participant, the oldest forgotten past the bound.
 WorkshopWeave::Hand& WorkshopWeave::hand_of(const InputActor& actor) {
@@ -431,7 +445,7 @@ void WorkshopWeave::on(const TerminalValueRequested& asked, loom::Mail& mail) {
 // WL-GUEST-03 -- agents/workshop/guests.md
 // A classed act's approval is the pane's to carry to its later beats; this host keeps nothing of it,
 // so it never stands in for the one carry `approved_operation_` waits on.
-void WorkshopWeave::on(const v2::PaneOperationRequested& asked, loom::Mail& mail) {
+void WorkshopWeave::on(const pane::v2::PaneOperationRequested& asked, loom::Mail& mail) {
     const auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version,
                                         mail, asked.classes, asked.subject);
     (void)mail.answer(PaneOperationAnswered{reason.empty(), reason});
@@ -516,7 +530,7 @@ void WorkshopWeave::on(const PaneCarryRequested& asked, loom::Mail& mail) {
 void WorkshopWeave::on(const PaneValueCarryRequested& asked, loom::Mail& mail) {
     accept_carry({asked.pane, asked.label, asked.data}, true, asked.drag, mail);
 }
-void WorkshopWeave::on(const v2::PaneValueCarryRequested& asked, loom::Mail& mail) {
+void WorkshopWeave::on(const pane::v2::PaneValueCarryRequested& asked, loom::Mail& mail) {
     if (asked.token.empty() || asked.token.size() > 128) {
         (void)mail.answer(PaneCarryAnswered{false, "the transfer token needs 1..128 bytes"}); return;
     }

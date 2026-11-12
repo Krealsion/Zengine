@@ -8,13 +8,13 @@
 // Workshop law: agents/workshop/panes-and-windows.md (+9 registers; agents/workshop.md routes)
 
 #include "component/fingerprint.hpp"
-#include "pane_vocabulary.hpp"
-#include "pane_settings.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/settings.hpp"
 #include <zen/switchboard/message.hpp>
 
 #include "builder/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -24,6 +24,7 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::ModeCauses;
 
 /// No kind: a `kind` field before anybody said which, and a pane this build cannot present.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md; WL-FRONT-04 -- agents/workshop/planes.md
@@ -55,7 +56,7 @@ inline constexpr std::int64_t kTopBand = 2;
 /// WHOSE PANES THE BUILT-INS ARE — the provider/service key every catalog row
 /// below carries, and the first half of a durable `PaneRef`.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
-inline constexpr const char* kWorkshopProvider = pane_menu::kWorkshopRole;
+inline constexpr const char* kWorkshopProvider = pane::pane_menu::kWorkshopRole;
 
 /// The Info pane's role, spelled for `default_setup`'s desk and not a catalog row. A literal:
 /// this host does not link the weave, and a case checks the two spellings agree.
@@ -239,7 +240,7 @@ struct RuntimePane {
     /// Held as v4 whichever version was declared: a v1 to v3 row is widened at the door with no
     /// causes it did not say and no POSIX key, so admission, legends, dispatch and every reader
     /// read one population.
-    std::vector<v4::PaneActionRow> actions;
+    std::vector<pane::v4::PaneActionRow> actions;
     /// THE MODE THOSE ROWS ARE IN FORCE FOR, AND WHAT EACH OTHER MODE MAY CAUSE, as declared with
     /// them and replaced with them; empty for a declaration that names none.
     // WL-CAUSE-02 -- agents/workshop/action-causes.md

@@ -10,14 +10,14 @@
 #include "notices/vocabulary.hpp"
 
 #include "workshop/notice_seam_vocabulary.hpp"
-#include "workshop/pane_settings.hpp"
+#include "pane/settings.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 
 #include "manuals/zengine.notices.hpp" // this role's manual, compiled in from its page
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -36,7 +36,7 @@ namespace ws = zengine::workshop;
 namespace nt = zengine::notices;
 
 /// WHO SAYS THE NOTICES: Workshop's role, read from the installed pane protocol.
-using zengine::workshop::pane_menu::kWorkshopRole;
+using zengine::pane::pane_menu::kWorkshopRole;
 
 /// THE WORDS AS KEPT: cut at `kMaxNoticeBytes`, never inside a character, ending `...`.
 std::string kept_text(std::string text) {
@@ -72,7 +72,7 @@ public:
         if (!activation_.accept(mail, activated)) {
             return;
         }
-        ws::v2::PaneSettingRow keep;
+        zengine::pane::v2::PaneSettingRow keep;
         keep.key = nt::kSettingKeep;
         keep.number = nt::kDefaultKept;
         keep.low = nt::kDefaultKept;
@@ -80,7 +80,7 @@ public:
         keep.tags = {"history"};
         keep.summary = "how many of Workshop's notices are kept";
         (void)mail.as_role(nt::kNoticesRole)
-            .send_to_role(ws::kLayoutsRole, ws::RoleSettingsDeclared{{keep}});
+            .send_to_role(zengine::pane::kLayoutsRole, ws::RoleSettingsDeclared{{keep}});
         moved(mail);
     }
 
@@ -100,11 +100,11 @@ public:
     /// THE SETTING AS THE LAYOUTS' OWNER KEEPS IT: a default is kept as its absence, so none is
     /// `kDefaultKept`. Fewer than the record holds lets the oldest go now.
     void on(const ws::RoleSettings& kept, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kLayoutsRole)) {
+        if (!mail.authored_from_role(zengine::pane::kLayoutsRole)) {
             return;
         }
         std::int64_t keep = nt::kDefaultKept;
-        for (const ws::PaneSetting& s : kept.settings) {
+        for (const zengine::pane::PaneSetting& s : kept.settings) {
             if (s.key == nt::kSettingKeep && s.number) {
                 keep = std::clamp(*s.number, nt::kDefaultKept, nt::kMostKept);
             }

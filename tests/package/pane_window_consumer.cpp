@@ -2,14 +2,14 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A stranger's pane that draws in a window, from the installed package alone: the pane is built on
-// the installed rows facet (`workshop/pane_facets.hpp`), so its rows go to the graphics window that
+// the installed rows facet (`pane/facets.hpp`), so its rows go to the graphics window that
 // shows its area as a drawing (`rows_drawing`), and a press there is read against the rows last
 // drawn. A stand-in window (a `zengine.window.<name>` role) gives the area its room, takes the
 // drawing and presses a row; a forger gives a room under its own role. A failed check returns
 // non-zero, which run.cmake's exit test catches.
 
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/facets.hpp"
+#include "pane/rows.hpp"
 
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
@@ -26,7 +26,6 @@
 #include <string>
 #include <vector>
 
-namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 
 namespace {
@@ -45,7 +44,7 @@ constexpr const char* kWindowName = "w1";
 constexpr const char* kWindowRole = "zengine.window.w1";
 constexpr const char* kForger = "stranger.forger";
 /// The pane's area in a window, `<role>.<pane>`, as every pane's is.
-const std::string kArea = ws::pane_area(kRole, kPane);
+const std::string kArea = zengine::pane::pane_area(kRole, kPane);
 
 /// THE PANE'S MANUAL: a page with no section, which the facet answers a document request from.
 constexpr zengine::manual::Manual kManual{kRole, "Tally", "stranger.tally", nullptr, 0};
@@ -63,15 +62,15 @@ struct Nothing {
 
 // ---- the pane a stranger writes ----------------------------------------------------------------
 
-using Rows = ws::PaneRowsFacet<kPane, kRole, kManual, std::string>;
+using Rows = zengine::pane::PaneRowsFacet<kPane, kRole, kManual, std::string>;
 
 class Tally : public zengine::With<Rows>::Weave<Tally, Nothing, loom::Accept<>, loom::Emit<>> {
 public:
-    ws::v2::PaneOffered offering() const { return ws::v2::PaneOffered{kPane, "Tally", "a count"}; }
+    zengine::pane::v2::PaneOffered offering() const { return zengine::pane::v2::PaneOffered{kPane, "Tally", "a count"}; }
     /// THE ROOM, said by the window that shows the area: the rows drawn there.
     void on_room(loom::Mail& mail) { say(mail); }
     /// A first-button press on a row: the count row adds one.
-    void press(const ws::RowPress& at, loom::Mail& mail) {
+    void press(const zengine::pane::RowPress& at, loom::Mail& mail) {
         const std::string* meant = room().map().at(at.row, at.column);
         if (meant != nullptr && *meant == "count") {
             ++count;
@@ -80,9 +79,9 @@ public:
     }
     void say(loom::Mail& mail) {
         room().begin();
-        (void)room().push(ws::TextRow{"Tally: " + std::to_string(count), gfx::colors::accent},
+        (void)room().push(zengine::pane::TextRow{"Tally: " + std::to_string(count), gfx::colors::accent},
                           std::string("count"));
-        (void)room().push(ws::TextRow{"press the count to add one", gfx::colors::quiet});
+        (void)room().push(zengine::pane::TextRow{"press the count to add one", gfx::colors::quiet});
         room().publish(
             mail, [](const std::string& m) { return "row:" + m; }, [](const std::string&) { return true; });
     }

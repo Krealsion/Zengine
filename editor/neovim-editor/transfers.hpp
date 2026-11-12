@@ -23,11 +23,11 @@
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_picture.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_operation.hpp"
+#include "pane/rows.hpp"
+#include "pane/picture.hpp"
+#include "pane/carry.hpp"
+#include "pane/menu.hpp"
+#include "pane/operation.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
@@ -50,18 +50,18 @@ namespace {
 /// THE POINTER IN THE WINDOW that shows the pane's area, read onto the rows drawn there: a press is
 /// numbered by the window and aimed at the rows it was last given, a move is the held left
 /// press's, and a hold the window ended is the loss of the press held.
-inline void NeovimEditorWeave::on_window(const std::optional<ws::WindowPointer>& p,
+inline void NeovimEditorWeave::on_window(const std::optional<zengine::pane::WindowPointer>& p,
                                          loom::Mail& mail) {
     if (!p) {
         return;
     }
-    const bool lost = p->phase == ws::canvas_pointer::kLost;
+    const bool lost = p->phase == zengine::pane::canvas_pointer::kLost;
     const std::int64_t gesture =
         lost && p->button == 1 ? pressed_ : static_cast<std::int64_t>(p->press);
     // AIMED AT THE ROWS LAST DRAWN when the window landed the press on the drawing they were said
     // with, by its number, or said nothing of what it drew.
     const bool aimed = !p->told || p->drawing == drawn_number();
-    pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, aimed,
+    pointer(p->phase, p->phase == zengine::pane::canvas_pointer::kMove ? 1 : p->button, p->at, aimed,
             gesture, p->dy, mail);
 }
 
@@ -70,16 +70,16 @@ inline void NeovimEditorWeave::on_window(const std::optional<ws::WindowPointer>&
 /// and on the status row a focus statement. A right drag and the middle button are not Neovim's
 /// here; a right press beside the rows is handed back, so the host's pane menu opens there.
 inline void NeovimEditorWeave::pointer(std::int64_t phase, std::int64_t button,
-                                       const ws::RowCell& at, bool aimed, std::int64_t gesture,
+                                       const zengine::pane::RowCell& at, bool aimed, std::int64_t gesture,
                                        double dy, loom::Mail& mail) {
-    const bool press = phase == ws::canvas_pointer::kPress;
-    const bool ended = phase == ws::canvas_pointer::kRelease || phase == ws::canvas_pointer::kLost;
+    const bool press = phase == zengine::pane::canvas_pointer::kPress;
+    const bool ended = phase == zengine::pane::canvas_pointer::kRelease || phase == zengine::pane::canvas_pointer::kLost;
     if (press && button == 1) {
         pressed_ = at.shown ? gesture : 0;
         if (at.shown) {
             press_at(at.row, at.column, aimed, mail);
         }
-    } else if (phase == ws::canvas_pointer::kMove && button == 1 && pressed_ != 0 &&
+    } else if (phase == zengine::pane::canvas_pointer::kMove && button == 1 && pressed_ != 0 &&
                gesture == pressed_) {
         dragged(at.row, at.column, mail);
     } else if (ended && button == 1 && gesture == pressed_ && pressed_ != 0) {
@@ -90,13 +90,13 @@ inline void NeovimEditorWeave::pointer(std::int64_t phase, std::int64_t button,
         }
     } else if (press && button == 3) {
         if (!at.shown) {
-            (void)ws::pane_menu::pass_back(mail, nve::kEditorRole, nve::kEditorPane);
+            (void)zengine::pane::pane_menu::pass_back(mail, nve::kEditorRole, nve::kEditorPane);
             return;
         }
         right_press(at.row, at.column, aimed, mail);
     } else if (ended && button == 3) {
         right_release(at.row, at.column, mail);
-    } else if (phase == ws::canvas_pointer::kWheel) {
+    } else if (phase == zengine::pane::canvas_pointer::kWheel) {
         wheel(dy, mail);
     }
 }
@@ -214,7 +214,7 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
         // THE STATUS ROW NAMES THIS FILE: its menu carries the location (WL-NVIM-10).
         if (row == 0 && host_->ready() && !doc_path().empty()) {
             menu_take_ = Take::Location;
-            menu_ = ws::pane_menu::Offer(nve::kEditorPane, "location")
+            menu_ = zengine::pane::pane_menu::Offer(nve::kEditorPane, "location")
                         .at(row, column)
                         .row(kLocationRow, "Carry this file's location")
                         .send(mail, nve::kEditorRole);
@@ -243,7 +243,7 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
             menu_take_ = Take::Selection;
             menu_snap_ = std::move(snap);
             menu_cell_ = Drag{true, r, c};
-            menu_ = ws::pane_menu::Offer(nve::kEditorPane, "selection")
+            menu_ = zengine::pane::pane_menu::Offer(nve::kEditorPane, "selection")
                         .at(row, column)
                         .row(kExtractRow, "Extract selection to Inventory")
                         .row(kNeovimMenuRow, "Neovim's own menu")
@@ -287,7 +287,7 @@ inline void NeovimEditorWeave::wheel(double dy, loom::Mail& mail) {
 
 /// MATERIAL DROPPED ON NEOVIM'S SCREEN (WL-NVIM-11), its place in the area read back to the cell of
 /// the rows drawn there it fell on.
-inline void NeovimEditorWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
+inline void NeovimEditorWeave::on(const zengine::pane::PaneCanvasValueDrop& drop, loom::Mail& mail) {
     if (!mail.authored_from_role(kWorkshopRole) || drop.pane != nve::kEditorPane ||
         drop.area != window_.area()) {
         return;
@@ -303,7 +303,7 @@ inline void NeovimEditorWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mai
     resay_ = true;
 }
 
-inline void NeovimEditorWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
+inline void NeovimEditorWeave::on(const zengine::pane::PaneMenuAnswered& answer, loom::Mail& mail) {
     if (drop_.pending && drop_.menu.pending() && answer.subject == kDropSubject) {
         const std::string chosen = drop_.menu.take(mail, answer);
         if (drop_.menu.pending()) {
@@ -349,7 +349,7 @@ inline void NeovimEditorWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail
 /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy, or
 /// open a dropped location (`role::answer_operation`), settled against whether it names the
 /// buffer Neovim holds and that buffer's changedtick now.
-inline void NeovimEditorWeave::on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+inline void NeovimEditorWeave::on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail) {
     const auto stamp = [this](Locate& l) {
         l.same_path = doc_path() == l.loc.path;
         l.snapshot = doc_.tick;
@@ -361,7 +361,7 @@ inline void NeovimEditorWeave::on(const ws::PaneOperationAnswered& answer, loom:
 }
 
 /// WORKSHOP TOOK THE COPY, OR SAID WHY NOT. Neovim's buffer was never touched either way.
-inline void NeovimEditorWeave::on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+inline void NeovimEditorWeave::on(const zengine::pane::PaneCarryAnswered& answer, loom::Mail& mail) {
     if (role::settle_carry(answer, mail, pickup_, "Neovim's buffer is unchanged", noticing())) {
         resay_ = true;
     }
@@ -573,7 +573,7 @@ inline void NeovimEditorWeave::carry_location(bool drag, std::uint64_t gesture, 
                  "the location of " + file_name(loc.path) + " at line " + std::to_string(loc.line), mail);
 }
 
-inline void NeovimEditorWeave::receive(const loom::Bytes& data, const ws::RowCell& drop, bool aimed,
+inline void NeovimEditorWeave::receive(const loom::Bytes& data, const zengine::pane::RowCell& drop, bool aimed,
                                        loom::Mail& mail) {
     const std::string bytes(data.begin(), data.end());
     st::Material m = st::read_material(bytes);
@@ -618,7 +618,7 @@ inline void NeovimEditorWeave::receive(const loom::Bytes& data, const ws::RowCel
     seen.row = drop.row - chrome_rows();
     seen.column = drop.column < 0 ? 0 : drop.column;
     seen.row_text = grid_row(seen.row);
-    const ws::RowCell at = drop;
+    const zengine::pane::RowCell at = drop;
     const std::uint64_t gesture = mail.correlation();
     ask(nv::lua::kLanguage, nv::rpc::params(mp::Value::integer(400)), kAskMs, mail,
         [this, seen, at, m, gesture](const Answer& a, loom::Mail& later) {
@@ -632,7 +632,9 @@ inline void NeovimEditorWeave::receive(const loom::Bytes& data, const ws::RowCel
 }
 
 /// A DROP OF TEXT OR A COMMAND, once Neovim has said what buffer the hand aimed at.
-inline void NeovimEditorWeave::receive_into(st::Material m, Aim aim, const ws::RowCell& drop, const mp::Value& lang0,
+inline void NeovimEditorWeave::receive_into(st::Material m, Aim aim,
+                                            const zengine::pane::RowCell& drop,
+                                            const mp::Value& lang0,
                                             std::uint64_t gesture, loom::Mail& mail) {
     const std::optional<mp::Value> lang = lang0;
     aim.buf = field(*lang, "buf").as_int();
@@ -654,7 +656,7 @@ inline void NeovimEditorWeave::receive_into(st::Material m, Aim aim, const ws::R
     drop_.pending = true;
     drop_.material = std::move(m);
     drop_.aim = aim;
-    drop_.menu = ws::pane_menu::Offer(nve::kEditorPane, kDropSubject)
+    drop_.menu = zengine::pane::pane_menu::Offer(nve::kEditorPane, kDropSubject)
                      .at(drop.row, drop.column)
                      .row(kInsertLine, "Insert its Terminal line")
                      .row(kInsertCpp, cpp == st::CppDocument::Yes ? "Generate C++ that builds it"

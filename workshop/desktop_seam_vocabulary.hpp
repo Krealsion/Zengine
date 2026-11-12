@@ -10,8 +10,8 @@
 // performed, and the layouts' owner whether a close can. A desktop that failed to load leaves no
 // defaults, never a process a weaver cannot leave.
 
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/settings.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
 
@@ -20,6 +20,9 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::ActionCause;
+using pane::ModeCauses;
+using pane::PaneSetting;
 
 /// The role the application-defaults weave holds: where the host sends `AppActionRequested`,
 /// and the one durable name a replacement desktop claims.

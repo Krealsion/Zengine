@@ -22,13 +22,11 @@ and the OS clock it naps on, `timer/os_clock.hpp`: the rest a host takes between
 Timer's beat is all its bus holds), `surface`, `input`, `ui`,
 `component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
 `columns`, the control strip, and pure `motion::Path` sampling: every header
-`zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the protocol
-header `workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
-helpers beside them, `workshop/pane_menu.hpp`, `workshop/pane_canvas_text.hpp`,
-`workshop/pane_text_fit.hpp` and `workshop/pane_canvas_rows.hpp`,
-plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_settings.hpp`,
-`workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
-installed under `include/zengine/workshop/`), `neovim` (the one
+`zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the pane
+contract, every header `zengine_public_headers_pane` lists, installed under `include/zengine/pane/`:
+the protocol `pane/vocabulary.hpp` and the optional helpers beside it; and Workshop's own beside it,
+`workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp`, `workshop/setup_control.hpp` and
+`workshop/guest_seam_vocabulary.hpp`, under `include/zengine/workshop/`), `neovim` (the one
 header `editor/neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp`, `library.hpp` and `transfer.hpp`: typed editing, schema closure and reusable

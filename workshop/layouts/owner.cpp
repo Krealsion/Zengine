@@ -14,6 +14,13 @@
 #include <utility>
 
 namespace zengine::workshop {
+using pane::PaneSettingRow;
+using pane::PaneSettingUnused;
+using pane::PaneSettings;
+using pane::PaneSettingsAsked;
+using pane::PaneSettingsDeclared;
+using pane::kLayoutsRole;
+using pane::pane_settings_declared_problem;
 
 // ---- Who asks -----------------------------------------------------------------------------------
 
@@ -264,7 +271,7 @@ void LayoutsOwner::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
     if (role.empty()) {
         return; // personal speech declares nothing (the offer's rule)
     }
-    std::vector<v2::PaneSettingRow> rows;
+    std::vector<pane::v2::PaneSettingRow> rows;
     if (const std::string wrong = pane_settings_declared_problem(declared); !wrong.empty()) {
         // REFUSED ALOUD, AND THE SETTINGS IN FORCE STAND: only an accepted declaration replaces.
         store_.refuse_declaration(store_.name_of(PaneRef{std::string(role), declared.pane}) +
@@ -286,7 +293,7 @@ void LayoutsOwner::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
 }
 
 // WL-SETTING-03 -- agents/workshop/settings.md
-void LayoutsOwner::on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail) {
+void LayoutsOwner::on(const pane::v2::PaneSettingsDeclared& declared, loom::Mail& mail) {
     read_host();
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
@@ -488,7 +495,7 @@ loom::Grant layouts_grant() {
     grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     // ...EACH PANE ITS ROW, AND EACH DECLARING ROLE ITS SETTINGS...
     grant.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);
-    grant.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);
+    grant.allow_to_any(pane::v2::PaneSettings::zen_name, pane::v2::PaneSettings::zen_version);
     grant.allow_to_any(RoleSettings::zen_name, RoleSettings::zen_version);
     // ...AND THE PRESENTER ITS PICTURE, THE INVENTORY ASKED AND THE ONE QUESTION.
     grant.allow_to_role(LiveLayout::zen_name, LiveLayout::zen_version, kWorkshopProvider);

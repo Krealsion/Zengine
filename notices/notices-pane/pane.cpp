@@ -13,11 +13,11 @@
 #include "notices/notices-pane/vocabulary.hpp"
 #include "notices/vocabulary.hpp"
 
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/causes.hpp"
+#include "pane/facets.hpp"
+#include "pane/rows.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
@@ -42,21 +42,20 @@ namespace {
 
 namespace gfx = zengine::graphics;
 namespace input = zengine::input;
-namespace ws = zengine::workshop;
 namespace nt = zengine::notices;
 namespace pane = zengine::notices_pane;
 
-using ws::TextRow;
-using ws::v2::PaneOffered;
-using ws::v3::PaneActionRow;
-using zengine::workshop::pane_text::omitted_text;
-using zengine::workshop::pane_text::wrap;
+using zengine::pane::TextRow;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::v3::PaneActionRow;
+using zengine::pane::pane_text::omitted_text;
+using zengine::pane::pane_text::wrap;
 
 /// The pane's room, its rows and their presses; a notice's first row means its number.
-using Rows = ws::PaneRowsFacet<pane::kNoticesPane, pane::kNoticesPaneRole,
+using Rows = zengine::pane::PaneRowsFacet<pane::kNoticesPane, pane::kNoticesPaneRole,
                                zengine::manual::pages::zengine_notices_pane::kManual,
                                std::int64_t>;
-using Actions = ws::PaneActionFacet<pane::kNoticesPane, pane::kNoticesPaneRole>;
+using Actions = zengine::pane::PaneActionFacet<pane::kNoticesPane, pane::kNoticesPaneRole>;
 
 class NoticesPaneWeave
     : public zengine::With<Rows, Actions>::Weave<
@@ -152,8 +151,8 @@ private:
     /// THE TWO ROWS -- what `offered` declares and `answers` reads -- each press asking the
     /// record for the page the view moved to.
     static std::vector<PaneActionRow> action_rows() {
-        const std::vector<zengine::workshop::ActionCause> asks = {
-            ws::cause_of<nt::NoticesRequested>()};
+        const std::vector<zengine::pane::ActionCause> asks = {
+            zengine::pane::cause_of<nt::NoticesRequested>()};
         return {PaneActionRow{pane::kActionUp, "older notice", input::scan::kUp, input::mod::kNone,
                               {}, asks},
                 PaneActionRow{pane::kActionDown, "newer notice", input::scan::kDown,

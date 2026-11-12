@@ -20,7 +20,7 @@
 #include "graphics/window/compose.hpp"
 #include "graphics/window/palette.hpp"
 #include "graphics/window/store.hpp"
-#include "workshop/pane_drawing.hpp"
+#include "pane/drawing.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -275,10 +275,10 @@ public:
         for (const gfx::ElementRecord& r : a->records) {
             sketch.say(r);
         }
-        component::RowMap<workshop::DrawnPart> map;
+        component::RowMap<pane::DrawnPart> map;
         map.begin();
-        for (const workshop::TextRow& row :
-             workshop::drawn_rows(sketch, a->h / face_.line, a->w / face_.advance, map, face_)) {
+        for (const pane::TextRow& row :
+             pane::drawn_rows(sketch, a->h / face_.line, a->w / face_.advance, map, face_)) {
             const std::size_t end = row.text.find_last_not_of(' ');
             out.push_back(end == std::string::npos ? std::string() : row.text.substr(0, end + 1));
         }
@@ -288,8 +288,8 @@ public:
     /// WHERE THE CARET AND THE SELECTION STAND in the rows `area` shows: the caret a bar at the
     /// left of the cell it stands before, or in a room of cells the character it stands before
     /// drawn again, the selection its columns drawn again, a run a row.
-    workshop::RowsCaret caret(const std::string& area) {
-        workshop::RowsCaret out;
+    pane::RowsCaret caret(const std::string& area) {
+        pane::RowsCaret out;
         const gw::WinArea* a = w_->find(area);
         if (a == nullptr || face_.advance <= 0 || face_.line <= 0) {
             return out;
@@ -615,7 +615,7 @@ private:
         out.w = a.w / face_.advance * gfx::kCellPx;
         out.h = a.h / face_.line * gfx::kCellPx;
         for (gw::KeptNode& k : out.nodes) {
-            k.node.args = workshop::on_cells(k.node, face_);
+            k.node.args = pane::on_cells(k.node, face_);
         }
         return out;
     }

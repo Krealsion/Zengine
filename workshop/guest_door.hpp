@@ -12,7 +12,7 @@
 #include "guest_seam_vocabulary.hpp"
 #include "timer/held_beat.hpp"
 #include "guests.hpp"
-#include "pane_operation.hpp" // the question about a sender's scope, and its answer
+#include "pane/operation.hpp" // the question about a sender's scope, and its answer
 
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
@@ -35,6 +35,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::ActorScopeJudged;
+using pane::ActorScopeRequested;
 
 /// The beat the door services the crossing on: `kGuestsRole`'s own, so a successor inherits it.
 inline constexpr const char* kGuestBeatId = "zengine.guests.service";

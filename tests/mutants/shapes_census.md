@@ -41,14 +41,14 @@ Red in `zengine-workshop-shapes-tests`:
 The settings facet every pane role takes its row through declares no ask and sends none, as a pane
 role taking `PaneSettings` on its own would.
 
-In `workshop/pane_settings_taken.hpp`:
+In `pane/settings_taken.hpp`:
 
 ```diff
 -    using Emit = loom::Emit<PaneSettingsAsked, PaneSettingUnused>;
 +    using Emit = loom::Emit<PaneSettingUnused>;
 ```
 
-In `workshop/pane_settings_taken.hpp`:
+In `pane/settings_taken.hpp`:
 
 ```diff
 -        if (!asked_) {

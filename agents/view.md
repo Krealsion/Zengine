@@ -57,7 +57,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   `PaneActionRequested` as a press asks (WL-CAUSE-01). Such a button's part is `control:<id>`;
   every other element's is `element:<id>`.
 - A running view asks its pane for its size in canvas pixels, never past
-  `workshop::kMaxPaneBodyPx`, with its notice rows of text beneath (`view::offered`), and draws
+  `pane::kMaxPaneBodyPx`, with its notice rows of text beneath (`view::offered`), and draws
   in its size and notice rows within the room it is granted; a pane smaller than that cuts it.
 - `view::picture` is pure: the description, what was told and the presentation, in the view's
   size and its notice rows within one room. Text
@@ -70,7 +70,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   both media and what is designed is what runs. Nothing of the view is drawn outside the design
   area. Over it the builder draws marks alone, never an element.
 - A graphics window is sent that picture too: `view::sketch` sets it, drawn in the window's room in
-  its unit and its text (`ws::canvas_window_room`), as nodes named by what drew them (`box:<id>`, `text:<id>`) with no `/`, so
+  its unit and its text (`pane::canvas_window_room`), as nodes named by what drew them (`box:<id>`, `text:<id>`) with no `/`, so
   none waits for a parent, each button's nodes recorded with its id as their action. The view's
   area is its name, its room is the window's word alone (`AreaRoom`, as that window's role), and
   what changed goes as a change through `graphics::Canvas`. A refused change goes whole at once; a
@@ -158,7 +158,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   `zengine-app` beside the program running the builder (`app::app_program`).
 - The graphics window that shows the area `zengine.view.builder` is sent the builder's picture,
   composed for the window's room from a copy of its presentation, so the window moves nothing
-  Workshop's pane shows, and projected as any canvas picture is (`workshop::canvas_sketch`). Its
+  Workshop's pane shows, and projected as any canvas picture is (`pane::canvas_sketch`). Its
   room, its refusals and its ask once a life are Flow's ([flow](flow.md)). Its pointer there is
   read against the picture last sent there as Workshop's canvas pointer is: a press, its moves and
   its release under the window's number for it, a hold the window ends a lost press, and a move

@@ -11,7 +11,7 @@
 // The Editor draws the candidate in its own area as it commits its claim; nothing moves before the
 // commitment, nothing is rolled back after it, and a pending open stays inspectable.
 
-#include "pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
 

@@ -407,7 +407,7 @@ const RuntimePane* info_rows(ScriptedViews& s, const std::string& key, const cha
     const RuntimePane* held = s.r.session().panes.runtime.find(info::kInfoPaneRole, key);
     REQUIRE_MESSAGE(held != nullptr, "Info offers no `" << key << "`");
     const bool declares = std::any_of(held->actions.begin(), held->actions.end(),
-                                      [id](const v4::PaneActionRow& a) { return a.id == id; });
+                                      [id](const zengine::pane::v4::PaneActionRow& a) { return a.id == id; });
     REQUIRE_MESSAGE(declares, "`" << key << "` does not declare `" << id << "`");
     return held;
 }
@@ -1448,8 +1448,8 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     CHECK(caret().sel_begin_col == 4);
     CHECK(caret().sel_end_col == 5);
     s.key(input::scan::kEscape); // the edit ends, and its caret with it
-    CHECK(caret().row == zengine::workshop::kNoCaret);
-    CHECK(caret().sel_begin_row == zengine::workshop::kNoSelection);
+    CHECK(caret().row == zengine::pane::kNoCaret);
+    CHECK(caret().sel_begin_row == zengine::pane::kNoSelection);
     // THE VIEW'S TITLE BEING RENAMED shows its caret after the title, the same way.
     s.key(input::scan::kM, input::mod::kCtrl);
     REQUIRE_MESSAGE(s.shows(a, "View title"), s.shown(a));
@@ -1459,7 +1459,7 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     // After the title inside its box: past what is typed, before the box's blank room.
     CHECK(caret().column == static_cast<std::int64_t>(title.find_last_not_of("_]") + 1));
     s.key(input::scan::kEscape);
-    CHECK(caret().row == zengine::workshop::kNoCaret);
+    CHECK(caret().row == zengine::pane::kNoCaret);
 }
 
 TEST_CASE("info views: a right press the window landed on a view's rows before their meaning changed opens no menu and says why, and one landed on the field drawn there now opens its menu") {
@@ -2211,7 +2211,7 @@ TEST_CASE("the manual Info answers for each of its panes names exactly the comma
     ManualReader reader(s.r, info::kInfoPaneRole);
     std::set<std::string> declared;
     each_info_state(s, [&](const std::string& key, const char* id) {
-        for (const v4::PaneActionRow& a : info_rows(s, key, id)->actions) declared.insert(a.id);
+        for (const zengine::pane::v4::PaneActionRow& a : info_rows(s, key, id)->actions) declared.insert(a.id);
     });
     // THE WHOLE PAGE IS THE WEAVE'S, answered for every pane key it offers, used or not yet.
     for (std::size_t slot = 1; slot <= info::kMaxInfoViews; ++slot) {

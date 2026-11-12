@@ -8,10 +8,10 @@
 // zengine::graphics, zengine::activation, zengine::input and loom::switchboard, and a load-plan
 // row loads it under the role "example.guard" (kRole, below).
 
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_menu.hpp" // Workshop's role
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/drawing.hpp"
+#include "pane/menu.hpp" // Workshop's role
+#include "pane/rows.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "graphics/colors.hpp"
@@ -28,7 +28,6 @@
 
 namespace {
 
-namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 
 // The role this weave speaks as. It must be the role its load-plan row gives it: Workshop
@@ -49,14 +48,14 @@ struct Hold {
 //
 // What the pane says in each of its three states: guard down, guard up, and a guard the window
 // had to drop for it (the pane closed, or the hand could not be kept).
-std::vector<ws::TextRow> rows_for(const Hold& guard, std::int64_t blocks) {
+std::vector<zengine::pane::TextRow> rows_for(const Hold& guard, std::int64_t blocks) {
     const std::string first = guard.held() ? "GUARD UP -- holding (right button down)"
                               : guard.lost ? "guard dropped -- the host could not keep the hold"
                                            : "guard down";
     return {
-        ws::TextRow{first, guard.held() ? gfx::colors::accent : gfx::colors::quiet},
-        ws::TextRow{"blocks so far: " + std::to_string(blocks), gfx::colors::text},
-        ws::TextRow{"hold the right button in me; no menu opens here", gfx::colors::quiet},
+        zengine::pane::TextRow{first, guard.held() ? gfx::colors::accent : gfx::colors::quiet},
+        zengine::pane::TextRow{"blocks so far: " + std::to_string(blocks), gfx::colors::text},
+        zengine::pane::TextRow{"hold the right button in me; no menu opens here", gfx::colors::quiet},
     };
 }
 
@@ -78,9 +77,9 @@ struct GuardState {
 // keep -- and since it passes nothing back, no menu opens.
 class Guard : public loom::WeaveBase<
                   Guard, GuardState,
-                  loom::Accept<loom::Activated, ws::PaneCatalogRequested, gfx::AreaRoom,
+                  loom::Accept<loom::Activated, zengine::pane::PaneCatalogRequested, gfx::AreaRoom,
                                gfx::DrawnRefused, gfx::AreaButtonChanged, gfx::AreaHoldEnded>,
-                  loom::Emit<ws::PaneOffered, gfx::Drawn, gfx::RoomAsked>> {
+                  loom::Emit<zengine::pane::PaneOffered, gfx::Drawn, gfx::RoomAsked>> {
 public:
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (activation_.accept(mail, activated)) {
@@ -88,8 +87,8 @@ public:
         }
     }
 
-    void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
-        if (mail.authored_from_role(ws::pane_menu::kWorkshopRole)) {
+    void on(const zengine::pane::PaneCatalogRequested&, loom::Mail& mail) {
+        if (mail.authored_from_role(zengine::pane::pane_menu::kWorkshopRole)) {
             offer(mail);
         }
     }
@@ -110,11 +109,11 @@ public:
     // hold the window ended lowers it and says why. The middle button means nothing here. Nothing
     // is handed back and no menu is asked for -- delivery was the whole disposition.
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
-        const std::optional<ws::WindowPointer> p = window_.pointer(b, mail, 0, 0);
+        const std::optional<zengine::pane::WindowPointer> p = window_.pointer(b, mail, 0, 0);
         if (!p || p->button != 3) {
             return;
         }
-        if (p->phase == ws::canvas_pointer::kPress) {
+        if (p->phase == zengine::pane::canvas_pointer::kPress) {
             guard_ = Hold{p->press, false};
             ++state_.blocks;
         } else if (guard_.held() && p->press == guard_.press) {
@@ -126,7 +125,7 @@ public:
     }
 
     void on(const gfx::AreaHoldEnded& ended, loom::Mail& mail) {
-        const std::optional<ws::WindowPointer> p = window_.pointer(ended, mail);
+        const std::optional<zengine::pane::WindowPointer> p = window_.pointer(ended, mail);
         if (!p || p->button != 3 || !guard_.held()) {
             return;
         }
@@ -147,28 +146,29 @@ public:
 private:
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kRole).send_to_role(
-            ws::pane_menu::kWorkshopRole,
-            ws::PaneOffered{kPane, "Guard", "blocks while the right button is held"});
+            zengine::pane::pane_menu::kWorkshopRole,
+            zengine::pane::PaneOffered{kPane, "Guard", "blocks while the right button is held"});
     }
 
     // THE ROWS, DRAWN in the area: as many as its room holds, each cut to its width.
     void show(loom::Mail& mail) {
-        const ws::RowsRoom room = window_.rows_room();
+        const zengine::pane::RowsRoom room = window_.rows_room();
         if (room.rows() <= 0 || room.columns() <= 0) {
             return;
         }
-        std::vector<ws::TextRow> rows = rows_for(guard_, state_.blocks);
-        for (ws::TextRow& row : rows) {
+        std::vector<zengine::pane::TextRow> rows = rows_for(guard_, state_.blocks);
+        for (zengine::pane::TextRow& row : rows) {
             if (static_cast<std::int64_t>(row.text.size()) > room.columns()) {
                 row.text.resize(static_cast<std::size_t>(room.columns()));
             }
         }
-        const ws::RowsDrawing drawn = ws::rows_drawing(rows, std::vector<ws::RowPart>{}, room,
+        const zengine::pane::RowsDrawing drawn = zengine::pane::rows_drawing(rows,
+                                                                             std::vector<zengine::pane::RowPart>{}, room,
                                                        room.columns(), {}, room.rows());
         window_.draw(drawn.sketch, mail);
     }
 
-    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)}; // told its room afresh
+    zengine::pane::WindowDrawing window_{kRole, zengine::pane::pane_area(kRole, kPane)}; // told its room afresh
     Hold guard_;                                 // not state either: see GuardState
     bool asked_ = false;
     zengine::ActivationCursor activation_;

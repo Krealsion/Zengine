@@ -6,7 +6,7 @@
 // Workshop law: agents/workshop/planes.md (+4 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
-#include "workshop/pane_drawing.hpp" // pane_area: every pane's area, `<role>.<pane>`
+#include "pane/drawing.hpp" // pane_area: every pane's area, `<role>.<pane>`
 #include "component/text.hpp"
 
 #include <algorithm>
@@ -14,6 +14,12 @@
 #include <utility>
 
 namespace zengine::workshop {
+using pane::RegionFit;
+using pane::TextRow;
+using pane::fit_region;
+using pane::kNoSelection;
+using pane::pane_area;
+using pane::row_text_shown;
 
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 

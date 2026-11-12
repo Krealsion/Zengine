@@ -37,11 +37,11 @@ WHY — `agents/decisions/a-pane-names-its-parts.md`
 ## Proven by
 
 ### WL-HAND-06
-`workshop/pane_parts.hpp` pane_part_name_problem row_parts_problem canvas_parts_problem PartNames
+`pane/parts.hpp` pane_part_name_problem row_parts_problem canvas_parts_problem PartNames
 row_parts
 `component/row_map.hpp` RowMap::press_order
-`workshop/pane_drawing.hpp` rows_drawing
-`workshop/pane_canvas_drawing.hpp` canvas_sketch
+`pane/drawing.hpp` rows_drawing
+`pane/canvas_drawing.hpp` canvas_sketch
 `graphics/window/compose.hpp` read_area
 `graphics/window/window_sdl.hpp` read_area
 `workshop/weave_desk_read.cpp` shown_words_and_parts presented_menu_reading

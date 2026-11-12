@@ -9,13 +9,16 @@
 // workshop/docs/workshop-panes.md.
 
 #include "graphics/colors.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
 namespace zengine::workshop {
+using pane::TextRow;
+using pane::kNoCaret;
+using pane::kNoSelection;
 
 /// One filled rectangle, in canvas pixels. A plane's rects paint in list order, so a rect goes
 /// behind another by coming earlier.
@@ -44,7 +47,7 @@ inline constexpr std::int64_t kGroundOwn = 0;
 inline constexpr std::int64_t kGroundBeneath = 1;
 
 /// A bounded region of rows, placed in canvas pixels like a rect and set in the screen's text
-/// measure (`fit_region`, pane_text_fit.hpp). `caret_*` and `sel_*` are a row and a column into
+/// measure (`fit_region`, pane/text_fit.hpp). `caret_*` and `sel_*` are a row and a column into
 /// `rows`; a selection runs from begin (inclusive) to end (exclusive) in reading order.
 struct ScreenRegion {
     std::int64_t x = 0;

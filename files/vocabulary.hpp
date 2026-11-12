@@ -40,7 +40,7 @@ inline constexpr const char* kProjectFilesSummary = "browse and open files";
 /// must agree on it.
 inline constexpr const char* kFilesStem = "zengine-files";
 
-/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): how
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp): how
 /// many rows a wheel notch moves the cursor, how many entries one listing holds, at most
 /// `kMaxListedEntries`, and whether the places section is open -- the pane's own word, which it
 /// commits itself when the weaver opens or shuts the section.
@@ -48,7 +48,7 @@ inline constexpr const char* kSettingWheelRows = "wheel-rows";
 inline constexpr const char* kSettingListedEntries = "listed-entries";
 inline constexpr const char* kSettingPlaces = "places";
 
-// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) --------
+// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, pane/vocabulary.hpp) --------
 //
 // The ids a weaver's keymap file names to move them, so they live here for the pane key's
 // reason and carry the built-in's own spellings unchanged. What each one DOES is the

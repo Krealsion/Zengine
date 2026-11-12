@@ -84,7 +84,7 @@ a written expectation knows what is *missing*. See
 
 **An external pane draws in an area of its own and hears the pointer there, from the window.**
 The protocol — every shape listed in
-[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp), described in
+[`pane/vocabulary.hpp`](../../pane/vocabulary.hpp), described in
 [A weave may offer a pane](../../workshop/docs/workshop-panes.md#a-weave-may-offer-a-pane), beside
 the window's own ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)) — is deliberately
 thin: Workshop places the pane's area in the window, which gives it a room in pixels to draw in and
@@ -97,7 +97,7 @@ runs; a pane that says neither keeps the gesture. A press is held for the area i
 moves and its release go there under the window's number for it until the press ends, and the
 window ends it as lost (`AreaHoldEnded`) when the area goes or is covered where it was made.
 A pane may ask Workshop to carry a value or a reference
-([`workshop/pane_carry.hpp`](../../workshop/pane_carry.hpp)) under the gesture that approved it —
+([`pane/carry.hpp`](../../pane/carry.hpp)) under the gesture that approved it —
 a press, an action, a shortcut or a menu choice. A value dragged out under a primary press lands
 where the hand lets go; any other carry Workshop holds until the actor clicks a receiving pane,
 and Escape gives it up. It lands on a pane accepting a drop of that kind, as a point of that
@@ -129,10 +129,10 @@ beside them, one file per subject the header's section banners name
 | drag / move while held | **Workshop's weave**, as *held gestures* it can end. Mid-drag state is Workshop's, and never authored until it settles; a carried item is Workshop's until it is placed | [`workshop/weave.hpp`](../../workshop/weave.hpp) |
 | pointer capture | **the window's hold of a press**: the area it landed in hears its moves and release under the window's number for it, and the window ends it as lost (`AreaHoldEnded`) | [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp) |
 | keyboard focus | **Workshop's weave**, per mode (`keyboard_context`: the arrangement scopes, the contextual surface, a layout's name line, then a pane holding the keys, else command). A loaded pane's own cursor is the pane's. A canvas has no focus and never did | [`workshop/weave.hpp`](../../workshop/weave.hpp), [`workshop/screen.hpp`](../../workshop/screen.hpp) |
-| keyboard possession across the pane seam | **Workshop**, as a spend: granted to a pane, revoked by a press anywhere else | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
+| keyboard possession across the pane seam | **Workshop**, as a spend: granted to a pane, revoked by a press anywhere else | [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp) |
 | the subject an inspector reads | **Workshop's session**, named per inspection and *published as a fact* — a named subject, not a pointer, which selecting or focusing another pane does not move. (Selection of an authored object held this row until the object canvas retired.) | [`workshop/inspection_seam_vocabulary.hpp`](../../workshop/inspection_seam_vocabulary.hpp) |
-| the external pane protocol | **`workshop/pane_vocabulary.hpp`** — the shapes it lists, prose one way, a bounded budget, input as places, keys and resolved ids, answered only by a press or an Escape handed back, and explicit answers only where it asks a question (the reveal, the quit) | [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) |
-| what a pane may draw | **its own drawing, in its own area of the window**, bounded by what a window keeps of an area | [`workshop/pane_picture.hpp`](../../workshop/pane_picture.hpp) |
+| the external pane protocol | **`pane/vocabulary.hpp`** — the shapes it lists, prose one way, a bounded budget, input as places, keys and resolved ids, answered only by a press or an Escape handed back, and explicit answers only where it asks a question (the reveal, the quit) | [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp) |
+| what a pane may draw | **its own drawing, in its own area of the window**, bounded by what a window keeps of an area | [`pane/picture.hpp`](../../pane/picture.hpp) |
 
 ### Where a cross-pane drag crosses a boundary
 
@@ -140,7 +140,7 @@ Reading the map, a semantic drag from one pane to another crosses four places, a
 is a rendering change; three have an owner today:
 
 1. **A shape for "a gesture is in progress and it carries this object."** The carry requests and
-   their answer ([`workshop/pane_carry.hpp`](../../workshop/pane_carry.hpp)): Workshop takes a
+   their answer ([`pane/carry.hpp`](../../pane/carry.hpp)): Workshop takes a
    carry only under the gesture that approved it, and holds the item until it is placed, put down
    or given up.
 2. **A disposition on the pane protocol** — absent. Workshop tells a pane about a press and asks

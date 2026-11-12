@@ -14,9 +14,9 @@
 #include "guest_hand.hpp"
 #include "pane_window.hpp"
 
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_rows_block.hpp"
-#include "workshop/presenter_vocabulary.hpp"
+#include "pane/menu.hpp"
+#include "pane/rows_block.hpp"
+#include "pane/presenter_vocabulary.hpp"
 
 #include <map>
 #include <memory>

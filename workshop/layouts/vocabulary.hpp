@@ -8,10 +8,10 @@
 // that presents it, every change the presenter's gestures make asked of the owner, the session
 // written at an orderly close, and the one question the owner asks the presenter -- whether a
 // gesture is the weaver's current act. Each pane's own settings go from the owner to the pane
-// (workshop/pane_settings.hpp), never through the presenter.
+// (pane/settings.hpp), never through the presenter.
 // Workshop law: agents/workshop/layouts.md, agents/workshop/session-restore.md
 
-#include "workshop/pane_settings.hpp"
+#include "pane/settings.hpp"
 #include "workshop/setup_persist.hpp"
 
 #include <zen/weave/shape.hpp>
@@ -22,6 +22,7 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneSetting;
 
 /// ONE LAYOUT AS A TAB: the id the owner minted for it, its name, and whether it is linked to a
 /// setup file and how (`setup_link::kNone`, `kCurrent` or `kModified`).

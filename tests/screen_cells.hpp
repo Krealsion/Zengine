@@ -12,7 +12,7 @@
 
 #include "graphics/pixels.hpp"
 #include "graphics/colors.hpp"
-#include "workshop/pane_text_fit.hpp"
+#include "pane/text_fit.hpp"
 #include "workshop/screen_planes.hpp"
 
 #include <algorithm>
@@ -58,7 +58,7 @@ inline void region_rows(const ws::ScreenRegion& r, std::vector<CellRow>& out) {
         std::string text = said ? r.rows[at].text : std::string();
         const gfx::Color ink = said ? r.rows[at].ink : gfx::colors::text;
         const gfx::Color back = said ? r.rows[at].background : gfx::no_color();
-        ws::RowSpan span = ws::selection_span_of_row(r, i, static_cast<std::int64_t>(text.size()));
+        pane::RowSpan span = pane::selection_span_of_row(r, i, static_cast<std::int64_t>(text.size()));
         const bool has_caret = r.caret_row == i && r.caret_col >= 0 &&
                                r.caret_col <= static_cast<std::int64_t>(text.size()) &&
                                r.caret_col <= static_cast<std::int64_t>(width) && width > 0;

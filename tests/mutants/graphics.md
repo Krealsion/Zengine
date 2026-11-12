@@ -50,7 +50,7 @@ Red in `zengine-graphics-tests`:
 
 A pane takes the row any role hands it as its own.
 
-In `workshop/pane_settings_taken.hpp`:
+In `pane/settings_taken.hpp`:
 
 ```diff
 -        if (!from_owner(mail) || handed.pane != Pane) {
@@ -82,7 +82,7 @@ Red in `zengine-graphics-tests`:
 
 The drawing facet hands a pane a move a held press carries as though the pointer rested there.
 
-In `workshop/pane_facets.hpp`:
+In `pane/facets.hpp`:
 
 ```diff
              const std::optional<WindowPointer> p = window_.pointer(m, mail, 0, 0);

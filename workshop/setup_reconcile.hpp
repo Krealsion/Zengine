@@ -9,8 +9,8 @@
 // of `workshop/setup.hpp`, which includes it after the setup value; nothing else includes it.
 // Workshop law: agents/workshop/panes-and-windows.md (+4 registers; agents/workshop.md routes)
 
-#include "pane_settings.hpp"
-#include "pane_vocabulary.hpp"
+#include "pane/settings.hpp"
+#include "pane/vocabulary.hpp"
 #include "panes.hpp"
 #include "property/property.hpp"
 
@@ -24,6 +24,10 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneOffered;
+using pane::PaneSetting;
+using pane::kMaxPaneBodyPx;
+using pane::kMaxPaneComfort;
 
 using zengine::persist::Written;
 

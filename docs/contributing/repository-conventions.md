@@ -159,7 +159,7 @@ registry names, such as a claim of a file format's current version. A shape's `N
 identity, frozen once published, and no copy.
 
 **A role's name has one home**, a string constant in its owner's vocabulary header
-(`kWorkshopRole` in `workshop/pane_menu.hpp`, `kInfoPaneRole` in `info/vocabulary.hpp`), and a
+(`kWorkshopRole` in `pane/menu.hpp`, `kInfoPaneRole` in `info/vocabulary.hpp`), and a
 part that includes that header reads the name there. A part that must not include it keeps a
 copy, registered as a `copy` row beside the home's `name` row, and a constant that says the same
 name as a fact of its own -- what files already written say, which a rename leaves as it is -- is

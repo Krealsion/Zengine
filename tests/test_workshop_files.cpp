@@ -35,7 +35,7 @@
 // directory are the two paths this application takes from the OS, and the boundary they
 // share is asserted here directly rather than only through its consumers.
 #include "persist/path_admission.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 
 // THE TWO DOORS THE FILES WEAVE ASKS. One is this host's own weave (`workshop/pane_doors.hpp`);
 // the other is Workshop's, answered where `open_source` lives.
@@ -1364,28 +1364,28 @@ TEST_CASE("fitting a path keeps the end that says which file it is") {
     // FALSIFIER 21, as a value. The property, stated once: enough root to say WHICH
     // filesystem, a mark where something was removed, and the useful tail.
     const std::string p = "/home/me/code/very/long/project/src/foo.cpp";
-    CHECK(detail::fit_path(p, 200) == p); // it fits: nothing changes, not even a mark
-    const std::string cut = detail::fit_path(p, 26);
+    CHECK(zengine::workshop::detail::fit_path(p, 200) == p); // it fits: nothing changes, not even a mark
+    const std::string cut = zengine::workshop::detail::fit_path(p, 26);
     CHECK(cut.size() <= 26);
     CHECK(cut.rfind("/", 0) == 0);                         // the root cue survives
-    CHECK(cut.find(detail::kElided) != std::string::npos); // the cut marks itself
+    CHECK(cut.find(zengine::workshop::detail::kElided) != std::string::npos); // the cut marks itself
     CHECK(cut.find("foo.cpp") != std::string::npos);       // the leaf survives
     // ...AND THE ORDINARY MEASURER IS THE FALSIFIER: it removes exactly the half a path
     // carries its meaning in.
-    CHECK(detail::fit(p, 26).find("foo.cpp") == std::string::npos);
+    CHECK(zengine::workshop::detail::fit(p, 26).find("foo.cpp") == std::string::npos);
 
     // A WINDOWS DRIVE IS A CUE TOO, and a UNC name is the whole `//server/`.
     const std::string w = "C:/Users/me/code/very/long/project/src/foo.cpp";
-    CHECK(detail::fit_path(w, 26).rfind("C:/", 0) == 0);
-    CHECK(detail::fit_path(w, 26).find("foo.cpp") != std::string::npos);
+    CHECK(zengine::workshop::detail::fit_path(w, 26).rfind("C:/", 0) == 0);
+    CHECK(zengine::workshop::detail::fit_path(w, 26).find("foo.cpp") != std::string::npos);
     const std::string unc = "//server/share/deep/deeper/deepest/foo.cpp";
-    CHECK(detail::fit_path(unc, 28).rfind("//server/", 0) == 0);
-    CHECK(detail::fit_path(unc, 28).find("foo.cpp") != std::string::npos);
+    CHECK(zengine::workshop::detail::fit_path(unc, 28).rfind("//server/", 0) == 0);
+    CHECK(zengine::workshop::detail::fit_path(unc, 28).find("foo.cpp") != std::string::npos);
 
     // TOTAL AT EVERY WIDTH, including ones no pane has: below the shape's own cost it falls
     // back to the mark-only answer rather than underflowing.
     for (std::int64_t width = -2; width < 12; ++width) {
-        const std::string got = detail::fit_path(p, width);
+        const std::string got = zengine::workshop::detail::fit_path(p, width);
         CHECK(got.size() <= static_cast<std::size_t>(width < 0 ? 0 : width));
     }
     // AND IT CHANGES NO IDENTITY: this is a projection of a string, and the string is the
@@ -1394,7 +1394,7 @@ TEST_CASE("fitting a path keeps the end that says which file it is") {
 }
 
 TEST_CASE("a pane fits a path by its middle -- its root, the mark and as much of its end as fits -- and a resting pointer scrubs the whole of it across a row") {
-    namespace text = zengine::workshop::pane_text;
+    namespace text = zengine::pane::pane_text;
     const std::string p = "C:/Users/me/code/very/long/project/src/foo.cpp";
     CHECK(text::path_root(p) == 3);
     CHECK(text::path_root("/home/me") == 1);

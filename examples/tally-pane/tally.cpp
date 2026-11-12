@@ -8,10 +8,10 @@
 // headers: a single-source recipe links zengine::pane, zengine::graphics, zengine::activation,
 // zengine::input and loom::switchboard; a load-plan row loads it as "example.tally" (kRole).
 
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_rows_block.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/drawing.hpp"
+#include "pane/rows.hpp"
+#include "pane/rows_block.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "graphics/colors.hpp"
@@ -31,17 +31,16 @@
 
 namespace {
 
-namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 
 // ---- CHANGE THIS FIRST ------------------------------------------------------------------------
 //
 // The words this pane says for a count. A new word here is a change a reload in place carries,
 // because it changes the code and not the state's shape.
-std::vector<ws::TextRow> rows_for(std::int64_t count) {
+std::vector<zengine::pane::TextRow> rows_for(std::int64_t count) {
     return {
-        ws::TextRow{"Tally: " + std::to_string(count), gfx::colors::accent},
-        ws::TextRow{"press into me, then Space adds one", gfx::colors::quiet},
+        zengine::pane::TextRow{"Tally: " + std::to_string(count), gfx::colors::accent},
+        zengine::pane::TextRow{"press into me, then Space adds one", gfx::colors::quiet},
     };
 }
 
@@ -79,10 +78,10 @@ struct TallyState {
 // press on its button reaches it from the window that shows it.
 class Tally : public loom::WeaveBase<
                   Tally, TallyState,
-                  loom::Accept<loom::Activated, ws::PaneCatalogRequested, gfx::AreaRoom,
+                  loom::Accept<loom::Activated, zengine::pane::PaneCatalogRequested, gfx::AreaRoom,
                                gfx::DrawnRefused, gfx::AreaButtonChanged, gfx::ActionRequested,
-                               ws::PaneActionRequested>,
-                  loom::Emit<ws::PaneOffered, ws::PaneActions, gfx::Drawn, gfx::RoomAsked>> {
+                               zengine::pane::PaneActionRequested>,
+                  loom::Emit<zengine::pane::PaneOffered, zengine::pane::PaneActions, gfx::Drawn, gfx::RoomAsked>> {
 public:
     // First breath, and again after every reload. The cursor refuses an activation that did
     // not come from the Loom, so another weave cannot make this pane announce itself.
@@ -92,7 +91,7 @@ public:
         }
     }
 
-    void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCatalogRequested&, loom::Mail& mail) {
         if (mail.authored_from_role(kWorkshop)) {
             offer(mail);
         }
@@ -114,8 +113,8 @@ public:
     // anywhere on its face adds one. A press the window landed on another element than the newest
     // picture shows there (`moved`) acts on nothing.
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
-        const std::optional<ws::WindowPointer> p = window_.pointer(b, mail, 0, 0);
-        if (!p || p->phase != ws::canvas_pointer::kPress || p->button != 1 || p->moved) {
+        const std::optional<zengine::pane::WindowPointer> p = window_.pointer(b, mail, 0, 0);
+        if (!p || p->phase != zengine::pane::canvas_pointer::kPress || p->button != 1 || p->moved) {
             return;
         }
         if (window_.part_at(p->x, p->y) == kAddOne) {
@@ -130,7 +129,7 @@ public:
         }
     }
 
-    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
+    void on(const zengine::pane::PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || asked.pane != kPane) {
             return;
         }
@@ -152,10 +151,10 @@ public:
 private:
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kRole).send_to_role(
-            kWorkshop, ws::PaneOffered{kPane, "Tally", "a count that survives a reload"});
-        ws::PaneActions actions;
+            kWorkshop, zengine::pane::PaneOffered{kPane, "Tally", "a count that survives a reload"});
+        zengine::pane::PaneActions actions;
         actions.pane = kPane;
-        actions.rows.push_back(ws::PaneActionRow{kAddOne, "add one", zengine::input::scan::kSpace,
+        actions.rows.push_back(zengine::pane::PaneActionRow{kAddOne, "add one", zengine::input::scan::kSpace,
                                                  zengine::input::mod::kNone});
         (void)mail.as_role(kRole).send_to_role(kWorkshop, actions);
     }
@@ -184,11 +183,11 @@ private:
         sketch.ellipse("badge", pad + text.advance / 2, pad + text.line / 4, text.advance,
                        text.line / 2, kBadge);
 
-        // THE WORDS, AS ROWS INSIDE THE PICTURE (workshop/pane_rows_block.hpp), standing on the
+        // THE WORDS, AS ROWS INSIDE THE PICTURE (pane/rows_block.hpp), standing on the
         // card: a row a line of the window's text, cut to the card's width.
-        ws::RowsBlock<int> words;
+        zengine::pane::RowsBlock<int> words;
         words.begin(card_h / text.line, (card_w - 2 * text.advance) / text.advance);
-        for (ws::TextRow row : rows_for(state_.count)) {
+        for (zengine::pane::TextRow row : rows_for(state_.count)) {
             const std::int64_t fits = (std::max)(std::int64_t{0}, words.columns());
             if (static_cast<std::int64_t>(row.text.size()) > fits) {
                 row.text.resize(static_cast<std::size_t>(fits));
@@ -209,7 +208,7 @@ private:
         window_.draw(sketch, mail);
     }
 
-    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)}; // told its room afresh
+    zengine::pane::WindowDrawing window_{kRole, zengine::pane::pane_area(kRole, kPane)}; // told its room afresh
     bool asked_ = false;
     zengine::ActivationCursor activation_;
 };

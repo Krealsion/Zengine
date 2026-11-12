@@ -9,8 +9,8 @@
 // it chooses. The weave (first_run.cpp) holds the moment; a suite reads the lines without a bus.
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
 
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/text.hpp"
+#include "pane/menu.hpp"
 #include "info/vocabulary.hpp"
 #include "notices/notices-pane/vocabulary.hpp"
 
@@ -37,7 +37,7 @@ inline constexpr const char* kAnsweredKey = "answered";
 // WL-FIRST-01 -- agents/workshop/first-run.md
 inline bool fresh_desk(const std::vector<std::pair<std::string, std::string>>& open) {
     for (const auto& [role, pane] : open) {
-        const bool layouts = role == zengine::workshop::pane_menu::kWorkshopRole && pane == "layouts";
+        const bool layouts = role == zengine::pane::pane_menu::kWorkshopRole && pane == "layouts";
         const bool info = role == zengine::info_pane::kInfoPaneRole && pane == "info";
         const bool notices = role == zengine::notices_pane::kNoticesPaneRole && pane == "notices";
         if (!layouts && !info && !notices) {
@@ -123,7 +123,7 @@ std::vector<Line> wrapped(const std::vector<Line>& lines, std::int64_t columns) 
         }
         const std::size_t lead = std::min(first, static_cast<std::size_t>(columns / 2));
         const std::string indent(lead, ' ');
-        for (const std::string& piece : workshop::pane_text::wrap(
+        for (const std::string& piece : pane::pane_text::wrap(
                  l.text.substr(lead), columns - static_cast<std::int64_t>(lead))) {
             Line row = l;
             row.text = indent + piece;

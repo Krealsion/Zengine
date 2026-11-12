@@ -13,7 +13,7 @@
 
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
 #include "workshop/staging.hpp"
@@ -276,7 +276,7 @@ struct HandState {
 
 class Hand : public loom::WeaveBase<Hand, HandState,
                                     loom::Accept<PressNow, loom::Result, loom::Refused>,
-                                    loom::Emit<workshop::PaneActionRequested, loom::PokeRead>> {
+                                    loom::Emit<zengine::pane::PaneActionRequested, loom::PokeRead>> {
 public:
     Hand(std::string role, std::string pane, std::string action, std::int64_t times,
          std::string field, std::function<void()> stop)
@@ -287,7 +287,7 @@ public:
         for (std::int64_t i = 0; i < times_; ++i) {
             // AS WORKSHOP'S ROLE: a pane answers what that role authored, and nothing else.
             if (mail.as_role(kWorkshopRole)
-                    .send_to_role(role_, workshop::PaneActionRequested{pane_, action_})
+                    .send_to_role(role_, zengine::pane::PaneActionRequested{pane_, action_})
                     .valid()) {
                 ++state_.pressed;
             }
@@ -573,8 +573,8 @@ int main(int argc, char** argv) {
         }
         press_role = parts[0];
         loom::Grant press;
-        press.allow_to_role(workshop::PaneActionRequested::zen_name,
-                            workshop::PaneActionRequested::zen_version, press_role);
+        press.allow_to_role(zengine::pane::PaneActionRequested::zen_name,
+                            zengine::pane::PaneActionRequested::zen_version, press_role);
         press.allow_to_role(loom::PokeRead::zen_name, loom::PokeRead::zen_version, press_role);
         hand_id = mount_in_role<Hand>(bus, std::move(press), kWorkshopRole, &hand,
                                         parts[0], parts[1], parts[2],

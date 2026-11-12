@@ -16,8 +16,8 @@
 #include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/keymap.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/document.hpp"
+#include "pane/text.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -71,12 +71,12 @@ inline std::string keys_of(const ws::KeymapShown& keymap, const std::string& id,
 /// A SECTION'S WORDS WITH EVERY KEY MARKER SHOWING THE KEY THE WEAVER HAS NOW, in backticks as the
 /// page writes a key. A marker the words do not hold where it says is left as written.
 // WL-DESK-17 -- agents/workshop/desktop-presenting.md
-inline std::string with_keys(const ws::PaneDocumentSection& section,
+inline std::string with_keys(const pane::PaneDocumentSection& section,
                              const ws::KeymapShown& keymap) {
     const std::string& text = section.text;
     std::string out;
     std::size_t from = 0;
-    for (const ws::PaneDocumentKey& mark : section.keys) {
+    for (const pane::PaneDocumentKey& mark : section.keys) {
         if (mark.at < 0 || mark.length <= 0) {
             continue;
         }
@@ -239,13 +239,13 @@ struct ManualText {
 };
 
 // WL-DESK-17 -- agents/workshop/desktop-presenting.md
-inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::KeymapShown& keymap) {
+inline ManualText manual_text(const pane::PaneDocumentShown& shown, const ws::KeymapShown& keymap) {
     ManualText out;
     const auto line = [&out](const std::string& text, std::int64_t look, std::int64_t hang = 0) {
         if (!out.looks.empty()) {
             out.text += '\n';
         }
-        out.text += ws::pane_text::printable(text);
+        out.text += pane::pane_text::printable(text);
         out.looks.push_back(component::TextLook{look, hang});
     };
     const auto words = [&](const std::string& text, std::int64_t look) {
@@ -258,11 +258,11 @@ inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::Keym
             }
             first = false;
             last_item = item;
-            line(plain(paragraph), look, item ? ws::pane_text::kWrapIndent : 0);
+            line(plain(paragraph), look, item ? pane::pane_text::kWrapIndent : 0);
         }
     };
     std::string group;
-    for (const ws::PaneDocumentSection& s : shown.sections) {
+    for (const pane::PaneDocumentSection& s : shown.sections) {
         const bool opening = s.key == "about" || s.key == "use";
         const bool command = manual::is_command_group(s.group);
         if (!opening && !command) {
@@ -279,7 +279,7 @@ inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::Keym
             // The default a command's own marker writes is its heading's too, for a command that is
             // not in force now and that the weaver's file does not move.
             std::string written;
-            for (const ws::PaneDocumentKey& mark : s.keys) {
+            for (const pane::PaneDocumentKey& mark : s.keys) {
                 if (mark.id == s.key) {
                     written = mark.written;
                     break;

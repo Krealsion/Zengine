@@ -13,6 +13,7 @@
 #include <string>
 
 namespace zengine::workshop {
+using pane::PaneActionRequested;
 
 // WL-DESK-18 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {

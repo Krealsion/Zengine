@@ -187,7 +187,7 @@ def click_moments(ctx, spelling, button="left"):
     """The moments of one click at ``spelling`` (see :func:`point`) with ``button`` (see
     :func:`button_of`) -- pressed, released, at the same position, the same way a hand reports
     one: down and up do not drift. `right` is this pane's own second route to its context menu
-    wherever the menu declares no key (`workshop/pane_menu.hpp`; a line open for typing keeps
+    wherever the menu declares no key (`pane/menu.hpp`; a line open for typing keeps
     every ordinary letter, `M` included, so the menu moves to the pointer there on purpose).
 
     A CLICK THAT MAY OPEN A MENU SHOULD OFTEN BE THE WHOLE BATCH, NOT FOLLOWED BY A CHORD.

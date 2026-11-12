@@ -21,7 +21,7 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
-#include "workshop/pane_document.hpp"
+#include "pane/document.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
 #include "workshop/pane_migration.hpp"
@@ -121,7 +121,7 @@ TEST_CASE("the pane declares the nine ids a weaver's keymap file already names")
     const RuntimePane* seat = b.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const v4::PaneActionRow& row : seat->actions) {
+    for (const zengine::pane::v4::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     for (const std::string& want : kBrowsingIds) {
@@ -2587,7 +2587,7 @@ private:
         }
         ++moment_;
         if (word == 0) {
-            if (ev.target == pane_ && ev.schema_name == ws::PaneOperationAnswered::zen_name) {
+            if (ev.target == pane_ && ev.schema_name == zengine::pane::PaneOperationAnswered::zen_name) {
                 word = ev.seq;
                 b_.r.bus.stop(); // the second beat's ask is queued, not delivered
             }
@@ -2942,8 +2942,8 @@ TEST_CASE("the weaver's b stands when a guest's injected key lands before the Bu
                        !loom::from_value<input::AttributedInput>(*ev.payload).local) {
                 guest_at = moment;
             } else if (asked_at == 0 && ev.sender == pane_id && ev.target == workshop &&
-                       ev.schema_name == ws::v2::PaneOperationRequested::zen_name &&
-                       ev.schema_version == ws::v2::PaneOperationRequested::zen_version) {
+                       ev.schema_name == zengine::pane::v2::PaneOperationRequested::zen_name &&
+                       ev.schema_version == zengine::pane::v2::PaneOperationRequested::zen_version) {
                 asked_at = moment;
             }
         });
@@ -3023,8 +3023,8 @@ TEST_CASE("the weaver's b stands when the weaver's own next key lands before the
                 ++actions == 2) {
                 second_at = moment;
             } else if (asked_at == 0 && ev.sender == pane_id && ev.target == workshop &&
-                       ev.schema_name == ws::v2::PaneOperationRequested::zen_name &&
-                       ev.schema_version == ws::v2::PaneOperationRequested::zen_version) {
+                       ev.schema_name == zengine::pane::v2::PaneOperationRequested::zen_name &&
+                       ev.schema_version == zengine::pane::v2::PaneOperationRequested::zen_version) {
                 asked_at = moment;
             }
         });
@@ -3101,9 +3101,9 @@ TEST_CASE("the Builder's edit-source asks class open for the source it found bef
             ev.payload == nullptr) {
             return;
         }
-        if (ev.schema_name == ws::v2::PaneOperationRequested::zen_name &&
-            ev.schema_version == ws::v2::PaneOperationRequested::zen_version) {
-            const auto asked = loom::from_value<ws::v2::PaneOperationRequested>(*ev.payload);
+        if (ev.schema_name == zengine::pane::v2::PaneOperationRequested::zen_name &&
+            ev.schema_version == zengine::pane::v2::PaneOperationRequested::zen_version) {
+            const auto asked = loom::from_value<zengine::pane::v2::PaneOperationRequested>(*ev.payload);
             said.push_back(Said{"asked", asked.classes, asked.subject});
         } else if (ev.schema_name == OpenSourceRequested::zen_name) {
             said.push_back(
@@ -3427,7 +3427,7 @@ void builder_in(BuilderRig& b, const std::string& mode, Standing standing) {
 
 /// PRESS ONE DECLARED ACTION AS A WEAVER DOES: its default key, else the control the pane draws
 /// for it. False when it has neither -- an action the witness cannot drive.
-bool press_action(BuilderRig& b, const v4::PaneActionRow& row) {
+bool press_action(BuilderRig& b, const zengine::pane::v4::PaneActionRow& row) {
     if (is_bound(Gesture{row.scancode, row.modifiers})) {
         b.r.key(row.scancode, row.modifiers);
         return true;
@@ -3462,7 +3462,7 @@ const PressDriverOf kBuilderPresses{pane::kBuilderPaneRole, [](PressWitness& w) 
         for (std::size_t i = 0; i < rows; ++i) {
             BuilderRig b("bld-press");
             builder_in(b, drive.mode, drive.standing);
-            const v4::PaneActionRow row = b.row()->actions[i];
+            const zengine::pane::v4::PaneActionRow row = b.row()->actions[i];
             w.judge(b.r.bus, b.r.bus.role_holder(pane::kBuilderPaneRole), drive.mode, row.id,
                     row.causes, [&] {
                         REQUIRE_MESSAGE(press_action(b, row),
@@ -3653,7 +3653,7 @@ TEST_CASE("the manual the Builder answers is the page its build embedded, and na
     // EVERY ID THE PANE DECLARES, IN EVERY MODE, IS ANSWERED BY ITS OWN SECTION...
     std::set<std::string> declared;
     each_builder_mode(b, [&](const char* mode) {
-        for (const v4::PaneActionRow& a : b.row()->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : b.row()->actions) {
             declared.insert(a.id);
             const PaneDocumentShown one = reader.ask(pane::kBuilderPane, a.id);
             INFO("mode ", mode, ", id ", a.id);

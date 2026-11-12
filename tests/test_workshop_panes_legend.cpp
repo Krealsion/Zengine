@@ -35,7 +35,7 @@ struct TerminalTap {
     loom::Switchboard& bus;
     loom::ObserverId tap{};
     std::vector<std::string> heard; ///< "settings", "room" or "picture", in the order they crossed
-    std::vector<v2::PaneSettings> handed;
+    std::vector<zengine::pane::v2::PaneSettings> handed;
     std::vector<bool> legend_drawn; ///< per picture
     std::optional<gfx::AreaRoom> last_room;
     /// The size of the area the Terminal held when the tap began, when a case says it: a first
@@ -47,13 +47,13 @@ struct TerminalTap {
                 return;
             }
             const loom::WeaveId terminal = bus.role_holder(tp::kTerminalPaneRole);
-            if (ev.target == terminal && ev.schema_name == v2::PaneSettings::zen_name) {
+            if (ev.target == terminal && ev.schema_name == zengine::pane::v2::PaneSettings::zen_name) {
                 // THE TERMINAL TAKES v2 ALONE, so no other version may cross to it, and from the
                 // layouts' owner alone.
-                CHECK(ev.schema_version == v2::PaneSettings::zen_version);
+                CHECK(ev.schema_version == zengine::pane::v2::PaneSettings::zen_version);
                 CHECK(ev.authored_role == kLayoutsRole);
                 heard.push_back("settings");
-                handed.push_back(loom::from_value<v2::PaneSettings>(*ev.payload));
+                handed.push_back(loom::from_value<zengine::pane::v2::PaneSettings>(*ev.payload));
             } else if (ev.target == terminal && ev.schema_name == gfx::AreaRoom::zen_name) {
                 // A NEW ROOM: the window says the room it gives the area again whenever it is told
                 // of the area again, and only one that moved, or an area emptied, is new.
@@ -293,7 +293,7 @@ TEST_CASE("a layout keeps the Terminal's legend hidden while another shows it, w
     CHECK(tap.count_since(mark, "room") == 0);
     CHECK(tap.handed.back().settings == std::vector<PaneSetting>{legend_off()});
     // ...AND WHAT CROSSED NAMES THE SETTING, NEVER A LAYOUT.
-    for (const v2::PaneSettings& one : tap.handed) {
+    for (const zengine::pane::v2::PaneSettings& one : tap.handed) {
         CHECK(one.pane == tp::kTerminalPane);
     }
 }

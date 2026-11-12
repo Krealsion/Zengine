@@ -11,12 +11,12 @@
 #include "inventory/codec.hpp"
 #include "operator/primitives.hpp"
 #include "operator/reference.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_canvas_drawing.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_picture.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/carry.hpp"
+#include "pane/operation.hpp"
+#include "pane/canvas_drawing.hpp"
+#include "pane/drawing.hpp"
+#include "pane/picture.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/powers_door.hpp"
 #include "view/vocabulary.hpp"
 #include "lifecycle_door.hpp"
@@ -35,7 +35,7 @@
 namespace {
 namespace fp = zengine::flow_pane;
 /// The Flow pane's area in a window (D12).
-const std::string kFlowArea = zengine::workshop::pane_area(fp::kRole, fp::kPane);
+const std::string kFlowArea = zengine::pane::pane_area(fp::kRole, fp::kPane);
 namespace fh = zengine::flow_host;
 namespace flow = zengine::flow;
 namespace ws = zengine::workshop;
@@ -44,7 +44,7 @@ namespace op = zengine::op;
 namespace gfx = zengine::graphics;
 namespace pw = zengine::testing::pane_window;
 constexpr const char* workshop_role = "zengine.workshop";
-constexpr auto unit = ws::kPaneCanvasUnit;
+constexpr auto unit = zengine::pane::kPaneCanvasUnit;
 
 // A real role on the real bus, standing in for Workshop: it keeps what Flow tells it and approves
 // an acquisition that continues a press. What Flow shows, it draws in its area, and a case reads
@@ -54,20 +54,21 @@ public:
     std::vector<loom::Message> messages;
     std::vector<std::string> rows; ///< the ids of the rows last declared, the ones in force
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
-            loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PaneQuitAnswered>(),
-            loom::schema_of<ws::PanePassRequested>(), loom::schema_of<fp::FlowEdited>(),
-            loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
-            loom::schema_of<ws::PaneValueCarryRequested>()};
+        return {loom::schema_of<zengine::pane::PaneOffered>(), loom::schema_of<zengine::pane::v3::PaneActions>(),
+            loom::schema_of<zengine::pane::PaneEscapeUnspent>(), loom::schema_of<zengine::pane::PaneQuitAnswered>(),
+            loom::schema_of<zengine::pane::PanePassRequested>(), loom::schema_of<fp::FlowEdited>(),
+            loom::schema_of<zengine::pane::PaneMenuRequested>(), loom::schema_of<zengine::pane::PaneOperationRequested>(),
+            loom::schema_of<zengine::pane::PaneValueCarryRequested>()};
     }
     loom::WeaveId self{};
     void handle(const loom::Message& message, loom::Bus& bus) override {
         // Workshop approves an acquisition that continues a current gesture; this stand-in does.
-        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()))
-            (void)bus.answer(loom::Message(loom::to_value(ws::PaneOperationAnswered{true, ""}), self));
-        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::v3::PaneActions>())) {
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<zengine::pane::PaneOperationRequested>()))
+            (void)bus.answer(loom::Message(loom::to_value(zengine::pane::PaneOperationAnswered{true, ""}), self));
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<zengine::pane::v3::PaneActions>())) {
             rows.clear();
-            for (const auto& row : loom::from_value<ws::v3::PaneActions>(message.payload).rows) rows.push_back(row.id);
+            for (const auto& row : loom::from_value<zengine::pane::v3::PaneActions>(message.payload).rows)
+                rows.push_back(row.id);
         }
         messages.push_back(message);
     }
@@ -79,7 +80,7 @@ public:
 /// A MOMENT OF THE HAND ON FLOW'S AREA, as the window showing it gives one: a button pressed or let
 /// go, a move or the wheel, at a pixel of the area, under its press's number (`gesture`).
 struct Moment {
-    std::int64_t phase = ws::canvas_pointer::kPress;
+    std::int64_t phase = zengine::pane::canvas_pointer::kPress;
     std::uint64_t gesture = 0;
     std::int64_t button = 1, x = 0, y = 0;
     double dy = 0;
@@ -128,29 +129,33 @@ struct Rig {
         auto presentation = std::make_unique<Presenter>();
         presenter = presentation.get();
         loom::Grant host_grant;
-        for (const auto& schema : {loom::schema_of<ws::PaneCatalogRequested>(),
-                loom::schema_of<ws::PaneKey>(), loom::schema_of<ws::PaneTextInput>(),
-                loom::schema_of<ws::PaneCanvasValueDrop>(), loom::schema_of<fp::FlowEdit>(),
-                loom::schema_of<ws::PaneActionRequested>()})
+        for (const auto& schema : {loom::schema_of<zengine::pane::PaneCatalogRequested>(),
+                loom::schema_of<zengine::pane::PaneKey>(), loom::schema_of<zengine::pane::PaneTextInput>(),
+                loom::schema_of<zengine::pane::PaneCanvasValueDrop>(), loom::schema_of<fp::FlowEdit>(),
+                loom::schema_of<zengine::pane::PaneActionRequested>()})
             host_grant.allow_to_role(schema->name(), schema->version(), fp::kRole);
-        host_grant.allow_to_any(ws::PaneQuitRequested::zen_name, ws::PaneQuitRequested::zen_version);
-        host_grant.allow_to_any(ws::PaneOperationAnswered::zen_name, ws::PaneOperationAnswered::zen_version);
+        host_grant.allow_to_any(zengine::pane::PaneQuitRequested::zen_name, zengine::pane::PaneQuitRequested::zen_version);
+        host_grant.allow_to_any(zengine::pane::PaneOperationAnswered::zen_name,
+                                zengine::pane::PaneOperationAnswered::zen_version);
         workshop = bus.register_weave(std::move(presentation), std::move(host_grant), workshop_role);
         presenter->self = workshop;
         loom::Grant choose;
-        choose.allow_to_role(ws::PaneMenuAnswered::zen_name, ws::PaneMenuAnswered::zen_version, fp::kRole);
-        menus = bus.register_weave(std::make_unique<Presenter>(), std::move(choose), ws::kPresenterRole);
+        choose.allow_to_role(zengine::pane::PaneMenuAnswered::zen_name,
+                             zengine::pane::PaneMenuAnswered::zen_version, fp::kRole);
+        menus = bus.register_weave(std::make_unique<Presenter>(), std::move(choose), zengine::pane::kPresenterRole);
         loom::Grant pane_grant;
         fh::allow_flow_requests(pane_grant);
         ws::allow_finding_powers(pane_grant);
-        for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
-                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
-                loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
-                loom::schema_of<ws::PaneValueCarryRequested>()})
+        for (const auto& schema : {loom::schema_of<zengine::pane::PaneOffered>(),
+                                   loom::schema_of<zengine::pane::v3::PaneActions>(),
+                loom::schema_of<zengine::pane::PaneEscapeUnspent>(), loom::schema_of<zengine::pane::PanePassRequested>(),
+                loom::schema_of<zengine::pane::PaneMenuRequested>(),
+                loom::schema_of<zengine::pane::PaneOperationRequested>(),
+                loom::schema_of<zengine::pane::PaneValueCarryRequested>()})
             pane_grant.allow_to_role(schema->name(), schema->version(), workshop_role);
         // Answers target the concrete requester; a role-addressed grant would not
         // authorize mail.answer(), even when that requester holds Workshop.
-        pane_grant.allow(ws::PaneQuitAnswered::zen_name, ws::PaneQuitAnswered::zen_version, workshop);
+        pane_grant.allow(zengine::pane::PaneQuitAnswered::zen_name, zengine::pane::PaneQuitAnswered::zen_version, workshop);
         pane_grant.allow_to_any(fp::FlowEdited::zen_name, fp::FlowEdited::zen_version);
         // ...and every running view, asked what its wiring names.
         pane_grant.allow_to_any(zengine::view::ViewWiringRequested::zen_name,
@@ -216,11 +221,11 @@ struct Rig {
     }
     /// WHAT THE WINDOW SHOWING FLOW'S AREA SHOWS, read as its picture -- and every one Flow draws
     /// names only controls its rows in force declare (WL-HAND-07).
-    ws::CanvasPicture picture() const {
+    zengine::pane::CanvasPicture picture() const {
         const gfx::window::WinArea* a = shown->held(kFlowArea);
         REQUIRE(a != nullptr);
-        const ws::CanvasPicture p = zengine::testing::shown_picture(
-            *a, ws::canvas_window_room(a->w, a->h, shown->cell_px(), shown->measure()));
+        const zengine::pane::CanvasPicture p = zengine::testing::shown_picture(
+            *a, zengine::pane::canvas_window_room(a->w, a->h, shown->cell_px(), shown->measure()));
         std::vector<std::string> names;
         for (const auto& part : p.parts) names.push_back(part.name);
         const std::string problem = control_parts_problem("zengine.flow/flow", names, presenter->rows);
@@ -229,7 +234,7 @@ struct Rig {
     }
     /// How many drawings the window showing Flow's area has heard.
     std::size_t drawings() const { return shown->weave().heard.size(); }
-    ws::CanvasText label(const std::string& text, bool prefix = false) const {
+    zengine::pane::CanvasText label(const std::string& text, bool prefix = false) const {
         const auto shown_now = picture();
         for (const auto& row : shown_now.texts)
             if (prefix ? row.text.rfind(text, 0) == 0 : row.text == text) return row;
@@ -305,14 +310,14 @@ struct Rig {
     /// THE MOMENT AS THE WINDOW SAYS IT: a button changed, a move or the wheel at its pixel.
     template <class Visit>
     void as_said(const Moment& m, Visit&& visit) const {
-        if (m.phase == ws::canvas_pointer::kPress || m.phase == ws::canvas_pointer::kRelease) {
-            gfx::AreaButtonChanged b{kFlowArea, m.button, m.phase == ws::canvas_pointer::kPress,
+        if (m.phase == zengine::pane::canvas_pointer::kPress || m.phase == zengine::pane::canvas_pointer::kRelease) {
+            gfx::AreaButtonChanged b{kFlowArea, m.button, m.phase == zengine::pane::canvas_pointer::kPress,
                                      m.x, m.y, 0};
             b.under = m.under;
             b.part = m.part;
             b.drawing = m.drawing;
             visit(b);
-        } else if (m.phase == ws::canvas_pointer::kMove) {
+        } else if (m.phase == zengine::pane::canvas_pointer::kMove) {
             visit(gfx::AreaPointerMoved{kFlowArea, m.x, m.y, 0, 0, 0});
         } else {
             visit(gfx::AreaWheelTurned{kFlowArea, 0, m.dy, m.x, m.y, 0});
@@ -334,21 +339,21 @@ struct Rig {
         const std::string opener = which == "file" ? "[File v]" : which == "view" ? "[View v]" : "[More]";
         const Moment at = press_for(opener);
         click(at);
-        REQUIRE(bus.role_send_to_role_as(menus, ws::kPresenterRole, fp::kRole,
-            loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, which, true, id, ""}), menus, {},
+        REQUIRE(bus.role_send_to_role_as(menus, zengine::pane::kPresenterRole, fp::kRole,
+            loom::Message(loom::to_value(zengine::pane::PaneMenuAnswered{fp::kPane, which, true, id, ""}), menus, {},
                           at.gesture)).valid());
         pump();
     }
     /// A press and its release, as the window landed them.
     void click(Moment m) {
         host(m);
-        m.phase = ws::canvas_pointer::kRelease;
+        m.phase = zengine::pane::canvas_pointer::kRelease;
         host(m);
     }
     /// What Workshop delivers when a person drops a carried value at (x, y) of Flow's area.
     void drop(const loom::Value& value, std::int64_t x, std::int64_t y) {
         const auto bytes = zengine::inventory::encode_pair(value, {});
-        host(ws::PaneCanvasValueDrop{fp::kPane, kFlowArea, x, y,
+        host(zengine::pane::PaneCanvasValueDrop{fp::kPane, kFlowArea, x, y,
                                      loom::Bytes(bytes.begin(), bytes.end()),
                                      "zengine.inventory-pane", "inventory", ""});
     }
@@ -361,8 +366,10 @@ struct Rig {
         REQUIRE(def != nullptr);
         return op::encode_reference({identity, def->inputs()->content_id(), def->outputs()->content_id()});
     }
-    void key(std::int64_t scancode, std::int64_t modifiers = 0) { host(ws::PaneKey{fp::kPane, scancode, modifiers}); }
-    void text(const std::string& value) { host(ws::PaneTextInput{fp::kPane, value}); }
+    void key(std::int64_t scancode,
+             std::int64_t modifiers = 0) { host(zengine::pane::PaneKey{fp::kPane, scancode,
+                                                                       modifiers}); }
+    void text(const std::string& value) { host(zengine::pane::PaneTextInput{fp::kPane, value}); }
     void replace_text(const std::string& value) { key(in::scan::kA, in::mod::kCtrl); text(value); }
     fp::FlowEdited edit(const std::string& action, std::vector<std::string> arguments = {}) {
         const auto corr = ++correlation;
@@ -442,7 +449,8 @@ op::OperatorDef answer_source() {
 
 std::size_t escapes_unspent(const Presenter& presenter) {
     return static_cast<std::size_t>(std::count_if(presenter.messages.begin(), presenter.messages.end(),
-        [](const auto& m) { return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>()); }));
+        [](const auto& m) { return loom::same_identity(m.payload.schema(),
+                                                       *loom::schema_of<zengine::pane::PaneEscapeUnspent>()); }));
 }
 /// Whether a step is chosen: the x on its corner, which takes it away, is drawn.
 bool step_chosen(Rig& rig) {
@@ -534,7 +542,7 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
 TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their place, and every place a press means something") {
     Rig rig;
     auto said = rig.picture();
-    CHECK(ws::canvas_parts_problem(said.parts).empty());
+    CHECK(zengine::pane::canvas_parts_problem(said.parts).empty());
     const auto named = [&](const std::string& name) {
         return std::any_of(said.parts.begin(), said.parts.end(), [&](const auto& p) { return p.name == name; });
     };
@@ -573,7 +581,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     }
     // EVERY PLACE A PRESS MEANS SOMETHING, LISTED AS THE PICTURE READS A PRESS: its hits in their
     // order, each under its name, or unnamed where an earlier one took it.
-    const ws::CanvasRoom room{1200, 720, 1, true, 8, 16};
+    const zengine::pane::CanvasRoom room{1200, 720, 1, true, 8, 16};
     const fp::Picture drawn = fp::picture(fp::Model{}, room);
     const auto listed = fp::named(drawn);
     REQUIRE_FALSE(drawn.hits.empty());
@@ -826,10 +834,10 @@ TEST_CASE("loaded Flow pane hands a right press back to Workshop under the press
     rig.host(press, 77);
     std::vector<loom::Message> passed;
     for (const auto& message : rig.presenter->messages)
-        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PanePassRequested>()))
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<zengine::pane::PanePassRequested>()))
             passed.push_back(message);
     REQUIRE(passed.size() == 1);
-    CHECK(loom::from_value<ws::PanePassRequested>(passed[0].payload).pane == fp::kPane);
+    CHECK(loom::from_value<zengine::pane::PanePassRequested>(passed[0].payload).pane == fp::kPane);
     CHECK(passed[0].correlation == 77);
     CHECK(passed[0].provenance.authored_from_role(fp::kRole));
     // NOTHING OF FLOW'S MOVED: no page, no selection, no new picture.
@@ -850,24 +858,25 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     rig.host(press, 91);
     const loom::Message* menu = nullptr;
     for (const auto& m : rig.presenter->messages)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>())) menu = &m;
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneMenuRequested>())) menu = &m;
     REQUIRE(menu != nullptr);
     CHECK(menu->correlation == 91); // it continues the right press
-    const auto asked = loom::from_value<ws::PaneMenuRequested>(menu->payload);
+    const auto asked = loom::from_value<zengine::pane::PaneMenuRequested>(menu->payload);
     CHECK(asked.subject == "tally.Total");
     REQUIRE(asked.rows.size() == 1);
     CHECK(asked.rows[0].label == "Carry tally.Total");
 
-    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
-        loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, "tally.Total", true, "carry", ""}),
+    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, zengine::pane::kPresenterRole, fp::kRole,
+        loom::Message(loom::to_value(zengine::pane::PaneMenuAnswered{fp::kPane, "tally.Total", true, "carry", ""}),
                       rig.menus, {}, 91)).valid());
     rig.pump();
     const loom::Message* carried = nullptr;
     for (const auto& m : rig.presenter->messages)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+        if (loom::same_identity(m.payload.schema(),
+                                *loom::schema_of<zengine::pane::PaneValueCarryRequested>())) carried = &m;
     REQUIRE(carried != nullptr);
     CHECK(carried->correlation == 91);
-    const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
+    const auto value = loom::from_value<zengine::pane::PaneValueCarryRequested>(carried->payload);
     CHECK_FALSE(value.drag);
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(value.data.data()), value.data.size())).item;
@@ -879,7 +888,8 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     auto elsewhere = rig.press_for("Emitted");
     elsewhere.button = 3;
     rig.host(elsewhere, 92);
-    CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
+    CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(),
+                              *loom::schema_of<zengine::pane::PanePassRequested>()));
 }
 
 TEST_CASE("a press on a declared message asks under that press to drag its shape out, and still opens it; a right press on a found operator is handed back") {
@@ -892,10 +902,11 @@ TEST_CASE("a press on a declared message asks under that press to drag its shape
     rig.host(rig.press_for("tally.Total {total: Int}"), 93);
     const loom::Message* carried = nullptr;
     for (const auto& m : rig.presenter->messages)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+        if (loom::same_identity(m.payload.schema(),
+                                *loom::schema_of<zengine::pane::PaneValueCarryRequested>())) carried = &m;
     REQUIRE(carried != nullptr);
     CHECK(carried->correlation == 93); // the acquisition continues the primary press
-    const auto value = loom::from_value<ws::PaneValueCarryRequested>(carried->payload);
+    const auto value = loom::from_value<zengine::pane::PaneValueCarryRequested>(carried->payload);
     CHECK(value.drag);
     CHECK(value.label == "tally.Total");
     // The press still does what it did: the row says how its shape is carried.
@@ -908,7 +919,8 @@ TEST_CASE("a press on a declared message asks under that press to drag its shape
     auto found = rig.press_for("  max");
     found.button = 3;
     rig.host(found, 94);
-    CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
+    CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(),
+                              *loom::schema_of<zengine::pane::PanePassRequested>()));
     CHECK(rig.presenter->messages.back().correlation == 94);
 }
 
@@ -933,9 +945,10 @@ TEST_CASE("a declared message that nests another is carried out as a carried sha
     rig.host(rig.press_for("[review.Total]"), 95);
     const loom::Message* carried = nullptr;
     for (const auto& m : rig.presenter->messages)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
+        if (loom::same_identity(m.payload.schema(),
+                                *loom::schema_of<zengine::pane::PaneValueCarryRequested>())) carried = &m;
     REQUIRE(carried != nullptr);
-    const auto bytes = loom::from_value<ws::PaneValueCarryRequested>(carried->payload).data;
+    const auto bytes = loom::from_value<zengine::pane::PaneValueCarryRequested>(carried->payload).data;
     const auto item = zengine::inventory::decode_pair(
         std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())).item;
     CHECK(item.schema().name() == "zengine.flow.CarriedShape");
@@ -988,7 +1001,7 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     rig.host(drag);
     const auto start = rig.workspace().graph.places.front();
     auto motion = drag;
-    motion.phase = ws::canvas_pointer::kMove;
+    motion.phase = zengine::pane::canvas_pointer::kMove;
     motion.x += 97; motion.y += 31;
     ++motion.gesture;
     rig.host(motion);
@@ -998,7 +1011,7 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     // Flow's grid is `fp::unit` to a character, and a character is a cell in this room.
     CHECK(rig.workspace().graph.places.front().x == start.x + 97 * fp::unit / unit);
     CHECK(rig.workspace().graph.places.front().y == start.y + 31 * fp::unit / unit);
-    auto release = motion; release.phase = ws::canvas_pointer::kRelease;
+    auto release = motion; release.phase = zengine::pane::canvas_pointer::kRelease;
     rig.host(release);
     motion.x += 77;
     rig.host(motion);
@@ -1008,7 +1021,7 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     rig.host(drag);
     rig.click("[State]");
     const auto hidden = rig.workspace().graph.places.front();
-    motion = drag; motion.phase = ws::canvas_pointer::kMove; motion.x += 150;
+    motion = drag; motion.phase = zengine::pane::canvas_pointer::kMove; motion.x += 150;
     rig.host(motion);
     CHECK(rig.workspace().graph.places.front().x == hidden.x);
 }
@@ -1114,15 +1127,15 @@ TEST_CASE("loaded Flow pane retains unconfirmed field text and selection on relo
     (void)rig.label("> Value: 42", true);
     auto quit = [&](std::uint64_t correlation) {
         const auto asked = rig.bus.role_publish_as(rig.workshop, workshop_role,
-            loom::Message(loom::to_value(ws::PaneQuitRequested{}), rig.workshop, {}, correlation));
+            loom::Message(loom::to_value(zengine::pane::PaneQuitRequested{}), rig.workshop, {}, correlation));
         REQUIRE(asked.authored);
         REQUIRE(asked.recipients == 1);
         rig.pump();
         for (auto at = rig.presenter->messages.rbegin(); at != rig.presenter->messages.rend(); ++at) {
             if (at->correlation != correlation ||
-                !loom::same_identity(at->payload.schema(), *loom::schema_of<ws::PaneQuitAnswered>())) continue;
+                !loom::same_identity(at->payload.schema(), *loom::schema_of<zengine::pane::PaneQuitAnswered>())) continue;
             CHECK(at->provenance.answers_ask());
-            return loom::from_value<ws::PaneQuitAnswered>(at->payload);
+            return loom::from_value<zengine::pane::PaneQuitAnswered>(at->payload);
         }
         throw std::runtime_error("Flow quit gate did not answer");
     };
@@ -1155,16 +1168,16 @@ TEST_CASE("loaded Flow pane retains unconfirmed field text and selection on relo
     };
     auto queue_quit = [&](std::uint64_t correlation) {
         const auto asked = rig.bus.role_publish_as(rig.workshop, workshop_role,
-            loom::Message(loom::to_value(ws::PaneQuitRequested{}), rig.workshop, {}, correlation));
+            loom::Message(loom::to_value(zengine::pane::PaneQuitRequested{}), rig.workshop, {}, correlation));
         REQUIRE(asked.authored);
         REQUIRE(asked.recipients == 1);
     };
     auto delivered_quit = [&](std::uint64_t correlation) {
         for (const auto& message : rig.presenter->messages) {
             if (message.correlation == correlation &&
-                loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneQuitAnswered>())) {
+                loom::same_identity(message.payload.schema(), *loom::schema_of<zengine::pane::PaneQuitAnswered>())) {
                 CHECK(message.provenance.answers_ask());
-                return loom::from_value<ws::PaneQuitAnswered>(message.payload);
+                return loom::from_value<zengine::pane::PaneQuitAnswered>(message.payload);
             }
         }
         throw std::runtime_error("Flow quit gate did not answer queued publication");
@@ -1252,7 +1265,7 @@ TEST_CASE("a query typed to the search line's end is drawn whole in a window, it
     rig.pump();
     rig.shown = &native;
     rig.text("abcdefghijklmno"); // the field's fifteen columns, the caret after them
-    const ws::CanvasText line = rig.label("abcdefghijklmno"); // exactly: not cut
+    const zengine::pane::CanvasText line = rig.label("abcdefghijklmno"); // exactly: not cut
     CHECK(line.caret_col == 15);
 }
 
@@ -1271,24 +1284,24 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     auto drag = rig.press_on_step(0);
     rig.host(drag);
     auto motion = drag;
-    motion.phase = ws::canvas_pointer::kMove;
+    motion.phase = zengine::pane::canvas_pointer::kMove;
     motion.x += 5 * 9; motion.y += 3 * 22;
     rig.host(motion);
     CHECK(rig.workspace().graph.places.front().x == start.x + 5 * fp::unit);
     CHECK(rig.workspace().graph.places.front().y == start.y + 3 * fp::unit);
     CHECK(rig.state().dirty);
-    auto release = motion; release.phase = ws::canvas_pointer::kRelease;
+    auto release = motion; release.phase = zengine::pane::canvas_pointer::kRelease;
     rig.host(release);
 
     auto pan = rig.press_on_step(0);
     pan.button = 2;
     rig.host(pan);
-    motion = pan; motion.phase = ws::canvas_pointer::kMove;
+    motion = pan; motion.phase = zengine::pane::canvas_pointer::kMove;
     motion.x += 3 * 9; motion.y += 2 * 22;
     rig.host(motion);
     CHECK(rig.workspace().pan_x == 3 * fp::unit);
     CHECK(rig.workspace().pan_y == 2 * fp::unit);
-    release = motion; release.phase = ws::canvas_pointer::kRelease;
+    release = motion; release.phase = zengine::pane::canvas_pointer::kRelease;
     rig.host(release);
     rig.edit_ok("save", {files.file()});
     const auto saved = rig.state().workspace;
@@ -1753,7 +1766,7 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
     const auto press_row = [&](bool form) {
         const auto forms = rig.label("FORMS");
         const auto texts = rig.picture().texts;
-        const ws::CanvasText* row = nullptr;
+        const zengine::pane::CanvasText* row = nullptr;
         for (const auto& t : texts)
             if (t.text == "  fold" && (t.y > forms.y) == form) row = &t;
         REQUIRE(row != nullptr);
@@ -1773,7 +1786,7 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
     rig.key(in::scan::kEscape); // the preview
     rig.key(in::scan::kEscape); // the node
     const auto texts = rig.picture().texts;
-    const ws::CanvasText* named = nullptr;
+    const zengine::pane::CanvasText* named = nullptr;
     for (const auto& t : texts)
         if (t.text == "  fold" && named == nullptr) named = &t;
     REQUIRE(named != nullptr);
@@ -2059,12 +2072,12 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         auto press = rig.press_for("[answer -> value]");
         rig.host(press);
         auto motion = press;
-        motion.phase = ws::canvas_pointer::kMove;
+        motion.phase = zengine::pane::canvas_pointer::kMove;
         motion.x = 125 * unit;
         motion.y = 32 * unit;
         rig.host(motion);
         auto release = motion;
-        release.phase = ws::canvas_pointer::kRelease;
+        release.phase = zengine::pane::canvas_pointer::kRelease;
         rig.host(release);
         CHECK(rig.shows("From max : Int -- what takes it"));
         CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
@@ -2268,20 +2281,20 @@ TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or
     const auto before = flow::workspace_bytes(rig.workspace());
 
     // NOTHING HELD: said, nothing opened.
-    rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
+    rig.host(zengine::pane::PaneActionRequested{fp::kPane, "find-wire"});
     CHECK(rig.shows_part("Hold a wire first"));
     CHECK_FALSE(rig.shows_part("what takes it"));
 
     // A WIRE HELD BY A CLICK on an output.
     w.click(w.at("source-node:0"));
-    rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
+    rig.host(zengine::pane::PaneActionRequested{fp::kPane, "find-wire"});
     CHECK(rig.shows("From max : Int -- what takes it"));
     CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
     rig.key(in::scan::kEscape);
 
     // A PORT SELECTED: the keys move to the constant and choose it.
     w.click(w.at(port_part(rig, 0, 1)));
-    rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
+    rig.host(zengine::pane::PaneActionRequested{fp::kPane, "find-wire"});
     REQUIRE(rig.shows("Into max's rhs : Int -- what fills it"));
     CHECK(w.showing("> value  kept"));
     rig.key(in::scan::kDown);
@@ -2398,30 +2411,30 @@ TEST_CASE("a right press on the graph opens what can be done to what it landed o
         m.y = c.second * face.line + face.line / 2;
         const auto before = rig.presenter->messages.size();
         rig.click(m);
-        std::optional<ws::PaneMenuRequested> asked;
+        std::optional<zengine::pane::PaneMenuRequested> asked;
         std::uint64_t corr = 0;
         for (std::size_t i = before; i < rig.presenter->messages.size(); ++i) {
             const auto& msg = rig.presenter->messages[i];
-            if (loom::same_identity(msg.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>())) {
-                asked = loom::from_value<ws::PaneMenuRequested>(msg.payload);
+            if (loom::same_identity(msg.payload.schema(), *loom::schema_of<zengine::pane::PaneMenuRequested>())) {
+                asked = loom::from_value<zengine::pane::PaneMenuRequested>(msg.payload);
                 corr = msg.correlation;
             }
         }
         return std::pair{asked, corr};
     };
-    const auto labels = [](const ws::PaneMenuRequested& asked) {
+    const auto labels = [](const zengine::pane::PaneMenuRequested& asked) {
         std::vector<std::string> out;
         for (const auto& r : asked.rows) out.push_back(r.label);
         return out;
     };
-    const auto choose = [&](const std::pair<std::optional<ws::PaneMenuRequested>, std::uint64_t>& menu,
+    const auto choose = [&](const std::pair<std::optional<zengine::pane::PaneMenuRequested>, std::uint64_t>& menu,
                             const std::string& label) {
         REQUIRE(menu.first);
         const auto row = std::find_if(menu.first->rows.begin(), menu.first->rows.end(),
                                       [&](const auto& r) { return r.label == label; });
         REQUIRE(row != menu.first->rows.end());
-        REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
-            loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, menu.first->subject, true, row->id, ""}),
+        REQUIRE(rig.bus.role_send_to_role_as(rig.menus, zengine::pane::kPresenterRole, fp::kRole,
+            loom::Message(loom::to_value(zengine::pane::PaneMenuAnswered{fp::kPane, menu.first->subject, true, row->id, ""}),
                           rig.menus, {}, menu.second)).valid());
         rig.pump();
     };
@@ -2615,16 +2628,16 @@ TEST_CASE("a double click adds: an operator row as Add to the rule adds it, empt
     w.click(then);
     const loom::Message* menu = nullptr;
     for (const auto& m : rig.presenter->messages)
-        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>()) &&
-            loom::from_value<ws::PaneMenuRequested>(m.payload).subject == "then")
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::PaneMenuRequested>()) &&
+            loom::from_value<zengine::pane::PaneMenuRequested>(m.payload).subject == "then")
             menu = &m;
     REQUIRE(menu != nullptr);
-    const auto asked = loom::from_value<ws::PaneMenuRequested>(menu->payload);
+    const auto asked = loom::from_value<zengine::pane::PaneMenuRequested>(menu->payload);
     REQUIRE(asked.rows.size() == 2);
     CHECK(asked.rows[0].id == "ask-keep");
     CHECK(asked.rows[1].id == "ask-say");
-    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
-        loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, "then", true, "ask-say", ""}),
+    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, zengine::pane::kPresenterRole, fp::kRole,
+        loom::Message(loom::to_value(zengine::pane::PaneMenuAnswered{fp::kPane, "then", true, "ask-say", ""}),
                       rig.menus, {}, menu->correlation)).valid());
     rig.pump();
     CHECK(rig.shows_part("Say a message after the change"));
@@ -2859,7 +2872,7 @@ TEST_CASE("a press on a port opens a box at it: what is in scope of its type and
 
 namespace {
 /// THE BOX AN EDITOR IN PLACE STANDS IN: its part.
-ws::CanvasPart editor_box(Rig& rig) {
+zengine::pane::CanvasPart editor_box(Rig& rig) {
     const auto shown = rig.picture();
     const auto box = std::find_if(shown.parts.begin(), shown.parts.end(),
                                   [](const auto& part) { return part.name == "dialog-box:box"; });

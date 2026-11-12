@@ -13,12 +13,12 @@
 // Workshop law: agents/workshop/settings.md, agents/workshop/focus.md, agents/workshop/key-spelling.md
 
 #include "keymap.hpp"
-#include "pane_settings.hpp"
+#include "pane/settings.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 #include "screen.hpp" // the arrangement's measures: each setting's default and bounds
 #include "settings_seam_vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -37,6 +37,13 @@
 #include <vector>
 
 namespace zengine::workshop::prefs_persist {
+using pane::PaneSetting;
+using pane::SettingKind;
+using pane::kMaxPaneSettingTextLen;
+using pane::pane_setting_key_problem;
+using pane::pane_setting_problem;
+using pane::pane_setting_text_ok;
+using pane::setting_kind;
 
 using zengine::persist::Written;
 
@@ -71,7 +78,7 @@ inline constexpr const char* kDefaultPrefsFileName = "workshop-prefs.json";
 // ---- Workshop's own settings ----------------------------------------------------------
 
 /// The role Workshop's own settings are kept under: its own.
-using zengine::workshop::pane_menu::kWorkshopRole;
+using zengine::pane::pane_menu::kWorkshopRole;
 
 /// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
 /// Hotkeys view spell a key, which pin list an editor edits, how the keyboard's selection is
@@ -127,10 +134,10 @@ inline constexpr KeySpelling kHotkeysKeysDefaultValue = KeySpelling::kFull;
 
 /// WORKSHOP'S OWN ROLE-WIDE SETTINGS, declared in code: what each takes, its default, the tags
 /// it is listed under, whether it is pinned by default, and what it does.
-inline std::vector<workshop::v2::PaneSettingRow> workshop_role_rows() {
+inline std::vector<pane::v2::PaneSettingRow> workshop_role_rows() {
     const auto text = [](const char* key, const char* fallback, std::vector<std::string> choices,
                          std::vector<std::string> tags, bool pinned, const char* summary) {
-        workshop::v2::PaneSettingRow row;
+        pane::v2::PaneSettingRow row;
         row.key = key;
         row.text = fallback;
         row.choices = std::move(choices);
@@ -142,7 +149,7 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_role_rows() {
     // A NUMBER'S SUMMARY ENDS WITH ITS BOUNDS, read from them.
     const auto number = [](const char* key, std::int64_t fallback, std::int64_t low,
                            std::int64_t high, std::vector<std::string> tags, const char* summary) {
-        workshop::v2::PaneSettingRow row;
+        pane::v2::PaneSettingRow row;
         row.key = key;
         row.number = fallback;
         row.low = low;
@@ -152,7 +159,7 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_role_rows() {
                       std::to_string(high) + ")";
         return row;
     };
-    workshop::v2::PaneSettingRow titles;
+    pane::v2::PaneSettingRow titles;
     titles.key = kPaneTitlesKey;
     titles.flag = kTitlesDefaultValue;
     titles.tags = {"chrome"};
@@ -531,7 +538,7 @@ inline PaneSetting workshop_value(const Prefs& p, std::string_view key) {
     if (const PaneSetting* kept = role_value(p, kWorkshopRole, key)) {
         return *kept;
     }
-    for (const workshop::v2::PaneSettingRow& row : workshop_role_rows()) {
+    for (const pane::v2::PaneSettingRow& row : workshop_role_rows()) {
         if (row.key == key) {
             return PaneSetting{row.key, row.flag, row.number, row.text};
         }
@@ -746,7 +753,7 @@ inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
         return "the file keeps at most " + std::to_string(kMaxRoleSettingsKept) +
                " role-wide settings -- it keeps " + std::to_string(kept_count(p));
     }
-    const std::vector<workshop::v2::PaneSettingRow> own = workshop_role_rows();
+    const std::vector<pane::v2::PaneSettingRow> own = workshop_role_rows();
     for (std::size_t i = 0; i < p.roles.size(); ++i) {
         const RoleSettingsKept& o = p.roles[i];
         if (i > 0 && !(p.roles[i - 1].role < o.role)) {
@@ -793,11 +800,11 @@ inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
             if (o.role != kWorkshopRole) {
                 continue;
             }
-            for (const workshop::v2::PaneSettingRow& row : own) {
+            for (const pane::v2::PaneSettingRow& row : own) {
                 if (row.key != s.key) {
                     continue;
                 }
-                if (std::string wrong = workshop::v2::pane_setting_refused_by(row, s);
+                if (std::string wrong = pane::v2::pane_setting_refused_by(row, s);
                     !wrong.empty()) {
                     return wrong;
                 }

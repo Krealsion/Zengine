@@ -44,7 +44,7 @@ inline constexpr const char* kEditorPaneSummary = "edit a source file";
 /// must agree on it.
 inline constexpr const char* kEditorPaneStem = "zengine-editor-pane";
 
-// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
+// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, pane/vocabulary.hpp) ---------
 
 inline constexpr const char* kActionSave = "editor.save";       ///< write the source to its file
 inline constexpr const char* kActionNewline = "editor.newline"; ///< split the caret's line
@@ -57,7 +57,7 @@ inline constexpr const char* kActionLocation = "editor.location";
 /// Let a clean document go, so the Editor holds none; unbound, and on the right-press menu.
 inline constexpr const char* kActionClose = "editor.close";
 
-/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): the
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp): the
 /// columns between tab stops, whether the status row shows, the lines a wheel notch scrolls, and
 /// the undo steps kept.
 inline constexpr const char* kSettingTabWidth = "tab-width";

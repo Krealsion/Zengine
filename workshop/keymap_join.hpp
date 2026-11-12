@@ -10,7 +10,7 @@
 // value; nothing else includes it.
 // Workshop law: agents/workshop/keyboard.md (+1 register; agents/workshop.md routes)
 
-#include "pane_vocabulary.hpp" // PaneActionRow -- the rows a pane weave declares
+#include "pane/vocabulary.hpp" // PaneActionRow -- the rows a pane weave declares
 #include "property/property.hpp"        // Written -- the one refusal-with-reason shape this package has
 
 #include "component/text_box.hpp"
@@ -24,6 +24,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::kMaxPaneActionIdLen;
+using pane::kMaxPaneActionLabelLen;
 
 using zengine::persist::Written;
 
@@ -335,7 +337,7 @@ inline bool superseded_here(const std::vector<PaneRow>& rows, const std::string&
 /// alone; what a press causes is judged beside it (`pane_declaration_problem`).
 // WL-KEY-15, WL-KEY-08 -- agents/workshop/keyboard.md
 inline Written join_pane_rows(Keymap& k, std::int64_t pane,
-                              const std::vector<v4::PaneActionRow>& declared) {
+                              const std::vector<pane::v4::PaneActionRow>& declared) {
     if (declared.size() > kMaxPaneActionRows) {
         return Written::no("a pane declares at most " + std::to_string(kMaxPaneActionRows) +
                            " actions -- this one declared " + std::to_string(declared.size()));
@@ -344,13 +346,13 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
     std::vector<PaneRow> rows;
     rows.reserve(declared.size());
     // A ROW IN FORCE: its POSIX key where the layer is on and it names one, its default otherwise.
-    const auto row_of = [&k](const v4::PaneActionRow& d, std::string supersedes) {
+    const auto row_of = [&k](const pane::v4::PaneActionRow& d, std::string supersedes) {
         const Gesture declared_key{d.scancode, d.modifiers};
         const Gesture posix{d.posix_scancode, d.posix_modifiers};
         return PaneRow{d.id, d.label, k.posix_layer && is_bound(posix) ? posix : declared_key,
                        std::move(supersedes), declared_key, posix};
     };
-    for (const v4::PaneActionRow& d : declared) {
+    for (const pane::v4::PaneActionRow& d : declared) {
         const Written id = check_pane_action_text(d.id, "id", kMaxPaneActionIdLen, false);
         if (!id.accepted) {
             return id;
@@ -559,22 +561,22 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
 /// The same join over earlier rows, widened with no causes they did not say and no POSIX key.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline Written join_pane_rows(Keymap& k, std::int64_t pane,
-                              const std::vector<v3::PaneActionRow>& declared) {
-    std::vector<v4::PaneActionRow> widened;
+                              const std::vector<pane::v3::PaneActionRow>& declared) {
+    std::vector<pane::v4::PaneActionRow> widened;
     widened.reserve(declared.size());
-    for (const v3::PaneActionRow& d : declared) {
-        widened.push_back(v4::PaneActionRow{d.id, d.label, d.scancode, d.modifiers,
+    for (const pane::v3::PaneActionRow& d : declared) {
+        widened.push_back(pane::v4::PaneActionRow{d.id, d.label, d.scancode, d.modifiers,
                                             d.supersedes, d.causes, d.enters});
     }
     return join_pane_rows(k, pane, widened);
 }
 inline Written join_pane_rows(Keymap& k, std::int64_t pane,
-                              const std::vector<v2::PaneActionRow>& declared) {
-    std::vector<v4::PaneActionRow> widened;
+                              const std::vector<pane::v2::PaneActionRow>& declared) {
+    std::vector<pane::v4::PaneActionRow> widened;
     widened.reserve(declared.size());
-    for (const v2::PaneActionRow& d : declared) {
+    for (const pane::v2::PaneActionRow& d : declared) {
         widened.push_back(
-            v4::PaneActionRow{d.id, d.label, d.scancode, d.modifiers, d.supersedes, {}, {}});
+            pane::v4::PaneActionRow{d.id, d.label, d.scancode, d.modifiers, d.supersedes, {}, {}});
     }
     return join_pane_rows(k, pane, widened);
 }

@@ -16,18 +16,18 @@
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/actor_scope.hpp"
-#include "workshop/pane_canvas_drawing.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_facets.hpp"
+#include "pane/canvas_drawing.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/drawing.hpp"
+#include "pane/facets.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "manuals/zengine.view.builder.hpp" // this pane's manual, compiled in from its page
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/kernel/schema_codec.hpp>
@@ -54,7 +54,7 @@ namespace view = zengine::view;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
 namespace gfx = zengine::graphics;
-constexpr const char* workshop_role = ws::pane_menu::kWorkshopRole;
+constexpr const char* workshop_role = zengine::pane::pane_menu::kWorkshopRole;
 
 /// The shape a carried value names, and the field when the carry was one field: a description's
 /// shape, decoded with the shapes it carries; a field's root shape and its top-level name; or a
@@ -107,8 +107,8 @@ auto of_kind(ViewBuilderAsk::Kind kind) {
 /// whether it still runs hears them as yes.
 constexpr std::string_view kAlreadyRuns = "this session already runs a view";
 
-using Room = ws::PaneFacet<vb::kPane, vb::kRole, zengine::manual::pages::zengine_view_builder::kManual,
-                           ws::v3::PaneOffered>;
+using Room = zengine::pane::PaneFacet<vb::kPane, vb::kRole, zengine::manual::pages::zengine_view_builder::kManual,
+                           zengine::pane::v3::PaneOffered>;
 
 /// ONE MOMENT OF THE POINTER IN THE WINDOW that shows the builder's area: its phase
 /// (`ws::canvas_pointer`), the button, the point in the area's pixels, the modifiers, the wheel's
@@ -117,27 +117,28 @@ struct Moment {
     std::int64_t gesture = 0, phase = 0, button = 0, x = 0, y = 0, modifiers = 0;
     double dx = 0, dy = 0;
 };
-using Asks = ws::AskFacet<vb::kPane, vb::kRole, ViewBuilderAsk>;
-using Actions = ws::PaneActionFacet<vb::kPane, vb::kRole>;
-using Menu = ws::PaneMenuFacet<vb::kPane, vb::kRole>;
+using Asks = zengine::pane::AskFacet<vb::kPane, vb::kRole, ViewBuilderAsk>;
+using Actions = zengine::pane::PaneActionFacet<vb::kPane, vb::kRole>;
+using Menu = zengine::pane::PaneMenuFacet<vb::kPane, vb::kRole>;
 /// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<vb::kPane, vb::kRole>;
+using Settings = zengine::pane::PaneSettingsFacet<vb::kPane, vb::kRole>;
 
 class ViewBuilderPane final
     : public zengine::With<Room, Asks, Actions, Menu, Settings>::Weave<
           ViewBuilderPane, vb::ViewBuilderState,
-          loom::Accept<ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
-                       ws::ActionsJudged, ws::PaneQuitRequested, ws::PaneCanvasValueDrop,
-                       ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot,
+          loom::Accept<zengine::pane::PaneCanvasHover, zengine::pane::PaneKey, zengine::pane::PaneTextInput,
+                       zengine::pane::ActionsJudged, zengine::pane::PaneQuitRequested, zengine::pane::PaneCanvasValueDrop,
+                       zengine::pane::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot,
                        zengine::launcher::Launched,
                        gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
                        gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded, gfx::AreaPointerLeft>,
-          loom::Emit<ws::PaneEscapeUnspent,
-                     ws::PanePassRequested, ws::PaneQuitAnswered, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
+          loom::Emit<zengine::pane::PaneEscapeUnspent,
+                     zengine::pane::PanePassRequested, zengine::pane::PaneQuitAnswered,
+                     zengine::pane::PaneOperationRequested,
+                     zengine::pane::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
                      zengine::launcher::Launch,
                      view::ViewApply, view::ViewStop, ws::ProjectRootRequested, gfx::Drawn,
-                     gfx::RoomAsked, ws::v2::PaneSettingsDeclared>> {
+                     gfx::RoomAsked, zengine::pane::v2::PaneSettingsDeclared>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -197,20 +198,20 @@ public:
             (void)mail.as_role(vb::kRole).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{window_.area()});
         }
     }
-    ws::v3::PaneOffered offering() const {
-        return ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow",
+    zengine::pane::v3::PaneOffered offering() const {
+        return zengine::pane::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow",
                                    880, 540, 0};
     }
     /// The rows the pane answers to, and the settings it takes.
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(vb::kRole)
-            .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{vb::kPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole, zengine::pane::v2::PaneSettingsDeclared{vb::kPane, setting_rows()});
     }
     /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
     /// facet took them whole. A hand-off moves no view: the size is the next `new`'s, the reach the
     /// next placing hand's. Held as plain members, never reload state.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail&) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail&) {
         snap_reach_ = taken.number(vb::kSettingSnapReach);
         model_.new_width = taken.number(vb::kSettingNewWidth);
         model_.new_height = taken.number(vb::kSettingNewHeight);
@@ -218,8 +219,8 @@ public:
     /// ...THE FIRST THE LIFE HOLDS: the room it drew nothing in, drawn now.
     void on_settings_held(loom::Mail& mail) { show(mail); }
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow reach;
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        zengine::pane::v2::PaneSettingRow reach;
         reach.key = vb::kSettingSnapReach;
         reach.number = vb::kSnapReach;
         reach.low = 0;
@@ -227,14 +228,14 @@ public:
         reach.tags = {"layout", "input"};
         reach.pinned = true;
         reach.summary = "snap reach in pixels when dragging";
-        ws::v2::PaneSettingRow width;
+        zengine::pane::v2::PaneSettingRow width;
         width.key = vb::kSettingNewWidth;
         width.number = vb::kNewViewWidth;
         width.low = view::kMinWidthPx;
         width.high = view::kMaxPixels;
         width.tags = {"layout"};
         width.summary = "initial width in pixels of a new view";
-        ws::v2::PaneSettingRow height;
+        zengine::pane::v2::PaneSettingRow height;
         height.key = vb::kSettingNewHeight;
         height.number = vb::kNewViewHeight;
         height.low = view::kMinHeightPx;
@@ -266,7 +267,7 @@ public:
         }
         show(mail);
     }
-    void on(const ws::ActionsJudged& answer, loom::Mail& mail) {
+    void on(const zengine::pane::ActionsJudged& answer, loom::Mail& mail) {
         if (host(mail, answer.pane) && !answer.accepted) {
             model_.notice = "View Builder actions: " + answer.refusal;
             show(mail);
@@ -293,15 +294,15 @@ public:
             perform(control, {}, mail);
         show(mail);
     }
-    void on(const ws::PaneQuitRequested&, loom::Mail& mail) {
+    void on(const zengine::pane::PaneQuitRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(workshop_role)) return;
         const std::string why = asks().holds(of_kind(ViewBuilderAsk::Kind::kHost))
                                     ? "The View Builder is waiting for the view host. Quit again after it answers."
                                 : model_.dirty    ? "The View Builder has an unsaved view. Save it before quitting."
                                                   : "";
-        (void)mail.answer(ws::PaneQuitAnswered{vb::kPane, why.empty(), why});
+        (void)mail.answer(zengine::pane::PaneQuitAnswered{vb::kPane, why.empty(), why});
     }
-    void on(const ws::PaneKey& key, loom::Mail& mail) {
+    void on(const zengine::pane::PaneKey& key, loom::Mail& mail) {
         if (!host(mail, key.pane)) return;
         if (shown_.box) {
             type_key(key);
@@ -312,7 +313,8 @@ public:
             if (model_.choosing) model_.choosing.reset();
             else if (model_.selected) model_.selected.reset();
             else {
-                (void)mail.as_role(vb::kRole).send_to_role(workshop_role, ws::PaneEscapeUnspent{vb::kPane}, mail.correlation());
+                (void)mail.as_role(vb::kRole).send_to_role(workshop_role,
+                                                           zengine::pane::PaneEscapeUnspent{vb::kPane}, mail.correlation());
                 return;
             }
         } else if (key.scancode == input::scan::kDelete && model_.selected) {
@@ -323,7 +325,7 @@ public:
         }
         show(mail);
     }
-    void on(const ws::PaneTextInput& text, loom::Mail& mail) {
+    void on(const zengine::pane::PaneTextInput& text, loom::Mail& mail) {
         if (!host(mail, text.pane) || !shown_.box) return;
         auto& box = shown_.box->text;
         if (box.size() + text.text.size() > kMaxTyped) model_.notice = "A value holds at most " + std::to_string(kMaxTyped) + " bytes";
@@ -349,11 +351,11 @@ public:
     void on(const gfx::AreaPointerLeft& left, loom::Mail& mail) {
         if (window_.from_window(left.area, mail)) rest(false, 0, 0, nullptr, false, mail);
     }
-    void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail) {
+    void on_window(const std::optional<zengine::pane::WindowPointer>& p, loom::Mail& mail) {
         if (!p) return;
-        if (p->phase == ws::canvas_pointer::kPress) rest(false, 0, 0, nullptr, false, mail);
+        if (p->phase == zengine::pane::canvas_pointer::kPress) rest(false, 0, 0, nullptr, false, mail);
         if (moved_press(*p, mail)) return;
-        const std::int64_t gesture = p->phase == ws::canvas_pointer::kLost
+        const std::int64_t gesture = p->phase == zengine::pane::canvas_pointer::kLost
                                          ? (held_ ? held_->gesture : 0)
                                          : static_cast<std::int64_t>(p->press);
         pointer(Moment{gesture, p->phase, p->button, p->x, p->y, p->modifiers, p->dx, p->dy}, mail);
@@ -361,24 +363,24 @@ public:
     /// ONE MOMENT OF THE POINTER (`aimed`, `hand_room`).
     void pointer(const Moment& event, loom::Mail& mail) {
         const bool ours = held_ && held_->gesture == event.gesture;
-        if (event.phase == ws::canvas_pointer::kMove) {
+        if (event.phase == zengine::pane::canvas_pointer::kMove) {
             if (ours) drag(event, mail);
             return;
         }
-        if (event.phase == ws::canvas_pointer::kRelease || event.phase == ws::canvas_pointer::kLost) {
+        if (event.phase == zengine::pane::canvas_pointer::kRelease || event.phase == zengine::pane::canvas_pointer::kLost) {
             if (ours) finish(event, mail);
             return;
         }
-        if (event.phase == ws::canvas_pointer::kWheel) {
+        if (event.phase == zengine::pane::canvas_pointer::kWheel) {
             scroll(event, mail);
             return;
         }
-        if (event.phase == ws::canvas_pointer::kPress) press(event, mail);
+        if (event.phase == zengine::pane::canvas_pointer::kPress) press(event, mail);
     }
     /// A PRESS THE WINDOW LANDED ON ANOTHER PART than the builder's picture shows there now acts on
     /// nothing, and is said.
-    bool moved_press(const ws::WindowPointer& p, loom::Mail& mail) {
-        if (p.phase != ws::canvas_pointer::kPress || !p.moved || (p.button != 1 && p.button != 3))
+    bool moved_press(const zengine::pane::WindowPointer& p, loom::Mail& mail) {
+        if (p.phase != zengine::pane::canvas_pointer::kPress || !p.moved || (p.button != 1 && p.button != 3))
             return false;
         model_.notice = "The picture changed under the press; press again";
         show(mail);
@@ -386,7 +388,7 @@ public:
     }
     /// WHERE A CARRIED VALUE RESTS over the builder's area, as Workshop says it: the label it
     /// would land on is marked. Nothing else moves.
-    void on(const ws::PaneCanvasHover& hover, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCanvasHover& hover, loom::Mail& mail) {
         if (!host(mail, hover.pane) || hover.area != window_.area()) return;
         rest(hover.over, hover.x, hover.y, aimed(), true, mail);
     }
@@ -443,7 +445,7 @@ public:
     /// it. Placed anywhere else it is refused in words, whatever is selected. Carrying it granted
     /// nothing, and nothing else in the builder changes. Its place is read against the picture last
     /// drawn in the area it was dropped on.
-    void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCanvasValueDrop& drop, loom::Mail& mail) {
         if (!host(mail, drop.pane) || drop.area != window_.area()) return;
         try {
             const vb::Picture* pictured = aimed();
@@ -480,7 +482,7 @@ public:
         carry(intent->shape, mail.correlation(), false, mail);
     }
     /// WORKSHOP'S WORD ON A SAVE, an export or a carry: each is the exact ask `AskFacet` held.
-    void on_approval(const ViewBuilderAsk& asked, const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+    void on_approval(const ViewBuilderAsk& asked, const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail) {
         if (asked.kind == ViewBuilderAsk::Kind::kExport) {
             if (!answer.allowed) model_.notice = "Not exported: " + answer.reason;
             else export_app(asked);
@@ -511,10 +513,10 @@ public:
             return;
         }
         (void)mail.as_role(vb::kRole).send_to_role(
-            workshop_role, ws::PaneValueCarryRequested{vb::kPane, asked.label, asked.bytes, asked.drag},
+            workshop_role, zengine::pane::PaneValueCarryRequested{vb::kPane, asked.label, asked.bytes, asked.drag},
             asked.gesture);
     }
-    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCarryAnswered& answer, loom::Mail& mail) {
         if (!answer.carried) {
             model_.notice = "Not carried: " + answer.reason;
             show(mail);
@@ -642,7 +644,7 @@ private:
             const auto at = hit && hit->action == "says" ? element_of(*hit) : std::nullopt;
             const auto* intent = at ? model_.description.intent(model_.description.elements[*at].id) : nullptr;
             if (!intent) {
-                (void)ws::pane_menu::pass_back(mail, vb::kRole, vb::kPane);
+                (void)zengine::pane::pane_menu::pass_back(mail, vb::kRole, vb::kPane);
                 return;
             }
             menu().send(mail, menu().offer(intent->shape->name())
@@ -857,7 +859,7 @@ private:
         shown_.ghost.reset();
         shown_.met_x.reset();
         shown_.met_y.reset();
-        const bool released = event.phase == ws::canvas_pointer::kRelease;
+        const bool released = event.phase == zengine::pane::canvas_pointer::kRelease;
         if (h.what == Held::What::pan) return;
         if (h.what == Held::What::make) {
             if (released && !h.moved) {
@@ -909,7 +911,7 @@ private:
 
     /// Arrow keys move the selected element a pixel, or a cell with Shift; one that would cross
     /// the view's edge is refused in words.
-    bool nudge(const ws::PaneKey& key) {
+    bool nudge(const zengine::pane::PaneKey& key) {
         const std::int64_t step = (key.modifiers & input::mod::kShift) != 0 ? gfx::kCellPx : 1;
         std::int64_t dx = 0, dy = 0;
         if (key.scancode == input::scan::kLeft) dx = -step;
@@ -961,7 +963,7 @@ private:
     /// The caret where the box was pressed, at the medium's measured advance, counted from the
     /// scroll the picture drew the box at.
     void place_caret(const vb::Hit& hit, const Moment& event) {
-        const auto metrics = ws::canvas_text_metrics(hand_room());
+        const auto metrics = zengine::pane::canvas_text_metrics(hand_room());
         const auto column = (event.x - hit.at.x - metrics.inset) / std::max<std::int64_t>(1, metrics.advance);
         auto& text = shown_.box->text;
         text.place(text.position_at_column(column));
@@ -999,7 +1001,7 @@ private:
     }
     /// A key while a box is being typed into: Return keeps the value, Tab keeps it and moves to
     /// the next box, Escape puts it back, and the box's own keys edit it.
-    void type_key(const ws::PaneKey& key) {
+    void type_key(const zengine::pane::PaneKey& key) {
         if (key.scancode == input::scan::kEscape) {
             shown_.box.reset();
             return;
@@ -1087,7 +1089,8 @@ private:
         carrying.drag = drag;
         (void)asks().forget(of_kind(ViewBuilderAsk::Kind::kCarry));
         (void)asks().ask(mail, workshop_role,
-                         ws::PaneOperationRequested{vb::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
+                         zengine::pane::PaneOperationRequested{vb::kPane, workshop_role,
+                                                               zengine::pane::PaneValueCarryRequested::zen_name,
                                                     1, static_cast<std::int64_t>(gesture)},
                          std::move(carrying));
     }
@@ -1210,18 +1213,18 @@ private:
             mail, {{"view.save", "Save the view", input::scan::kS, input::mod::kCtrl},
                    {"view.open", "Open a view", input::scan::kO, input::mod::kCtrl},
                    {"view.run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
-                    {ws::cause_of<view::ViewRun>()}},
+                    {zengine::pane::cause_of<view::ViewRun>()}},
                    {"view.new", "Start a new view", input::scan::kUnknown, input::mod::kNone},
                    {"view.discard", "Discard the unsaved changes", input::scan::kUnknown,
                     input::mod::kNone},
                    {"view.export", "Export the saved view as an app", input::scan::kUnknown,
                     input::mod::kNone},
                    {"view.run-app", "Run the exported app on its own", input::scan::kUnknown,
-                    input::mod::kNone, {}, {ws::cause_of<zengine::launcher::Launch>()}},
+                    input::mod::kNone, {}, {zengine::pane::cause_of<zengine::launcher::Launch>()}},
                    {"view.apply", "Apply to the running view", input::scan::kUnknown,
-                    input::mod::kNone, {}, {ws::cause_of<view::ViewApply>()}},
+                    input::mod::kNone, {}, {zengine::pane::cause_of<view::ViewApply>()}},
                    {"view.stop", "Stop the running view", input::scan::kUnknown,
-                    input::mod::kNone, {}, {ws::cause_of<view::ViewStop>()}},
+                    input::mod::kNone, {}, {zengine::pane::cause_of<view::ViewStop>()}},
                    {"view.choices", "More field choices", input::scan::kUnknown,
                     input::mod::kNone}});
     }
@@ -1408,12 +1411,12 @@ private:
         if (!this->template facet<Settings>().held() || !window_.shown() || window_.width() <= 0 ||
             window_.height() <= 0)
             return;
-        const auto room = ws::canvas_window_room(window_.width(), window_.height(), window_.cell_px(),
+        const auto room = zengine::pane::canvas_window_room(window_.width(), window_.height(), window_.cell_px(),
                                                  window_.text());
         const auto drawn = vb::picture(model_, shown_, room);
         window_room_ = room;
         window_shown_ = drawn;
-        const auto said = ws::canvas_sketch(vb::named(drawn, model_.description), room);
+        const auto said = zengine::pane::canvas_sketch(vb::named(drawn, model_.description), room);
         std::set<std::string> named;
         for (const auto& record : said.sketch.records()) named.insert(record.action);
         window_parts_.clear();
@@ -1427,7 +1430,7 @@ private:
     const Room& room() const { return this->template facet<Room>(); }
     /// THE PICTURE A HAND AIMED AT, the one last drawn in the window; and the room it stands in.
     const vb::Picture* aimed() const { return window_shown_ ? &*window_shown_ : nullptr; }
-    const ws::CanvasRoom& hand_room() const { return window_room_; }
+    const zengine::pane::CanvasRoom& hand_room() const { return window_room_; }
     Asks& asks() { return this->template facet<Asks>(); }
     /// This image's one outstanding menu (`PaneMenuFacet`).
     Menu& menu() { return this->template facet<Menu>(); }
@@ -1449,8 +1452,8 @@ private:
     std::optional<std::pair<std::string, bool>> remembered_;
     bool kept_ = false;
     std::optional<vb::Picture> window_shown_; ///< the picture last drawn in the window, and its room
-    ws::CanvasRoom window_room_;
-    ws::WindowDrawing window_{vb::kRole, ws::pane_area(vb::kRole, vb::kPane)}; ///< its area
+    zengine::pane::CanvasRoom window_room_;
+    zengine::pane::WindowDrawing window_{vb::kRole, zengine::pane::pane_area(vb::kRole, vb::kPane)}; ///< its area
     std::map<std::string, vb::Hit> window_parts_;   ///< the parts the picture last sent there names
     bool room_asked_ = false;                       ///< its area's room asked in this life
     zengine::component::Clipboard clipboard_;

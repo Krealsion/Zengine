@@ -8,9 +8,9 @@
 // Its bus grant is Loom's in-process default, `allow_any`: the protocol's narrowness is the
 // protocol's, not a containment claim about the loader.
 
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/drawing.hpp"
+#include "pane/rows.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "graphics/colors.hpp"
@@ -27,10 +27,9 @@
 
 namespace {
 
-namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
-using zengine::workshop::PaneCatalogRequested;
-using zengine::workshop::PaneOffered;
+using zengine::pane::PaneCatalogRequested;
+using zengine::pane::PaneOffered;
 
 /// THIS PROVIDER'S ROLE — the durable half of the `PaneRef` a weaver's setup
 /// will name it by, and the area its one pane draws in. Hard-coded, because a fixture that could
@@ -104,25 +103,25 @@ public:
             return; // the room the window already holds this pane's rows for
         }
         ++state_.rooms;
-        const ws::RowsRoom fit = window_.rows_room();
+        const zengine::pane::RowsRoom fit = window_.rows_room();
         const std::int64_t rows = fit.rows();
         const std::int64_t columns = fit.columns();
-        std::vector<ws::TextRow> said;
+        std::vector<zengine::pane::TextRow> said;
         // Row one names the room, which is what makes the budget legible on screen.
-        said.push_back(ws::TextRow{
+        said.push_back(zengine::pane::TextRow{
             fitted("hello -- " + std::to_string(rows) + "x" + std::to_string(columns), columns),
             gfx::colors::text});
         // ...and the remaining rows are filled to the room exactly, so a suite reading the pane
         // can tell "this provider spent its whole room" from "this provider had nothing more to
         // say".
         for (std::int64_t i = 1; i < rows; ++i) {
-            said.push_back(ws::TextRow{fitted("row " + std::to_string(i), columns),
+            said.push_back(zengine::pane::TextRow{fitted("row " + std::to_string(i), columns),
                                        gfx::colors::quiet});
         }
         // DELIBERATELY AS THIS ROLE: the window takes a drawing only from the role its area
         // is named by, and holding is never speaking-for (MSG-07).
         window_.draw(
-            ws::rows_drawing(said, std::vector<ws::RowPart>{}, fit, columns, {}, rows).sketch,
+            zengine::pane::rows_drawing(said, std::vector<zengine::pane::RowPart>{}, fit, columns, {}, rows).sketch,
             mail);
     }
 
@@ -166,7 +165,7 @@ private:
         return text;
     }
 
-    ws::WindowDrawing window_{kHelloRole, ws::pane_area(kHelloRole, kPaneKey)};
+    zengine::pane::WindowDrawing window_{kHelloRole, zengine::pane::pane_area(kHelloRole, kPaneKey)};
     bool asked_ = false;
     zengine::ActivationCursor activation_;
 };

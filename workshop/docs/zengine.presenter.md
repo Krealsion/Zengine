@@ -11,7 +11,7 @@ it in place, or load another presenter in its role
 ## About
 
 A pane offers rows (an id and a label each) and asks Workshop to present them
-(`PaneMenuRequested`, [`workshop/pane_vocabulary.hpp`](../pane_vocabulary.hpp)). Three parties
+(`PaneMenuRequested`, [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp)). Three parties
 share a menu, each owning one thing. The pane owns what its rows mean and performs every
 operation. Workshop owns your keys while a menu is open, the popup's frame and where it opens,
 the area inside it the menu stands in, one menu at a time, and the standard rows it adds beneath
@@ -24,7 +24,7 @@ The menu it has open is its state, `HeldMenu` v4: the menu's number, who asked, 
 cursor, the room, the standard rows and the area it stands in. A reload keeps it, so a reloaded
 presenter shows the open menu again and answers it under the same number. How it laid the lines out
 is not state: a new image lays them out afresh. The seam between Workshop and whatever holds this
-role is [`workshop/presenter_vocabulary.hpp`](../presenter_vocabulary.hpp), installed with the
+role is [`pane/presenter_vocabulary.hpp`](../../pane/presenter_vocabulary.hpp), installed with the
 pane protocol.
 
 ## Use
@@ -124,5 +124,5 @@ refusal. A pane learns its menu's end only from that one answer.
   [`examples/numbered-presenter`](../../examples/numbered-presenter/presenter.cpp), another presenter.
 - [The menu presenter, and replacing it](workshop-panes.md#the-menu-presenter-and-replacing-it):
   the seam in full.
-- [`workshop/presenter_vocabulary.hpp`](../presenter_vocabulary.hpp), the seam's shapes, and
-  [`workshop/pane_vocabulary.hpp`](../pane_vocabulary.hpp), the pane protocol's.
+- [`pane/presenter_vocabulary.hpp`](../../pane/presenter_vocabulary.hpp), the seam's shapes, and
+  [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp), the pane protocol's.

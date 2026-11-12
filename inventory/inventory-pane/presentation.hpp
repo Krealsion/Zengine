@@ -4,8 +4,8 @@
 #define ZENGINE_INVENTORY_PANE_PRESENTATION_HPP
 #include "slots.hpp"
 #include "browser.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/rows.hpp"
+#include "pane/text.hpp"
 #include "workshop/keymap.hpp"
 #include "component/row_map.hpp"
 #include "component/list_window.hpp"
@@ -30,7 +30,7 @@ struct Browse {
 };
 /// "[Up] [Move here] Root > ... > Commands > Drafts  +1 in views": every control and crumb is a
 /// span of the picture; an elided crumb is not a target.
-inline void location(std::vector<workshop::TextRow>& rows, View& v, const Browse& b) {
+inline void location(std::vector<pane::TextRow>& rows, View& v, const Browse& b) {
     const auto row = static_cast<std::int64_t>(rows.size());
     if (row >= v.rows || b.crumbs.empty()) return;
     const auto width = static_cast<std::size_t>(std::max<std::int64_t>(0, v.columns));
@@ -64,7 +64,7 @@ inline void location(std::vector<workshop::TextRow>& rows, View& v, const Browse
         if (text.size() + 12 + count.size() <= width) text += "  +" + count + " in views";
         else if (text.size() + 2 + count.size() <= width) text += " +" + count;
     }
-    const auto drawn = workshop::pane_text::printable(workshop::pane_text::fit(text, v.columns));
+    const auto drawn = pane::pane_text::printable(pane::pane_text::fit(text, v.columns));
     const auto solid = component::solid_columns(drawn, text.size());
     for (const auto& [first, size, meaning] : spans)
         v.map.span(row, static_cast<std::int64_t>(first), static_cast<std::int64_t>(size), solid, meaning);
@@ -84,7 +84,7 @@ inline std::string caption(const InventoryViews& s, const inventory::InventorySu
 // Adjacent tiles advance by one less than their extent, sharing the border.
 inline constexpr std::int64_t kSlotColumns = 9, kSlotRows = 5;
 inline std::string centered(std::string text, std::size_t width) {
-    text = workshop::pane_text::fit(text, static_cast<std::int64_t>(width));
+    text = pane::pane_text::fit(text, static_cast<std::int64_t>(width));
     const auto left = (width - text.size()) / 2;
     return std::string(left, ' ') + text + std::string(width - left - text.size(), ' ');
 }
@@ -96,18 +96,18 @@ inline std::pair<std::string,std::string> tile_name(const std::string& name) {
     }
     auto rest=cut;
     while(rest<name.size() && name[rest]==' ') ++rest;
-    return {name.substr(0,cut),workshop::pane_text::fit(name.substr(rest),7)};
+    return {name.substr(0,cut),pane::pane_text::fit(name.substr(rest),7)};
 }
-inline std::vector<workshop::TextRow> render(const InventoryViews& s, const std::string& id,
+inline std::vector<pane::TextRow> render(const InventoryViews& s, const std::string& id,
     View& v, const std::vector<inventory::InventorySummary>& entries, const std::string& notice,
     const std::string& edit_label = {}, const std::string& edit_text = {}, const Browse& browse = {}) {
     namespace ws = workshop;
     namespace colors = graphics::colors;
     v.map.begin();
-    std::vector<workshop::TextRow> rows;
+    std::vector<pane::TextRow> rows;
     const auto push = [&](std::string text, graphics::Color style) {
         if (static_cast<std::int64_t>(rows.size()) < v.rows)
-            rows.push_back({ws::pane_text::printable(ws::pane_text::fit(text, v.columns)), style, graphics::no_color()});
+            rows.push_back({pane::pane_text::printable(pane::pane_text::fit(text, v.columns)), style, graphics::no_color()});
     };
     std::string kind = "inventory";
     for (const auto& x : s.views) if (x.id == id) kind = x.kind;

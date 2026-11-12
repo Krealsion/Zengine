@@ -184,7 +184,7 @@ Includes the field under the cursor or leaves it absent; a `Bool` field goes abs
 ## Hears
 
 The pane protocol's shapes are Workshop's, declared in
-[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) and the headers it includes;
+[`pane/vocabulary.hpp`](../../pane/vocabulary.hpp) and the headers it includes;
 asked about one, Compose answers that its page has no section for it.
 
 ### `LoadedSelected`

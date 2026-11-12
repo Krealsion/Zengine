@@ -1,9 +1,9 @@
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kRole).send_to_role(
-            kWorkshop, ws::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
+            kWorkshop, pane::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
         namespace scan = zengine::input::scan;
         const std::int64_t none = zengine::input::mod::kNone;
-        ws::PaneActions actions;
+        pane::PaneActions actions;
         actions.pane = kPane;
         actions.rows = {{"td.left", "cursor left", scan::kLeft, none},
                         {"td.right", "cursor right", scan::kRight, none},

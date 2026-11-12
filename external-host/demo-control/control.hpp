@@ -6,23 +6,22 @@
 #include "graphics/canvas.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/causes.hpp"
+#include "pane/facets.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/text.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.demo.hpp" // this weave's manual, compiled in from its page
 #include <zen/weave.hpp>
 
 namespace zengine::demo {
-namespace ws = zengine::workshop;
 /// The controls' room and their one picture, in Workshop and in a graphics window: the reset row
 /// is the part `control:reset`, whose press asks `reset`, and the state beneath it the part
 /// `status`, which asks nothing. A right press in Workshop is handed back, so its own pane menu
 /// opens there.
 using ControlDrawing =
-    ws::PaneDrawingFacet<kControlsPane, kRole, manual::pages::zengine_demo::kManual>;
-using Actions = ws::PaneActionFacet<kControlsPane, kRole>;
+    pane::PaneDrawingFacet<kControlsPane, kRole, manual::pages::zengine_demo::kManual>;
+using Actions = pane::PaneActionFacet<kControlsPane, kRole>;
 class Control final
     : public zengine::With<ControlDrawing, Actions,
                            manual::ManualFacet<manual::pages::zengine_demo::kManual>>::
@@ -35,15 +34,15 @@ public:
         unserved();
         drawing().announce(*this, m);
     }
-    ws::v2::PaneOffered offering() const {
-        return ws::v2::PaneOffered{kControlsPane, "Demo", "Repeat this demo through its attached ELH recipe", 4, 56};
+    pane::v2::PaneOffered offering() const {
+        return pane::v2::PaneOffered{kControlsPane, "Demo", "Repeat this demo through its attached ELH recipe", 4, 56};
     }
     /// ...and the reset its row performs, with no key: the row's part is `control:reset`. Its
     /// press answers the attached service's wait with the work.
     void offered(loom::Mail& m) {
         this->template facet<Actions>().declare(
             m, {{"reset", "reset the demo", input::scan::kUnknown, input::mod::kNone, {},
-                 {ws::cause_of<DemoWork>()}}});
+                 {pane::cause_of<DemoWork>()}}});
     }
     /// THE PANE DRAWS ITS PICTURE in the room the window gave its area. A refused drawing leaves
     /// the last good one showing; a later paint draws again.
@@ -56,7 +55,7 @@ public:
         const auto line = [&](const std::string& path, std::int64_t row, const std::string& text) {
             if (row >= room.rows()) return false;
             f.text(path, 0, row * room.text().line,
-                   ws::pane_text::printable(ws::pane_text::fit(text, room.columns())),
+                   pane::pane_text::printable(pane::pane_text::fit(text, room.columns())),
                    graphics::colors::text);
             return true;
         };

@@ -5,7 +5,7 @@
  },
  {
   "replace": [
-   "    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {",
+   "    void on(const pane::PaneActionRequested& asked, loom::Mail& mail) {",
    "        show(mail);"
   ],
   "text": "@b-action.txt"

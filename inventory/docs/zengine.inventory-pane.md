@@ -409,5 +409,5 @@ One writer per path: it is a snapshot, not a database or a journal.
   [organize Inventory in named folders](inventory-folders.md),
   [portable inventory toolboxes](inventory-slots.md) and
   [reuse a stored command through Compose](inventory-compose.md).
-- The pane protocol's shapes: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp)
-  and [`workshop/pane_document.hpp`](../../workshop/pane_document.hpp).
+- The pane protocol's shapes: [`pane/vocabulary.hpp`](../../pane/vocabulary.hpp)
+  and [`pane/document.hpp`](../../pane/document.hpp).

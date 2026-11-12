@@ -10,16 +10,16 @@
 #include "operator/reference.hpp"
 #include "workshop/actor_scope.hpp"
 #include "component/fingerprint.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_facets.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/drawing.hpp"
+#include "pane/facets.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/menu.hpp"
+#include "pane/operation.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "view/vocabulary.hpp" // the running views it asks what their wiring names
 #include "manuals/zengine.flow.hpp" // this pane's manual, compiled in from its page
@@ -42,7 +42,7 @@ namespace fh = zengine::flow_host;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
 namespace gfx = zengine::graphics;
-constexpr const char *workshop_role = ws::pane_menu::kWorkshopRole;
+constexpr const char *workshop_role = zengine::pane::pane_menu::kWorkshopRole;
 
 /// WHAT THE FLOW HOST'S YES SAYS IN THE PANE'S LINE, in the weaver's words; an inspection says
 /// nothing of itself, its events and state being the pane's to show.
@@ -82,26 +82,26 @@ inline auto of_kind(FlowAsk::Kind kind) {
   return [kind](const FlowAsk &a) { return a.kind == kind; };
 }
 
-using Room = ws::PaneFacet<pane::kPane, pane::kRole, zengine::manual::pages::zengine_flow::kManual,
-                           ws::v3::PaneOffered>;
-using Asks = ws::AskFacet<pane::kPane, pane::kRole, FlowAsk>;
-using Actions = ws::PaneActionFacet<pane::kPane, pane::kRole>;
-using Menu = ws::PaneMenuFacet<pane::kPane, pane::kRole>;
+using Room = zengine::pane::PaneFacet<pane::kPane, pane::kRole, zengine::manual::pages::zengine_flow::kManual,
+                           zengine::pane::v3::PaneOffered>;
+using Asks = zengine::pane::AskFacet<pane::kPane, pane::kRole, FlowAsk>;
+using Actions = zengine::pane::PaneActionFacet<pane::kPane, pane::kRole>;
+using Menu = zengine::pane::PaneMenuFacet<pane::kPane, pane::kRole>;
 
 class FlowPane final
     : public zengine::With<Room, Asks, Actions, Menu>::Weave<
           FlowPane, pane::FlowPaneState,
-          loom::Accept<ws::PaneKey, ws::PaneTextInput, ws::ActionsJudged,
-                       ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
+          loom::Accept<zengine::pane::PaneKey, zengine::pane::PaneTextInput, zengine::pane::ActionsJudged,
+                       zengine::pane::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
-                       ws::PaneCanvasValueDrop, ws::PaneCarryAnswered, gfx::AreaRoom,
+                       zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneCarryAnswered, gfx::AreaRoom,
                        gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
                        gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded,
                        gfx::AreaPointerLeft, zengine::view::ViewWiring, gfx::OwnValuesAsked>,
-          loom::Emit<ws::PaneEscapeUnspent,
-                     ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
+          loom::Emit<zengine::pane::PaneEscapeUnspent,
+                     zengine::pane::PanePassRequested, zengine::pane::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
-                     ws::PaneOperationRequested, ws::PaneValueCarryRequested, gfx::Drawn,
+                     zengine::pane::PaneOperationRequested, zengine::pane::PaneValueCarryRequested, gfx::Drawn,
                      gfx::RoomAsked, zengine::view::ViewWiringRequested,
                      gfx::OwnValuesDeclared>> {
 public:
@@ -194,8 +194,8 @@ public:
                                                    gfx::RoomAsked{window_.area()});
     }
   }
-  ws::v3::PaneOffered offering() const {
-    return ws::v3::PaneOffered{pane::kPane, "Flow", "author and exercise message-driven graphs",
+  zengine::pane::v3::PaneOffered offering() const {
+    return zengine::pane::v3::PaneOffered{pane::kPane, "Flow", "author and exercise message-driven graphs",
                                704, 396, 0};
   }
   void offered(loom::Mail &mail) { declare(mail, true); }
@@ -206,7 +206,7 @@ public:
   void declare_own(loom::Mail &mail) {
     (void)mail.as_role(pane::kRole).publish(pane::hue::declared());
   }
-  void on(const ws::ActionsJudged &answer, loom::Mail &mail) {
+  void on(const zengine::pane::ActionsJudged &answer, loom::Mail &mail) {
     if (!host(mail, answer.pane))
       return;
     if (!answer.accepted) {
@@ -215,7 +215,7 @@ public:
     }
   }
   void on_action(const std::string &id, loom::Mail &mail) { perform(id, {}, mail); }
-  void on(const ws::PaneQuitRequested &, loom::Mail &mail) {
+  void on(const zengine::pane::PaneQuitRequested &, loom::Mail &mail) {
     if (!mail.authored_from_role(workshop_role))
       return;
     const std::string why =
@@ -226,9 +226,9 @@ public:
         : model_.dirty ? "Flow has unsaved work. Save it or "
                          "explicitly Discard before quitting."
                        : "";
-    (void)mail.answer(ws::PaneQuitAnswered{pane::kPane, why.empty(), why});
+    (void)mail.answer(zengine::pane::PaneQuitAnswered{pane::kPane, why.empty(), why});
   }
-  void on(const ws::PaneKey &key, loom::Mail &mail) {
+  void on(const zengine::pane::PaneKey &key, loom::Mail &mail) {
     if (!host(mail, key.pane))
       return;
     if (model_.dialog) {
@@ -338,7 +338,7 @@ public:
         model_.search.clear();
       else
         (void)mail.as_role(pane::kRole)
-            .send_to_role(workshop_role, ws::PaneEscapeUnspent{pane::kPane},
+            .send_to_role(workshop_role, zengine::pane::PaneEscapeUnspent{pane::kPane},
                           mail.correlation());
       show(mail);
     } else if (key.scancode == input::scan::kDelete && model_.node) {
@@ -350,7 +350,7 @@ public:
       show(mail);
     }
   }
-  void on(const ws::PaneTextInput &text, loom::Mail &mail) {
+  void on(const zengine::pane::PaneTextInput &text, loom::Mail &mail) {
     if (!host(mail, text.pane))
       return;
     // Outside a dialog, typed text is the number box's at a chosen port while it is open, and
@@ -384,10 +384,10 @@ public:
     model_.hover.reset();
     show(mail);
   }
-  void on_window(const std::optional<ws::WindowPointer> &p, loom::Mail &mail) {
+  void on_window(const std::optional<zengine::pane::WindowPointer> &p, loom::Mail &mail) {
     if (!p)
       return;
-    const std::int64_t gesture = p->phase == ws::canvas_pointer::kLost
+    const std::int64_t gesture = p->phase == zengine::pane::canvas_pointer::kLost
                                      ? (drag_ ? drag_->gesture : 0)
                                      : static_cast<std::int64_t>(p->press);
     // EVERY DIALOG NAMES ITS PARTS ALIKE, so one landed under another dialog's number is another.
@@ -415,10 +415,10 @@ public:
   };
   /// ...about `pictured`, the picture last drawn there (none before one is), in `room`.
   void pointer(const Moment &event, const pane::Picture *pictured,
-               const ws::CanvasRoom &room, loom::Mail &mail) {
+               const zengine::pane::CanvasRoom &room, loom::Mail &mail) {
     try {
-      if (event.phase == ws::canvas_pointer::kLost ||
-          event.phase == ws::canvas_pointer::kRelease) {
+      if (event.phase == zengine::pane::canvas_pointer::kLost ||
+          event.phase == zengine::pane::canvas_pointer::kRelease) {
         // A DOUBLE CLICK ON EMPTY SPACE is done when its second press lets go where it stood; one
         // whose hand moved was a drag, and what the drag did stands.
         if (second_ && second_->gesture == event.gesture) {
@@ -426,7 +426,7 @@ public:
           second_.reset();
           const auto slack = pane::GridProjection(room).advance;
           const auto *at = latest();
-          if (event.phase == ws::canvas_pointer::kRelease && at != nullptr &&
+          if (event.phase == zengine::pane::canvas_pointer::kRelease && at != nullptr &&
               std::abs(event.x - held.x) <= slack && std::abs(event.y - held.y) <= slack) {
             if (drag_ && drag_->gesture == event.gesture && drag_->node_id == 0 && !drag_->wire &&
                 drag_->card.empty()) {
@@ -449,7 +449,7 @@ public:
         }
         return;
       }
-      if (event.phase == ws::canvas_pointer::kMove) {
+      if (event.phase == zengine::pane::canvas_pointer::kMove) {
         if (!drag_ || drag_->gesture != event.gesture) {
           rest(event, pictured, mail);
           return;
@@ -489,7 +489,7 @@ public:
         show(mail);
         return;
       }
-      if (event.phase == ws::canvas_pointer::kWheel) {
+      if (event.phase == zengine::pane::canvas_pointer::kWheel) {
         if (pictured == nullptr ||
             pictured->revision !=
                 model_.workspace.graph.project.definition.revision)
@@ -511,7 +511,7 @@ public:
         show(mail);
         return;
       }
-      if (event.phase != ws::canvas_pointer::kPress)
+      if (event.phase != zengine::pane::canvas_pointer::kPress)
         return;
       // A PRESS ENDS A REST: what the press does is drawn unlit, until the pointer rests again.
       model_.hover.reset();
@@ -573,7 +573,7 @@ public:
           menu().send(mail, menu().offer(shape->name()).row("carry", "Carry " + shape->name()));
           return;
         }
-        (void)ws::pane_menu::pass_back(mail, pane::kRole, pane::kPane);
+        (void)zengine::pane::pane_menu::pass_back(mail, pane::kRole, pane::kPane);
         return;
       }
       const pane::Picture *it = pictured;
@@ -756,7 +756,7 @@ public:
   /// reference becomes a node -- into the port it landed on, as the body of the fold whose slot it
   /// landed on, or where it was released -- and a stale one is refused; any other value is held
   /// on its own page until the maker says what it becomes. Carrying it granted nothing.
-  void on(const ws::PaneCanvasValueDrop &drop, loom::Mail &mail) {
+  void on(const zengine::pane::PaneCanvasValueDrop &drop, loom::Mail &mail) {
     if (!host(mail, drop.pane) || drop.area != window_.area())
       return;
     try {
@@ -1048,7 +1048,7 @@ public:
     carry(shape, mail.correlation(), false, mail);
   }
   /// WORKSHOP'S WORD ON A CONFIRMED WRITE, or on a carry: each is the exact ask `AskFacet` held.
-  void on_approval(const FlowAsk &asked, const ws::PaneOperationAnswered &answer,
+  void on_approval(const FlowAsk &asked, const zengine::pane::PaneOperationAnswered &answer,
                    loom::Mail &mail) {
     if (asked.kind == FlowAsk::Kind::kWrite) {
       settle_write(asked, answer, mail);
@@ -1063,10 +1063,10 @@ public:
     }
     (void)mail.as_role(pane::kRole).send_to_role(
         workshop_role,
-        ws::PaneValueCarryRequested{pane::kPane, asked.label, asked.bytes, asked.drag},
+        zengine::pane::PaneValueCarryRequested{pane::kPane, asked.label, asked.bytes, asked.drag},
         asked.gesture);
   }
-  void on(const ws::PaneCarryAnswered &answer, loom::Mail &mail) {
+  void on(const zengine::pane::PaneCarryAnswered &answer, loom::Mail &mail) {
     if (!answer.carried) {
       model_.notice = "Not carried: " + answer.reason;
       show(mail);
@@ -1467,7 +1467,7 @@ private:
   }
   /// THE HAND MOVED WITH A WIRE: past one character cell from the press it is a drag, drawn from
   /// the press to the hand, a port it would bind to lit.
-  void wire_moved(const Moment &event, const ws::CanvasRoom &room, loom::Mail &mail) {
+  void wire_moved(const Moment &event, const zengine::pane::CanvasRoom &room, loom::Mail &mail) {
     const pane::Measure measure(room);
     const auto at = [](std::int64_t v) {
       return std::clamp(v, std::int64_t{-100000000}, std::int64_t{100000000});
@@ -1511,7 +1511,7 @@ private:
   void let_go(const Drag &held, const Moment &event, loom::Mail &mail) {
     const bool drawn = model_.wire_drawn.has_value();
     model_.wire_drawn.reset();
-    if (!held.crossed || event.phase != ws::canvas_pointer::kRelease) {
+    if (!held.crossed || event.phase != zengine::pane::canvas_pointer::kRelease) {
       if (drawn)
         show(mail);
       return;
@@ -1821,7 +1821,7 @@ private:
     (void)asks().forget(of_kind(FlowAsk::Kind::kCarry));
     (void)asks().ask(
         mail, workshop_role,
-        ws::PaneOperationRequested{pane::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
+        zengine::pane::PaneOperationRequested{pane::kPane, workshop_role, zengine::pane::PaneValueCarryRequested::zen_name,
                                    1, static_cast<std::int64_t>(gesture)},
         std::move(carrying));
   }
@@ -1850,7 +1850,7 @@ private:
   /// WORKSHOP'S WORD ON A CONFIRMED WRITE. Allowed, the verb runs with the values as confirmed
   /// and the dialog closes; refused, or failed, nothing is written and the dialog keeps its text
   /// for repair.
-  void settle_write(const FlowAsk &writing, const ws::PaneOperationAnswered &answer,
+  void settle_write(const FlowAsk &writing, const zengine::pane::PaneOperationAnswered &answer,
                     loom::Mail &mail) {
     const auto doing = pane::Model::writing(writing.action);
     try {
@@ -1941,7 +1941,7 @@ private:
     if (!again && (!declared_ || *declared_ == dialog))
       return;
     declared_ = dialog;
-    std::vector<ws::v3::PaneActionRow> rows{
+    std::vector<zengine::pane::v3::PaneActionRow> rows{
         {"ask-save", "Save Flow workspace", input::scan::kS, input::mod::kCtrl},
         {"ask-open", "Open Flow workspace", input::scan::kO, input::mod::kCtrl},
         {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
@@ -1993,27 +1993,27 @@ private:
     // WHAT A PRESS MAY SEND BESIDE THE PANE PROTOCOL: the host's ask its effect makes (`effect`),
     // and the door's question again where the press, or the host's answer to it, can change what
     // Flow asks (`find`).
-    const ws::ActionCause found{ws::find_powers_schema()->name(),
+    const zengine::pane::ActionCause found{ws::find_powers_schema()->name(),
                                 static_cast<std::int64_t>(ws::find_powers_schema()->version()), {}};
     for (auto &row : rows) {
       if (row.id == "run")
-        row.causes = {ws::cause_of<fh::FlowRun>(), found};
+        row.causes = {zengine::pane::cause_of<fh::FlowRun>(), found};
       else if (row.id == "apply")
-        row.causes = {ws::cause_of<fh::FlowApply>(), found};
+        row.causes = {zengine::pane::cause_of<fh::FlowApply>(), found};
       else if (row.id == "stop")
-        row.causes = {ws::cause_of<fh::FlowStop>(), found};
+        row.causes = {zengine::pane::cause_of<fh::FlowStop>(), found};
       else if (row.id == "restart")
-        row.causes = {ws::cause_of<fh::FlowStop>(), ws::cause_of<fh::FlowRun>(), found};
+        row.causes = {zengine::pane::cause_of<fh::FlowStop>(), zengine::pane::cause_of<fh::FlowRun>(), found};
       else if (row.id == "inspect")
-        row.causes = {ws::cause_of<fh::FlowInspect>()};
+        row.causes = {zengine::pane::cause_of<fh::FlowInspect>()};
       else if (row.id == "send" || row.id == "drop-send")
-        row.causes = {ws::cause_of<fh::FlowSend>()};
+        row.causes = {zengine::pane::cause_of<fh::FlowSend>()};
       else if (row.id == "catalog")
-        row.causes = {ws::cause_of<fh::FlowCatalog>(), found};
+        row.causes = {zengine::pane::cause_of<fh::FlowCatalog>(), found};
       else if (row.id == "add-fold" || row.id == "dialog-confirm" || row.id == "find-wire")
         row.causes = {found};
       else if (row.id == "ask-message" || row.id == "ask-say")
-        row.causes = {ws::cause_of<zengine::view::ViewWiringRequested>()};
+        row.causes = {zengine::pane::cause_of<zengine::view::ViewWiringRequested>()};
     }
     this->template facet<Actions>().declare(mail, std::move(rows));
   }
@@ -2461,7 +2461,7 @@ private:
   /// port takes the count, and the body is chosen from this reference), or else at the end of the
   /// trigger, placed where it was released.
   void drop_reference(const zengine::op::OperatorRef &ref, const pane::Hit *hit,
-                      const pane::Picture &pictured, const ws::PaneCanvasValueDrop &drop,
+                      const pane::Picture &pictured, const zengine::pane::PaneCanvasValueDrop &drop,
                       loom::Mail &mail) {
     std::vector<std::string> arguments{ref.identity,
         std::to_string(static_cast<std::int64_t>(ref.authored_in)),
@@ -2567,7 +2567,7 @@ private:
   void show_window(loom::Mail &mail) {
     if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0)
       return;
-    window_room_ = ws::canvas_window_room(window_.width(), window_.height(), window_.cell_px(),
+    window_room_ = zengine::pane::canvas_window_room(window_.width(), window_.height(), window_.cell_px(),
                                           window_.text());
     auto drawn = pane::window_picture(model_, window_room_);
     window_parts_ = std::move(drawn.parts);
@@ -2609,10 +2609,10 @@ private:
   std::int64_t observed_pending_ = 0;
   std::optional<zengine::message_draft::Draft> live_state_;
   std::optional<Drag> drag_;
-  ws::WindowDrawing window_{pane::kRole, ws::pane_area(pane::kRole, pane::kPane)}; ///< its area
+  zengine::pane::WindowDrawing window_{pane::kRole, zengine::pane::pane_area(pane::kRole, pane::kPane)}; ///< its area
   std::map<std::string, pane::Hit> window_parts_; ///< the parts the picture last sent there names
   std::optional<pane::Picture> window_shown_;     ///< the picture last sent there, and its room
-  ws::CanvasRoom window_room_;
+  zengine::pane::CanvasRoom window_room_;
   bool room_asked_ = false;                       ///< its area's room asked in this life
   bool restarting_ = false; ///< a Restart's stop is asked: its answer runs the draft
   zengine::component::Clipboard clipboard_;

@@ -44,7 +44,7 @@ inline constexpr const char* kBuilderPaneSummary = "build a chosen recipe";
 /// must agree on it.
 inline constexpr const char* kBuilderPaneStem = "zengine-builder-pane";
 
-// ---- The actions the pane declares (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
+// ---- The actions the pane declares (`PaneActions`, pane/vocabulary.hpp) ---------
 //
 // The ids a weaver's keymap file names to move them. What each one does is the weave's
 // (pane.cpp); which key requests it is Workshop's effective keymap, and the weave is told the

@@ -46,4 +46,5 @@ desktop's Pane Manager reads (`PaneInventory`, WL-DESK-04) — the same union, i
 never a second inventory. With one built-in left, the bound leaves thirty-one runtime references.
 
 **Laws supported.** [WL-CAT-01](../workshop/catalog.md), [WL-CAT-03](../workshop/catalog.md),
-[WL-CAT-04](../workshop/catalog.md), [WL-CAT-05](../workshop/catalog.md).
+[WL-CAT-04](../workshop/catalog.md), [WL-CAT-05](../workshop/catalog.md),
+[PANE-SEAM-01](../pane-contract/seam.md).

@@ -282,7 +282,7 @@ struct TerminalRig {
         const RuntimePane* one = row();
         REQUIRE(one != nullptr);
         std::vector<std::string> ids;
-        for (const v4::PaneActionRow& a : one->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : one->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -364,7 +364,7 @@ TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") 
     const RuntimePane* row = t.row();
     REQUIRE(row != nullptr);
     const auto gesture_of = [row](const char* id) {
-        for (const v4::PaneActionRow& a : row->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : row->actions) {
             if (a.id == id) {
                 return std::pair<std::int64_t, std::int64_t>{a.scancode, a.modifiers};
             }
@@ -394,7 +394,7 @@ TEST_CASE("the manual the Terminal answers names exactly the commands it declare
     t.open();
     ManualReader reader(t.r, pane::kTerminalPaneRole);
     std::set<std::string> declared;
-    for (const v4::PaneActionRow& a : t.row()->actions) {
+    for (const zengine::pane::v4::PaneActionRow& a : t.row()->actions) {
         declared.insert(a.id);
     }
     check_answered_manual(reader, pane::kTerminalPane, declared);
@@ -405,7 +405,7 @@ struct ForgerState {
     ZEN_SHAPE(ForgerState, 1);
 };
 class RowForger
-    : public loom::WeaveBase<RowForger, ForgerState, loom::Accept<>, loom::Emit<v2::PaneSettings>> {};
+    : public loom::WeaveBase<RowForger, ForgerState, loom::Accept<>, loom::Emit<zengine::pane::v2::PaneSettings>> {};
 
 TEST_CASE("the Terminal draws nothing in a window's room before it holds its row, takes a row from "
           "the layouts' owner alone, and draws whole once it holds one") {
@@ -428,13 +428,13 @@ TEST_CASE("the Terminal draws nothing in a window's room before it holds its row
     auto forger = std::make_unique<RowForger>();
     RowForger* raw = forger.get();
     loom::Grant hands;
-    hands.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);
+    hands.allow_to_any(zengine::pane::v2::PaneSettings::zen_name, zengine::pane::v2::PaneSettings::zen_version);
     const loom::WeaveId forger_id =
         r.bus.register_weave(std::move(forger), std::move(hands), std::string("test.forger"));
     raw->zen_set_self(forger_id);
     (void)r.bus.role_send_to_role_as(
         forger_id, "test.forger", pane::kTerminalPaneRole,
-        loom::Message(loom::to_value(v2::PaneSettings{pane::kTerminalPane, 9, {}}), forger_id, {}, 0));
+        loom::Message(loom::to_value(zengine::pane::v2::PaneSettings{pane::kTerminalPane, 9, {}}), forger_id, {}, 0));
     r.bus.drain_until_idle();
     CHECK(window.weave().heard.empty());
     // ...AND THE OWNER'S ROW DRAWS THE ROOM IT ALREADY HAD, whole.
@@ -2018,8 +2018,8 @@ TEST_CASE("Shift+Enter is a row of its own, on Return with Shift, and on ctrl+e 
     t.open();
     const RuntimePane* row = t.row();
     REQUIRE(row != nullptr);
-    const v4::PaneActionRow* early = nullptr;
-    for (const v4::PaneActionRow& a : row->actions) {
+    const zengine::pane::v4::PaneActionRow* early = nullptr;
+    for (const zengine::pane::v4::PaneActionRow& a : row->actions) {
         if (a.id == pane::kActionSubmitEarly) {
             early = &a;
         }

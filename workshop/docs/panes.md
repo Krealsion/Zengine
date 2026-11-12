@@ -343,7 +343,7 @@ new one arriving with nothing to carry — the pane that asked still hears how i
 the arriving presenter hands the interaction back, and Workshop answers it unchosen rather than
 leaving the pane waiting. The Pane Manager and Hotkeys do exactly what they did before;
 only the menu changed. The seam is
-[`workshop/presenter_vocabulary.hpp`](../presenter_vocabulary.hpp), installed with
+[`pane/presenter_vocabulary.hpp`](../../pane/presenter_vocabulary.hpp), installed with
 the package, and the [reference](workshop-panes.md#the-menu-presenter-and-replacing-it)
 lists what crosses it.
 
@@ -730,7 +730,7 @@ the installed package. It receives a bounded room, presses, keys, text, the whee
 actions. Workshop's remaining native Layouts pane is a host implementation detail.
 
 The exact wire shapes are
-[`workshop/pane_vocabulary.hpp`](../pane_vocabulary.hpp), installed with the package
+[`pane/vocabulary.hpp`](../../pane/vocabulary.hpp), installed with the package
 as `zengine::pane`. The example to start from is
 [`examples/tally-pane/tally.cpp`](../../examples/tally-pane/tally.cpp) — one file a one-source
 recipe builds against the installed package, loaded by a plan row, and changed while it runs in

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_DOCUMENT_HPP
-#define ZENGINE_WORKSHOP_PANE_DOCUMENT_HPP
+#ifndef ZENGINE_PANE_DOCUMENT_HPP
+#define ZENGINE_PANE_DOCUMENT_HPP
 
 // A pane's manual, asked of the pane: the sections of the page its weave carries
 // (manual/manual.hpp), answered to the one who asked. Nothing holds a pane's manual -- not Workshop,
@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// ONE KEY MARKER IN A SECTION'S WORDS, as the build found it (`manual::KeyMark`): the action id it
 /// names, where the whole marker stands in `text` (its byte offset and length), and the default key
@@ -100,7 +100,7 @@ inline PaneDocumentShown pane_document(const PaneDocumentRequested& ask, std::st
     return out;
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
 namespace loom {
 template <class... S>
@@ -109,7 +109,7 @@ template <class... S>
 struct Emit;
 } // namespace loom
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// THE FACET A PANE OFFERING ONE PANE ANSWERS ITS MANUAL BY, composed with `zengine::With`
 /// (activation/activation.hpp): it accepts `PaneDocumentRequested` and answers the asker from
@@ -125,6 +125,6 @@ struct PaneManualFacet {
     }
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_DOCUMENT_HPP
+#endif // ZENGINE_PANE_DOCUMENT_HPP

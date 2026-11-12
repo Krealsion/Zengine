@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_PARTS_HPP
-#define ZENGINE_WORKSHOP_PANE_PARTS_HPP
+#ifndef ZENGINE_PANE_PARTS_HPP
+#define ZENGINE_PANE_PARTS_HPP
 
 // The parts a pane names, judged by their form: the rules a pane may ask of its own names before it
 // draws them, and the parts of a composition a row map records, named by the pane's own rule and
 // listed in the order its press reads them.
 // Reference: workshop/docs/workshop-panes.md#a-pane-names-its-parts.
 
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "component/row_map.hpp"
 
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// WHAT IS WRONG WITH A PART'S NAME, or nullptr: 1 to `kMaxPanePartNameLen` bytes of printable
 /// ASCII, and more than spaces.
@@ -153,6 +153,6 @@ std::vector<RowPart> row_parts(const component::RowMap<Meaning>& map, std::int64
                      [](const Meaning&) { return true; });
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_PARTS_HPP
+#endif // ZENGINE_PANE_PARTS_HPP

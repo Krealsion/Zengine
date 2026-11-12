@@ -149,7 +149,7 @@ ranked by truth, and says how many it is not saying"
 `workshop/attention.hpp` HeldConditions
 `workshop/weave.hpp` HostContext::frontier
 `workshop/weave_run.cpp` frontier_now
-`workshop/pane_drawing.hpp` WindowDrawing
+`pane/drawing.hpp` WindowDrawing
 `graphics/vocabulary.hpp` DrawnRefused
 `tests/test_workshop_host.cpp` "a derived condition enters and leaves attention with its subject"
 "the project frontier is a condition while it waits and nothing after"

@@ -9,8 +9,8 @@
 // non-zero, which run.cmake's exit test catches.
 
 #include "activation/activation.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-namespace ws = zengine::workshop;
 
 namespace {
 
@@ -41,7 +40,7 @@ constexpr const char* kPane = "dial";
 /// WHAT THIS PROGRAM ASKS A PARTICIPANT TO SAY NEXT: a hand-off of `settings` to the dial, or, to
 /// the dial, its declaration.
 struct Poke {
-    std::vector<ws::PaneSetting> settings;
+    std::vector<zengine::pane::PaneSetting> settings;
     ZEN_SHAPE(Poke, 1, ZEN_FIELD(settings));
 };
 
@@ -50,8 +49,8 @@ struct Nothing {
 };
 
 /// THE ONE SETTING THE DIAL TAKES: its legend, a flag that is on unless a layout says otherwise.
-ws::PaneSettingRow legend_row() {
-    ws::PaneSettingRow row;
+zengine::pane::PaneSettingRow legend_row() {
+    zengine::pane::PaneSettingRow row;
     row.key = "legend";
     row.flag = true;
     return row;
@@ -59,25 +58,25 @@ ws::PaneSettingRow legend_row() {
 
 // ---- the pane a stranger writes ----------------------------------------------------------------
 
-using Settings = ws::PaneSettingsFacet<kPane, kDial>;
+using Settings = zengine::pane::PaneSettingsFacet<kPane, kDial>;
 
 class Dial
     : public zengine::With<Settings>::Weave<Dial, Nothing, loom::Accept<Poke>,
-                                            loom::Emit<ws::PaneSettingsDeclared>> {
+                                            loom::Emit<zengine::pane::PaneSettingsDeclared>> {
 public:
     /// ITS DECLARATION, judged by the installed judge before it is sent.
     void on(const Poke&, loom::Mail& mail) {
-        const ws::PaneSettingsDeclared declared{kPane, {legend_row()}};
-        sound = ws::pane_settings_declared_problem(declared).empty();
-        (void)mail.as_role(kDial).send_to_role(ws::kLayoutsRole, declared);
+        const zengine::pane::PaneSettingsDeclared declared{kPane, {legend_row()}};
+        sound = zengine::pane::pane_settings_declared_problem(declared).empty();
+        (void)mail.as_role(kDial).send_to_role(zengine::pane::kLayoutsRole, declared);
     }
     /// What the facet takes the row against: the declared setting, as v2 says it.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        return {ws::widen_setting_row(legend_row())};
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        return {zengine::pane::widen_setting_row(legend_row())};
     }
     /// WHAT IT IS HANDED, from the layouts' role alone, taken whole by the installed facet: its
     /// own key read, a value it cannot use said back in the installed words, its default kept.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail&) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail&) {
         legend = taken.flag("legend");
         problem = taken.refusal("legend");
         ++heard;
@@ -92,23 +91,23 @@ public:
 // ---- the stand-in keeper, the forger and a stand-in Workshop ----------------------------------
 
 class Keeper : public loom::WeaveBase<Keeper, Nothing,
-                                      loom::Accept<ws::PaneSettingsDeclared, ws::PaneSettingsAsked,
-                                                   ws::PaneSettingUnused, Poke>,
-                                      loom::Emit<ws::v2::PaneSettings>> {
+                                      loom::Accept<zengine::pane::PaneSettingsDeclared, zengine::pane::PaneSettingsAsked,
+                                                   zengine::pane::PaneSettingUnused, Poke>,
+                                      loom::Emit<zengine::pane::v2::PaneSettings>> {
 public:
-    void on(const ws::PaneSettingsDeclared& d, loom::Mail& mail) {
-        if (mail.authored_role() == kDial && ws::pane_settings_declared_problem(d).empty()) {
+    void on(const zengine::pane::PaneSettingsDeclared& d, loom::Mail& mail) {
+        if (mail.authored_role() == kDial && zengine::pane::pane_settings_declared_problem(d).empty()) {
             declared = d.rows;
         }
     }
     /// THE PANE'S ASK, from its role: handed what the row keeps now.
-    void on(const ws::PaneSettingsAsked& a, loom::Mail& mail) {
+    void on(const zengine::pane::PaneSettingsAsked& a, loom::Mail& mail) {
         if (mail.authored_role() == kDial && a.pane == kPane) {
             ++asks;
             hand(mail);
         }
     }
-    void on(const ws::PaneSettingUnused& u, loom::Mail& mail) {
+    void on(const zengine::pane::PaneSettingUnused& u, loom::Mail& mail) {
         if (mail.authored_role() == kDial) {
             unused.push_back(u);
         }
@@ -119,23 +118,23 @@ public:
         hand(mail);
     }
     void hand(loom::Mail& mail) {
-        (void)mail.as_role(ws::kLayoutsRole)
-            .send_to_role(kDial, ws::v2::PaneSettings{kPane, ++revision, kept});
+        (void)mail.as_role(zengine::pane::kLayoutsRole)
+            .send_to_role(kDial, zengine::pane::v2::PaneSettings{kPane, ++revision, kept});
     }
-    std::vector<ws::PaneSettingRow> declared;
-    std::vector<ws::PaneSetting> kept;
-    std::vector<ws::PaneSettingUnused> unused;
+    std::vector<zengine::pane::PaneSettingRow> declared;
+    std::vector<zengine::pane::PaneSetting> kept;
+    std::vector<zengine::pane::PaneSettingUnused> unused;
     std::int64_t revision = 0;
     int asks = 0;
 };
 
 class Hander : public loom::WeaveBase<Hander, Nothing, loom::Accept<Poke>,
-                                      loom::Emit<ws::v2::PaneSettings>> {
+                                      loom::Emit<zengine::pane::v2::PaneSettings>> {
 public:
     explicit Hander(const char* role) : role_(role) {}
     void on(const Poke& p, loom::Mail& mail) {
         (void)mail.as_role(role_)
-            .send_to_role(kDial, ws::v2::PaneSettings{kPane, 99, p.settings});
+            .send_to_role(kDial, zengine::pane::v2::PaneSettings{kPane, 99, p.settings});
     }
 
 private:
@@ -158,7 +157,7 @@ void poke(loom::Switchboard& bus, loom::WeaveId id, Poke p) {
 
 loom::Grant hands_to_dial() {
     loom::Grant g;
-    g.allow_to_role(ws::v2::PaneSettings::zen_name, ws::v2::PaneSettings::zen_version, kDial);
+    g.allow_to_role(zengine::pane::v2::PaneSettings::zen_name, zengine::pane::v2::PaneSettings::zen_version, kDial);
     return g;
 }
 
@@ -171,14 +170,14 @@ int main() {
     loom::WeaveId forger_id{};
     loom::WeaveId workshop_id{};
     Keeper* keeper =
-        seat(bus, keeper_id, hands_to_dial(), ws::kLayoutsRole, std::make_unique<Keeper>());
+        seat(bus, keeper_id, hands_to_dial(), zengine::pane::kLayoutsRole, std::make_unique<Keeper>());
     loom::Grant dial_speaks;
-    dial_speaks.allow_to_role(ws::PaneSettingsDeclared::zen_name,
-                              ws::PaneSettingsDeclared::zen_version, ws::kLayoutsRole);
-    dial_speaks.allow_to_role(ws::PaneSettingsAsked::zen_name, ws::PaneSettingsAsked::zen_version,
-                              ws::kLayoutsRole);
-    dial_speaks.allow_to_role(ws::PaneSettingUnused::zen_name, ws::PaneSettingUnused::zen_version,
-                              ws::kLayoutsRole);
+    dial_speaks.allow_to_role(zengine::pane::PaneSettingsDeclared::zen_name,
+                              zengine::pane::PaneSettingsDeclared::zen_version, zengine::pane::kLayoutsRole);
+    dial_speaks.allow_to_role(zengine::pane::PaneSettingsAsked::zen_name, zengine::pane::PaneSettingsAsked::zen_version,
+                              zengine::pane::kLayoutsRole);
+    dial_speaks.allow_to_role(zengine::pane::PaneSettingUnused::zen_name, zengine::pane::PaneSettingUnused::zen_version,
+                              zengine::pane::kLayoutsRole);
     Dial* dial = seat(bus, dial_id, dial_speaks, kDial, std::make_unique<Dial>());
     (void)seat(bus, forger_id, hands_to_dial(), kForger, std::make_unique<Hander>(kForger));
     (void)seat(bus, workshop_id, hands_to_dial(), kWorkshop, std::make_unique<Hander>(kWorkshop));
@@ -192,10 +191,10 @@ int main() {
     check(dial->held() && dial->heard == 1 && dial->legend,
           "the row it asked for is held, every setting at its default");
 
-    poke(bus, keeper_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
+    poke(bus, keeper_id, Poke{{zengine::pane::PaneSetting{"legend", false, {}, {}}}});
     check(dial->heard == 2 && !dial->legend && dial->problem.empty(),
           "a flag the pane takes is the pane's to use");
-    poke(bus, keeper_id, Poke{{ws::PaneSetting{"legend", {}, {}, std::string("hidden")}}});
+    poke(bus, keeper_id, Poke{{zengine::pane::PaneSetting{"legend", {}, {}, std::string("hidden")}}});
     check(dial->legend && dial->problem == "legend takes on or off, not a text `hidden`",
           "a value the pane cannot use leaves its default, said in the installed words");
     check(keeper->unused.size() == 1 && keeper->unused.front().key == "legend" &&
@@ -203,8 +202,8 @@ int main() {
               keeper->unused.front().why == "it takes on or off",
           "what the pane cannot use is said back to the layouts' role, at the revision handed");
 
-    poke(bus, forger_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
-    poke(bus, workshop_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
+    poke(bus, forger_id, Poke{{zengine::pane::PaneSetting{"legend", false, {}, {}}}});
+    poke(bus, workshop_id, Poke{{zengine::pane::PaneSetting{"legend", false, {}, {}}}});
     check(dial->heard == 3 && dial->legend,
           "settings another role hands, Workshop's own included, are not the layouts' role's");
     check(keeper->asks == 1, "a pane that holds its row asks for it no more");

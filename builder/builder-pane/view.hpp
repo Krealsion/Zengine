@@ -13,8 +13,8 @@
 
 #include "builder/builder-pane/vocabulary.hpp"
 #include "builder/vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/menu.hpp"
+#include "pane/text.hpp"
 
 #include "graphics/colors.hpp"
 

@@ -110,7 +110,7 @@ address its capture supplied, or refused in words"
 `editor/editor-pane/common.hpp` PictureKey
 `editor/editor-pane/pane.cpp` say
 `editor/editor-pane/transfers.hpp` press_at receive on_window
-`workshop/pane_carry.hpp` PaneCanvasValueDrop
+`pane/carry.hpp` PaneCanvasValueDrop
 `tests/test_workshop_editor_transfers.cpp` "a drop aimed at a picture the text has since left is
 refused and changes nothing" "a press aimed at a picture where the text it lands on was not yet
 selected begins no carry; the drag sweeps" "a press the window landed on a line the Editor's rows

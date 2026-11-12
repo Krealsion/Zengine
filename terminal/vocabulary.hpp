@@ -39,7 +39,7 @@ inline constexpr const char* kTerminalPaneSummary = "talk to the weaves on this 
 /// must agree on it.
 inline constexpr const char* kTerminalPaneStem = "zengine-terminal-pane";
 
-// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
+// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, pane/vocabulary.hpp) ---------
 
 /// Author the line, take the candidate the weaver moved the list's cursor to, or lock a recall.
 inline constexpr const char* kActionSubmit = "terminal.submit";
@@ -50,7 +50,7 @@ inline constexpr const char* kActionUp = "terminal.previous";       ///< older c
 inline constexpr const char* kActionDown = "terminal.next";         ///< newer command, or list down
 inline constexpr const char* kActionComplete = "terminal.complete"; ///< "help me here", or lock a recall
 
-/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): whether
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp): whether
 /// its legend row shows in a layout, a flag that is on unless the layout keeps it off; how many rows
 /// of the record a wheel notch reads; and the mark the line is typed after, one of a few marks.
 inline constexpr const char* kSettingLegend = "legend";

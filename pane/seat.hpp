@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_SEAT_HPP
-#define ZENGINE_WORKSHOP_PANE_SEAT_HPP
+#ifndef ZENGINE_PANE_SEAT_HPP
+#define ZENGINE_PANE_SEAT_HPP
 
 // What a role offering several panes keeps for each one, and the conversation it holds with
 // Workshop and the graphics windows about all of them: the window that shows one pane's area and
 // the rows drawn there (`PaneCanvasSeat`), and the role's activation, catalog answer, manual and
 // window rooms (`MultiPaneFacet`, composed with `zengine::With`, activation/activation.hpp). A
-// role of one pane composes workshop/pane_facets.hpp instead.
+// role of one pane composes pane/facets.hpp instead.
 
 #include "activation/activation.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/vocabulary.hpp"
-#include "pane_document.hpp"
-#include "pane_drawing.hpp"
-#include "pane_menu.hpp"
-#include "pane_rows.hpp"
-#include "pane_vocabulary.hpp"
+#include "pane/document.hpp"
+#include "pane/drawing.hpp"
+#include "pane/menu.hpp"
+#include "pane/rows.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// ONE PANE'S AREA, AS A ROLE OF SEVERAL PANES KEEPS IT: the graphics window that shows it, the
 /// rows and columns the pane composes for there -- a row a line of the window's text and a
@@ -399,6 +399,6 @@ private:
     ActivationCursor activation_;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_SEAT_HPP
+#endif // ZENGINE_PANE_SEAT_HPP

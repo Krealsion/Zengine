@@ -10,9 +10,9 @@
 #include "workshop/decoded_cells.hpp"
 #include "workshop/guest_door.hpp"
 #include "workshop/guests.hpp"
-#include "workshop/pane_canvas_drawing.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_picture.hpp"
+#include "pane/canvas_drawing.hpp"
+#include "pane/drawing.hpp"
+#include "pane/picture.hpp"
 #include "workshop/reply_bytes.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -89,7 +89,7 @@ class ReadCanvasSeat
                                           gfx::AreaButtonChanged, gfx::AreaPointerMoved,
                                           gfx::AreaWheelTurned, gfx::AreaHoldEnded,
                                           PaneCanvasHover, PaneKey, SeatDo>,
-                             loom::Emit<v3::PaneOffered, gfx::Drawn>> {
+                             loom::Emit<zengine::pane::v3::PaneOffered, gfx::Drawn>> {
 public:
     explicit ReadCanvasSeat(const std::string& role)
         : window_(role, pane_area(role, kReadPane)) {}
@@ -202,7 +202,7 @@ struct ReadRig {
         c.seat = made.get();
         c.role = role;
         loom::Grant grant;
-        grant.allow_to_any(v3::PaneOffered::zen_name, v3::PaneOffered::zen_version);
+        grant.allow_to_any(zengine::pane::v3::PaneOffered::zen_name, zengine::pane::v3::PaneOffered::zen_version);
         grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
         c.id = r.bus.register_weave(std::move(made), std::move(grant), role);
         c.seat->zen_set_self(c.id);
@@ -210,7 +210,7 @@ struct ReadRig {
         const std::size_t at = canvases.size() - 1;
         drive(at, [role, across, down](loom::Mail& m) {
             (void)m.as_role(role).send_to_role(
-                kWorkshopProvider, v3::PaneOffered{kReadPane, "Page", "a picture read whole",
+                kWorkshopProvider, zengine::pane::v3::PaneOffered{kReadPane, "Page", "a picture read whole",
                                                    across * kPaneCanvasUnit,
                                                    down * kPaneCanvasUnit, 0});
         });

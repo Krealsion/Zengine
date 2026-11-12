@@ -23,7 +23,7 @@
 
 #include "component/text_box.hpp"
 #include "graphics/colors.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 #include "workshop/powers_vocabulary.hpp"
 
 #include <cstddef>
@@ -262,13 +262,13 @@ inline std::int64_t query_capacity(const PowersUi& ui, std::int64_t columns) {
 
 /// WHAT THE PANE SHOWS, AND WHAT EACH PLACE IN IT MEANS.
 struct PowersView {
-    std::vector<workshop::TextRow> rows;
+    std::vector<pane::TextRow> rows;
     std::vector<PowersSpan> spans;
     std::int64_t population = 0; ///< the filtered list's size -- what the marker counts
     std::int64_t cursor = -1;    ///< where in it the selection is, or -1
     /// Where the query's caret stands, the row and the column it sits before, while the chrome
     /// draws the query; `workshop::kNoCaret` while it does not. The medium draws it.
-    std::int64_t caret_row = workshop::kNoCaret;
+    std::int64_t caret_row = pane::kNoCaret;
     std::int64_t caret_col = 0;
 };
 
@@ -305,7 +305,7 @@ struct Sayer {
     PowersView& view;
     std::int64_t say(std::string text, graphics::Color ink,
                      graphics::Color ground = graphics::no_color()) const {
-        view.rows.push_back(workshop::TextRow{std::move(text), ink, ground});
+        view.rows.push_back(pane::TextRow{std::move(text), ink, ground});
         return static_cast<std::int64_t>(view.rows.size()) - 1;
     }
     /// `solid` is how many leading columns are genuine text: a control cut into `fit`'s `...` is
@@ -369,12 +369,12 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             column_of(text, composite_at, ui.widths.composite);
         }
         std::int64_t caret_at = -1;
-        workshop::RowBox query_box;
+        pane::RowBox query_box;
         if (shape.find) {
             text += gap + kFindLabel;
-            query_box = workshop::row_box(ui.query, static_cast<std::int64_t>(text.size()),
+            query_box = pane::row_box(ui.query, static_cast<std::int64_t>(text.size()),
                                           shape.query_room > 0 ? shape.query_room : 0);
-            caret_at = workshop::box_caret(query_box, 0).column;
+            caret_at = pane::box_caret(query_box, 0).column;
             text += std::string(static_cast<std::size_t>(query_box.columns), ' ');
         }
         const std::string drawn = fit(text, columns);

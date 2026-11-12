@@ -7,7 +7,7 @@
 // A table's columns, laid out once for every row: widths chosen from what the population wants,
 // within the room the pane was granted, so every row's cells begin at the same column and a
 // press on a cell is answered by its column. It owns the layout arithmetic only; cutting
-// (`fit`) and padding (`pad`) are the consumer's (`workshop/pane_text.hpp`), and the widths are
+// (`fit`) and padding (`pad`) are the consumer's (`pane/text.hpp`), and the widths are
 // spent twice -- to write the line and to record the spans (`RowMap`): one layout draws and hits.
 // Reference: component/docs/component.md.
 
@@ -72,7 +72,7 @@ inline std::vector<std::size_t> column_offsets(const std::vector<std::size_t>& w
 /// ONE ROW OF THE TABLE: each cell cut to its width by the consumer's `fit` and padded to it by
 /// the consumer's `pad`, joined by `gap` spaces. A cell wider than its column is cut with the
 /// consumer's mark, never silently. `fit(text, width)` and `pad(text, width)` are
-/// `workshop/pane_text.hpp`'s signatures.
+/// `pane/text.hpp`'s signatures.
 template <class Fit, class Pad>
 std::string table_line(const std::vector<std::string>& cells,
                        const std::vector<std::size_t>& widths, Fit fit, Pad pad,

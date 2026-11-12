@@ -51,7 +51,7 @@ its stem to `WORKSHOP_SO_INFO_PANE`, and `tests/inventory_story.hpp` loads it be
 - The inspection seam: `workshop/inspection_seam_vocabulary.hpp`, answered in
   `workshop/weave_inspection.cpp` over rows from `workshop/screen_pane_subject.cpp`; Workshop's
   grant to say the picture, `workshop/grant.cpp`.
-- The value views ask Workshop's operation and observation doors (`workshop/pane_operation.hpp`,
+- The value views ask Workshop's operation and observation doors (`pane/operation.hpp`,
   `workshop/weave_operation.cpp`) and Inventory (`inventory/pane_client.hpp`,
   `inventory/observation.hpp`).
 - Who addresses its role: the Pane Manager's inspect row (`kInfoRole` in

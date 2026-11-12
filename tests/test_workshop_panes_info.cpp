@@ -211,7 +211,7 @@ struct InfoRig {
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
         std::vector<std::string> ids;
-        for (const v4::PaneActionRow& a : seat->actions) {
+        for (const zengine::pane::v4::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -2872,10 +2872,10 @@ TEST_CASE("the image that inspects a pane holds no desk") {
         sources += source;
     }
     // ...AND WHAT IT DOES REACH IS THE PROTOCOL AND THE SEAM, both of which are values.
-    CHECK(sources.find("workshop/pane_vocabulary.hpp") != std::string::npos);
+    CHECK(sources.find("pane/vocabulary.hpp") != std::string::npos);
     CHECK(sources.find("workshop/inspection_seam_vocabulary.hpp") != std::string::npos);
     // ...AND THE SHARED TEXT HELPERS RATHER THAN ANOTHER COPY OF THEM.
-    CHECK(sources.find("workshop/pane_text.hpp") != std::string::npos);
+    CHECK(sources.find("pane/text.hpp") != std::string::npos);
 }
 
 TEST_CASE("Info answers its manual for each pane it offers from the page its build embedded, and "

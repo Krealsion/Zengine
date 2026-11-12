@@ -15,11 +15,11 @@
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/causes.hpp"
+#include "pane/menu.hpp"
+#include "pane/parts.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "component/held_choice.hpp"
 #include "component/list_window.hpp"
@@ -81,19 +81,19 @@ public:
     /// Return only opens or focuses. `m` offers the row's menu. `n` shows the View Builder, where a
     /// pane of the weaver's own is made.
     /// Return and `x` act on the row a press lands on, `pane:<role>/<pane>` (`launcher_part`).
-    static std::vector<ws::v3::PaneActionRow> pane_rows() {
-        using ws::v3::PaneActionRow;
-        const std::string row = ws::on_part(kLauncherRowPrefix);
+    static std::vector<pane::v3::PaneActionRow> pane_rows() {
+        using pane::v3::PaneActionRow;
+        const std::string row = pane::on_part(kLauncherRowPrefix);
         return {PaneActionRow{kActionUp, "row up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{kActionDown, "row down", input::scan::kDown, input::mod::kNone},
                 PaneActionRow{kActionLaunch, "show or focus", input::scan::kReturn,
-                              input::mod::kNone, {}, {ws::cause_of<ws::PaneLaunchRequested>(row)}},
+                              input::mod::kNone, {}, {pane::cause_of<ws::PaneLaunchRequested>(row)}},
                 PaneActionRow{kActionClose, "hide", input::scan::kX, input::mod::kNone, {},
-                              {ws::cause_of<ws::PaneCloseRequested>(row)}},
+                              {pane::cause_of<ws::PaneCloseRequested>(row)}},
                 PaneActionRow{kActionMenu, "row menu", input::scan::kM, input::mod::kNone},
                 PaneActionRow{kActionNew, "new pane", input::scan::kN, input::mod::kNone, {},
-                              {ws::cause_of<ws::PaneLaunchRequested>(
-                                  ws::to_pane(kViewBuilderRole, kViewBuilderPane))}}};
+                              {pane::cause_of<ws::PaneLaunchRequested>(
+                                  pane::to_pane(kViewBuilderRole, kViewBuilderPane))}}};
     }
 
     // ---- Its rooms ----------------------------------------------------------------------------
@@ -256,7 +256,7 @@ public:
             say(state, pane_rows_decl, app, mail);
             return;
         }
-        (void)pane_menu::pass_back(mail, kDesktopRole, kLauncherPane);
+        (void)pane::pane_menu::pass_back(mail, kDesktopRole, kLauncherPane);
     }
 
     // WL-DESK-10 -- agents/workshop/desktop-presenting.md
@@ -279,7 +279,7 @@ public:
     /// What a menu came to, if it answers this image's own ask (`Asked::take`: from the
     /// presenter's role, under the unanswered ask's number, about the pane and subject asked,
     /// once). A reloaded desktop asked nothing, so its predecessor's menus act on nothing.
-    void menu_answered(const ws::PaneMenuAnswered& a, DesktopState& state,
+    void menu_answered(const pane::PaneMenuAnswered& a, DesktopState& state,
                        const Declared& pane_rows_decl, const Declared& app, loom::Mail& mail,
                        std::uint64_t& launches) {
         if (!launcher_asked_.take(mail, a).empty()) {
@@ -300,13 +300,13 @@ public:
         if (!launcher_canvas_.granted() || rows <= 0 || columns <= 0) {
             return;
         }
-        std::vector<ws::TextRow> out;
+        std::vector<pane::TextRow> out;
         map_.begin();
         const auto push = [&out, rows, columns, this](std::string text, graphics::Color ink,
                                                       LauncherMeaning m) {
             if (static_cast<std::int64_t>(out.size()) < rows) {
                 map_.row(static_cast<std::int64_t>(out.size()), m);
-                out.push_back(ws::TextRow{fit(std::move(text), columns), ink});
+                out.push_back(pane::TextRow{fit(std::move(text), columns), ink});
             }
         };
         if (!heard_) {
@@ -559,7 +559,7 @@ private:
     void offer_launcher_row(std::size_t index, std::int64_t row, std::int64_t column,
                             loom::Mail& mail, std::uint64_t correlation) {
         const ws::InventoryPane& p = known_[index];
-        pane_menu::Offer offer(kLauncherPane, join_subject({p.role, p.pane}));
+        pane::pane_menu::Offer offer(kLauncherPane, join_subject({p.role, p.pane}));
         offer.at(row, column);
         if (p.open) {
             offer.row(kMenuFocus, "focus " + p.name);
@@ -586,7 +586,7 @@ private:
 
     /// WHAT A PANE MANAGER MENU CAME TO. The subject names the pane; it must still be in the
     /// list, or the choice is about a row the weaver can no longer see.
-    void launcher_chose(const ws::PaneMenuAnswered& a, const DesktopState& state,
+    void launcher_chose(const pane::PaneMenuAnswered& a, const DesktopState& state,
                         const Declared& pane_rows_decl, const Declared& app, loom::Mail& mail,
                         std::uint64_t& launches) {
         const std::vector<std::string> parts = split_subject(a.subject);
@@ -613,7 +613,7 @@ private:
         } else if (a.id == kMenuManage) {
             // THE HOST'S OWN PANE MENU ON THAT PANE -- covered, closed or consuming every right
             // press -- continuing this choice (its number is on the envelope).
-            (void)pane_menu::manage(mail, kDesktopRole, kLauncherPane, p->role, p->pane);
+            (void)pane::pane_menu::manage(mail, kDesktopRole, kLauncherPane, p->role, p->pane);
         } else if (a.id == kMenuInspect) {
             // INSPECTION THROUGH ITS OWNER: Info takes the ask as its own inspect and answers what
             // came of it, and only the newest ask is waited on.
@@ -633,11 +633,11 @@ private:
     }
 
     /// The launcher's rows, drawn in its area, each row's part named.
-    void publish_launcher(loom::Mail& mail, std::vector<ws::TextRow> rows) {
+    void publish_launcher(loom::Mail& mail, std::vector<pane::TextRow> rows) {
         (void)map_.settle();
         launcher_canvas_.publish_rows(
             mail, std::move(rows),
-            ws::row_parts(map_, launcher_canvas_.columns(),
+            pane::row_parts(map_, launcher_canvas_.columns(),
                           [this](const LauncherMeaning& m) { return launcher_part(m); }),
             {}, map_.picture());
     }
@@ -668,7 +668,7 @@ private:
     component::RowMap<LauncherMeaning> map_;
     /// THE ONE MENU THIS PANE ASKED FOR AND HAS NOT HEARD ANSWERED. Image-local, and never in
     /// `DesktopState`: a successor must not accept its predecessor's menu (`menu_answered`).
-    pane_menu::Asked launcher_asked_;
+    pane::pane_menu::Asked launcher_asked_;
     double wheel_ = 0.0;
     /// THE INSPECT THIS IMAGE ASKED OF INFO and waits on: its number, its queued attempt, which
     /// a refusal names, and the pane's name for the sentence. Not in `DesktopState`.

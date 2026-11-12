@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PANE_SETTINGS_TAKEN_HPP
-#define ZENGINE_WORKSHOP_PANE_SETTINGS_TAKEN_HPP
+#ifndef ZENGINE_PANE_SETTINGS_TAKEN_HPP
+#define ZENGINE_PANE_SETTINGS_TAKEN_HPP
 
 // What a pane takes from its row's settings, the pane's side of the hand-off: it asks the layouts'
 // owner for its row when it arrives, takes a row from that owner alone, and draws no room before
@@ -12,7 +12,7 @@
 // every setting at its default; a key the pane does not declare is passed over.
 // Reference: workshop/docs/workshop-panes.md#a-panes-settings.
 
-#include "workshop/pane_settings.hpp"
+#include "pane/settings.hpp"
 
 #include <zen/weave.hpp>
 
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// WHAT ONE HAND-OFF CAME TO FOR A PANE: each declared setting in force, in declaration order, and
 /// each value it was handed that its setting does not take, with why in the setting's own words;
@@ -146,6 +146,6 @@ private:
     bool asked_ = false;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_SETTINGS_TAKEN_HPP
+#endif // ZENGINE_PANE_SETTINGS_TAKEN_HPP

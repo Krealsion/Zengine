@@ -18,11 +18,11 @@
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/rows.hpp"
+#include "pane/menu.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
@@ -64,19 +64,19 @@ using ws::EditorState;
 using ws::ManagedOpenProgress;
 using ws::ManagedOpenSettled;
 using ws::OpenSourceRequested;
-using ws::PaneActionRequested;
-using ws::PaneCatalogRequested;
-using ws::PaneKey;
-using ws::v2::PaneOffered;
-using ws::PaneQuitAnswered;
-using ws::PaneQuitRequested;
-using ws::PaneTextInput;
+using zengine::pane::PaneActionRequested;
+using zengine::pane::PaneCatalogRequested;
+using zengine::pane::PaneKey;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PaneQuitAnswered;
+using zengine::pane::PaneQuitRequested;
+using zengine::pane::PaneTextInput;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::SourceOpened;
 using zengine::persist::Written;
-using zengine::workshop::pane_text::printable;
-using zengine::workshop::pane_text::fit;
+using zengine::pane::pane_text::printable;
+using zengine::pane::pane_text::fit;
 
 namespace role = zengine::editor_role;
 
@@ -147,11 +147,11 @@ struct Viewport {
 /// WHAT COMPOSING A DOCUMENT FOR A ROOM PRODUCED: the rows, where the document begins in
 /// them, how many rows it got, the caret beside them, and the viewport it was made with.
 struct Composition {
-    std::vector<ws::TextRow> rows;
+    std::vector<zengine::pane::TextRow> rows;
     std::int64_t chrome_rows = 0;
     std::int64_t doc_rows = 0;
     bool status_row = false; ///< row 0 is the status row (not a notice standing in for it)
-    ws::RowsCaret caret;
+    zengine::pane::RowsCaret caret;
     Viewport view;
 };
 
@@ -219,7 +219,7 @@ struct Dropped {
     st::Material material;
     Landing at;
     Mark mark;
-    ws::pane_menu::Asked menu;
+    zengine::pane::pane_menu::Asked menu;
 };
 
 /// A DROPPED LOCATION, judged against the document's mark when the open was asked.
@@ -336,14 +336,14 @@ inline void apply_viewport(EditorState& doc, const Viewport& v) {
 
 /// THE PARTS A COMPOSITION NAMES: its first row `status` where the room has chrome, and each
 /// document line by its number, `line:<n>`, across the room's columns.
-inline std::vector<ws::RowPart> parts_of(const Composition& c, std::int64_t columns) {
-    std::vector<ws::RowPart> parts;
+inline std::vector<zengine::pane::RowPart> parts_of(const Composition& c, std::int64_t columns) {
+    std::vector<zengine::pane::RowPart> parts;
     if (c.chrome_rows > 0) {
-        parts.push_back(ws::RowPart{"status", 0, 0, columns});
+        parts.push_back(zengine::pane::RowPart{"status", 0, 0, columns});
     }
     for (std::int64_t row = c.chrome_rows; row < static_cast<std::int64_t>(c.rows.size()); ++row) {
         const std::size_t line = c.view.first_row + static_cast<std::size_t>(row - c.chrome_rows);
-        parts.push_back(ws::RowPart{"line:" + std::to_string(line + 1), row, 0, columns});
+        parts.push_back(zengine::pane::RowPart{"line:" + std::to_string(line + 1), row, 0, columns});
     }
     return parts;
 }

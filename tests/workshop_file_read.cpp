@@ -23,11 +23,11 @@ namespace {
 void say_desk(const char* which, const ws::Setup& desk) {
     std::printf("%s %s, %zu panes\n", which, desk.name.c_str(), desk.panes.size());
     for (const ws::SetupPane& row : desk.panes) {
-        for (const ws::PaneSetting& s : row.settings) {
+        for (const zengine::pane::PaneSetting& s : row.settings) {
             std::printf("setting %s/%s %s %s `%s`\n", row.ref.provider.c_str(),
                         row.ref.pane.c_str(), s.key.c_str(),
-                        ws::setting_kind_word(ws::setting_kind(s)),
-                        ws::setting_value_text(s).c_str());
+                        zengine::pane::setting_kind_word(zengine::pane::setting_kind(s)),
+                        zengine::pane::setting_value_text(s).c_str());
         }
     }
 }

@@ -12,8 +12,8 @@
 
 #include "graphics/ops.hpp"
 #include "graphics/window/store.hpp"
-#include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_picture.hpp"
+#include "pane/canvas_text.hpp"
+#include "pane/picture.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -23,12 +23,12 @@
 
 namespace zengine::testing {
 
-inline workshop::CanvasPicture shown_picture(const graphics::window::WinArea& area,
-                                             const workshop::CanvasRoom& room) {
+inline pane::CanvasPicture shown_picture(const graphics::window::WinArea& area,
+                                             const pane::CanvasRoom& room) {
     namespace gfx = zengine::graphics;
     namespace gw = zengine::graphics::window;
-    workshop::CanvasPicture out;
-    const auto metrics = workshop::canvas_text_metrics(room);
+    pane::CanvasPicture out;
+    const auto metrics = pane::canvas_text_metrics(room);
     const std::int64_t inset = metrics.inset;
     std::map<std::string, std::size_t> runs; ///< each run's node, by the text it reads back as
     std::map<std::size_t, std::int64_t> glyphs_x; ///< ...and where its words begin
@@ -49,14 +49,14 @@ inline workshop::CanvasPicture shown_picture(const graphics::window::WinArea& ar
         if (path.rfind("picture/", 0) == 0) {
             if (k->node.op == gfx::op::kRect) {
                 if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args)) {
-                    out.rects.push_back(workshop::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(r->fill)});
+                    out.rects.push_back(pane::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(r->fill)});
                 }
             } else if (k->node.op == gfx::op::kText) {
                 if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args)) {
                     runs[path.substr(8)] = out.texts.size();
                     glyphs_x[out.texts.size()] = t->x;
                     out.texts.push_back(
-                        workshop::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::pool_color_of(t->ink)});
+                        pane::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::pool_color_of(t->ink)});
                 }
             }
         } else if (path.rfind("parts/", 0) == 0 && path.find('/', 6) == std::string::npos &&
@@ -64,14 +64,14 @@ inline workshop::CanvasPicture shown_picture(const graphics::window::WinArea& ar
             const auto g = gfx::from_body<gfx::GroupArgs>(k->node.args);
             const gfx::ElementRecord* r = record_of(path);
             if (!g || r == nullptr || r->action.empty()) continue;
-            out.parts.push_back(workshop::CanvasPart{r->action, g->x, g->y, g->clip_w, g->clip_h,
+            out.parts.push_back(pane::CanvasPart{r->action, g->x, g->y, g->clip_w, g->clip_h,
                                                      r->type.empty()});
         } else if (path.rfind("marks/", 0) == 0) {
             const std::string mark = path.substr(6);
             const bool caret = mark.rfind("caret", 0) == 0;
             const auto run = runs.find(mark.substr(caret ? 5 : 3));
             if (run == runs.end() || metrics.advance <= 0) continue;
-            workshop::CanvasText& t = out.texts[run->second];
+            pane::CanvasText& t = out.texts[run->second];
             std::int64_t x = 0;
             std::size_t width = 0;
             if (const auto bar = gfx::from_body<gfx::LineArgs>(k->node.args)) {

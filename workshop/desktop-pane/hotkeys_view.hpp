@@ -16,11 +16,11 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/causes.hpp"
+#include "pane/menu.hpp"
+#include "pane/parts.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "component/accordion.hpp"
 #include "component/columns.hpp"
@@ -122,8 +122,8 @@ public:
     /// Capturing a key: ONLY cancel, so every other key arrives as a key -- the one being
     /// captured. Taking a spelling: commit and cancel, and every other key reaches the line. The
     /// captured key itself is not a row: it reaches the pane as a key.
-    static std::vector<ws::v3::PaneActionRow> keys_rows(const std::string& mode) {
-        using ws::v3::PaneActionRow;
+    static std::vector<pane::v3::PaneActionRow> keys_rows(const std::string& mode) {
+        using pane::v3::PaneActionRow;
         if (mode == kKeysCaptureMode) {
             return {PaneActionRow{kActionKeysCancel, "cancel", input::scan::kEscape,
                                   input::mod::kNone, {}, {}, kKeysTableMode}};
@@ -131,7 +131,7 @@ public:
         if (mode == kKeysSpellMode) {
             return {PaneActionRow{kActionKeysCommit, "use this spelling", input::scan::kReturn,
                                   input::mod::kNone, {},
-                                  {ws::cause_of<ws::KeymapEditRequested>()}, kKeysTableMode},
+                                  {pane::cause_of<ws::KeymapEditRequested>()}, kKeysTableMode},
                     PaneActionRow{kActionKeysCancel, "cancel", input::scan::kEscape,
                                   input::mod::kNone, {}, {}, kKeysTableMode}};
         }
@@ -333,7 +333,7 @@ public:
 
     /// A KEY WHILE THE HOTKEYS PANE HOLDS THE KEYBOARD: the captured key, a key into the spelling
     /// line, or nothing.
-    void keys_key(const ws::PaneKey& key, const Declared& keys_rows_decl,
+    void keys_key(const pane::PaneKey& key, const Declared& keys_rows_decl,
                   const DeclareKeys& declare_keys, loom::Mail& mail) {
         if (capture_.active) {
             if (key.scancode == input::scan::kUnknown) {
@@ -386,7 +386,7 @@ public:
     /// THE POINTER RESTING ON THE TABLE, where the medium reports one: over a shut section's header,
     /// or the keys its peek shows, that section peeks, and over anything else none does. What it
     /// shows is drawn again only when that moved. Presentation alone: nothing is kept.
-    void rest(const ws::RowCell& at, const Declared& keys_rows_decl, loom::Mail& mail) {
+    void rest(const pane::RowCell& at, const Declared& keys_rows_decl, loom::Mail& mail) {
         const KeysMeaning* m = at.shown ? keys_map_.at(at.row, at.column) : nullptr;
         const bool over =
             m != nullptr && (m->kind == keys_row::kGroup || m->kind == keys_row::kPeek);
@@ -440,7 +440,7 @@ public:
             say_keys(keys_rows_decl, mail);
             return;
         }
-        (void)pane_menu::pass_back(mail, kDesktopRole, kHotkeysPane);
+        (void)pane::pane_menu::pass_back(mail, kDesktopRole, kHotkeysPane);
     }
 
     /// THE WHEEL WALKS THE CURSOR, one binding per notch, fractions carried (Powers' convention).
@@ -454,7 +454,7 @@ public:
 
     /// What a menu came to, if it answers this image's own ask (`Asked::take`), judged against
     /// the table as it is now.
-    void menu_answered(const ws::PaneMenuAnswered& a, const Declared& keys_rows_decl,
+    void menu_answered(const pane::PaneMenuAnswered& a, const Declared& keys_rows_decl,
                        const DeclareKeys& declare_keys, loom::Mail& mail) {
         if (!keys_asked_.take(mail, a).empty()) {
             keys_chose(a, keys_rows_decl, declare_keys, mail);
@@ -473,16 +473,16 @@ public:
         if (!held_ || !keys_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
             return;
         }
-        std::vector<ws::TextRow> out;
+        std::vector<pane::TextRow> out;
         keys_map_.begin();
         const auto push = [&out, room_rows, room_columns, this](std::string text,
                                                                 graphics::Color ink, KeysMeaning m,
-                                                                std::int64_t mark = ws::kNoMark) {
+                                                                std::int64_t mark = pane::kNoMark) {
             if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 keys_map_.row(static_cast<std::int64_t>(out.size()), m);
-                out.push_back(ws::TextRow{fit(std::move(text), room_columns), ink,
+                out.push_back(pane::TextRow{fit(std::move(text), room_columns), ink,
                                           graphics::no_color(),
-                                          mark < room_columns ? mark : ws::kNoMark});
+                                          mark < room_columns ? mark : pane::kNoMark});
             }
         };
         if (!keys_heard_) {
@@ -500,20 +500,20 @@ public:
              "right-click or `m` on a row to change it",
              graphics::colors::accent, KeysMeaning{});
         // THE SPELLING LINE, UNDER THE HEADING, while one is open, its caret where it stands.
-        ws::RowsCaret caret;
+        pane::RowsCaret caret;
         if (typing_.active) {
             const std::string prompt = "key for " + typing_.id + ": ";
             const std::int64_t room =
                 room_columns - static_cast<std::int64_t>(prompt.size());
             if (room > 2) {
-                const ws::RowBox box = ws::row_box(
+                const pane::RowBox box = pane::row_box(
                     typing_.line, static_cast<std::int64_t>(prompt.size()), room);
                 const auto at = static_cast<std::int64_t>(out.size());
                 push(prompt + std::string(static_cast<std::size_t>(room), ' '),
                      graphics::colors::accent, KeysMeaning{keys_row::kFooter, 0, {}});
                 if (static_cast<std::int64_t>(out.size()) > at) {
                     out.back().box = box;
-                    caret = ws::box_caret(box, at);
+                    caret = pane::box_caret(box, at);
                 }
             } else {
                 push(prompt, graphics::colors::accent, KeysMeaning{keys_row::kFooter, 0, {}});
@@ -663,11 +663,11 @@ public:
             for (std::size_t k = shown.first; k < shown.end(); ++k, ++row) {
                 const std::size_t i = section.bindings[k];
                 out[static_cast<std::size_t>(row)] =
-                    ws::TextRow{key_text(keymap_.rows[i], false), graphics::colors::accent};
+                    pane::TextRow{key_text(keymap_.rows[i], false), graphics::colors::accent};
                 keys_map_.row(row, KeysMeaning{keys_row::kPeek, i, section.key});
             }
             if (const std::size_t more = component::more_marker(shown); more > 0) {
-                out[static_cast<std::size_t>(row)] = ws::TextRow{
+                out[static_cast<std::size_t>(row)] = pane::TextRow{
                     fit("  ... " + std::to_string(more) + " more", room_columns),
                     graphics::colors::quiet};
                 keys_map_.row(row, KeysMeaning{keys_row::kPeek, keymap_.rows.size(), section.key});
@@ -711,7 +711,7 @@ private:
     }
 
     /// ONE KEY INTO ONE LINE, with the line's own copy, cut and paste. True when the line took it.
-    bool line_key(zengine::component::TextBox& line, const ws::PaneKey& key, loom::Mail& mail) {
+    bool line_key(zengine::component::TextBox& line, const pane::PaneKey& key, loom::Mail& mail) {
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!line.consume(key.scancode, key.modifiers, clip_)) {
@@ -891,7 +891,7 @@ private:
     void offer_keys_row(std::size_t line, std::int64_t row, std::int64_t column, loom::Mail& mail,
                         std::uint64_t correlation) {
         const ws::ShownBinding& b = keymap_.rows[lines_[line].shown];
-        pane_menu::Offer offer(kHotkeysPane, binding_key(b));
+        pane::pane_menu::Offer offer(kHotkeysPane, binding_key(b));
         offer.at(row, column);
         offer.row(kMenuModifyPress, "Modify (press a key)");
         offer.row(kMenuModifyType, "Modify (type a spelling)");
@@ -907,7 +907,7 @@ private:
 
     /// WHAT A HOTKEYS MENU CAME TO. The subject names a binding, which must still be in the
     /// table -- the file, a declaration or another edit may have moved it while the menu was open.
-    void keys_chose(const ws::PaneMenuAnswered& a, const Declared& keys_rows_decl,
+    void keys_chose(const pane::PaneMenuAnswered& a, const Declared& keys_rows_decl,
                     const DeclareKeys& declare_keys, loom::Mail& mail) {
         const std::vector<std::string> parts = split_subject(a.subject);
         if (parts.size() != 3) {
@@ -935,7 +935,7 @@ private:
             declare_keys(mail);
             // THE EDIT NEEDS THE KEYS. The menu left them where they were, so ask for them,
             // continuing this choice -- guarded, so a newer act defeats it (WL-KEY-17).
-            (void)pane_menu::take_keyboard(mail, kDesktopRole, kHotkeysPane);
+            (void)pane::pane_menu::take_keyboard(mail, kDesktopRole, kHotkeysPane);
             keys_notice_ = "press the key for `" + b->id + "` (Escape cancels; a chord like " +
                            "ctrl+p that opens a tool must be typed instead)";
         } else if (a.id == kMenuModifyType || a.id == kMenuAddType) {
@@ -946,7 +946,7 @@ private:
                                                  : ws::keymap_edit::kAddSpelled;
             typing_.line.clear();
             declare_keys(mail);
-            (void)pane_menu::take_keyboard(mail, kDesktopRole, kHotkeysPane);
+            (void)pane::pane_menu::take_keyboard(mail, kDesktopRole, kHotkeysPane);
             keys_notice_ = "type the key for `" + b->id + "` as the file spells it, then Return";
         } else if (a.id == kMenuRemove) {
             ask_edit(mail, b->id, ws::keymap_edit::kRemoveSpelled, 0, 0, b->gesture);
@@ -996,12 +996,12 @@ private:
 
     /// The table's rows, as the launcher's are, and the spelling line's caret beside them -- beside
     /// prose rows every time, "none" included, so a caret the spelling line took with it is gone.
-    void publish_keys(loom::Mail& mail, std::vector<ws::TextRow> rows,
-                      const ws::RowsCaret& caret = {}) {
+    void publish_keys(loom::Mail& mail, std::vector<pane::TextRow> rows,
+                      const pane::RowsCaret& caret = {}) {
         (void)keys_map_.settle();
         keys_canvas_.publish_rows(
             mail, std::move(rows),
-            ws::row_parts(keys_map_, keys_canvas_.columns(),
+            pane::row_parts(keys_map_, keys_canvas_.columns(),
                           [this](const KeysMeaning& m) { return keys_part(m); }),
             caret, keys_map_.picture());
     }
@@ -1036,7 +1036,7 @@ private:
     bool held_ = false;
     /// THE ONE MENU THIS PANE ASKED FOR AND HAS NOT HEARD ANSWERED. Image-local, and never in
     /// `DesktopState`: a successor must not accept its predecessor's menu (`menu_answered`).
-    pane_menu::Asked keys_asked_;
+    pane::pane_menu::Asked keys_asked_;
     struct Capture {
         bool active = false;
         std::string id;

@@ -33,6 +33,8 @@
 #endif
 
 using namespace zengine::workshop;
+
+using namespace zengine::pane;
 using zengine::persist::AdmittedName;
 using zengine::persist::admit_filename;
 using zengine::persist::AdmittedPath;

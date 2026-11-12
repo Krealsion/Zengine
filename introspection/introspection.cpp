@@ -21,16 +21,16 @@
 #include "activation/activation.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_escape.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_seat.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/carry.hpp"
+#include "pane/document.hpp"
+#include "pane/escape.hpp"
+#include "pane/menu.hpp"
+#include "pane/operation.hpp"
+#include "pane/seat.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
 
@@ -80,25 +80,25 @@ struct IntrospectionState {
 /// Loom's attestation and a sequence not yet acted on, so no weave can make a pane appear by
 /// sending `zen.Activated`. The manual is the one page this weave carries, for any of its three
 /// pane keys; any other key is refused.
-using Role = ws::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
+using Role = zengine::pane::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
                                   zengine::manual::pages::zengine_introspection::kManual>;
 /// Powers' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<kPowersPane, kIntrospectionRole>;
+using Settings = zengine::pane::PaneSettingsFacet<kPowersPane, kIntrospectionRole>;
 
 class IntrospectionWeave
     : public zengine::With<Role, Settings>::Weave<
           IntrospectionWeave, IntrospectionState,
-          loom::Accept<ws::PaneKey,
-                       ws::PaneTextInput, ws::PaneActionRequested, loom::Result,
-                       ws::PaneOperationAnswered, ws::PaneCarryAnswered, loom::Refused,
+          loom::Accept<zengine::pane::PaneKey,
+                       zengine::pane::PaneTextInput, zengine::pane::PaneActionRequested, loom::Result,
+                       zengine::pane::PaneOperationAnswered, zengine::pane::PaneCarryAnswered, loom::Refused,
                        ws::ResolvedArrangement, ws::v2::ResolvedArrangement, ws::PowersFound,
                        ws::PowerDescribed, ws::SourceSampled, gfx::ClipboardCopy,
                        gfx::ClipboardText>,
-          loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::PanePassRequested,
+          loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v3::PaneActions, zengine::pane::PanePassRequested,
                      intro::LoadedSelected, loom::ListLoaded, ws::ArrangementRequested,
-                     ws::DescribePower, ws::SampleRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared>> {
+                     ws::DescribePower, ws::SampleRequested, zengine::pane::PaneOperationRequested,
+                     zengine::pane::PaneValueCarryRequested, zengine::pane::PaneEscapeUnspent, gfx::ClipboardCopy,
+                     gfx::ClipboardTextRequested, zengine::pane::v2::PaneSettingsDeclared>> {
 public:
     // ---- What its role calls --------------------------------------------------------------
 
@@ -120,7 +120,7 @@ public:
     /// this build gets wrong costs one pane; then the actions the Powers and Project panes answer
     /// to.
     void announce(loom::Mail& mail) {
-        for (const ws::v2::PaneOffered& said :
+        for (const zengine::pane::v2::PaneOffered& said :
              {loaded_.offering(), arrangement_.offering(), powers_.offering()}) {
             ++state_.offers;
             (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
@@ -129,14 +129,14 @@ public:
         (void)mail.as_role(kIntrospectionRole)
             .send_to_role(kWorkshopRole, arrangement_.actions());
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(ws::kLayoutsRole,
-                          ws::v2::PaneSettingsDeclared{kPowersPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole,
+                          zengine::pane::v2::PaneSettingsDeclared{kPowersPane, setting_rows()});
     }
 
     /// THE SETTINGS THIS LAYOUT KEEPS FOR POWERS, as the layouts' owner handed them and its facet
     /// took them whole: its chrome widths. Loaded and Project declare none, and are handed none.
     /// Held by the seat, never reload state.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         powers_.take_widths(intro::ChromeWidths{taken.number(intro::kSettingViewColumns),
                                                 taken.number(intro::kSettingCompositeColumns),
                                                 taken.number(intro::kSettingGap)},
@@ -145,10 +145,10 @@ public:
 
     /// THE SETTINGS POWERS TAKES, each with its default, how a weaver finds it and what it does: its
     /// chrome row's two control columns, each at least its label, and the gap between segments.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
         namespace d = intro::detail;
         const auto columns = [](const char* key, std::int64_t label, bool pinned, const char* says) {
-            ws::v2::PaneSettingRow row;
+            zengine::pane::v2::PaneSettingRow row;
             row.key = key;
             row.number = label;
             row.low = label;
@@ -158,7 +158,7 @@ public:
             row.summary = says;
             return row;
         };
-        ws::v2::PaneSettingRow gap;
+        zengine::pane::v2::PaneSettingRow gap;
         gap.key = intro::kSettingGap;
         gap.number = d::kGap;
         gap.low = d::kFewestGap;
@@ -190,9 +190,9 @@ public:
     /// map in force: as on Workshop's canvas, a primary press is the press a row was, its motion a
     /// drag, its release or a hold the window ended the drag's end, the wheel the wheel, and a
     /// right press is handed back under the window's number for it.
-    void on_window_pointer(const std::string& pane, const ws::WindowPointer& p, bool,
+    void on_window_pointer(const std::string& pane, const zengine::pane::WindowPointer& p, bool,
                            loom::Mail& mail) {
-        namespace cp = ws::canvas_pointer;
+        namespace cp = zengine::pane::canvas_pointer;
         const bool powers = pane == kPowersPane;
         if (p.phase == cp::kWheel) {
             if (powers) powers_.wheel(speaking(mail), p.dy);
@@ -203,7 +203,7 @@ public:
         } else if (p.phase == cp::kRelease || p.phase == cp::kLost) {
             if (powers) powers_.release();
         } else if (p.button == 3) {
-            (void)ws::pane_menu::pass_back(mail, kIntrospectionRole, pane);
+            (void)zengine::pane::pane_menu::pass_back(mail, kIntrospectionRole, pane);
         } else if (p.button == 1 && p.at.shown && !p.moved) {
             // A press the window landed on another row than the pane shows there now selects
             // nothing: it is never read against the row that moved into its place.
@@ -241,9 +241,9 @@ public:
 
     /// A key, the pane checked before any state moves since this role offers three. Escape
     /// lets go of a pane's selection; anything else is Powers' query field's or Loaded's search's.
-    void on(const ws::PaneKey& key, loom::Mail& mail) {
+    void on(const zengine::pane::PaneKey& key, loom::Mail& mail) {
         if (!workshop_said(mail) ||
-            ws::pane_escape::answer(key, mail, kIntrospectionRole,
+            zengine::pane::pane_escape::answer(key, mail, kIntrospectionRole,
                                     [&] { return drop_selection(key.pane, mail); })) {
             return;
         }
@@ -256,7 +256,7 @@ public:
     }
 
     /// One of a pane's declared actions, by its resolved id, guarded by pane as a key is.
-    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
+    void on(const zengine::pane::PaneActionRequested& asked, loom::Mail& mail) {
         if (!workshop_said(mail)) {
             return;
         }
@@ -269,7 +269,7 @@ public:
     }
 
     /// Typed characters: the Powers query's, and Loaded's search.
-    void on(const ws::PaneTextInput& typed, loom::Mail& mail) {
+    void on(const zengine::pane::PaneTextInput& typed, loom::Mail& mail) {
         if (!workshop_said(mail)) {
             return;
         }
@@ -287,11 +287,11 @@ public:
         powers_.on_clipboard(speaking(mail), a);
     }
 
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+    void on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail) {
         powers_.on_approval(answer, mail);
     }
 
-    void on(const ws::PaneCarryAnswered&, loom::Mail&) { powers_.carried(); }
+    void on(const zengine::pane::PaneCarryAnswered&, loom::Mail&) { powers_.carried(); }
 
     /// An owner declining to answer, or an ask that reached nobody (a host with no arrangement or
     /// sample door is a real arrangement). The question is retired and nothing is said: a sentence

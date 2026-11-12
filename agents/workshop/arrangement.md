@@ -310,11 +310,11 @@ takes no text, then Escape, puts the selection down"
 text moves"
 
 ### WL-ARR-15
-`workshop/pane_vocabulary.hpp` PaneEscapeUnspent
+`pane/vocabulary.hpp` PaneEscapeUnspent
 `workshop/weave.hpp` WorkshopWeave::gestures_ WorkshopWeave::Hand::escape_sent
 WorkshopWeave::GestureSent WorkshopWeave::gesture_asks_
 `workshop/weave_external.cpp` on(PaneEscapeUnspent) WorkshopWeave::external_key
-`workshop/pane_escape.hpp` answer unspent bare
+`pane/escape.hpp` answer unspent bare
 `terminal/pane.cpp` composing_nothing
 `tests/test_workshop_panes_input.cpp` "a pane that takes keys keeps Escape until it says the Escape
 was unspent" "a word about an Escape moves nothing when it is stale or anonymous or about another

@@ -9,10 +9,10 @@
 // role's role-wide settings, kept in the settings file; a pane's pin list, never handed to the
 // pane; a lock in one layout or everywhere; and every layout's rows read at once and written in one
 // batch judged whole. A layout is named by its id, 0 the live one. What a pane asks of its own row
-// and says it cannot use is the pane's side of the hand-off (workshop/pane_settings.hpp).
+// and says it cannot use is the pane's side of the hand-off (pane/settings.hpp).
 // Workshop law: agents/workshop/settings.md, agents/workshop/setting-locks.md
 
-#include "pane_settings.hpp"
+#include "pane/settings.hpp"
 
 #include <zen/weave/shape.hpp>
 
@@ -23,6 +23,8 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneSetting;
+using pane::kMaxPaneSettingsPerRow;
 
 /// Where a lock holds a setting: in one layout, or in every layout and every row made later.
 inline constexpr const char* kLockScopeLayout = "layout";
@@ -75,7 +77,7 @@ struct PaneSettingsAnswered {
     std::string provider;
     std::string pane;
     std::int64_t revision = 0;
-    std::vector<v2::PaneSettingRow> rows = {};
+    std::vector<pane::v2::PaneSettingRow> rows = {};
     std::vector<PaneSetting> settings = {};
     std::vector<SettingLockShown> locks = {};
     std::vector<std::string> pins = {};
@@ -124,7 +126,7 @@ inline constexpr std::size_t kMaxRoleSettingsKept = 256;
 /// declaration's rules; a later declaration replaces it. It counts while the weave that sent it
 /// holds the role.
 struct RoleSettingsDeclared {
-    std::vector<v2::PaneSettingRow> rows;
+    std::vector<pane::v2::PaneSettingRow> rows;
     ZEN_SHAPE(RoleSettingsDeclared, 1, ZEN_FIELD(rows));
 };
 
@@ -148,7 +150,7 @@ struct RoleSettingsRequested {
 struct RoleSettingsAnswered {
     std::string role;
     std::int64_t revision = 0;
-    std::vector<v2::PaneSettingRow> rows = {};
+    std::vector<pane::v2::PaneSettingRow> rows = {};
     std::vector<PaneSetting> settings = {};
     std::vector<SettingLockShown> locks = {};
     std::string written;
@@ -188,7 +190,7 @@ struct RoleSettingCommitAnswered {
 // owner reads each as its current form and answers an asker in the name it asked by.
 
 struct OfficeSettingsDeclared {
-    std::vector<v2::PaneSettingRow> rows;
+    std::vector<pane::v2::PaneSettingRow> rows;
     ZEN_SHAPE(OfficeSettingsDeclared, 1, ZEN_FIELD(rows));
 };
 struct OfficeSettingsRequested {
@@ -198,7 +200,7 @@ struct OfficeSettingsRequested {
 struct OfficeSettingsAnswered {
     std::string office;
     std::int64_t revision = 0;
-    std::vector<v2::PaneSettingRow> rows = {};
+    std::vector<pane::v2::PaneSettingRow> rows = {};
     std::vector<PaneSetting> settings = {};
     std::vector<SettingLockShown> locks = {};
     std::string written;
@@ -366,7 +368,7 @@ struct LayoutSettings {
 struct DeclaredSettings {
     std::string provider;
     std::string pane;
-    std::vector<v2::PaneSettingRow> rows = {};
+    std::vector<pane::v2::PaneSettingRow> rows = {};
     ZEN_SHAPE(DeclaredSettings, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(rows));
     friend bool operator==(const DeclaredSettings&, const DeclaredSettings&) = default;
 };

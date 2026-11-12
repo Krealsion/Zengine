@@ -173,7 +173,7 @@ WHY — `agents/decisions/an-accordion-is-a-section-its-owner-folds.md`
 `info/property_view.hpp` compose finish lead
 `info/pane.cpp` say say_properties
 `info/vocabulary.hpp` InfoPaneState
-`workshop/pane_drawing.hpp` rows_drawing
+`pane/drawing.hpp` rows_drawing
 `tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
 over the host's subject, and the panes are the Pane Manager's to list" "a room too short for the
 body invents none of it"
@@ -181,7 +181,7 @@ body invents none of it"
 ### WL-INFO-02
 `info/property_view.hpp` rows_ columns_ granted_ room
 `info/pane.cpp` fit_room
-`workshop/pane_drawing.hpp` RowsRoom RowsRoom::rows RowsRoom::columns
+`pane/drawing.hpp` RowsRoom RowsRoom::rows RowsRoom::columns
 `graphics/vocabulary.hpp` AreaRoom
 `tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it"
 
@@ -195,13 +195,13 @@ out"
 ### WL-INFO-04
 `info/property_view.hpp` placed Placed composed_ lead say_properties press press_placed
 `info/pane.cpp` press
-`workshop/pane_drawing.hpp` window_cell
+`pane/drawing.hpp` window_cell
 `tests/test_workshop_panes_info.cpp` "a press on an Info row while a notice stands names the row
 painted there, and a full room keeps its last row under the notice"
 
 ### WL-INFO-05
 `info/property_view.hpp` say_properties begin_draft close_draft
-`workshop/pane_text.hpp` fit pad
+`pane/text.hpp` fit pad
 `component/text_box.hpp` TextBox::visible TextBox::keep_caret_visible
 `tests/test_workshop_panes_info.cpp` "a draft on a value the weaver owns is written to the desk"
 "Info draws its properties on its canvas on the medium's own ground, and a draft's caret and

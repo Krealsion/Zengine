@@ -53,8 +53,8 @@ witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/`
 
 - Built: `snake/` by the root `CMakeLists.txt`; Tally, Guard and the numbered presenter by
   `tests/CMakeLists.txt`.
-- The pane seam: `workshop/pane_vocabulary.hpp`; Guard also `workshop/pane_menu.hpp`; the
-  numbered presenter `workshop/presenter_vocabulary.hpp`, loaded under `zengine.presenter` in
+- The pane seam: `pane/vocabulary.hpp`; Guard also `pane/menu.hpp`; the
+  numbered presenter `pane/presenter_vocabulary.hpp`, loaded under `zengine.presenter` in
   place of `workshop/menu-presenter/`.
 - The probe's seam vocabulary: `workshop/guest_seam_vocabulary.hpp`; the guest door:
   `workshop/guest_door.hpp`.

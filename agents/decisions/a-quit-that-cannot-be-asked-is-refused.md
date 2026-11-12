@@ -42,4 +42,5 @@ counted. A delivery made to a handler that then failed is not a refusal. The wat
 best-effort: an allocation failure loses it rather than replace the evidence the delivery
 produced, and that quit waits as it did before anything watched.
 
-**Laws supported.** [WL-SESSION-19](../workshop/session.md).
+**Laws supported.** [WL-SESSION-19](../workshop/session.md),
+[PANE-SEAM-06](../pane-contract/seam.md).

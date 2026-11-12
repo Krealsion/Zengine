@@ -54,9 +54,9 @@ against the installed package.
   lists it among the recipe catalog's pane weaves.
 - The pane asks `zengine.powers` (`workshop/powers_door.hpp`, `workshop/powers_vocabulary.hpp`),
   asks the running views what their wiring names (`view/vocabulary.hpp`), and asks to write and to
-  carry through `workshop/pane_operation.hpp` and
-  `workshop/pane_carry.hpp`, answered in `workshop/weave_operation.cpp`. It has no seam
-  vocabulary of its own; it speaks the pane protocol (`workshop/pane_vocabulary.hpp`).
+  carry through `pane/operation.hpp` and
+  `pane/carry.hpp`, answered in `workshop/weave_operation.cpp`. It has no seam
+  vocabulary of its own; it speaks the pane protocol (`pane/vocabulary.hpp`).
 - `view/view-builder/` links `zengine-flow` for `shape.hpp`; `cmake/ZengineInstall.cmake`
   installs the root headers and both `vocabulary.hpp`s and exports `zengine::flow`.
 

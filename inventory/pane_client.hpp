@@ -3,8 +3,8 @@
 #ifndef ZENGINE_INVENTORY_PANE_CLIENT_HPP
 #define ZENGINE_INVENTORY_PANE_CLIENT_HPP
 #include "inventory/vocabulary.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/operation.hpp"
+#include "pane/menu.hpp"
 #include <zen/weave.hpp>
 #include <zen/weave/role_request.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
@@ -39,14 +39,14 @@ public:
         result.reset(); folder_result.reset();
         notice = "Checking this operation's authority";
         phase = Phase::authorizing;
-        const bool queued = pending_.send_to_role(mail.as_role(role), zengine::workshop::pane_menu::kWorkshopRole,
-            workshop::PaneOperationRequested{
+        const bool queued = pending_.send_to_role(mail.as_role(role), zengine::pane::pane_menu::kWorkshopRole,
+            pane::PaneOperationRequested{
             std::move(pane), kInventoryRole, RequestType::zen_name, RequestType::zen_version, static_cast<std::int64_t>(gesture)},
             permission_correlation);
         if (!queued) failed("The permission request could not be queued");
         return busy();
     }
-    bool hear(const workshop::PaneOperationAnswered& answer, loom::Mail& mail) {
+    bool hear(const pane::PaneOperationAnswered& answer, loom::Mail& mail) {
         if (phase != Phase::authorizing || !pending_.matches_answer(mail)) return false;
         if (!answer.allowed) { failed(answer.reason); return true; }
         phase = Phase::owner;

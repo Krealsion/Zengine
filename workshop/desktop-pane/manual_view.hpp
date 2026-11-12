@@ -15,11 +15,11 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_drawing.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/drawing.hpp"
+#include "pane/rows.hpp"
+#include "pane/causes.hpp"
+#include "pane/document.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "component/row_map.hpp"
 #include "component/text_area.hpp"
@@ -45,8 +45,8 @@ class ManualView {
 public:
     /// THE MANUAL'S ROWS: the lines up and down, its two ends, the copy, everything selected, and
     /// Escape, which closes it.
-    static std::vector<ws::v3::PaneActionRow> manual_rows() {
-        using ws::v3::PaneActionRow;
+    static std::vector<pane::v3::PaneActionRow> manual_rows() {
+        using pane::v3::PaneActionRow;
         return {PaneActionRow{kActionManualUp, "line up", input::scan::kUp, input::mod::kNone},
                 PaneActionRow{kActionManualDown, "line down", input::scan::kDown,
                               input::mod::kNone},
@@ -56,8 +56,8 @@ public:
                 PaneActionRow{kActionManualAll, "select all", input::scan::kA, input::mod::kCtrl},
                 PaneActionRow{kActionManualClose, "close", input::scan::kEscape, input::mod::kNone,
                               {},
-                              {ws::cause_of<ws::PaneCloseRequested>(
-                                  ws::to_pane(kDesktopRole, kManualPane))}}};
+                              {pane::cause_of<ws::PaneCloseRequested>(
+                                  pane::to_pane(kDesktopRole, kManualPane))}}};
     }
 
     // ---- Its rooms ----------------------------------------------------------------------------
@@ -93,7 +93,7 @@ public:
                 const std::uint64_t asked = ++manual_asks_;
                 const loom::Ticket sent =
                     mail.as_role(kDesktopRole)
-                        .send_to_role(role, ws::PaneDocumentRequested{pane_key, std::string()},
+                        .send_to_role(role, pane::PaneDocumentRequested{pane_key, std::string()},
                                       asked);
                 if (sent.valid()) {
                     manual_.asked = asked;
@@ -110,7 +110,7 @@ public:
     /// THE MANUAL A PANE ANSWERED, to this image's latest ask and no older one: a weaver who
     /// pressed another `?` since is shown that pane's, and this answer is about one no longer
     /// asked about.
-    void document_shown(const ws::PaneDocumentShown& shown, bool keys_heard,
+    void document_shown(const pane::PaneDocumentShown& shown, bool keys_heard,
                         const ws::KeymapShown& keymap, loom::Mail& mail) {
         if (!mail.answers_ask() || manual_.asked == 0 || mail.correlation() != manual_.asked) {
             return;
@@ -132,8 +132,8 @@ public:
     bool ask_refused(const loom::DispatchRefused& refused, bool keys_heard,
                      const ws::KeymapShown& keymap, loom::Mail& mail) {
         if (!refused_ask(manual_.asked != 0, manual_.sent, manual_.asked, refused, mail,
-                         ws::PaneDocumentRequested::zen_name,
-                         ws::PaneDocumentRequested::zen_version, manual_.role.c_str())) {
+                         pane::PaneDocumentRequested::zen_name,
+                         pane::PaneDocumentRequested::zen_version, manual_.role.c_str())) {
             return false;
         }
         manual_.asked = 0;
@@ -210,22 +210,22 @@ public:
     /// selection, Shift extending one; a move while held extends it; a press or a drag on the bar
     /// moves the text there; the release ends either. True when the moment was the text's or the
     /// bar's.
-    bool pointer(const ws::WindowPointer& p, bool keys_heard, const ws::KeymapShown& keymap,
+    bool pointer(const pane::WindowPointer& p, bool keys_heard, const ws::KeymapShown& keymap,
                  loom::Mail& mail) {
-        if (p.phase == ws::canvas_pointer::kRelease || p.phase == ws::canvas_pointer::kLost) {
+        if (p.phase == pane::canvas_pointer::kRelease || p.phase == pane::canvas_pointer::kLost) {
             const bool was = manual_.held || manual_.barred;
             manual_.held = false;
             manual_.barred = false;
             return was;
         }
-        const bool press = p.phase == ws::canvas_pointer::kPress && p.button == 1;
-        const bool drag = p.phase == ws::canvas_pointer::kMove && p.press != 0 &&
+        const bool press = p.phase == pane::canvas_pointer::kPress && p.button == 1;
+        const bool drag = p.phase == pane::canvas_pointer::kMove && p.press != 0 &&
                           (manual_.held || manual_.barred);
         if (!press && !drag) {
             return false;
         }
         const bool fresh = press && (p.modifiers & input::mod::kShift) == 0;
-        const ws::RowsRoom room = manual_canvas_.room();
+        const pane::RowsRoom room = manual_canvas_.room();
         if (!room.cells) {
             const graphics::TextAreaGeometry g = geometry();
             const std::int64_t y = p.y - room.text.line; // the heading stands above the text
@@ -267,11 +267,11 @@ public:
         if (!manual_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
             return;
         }
-        std::vector<ws::TextRow> out;
+        std::vector<pane::TextRow> out;
         const auto push = [&out, room_rows, room_columns](std::string text, graphics::Color ink) {
             if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 out.push_back(
-                    ws::TextRow{fit(std::move(text), room_columns), ink});
+                    pane::TextRow{fit(std::move(text), room_columns), ink});
             }
         };
         if (manual_.role.empty() && manual_.word.empty()) {
@@ -293,9 +293,9 @@ public:
         manual_.text.set(std::move(text.text), std::move(text.looks));
         const std::int64_t body = body_rows();
         const auto first = static_cast<std::int64_t>(out.size());
-        std::vector<ws::RowsTextArea> areas;
+        std::vector<pane::RowsTextArea> areas;
         areas.push_back(
-            ws::RowsTextArea{first, body, manual_.text, kManualTextPart, kManualBarPart,
+            pane::RowsTextArea{first, body, manual_.text, kManualTextPart, kManualBarPart,
                              manual_reader::manual_inks()});
         publish_manual(mail, std::move(out), {}, std::move(areas));
     }
@@ -309,7 +309,7 @@ private:
 
     /// Where the text stands in a window that sets type: under the heading, the room's width.
     graphics::TextAreaGeometry geometry() const {
-        const ws::RowsRoom room = manual_canvas_.room();
+        const pane::RowsRoom room = manual_canvas_.room();
         return graphics::text_area_geometry(manual_.text, room.width, body_rows() * room.text.line,
                                             room.text);
     }
@@ -339,8 +339,8 @@ private:
 
     /// The Manual's rows, drawn in its area with its selection and its text area. A press on a row
     /// means nothing; the text and the bar hear the hand (`pointer`).
-    void publish_manual(loom::Mail& mail, std::vector<ws::TextRow> rows,
-                        const ws::RowsCaret& caret = {}, std::vector<ws::RowsTextArea> areas = {}) {
+    void publish_manual(loom::Mail& mail, std::vector<pane::TextRow> rows,
+                        const pane::RowsCaret& caret = {}, std::vector<pane::RowsTextArea> areas = {}) {
         manual_map_.begin();
         (void)manual_map_.settle();
         manual_canvas_.publish_rows(mail, std::move(rows), {}, caret, 0, std::move(areas));
@@ -355,7 +355,7 @@ private:
         std::string role, pane;
         std::uint64_t asked = 0;  ///< the number of the ask not yet answered; 0 when none
         loom::Ticket sent{};      ///< ...and its queued attempt, which a refusal names
-        std::optional<ws::PaneDocumentShown> words;
+        std::optional<pane::PaneDocumentShown> words;
         std::string word;         ///< what it says where it has no words: asking, or a refusal
         component::TextArea text; ///< the words as the area holds them: scroll and selection
         bool held = false;        ///< a press on the text is held: a move extends the selection

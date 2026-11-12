@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_DRAWING_HPP
-#define ZENGINE_WORKSHOP_PANE_DRAWING_HPP
+#ifndef ZENGINE_PANE_DRAWING_HPP
+#define ZENGINE_PANE_DRAWING_HPP
 
 // Between a pane's drawing and its rows, both ways. A drawing (`graphics::Sketch`) read onto
 // rows: its text painted cell by cell as a window of characters paints it
@@ -22,9 +22,9 @@
 #include "graphics/pixels.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
-#include "pane_text_fit.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/text_fit.hpp"
+#include "pane/rows.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -38,7 +38,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// WHAT ONE PART OF A DRAWING MEANS: the path of the record that names it, which is its name, and
 /// the action a press on it asks ("" for none). A picture numbered by these moves its number when
@@ -811,6 +811,6 @@ private:
     bool fresh_ = true, drew_whole_ = true, refused_whole_ = false;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_DRAWING_HPP
+#endif // ZENGINE_PANE_DRAWING_HPP

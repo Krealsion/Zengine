@@ -22,7 +22,7 @@
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/guest_door.hpp"
 #include "workshop/guests.hpp"
-#include "workshop/pane_operation.hpp"
+#include "pane/operation.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include "timer/vocabulary.hpp"

@@ -8,8 +8,8 @@
 // Workshop law: agents/workshop/contextual.md (+1 registers; agents/workshop.md routes)
 
 #include "keymap.hpp"
-#include "pane_vocabulary.hpp"
-#include "presenter_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/presenter_vocabulary.hpp"
 #include "setup.hpp"
 
 #include <cstdint>
@@ -73,7 +73,7 @@ struct MenuPress {
 inline constexpr std::size_t kMaxMenuPresses = 16;
 
 /// A pane's own menu, presented by the presenter participant on a popup this host granted
-/// (`workshop/presenter_vocabulary.hpp`), in an area of the presenter's own inside the popup's
+/// (`pane/presenter_vocabulary.hpp`), in an area of the presenter's own inside the popup's
 /// frame. The host keeps what custody, place and frame need, and nothing of the offer's meaning:
 /// no rows, no ids, no cursor, no lines.
 // WL-CTX-09 -- agents/workshop/pane-menu.md

@@ -34,6 +34,9 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneSetting;
+using pane::PaneSettingRow;
+using pane::PaneSettingUnused;
 
 /// WHAT THE STORE IS HANDED by whoever holds it: the paths of its files, the conversions this run
 /// has, and the readings of the bus it spends -- whose role it is now, at which incarnation,
@@ -78,7 +81,7 @@ struct PaneHandOff {
     PaneRef ref;
     loom::WeaveId holder{};
     bool revisions = false;
-    v2::PaneSettings value;
+    pane::v2::PaneSettings value;
 };
 
 /// WHAT THE LAST SESSION'S RESTORE BROUGHT BACK, for the presenter to say: whether a run came
@@ -121,17 +124,17 @@ public:
     /// the last one, counting while `from` holds the role at the incarnation it has now. Empty
     /// when kept, else the refusal.
     std::string declare_pane(std::string_view role, const std::string& pane,
-                             std::vector<v2::PaneSettingRow> rows, loom::WeaveId from);
+                             std::vector<pane::v2::PaneSettingRow> rows, loom::WeaveId from);
     /// The settings `ref`'s declaration gives while it counts, or nullptr.
-    const std::vector<v2::PaneSettingRow>* counted(const PaneRef& ref) const;
+    const std::vector<pane::v2::PaneSettingRow>* counted(const PaneRef& ref) const;
     /// ...and the same rows as v1 says them.
     const std::vector<PaneSettingRow>* counted_v1(const PaneRef& ref) const;
     /// A ROLE'S ROLE-WIDE DECLARATION, the same way. Empty when kept, else the refusal.
-    std::string declare_role(const std::string& role, const std::vector<v2::PaneSettingRow>& rows,
+    std::string declare_role(const std::string& role, const std::vector<pane::v2::PaneSettingRow>& rows,
                                loom::WeaveId from);
     /// What a role's declaration gives: Workshop's own, declared in code, or the counted
     /// declaration of a role that sent one; nullptr when none counts.
-    const std::vector<v2::PaneSettingRow>* role_rows(std::string_view role) const;
+    const std::vector<pane::v2::PaneSettingRow>* role_rows(std::string_view role) const;
 
     // ---- Revisions -------------------------------------------------------------------------
 
@@ -228,14 +231,14 @@ public:
 private:
     struct PaneDeclaration {
         PaneRef ref;
-        std::vector<v2::PaneSettingRow> rows;
+        std::vector<pane::v2::PaneSettingRow> rows;
         std::vector<PaneSettingRow> narrow;
         loom::WeaveId from{};
         std::int64_t incarnation = 0;
     };
     struct RoleDeclaration {
         std::string role;
-        std::vector<v2::PaneSettingRow> rows;
+        std::vector<pane::v2::PaneSettingRow> rows;
         loom::WeaveId from{};
         std::int64_t incarnation = 0;
         std::int64_t handed = 0;
@@ -245,12 +248,12 @@ private:
         std::int64_t revision = 0;
         std::uint64_t desk = 0;
         std::vector<PaneSetting> settings;
-        std::vector<v2::PaneSettingRow> rows;
+        std::vector<pane::v2::PaneSettingRow> rows;
     };
     struct RoleRevision {
         std::string role;
         std::int64_t revision = 0;
-        std::vector<v2::PaneSettingRow> rows;
+        std::vector<pane::v2::PaneSettingRow> rows;
         std::vector<PaneSetting> settings;
         loom::WeaveId holder{};
     };
@@ -271,7 +274,7 @@ private:
     void role_moved(const std::string& role);
     std::string write_prefs();
     bool counts(loom::WeaveId from, std::int64_t incarnation, std::string_view role) const;
-    const v2::PaneSettingRow* declared_row(const PaneRef& ref, const std::string& key) const;
+    const pane::v2::PaneSettingRow* declared_row(const PaneRef& ref, const std::string& key) const;
 
     // The live desk settled after any change of its membership: every everywhere lock pinned on
     // the rows it seats.

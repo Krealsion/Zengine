@@ -4,14 +4,14 @@
 // A live external consumer of the pane menu, the presenter seam and the list helpers, from the
 // installed package alone, on its own bus: a stand-in window gives a right press in the
 // requester's area; a stand-in host grants, refuses or tries to choose; a stranger's presenter
-// (`workshop/presenter_vocabulary.hpp`) answers; the requester reads each answer through
+// (`pane/presenter_vocabulary.hpp`) answers; the requester reads each answer through
 // `pane_menu::Asked::take`; a forger answers under the ask's number. A failed check returns
 // non-zero, which run.cmake's exit test catches.
 
-#include "workshop/pane_escape.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/presenter_vocabulary.hpp"
+#include "pane/escape.hpp"
+#include "pane/menu.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/presenter_vocabulary.hpp"
 
 #include "component/columns.hpp"
 #include "component/held_choice.hpp"
@@ -29,8 +29,7 @@
 #include <string>
 #include <vector>
 
-namespace pm = zengine::workshop::pane_menu;
-namespace ws = zengine::workshop;
+namespace pm = zengine::pane::pane_menu;
 namespace co = zengine::component;
 namespace gfx = zengine::graphics;
 
@@ -68,8 +67,8 @@ struct Nothing {
 // ---- the requester: two actions, one record ---------------------------------------------------
 
 class Requester : public loom::WeaveBase<Requester, Nothing,
-                                         loom::Accept<gfx::AreaButtonChanged, ws::PaneMenuAnswered>,
-                                         loom::Emit<ws::PaneMenuRequested>> {
+                                         loom::Accept<gfx::AreaButtonChanged, zengine::pane::PaneMenuAnswered>,
+                                         loom::Emit<zengine::pane::PaneMenuRequested>> {
 public:
     /// A RIGHT PRESS IN ITS AREA, from the window that shows it: offer two actions about the row
     /// under it, continuing THIS press.
@@ -86,7 +85,7 @@ public:
                     .send(mail, kRequester);
     }
     /// EVERY ANSWER, READ ONE WAY. What was taken is the whole of what this pane may act on.
-    void on(const ws::PaneMenuAnswered& a, loom::Mail& mail) {
+    void on(const zengine::pane::PaneMenuAnswered& a, loom::Mail& mail) {
         const std::string id = asked.take(mail, a);
         taken.push_back(id);
         refusals.push_back(a.refusal);
@@ -104,34 +103,35 @@ public:
 // ---- a presenter a stranger writes ------------------------------------------------------------
 
 class Presenter
-    : public loom::WeaveBase<Presenter, ws::HeldMenu,
-                             loom::Accept<ws::MenuGranted, ws::MenuInput, ws::MenuWithdrawn, Poke>,
-                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::MenuReturned,
-                                        ws::PaneMenuAnswered>> {
+    : public loom::WeaveBase<Presenter, zengine::pane::HeldMenu,
+                             loom::Accept<zengine::pane::MenuGranted, zengine::pane::MenuInput,
+                                          zengine::pane::MenuWithdrawn, Poke>,
+                             loom::Emit<zengine::pane::MenuShown, zengine::pane::MenuClosed, zengine::pane::MenuReturned,
+                                        zengine::pane::PaneMenuAnswered>> {
 public:
-    void on(const ws::MenuGranted& g, loom::Mail& mail) {
+    void on(const zengine::pane::MenuGranted& g, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || g.rows.empty()) {
             return;
         }
-        state_ = ws::HeldMenu{g.menu,  static_cast<std::int64_t>(mail.correlation()),
+        state_ = zengine::pane::HeldMenu{g.menu,  static_cast<std::int64_t>(mail.correlation()),
                               g.role, g.pane, g.subject, g.rows, 0, g.room_rows, g.room_columns,
                               g.standard, g.pane_name, g.area};
         standard_held = state_.standard.size();
         pane_name_held = state_.pane_name;
         // HOW MUCH OF ITS AREA THE MENU TAKES: a line a row, as wide as the widest. A presenter in
         // a window draws them there (`workshop::MenuDrawing`); this bus has none.
-        ws::MenuShown shown;
+        zengine::pane::MenuShown shown;
         shown.menu = g.menu;
         shown.picture = 1;
         shown.area = g.area;
         shown.rows = static_cast<std::int64_t>(g.rows.size());
-        for (const ws::PaneMenuRow& row : g.rows) {
+        for (const zengine::pane::PaneMenuRow& row : g.rows) {
             const auto width = static_cast<std::int64_t>(row.label.size()) + 2;
             shown.columns = width > shown.columns ? width : shown.columns;
         }
-        (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshop, shown);
+        (void)mail.as_role(zengine::pane::kPresenterRole).send_to_role(kWorkshop, shown);
     }
-    void on(const ws::MenuInput& in, loom::Mail& mail) {
+    void on(const zengine::pane::MenuInput& in, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || in.menu <= 0) {
             return;
         }
@@ -139,18 +139,18 @@ public:
             give_back(in.menu, mail); // an act for a menu this image never held
             return;
         }
-        if (in.kind == ws::menu_input::kKey && in.verb == ws::menu_verb::kChoose) {
+        if (in.kind == zengine::pane::menu_input::kKey && in.verb == zengine::pane::menu_verb::kChoose) {
             const std::string id = state_.rows[static_cast<std::size_t>(state_.cursor)].id;
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kWorkshop, ws::MenuClosed{state_.menu, true, in.input, std::string()});
+            (void)mail.as_role(zengine::pane::kPresenterRole)
+                .send_to_role(kWorkshop, zengine::pane::MenuClosed{state_.menu, true, in.input, std::string()});
             answer(mail, true, id);
             last_ = state_;
-            state_ = ws::HeldMenu{};
+            state_ = zengine::pane::HeldMenu{};
         }
     }
     /// THE HOST ENDED A MENU. One this image holds it answers; one it does not, it GIVES BACK
     /// -- the seam's word for "this requester has no answer coming from me".
-    void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
+    void on(const zengine::pane::MenuWithdrawn& w, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || w.menu <= 0) {
             return;
         }
@@ -158,42 +158,42 @@ public:
             give_back(w.menu, mail);
             return;
         }
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshop, ws::MenuClosed{state_.menu, false, 0, std::string()});
+        (void)mail.as_role(zengine::pane::kPresenterRole)
+            .send_to_role(kWorkshop, zengine::pane::MenuClosed{state_.menu, false, 0, std::string()});
         answer(mail, false, std::string());
-        state_ = ws::HeldMenu{};
+        state_ = zengine::pane::HeldMenu{};
     }
     /// A PRESENTER WITH A BUG: it says its last answer again (1), or answers late, under a number
     /// and about a subject it is told (2) -- its own role's word either way.
     void on(const Poke& p, loom::Mail& mail) {
         if (p.what == 1 && last_.menu != 0) {
-            const ws::HeldMenu now = state_;
+            const zengine::pane::HeldMenu now = state_;
             state_ = last_;
             answer(mail, true, last_.rows[0].id);
             state_ = now;
         } else if (p.what == 3) {
             // A HOLDER THAT CARRIES NO MENU: what the role looks like from the outside when one
             // image replaces another in the middle of an interaction.
-            state_ = ws::HeldMenu{};
+            state_ = zengine::pane::HeldMenu{};
         } else if (p.what == 2) {
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kRequester, ws::PaneMenuAnswered{kPane, p.word, true, "mine.open", ""},
+            (void)mail.as_role(zengine::pane::kPresenterRole)
+                .send_to_role(kRequester, zengine::pane::PaneMenuAnswered{kPane, p.word, true, "mine.open", ""},
                               static_cast<std::uint64_t>(p.number));
         }
     }
 
 private:
     void give_back(std::int64_t menu, loom::Mail& mail) {
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshop, ws::MenuReturned{menu, "this image does not hold that menu"});
+        (void)mail.as_role(zengine::pane::kPresenterRole)
+            .send_to_role(kWorkshop, zengine::pane::MenuReturned{menu, "this image does not hold that menu"});
     }
     void answer(loom::Mail& mail, bool chosen, const std::string& id) {
-        (void)mail.as_role(ws::kPresenterRole)
+        (void)mail.as_role(zengine::pane::kPresenterRole)
             .send_to_role(state_.role,
-                          ws::PaneMenuAnswered{state_.pane, state_.subject, chosen, id, ""},
+                          zengine::pane::PaneMenuAnswered{state_.pane, state_.subject, chosen, id, ""},
                           static_cast<std::uint64_t>(state_.correlation));
     }
-    ws::HeldMenu last_;
+    zengine::pane::HeldMenu last_;
 
 public:
     std::size_t standard_held = 0; ///< the host's standard rows the last grant carried
@@ -203,17 +203,17 @@ public:
 // ---- the stand-in host, and the forger ---------------------------------------------------------
 
 class Host : public loom::WeaveBase<Host, Nothing,
-                                    loom::Accept<ws::PaneMenuRequested, ws::MenuShown,
-                                                 ws::MenuClosed, ws::MenuReturned, Poke>,
-                                    loom::Emit<ws::MenuGranted, ws::MenuInput,
-                                               ws::MenuWithdrawn, ws::PaneMenuAnswered>> {
+                                    loom::Accept<zengine::pane::PaneMenuRequested, zengine::pane::MenuShown,
+                                                 zengine::pane::MenuClosed, zengine::pane::MenuReturned, Poke>,
+                                    loom::Emit<zengine::pane::MenuGranted, zengine::pane::MenuInput,
+                                               zengine::pane::MenuWithdrawn, zengine::pane::PaneMenuAnswered>> {
 public:
     /// WHAT THIS HOST DOES WITH THE NEXT ASK: grant it, refuse it, or (a host with a bug) try to
     /// answer it chosen itself.
     enum class Mode { kGrant, kRefuse, kChoose };
     Mode mode = Mode::kGrant;
 
-    void on(const ws::PaneMenuRequested& asked, loom::Mail& mail) {
+    void on(const zengine::pane::PaneMenuRequested& asked, loom::Mail& mail) {
         if (mail.authored_role() != std::string_view(kRequester)) {
             return;
         }
@@ -221,7 +221,7 @@ public:
             const bool chosen = mode == Mode::kChoose;
             (void)mail.as_role(kWorkshop).send_to_role(
                 kRequester,
-                ws::PaneMenuAnswered{asked.pane, asked.subject, chosen,
+                zengine::pane::PaneMenuAnswered{asked.pane, asked.subject, chosen,
                                      chosen ? asked.rows[0].id : std::string(),
                                      chosen ? std::string() : "late"},
                 mail.correlation());
@@ -233,20 +233,20 @@ public:
         // Workshop bounds the same record by a fence of its own; a small host keeps it simpler.
         owed_ = Owed{menus_, mail.correlation(), asked.pane, asked.subject};
         (void)mail.as_role(kWorkshop).send_to_role(
-            ws::kPresenterRole,
-            ws::MenuGranted{menus_, kRequester, asked.pane, asked.subject, asked.rows, 8, 30,
-                            {ws::PaneMenuRow{"host.arrange", "arrange"}}, "Requester",
+            zengine::pane::kPresenterRole,
+            zengine::pane::MenuGranted{menus_, kRequester, asked.pane, asked.subject, asked.rows, 8, 30,
+                            {zengine::pane::PaneMenuRow{"host.arrange", "arrange"}}, "Requester",
                             "zengine.presenter.menu." + std::to_string(menus_)},
             mail.correlation());
     }
-    void on(const ws::MenuShown& shown, loom::Mail& mail) {
-        if (mail.authored_from_role(ws::kPresenterRole) && shown.menu == menus_) {
+    void on(const zengine::pane::MenuShown& shown, loom::Mail& mail) {
+        if (mail.authored_from_role(zengine::pane::kPresenterRole) && shown.menu == menus_) {
             shown_rows = shown.rows;
             shown_area = shown.area;
         }
     }
-    void on(const ws::MenuClosed& closed, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kPresenterRole) || closed.menu <= 0) {
+    void on(const zengine::pane::MenuClosed& closed, loom::Mail& mail) {
+        if (!mail.authored_from_role(zengine::pane::kPresenterRole) || closed.menu <= 0) {
             return;
         }
         if (closed.menu == menus_) {
@@ -260,8 +260,8 @@ public:
     /// AN INTERACTION HANDED BACK: the presenter holds no such menu, so the requester has no
     /// answer coming from it -- and this host, which kept who asked, gives it one. Once: a menu
     /// already answered is no longer owed, and no other menu is touched.
-    void on(const ws::MenuReturned& returned, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kPresenterRole) || returned.menu <= 0 ||
+    void on(const zengine::pane::MenuReturned& returned, loom::Mail& mail) {
+        if (!mail.authored_from_role(zengine::pane::kPresenterRole) || returned.menu <= 0 ||
             owed_.menu != returned.menu) {
             return;
         }
@@ -269,22 +269,22 @@ public:
         owed_ = Owed{};
         (void)mail.as_role(kWorkshop).send_to_role(
             kRequester,
-            ws::PaneMenuAnswered{given.pane, given.subject, false, std::string(),
+            zengine::pane::PaneMenuAnswered{given.pane, given.subject, false, std::string(),
                                  "the host ended it -- the presenter could not answer it (" +
                                      returned.why + ")"},
             given.correlation);
     }
     void on(const Poke& p, loom::Mail& mail) {
         if (p.what == 2) { // the weaver chooses: one key, act number `number`
-            ws::MenuInput in;
+            zengine::pane::MenuInput in;
             in.menu = menus_;
             in.input = p.number;
-            in.kind = ws::menu_input::kKey;
-            in.verb = ws::menu_verb::kChoose;
-            (void)mail.as_role(kWorkshop).send_to_role(ws::kPresenterRole, in);
+            in.kind = zengine::pane::menu_input::kKey;
+            in.verb = zengine::pane::menu_verb::kChoose;
+            (void)mail.as_role(kWorkshop).send_to_role(zengine::pane::kPresenterRole, in);
         } else if (p.what == 3) { // the host ends the menu it last granted
             (void)mail.as_role(kWorkshop).send_to_role(
-                ws::kPresenterRole, ws::MenuWithdrawn{menus_, "the host ended it"});
+                zengine::pane::kPresenterRole, zengine::pane::MenuWithdrawn{menus_, "the host ended it"});
         }
     }
 
@@ -319,11 +319,11 @@ public:
 };
 
 class Forger : public loom::WeaveBase<Forger, Nothing, loom::Accept<Poke>,
-                                      loom::Emit<ws::PaneMenuAnswered>> {
+                                      loom::Emit<zengine::pane::PaneMenuAnswered>> {
 public:
     void on(const Poke& p, loom::Mail& mail) {
         (void)mail.as_role(kForger).send_to_role(
-            kRequester, ws::PaneMenuAnswered{kPane, p.word, true, "mine.forget", ""},
+            kRequester, zengine::pane::PaneMenuAnswered{kPane, p.word, true, "mine.forget", ""},
             static_cast<std::uint64_t>(p.number));
     }
 };
@@ -351,14 +351,14 @@ void live_menu() {
     loom::WeaveId forger_id{};
 
     loom::Grant host_speaks;
-    host_speaks.allow_to_role(ws::PaneMenuAnswered::zen_name, ws::PaneMenuAnswered::zen_version,
+    host_speaks.allow_to_role(zengine::pane::PaneMenuAnswered::zen_name, zengine::pane::PaneMenuAnswered::zen_version,
                               kRequester);
-    host_speaks.allow_to_role(ws::MenuGranted::zen_name, ws::MenuGranted::zen_version,
-                              ws::kPresenterRole);
-    host_speaks.allow_to_role(ws::MenuInput::zen_name, ws::MenuInput::zen_version,
-                              ws::kPresenterRole);
-    host_speaks.allow_to_role(ws::MenuWithdrawn::zen_name, ws::MenuWithdrawn::zen_version,
-                              ws::kPresenterRole);
+    host_speaks.allow_to_role(zengine::pane::MenuGranted::zen_name, zengine::pane::MenuGranted::zen_version,
+                              zengine::pane::kPresenterRole);
+    host_speaks.allow_to_role(zengine::pane::MenuInput::zen_name, zengine::pane::MenuInput::zen_version,
+                              zengine::pane::kPresenterRole);
+    host_speaks.allow_to_role(zengine::pane::MenuWithdrawn::zen_name, zengine::pane::MenuWithdrawn::zen_version,
+                              zengine::pane::kPresenterRole);
     Host* host = seat<Host>(bus, host_id, std::move(host_speaks), kWorkshop);
 
     loom::Grant window_speaks;
@@ -367,22 +367,22 @@ void live_menu() {
     (void)seat<Window>(bus, window_id, std::move(window_speaks), kWindowRole);
 
     loom::Grant presenter_speaks;
-    presenter_speaks.allow_to_role(ws::MenuShown::zen_name, ws::MenuShown::zen_version, kWorkshop);
-    presenter_speaks.allow_to_role(ws::MenuClosed::zen_name, ws::MenuClosed::zen_version, kWorkshop);
-    presenter_speaks.allow_to_role(ws::MenuReturned::zen_name, ws::MenuReturned::zen_version,
+    presenter_speaks.allow_to_role(zengine::pane::MenuShown::zen_name, zengine::pane::MenuShown::zen_version, kWorkshop);
+    presenter_speaks.allow_to_role(zengine::pane::MenuClosed::zen_name, zengine::pane::MenuClosed::zen_version, kWorkshop);
+    presenter_speaks.allow_to_role(zengine::pane::MenuReturned::zen_name, zengine::pane::MenuReturned::zen_version,
                                    kWorkshop);
-    presenter_speaks.allow_to_any(ws::PaneMenuAnswered::zen_name, ws::PaneMenuAnswered::zen_version);
+    presenter_speaks.allow_to_any(zengine::pane::PaneMenuAnswered::zen_name, zengine::pane::PaneMenuAnswered::zen_version);
     Presenter* presenter =
-        seat<Presenter>(bus, presenter_id, std::move(presenter_speaks), ws::kPresenterRole);
+        seat<Presenter>(bus, presenter_id, std::move(presenter_speaks), zengine::pane::kPresenterRole);
 
     loom::Grant requester_speaks;
-    requester_speaks.allow_to_role(ws::PaneMenuRequested::zen_name,
-                                   ws::PaneMenuRequested::zen_version, kWorkshop);
+    requester_speaks.allow_to_role(zengine::pane::PaneMenuRequested::zen_name,
+                                   zengine::pane::PaneMenuRequested::zen_version, kWorkshop);
     Requester* requester =
         seat<Requester>(bus, requester_id, std::move(requester_speaks), kRequester);
 
     loom::Grant forger_speaks;
-    forger_speaks.allow_to_role(ws::PaneMenuAnswered::zen_name, ws::PaneMenuAnswered::zen_version,
+    forger_speaks.allow_to_role(zengine::pane::PaneMenuAnswered::zen_name, zengine::pane::PaneMenuAnswered::zen_version,
                                 kRequester);
     (void)seat<Forger>(bus, forger_id, std::move(forger_speaks), kForger);
 
@@ -523,9 +523,9 @@ int main() {
     live_menu();
     list_helpers();
     // Escape's default helper, from the installed header: a bare Escape is its, nothing else is.
-    check(ws::pane_escape::bare(ws::PaneKey{"p", zengine::input::scan::kEscape, 0}),
+    check(zengine::pane::pane_escape::bare(zengine::pane::PaneKey{"p", zengine::input::scan::kEscape, 0}),
           "pane_escape::bare takes a bare Escape");
-    check(!ws::pane_escape::bare(ws::PaneKey{"p", zengine::input::scan::kEscape,
+    check(!zengine::pane::pane_escape::bare(zengine::pane::PaneKey{"p", zengine::input::scan::kEscape,
                                              zengine::input::mod::kShift}),
           "pane_escape::bare leaves a modified Escape to the pane");
     if (failures == 0) {

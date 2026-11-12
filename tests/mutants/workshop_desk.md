@@ -59,7 +59,7 @@ Red in `zengine-workshop-desk-tests`:
 
 A pane's graphics area is named by its role alone.
 
-In `workshop/pane_drawing.hpp`:
+In `pane/drawing.hpp`:
 
 ```diff
 -    std::string area(role);

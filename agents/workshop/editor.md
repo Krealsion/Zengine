@@ -252,7 +252,7 @@ flight still refuses the exit"
 ### WL-EDIT-12
 `editor/editor-pane/pane.cpp` say compose caret_of status_text
 `editor/editor-pane/common.hpp` parts_of kNoticeNeedsRows
-`workshop/pane_drawing.hpp` rows_drawing
+`pane/drawing.hpp` rows_drawing
 `workshop/screen_external.cpp` external_header external_body_place
 `tests/test_workshop_panes_editor.cpp` "a selection that runs above the window is clipped, and one
 wholly out of it is not said" "in a room too small for both, the document keeps its rows and a
@@ -275,7 +275,7 @@ change" "the real desk, shown a presentation it holds no trial for, answers that
 ### WL-EDIT-14
 `workshop/weave_run.cpp` quit finish_quit on(PaneQuitAnswered) hold_input replay_held
 `workshop/weave.hpp` HeldInput kMaxHeldInput quitting_
-`workshop/pane_vocabulary.hpp` PaneQuitRequested PaneQuitAnswered
+`pane/vocabulary.hpp` PaneQuitRequested PaneQuitAnswered
 `editor/editor-pane/pane.cpp` on(PaneQuitRequested)
 `editor/editor-pane/common.hpp` kPasteInFlight
 `tests/test_workshop_panes_editor.cpp` "a Workshop with no custodian in the room quits at once" "a
@@ -298,7 +298,7 @@ was scrolled to stands" "the reloaded pane reads live, not out of the snapshot i
 `editor/editor-pane/transfers.hpp` on_window press_at dragged
 `editor/editor-pane/common.hpp` Drag
 `editor/editor-pane/editor.hpp` EditorBuffer::drag_to
-`workshop/pane_drawing.hpp` WindowPointer
+`pane/drawing.hpp` WindowPointer
 `tests/test_workshop_panes_editor.cpp` "a press that only focuses begins no sweep, and a gesture
 keeps the geometry it was made against" "a sweep in a pane that lost its seat is lost with it, and a
 motion after the close moves nothing it selected" "a press begins a sweep only where it named a row

@@ -17,8 +17,8 @@
 
 #include "composer/draft.hpp"
 #include "graphics/colors.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/rows.hpp"
+#include "pane/text.hpp"
 
 #include <zen/kind.hpp>
 #include <zen/schema.hpp>
@@ -76,7 +76,7 @@ struct RowMeaning {
 };
 
 struct RenderedRow {
-    zengine::workshop::TextRow row;
+    zengine::pane::TextRow row;
     RowMeaning meaning;
 };
 
@@ -86,7 +86,7 @@ struct RenderedRow {
 /// value is edited or its row was cut; the medium draws it.
 struct ComposerView {
     std::vector<RenderedRow> rows;
-    std::int64_t caret_row = zengine::workshop::kNoCaret;
+    std::int64_t caret_row = zengine::pane::kNoCaret;
     std::int64_t caret_col = 0;
 };
 
@@ -99,14 +99,14 @@ inline constexpr const char* kSelectedMark = "> ";
 inline constexpr const char* kUnselectedMark = "  ";
 
 /// The mark this view leaves where it could not show everything: the panes' own.
-inline constexpr const char* kElided = zengine::workshop::pane_text::kElided;
+inline constexpr const char* kElided = zengine::pane::pane_text::kElided;
 
 /// Fit `text` into `columns`, and say so when it did not fit: the panes' shared fit, in columns,
 /// over the text as a row shows it -- every character as written, a control character a space
 /// (`pane_text::printable`). The draft keeps the bytes typed; only this preview changes. Not a
 /// second measurer: the measuring was `workshop::fit_region`'s, and this spends the number.
 inline std::string fit(const std::string& text, std::int64_t columns) {
-    return zengine::workshop::pane_text::fit(zengine::workshop::pane_text::printable(text),
+    return zengine::pane::pane_text::fit(zengine::pane::pane_text::printable(text),
                                              columns);
 }
 
@@ -217,11 +217,11 @@ inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
     return columns > fixed ? columns - fixed : 0;
 }
 
-/// One field row and where its caret stands in it, or `zengine::workshop::kNoCaret`.
+/// One field row and where its caret stands in it, or `zengine::pane::kNoCaret`.
 struct FieldRow {
     std::string text;
-    std::int64_t caret = zengine::workshop::kNoCaret;
-    zengine::workshop::RowBox box{}; ///< the value being edited, a box on the row
+    std::int64_t caret = zengine::pane::kNoCaret;
+    zengine::pane::RowBox box{}; ///< the value being edited, a box on the row
 };
 
 /// One field row: its name, its declared type (the schema's own spelling, the only thing the
@@ -256,23 +256,23 @@ inline FieldRow field_row(const MessageDraft& draft, std::size_t which, bool cho
     }
     row += "  ";
     // A column past the value's room, where a caret after its last character stands.
-    const zengine::workshop::RowBox box = zengine::workshop::row_box(
-        d.value, zengine::workshop::pane_text::columns_of(row),
+    const zengine::pane::RowBox box = zengine::pane::row_box(
+        d.value, zengine::pane::pane_text::columns_of(row),
         room + 1 + 2 * zengine::graphics::kTextBoxInset);
     const std::string whole = row + std::string(static_cast<std::size_t>(box.columns), ' ');
     const std::string drawn = fit(whole, columns);
-    if (drawn != zengine::workshop::pane_text::printable(whole)) {
-        return {drawn, zengine::workshop::kNoCaret};
+    if (drawn != zengine::pane::pane_text::printable(whole)) {
+        return {drawn, zengine::pane::kNoCaret};
     }
-    return {drawn, zengine::workshop::box_caret(box, 0).column, box};
+    return {drawn, zengine::pane::box_caret(box, 0).column, box};
 }
 
 inline std::string field_row_text(const MessageDraft& draft, std::size_t which, bool chosen,
                                   bool editing, std::int64_t columns) {
     const FieldRow row = field_row(draft, which, chosen, editing, columns);
-    zengine::workshop::TextRow shown{row.text};
+    zengine::pane::TextRow shown{row.text};
     shown.box = row.box;
-    return zengine::workshop::row_text_shown(shown, true);
+    return zengine::pane::row_text_shown(shown, true);
 }
 
 /// What this pane is looking at and what the weaver has done to it: the provider's whole
@@ -322,8 +322,8 @@ inline std::string part_name(const Composing& c, const RowMeaning& m) {
 }
 
 /// THE ROWS the pane draws. The meanings stay here.
-inline std::vector<zengine::workshop::TextRow> rows_of(const ComposerView& view) {
-    std::vector<zengine::workshop::TextRow> out;
+inline std::vector<zengine::pane::TextRow> rows_of(const ComposerView& view) {
+    std::vector<zengine::pane::TextRow> out;
     out.reserve(view.rows.size());
     for (const RenderedRow& r : view.rows) {
         out.push_back(r.row);
@@ -367,7 +367,7 @@ struct Sayer {
             means.under = under;
         }
         view.rows.push_back(RenderedRow{
-            zengine::workshop::TextRow{std::move(text), ink, ground}, std::move(means)});
+            zengine::pane::TextRow{std::move(text), ink, ground}, std::move(means)});
     }
 };
 
@@ -489,7 +489,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
                 ink = graphics::colors::alert;
             }
             const FieldRow field = field_row(c.draft, which, chosen, editing, columns);
-            if (field.caret != zengine::workshop::kNoCaret) {
+            if (field.caret != zengine::pane::kNoCaret) {
                 view.caret_row = static_cast<std::int64_t>(view.rows.size());
                 view.caret_col = field.caret;
             }

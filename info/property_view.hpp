@@ -20,17 +20,17 @@
 #include "value_watch.hpp"
 
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_parts.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/causes.hpp"
+#include "pane/parts.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "component/text_box.hpp"
 #include "graphics/colors.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/weave.hpp>
 
@@ -45,8 +45,8 @@
 namespace zengine::info_pane {
 
 /// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
-/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
-using zengine::workshop::pane_menu::kWorkshopRole;
+/// (`pane/menu.hpp`) as a stranger's pane reads it.
+using zengine::pane::pane_menu::kWorkshopRole;
 
 class PropertyView {
 public:
@@ -139,7 +139,7 @@ public:
         }
         settings_ask_ = ++c.asks;
         (void)c.mail.as_role(kInfoPaneRole)
-            .send_to_role(workshop::kLayoutsRole,
+            .send_to_role(pane::kLayoutsRole,
                           workshop::PaneSettingsRequested{host_.role, host_.pane}, settings_ask_);
     }
 
@@ -258,7 +258,7 @@ public:
     }
 
     void type(const std::string& text) {
-        if (!draft_.open || text.empty() || !workshop::pane_text::admissible(text)) {
+        if (!draft_.open || text.empty() || !pane::pane_text::admissible(text)) {
             return;
         }
         notice_.clear();
@@ -272,7 +272,7 @@ public:
         if (!draft_.open || draft_.line.draft_epoch() != epoch) {
             return;
         }
-        if (text.empty() || !workshop::pane_text::admissible(text)) {
+        if (text.empty() || !pane::pane_text::admissible(text)) {
             return;
         }
         draft_.line.type(text);
@@ -322,17 +322,17 @@ public:
     /// AND A MODE IS NOT A SECOND ONE (WL-FILES-16): while a weaver types a value this view
     /// declares two rows and no more, and every other key reaches it as an ordinary `PaneKey` for
     /// the line to consume, so Backspace deletes a character rather than meaning anything here.
-    std::vector<workshop::v4::PaneActionRow> action_rows() const {
-        std::vector<workshop::v4::PaneActionRow> rows;
+    std::vector<pane::v4::PaneActionRow> action_rows() const {
+        std::vector<pane::v4::PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
-                                 std::vector<workshop::ActionCause> causes = {}) {
-            rows.push_back(workshop::v4::PaneActionRow{id, label, sc, input::mod::kNone, {},
+                                 std::vector<pane::ActionCause> causes = {}) {
+            rows.push_back(pane::v4::PaneActionRow{id, label, sc, input::mod::kNone, {},
                                                        std::move(causes)});
         };
         if (draft_.open) {
             row(kActionCommit, "commit", input::scan::kReturn,
-                {workshop::cause_of<workshop::PaneCommitRequested>(),
-                 workshop::cause_of<workshop::PaneSettingCommitRequested>()});
+                {pane::cause_of<workshop::PaneCommitRequested>(),
+                 pane::cause_of<workshop::PaneSettingCommitRequested>()});
             row(kActionCancel, "cancel", input::scan::kEscape);
         } else {
             row(kActionUp, "row up", input::scan::kUp);
@@ -343,7 +343,7 @@ public:
     }
 
     bool answers(const std::string& id) const {
-        for (const workshop::v4::PaneActionRow& row : action_rows()) {
+        for (const pane::v4::PaneActionRow& row : action_rows()) {
             if (row.id == id) {
                 return true;
             }
@@ -356,15 +356,15 @@ public:
     /// THE ROWS THIS VIEW SHOWS, composed once into the room it was granted, with their press map
     /// (`placed`) and the draft's caret (`caret`): the front sentence, the one heading, and the
     /// subject's properties under it.
-    std::vector<workshop::TextRow> compose() {
-        std::vector<workshop::TextRow> out;
+    std::vector<pane::TextRow> compose() {
+        std::vector<pane::TextRow> out;
         composed_.clear();
         caret_ = {};
         const auto push = [&out, this](std::string text, graphics::Color ink,
                                        graphics::Color ground = graphics::no_color(),
-                                       const workshop::RowBox& box = {}) {
-            out.push_back(workshop::TextRow{
-                workshop::pane_text::printable(workshop::pane_text::fit(std::move(text), columns_)),
+                                       const pane::RowBox& box = {}) {
+            out.push_back(pane::TextRow{
+                pane::pane_text::printable(pane::pane_text::fit(std::move(text), columns_)),
                 ink, ground});
             out.back().box = box;
         };
@@ -390,21 +390,21 @@ public:
     /// WHAT INFO CALLS THE ROWS IT SENDS, of the `said` it sends: a property by its label,
     /// `property:<label>`. A row it names nothing is not listed: a row entire lies over no other
     /// part.
-    std::vector<workshop::RowPart> named_rows(std::int64_t said) const {
-        workshop::PartNames<workshop::RowPart> names;
+    std::vector<pane::RowPart> named_rows(std::int64_t said) const {
+        pane::PartNames<pane::RowPart> names;
         for (const Row& r : composed_) {
             if (r.row >= said || r.what != Placed::kProperty ||
                 r.index >= known_.properties.size()) {
                 continue;
             }
-            (void)names.add(workshop::RowPart{"property:" + known_.properties[r.index].label,
+            (void)names.add(pane::RowPart{"property:" + known_.properties[r.index].label,
                                                   r.row, 0, columns_});
         }
         return names.take();
     }
 
     /// The draft's caret and selection in the rows last composed, or none.
-    const workshop::RowsCaret& caret() const noexcept { return caret_; }
+    const pane::RowsCaret& caret() const noexcept { return caret_; }
 
 private:
     // ---- The measurements and the sentences ----------------------------------------------
@@ -622,7 +622,7 @@ private:
         return record.awaiting && record.attempt.valid() && attempt.valid() &&
                attempt.seq == record.attempt.seq && mail.correlation() == record.pending &&
                refused.shape == shape && refused.version == static_cast<std::int64_t>(version) &&
-               (refused.role == kWorkshopRole || refused.role == workshop::kLayoutsRole) &&
+               (refused.role == kWorkshopRole || refused.role == pane::kLayoutsRole) &&
                refused.target.empty();
     }
 
@@ -724,7 +724,7 @@ private:
         sending.awaiting = true;
         sending.pending = correlation;
         sending.attempt = c.mail.as_role(kInfoPaneRole)
-                              .send_to_role(workshop::kLayoutsRole, *typed.commit, correlation);
+                              .send_to_role(pane::kLayoutsRole, *typed.commit, correlation);
         if (!sending.attempt.valid()) {
             committing_ = SentCommit{};
             notice_ = kCommitNotQueued;
@@ -879,7 +879,7 @@ private:
                         : static_cast<std::size_t>(cursor_ < 0 ? 0 : cursor_);
         const ListWindow win = list_window(known_.properties.size(), focus, share);
         if (win.before > 0) {
-            push(workshop::pane_text::omitted_text(win.before, "earlier"), graphics::colors::quiet);
+            push(pane::pane_text::omitted_text(win.before, "earlier"), graphics::colors::quiet);
         }
         const std::int64_t value_columns = columns_ - kPropertyMarkCols - kPropertyLabelCols;
         for (std::size_t n = 0; n < win.count; ++n) {
@@ -899,39 +899,39 @@ private:
             }
             std::string text =
                 std::string(here || editing ? ">" : " ") +
-                workshop::pane_text::pad(p.label, static_cast<std::size_t>(kPropertyLabelCols));
-            workshop::RowBox box;
+                pane::pane_text::pad(p.label, static_cast<std::size_t>(kPropertyLabelCols));
+            pane::RowBox box;
             if (editing) {
                 // THE DRAFT IS A BOX over the value's columns, and its window follows the caret,
                 // so a long value scrolls to where the weaver is typing.
-                box = workshop::row_box(draft_.line, static_cast<std::int64_t>(text.size()),
+                box = pane::row_box(draft_.line, static_cast<std::int64_t>(text.size()),
                                         value_columns);
                 text += std::string(static_cast<std::size_t>(value_columns > 0 ? value_columns : 0),
                                     ' ');
             } else {
-                text += workshop::pane_text::fit(p.value, value_columns);
+                text += pane::pane_text::fit(p.value, value_columns);
             }
             mark(Placed::kProperty, i);
             if (editing && value_columns > 0) {
-                caret_ = workshop::box_caret(box, composed_.back().row);
+                caret_ = pane::box_caret(box, composed_.back().row);
             }
             push(std::move(text), ink, graphics::no_color(), box);
         }
         if (win.after > 0) {
-            push(workshop::pane_text::omitted_text(win.after, "more"), graphics::colors::quiet);
+            push(pane::pane_text::omitted_text(win.after, "more"), graphics::colors::quiet);
         }
     }
 
     /// THE ROOM IS THE WALL: the front sentence goes in front of the body when there is a row for
     /// it, and whatever the room cannot hold is cut, whatever was composed.
-    std::vector<workshop::TextRow> finish(std::vector<workshop::TextRow> out) const {
+    std::vector<pane::TextRow> finish(std::vector<pane::TextRow> out) const {
         if (lead() > 0) {
             if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
                 out.resize(static_cast<std::size_t>(rows_ - 1));
             }
-            out.insert(out.begin(), workshop::TextRow{
-                                        workshop::pane_text::printable(
-                                            workshop::pane_text::fit(front_sentence(), columns_)),
+            out.insert(out.begin(), pane::TextRow{
+                                        pane::pane_text::printable(
+                                            pane::pane_text::fit(front_sentence(), columns_)),
                                         graphics::colors::alert});
         }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
@@ -1038,7 +1038,7 @@ private:
 
     Draft draft_;
     std::vector<Row> composed_;
-    workshop::RowsCaret caret_; ///< the draft's caret and selection in the rows last composed, or none
+    pane::RowsCaret caret_; ///< the draft's caret and selection in the rows last composed, or none
     std::string notice_;
     Due due_;
 

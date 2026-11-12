@@ -7,7 +7,7 @@
 // What a weaver calls the arrangement they are working in, and what that may mean.
 // Workshop law: agents/workshop/setup-file.md (+8 registers; agents/workshop.md routes)
 
-#include "pane_settings.hpp"
+#include "pane/settings.hpp"
 #include "panes.hpp"
 #include "property/property.hpp"
 #include "settings_seam_vocabulary.hpp" // how long a pin list is
@@ -26,6 +26,12 @@
 #include <vector>
 
 namespace zengine::workshop {
+using pane::PaneSetting;
+using pane::is_desk_setting_key;
+using pane::kMaxPaneSettingTextLen;
+using pane::kMaxPaneSettingsPerRow;
+using pane::pane_setting_key_problem;
+using pane::pane_setting_problem;
 
 using zengine::persist::Written;
 

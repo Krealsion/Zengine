@@ -20,24 +20,24 @@
 
 #include "terminal/vocabulary.hpp"
 
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/causes.hpp"
+#include "pane/facets.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"
 #include "component/row_map.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
+#include "pane/carry.hpp"
+#include "pane/menu.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 #include <zen/weave/dispatch_refusal.hpp>
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -61,11 +61,11 @@ namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::terminal_pane;
 
-using ws::v4::PaneActionRow;
-using ws::PaneEscapeUnspent;
-using ws::PaneKey;
-using ws::v2::PaneOffered;
-using ws::PaneTextInput;
+using zengine::pane::v4::PaneActionRow;
+using zengine::pane::PaneEscapeUnspent;
+using zengine::pane::PaneKey;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PaneTextInput;
 using ws::ShownCandidate;
 using ws::ShownEntry;
 using ws::TerminalActed;
@@ -73,9 +73,9 @@ using ws::TerminalActRequested;
 using ws::TerminalCompletionOffered;
 using ws::TerminalCompletionRequested;
 using ws::TranscriptShown;
-using zengine::workshop::pane_text::admissible;
+using zengine::pane::pane_text::admissible;
 
-using zengine::workshop::pane_menu::kWorkshopRole;
+using zengine::pane::pane_menu::kWorkshopRole;
 
 /// THE PROMPT, in columns: its mark and a space before the editable text -- a fact about a ROW this
 /// pane composes rather than about any screen. Every mark the `prompt` setting takes is one column.
@@ -97,23 +97,23 @@ struct WrappedRecord;
 using Subject = std::pair<std::int64_t, std::int64_t>;
 
 /// The pane's room, its rows and their presses; a transcript row carrying a value means it.
-using Rows = ws::PaneRowsFacet<pane::kTerminalPane, pane::kTerminalPaneRole,
+using Rows = zengine::pane::PaneRowsFacet<pane::kTerminalPane, pane::kTerminalPaneRole,
                                zengine::manual::pages::zengine_terminal::kManual, Subject>;
-using Actions = ws::PaneActionFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
-using Menu = ws::PaneMenuFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
+using Actions = zengine::pane::PaneActionFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
+using Menu = zengine::pane::PaneMenuFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
 /// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
+using Settings = zengine::pane::PaneSettingsFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
 
 class TerminalPaneWeave
     : public zengine::With<Rows, Actions, Menu, Settings>::Weave<
           TerminalPaneWeave, pane::TerminalPaneState,
-          loom::Accept<ws::TerminalValueAnswered, ws::PaneCarryAnswered,
+          loom::Accept<ws::TerminalValueAnswered, zengine::pane::PaneCarryAnswered,
                        loom::DispatchRefused, PaneKey, PaneTextInput, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, gfx::ClipboardCopy,
                        gfx::ClipboardText>,
-          loom::Emit<ws::v2::PaneSettingsDeclared, ws::v4::PaneActions, PaneEscapeUnspent,
+          loom::Emit<zengine::pane::v2::PaneSettingsDeclared, zengine::pane::v4::PaneActions, PaneEscapeUnspent,
                      ws::TerminalValueRequested,
-                     ws::PaneValueCarryRequested, TerminalActRequested,
+                     zengine::pane::PaneValueCarryRequested, TerminalActRequested,
                      TerminalCompletionRequested, gfx::ClipboardCopy,
                      gfx::ClipboardTextRequested>> {
 public:
@@ -133,8 +133,8 @@ public:
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(ws::kLayoutsRole,
-                          ws::v2::PaneSettingsDeclared{pane::kTerminalPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole,
+                          zengine::pane::v2::PaneSettingsDeclared{pane::kTerminalPane, setting_rows()});
     }
 
     /// A room granted, prose or canvas: the pane draws its rows there.
@@ -145,10 +145,10 @@ public:
     /// setting cannot use leaves its default in force and was said back to the owner -- the
     /// legend's on its own row too; a key it did not declare is passed over. Held as plain members,
     /// never reload state.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         legend_shown_ = taken.flag(pane::kSettingLegend);
         const std::string refused = taken.refusal(pane::kSettingLegend);
-        legend_problem_ = refused.empty() ? std::string() : refused + " -- " + ws::kSettingOn;
+        legend_problem_ = refused.empty() ? std::string() : refused + " -- " + zengine::pane::kSettingOn;
         wheel_rows_ = taken.number(pane::kSettingWheelRows);
         prompt_ = taken.text(pane::kSettingPrompt);
         say(mail);
@@ -156,21 +156,21 @@ public:
 
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
     /// the legend, pinned; the wheel's rows a notch; the prompt's mark.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow legend;
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        zengine::pane::v2::PaneSettingRow legend;
         legend.key = pane::kSettingLegend;
         legend.flag = true;
         legend.tags = {"chrome", "help"};
         legend.pinned = true;
         legend.summary = "show the shortcut legend bar";
-        ws::v2::PaneSettingRow wheel;
+        zengine::pane::v2::PaneSettingRow wheel;
         wheel.key = pane::kSettingWheelRows;
         wheel.number = kWheelRows;
         wheel.low = kWheelRowsLow;
         wheel.high = kWheelRowsHigh;
         wheel.tags = {"input", "scroll"};
         wheel.summary = "rows scrolled per mouse wheel notch";
-        ws::v2::PaneSettingRow prompt;
+        zengine::pane::v2::PaneSettingRow prompt;
         prompt.key = pane::kSettingPrompt;
         prompt.text = kPrompt;
         prompt.choices = kPromptMarks;
@@ -275,7 +275,7 @@ public:
     /// elsewhere, and on a part a window asked as an action, where no carry begins, it means what a
     /// press on that row means. Motion, release and loss are nothing: no sweep here, and a pickup's
     /// drag is Workshop's once the carry begins.
-    void press(const ws::RowPress& at, loom::Mail& mail) {
+    void press(const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (at.moved) { // the window landed it on a row the transcript has since replaced there
             notice_ = "That transcript picture changed; try again";
             say(mail);
@@ -291,7 +291,7 @@ public:
 
     /// A RIGHT PRESS on a value offers to pick up a copy of it; anywhere else, or while a pickup
     /// is in flight, it is handed back, so Workshop's own pane menu opens where it was made.
-    bool right_press(const Subject& subject, const ws::RowPress& at, loom::Mail& mail) {
+    bool right_press(const Subject& subject, const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (capture_.pending()) { // a pickup in flight offers nothing now: handed back, not dropped
             return false;
         }
@@ -323,13 +323,13 @@ public:
         capture_.forget();
         if (!answer.available) { notice_ = answer.reason; say(mail); return; }
         const bool queued = capture_.send_to_role(mail.as_role(pane::kTerminalPaneRole), kWorkshopRole,
-            ws::PaneValueCarryRequested{pane::kTerminalPane, answer.label, answer.pair, capture_drag_},
+            zengine::pane::PaneValueCarryRequested{pane::kTerminalPane, answer.label, answer.pair, capture_drag_},
             capture_gesture_);
         notice_ = queued ? "Placing transcript copy" : "Transcript copy could not be queued";
         say(mail);
     }
-    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
-        if (!capture_.is<ws::PaneValueCarryRequested>() || !capture_.matches_answer(mail)) return;
+    void on(const zengine::pane::PaneCarryAnswered& answer, loom::Mail& mail) {
+        if (!capture_.is<zengine::pane::PaneValueCarryRequested>() || !capture_.matches_answer(mail)) return;
         capture_.forget();
         notice_ = answer.carried ? std::string() : answer.reason;
         say(mail);
@@ -359,7 +359,7 @@ public:
             // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
             // `first_visible + offset` of the WHOLE authored line, never the offset alone --
             // that is the one subtraction a horizontal viewport adds to a hit test.
-            const std::int64_t offset = column - ws::box_text_column(line_box_, line_cells_);
+            const std::int64_t offset = column - zengine::pane::box_text_column(line_box_, line_cells_);
             const std::size_t target =
                 line_.position_at_column(offset < 0 ? 0 : offset);
             // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT; the first press still places
@@ -526,7 +526,7 @@ private:
     void declare(loom::Mail& mail) {
         (void)mail.as_role(pane::kTerminalPaneRole)
             .send_to_role(kWorkshopRole,
-                          ws::v4::PaneActions{pane::kTerminalPane, {}, action_rows(), {}});
+                          zengine::pane::v4::PaneActions{pane::kTerminalPane, {}, action_rows(), {}});
     }
 
     /// THE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the pane
@@ -535,17 +535,17 @@ private:
     static std::vector<PaneActionRow> action_rows() {
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
-                                 std::vector<ws::ActionCause> causes = {}) {
+                                 std::vector<zengine::pane::ActionCause> causes = {}) {
             rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone, {}, std::move(causes)});
         };
         row(pane::kActionSubmit, "run, take moved row, keep recall", input::scan::kReturn,
-            {ws::cause_of<TerminalActRequested>()});
+            {zengine::pane::cause_of<TerminalActRequested>()});
         rows.push_back(PaneActionRow{pane::kActionSubmitEarly, "run the line as typed",
                                      input::scan::kReturn, input::mod::kShift, {},
-                                     {ws::cause_of<TerminalActRequested>()}, {}, input::scan::kE,
+                                     {zengine::pane::cause_of<TerminalActRequested>()}, {}, input::scan::kE,
                                      input::mod::kCtrl});
         row(pane::kActionComplete, "what can this terminal say?", input::scan::kTab,
-            {ws::cause_of<TerminalCompletionRequested>()});
+            {zengine::pane::cause_of<TerminalCompletionRequested>()});
         row(pane::kActionUp, "older command / list up", input::scan::kUp);
         row(pane::kActionDown, "newer command / list down", input::scan::kDown);
         row(pane::kActionBack, "back: recall, list, line, desk", input::scan::kEscape);
@@ -655,20 +655,20 @@ private:
     // ---- The rows, and the caret in them: composed in `view.hpp`, named here ----------------
 
     void say(loom::Mail& mail);
-    void send(std::vector<zengine::workshop::TextRow> out, std::vector<ws::RowPart> parts,
+    void send(std::vector<zengine::pane::TextRow> out, std::vector<zengine::pane::RowPart> parts,
               loom::Mail& mail);
     template <typename Push> void say_list(std::size_t room, const Push& push);
-    ws::RowsCaret caret() const;
+    zengine::pane::RowsCaret caret() const;
 
     /// WHAT THE TERMINAL CALLS ITS PARTS, of the `said` rows it sends: a transcript entry carrying
     /// a value, `entry:<observation>`; the line being typed, `line`; the way back to the newest
     /// output, `newest`; a completion candidate, `candidate:<what it says>`; and the legend row,
     /// `legend`, which a layout's setting shows or hides.
-    std::vector<ws::RowPart> named_rows(std::int64_t said) const {
-        ws::PartNames<ws::RowPart> names;
+    std::vector<zengine::pane::RowPart> named_rows(std::int64_t said) const {
+        zengine::pane::PartNames<zengine::pane::RowPart> names;
         const auto name = [&](std::string what, std::int64_t row) {
             if (row >= 0 && row < said) {
-                (void)names.add(ws::RowPart{std::move(what), row, 0, columns(), true});
+                (void)names.add(zengine::pane::RowPart{std::move(what), row, 0, columns(), true});
             }
         };
         for (const auto& span : room().map().spans()) {
@@ -785,7 +785,7 @@ private:
     std::int64_t input_row_ = -1;
     /// The line as the input row last showed it: the box, its slice, caret and selection from one
     /// window, and whether that window counted in cells, where the box reads plain.
-    ws::RowBox line_box_;
+    zengine::pane::RowBox line_box_;
     bool line_cells_ = false;
     std::int64_t list_first_row_ = -1;
     std::int64_t list_row_count_ = 0;

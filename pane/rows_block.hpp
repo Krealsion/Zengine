@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_ROWS_BLOCK_HPP
-#define ZENGINE_WORKSHOP_PANE_ROWS_BLOCK_HPP
+#ifndef ZENGINE_PANE_ROWS_BLOCK_HPP
+#define ZENGINE_PANE_ROWS_BLOCK_HPP
 
 // Text as a helper inside any pane's picture: rows composed with what each row and run of columns
 // means, a control strip, a list through its window, the caret and the selection, drawn into the
@@ -15,10 +15,10 @@
 #include "component/row_map.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/vocabulary.hpp"
-#include "pane_drawing.hpp"
-#include "pane_parts.hpp"
-#include "pane_rows.hpp"
-#include "pane_text.hpp"
+#include "pane/drawing.hpp"
+#include "pane/parts.hpp"
+#include "pane/rows.hpp"
+#include "pane/text.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// ROWS PLACED IN A PICTURE: `drawn`, as `rows_drawing` drew it for a room of `width` by `height`
 /// pixels, put into `into` as the group `name` at `x`, `y` and clipped to that room, each node and
@@ -233,6 +233,6 @@ private:
     std::map<std::string, Meaning> named_; ///< each part's meaning, as the rows last taken name it
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_ROWS_BLOCK_HPP
+#endif // ZENGINE_PANE_ROWS_BLOCK_HPP

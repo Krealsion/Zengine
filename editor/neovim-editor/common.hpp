@@ -17,10 +17,10 @@
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/menu.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
@@ -55,8 +55,8 @@ namespace ws = zengine::workshop;
 
 using ws::EditorDocument;
 using ws::EditorTransfer;
-using ws::pane_text::printable;
-using ws::pane_text::fit;
+using pane::pane_text::printable;
+using pane::pane_text::fit;
 
 namespace role = zengine::editor_role;
 
@@ -130,7 +130,7 @@ inline const mp::Value& field(const mp::Value& v, const char* key) {
 /// THE FINGERPRINT OF THE ROWS DRAWN: every row's text and colours, the caret, the one range and the
 /// generation -- what a weaver saw, so a press or a drop aimed at it can be told from one aimed at
 /// a screen that moved since (FNV-1a).
-inline std::uint64_t picture_hash(const std::vector<ws::TextRow>& rows, const ws::RowsCaret& caret,
+inline std::uint64_t picture_hash(const std::vector<pane::TextRow>& rows, const pane::RowsCaret& caret,
                                   std::int64_t generation) {
     std::uint64_t h = 1469598103934665603ull;
     const auto mix = [&h](const void* p, std::size_t n) {
@@ -148,7 +148,7 @@ inline std::uint64_t picture_hash(const std::vector<ws::TextRow>& rows, const ws
         num(static_cast<std::int64_t>(c.like.size()));
         mix(c.like.data(), c.like.size());
     };
-    for (const ws::TextRow& r : rows) {
+    for (const pane::TextRow& r : rows) {
         num(static_cast<std::int64_t>(r.text.size()));
         mix(r.text.data(), r.text.size());
         color(r.ink);
@@ -386,7 +386,7 @@ struct Dropped {
     bool pending = false;
     st::Material material;
     Aim aim;
-    ws::pane_menu::Asked menu;
+    pane::pane_menu::Asked menu;
 };
 
 /// A DROPPED LOCATION, judged against the changedtick of the buffer Neovim held when the open was

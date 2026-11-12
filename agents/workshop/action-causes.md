@@ -69,9 +69,9 @@ WHY — `agents/decisions/a-press-says-what-it-may-cause.md`
 ## Proven by
 
 ### WL-CAUSE-01
-`workshop/pane_vocabulary.hpp` ActionCause v3::PaneActionRow v3::PaneActions kMaxActionCauses
+`pane/vocabulary.hpp` ActionCause v3::PaneActionRow v3::PaneActions kMaxActionCauses
 `workshop/desktop_seam_vocabulary.hpp` v2::AppActionRow v2::AppActions
-`workshop/pane_causes.hpp` action_cause_problem action_causes_problem pane_declaration_problem
+`pane/causes.hpp` action_cause_problem action_causes_problem pane_declaration_problem
 cause_of on_part to_pane action_row_of
 `workshop/keymap.hpp` AppRow::causes
 `workshop/weave_seam.cpp` on(PaneActions) declare_pane_actions
@@ -83,8 +83,8 @@ other modes cause with its rows, widens an earlier version with none, and refuse
 whole, the rows in force standing"
 
 ### WL-CAUSE-02
-`workshop/pane_vocabulary.hpp` ModeCauses kMaxPaneModes kMaxModeCauses kMaxPaneModeLen
-`workshop/pane_causes.hpp` pane_mode_problem pane_declaration_problem causes_elsewhere
+`pane/vocabulary.hpp` ModeCauses kMaxPaneModes kMaxModeCauses kMaxPaneModeLen
+`pane/causes.hpp` pane_mode_problem pane_declaration_problem causes_elsewhere
 `workshop/panes.hpp` RuntimePane::mode RuntimePane::elsewhere
 `builder/builder-pane/pane.cpp` rows_of mode declare
 `workshop/desktop-pane/pane.cpp` keys_rows keys_mode declare_keys
@@ -97,9 +97,9 @@ mode, with what each press causes and the mode it enters, and the desk's, are te
 ### WL-CAUSE-03
 `graphics/vocabulary.hpp` PartFace AreaPart
 `workshop/pane_view.hpp` PanePart PaneView PaneViewRequested
-`workshop/pane_drawing.hpp` part_available rows_drawing
-`workshop/pane_canvas_drawing.hpp` canvas_sketch
-`workshop/pane_parts.hpp` row_parts
+`pane/drawing.hpp` part_available rows_drawing
+`pane/canvas_drawing.hpp` canvas_sketch
+`pane/parts.hpp` row_parts
 `workshop/weave_desk_read.cpp` on(PaneViewRequested) shown_words_and_parts shown_fingerprint
 `builder/builder-pane/pane.cpp` BuilderMeaning::available
 `tests/test_workshop_panes_builder.cpp` "WL-CAUSE-03: a control the Builder draws in brackets reads

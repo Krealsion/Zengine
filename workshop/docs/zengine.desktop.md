@@ -105,7 +105,7 @@ pane holding your keys.
 - **Takes:** the pane the press was on. Default key <!-- key desktop.manual -->`ctrl+f`<!-- /key -->;
   the `?` at a pane's top right.
 - **Answers:** asks that pane's role for its whole manual
-  ([`PaneDocumentRequested`](../pane_document.hpp)), under a number of the desk's own so only that
+  ([`PaneDocumentRequested`](../../pane/document.hpp)), under a number of the desk's own so only that
   answer is shown, and asks Workshop to show the Manual
   ([`PaneLaunchRequested`](zengine.workshop.md#panelaunchrequested)), which Workshop opens over that
   pane, a little of it showing on every edge. The Manual says `asking

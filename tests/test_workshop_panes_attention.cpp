@@ -223,7 +223,7 @@ TEST_CASE("the pane declares the three ids a weaver's keymap file already names"
     const RuntimePane* seat = f.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const v4::PaneActionRow& row : seat->actions) {
+    for (const zengine::pane::v4::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     std::sort(declared.begin(), declared.end());
@@ -248,7 +248,7 @@ TEST_CASE("the manual the Attention pane answers names exactly the commands it d
     const RuntimePane* held = f.row();
     REQUIRE(held != nullptr);
     std::set<std::string> declared;
-    for (const v4::PaneActionRow& row : held->actions) {
+    for (const zengine::pane::v4::PaneActionRow& row : held->actions) {
         declared.insert(row.id);
     }
     ManualReader reader(f.r, pane::kAttentionPaneRole);
@@ -285,10 +285,10 @@ TEST_CASE("the Attention pane declares its `detail` setting, and a layout keepin
     f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
 
     // THE ONE SETTING, AS WORKSHOP COUNTS IT: a flag on by default, pinned, found under help and chrome.
-    const v2::PaneSettingRow detail{pane::kSettingDetail, true, std::nullopt, std::nullopt, {},
+    const zengine::pane::v2::PaneSettingRow detail{pane::kSettingDetail, true, std::nullopt, std::nullopt, {},
                                     std::nullopt, std::nullopt, {"help", "chrome"}, true,
                                     "show the selected item detail block"};
-    CHECK(declared_settings(f.r, attention_ref()) == std::vector<v2::PaneSettingRow>{detail});
+    CHECK(declared_settings(f.r, attention_ref()) == std::vector<zengine::pane::v2::PaneSettingRow>{detail});
     const std::string shown = f.text();
     CAPTURE(shown);
     REQUIRE(shown.find("a sentence its owner already had") != std::string::npos);
@@ -855,8 +855,12 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     r.mount_workshop();
     zengine::workshop::v3::GuestConnections said;
     said.listen = "127.0.0.1:4242";
-    said.rows.push_back(zengine::workshop::v3::GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, "", {}, "", 0, {}, "", {}});
-    said.rows.push_back(zengine::workshop::v3::GuestConnection{2, "awaiting-decision", "stranger", "", "", 0, "", {}, "", 0, {}, "", {}});
+    said.rows.push_back(zengine::workshop::v3::GuestConnection{1, "admitted", "tool", "tool",
+                                                               "127.0.0.1:5000", 7, "", {}, "", 0,
+                                                               {}, "", {}});
+    said.rows.push_back(zengine::workshop::v3::GuestConnection{2, "awaiting-decision", "stranger",
+                                                               "", "", 0, "", {}, "", 0, {}, "",
+                                                               {}});
     {
         auto door = std::make_unique<GuestDoorSeat>(said);
         GuestDoorSeat* raw = door.get();

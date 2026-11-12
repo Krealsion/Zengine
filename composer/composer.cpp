@@ -14,18 +14,18 @@
 #include "input/vocabulary.hpp"
 #include "introspection/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_vocabulary.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_escape.hpp"
+#include "pane/rows.hpp"
+#include "pane/facets.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/escape.hpp"
 #include "inventory/codec.hpp"
 #include "inventory/pane_client.hpp"
 #include "manual/vocabulary.hpp"
 #include "message-draft/library.hpp"
 #include "manuals/zengine.composer.hpp" // this pane's manual, compiled in from its page
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/registry.hpp>
@@ -63,13 +63,13 @@ using zengine::composer::RowMeaning;
 using zengine::composer::Snapshot;
 using zengine::introspection::kIntrospectionRole;
 using zengine::introspection::LoadedSelected;
-using zengine::workshop::PaneKey;
-using zengine::workshop::v2::PaneOffered;
-using zengine::workshop::PaneTextInput;
+using zengine::pane::PaneKey;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PaneTextInput;
 namespace stage = zengine::composer::stage;
 namespace meaning = zengine::composer::meaning;
 
-using zengine::workshop::pane_menu::kWorkshopRole;
+using zengine::pane::pane_menu::kWorkshopRole;
 
 using zengine::composer::ComposerCommandContext;
 using AcceptedShapes = zengine::RawValueDoor<&loom::accepted_shapes_schema>;
@@ -114,21 +114,22 @@ struct ComposerState {
 /// The pane's offer, room, rows, presses and manual: each row's meaning is `RowMeaning`, which
 /// names the target and form it was drawn under, so a press on a picture drawn for another
 /// target or form, whose rows stood where these stand, opens nothing.
-using Rows = ws::PaneRowsFacet<kComposePane, kComposerRole,
+using Rows = zengine::pane::PaneRowsFacet<kComposePane, kComposerRole,
                                zengine::manual::pages::zengine_composer::kManual, RowMeaning>;
 using Manual = zengine::manual::ManualFacet<zengine::manual::pages::zengine_composer::kManual>;
-using Actions = ws::PaneActionFacet<kComposePane, kComposerRole>;
+using Actions = zengine::pane::PaneActionFacet<kComposePane, kComposerRole>;
 
 /// What this weave says to Workshop beside its rows and actions. A submitted command is whatever
 /// shape the weaver filled, so it is not listed.
 class ComposerWeave final
     : public zengine::With<Rows, Manual, Actions>::Weave<
           ComposerWeave, ComposerState,
-          loom::Accept<ws::PaneResetRequested, ws::PaneCanvasValueDrop, ws::PaneCanvasDrop,
-                       ws::PaneOperationAnswered, inv::InventoryEntry, loom::DispatchRefused,
+          loom::Accept<ws::PaneResetRequested, zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneCanvasDrop,
+                       zengine::pane::PaneOperationAnswered, inv::InventoryEntry, loom::DispatchRefused,
                        PaneKey, PaneTextInput, LoadedSelected, gfx::ClipboardCopy,
                        gfx::ClipboardText, AcceptedShapes, loom::Refused>,
-          loom::Emit<ws::PaneOperationRequested, ws::PaneEscapeUnspent, ws::v4::PaneActions>> {
+          loom::Emit<zengine::pane::PaneOperationRequested, zengine::pane::PaneEscapeUnspent,
+                     zengine::pane::v4::PaneActions>> {
 public:
     // ---- the pane protocol: the facets call these ---------------------------
 
@@ -154,7 +155,7 @@ public:
 
     /// A PRESS ON A ROW of the picture it was aimed at, read back to what that row meant: a
     /// message opens its form, a field takes the cursor, and a control does its act.
-    void press(const ws::RowPress& at, loom::Mail& mail) {
+    void press(const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (busy()) return;
         if (at.moved) { // landed on a row the form has since replaced there
             complain("Press refused: the form changed under it; press again"); say(mail); return;
@@ -210,12 +211,12 @@ public:
         say(mail); (void)mail.answer(loom::Ack{});
     }
 
-    void on(const ws::PaneCanvasValueDrop& d, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCanvasValueDrop& d, loom::Mail& mail) {
         on_drop(d.pane, d.area, d.x, d.y, d.data, false,
                 room().moved(d.under, d.part, d.drawing, d.x, d.y), mail);
     }
 
-    void on(const ws::PaneCanvasDrop& d, loom::Mail& mail) {
+    void on(const zengine::pane::PaneCanvasDrop& d, loom::Mail& mail) {
         on_drop(d.pane, d.area, d.x, d.y, d.data, true,
                 room().moved(d.under, d.part, d.drawing, d.x, d.y), mail);
     }
@@ -238,7 +239,7 @@ public:
         }
     }
 
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+    void on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail) {
         if (storage_.hear(answer, mail)) { storage_notice(mail); return; }
         if (!send_value_ || !mail.answers_ask() || mail.correlation() != send_correlation_) return;
         if (!answer.allowed) { send_value_.reset(); complain(answer.reason); say(mail); return; }
@@ -295,8 +296,8 @@ public:
         }
         // Every other word this pane has is an action row (`say`), asked by id; a key that is
         // none of them changes nothing, and a bare Escape is handed back to put the pane down.
-        if (ws::pane_escape::bare(key)) {
-            ws::pane_escape::unspent(mail, kComposerRole, key.pane);
+        if (zengine::pane::pane_escape::bare(key)) {
+            zengine::pane::pane_escape::unspent(mail, kComposerRole, key.pane);
         }
     }
 
@@ -756,7 +757,7 @@ private:
         send_role_ = composing_.role;
         send_correlation_ = clip_asks_.mint_correlation();
         send_attempt_ = mail.as_role(kComposerRole).send_to_role(kWorkshopRole,
-            ws::PaneOperationRequested{kComposePane, send_role_, made.schema->name(),
+            zengine::pane::PaneOperationRequested{kComposePane, send_role_, made.schema->name(),
                 made.schema->version(), static_cast<std::int64_t>(mail.correlation())}, send_correlation_);
         if (!send_attempt_.valid()) { send_value_.reset(); complain("Permission request could not be queued"); }
         else composing_.notice = "Checking submission authority";
@@ -871,16 +872,16 @@ private:
         const bool in_form = composing_.stage == stage::kForm;
         // Declared as v4, so `compose.submit` names its key for a POSIX terminal, which delivers
         // no ctrl on Return.
-        std::vector<ws::v4::PaneActionRow> declared{
+        std::vector<zengine::pane::v4::PaneActionRow> declared{
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
             {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl, {}, {}, {},
              input::scan::kE, input::mod::kCtrl},
             // Storing adds the command to the Inventory once Workshop allows it; a submit sends the
             // command composed, a shape no row can name before the weaver fills the form.
             {"compose.store", "store command", input::scan::kS, input::mod::kCtrl, {},
-             {ws::cause_of<inv::InventoryAdd>()}},
+             {zengine::pane::cause_of<inv::InventoryAdd>()}},
             {"compose.preset", "store preset (may be incomplete)", input::scan::kB, input::mod::kCtrl, {},
-             {ws::cause_of<inv::InventoryAdd>()}},
+             {zengine::pane::cause_of<inv::InventoryAdd>()}},
             {"compose.unset", "unset field and discard value", input::scan::kU, input::mod::kCtrl},
             // Escape leaves a form; at the catalog it is unbound, so a bare one puts the pane down.
             {"compose.back", "back to the catalog",
@@ -890,8 +891,8 @@ private:
             {"compose.include", "include or leave out the field",
              in_form ? input::scan::kTab : input::scan::kUnknown, input::mod::kNone}};
         (void)mail.as_role(kComposerRole)
-            .send_to_role(ws::pane_menu::kWorkshopRole,
-                          ws::v4::PaneActions{kComposePane, {}, std::move(declared), {}});
+            .send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                          zengine::pane::v4::PaneActions{kComposePane, {}, std::move(declared), {}});
     }
 
     std::uint64_t send_correlation_ = 0, storage_asks_ = 1000000;

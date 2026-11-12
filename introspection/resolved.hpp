@@ -17,7 +17,7 @@
 #include "loaded.hpp" // `fit`, `kElided` -- one spelling of a cut, for all three panes
 
 #include "graphics/colors.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 
 #include <cstddef>
@@ -134,11 +134,11 @@ inline std::string providers_said(std::int64_t n) { return counted(n, "provider"
 /// owner's `why` and `next`. Authored and resolved are separate labelled rows, so a promise the
 /// plan made is never read as a number this process minted; one artifact's provider and weave
 /// are two participations under one stem.
-inline std::vector<workshop::TextRow>
+inline std::vector<pane::TextRow>
 artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns) {
-    std::vector<workshop::TextRow> rows;
+    std::vector<pane::TextRow> rows;
     rows.push_back(
-        workshop::TextRow{fit("  " + spelled(a.artifact), columns), graphics::colors::text});
+        pane::TextRow{fit("  " + spelled(a.artifact), columns), graphics::colors::text});
 
     std::string authored;
     if (!a.authored_provider.empty()) {
@@ -153,7 +153,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         authored = kNoIntent;
     }
     rows.push_back(
-        workshop::TextRow{fit("    authored  " + authored, columns), graphics::colors::quiet});
+        pane::TextRow{fit("    authored  " + authored, columns), graphics::colors::quiet});
 
     if (a.state != workshop::kResolvedToken) {
         // Loading, refused, switched, unavailable or not reached. Only refused and unavailable
@@ -167,23 +167,23 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
                            : switched    ? kSwitchedRow
                            : unavailable ? kUnavailableRow
                                          : kNotReached;
-        rows.push_back(workshop::TextRow{
+        rows.push_back(pane::TextRow{
             fit("    " + std::string(said), columns),
             refused || unavailable ? graphics::colors::alert : graphics::colors::quiet});
         // WHY, AND WHAT A WEAVER CAN DO -- the owner's own two fields, in its words, spelled. A
         // version 1 answer has neither, and says only the state.
         if (!a.reason.empty()) {
-            rows.push_back(workshop::TextRow{fit("    why   " + spelled(a.reason), columns),
+            rows.push_back(pane::TextRow{fit("    why   " + spelled(a.reason), columns),
                                                    graphics::colors::quiet});
         }
         if (!a.next.empty()) {
-            rows.push_back(workshop::TextRow{fit("    next  " + spelled(a.next), columns),
+            rows.push_back(pane::TextRow{fit("    next  " + spelled(a.next), columns),
                                                    graphics::colors::quiet});
         }
         return rows;
     }
     if (!a.provider.empty()) {
-        rows.push_back(workshop::TextRow{
+        rows.push_back(pane::TextRow{
             fit("    resolved  provider " + spelled(a.provider) + ", " + powers_said(a.powers),
                 columns),
             graphics::colors::quiet});
@@ -195,7 +195,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         if (!a.offer.empty()) {
             said += ", operator host " + a.offer;
         }
-        rows.push_back(workshop::TextRow{fit(said, columns), graphics::colors::quiet});
+        rows.push_back(pane::TextRow{fit(said, columns), graphics::colors::quiet});
     }
     return rows;
 }
@@ -204,7 +204,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
 /// is, once the start asked for is held within the reading; and the furthest start a window can
 /// take while it still fills the room. A pane keeps the start; the reading is spent.
 struct ArrangementView {
-    std::vector<workshop::TextRow> rows;
+    std::vector<pane::TextRow> rows;
     std::size_t first = 0;
     std::size_t furthest = 0;
 };
@@ -219,7 +219,7 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
                                                 std::int64_t rows, std::int64_t columns,
                                                 std::size_t origin) {
     ArrangementView view;
-    std::vector<workshop::TextRow>& out = view.rows;
+    std::vector<pane::TextRow>& out = view.rows;
     if (rows <= 0 || columns <= 0) {
         return view;
     }
@@ -235,7 +235,7 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
     }
     // A PLAN THAT COMPLETED IS NOT A PLAN WHOSE EVERY ROW RAN: the unavailable count is said
     // beside the resolved one, never folded into it.
-    out.push_back(workshop::TextRow{
+    out.push_back(pane::TextRow{
         fit(std::to_string(performed) + " of " + std::to_string(said.artifacts.size()) +
                 " artifacts resolved" +
                 (unavailable > 0 ? ", " + std::to_string(unavailable) + " unavailable"
@@ -245,7 +245,7 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
             columns),
         graphics::colors::accent});
 
-    std::vector<std::vector<workshop::TextRow>> blocks;
+    std::vector<std::vector<pane::TextRow>> blocks;
     std::vector<std::int64_t> heights;
     blocks.reserve(said.artifacts.size());
     heights.reserve(said.artifacts.size());
@@ -289,13 +289,13 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
         laid.marker = true;
     }
     for (std::size_t i = 0; i < laid.shown; ++i) {
-        for (workshop::TextRow& row : blocks[view.first + i]) {
+        for (pane::TextRow& row : blocks[view.first + i]) {
             out.push_back(std::move(row));
         }
         budget -= heights[view.first + i];
     }
     if (laid.marker) {
-        out.push_back(workshop::TextRow{
+        out.push_back(pane::TextRow{
             elision(view.first, said.artifacts.size() - view.first - laid.shown, columns),
             graphics::colors::quiet});
         --budget;
@@ -303,20 +303,20 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
     // A spare row nothing else wanted separates the list from the small print. It is
     // the LAST claim on the budget, so it never costs a block or a note.
     if (budget > 0 && caveat > 0) {
-        out.push_back(workshop::TextRow{std::string(), graphics::colors::text});
+        out.push_back(pane::TextRow{std::string(), graphics::colors::text});
     }
     if (caveat > 0) {
-        out.push_back(workshop::TextRow{fit(kNotAuthored, columns), graphics::colors::quiet});
+        out.push_back(pane::TextRow{fit(kNotAuthored, columns), graphics::colors::quiet});
     }
     if (source > 0) {
-        out.push_back(workshop::TextRow{fit("plan: " + spelled(said.plan), columns),
+        out.push_back(pane::TextRow{fit("plan: " + spelled(said.plan), columns),
                                               graphics::colors::quiet});
     }
     return view;
 }
 
 /// The view from the first artifact.
-inline std::vector<workshop::TextRow>
+inline std::vector<pane::TextRow>
 project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t rows,
                     std::int64_t columns) {
     return project_arrangement_from(said, rows, columns, 0).rows;
@@ -349,7 +349,7 @@ inline ArrangementView project_arrangement_from(const workshop::ResolvedArrangem
     return project_arrangement_from(in_version_two(said), rows, columns, origin);
 }
 
-inline std::vector<workshop::TextRow>
+inline std::vector<pane::TextRow>
 project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows,
                     std::int64_t columns) {
     return project_arrangement(in_version_two(said), rows, columns);

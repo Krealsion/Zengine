@@ -6,8 +6,8 @@
 #include "editor_switch_vocabulary.hpp"
 #include "first-run/setup.hpp"
 #include "panes.hpp"
-#include "pane_vocabulary.hpp"
-#include "pane_operation.hpp"
+#include "pane/vocabulary.hpp"
+#include "pane/operation.hpp"
 #include "settings_seam_vocabulary.hpp"
 
 #include "graphics/vocabulary.hpp"
@@ -22,6 +22,7 @@
 #include <zen/kernel/admission.hpp>
 
 namespace zengine::workshop {
+using pane::kLayoutsRole;
 // The inventory role's grant here: its bounded speech, and what a shape it accepts does, from
 // its own page, to the one who asked.
 inline loom::Grant inventory_role_grant() {
@@ -43,15 +44,15 @@ inline loom::Grant first_run_role_grant() {
         g.allow_to_role(std::move(name), version, role);
     };
     const std::string workshop = kWorkshopProvider;
-    to(v2::PaneOffered::zen_name, v2::PaneOffered::zen_version, workshop);
-    to(v3::PaneActions::zen_name, v3::PaneActions::zen_version, workshop);
-    to(v4::PaneActions::zen_name, v4::PaneActions::zen_version, workshop);
+    to(pane::v2::PaneOffered::zen_name, pane::v2::PaneOffered::zen_version, workshop);
+    to(pane::v3::PaneActions::zen_name, pane::v3::PaneActions::zen_version, workshop);
+    to(pane::v4::PaneActions::zen_name, pane::v4::PaneActions::zen_version, workshop);
     const std::string layouts = kLayoutsRole;
     to(RoleSettingsDeclared::zen_name, RoleSettingsDeclared::zen_version, layouts);
     to(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version, layouts);
     to(RoleSettingCommitRequested::zen_name, RoleSettingCommitRequested::zen_version, layouts);
     to(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version, workshop);
-    to(v2::PaneOperationRequested::zen_name, v2::PaneOperationRequested::zen_version, workshop);
+    to(pane::v2::PaneOperationRequested::zen_name, pane::v2::PaneOperationRequested::zen_version, workshop);
     to(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version, layouts);
     to(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version, workshop);
     to(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);

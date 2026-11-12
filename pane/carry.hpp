@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_CARRY_HPP
-#define ZENGINE_WORKSHOP_PANE_CARRY_HPP
+#ifndef ZENGINE_PANE_CARRY_HPP
+#define ZENGINE_PANE_CARRY_HPP
 #include <zen/weave/shape.hpp>
 #include <zen/value.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 /// The carrier's bounds: an envelope larger than kMaxCarryBytes is refused, never truncated, and a
 /// label past kMaxCarryLabelBytes is refused; a pane cuts its label to the bound before it asks.
 inline constexpr std::size_t kMaxCarryBytes = 65536;
@@ -99,5 +99,5 @@ struct PaneCanvasHover {
     ZEN_SHAPE(PaneCanvasHover, 3, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y),
               ZEN_FIELD(over));
 };
-} // namespace zengine::workshop
+} // namespace zengine::pane
 #endif

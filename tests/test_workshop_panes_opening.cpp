@@ -16,7 +16,7 @@
 #include "workshop/host_pump.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
-#include "workshop/pane_drawing.hpp"
+#include "pane/drawing.hpp"
 #include "workshop/pane_view.hpp"
 
 #include <filesystem>
@@ -45,9 +45,9 @@ struct NativeEditorState {
 /// clears before it fires, so a swap's successor applies; the nudge handler can be armed to throw.
 class NativeEditor
     : public loom::WeaveBase<NativeEditor, NativeEditorState,
-                             loom::Accept<PaneCatalogRequested, v3::PrepareSourceRequested,
+                             loom::Accept<PaneCatalogRequested, zengine::workshop::v3::PrepareSourceRequested,
                                           ManagedOpenProgress, ManagedOpenSettled, SeatDo>,
-                             loom::Emit<PaneOffered, v3::SourcePrepared>,
+                             loom::Emit<PaneOffered, zengine::workshop::v3::SourcePrepared>,
                              loom::Claims<EditorDocument>> {
 public:
     bool fail_next = false;        ///< armed: the next showing throws inside its boundary, once
@@ -79,7 +79,7 @@ public:
     }
     /// PREPARE AND OFFER, as the real Editor does: an identity for the operation, and the answer.
     /// No file is read; a stand-in has no document.
-    void on(const v3::PrepareSourceRequested& asked, loom::Mail& mail) {
+    void on(const zengine::workshop::v3::PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kOpeningRole)) {
             return;
         }
@@ -89,7 +89,7 @@ public:
         offered.doc_epoch = state_.doc_epoch + 1;
         offered.opened_by = asked.op;
         const loom::JointResult r = mail.offer(static_cast<std::uint64_t>(asked.op), offered);
-        v3::SourcePrepared said;
+        zengine::workshop::v3::SourcePrepared said;
         said.op = asked.op;
         said.ok = r.ok;
         if (!r.ok) {
@@ -140,9 +140,9 @@ class CanvasEditor
     : public loom::WeaveBase<CanvasEditor, NativeEditorState,
                              loom::Accept<PaneCatalogRequested, gfx::AreaRoom, gfx::DrawnRefused,
                                           gfx::AreaButtonChanged, PaneSettings,
-                                          v3::PrepareSourceRequested, ManagedOpenProgress,
+                                          zengine::workshop::v3::PrepareSourceRequested, ManagedOpenProgress,
                                           ManagedOpenSettled, SeatDo>,
-                             loom::Emit<PaneOffered, gfx::Drawn, v3::SourcePrepared>,
+                             loom::Emit<PaneOffered, gfx::Drawn, zengine::workshop::v3::SourcePrepared>,
                              loom::Claims<EditorDocument>> {
 public:
     std::vector<gfx::AreaRoom> rooms;
@@ -207,7 +207,7 @@ public:
                          .sketch,
                      mail);
     }
-    void on(const v3::PrepareSourceRequested& asked, loom::Mail& mail) {
+    void on(const zengine::workshop::v3::PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kOpeningRole)) return;
         ++state_.prepared;
         EditorDocument offered;
@@ -215,7 +215,7 @@ public:
         offered.doc_epoch = state_.doc_epoch + 1;
         offered.opened_by = asked.op;
         const loom::JointResult r = mail.offer(static_cast<std::uint64_t>(asked.op), offered);
-        v3::SourcePrepared said;
+        zengine::workshop::v3::SourcePrepared said;
         said.op = asked.op;
         said.ok = r.ok;
         said.generation = offered.doc_epoch;
@@ -248,7 +248,7 @@ public:
 private:
     WindowDrawing window_{kEditorRole, pane_area(kEditorRole, "editor")};
     loom::DeferredAnswer held_;
-    v3::SourcePrepared held_said_;
+    zengine::workshop::v3::SourcePrepared held_said_;
 };
 
 // ---- Unrelated operators, to fill the bus's slots ---------------------------------------
@@ -372,7 +372,8 @@ struct OpeningRig {
         editor->book = &r.host.showings;
         loom::Grant say;
         say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-        say.allow_to_any(v3::SourcePrepared::zen_name, v3::SourcePrepared::zen_version);
+        say.allow_to_any(zengine::workshop::v3::SourcePrepared::zen_name,
+                         zengine::workshop::v3::SourcePrepared::zen_version);
         editor_id = r.bus.register_weave(std::move(seat), std::move(say), std::string(kEditorRole));
         editor->zen_set_self(editor_id);
         r.ready();
@@ -637,7 +638,7 @@ TEST_CASE("a request refused while a published commitment is still applying beco
     bool stopped = false;
     const loom::ObserverId stop = bus.add_observer([&bus, &stopped, manager](const loom::BusEvent& ev) {
         if (!stopped && ev.kind == loom::EventKind::Delivered && ev.target == manager &&
-            ev.schema_name == v3::SourcePrepared::zen_name) {
+            ev.schema_name == zengine::workshop::v3::SourcePrepared::zen_name) {
             stopped = true;
             bus.stop();
         }
@@ -985,7 +986,8 @@ struct PictureOpen {
         loom::Grant say;
         say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         say.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
-        say.allow_to_any(v3::SourcePrepared::zen_name, v3::SourcePrepared::zen_version);
+        say.allow_to_any(zengine::workshop::v3::SourcePrepared::zen_name,
+                         zengine::workshop::v3::SourcePrepared::zen_version);
         editor_id = r.bus.register_weave(std::move(seat), std::move(say), std::string(kEditorRole));
         editor->zen_set_self(editor_id);
         r.ready();
@@ -1172,7 +1174,7 @@ TEST_CASE("a managed opening's owed rooms go out when the next delivery repaints
     bool queued = false;
     const loom::ObserverId tap = o.r.bus.add_observer([&o, &queued](const loom::BusEvent& ev) {
         if (!queued && ev.kind == loom::EventKind::Delivered && ev.target == o.r.workshop_id &&
-            ev.schema_name == v3::PresentationAdmitRequested::zen_name) {
+            ev.schema_name == zengine::workshop::v3::PresentationAdmitRequested::zen_name) {
             queued = true;
             (void)o.r.bus.send(o.r.workshop_id,
                                loom::Message(loom::to_value(PaneSettingsDeclared{"editor", {}}),

@@ -13,10 +13,10 @@
 #include "settings_seam_vocabulary.hpp"
 #include "open_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
-#include "pane_menu.hpp" // kWorkshopRole, the role Workshop holds
+#include "pane/menu.hpp" // kWorkshopRole, the role Workshop holds
 #include "pane_view.hpp"
-#include "pane_carry.hpp"
-#include "pane_document.hpp"
+#include "pane/carry.hpp"
+#include "pane/document.hpp"
 #include "guide_vocabulary.hpp"
 #include "terminal_seam_vocabulary.hpp"
 #include "setup_control.hpp"
@@ -48,6 +48,9 @@
 #include <utility>
 
 namespace zengine::workshop::guests {
+using pane::PaneDocumentRequested;
+using pane::PaneValueCarryRequested;
+using pane::kLayoutsRole;
 
 namespace {
 
@@ -452,19 +455,19 @@ loom::Grant grant_for(const GuestRow& row) {
             // rule on `DeskReadRequested` for each door -- and a pane's manual from the roles those
             // doors name. No picture: a picture carries every pane.
             g.allow_to_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             g.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
-                            pane_menu::kWorkshopRole);
-            g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version, pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
+            g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version, pane::pane_menu::kWorkshopRole);
             std::vector<std::string> roles;
             for (const std::string& entry : row.capture) {
                 if (std::optional<loom::Door> door = loom::Door::parse(entry)) {
                     g.allow_to_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
-                                    pane_menu::kWorkshopRole, *door);
+                                    pane::pane_menu::kWorkshopRole, *door);
                 }
                 const std::string role = entry.substr(0, entry.find('/'));
                 if (std::find(roles.begin(), roles.end(), role) == roles.end()) {
@@ -479,15 +482,15 @@ loom::Grant grant_for(const GuestRow& row) {
             // THE DESK SAID WHOLE: the desk and its panes in one turn, a pane's page and a point in
             // it, the inventory of panes and the keymap, each asked of Workshop's role.
             g.allow_to_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             g.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            pane::pane_menu::kWorkshopRole);
             // THE PICTURE, read from the window that shows the desk.
             for (const std::string& medium :
                  {std::string(graphics::kWindowRolePrefix) + graphics::kTuiWindow,
@@ -512,7 +515,7 @@ loom::Grant grant_for(const GuestRow& row) {
                                       "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
                 g.allow_to_role(shape, 1, zengine::demo::kRole);
             g.allow_to_role(SetupApplyRequested::zen_name, 1, kLayoutsRole);
-            g.allow_to_role(WorkshopQuitRequested::zen_name, 1, pane_menu::kWorkshopRole);
+            g.allow_to_role(WorkshopQuitRequested::zen_name, 1, pane::pane_menu::kWorkshopRole);
             for (const char* role : {zengine::info_pane::kInfoPaneRole, zengine::composer::kComposerRole,
                                       zengine::inventory_pane::kRole})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
@@ -522,12 +525,12 @@ loom::Grant grant_for(const GuestRow& row) {
         } else if (power == kPowerGuide && row.by_door) {
             // A MARK FOR THE WEAVER TO SEE, asked of Workshop, and for a row that points by pane one
             // door rule a `guide` door, which Workshop asks Loom about at the mark.
-            g.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version, pane_menu::kWorkshopRole);
+            g.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version, pane::pane_menu::kWorkshopRole);
             if (row.guides_by_pane()) {
                 for (const std::string& entry : row.guide) {
                     if (std::optional<loom::Door> door = loom::Door::parse(entry)) {
                         g.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version,
-                                        pane_menu::kWorkshopRole, *door);
+                                        pane::pane_menu::kWorkshopRole, *door);
                     }
                 }
             }
@@ -561,8 +564,8 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxSave::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxRestore::zen_name, 1, zengine::inventory_pane::kRole);
         } else if (power == kPowerInventory) {
-            g.allow_to_role(TerminalValueRequested::zen_name, 1, pane_menu::kWorkshopRole);
-            g.allow_to_role(PaneValueCarryRequested::zen_name, 1, pane_menu::kWorkshopRole);
+            g.allow_to_role(TerminalValueRequested::zen_name, 1, pane::pane_menu::kWorkshopRole);
+            g.allow_to_role(PaneValueCarryRequested::zen_name, 1, pane::pane_menu::kWorkshopRole);
             g.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryViewsRequested::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory::InventoryAdd::zen_name, 1, zengine::inventory::kInventoryRole);

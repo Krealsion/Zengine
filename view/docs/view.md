@@ -61,14 +61,14 @@ the pane conversation and a graphics window's, the window's keys and text among 
 and `view::ViewWiring`.
 
 - It offers one pane, `view`, as its role, asking for its size in canvas pixels, never more
-  than `workshop::kMaxPaneBodyPx` of either, and its notice rows of text beneath
+  than `pane::kMaxPaneBodyPx` of either, and its notice rows of text beneath
   (`view::offered`), and asks for a seat when it starts. Workshop grants that body exactly: a
   window's pane is the size to the pixel, and a terminal's the cells that hold it.
 - It draws in its size within the room Workshop grants: each element at its pixels, a number
   field's text and caret, a button's label, a label and the value it shows, and beneath the size
   a notice in `view::kNoticeRows` lines of the medium's text (`view::notice_band`), so no element
   is under it. Other parties' words on the notice -- a shape's name, a refusal -- are shown as
-  written (`workshop::pane_text::printable`). A pane smaller than the view and its
+  written (`pane::pane_text::printable`). A pane smaller than the view and its
   notice rows cuts the picture.
   Text sits on the medium's own lattice inside its element and is fitted to what the medium
   measures, so a terminal shows the same picture floored to cells.

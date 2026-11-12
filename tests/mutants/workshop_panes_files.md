@@ -165,7 +165,7 @@ Red in `zengine-workshop-panes-tests`:
 
 A pane's list window says nothing of the entries above it.
 
-In `workshop/pane_rows_block.hpp`:
+In `pane/rows_block.hpp`:
 
 ```diff
 -        marker(component::earlier_marker(win), "earlier");
@@ -360,7 +360,7 @@ layout's row never keeps the fold.
 In `files/files.cpp`:
 
 ```diff
--        if (asks().ask(mail, ws::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
+-        if (asks().ask(mail, zengine::pane::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
 -            Asks::Asked::kHeld) {
 -            notice_ = places_stay() + " -- the layouts' owner could not be asked";
 -        }

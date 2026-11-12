@@ -43,7 +43,7 @@ is Workshop's side, a press and a key reaching a pane.
 - Guests: `workshop/guests.cpp` lets a guest with the `input` power send the session shapes to
   `kInputRole`; `workshop/guest_door.hpp` closes a gone guest's session on its behalf.
 - Consumers: `workshop/weave_operation.cpp` accepts `AttributedInput` for operation authority;
-  `workshop/keymap.hpp`, `workshop/pane_escape.hpp` and `workshop/screen.hpp` read the vocabulary.
+  `workshop/keymap.hpp`, `pane/escape.hpp` and `workshop/screen.hpp` read the vocabulary.
 - Beyond Workshop: `graphics/window/terminal_io.hpp` turns terminal pointer reporting on;
   `cmake/ZengineInstall.cmake` installs the headers and `zengine-input`;
   `input/terminal_reader.hpp`'s readers are the TUI window's input edge too

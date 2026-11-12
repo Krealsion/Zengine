@@ -10,7 +10,7 @@
 // Reference: info/docs/zengine.info.md. Workshop law: agents/workshop/settings.md
 
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_settings.hpp"
+#include "pane/settings.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
 #include "property/property.hpp" // a number typed, read by the inspector's one conversion
@@ -30,7 +30,7 @@ struct SettingsRow {
     std::string value;
     bool kept = false;
     std::string locked; ///< the refusal of a write while the lock stands, or empty
-    workshop::PaneSettingRow declared; ///< the declared row, for a declared setting
+    pane::PaneSettingRow declared; ///< the declared row, for a declared setting
 };
 
 namespace settings_rows {
@@ -60,17 +60,17 @@ inline std::string lock_of(const workshop::PaneSettingsAnswered& read, const std
 /// the setting does not take is shown as stored, never repaired, beside what it takes.
 // WL-SETTING-05 -- agents/workshop/settings.md
 inline std::string value_text(const workshop::PaneSettingsAnswered& read,
-                              const workshop::PaneSettingRow& row) {
-    const workshop::PaneSetting fallback = workshop::pane_setting_default(row);
-    const workshop::PaneSetting* stored = workshop::find_pane_setting(read.settings, row.key);
+                              const pane::PaneSettingRow& row) {
+    const pane::PaneSetting fallback = pane::pane_setting_default(row);
+    const pane::PaneSetting* stored = pane::find_pane_setting(read.settings, row.key);
     if (stored == nullptr) {
-        return workshop::setting_value_text(fallback);
+        return pane::setting_value_text(fallback);
     }
-    if (workshop::pane_setting_refused_by(row, *stored).empty()) {
-        return workshop::setting_value_text(*stored);
+    if (pane::pane_setting_refused_by(row, *stored).empty()) {
+        return pane::setting_value_text(*stored);
     }
-    return workshop::setting_value_text(*stored) + " -- takes " + workshop::pane_setting_takes(row) +
-           "; " + workshop::setting_value_text(fallback) + " in effect";
+    return pane::setting_value_text(*stored) + " -- takes " + pane::pane_setting_takes(row) +
+           "; " + pane::setting_value_text(fallback) + " in effect";
 }
 
 /// THE ROWS, in the declaration's order and then the kept keys in the row's: every key the row
@@ -78,21 +78,21 @@ inline std::string value_text(const workshop::PaneSettingsAnswered& read,
 // WL-SETTING-05 -- agents/workshop/settings.md
 inline std::vector<SettingsRow> rows_of(const workshop::PaneSettingsAnswered& read) {
     std::vector<SettingsRow> out;
-    std::vector<workshop::PaneSettingRow> declared;
-    for (const workshop::v2::PaneSettingRow& row : read.rows) {
-        declared.push_back(workshop::narrow_setting_row(row));
+    std::vector<pane::PaneSettingRow> declared;
+    for (const pane::v2::PaneSettingRow& row : read.rows) {
+        declared.push_back(pane::narrow_setting_row(row));
     }
     std::vector<std::string> kept;
-    for (const workshop::PaneSetting& stored : read.settings) {
+    for (const pane::PaneSetting& stored : read.settings) {
         bool takes = false;
-        for (const workshop::PaneSettingRow& row : declared) {
+        for (const pane::PaneSettingRow& row : declared) {
             takes = takes || row.key == stored.key;
         }
         if (!takes) {
             kept.push_back(stored.key);
         }
     }
-    for (const workshop::PaneSettingRow& row : declared) {
+    for (const pane::PaneSettingRow& row : declared) {
         SettingsRow r;
         r.key = row.key;
         r.declared = row;
@@ -108,8 +108,8 @@ inline std::vector<SettingsRow> rows_of(const workshop::PaneSettingsAnswered& re
         SettingsRow r;
         r.key = key;
         r.kept = true;
-        const workshop::PaneSetting* stored = workshop::find_pane_setting(read.settings, key);
-        r.value = workshop::setting_value_text(*stored) +
+        const pane::PaneSetting* stored = pane::find_pane_setting(read.settings, key);
+        r.value = pane::setting_value_text(*stored) +
                   " -- kept; no setting here takes it, and `-` clears it";
         if (!lock_of(read, key).empty()) {
             r.locked = workshop::locked_setting_refusal(key);
@@ -142,7 +142,7 @@ inline Typed commit_of(const workshop::PaneSettingsAnswered& read, const Setting
     commit.revision = read.revision;
     commit.key = row.key;
     if (body == "-") {
-        if (workshop::find_pane_setting(read.settings, row.key) == nullptr) {
+        if (pane::find_pane_setting(read.settings, row.key) == nullptr) {
             out.refusal = row.key + " already takes its default -- nothing is stored to clear";
             return out;
         }
@@ -154,25 +154,25 @@ inline Typed commit_of(const workshop::PaneSettingsAnswered& read, const Setting
         out.refusal = "kept for a pane that declares it -- it takes only `-`, which clears it";
         return out;
     }
-    const bool verbatim = workshop::setting_kind(row.declared) == workshop::SettingKind::kText;
-    workshop::PaneSetting typed;
+    const bool verbatim = pane::setting_kind(row.declared) == pane::SettingKind::kText;
+    pane::PaneSetting typed;
     typed.key = row.key;
-    switch (workshop::setting_kind(row.declared)) {
-    case workshop::SettingKind::kFlag:
-        if (body == workshop::kSettingOn || body == workshop::kSettingOff) {
-            typed.flag = body == workshop::kSettingOn;
+    switch (pane::setting_kind(row.declared)) {
+    case pane::SettingKind::kFlag:
+        if (body == pane::kSettingOn || body == pane::kSettingOff) {
+            typed.flag = body == pane::kSettingOn;
         }
         break;
-    case workshop::SettingKind::kNumber:
+    case pane::SettingKind::kNumber:
         // A NUMBER'S ONE CONVERSION IS THE INSPECTOR'S OWN (WL-DOC-02).
         typed.number = zengine::property::TextForm<std::int64_t>::parse(body);
         break;
-    case workshop::SettingKind::kText: typed.text = text; break;
+    case pane::SettingKind::kText: typed.text = text; break;
     default: break;
     }
-    if (workshop::setting_kind(typed) == workshop::SettingKind::kNone ||
-        !workshop::pane_setting_refused_by(row.declared, typed).empty()) {
-        out.refusal = "takes " + workshop::pane_setting_takes(row.declared) + ", not `" +
+    if (pane::setting_kind(typed) == pane::SettingKind::kNone ||
+        !pane::pane_setting_refused_by(row.declared, typed).empty()) {
+        out.refusal = "takes " + pane::pane_setting_takes(row.declared) + ", not `" +
                       (verbatim ? text : std::string(body)) + "`";
         return out;
     }

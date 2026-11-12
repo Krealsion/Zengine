@@ -15,8 +15,8 @@
 #include "files/marks.hpp"
 #include "files/vocabulary.hpp"
 #include "persist/path_admission.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/rows.hpp"
+#include "pane/text.hpp"
 
 #include "component/accordion.hpp"
 #include "component/list_window.hpp"
@@ -151,10 +151,10 @@ inline void FilesWeave::say_browser() {
 inline void FilesWeave::say_header(const std::string& head) {
     const std::string lead = printable(head);
     const std::string here = printable(where());
-    const std::int64_t at = ws::pane_text::columns_of(lead);
+    const std::int64_t at = zengine::pane::pane_text::columns_of(lead);
     const std::int64_t room_for = columns() - at;
     const FilesMeaning path{files_row::kPath, 0, {}, here};
-    if (room_for < ws::pane_text::columns_of(here) && reveal_ &&
+    if (room_for < zengine::pane::pane_text::columns_of(here) && reveal_ &&
         reveal_->kind == files_row::kPath) {
         push_row(scrub(here, columns(), reveal_->column), zengine::graphics::colors::accent, path);
         return;
@@ -164,7 +164,7 @@ inline void FilesWeave::say_header(const std::string& head) {
     push_row(lead + shown, zengine::graphics::colors::accent);
     if (!shown.empty()) {
         (void)room().map().span(
-            row, at, ws::pane_text::columns_of(shown),
+            row, at, zengine::pane::pane_text::columns_of(shown),
             component::solid_columns(fitted(lead + shown), static_cast<std::size_t>(columns())),
             path);
     }
@@ -192,7 +192,7 @@ inline std::string FilesWeave::place_text(const MarkedPlace& place,
                                           std::size_t path_columns) const {
     const std::string why = ws::provenance_words(place.from);
     std::string out = std::string(kPlaceIndent, ' ') +
-                      ws::pane_text::pad(fit_path(printable(place.path),
+                      zengine::pane::pane_text::pad(fit_path(printable(place.path),
                                                   static_cast<std::int64_t>(path_columns)),
                                          path_columns);
     if (!why.empty()) {
@@ -218,7 +218,7 @@ inline std::int64_t FilesWeave::say_places(std::int64_t body_rows, std::int64_t*
         head += " (" + std::to_string(stops.size()) + ")";
     }
     const std::int64_t row = room().next_row();
-    (void)room().push(ws::TextRow{fitted(head),
+    (void)room().push(zengine::pane::TextRow{fitted(head),
                                   fold == component::Fold::kPeek ? zengine::graphics::colors::accent
                                                                  : zengine::graphics::colors::text,
                                   zengine::graphics::no_color(), 0},
@@ -263,12 +263,12 @@ inline void FilesWeave::say_peek(std::int64_t from) {
     std::int64_t row = from;
     for (std::size_t i = win.first; i < win.end(); ++i, ++row) {
         room().composing()[static_cast<std::size_t>(row)] =
-            ws::TextRow{fitted(place_text(stops[i], path_columns)), zengine::graphics::colors::accent};
+            zengine::pane::TextRow{fitted(place_text(stops[i], path_columns)), zengine::graphics::colors::accent};
         room().map().row(row, FilesMeaning{files_row::kPeek, i, {}, stops[i].path});
     }
     if (const std::size_t more = component::more_marker(win); more > 0) {
-        room().composing()[static_cast<std::size_t>(row)] = ws::TextRow{
-            fitted("  " + ws::pane_text::omitted_text(more, "more")), zengine::graphics::colors::quiet};
+        room().composing()[static_cast<std::size_t>(row)] = zengine::pane::TextRow{
+            fitted("  " + zengine::pane::pane_text::omitted_text(more, "more")), zengine::graphics::colors::quiet};
         room().map().row(row, FilesMeaning{files_row::kPeek, win.end(), {}, {}});
     }
 }

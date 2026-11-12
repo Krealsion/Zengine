@@ -50,7 +50,7 @@
 
 #include <zen/bridge/channel.hpp>
 #include "workshop/grant.hpp"
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 #include <iostream>
 #include <zen/history/dump.hpp>
 #include <zen/history/logger.hpp>
@@ -90,6 +90,8 @@
 namespace {
 
 using namespace zengine::workshop;
+
+using namespace zengine::pane;
 using zengine::persist::launch_project_dir;
 namespace builder = zengine::builder;
 namespace manual = zengine::manual;
@@ -625,7 +627,7 @@ int main(int argc, char** argv) {
         } else {
             std::printf("zengine-workshop - log: %s (durable, selected facts only)\n",
                         args.log.c_str());
-            journal.info(zengine::workshop::pane_menu::kWorkshopRole, "session started: setup " + args.setup +
+            journal.info(zengine::pane::pane_menu::kWorkshopRole, "session started: setup " + args.setup +
                                                  ", load plan " + plan_path);
         }
     } else {
@@ -909,8 +911,8 @@ int main(int argc, char** argv) {
     loom::Grant arrange_openings;
     arrange_openings.allow_to_role(PresentationTrialRequested::zen_name,
                                    PresentationTrialRequested::zen_version, kWorkshopProvider);
-    arrange_openings.allow_to_role(v3::PresentationAdmitRequested::zen_name,
-                                   v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
+    arrange_openings.allow_to_role(zengine::workshop::v3::PresentationAdmitRequested::zen_name,
+                                   zengine::workshop::v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                                    kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
@@ -920,8 +922,8 @@ int main(int argc, char** argv) {
     // ...and the `apply` word to the Editor too: the delivery that shows it its published claim.
     arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                                    kEditorRole);
-    arrange_openings.allow_to_role(v3::PrepareSourceRequested::zen_name,
-                                   v3::PrepareSourceRequested::zen_version, kEditorRole);
+    arrange_openings.allow_to_role(zengine::workshop::v3::PrepareSourceRequested::zen_name,
+                                   zengine::workshop::v3::PrepareSourceRequested::zen_version, kEditorRole);
     arrange_openings.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
     // ...and what a shape it accepts does, from its own page, to the one who asked.
     arrange_openings.allow_to_any(manual::ShapeDocumentShown::zen_name,
@@ -1168,8 +1170,8 @@ int main(int argc, char** argv) {
     // picks recipients.
     loom::Grant say_resolved;
     say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
-    say_resolved.allow_to_any(v2::ResolvedArrangement::zen_name,
-                              v2::ResolvedArrangement::zen_version);
+    say_resolved.allow_to_any(zengine::workshop::v2::ResolvedArrangement::zen_name,
+                              zengine::workshop::v2::ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(manual::ShapeDocumentShown::zen_name,
                               manual::ShapeDocumentShown::zen_version);
     mount_in_role<ArrangementDoor>(
@@ -1295,7 +1297,7 @@ int main(int argc, char** argv) {
     while (!host.quit) {
         const ServedTurn served =
             serve_turn(bus, host.showings, [&journal](const std::string& said) {
-                journal.info(zengine::workshop::pane_menu::kWorkshopRole, said);
+                journal.info(zengine::pane::pane_menu::kWorkshopRole, said);
                 std::printf("zengine-workshop - %s\n", said.c_str());
                 std::fflush(stdout);
             });

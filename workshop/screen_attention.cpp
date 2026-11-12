@@ -7,6 +7,10 @@
 #include "screen.hpp"
 
 namespace zengine::workshop {
+using pane::TextRow;
+using pane::kMaxMenuLines;
+using pane::kPresenterRole;
+using pane::kSubmenuMark;
 
 // ---- WHAT IS TRUE RIGHT NOW, PROJECTED ---------------------------------------------------
 

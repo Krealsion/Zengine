@@ -122,7 +122,7 @@ wheel scrolls the rows hidden its way before it walks the marker"
 
 ### WL-DESK-14
 `graphics/vocabulary.hpp` AreaButtonChanged AreaWheelTurned
-`workshop/pane_drawing.hpp` rows_drawing window_cell WindowDrawing
+`pane/drawing.hpp` rows_drawing window_cell WindowDrawing
 `workshop/desktop-pane/desktop_common.hpp` PanePress take_notches
 `workshop/desktop-pane/launcher_view.hpp` launcher_press publish_launcher offer_launcher_row
 launcher_chose LauncherMeaning LauncherMeaning::ref launcher_ref second_button wheel
@@ -171,7 +171,7 @@ the action's"
 `workshop/desktop-pane/manual_view.hpp` ManualView show_manual document_shown inventory_said
 say_manual
 `workshop/desktop_seam_vocabulary.hpp` AppActionRequested KeymapShown
-`workshop/pane_document.hpp` PaneDocumentKey
+`pane/document.hpp` PaneDocumentKey
 `cmake/ZengineManual.cmake` zengine_manual_marks
 `tests/test_workshop_panes_builder.cpp` "WL-DESK-17: the Builder's `?` shows About, Use and every
 command it declares in every mode, each beside the key it answers to, the census's default where

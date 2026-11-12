@@ -2095,7 +2095,7 @@ TEST_CASE("portable slots: an entry's transfer placed where the window drew a vi
     std::string token;
     RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.kind == loom::EventKind::Delivered &&
-            e.schema_name == v2::PaneValueCarryRequested::zen_name && e.payload)
+            e.schema_name == zengine::pane::v2::PaneValueCarryRequested::zen_name && e.payload)
             token = e.payload->get("token")->as_text();
     })};
     const std::int64_t at = row_saying(s, s.source, "A : ");

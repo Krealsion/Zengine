@@ -33,15 +33,15 @@
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_escape.hpp"
-#include "workshop/pane_seat.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/rows.hpp"
+#include "pane/causes.hpp"
+#include "pane/document.hpp"
+#include "pane/menu.hpp"
+#include "pane/escape.hpp"
+#include "pane/seat.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "graphics/vocabulary.hpp"
@@ -63,10 +63,10 @@ namespace input = zengine::input;
 namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::desktop_pane;
-namespace pane_menu = zengine::workshop::pane_menu;
+namespace pane_menu = zengine::pane::pane_menu;
 
-using ws::ActionsJudged;
-using ws::ActionsWithdrawn;
+using zengine::pane::ActionsJudged;
+using zengine::pane::ActionsWithdrawn;
 using ws::AppActionRequested;
 using ws::v2::AppActionRow;
 using ws::v2::AppActions;
@@ -77,23 +77,23 @@ using ws::KeymapEditAnswered;
 using ws::KeymapEditRequested;
 using ws::KeymapRequested;
 using ws::KeymapShown;
-using ws::PaneActionRequested;
-using ws::v3::PaneActionRow;
-using ws::v3::PaneActions;
+using zengine::pane::PaneActionRequested;
+using zengine::pane::v3::PaneActionRow;
+using zengine::pane::v3::PaneActions;
 using ws::PaneCloseAnswered;
 using ws::PaneCloseRequested;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
-using ws::PaneKey;
+using zengine::pane::PaneKey;
 using ws::PaneLaunchAnswered;
 using ws::PaneLaunchRequested;
-using ws::PaneManageRequested;
-using ws::PaneMenuAnswered;
-using ws::PaneMenuRequested;
-using ws::v2::PaneOffered;
-using ws::PaneKeyboardRequested;
-using ws::PanePassRequested;
-using ws::PaneTextInput;
+using zengine::pane::PaneManageRequested;
+using zengine::pane::PaneMenuAnswered;
+using zengine::pane::PaneMenuRequested;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PaneKeyboardRequested;
+using zengine::pane::PanePassRequested;
+using zengine::pane::PaneTextInput;
 using ws::PaneToggleAnswered;
 using ws::PaneToggleRequested;
 
@@ -112,10 +112,10 @@ using pane::kWorkshopRole;
 /// THE ROLE OF THE THREE PANES: its activation, its offers on Workshop's catalog request, the
 /// manual of any of the three, the whole page the weave's, and the pointer resting on them, which
 /// the Hotkeys pane's sections peek under.
-using Role = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
-                                  zengine::manual::pages::zengine_desktop::kManual, ws::kHearsRest>;
+using Role = zengine::pane::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
+                                  zengine::manual::pages::zengine_desktop::kManual, zengine::pane::kHearsRest>;
 /// Hotkeys' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<pane::kHotkeysPane, pane::kDesktopRole>;
+using Settings = zengine::pane::PaneSettingsFacet<pane::kHotkeysPane, pane::kDesktopRole>;
 
 // (!) WHAT IT ACCEPTS, ITS ROLE'S DOORS WITH IT, IS ITS RELOAD CONTRACT. A reload replaces this
 // weave only with an image accepting exactly these shapes (Loom's accepted-contract match), so
@@ -130,16 +130,16 @@ class DesktopWeave
                        PaneCloseAnswered, PaneToggleAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        PaneMenuAnswered, loom::DispatchRefused, gfx::ClipboardCopy,
-                       gfx::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed>,
+                       gfx::ClipboardText, zengine::pane::PaneDocumentShown, PaneSubjectActed>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
                      DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
-                     ws::PaneEscapeUnspent, ws::PaneDocumentRequested,
+                     zengine::pane::PaneEscapeUnspent, zengine::pane::PaneDocumentRequested,
                      gfx::ClipboardCopy, gfx::ClipboardTextRequested,
-                     ws::v2::PaneSettingsDeclared>> {
+                     zengine::pane::v2::PaneSettingsDeclared>> {
 public:
     // ---- What its role calls --------------------------------------------------------------
 
@@ -161,8 +161,8 @@ public:
                                                      pane::kHotkeysSummary, 10, 68});
         declare_keys(mail);
         (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(ws::kLayoutsRole,
-                          ws::v2::PaneSettingsDeclared{pane::kHotkeysPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole,
+                          zengine::pane::v2::PaneSettingsDeclared{pane::kHotkeysPane, setting_rows()});
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kManualPane, pane::kManualName,
                                                      pane::kManualSummary, 16, 72});
@@ -189,15 +189,15 @@ public:
     /// THE SETTINGS THIS LAYOUT KEEPS FOR HOTKEYS, as the layouts' owner handed them and its
     /// facet took them whole: its `help`. The other two panes declare none, and are handed none.
     /// Held by the pane, never reload state.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         if (hotkeys_.show_help(taken.flag(pane::kSettingHelp))) {
             say_keys(mail);
         }
     }
 
     /// THE SETTING THE HOTKEYS PANE TAKES, with its default, how a weaver finds it and what it does.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow help;
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        zengine::pane::v2::PaneSettingRow help;
         help.key = pane::kSettingHelp;
         help.flag = true;
         help.tags = {"help", "chrome"};
@@ -231,7 +231,7 @@ public:
 
     /// THE POINTER RESTING ON ONE OF ITS PANES, where the medium reports one: the Hotkeys pane's
     /// sections peek under it; the other two take nothing from it.
-    void on_window_rest(const std::string& pane_key, const ws::RowCell& at, loom::Mail& mail) {
+    void on_window_rest(const std::string& pane_key, const zengine::pane::RowCell& at, loom::Mail& mail) {
         if (pane_key == pane::kHotkeysPane) {
             hotkeys_.rest(at, keys_rows_, mail);
         }
@@ -248,15 +248,15 @@ public:
     /// press its menu under the window's number for the press, the wheel walks the cursor; on the
     /// Manual's text a primary press, its moves and its release select. A middle press, and motion
     /// and releases elsewhere, mean nothing.
-    void on_window_pointer(const std::string& pane_key, const ws::WindowPointer& p,
+    void on_window_pointer(const std::string& pane_key, const zengine::pane::WindowPointer& p,
                            bool keys_went_here, loom::Mail& mail) {
         const PanePress pressed{pane_key, p.at.row, p.at.column, keys_went_here, p.moved};
-        if (p.phase == ws::canvas_pointer::kWheel) {
+        if (p.phase == zengine::pane::canvas_pointer::kWheel) {
             wheel(pane_key, p.dy, mail);
         } else if (pane_key == pane::kManualPane && p.button != 3 &&
                    manual_.pointer(p, hotkeys_.keys_heard(), hotkeys_.keymap(), mail)) {
             return;
-        } else if (p.phase != ws::canvas_pointer::kPress) {
+        } else if (p.phase != zengine::pane::canvas_pointer::kPress) {
             return;
         } else if (p.button == 1 && (p.at.shown || p.moved)) {
             primary_press(pressed, mail);
@@ -346,7 +346,7 @@ public:
         }
         // Escape's default: a list's marker always stands on a row, which is where it rests and
         // not a selection, so Escape goes back to Workshop.
-        if (ws::pane_escape::answer(key, mail, pane::kDesktopRole, [] { return false; })) {
+        if (zengine::pane::pane_escape::answer(key, mail, pane::kDesktopRole, [] { return false; })) {
             return;
         }
         if (key.pane == pane::kHotkeysPane) {
@@ -421,7 +421,7 @@ public:
     }
 
     /// THE MANUAL A PANE ANSWERED, to this image's latest ask and no older one.
-    void on(const ws::PaneDocumentShown& shown, loom::Mail& mail) {
+    void on(const zengine::pane::PaneDocumentShown& shown, loom::Mail& mail) {
         manual_.document_shown(shown, hotkeys_.keys_heard(), hotkeys_.keymap(), mail);
     }
 
@@ -595,34 +595,34 @@ private:
         return {
             AppActionRow{pane::kActionTerminal, "terminal", input::scan::kT, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
-                         {ws::cause_of<PaneLaunchRequested>(
-                             ws::to_pane(kTerminalRole, kTerminalPane))}},
+                         {zengine::pane::cause_of<PaneLaunchRequested>(
+                             zengine::pane::to_pane(kTerminalRole, kTerminalPane))}},
             AppActionRow{pane::kActionPanes, "panes", input::scan::kP, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
-                         {ws::cause_of<PaneToggleRequested>(
-                             ws::to_pane(pane::kDesktopRole, pane::kLauncherPane))}},
+                         {zengine::pane::cause_of<PaneToggleRequested>(
+                             zengine::pane::to_pane(pane::kDesktopRole, pane::kLauncherPane))}},
             AppActionRow{pane::kActionHotkeys, "hotkeys", input::scan::kK, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
-                         {ws::cause_of<PaneLaunchRequested>(
-                             ws::to_pane(pane::kDesktopRole, pane::kHotkeysPane))}},
+                         {zengine::pane::cause_of<PaneLaunchRequested>(
+                             zengine::pane::to_pane(pane::kDesktopRole, pane::kHotkeysPane))}},
             AppActionRow{pane::kActionDeselect, "put down", input::scan::kEscape,
                          input::mod::kNone, ws::app_precedence::kDefault,
-                         {ws::cause_of<DeselectRequested>()}},
+                         {zengine::pane::cause_of<DeselectRequested>()}},
             // THE MANUAL OF THE PANE THE ACT WAS PERFORMED ON, asked of its role, and the
             // Manual shown: the ask's subject is the act's own pane, which the request names.
             AppActionRow{pane::kActionManual, "manual", input::scan::kF, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
-                         {ws::cause_of<ws::PaneDocumentRequested>(),
-                          ws::cause_of<PaneLaunchRequested>(
-                              ws::to_pane(pane::kDesktopRole, pane::kManualPane))}},
+                         {zengine::pane::cause_of<zengine::pane::PaneDocumentRequested>(),
+                          zengine::pane::cause_of<PaneLaunchRequested>(
+                              zengine::pane::to_pane(pane::kDesktopRole, pane::kManualPane))}},
             AppActionRow{pane::kActionPalette, "palette", input::scan::kSpace, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
-                         {ws::cause_of<PaneToggleRequested>(
-                             ws::to_pane(ws::kPaletteRole, ws::kPalettePane))}},
+                         {zengine::pane::cause_of<PaneToggleRequested>(
+                             zengine::pane::to_pane(ws::kPaletteRole, ws::kPalettePane))}},
             AppActionRow{pane::kActionPaletteShift, "palette", ws::kDoubleShift,
                          input::mod::kNone, ws::app_precedence::kAboveModes,
-                         {ws::cause_of<PaneToggleRequested>(
-                             ws::to_pane(ws::kPaletteRole, ws::kPalettePane))}}};
+                         {zengine::pane::cause_of<PaneToggleRequested>(
+                             zengine::pane::to_pane(ws::kPaletteRole, ws::kPalettePane))}}};
     }
 
     /// DECLARE THE PANE MANAGER'S ROWS, under a new attempt number, so the verdict that comes
@@ -650,7 +650,7 @@ private:
         keys.pane = pane::kHotkeysPane;
         keys.mode = keys_mode();
         keys.rows = keys_rows(keys.mode);
-        keys.elsewhere = ws::causes_elsewhere(
+        keys.elsewhere = zengine::pane::causes_elsewhere(
             {pane::kKeysTableMode, pane::kKeysCaptureMode, pane::kKeysSpellMode}, keys.mode,
             [](const std::string& m) { return keys_rows(m); });
         keys_rows_.attempt = ++attempts_;

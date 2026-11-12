@@ -25,7 +25,7 @@ Red in `zengine-workshop-panes-tests`:
 
 A pane takes the row any role hands it as its own.
 
-In `workshop/pane_settings_taken.hpp`:
+In `pane/settings_taken.hpp`:
 
 ```diff
 -        if (!from_owner(mail) || handed.pane != Pane) {

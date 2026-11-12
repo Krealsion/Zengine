@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PANE_TEXT_HPP
-#define ZENGINE_WORKSHOP_PANE_TEXT_HPP
+#ifndef ZENGINE_PANE_TEXT_HPP
+#define ZENGINE_PANE_TEXT_HPP
 
 // The text a pane shapes before it publishes: fitted to the columns it was granted, wrapped,
 // padded, and kept to what a row shows. One copy for every pane package. Every width is columns,
@@ -19,7 +19,7 @@
 #include <string_view>
 #include <vector>
 
-namespace zengine::workshop::pane_text {
+namespace zengine::pane::pane_text {
 
 /// THE MARK A CUT LEAVES, and the one every pane in this tree already used.
 inline constexpr const char* kElided = "...";
@@ -250,6 +250,6 @@ inline bool admissible(const std::string& text) {
     return true;
 }
 
-} // namespace zengine::workshop::pane_text
+} // namespace zengine::pane::pane_text
 
-#endif // ZENGINE_WORKSHOP_PANE_TEXT_HPP
+#endif // ZENGINE_PANE_TEXT_HPP

@@ -70,7 +70,7 @@ TEST_CASE("the object-list window is total, and never spends more rows than it h
 }
 
 TEST_CASE("fitting text to a line: unchanged when it fits, marked when it does not") {
-    using detail::fit;
+    using zengine::workshop::detail::fit;
     CHECK(fit("short", 10) == "short");
     CHECK(fit("exactly-10", 10) == "exactly-10"); // exactly the width is not truncation
     CHECK(fit("exactly-11!", 10) == "exactly..."); // one over IS
@@ -6552,7 +6552,7 @@ TEST_CASE("`workshop.focus.ring` plain marks the selection in the chrome's ink, 
     }
 }
 
-// ---- A REGION'S FIT (workshop/pane_text_fit.hpp) -----------------------------------------------
+// ---- A REGION'S FIT (pane/text_fit.hpp) -----------------------------------------------
 // How many rows and columns of a measure a rectangle holds, read both ways, where a press lands in
 // its prose, and the span a selection covers on a row: the one fitting Workshop's screen and every
 // pane set their rows by.

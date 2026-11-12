@@ -236,7 +236,7 @@ authored_gestures_for join_app_rows join_pane_rows
 `workshop/weave_handlers.cpp` load_keymap
 `workshop/weave.hpp` WorkshopWeave::unsaid_gaps WorkshopWeave::set_posix_layer HostContext::posix_terminal
 `workshop/weave_seam.cpp` unsaid_gaps declare_pane_actions rejoin_pane_rows set_posix_layer
-`workshop/pane_vocabulary.hpp` v4::PaneActionRow v4::PaneActions
+`pane/vocabulary.hpp` v4::PaneActionRow v4::PaneActions
 `workshop/keymap.hpp` Keymap::posix_layer PaneRow::posix
 `workshop/desktop-pane/hotkeys_view.hpp` key_cell
 `tests/test_workshop_document.cpp` "a same-context collision is refused naming both actions and the
@@ -286,7 +286,7 @@ authored" "the swallow eats only the trigger's own character, never a different 
 binding swallows the capital its keystroke produced"
 
 ### WL-KEY-15
-`workshop/pane_vocabulary.hpp` PaneActionRow PaneActions PaneActionRequested v2::PaneActionRow
+`pane/vocabulary.hpp` PaneActionRow PaneActions PaneActionRequested v2::PaneActionRow
 v2::PaneActions kOwnableDocumentSave
 `workshop/keymap.hpp` PaneRow PaneRows kMaxPaneActionRows collision_sentence Keymap::panes
 Keymap::pane_action_for PaneRow::supersedes Keymap::pane_supersedes Keymap::row_active

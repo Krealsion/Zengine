@@ -73,6 +73,6 @@ reaches nothing"
 `tests/test_workshop_panes_input.cpp` "a wheel over an external pane's body reaches it unchanged from
 the window, follows the pointer, and the header sends nothing"
 `workshop/weave_handlers.cpp` on(AreaWheelTurned)
-`workshop/pane_facets.hpp` PaneRowsFacet
+`pane/facets.hpp` PaneRowsFacet
 `tests/test_workshop_panes_files.cpp` "WL-HAND-06: Files names its entries by name and its controls by
 operation"

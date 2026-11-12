@@ -5,11 +5,32 @@
 // continuations, a pane's own menu, and the `?` it wears.
 // Workshop law: agents/workshop/focus.md (+5 registers; agents/workshop.md routes)
 
-#include "pane_document.hpp"
+#include "pane/document.hpp"
 #include "screen_canvas.hpp"
 #include "weave.hpp"
 
 namespace zengine::workshop {
+using pane::MenuClosed;
+using pane::MenuGranted;
+using pane::MenuInput;
+using pane::MenuReturned;
+using pane::MenuShown;
+using pane::MenuWithdrawn;
+using pane::PaneActionRequested;
+using pane::PaneDocumentRequested;
+using pane::PaneEscapeUnspent;
+using pane::PaneKey;
+using pane::PaneKeyboardRequested;
+using pane::PaneManageRequested;
+using pane::PaneMenuAnswered;
+using pane::PaneMenuRequested;
+using pane::PaneMenuRow;
+using pane::PanePassRequested;
+using pane::PaneTextInput;
+using pane::PresenterReady;
+using pane::kMaxMenuLineLen;
+using pane::kMaxMenuLines;
+using pane::kPresenterRole;
 
 // ---- THE EXTERNAL PANE'S CHROME AND KEYS --------------------------------------------------
 
@@ -606,19 +627,19 @@ void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& ma
     // presenter hears "up" -- and the key that opens a menu closes it, the shared rule. What each
     // verb MEANS on this menu is the presenter's; a key no row names still crosses, with its
     // scancode, for a presenter that reads keys of its own.
-    std::int64_t verb = menu_verb::kNone;
+    std::int64_t verb = pane::menu_verb::kNone;
     switch (session_.keymap.action_for(KeyContext::kContext, k.scancode, k.modifiers)) {
-    case Act::kContextUp: verb = menu_verb::kUp; break;
-    case Act::kContextDown: verb = menu_verb::kDown; break;
-    case Act::kContextChoose: verb = menu_verb::kChoose; break;
-    case Act::kContextBack: verb = menu_verb::kBack; break;
+    case Act::kContextUp: verb = pane::menu_verb::kUp; break;
+    case Act::kContextDown: verb = pane::menu_verb::kDown; break;
+    case Act::kContextChoose: verb = pane::menu_verb::kChoose; break;
+    case Act::kContextBack: verb = pane::menu_verb::kBack; break;
     default:
         if (session_.keymap.matches(Act::kContextOpen, k.scancode, k.modifiers)) {
-            verb = menu_verb::kBack;
+            verb = pane::menu_verb::kBack;
         }
         break;
     }
-    forward_menu_input(menu_input::kKey, verb, k.scancode, k.modifiers, 0, -1, mail);
+    forward_menu_input(pane::menu_input::kKey, verb, k.scancode, k.modifiers, 0, -1, mail);
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
@@ -655,7 +676,7 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
     // menu's frame is spent there. ONE OUTSIDE IS SPENT ON THE MENU -- nothing beneath it is
     // selected, focused or sent it -- and the presenter says what it means.
     if (!presented_holds(session_, screen_of(session_), where)) {
-        forward_menu_input(menu_input::kOutside, menu_verb::kNone, 0, 0, b.button, -1, mail);
+        forward_menu_input(pane::menu_input::kOutside, pane::menu_verb::kNone, 0, 0, b.button, -1, mail);
     }
     return true;
 }

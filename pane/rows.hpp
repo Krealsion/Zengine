@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
-#ifndef ZENGINE_WORKSHOP_PANE_ROWS_HPP
-#define ZENGINE_WORKSHOP_PANE_ROWS_HPP
+#ifndef ZENGINE_PANE_ROWS_HPP
+#define ZENGINE_PANE_ROWS_HPP
 
 // A pane's rows of text as values: what a row says and in which roles, the runs of it the pane
 // names as its parts, where its caret and selection stand, and the cell of the rows a point falls
-// on. A pane composes them and draws them in its own area (`rows_drawing`, pane_drawing.hpp); none
+// on. A pane composes them and draws them in its own area (`rows_drawing`, pane/drawing.hpp); none
 // of them crosses as a message. Reference: workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "component/text_box.hpp"
@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::pane {
 
 /// No caret, and no selection: negative, as `graphics::no_color()` is, so neither is a row.
 inline constexpr std::int64_t kNoCaret = -1;
@@ -163,6 +163,6 @@ struct RowCell {
     bool operator==(const RowCell&) const = default;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::pane
 
-#endif // ZENGINE_WORKSHOP_PANE_ROWS_HPP
+#endif // ZENGINE_PANE_ROWS_HPP

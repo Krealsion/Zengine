@@ -9,7 +9,7 @@
 // (sender, target, correlation), writes it in a book in `HostContext`, and wakes Workshop with an
 // empty delivery. The wake-up is not authority: Workshop acts only on an entry for its own quit.
 
-#include "pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 
 #include <zen/switchboard/switchboard.hpp>
 

@@ -45,23 +45,23 @@
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
-#include "workshop/pane_carry.hpp"
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_operation.hpp"
+#include "pane/rows.hpp"
+#include "pane/carry.hpp"
+#include "pane/causes.hpp"
+#include "pane/document.hpp"
+#include "pane/menu.hpp"
+#include "pane/operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
 
 #include "manuals/zengine.editor.hpp" // the Editor's manual, compiled in from its page
 
@@ -110,25 +110,25 @@ using ws::EditorWarmRequested;
 using ws::ManagedOpenProgress;
 using ws::ManagedOpenSettled;
 using ws::OpenSourceRequested;
-using ws::PaneActionRequested;
-using ws::PaneCatalogRequested;
-using ws::PaneKey;
-using ws::v2::PaneOffered;
-using ws::PaneQuitAnswered;
-using ws::PaneQuitRequested;
-using ws::PaneTextInput;
+using zengine::pane::PaneActionRequested;
+using zengine::pane::PaneCatalogRequested;
+using zengine::pane::PaneKey;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PaneQuitAnswered;
+using zengine::pane::PaneQuitRequested;
+using zengine::pane::PaneTextInput;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::SourceOpened;
-using zengine::workshop::pane_text::printable;
-using zengine::workshop::pane_text::fit;
+using zengine::pane::pane_text::printable;
+using zengine::pane::pane_text::fit;
 
 using namespace zengine::neovim_editor::detail;
 
 /// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<nve::kEditorPane, nve::kEditorRole>;
+using Settings = zengine::pane::PaneSettingsFacet<nve::kEditorPane, nve::kEditorRole>;
 
-using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
+using NeovimEditorBase = zengine::With<zengine::pane::PaneManualFacet<
     nve::kEditorPane, zengine::manual::pages::zengine_editor::kManual>, Settings>::Weave<
     class NeovimEditorWeave, nve::NeovimEditorState,
     loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired, timer::TimerResolution,
@@ -140,19 +140,20 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                  EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
-                 ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                 ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
+                 zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneMenuAnswered, zengine::pane::PaneOperationAnswered,
+                 zengine::pane::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                  graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                  graphics::AreaWheelTurned, graphics::AreaHoldEnded, loom::host::Waited>,
-    loom::Emit<PaneOffered, ws::v3::PaneActions,
-               ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
+    loom::Emit<PaneOffered, zengine::pane::v3::PaneActions,
+               zengine::pane::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
                OpenSourceRequested,
                ProjectRootRequested, graphics::ClipboardCopy, graphics::ClipboardTextRequested,
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
                EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
-               ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
-               graphics::Drawn, graphics::RoomAsked, ws::v2::PaneSettingsDeclared>,
+               zengine::pane::PaneMenuRequested, zengine::pane::PaneOperationRequested,
+               zengine::pane::PaneValueCarryRequested,
+               graphics::Drawn, graphics::RoomAsked, zengine::pane::v2::PaneSettingsDeclared>,
     loom::WeaveBase, loom::Claims<EditorDocument, loom::host::WaitSet>>;
 
 // WL-NVIM-01 -- agents/workshop/neovim.md
@@ -255,7 +256,7 @@ public:
     /// facet took them whole. The profile is the next start's, never a running Neovim's; the status
     /// row moves Neovim's screen at once. Held as plain members, never reload state: a reloaded
     /// image asks for them again, and draws no room before it holds them.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         profile_ = taken.text(nve::kSettingProfile);
         status_shown_ = taken.flag(nve::kSettingStatus);
         say(mail);
@@ -264,15 +265,15 @@ public:
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
     /// the profile, pinned, one of the two words the variable's own default is among, and the
     /// status row.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow profile;
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        zengine::pane::v2::PaneSettingRow profile;
         profile.key = nve::kSettingProfile;
         profile.text = std::string(nv::LaunchChoice{}.profile);
         profile.choices = {"clean", "user"};
         profile.tags = {"editing"};
         profile.pinned = true;
         profile.summary = "Neovim profile name when ZENGINE_NEOVIM_PROFILE is unset";
-        ws::v2::PaneSettingRow status;
+        zengine::pane::v2::PaneSettingRow status;
         status.key = nve::kSettingStatus;
         status.flag = true;
         status.tags = {"chrome"};
@@ -318,7 +319,7 @@ public:
     /// Neovim's own press at the first column of that part, on no picture a carry could begin from,
     /// and released at once, since the window says the press and its release as one act.
     void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
-        if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
+        if (const std::optional<zengine::pane::RowCell> at = window_.part(asked, mail)) {
             press_at(at->row, at->column, false, mail);
             release_drag();
             flush(mail);
@@ -423,8 +424,8 @@ public:
 
     // ---- The pointer, in transfers.hpp ----------------------------------------------------------
 
-    void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
-    void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at, bool aimed,
+    void on_window(const std::optional<zengine::pane::WindowPointer>& p, loom::Mail& mail);
+    void pointer(std::int64_t phase, std::int64_t button, const zengine::pane::RowCell& at, bool aimed,
                  std::int64_t gesture, double dy, loom::Mail& mail);
     void press_at(std::int64_t row, std::int64_t column, bool aimed, loom::Mail& mail);
     void dragged(std::int64_t row, std::int64_t column, loom::Mail& mail);
@@ -434,10 +435,10 @@ public:
 
     // ---- Transfers, in transfers.hpp: the selection out, material in, a location opened ---------
 
-    void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail);
-    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail);
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail);
-    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail);
+    void on(const zengine::pane::PaneCanvasValueDrop& drop, loom::Mail& mail);
+    void on(const zengine::pane::PaneMenuAnswered& answer, loom::Mail& mail);
+    void on(const zengine::pane::PaneOperationAnswered& answer, loom::Mail& mail);
+    void on(const zengine::pane::PaneCarryAnswered& answer, loom::Mail& mail);
 
     // ---- The exit --------------------------------------------------------------------------------
 
@@ -828,9 +829,9 @@ private:
     void carry_snapshot(const Snapshot& snap, bool drag, std::uint64_t gesture, loom::Mail& mail);
     void acquire_location(bool drag, std::uint64_t gesture, loom::Mail& mail);
     void carry_location(bool drag, std::uint64_t gesture, const Answer& a, loom::Mail& mail);
-    void receive_into(st::Material m, Aim aim, const ws::RowCell& drop, const mp::Value& lang,
+    void receive_into(st::Material m, Aim aim, const zengine::pane::RowCell& drop, const mp::Value& lang,
                       std::uint64_t gesture, loom::Mail& mail);
-    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool aimed,
+    void receive(const loom::Bytes& data, const zengine::pane::RowCell& drop, bool aimed,
                  loom::Mail& mail);
     void insert_lines(const std::string& text, const Aim& aim, Insertion said, bool whole = false);
     void settle_insertion(const Insertion& said, const Heard& h);
@@ -982,7 +983,9 @@ private:
             .send_to_role(kWorkshopRole, PaneOffered{nve::kEditorPane, nve::kPaneName, nve::kPaneSummary, 20, 84});
         declare(mail);
         (void)mail.as_role(nve::kEditorRole)
-            .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{nve::kEditorPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole,
+                          zengine::pane::v2::PaneSettingsDeclared{nve::kEditorPane,
+                                                                  setting_rows()});
     }
 
     /// Two rows naming Workshop's retired document rows as what they stand in for, so an older
@@ -992,26 +995,27 @@ private:
     /// file's location has no default key, every plain ctrl+letter being Neovim's or the
     /// desktop's (WL-NVIM-12).
     void declare(loom::Mail& mail) {
-        ws::v3::PaneActions actions;
+        zengine::pane::v3::PaneActions actions;
         actions.pane = nve::kEditorPane;
-        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionWrite, "write (:w)", zengine::input::scan::kS,
-                                                     zengine::input::mod::kCtrl, ws::kOwnableDocumentSave});
-        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionJumpOlder, "jump back (<C-o>)",
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{nve::kActionWrite, "write (:w)", zengine::input::scan::kS,
+                                                     zengine::input::mod::kCtrl, zengine::pane::kOwnableDocumentSave});
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{nve::kActionJumpOlder, "jump back (<C-o>)",
                                                      zengine::input::scan::kO, zengine::input::mod::kCtrl,
-                                                     ws::kOwnableDocumentOpen});
+                                                     zengine::pane::kOwnableDocumentOpen});
         // CTRL+SPACE IS NEOVIM'S while it holds the keys (completion, `<C-@>`'s insert), so the row
         // stands in for the palette's key there; the palette is a Pane Manager row away.
-        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionCtrlSpace, "<C-Space> to Neovim",
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{nve::kActionCtrlSpace, "<C-Space> to Neovim",
                                                      zengine::input::scan::kSpace,
                                                      zengine::input::mod::kCtrl, nve::kPaletteKey});
         // The two carries' rows say what their press may send: the carry, once Workshop allows it.
-        const std::vector<ws::ActionCause> carried{ws::cause_of<ws::PaneValueCarryRequested>()};
-        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionLocation, "carry this file's location",
+        const std::vector<zengine::pane::ActionCause> carried{
+            zengine::pane::cause_of<zengine::pane::PaneValueCarryRequested>()};
+        actions.rows.push_back(zengine::pane::v3::PaneActionRow{nve::kActionLocation, "carry this file's location",
                                                      zengine::input::scan::kUnknown, zengine::input::mod::kNone,
                                                      "", carried});
         declared_selection_ = carries_selection();
         if (declared_selection_) {
-            actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionExtract, "carry the selection",
+            actions.rows.push_back(zengine::pane::v3::PaneActionRow{nve::kActionExtract, "carry the selection",
                                                          zengine::input::scan::kR, zengine::input::mod::kCtrl, "",
                                                          carried});
         }
@@ -1059,11 +1063,11 @@ private:
 
     /// THE ONE PART THIS PANE NAMES, `status`: the row it draws above Neovim's screen, saying the
     /// status or a notice in its place. The screen beneath is Neovim's own, and named nothing.
-    std::vector<ws::RowPart> status_part(const std::vector<ws::TextRow>& rows) const {
+    std::vector<zengine::pane::RowPart> status_part(const std::vector<zengine::pane::TextRow>& rows) const {
         if (chrome_rows() <= 0 || rows.empty()) {
             return {};
         }
-        return {ws::RowPart{"status", 0, 0, columns_}};
+        return {zengine::pane::RowPart{"status", 0, 0, columns_}};
     }
 
     /// THE PANE, DRAWN in the window that shows its area: the status row (or a standing notice in
@@ -1080,8 +1084,8 @@ private:
         if (running() && rows_ > 0) {
             (void)host_->resize(screen_rows(), ui_cols(columns_));
         }
-        std::vector<ws::TextRow> rows;
-        ws::RowsCaret caret;
+        std::vector<zengine::pane::TextRow> rows;
+        zengine::pane::RowsCaret caret;
         compose(rows, caret, rows_, columns_);
         drawn_hash_ = picture_hash(rows, caret, epoch_);
         ++state_.screens;
@@ -1098,24 +1102,24 @@ private:
         if (!aimed || !window_.in_window()) {
             return false;
         }
-        std::vector<ws::TextRow> rows;
-        ws::RowsCaret caret;
+        std::vector<zengine::pane::TextRow> rows;
+        zengine::pane::RowsCaret caret;
         compose(rows, caret, rows_, columns_);
         return picture_hash(rows, caret, epoch_) == drawn_hash_;
     }
 
     // WL-NVIM-02 -- agents/workshop/neovim.md
-    void compose(std::vector<ws::TextRow>& rows, ws::RowsCaret& caret, std::int64_t room_rows,
+    void compose(std::vector<zengine::pane::TextRow>& rows, zengine::pane::RowsCaret& caret, std::int64_t room_rows,
                  std::int64_t room_cols) const {
         if (room_rows <= 0 || room_cols <= 0) {
             return;
         }
         const std::int64_t chrome = chrome_rows();
         if (!notice_.empty()) {
-            rows.push_back(ws::TextRow{printable(fit(notice_, room_cols)),
+            rows.push_back(zengine::pane::TextRow{printable(fit(notice_, room_cols)),
                                                    notice_bad_ ? graphics::colors::alert : graphics::colors::quiet});
         } else if (chrome > 0) {
-            rows.push_back(ws::TextRow{printable(fit(status_text(room_cols), room_cols)),
+            rows.push_back(zengine::pane::TextRow{printable(fit(status_text(room_cols), room_cols)),
                                                    graphics::colors::accent});
         }
         if (!running() || !host_->ready()) {
@@ -1127,7 +1131,7 @@ private:
             // were prepared, so no screen of the file it replaced stands under its status.
             for (std::size_t i = 0;
                  i < preview_.lines.size() && static_cast<std::int64_t>(i) + chrome < room_rows; ++i) {
-                rows.push_back(ws::TextRow{preview_line(preview_.lines[i], text_cols),
+                rows.push_back(zengine::pane::TextRow{preview_line(preview_.lines[i], text_cols),
                                                        graphics::colors::text});
             }
             return;
@@ -1174,7 +1178,7 @@ private:
             while (static_cast<std::int64_t>(text.size()) > keep && !text.empty() && text.back() == ' ') {
                 text.pop_back();
             }
-            rows.push_back(ws::TextRow{printable(fit(std::move(text), text_cols)), ink});
+            rows.push_back(zengine::pane::TextRow{printable(fit(std::move(text), text_cols)), ink});
         }
     }
 
@@ -1282,7 +1286,7 @@ private:
     std::uint64_t drawn_hash_ = 0;
     Grab grab_;
     Pickup pickup_;
-    ws::pane_menu::Asked menu_;
+    zengine::pane::pane_menu::Asked menu_;
     Take menu_take_ = Take::Selection;
     Snapshot menu_snap_;
     Drag menu_cell_;

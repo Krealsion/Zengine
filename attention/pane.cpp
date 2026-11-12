@@ -14,11 +14,11 @@
 #include "attention/vocabulary.hpp"
 
 #include "workshop/attention_seam_vocabulary.hpp"
-#include "workshop/pane_facets.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
-#include "workshop/pane_text.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/facets.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
+#include "pane/text.hpp"
+#include "pane/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
@@ -26,7 +26,7 @@
 #include "input/vocabulary.hpp"
 
 #include "manuals/zengine.attention.hpp" // this pane's manual, compiled in from its page
-#include "workshop/pane_menu.hpp"
+#include "pane/menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -47,26 +47,26 @@ namespace input = zengine::input;
 namespace ws = zengine::workshop;
 namespace pane = zengine::attention_pane;
 
-using ws::v3::PaneActionRow;
-using ws::v2::PaneOffered;
+using zengine::pane::v3::PaneActionRow;
+using zengine::pane::v2::PaneOffered;
 using ws::StandingCondition;
 using ws::StandingConditions;
 
 /// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
-/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
-using zengine::workshop::pane_menu::kWorkshopRole;
+/// (`pane/menu.hpp`) as a stranger's pane reads it.
+using zengine::pane::pane_menu::kWorkshopRole;
 
 // ---- The text helpers the composition spends ------------------------------------------
 //
-// `fit`, `wrap` and `omitted_text` come from `workshop/pane_text.hpp`; the list's window is
+// `fit`, `wrap` and `omitted_text` come from `pane/text.hpp`; the list's window is
 // `component/list_window.hpp`'s.
 
 using zengine::component::ListWindow;
-using zengine::workshop::pane_text::printable;
-using zengine::workshop::pane_text::fit;
-using zengine::workshop::pane_text::omitted_text;
-using zengine::workshop::pane_text::wrap;
-constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
+using zengine::pane::pane_text::printable;
+using zengine::pane::pane_text::fit;
+using zengine::pane::pane_text::omitted_text;
+using zengine::pane::pane_text::wrap;
+constexpr std::int64_t kWrapIndent = zengine::pane::pane_text::kWrapIndent;
 
 /// WHAT A PRESS ON A CONDITION'S ROW ASKS: `condition:<key>`, the key as the host said it.
 constexpr const char* kConditionAction = "condition:";
@@ -96,16 +96,16 @@ std::string stamp_of(const StandingCondition& c) {
 
 /// The pane's room and its one picture, shown in Workshop and in a graphics window; a press on a
 /// condition's row asks `condition:<key>`.
-using Drawing = ws::PaneDrawingFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
+using Drawing = zengine::pane::PaneDrawingFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
                                      zengine::manual::pages::zengine_attention::kManual>;
-using Actions = ws::PaneActionFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
+using Actions = zengine::pane::PaneActionFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
 /// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
+using Settings = zengine::pane::PaneSettingsFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
 
 class AttentionPaneWeave
     : public zengine::With<Drawing, Actions, Settings>::Weave<
           AttentionPaneWeave, pane::AttentionPaneState, loom::Accept<StandingConditions>,
-          loom::Emit<ws::v2::PaneSettingsDeclared>> {
+          loom::Emit<zengine::pane::v2::PaneSettingsDeclared>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
@@ -116,8 +116,8 @@ public:
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(pane::kAttentionPaneRole)
-            .send_to_role(ws::kLayoutsRole,
-                          ws::v2::PaneSettingsDeclared{pane::kAttentionPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole,
+                          zengine::pane::v2::PaneSettingsDeclared{pane::kAttentionPane, setting_rows()});
     }
 
     /// Workshop, or the graphics window that shows the pane's area, grants it a room: the one beat
@@ -210,7 +210,7 @@ public:
 
     /// THE SETTING THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed it and its facet
     /// took it whole. Held as a plain member, never reload state.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         const bool was = detail_shown_;
         detail_shown_ = taken.flag(pane::kSettingDetail);
         if (detail_shown_ != was) {
@@ -221,8 +221,8 @@ public:
     void on_settings_held(loom::Mail& mail) { say(mail); }
 
     /// THE SETTING THE PANE TAKES, with its default, how a weaver finds it and what it does.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow detail;
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        zengine::pane::v2::PaneSettingRow detail;
         detail.key = pane::kSettingDetail;
         detail.flag = true;
         detail.tags = {"help", "chrome"};

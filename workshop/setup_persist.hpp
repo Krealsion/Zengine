@@ -31,6 +31,9 @@
 #include <vector>
 
 namespace zengine::workshop::setup_persist {
+using pane::PaneSetting;
+using pane::kMaxPaneSettingKeyLen;
+using pane::kMaxPaneSettingTextLen;
 
 using zengine::persist::Written;
 

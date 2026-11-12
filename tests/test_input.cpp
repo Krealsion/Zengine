@@ -2161,7 +2161,7 @@ TEST_CASE("the input role keeps the double-click time: declared to the layouts' 
     auto l = std::make_unique<LayoutsStandIn>(heard);
     LayoutsStandIn* l_raw = l.get();
     loom::Grant lg = loom::emit_default_grant(*l_raw);
-    const loom::WeaveId layouts = bus.register_weave(std::move(l), std::move(lg), ws::kLayoutsRole);
+    const loom::WeaveId layouts = bus.register_weave(std::move(l), std::move(lg), zengine::pane::kLayoutsRole);
     l_raw->zen_set_self(layouts);
     auto t = std::make_unique<TimingWindow>(heard);
     TimingWindow* t_raw = t.get();
@@ -2172,12 +2172,12 @@ TEST_CASE("the input role keeps the double-click time: declared to the layouts' 
         ws::RoleSettings kept;
         kept.revision = 1;
         if (ms) {
-            ws::PaneSetting s;
+            zengine::pane::PaneSetting s;
             s.key = kSettingDoubleClickMs;
             s.number = *ms;
             kept.settings.push_back(s);
         }
-        (void)bus.role_send_to_role_as(layouts, ws::kLayoutsRole, kInputRole,
+        (void)bus.role_send_to_role_as(layouts, zengine::pane::kLayoutsRole, kInputRole,
                                          loom::Message(loom::to_value(kept)));
         bus.drain_until_idle();
     };
@@ -2194,7 +2194,7 @@ TEST_CASE("the input role keeps the double-click time: declared to the layouts' 
     bus.drain_until_idle();
     REQUIRE(heard.declared.size() == 1);
     REQUIRE(heard.declared[0].rows.size() == 1);
-    const ws::v2::PaneSettingRow& row = heard.declared[0].rows[0];
+    const zengine::pane::v2::PaneSettingRow& row = heard.declared[0].rows[0];
     CHECK(row.key == "input.double-click-ms");
     CHECK(row.number == kDefaultDoubleClickMs);
     CHECK(row.low == kLeastDoubleClickMs);
@@ -2225,7 +2225,7 @@ TEST_CASE("the input role keeps the double-click time: declared to the layouts' 
 
     // FROM ANYONE BUT THE LAYOUTS' OWNER it is nothing.
     ws::RoleSettings forged;
-    ws::PaneSetting s;
+    zengine::pane::PaneSetting s;
     s.key = kSettingDoubleClickMs;
     s.number = 1500;
     forged.settings.push_back(s);

@@ -42,7 +42,7 @@ inline constexpr const char* kHotkeysName = "Hotkeys";
 inline constexpr const char* kHotkeysSummary = "every key in force, and how to move one";
 
 /// THE ONE SETTING THE HOTKEYS PANE DECLARES (`v2::PaneSettingsDeclared`,
-/// workshop/pane_settings.hpp): whether its footer's help lines -- the keymap file and how a key is
+/// pane/settings.hpp): whether its footer's help lines -- the keymap file and how a key is
 /// written there -- show in a layout, on unless the layout keeps it off.
 inline constexpr const char* kSettingHelp = "help";
 

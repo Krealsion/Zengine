@@ -457,7 +457,7 @@ brackets. A strip too narrow for all of them ends `+3 in menu`.
   recipe from Files.
 - [`zengine.builder-pane`](../../builder/docs/zengine.builder-pane.md), the pane that builds what you
   author here.
-- The shapes Files speaks, in the headers declaring them: [the pane protocol](../../workshop/pane_vocabulary.hpp),
+- The shapes Files speaks, in the headers declaring them: [the pane protocol](../../pane/vocabulary.hpp),
   [the host's doors](../../workshop/pane_seam_vocabulary.hpp),
   [the opening role](../../workshop/open_seam_vocabulary.hpp) and
-  [Workshop's word on an act](../../workshop/pane_operation.hpp).
+  [Workshop's word on an act](../../pane/operation.hpp).

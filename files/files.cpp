@@ -15,21 +15,21 @@
 #include "files/filesystem_roots.hpp"
 #include "workshop/actor_scope.hpp" // the class an act that opens or writes is judged as
 #include "workshop/open_seam_vocabulary.hpp" // the opening role the open is asked of
-#include "workshop/pane_causes.hpp"
-#include "workshop/pane_facets.hpp"
+#include "pane/causes.hpp"
+#include "pane/facets.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/pane_settings.hpp"
-#include "workshop/pane_settings_taken.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/settings.hpp"
+#include "pane/settings_taken.hpp"
+#include "pane/text.hpp"
 #include "workshop/settings_seam_vocabulary.hpp" // the places' fold, committed as the pane's word
 #include "files/marks_persist.hpp"
-#include "workshop/pane_vocabulary.hpp"
+#include "pane/vocabulary.hpp"
 #include "persist/path_admission.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_escape.hpp"
+#include "pane/menu.hpp"
+#include "pane/escape.hpp"
 
 #include "app/vocabulary.hpp"
 #include "builder/vocabulary.hpp"
@@ -41,7 +41,7 @@
 #include "component/text_box.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "workshop/pane_rows.hpp"
+#include "pane/rows.hpp"
 
 #include "manuals/zengine.files.hpp" // this pane's manual, compiled in from its page
 
@@ -69,7 +69,7 @@ namespace input = zengine::input;
 namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace files = zengine::files;
-namespace pane_menu = zengine::workshop::pane_menu;
+namespace pane_menu = zengine::pane::pane_menu;
 
 using zengine::persist::AdmittedName;
 using ws::FileRow;
@@ -77,12 +77,12 @@ using ws::Listing;
 using ws::LocationMarks;
 using ws::MarkedPlace;
 using ws::OpenSourceRequested;
-using ws::v3::PaneActionRow;
-using ws::PaneCatalogRequested;
-using ws::PaneKey;
-using ws::v2::PaneOffered;
-using ws::PanePassRequested;
-using ws::PaneTextInput;
+using zengine::pane::v3::PaneActionRow;
+using zengine::pane::PaneCatalogRequested;
+using zengine::pane::PaneKey;
+using zengine::pane::v2::PaneOffered;
+using zengine::pane::PanePassRequested;
+using zengine::pane::PaneTextInput;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::RecipeAuthorRequested;
@@ -91,8 +91,8 @@ using ws::RecipeUseRequested;
 using ws::SourceOpened;
 
 /// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
-/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
-using zengine::workshop::pane_menu::kWorkshopRole;
+/// (`pane/menu.hpp`) as a stranger's pane reads it.
+using zengine::pane::pane_menu::kWorkshopRole;
 
 /// How many rows the wheel is worth per notch in a cursor-windowed list, unless a layout keeps
 /// another, and the fewest and most it may keep.
@@ -100,12 +100,12 @@ constexpr std::int64_t kFilesWheelRows = 3;
 constexpr std::int64_t kFilesWheelRowsLow = 1;
 constexpr std::int64_t kFilesWheelRowsHigh = 24;
 
-/// The shared pane text helpers (`workshop/pane_text.hpp`): every row fitted to the columns the
+/// The shared pane text helpers (`pane/text.hpp`): every row fitted to the columns the
 /// pane was granted.
-using zengine::workshop::pane_text::printable;
-using zengine::workshop::pane_text::fit;
-using zengine::workshop::pane_text::fit_path;
-using zengine::workshop::pane_text::scrub;
+using zengine::pane::pane_text::printable;
+using zengine::pane::pane_text::fit;
+using zengine::pane::pane_text::fit_path;
+using zengine::pane::pane_text::scrub;
 
 /// A build candidate the chooser holds: a place, and which of the two recipe kinds it may be
 /// tried as. Local: it is the pane's mode state and crosses no wire.
@@ -214,14 +214,14 @@ inline auto of_kind(FilesAsk::Kind kind) {
 // =============================================================================
 
 /// Its rows, and the pointer resting on them: the places peek under it, and a path shows whole.
-using Rows = ws::PaneRowsFacet<files::kProjectFilesPane, files::kFilesRole,
+using Rows = zengine::pane::PaneRowsFacet<files::kProjectFilesPane, files::kFilesRole,
                                zengine::manual::pages::zengine_files::kManual, FilesMeaning,
-                               ws::v2::PaneOffered, ws::kHearsRest>;
-using Asks = ws::AskFacet<files::kProjectFilesPane, files::kFilesRole, FilesAsk>;
-using Actions = ws::PaneActionFacet<files::kProjectFilesPane, files::kFilesRole>;
-using Menu = ws::PaneMenuFacet<files::kProjectFilesPane, files::kFilesRole>;
+                               zengine::pane::v2::PaneOffered, zengine::pane::kHearsRest>;
+using Asks = zengine::pane::AskFacet<files::kProjectFilesPane, files::kFilesRole, FilesAsk>;
+using Actions = zengine::pane::PaneActionFacet<files::kProjectFilesPane, files::kFilesRole>;
+using Menu = zengine::pane::PaneMenuFacet<files::kProjectFilesPane, files::kFilesRole>;
 /// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<files::kProjectFilesPane, files::kFilesRole>;
+using Settings = zengine::pane::PaneSettingsFacet<files::kProjectFilesPane, files::kFilesRole>;
 
 class FilesWeave
     : public zengine::With<Rows, Asks, Actions, Menu, Settings>::Weave<
@@ -233,8 +233,8 @@ class FilesWeave
                      OpenSourceRequested, zengine::builder::StatusRequested, zengine::launcher::Launch,
                      // A SECOND GUARD: Loom admits this ask undeclared, since `Emit` registers a
                      // shape rather than granting a send; it matters to a host that grants by it.
-                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
+                     zengine::pane::PaneKeyboardRequested, zengine::pane::PaneEscapeUnspent, gfx::ClipboardCopy,
+                     gfx::ClipboardTextRequested, zengine::pane::v2::PaneSettingsDeclared,
                      ws::PaneSettingCommitRequested>> {
 public:
     /// THE PANE AS IT WOULD LIKE TO STAND: its rows, and the places' rows beside them while that
@@ -248,15 +248,15 @@ public:
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(ws::kLayoutsRole,
-                          ws::v2::PaneSettingsDeclared{files::kProjectFilesPane, setting_rows()});
+            .send_to_role(zengine::pane::kLayoutsRole,
+                          zengine::pane::v2::PaneSettingsDeclared{files::kProjectFilesPane, setting_rows()});
     }
 
     /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
     /// facet took them whole. A listing held to fewer or more entries is walked again, keeping the
     /// row the weaver was on; the places show as the row keeps them, and the pane offers again when
     /// that moves what it would like. Held as plain members, never reload state.
-    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+    void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         wheel_rows_ = taken.number(files::kSettingWheelRows);
         row_revision_ = taken.revision;
         const bool places = taken.flag(files::kSettingPlaces);
@@ -281,8 +281,8 @@ public:
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
     /// the wheel's rows a notch, pinned, the entries one listing holds, and the places section,
     /// shut at first.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow wheel;
+    static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
+        zengine::pane::v2::PaneSettingRow wheel;
         wheel.key = files::kSettingWheelRows;
         wheel.number = kFilesWheelRows;
         wheel.low = kFilesWheelRowsLow;
@@ -290,14 +290,14 @@ public:
         wheel.tags = {"input", "scroll"};
         wheel.pinned = true;
         wheel.summary = "rows scrolled per wheel notch";
-        ws::v2::PaneSettingRow listed;
+        zengine::pane::v2::PaneSettingRow listed;
         listed.key = files::kSettingListedEntries;
         listed.number = static_cast<std::int64_t>(ws::kMaxListedEntries);
         listed.low = static_cast<std::int64_t>(ws::kFewestListedEntries);
         listed.high = static_cast<std::int64_t>(ws::kMaxListedEntries);
         listed.tags = {"limits"};
         listed.summary = "the most entries one directory listing holds";
-        ws::v2::PaneSettingRow places;
+        zengine::pane::v2::PaneSettingRow places;
         places.key = files::kSettingPlaces;
         places.flag = false;
         places.tags = {"view"};
@@ -347,7 +347,7 @@ public:
     // WL-FOCUS-04 -- agents/workshop/focus.md
     /// A press the window landed on another row than the one the rows show there now is refused in
     /// words and spends nothing.
-    void press(const ws::RowPress& at, loom::Mail& mail) {
+    void press(const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (at.moved) {
             notice_ = "the rows moved -- press again";
             say(mail);
@@ -416,7 +416,7 @@ public:
     /// the press, continuing it; a right press on anything else -- the header, a marker, blank
     /// space -- is handed back to the host, whose own pane menu answers (WL-CTX-08). A middle
     /// press means nothing here and is consumed.
-    bool right_press(const FilesMeaning& m, const ws::RowPress& at, loom::Mail& mail) {
+    bool right_press(const FilesMeaning& m, const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (m.kind == files_row::kNone) {
             return false;
         }
@@ -441,7 +441,7 @@ public:
         }
         // Escape's default: the cursor is where the list rests, not a selection, so Escape goes
         // back to Workshop.
-        if (ws::pane_escape::answer(key, mail, files::kFilesRole, [] { return false; })) {
+        if (zengine::pane::pane_escape::answer(key, mail, files::kFilesRole, [] { return false; })) {
             return;
         }
         // ONLY THE AUTHORING LINE READS RAW KEYS. Everything else this pane does arrives as
@@ -517,7 +517,7 @@ public:
     /// places' header, or the places a peek shows, the shut section peeks; over a path the row
     /// cut, the path shows whole, from where the pointer's column puts it. Presentation alone:
     /// nothing is kept, no act is spent and the notice stands.
-    void rest(const ws::RowCell& at, loom::Mail& mail) {
+    void rest(const zengine::pane::RowCell& at, loom::Mail& mail) {
         const FilesMeaning* m = at.shown ? room().map().at(at.row, at.column) : nullptr;
         bool moved = places_.rest(m != nullptr && (m->kind == files_row::kPlaces ||
                                                    m->kind == files_row::kPeek));
@@ -971,7 +971,7 @@ public:
     /// WORKSHOP'S WORD ON THE ACT THIS PANE ASKED ABOUT (`ask_approval`), judged for the hand of
     /// the gesture that brought it. Allowed, the act captured at the ask is done now and is never
     /// asked about again; refused, nothing of it happens, and the pane says why in its own row.
-    void on_approval(const FilesAsk& approved, const ws::PaneOperationAnswered& answer,
+    void on_approval(const FilesAsk& approved, const zengine::pane::PaneOperationAnswered& answer,
                      loom::Mail& mail) {
         if (!answer.allowed) {
             notice_ = not_done(approved) + " -- " + answer.reason;
@@ -1098,11 +1098,11 @@ private:
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
                                  std::int64_t mods = input::mod::kNone,
-                                 std::vector<ws::ActionCause> causes = {}) {
+                                 std::vector<zengine::pane::ActionCause> causes = {}) {
             rows.push_back(PaneActionRow{id, label, sc, mods, {}, std::move(causes)});
         };
-        const ws::ActionCause status = ws::cause_of<zengine::builder::StatusRequested>();
-        const std::vector<ws::ActionCause> authored{ws::cause_of<RecipeAuthorRequested>(), status};
+        const zengine::pane::ActionCause status = zengine::pane::cause_of<zengine::builder::StatusRequested>();
+        const std::vector<zengine::pane::ActionCause> authored{zengine::pane::cause_of<RecipeAuthorRequested>(), status};
         // The authoring line owns the keyboard except for these rows. The two arrows are the
         // field walk, free because a single line has no row above or below; `files.write-recipe`
         // declares no default key (`kUnknown`, WL-KEY-13), reachable from its control and the
@@ -1136,19 +1136,19 @@ private:
         row(files::kActionUp, "row up", input::scan::kUp);
         row(files::kActionDown, "row down", input::scan::kDown);
         row(files::kActionOpen, "enter or edit", input::scan::kReturn, input::mod::kNone,
-            {ws::cause_of<OpenSourceRequested>()});
+            {zengine::pane::cause_of<OpenSourceRequested>()});
         row(files::kActionParent, "up a directory", input::scan::kBackspace);
         row(files::kActionRefresh, "look again", input::scan::kR);
         row(files::kActionUseRecipes, "use as recipes", input::scan::kU, input::mod::kNone,
-            {ws::cause_of<RecipeUseRequested>(), status});
+            {zengine::pane::cause_of<RecipeUseRequested>(), status});
         row(files::kActionMark, "mark this place", input::scan::kM);
         row(files::kActionNextMark, "next mark", input::scan::kN);
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);
         row(files::kActionPickBuildable, "pick buildable", input::scan::kA);
         row(files::kActionPlaces, "open or shut the places", input::scan::kP, input::mod::kNone,
-            {ws::cause_of<ws::PaneSettingCommitRequested>()});
+            {zengine::pane::cause_of<ws::PaneSettingCommitRequested>()});
         row(files::kActionStart, "start this app or demo", input::scan::kUnknown, input::mod::kNone,
-            {ws::cause_of<zengine::launcher::Launch>()});
+            {zengine::pane::cause_of<zengine::launcher::Launch>()});
         row(files::kActionDemos, "go to the demos", input::scan::kUnknown);
         // THE KEYBOARD'S WAY TO THE ROWS A RIGHT PRESS OFFERS. `m` is already this pane's
         // mark, so the menu takes the shifted one rather than moving a key a weaver has.
@@ -1445,7 +1445,7 @@ private:
         fold.revision = row_revision_;
         fold.key = files::kSettingPlaces;
         fold.flag = open;
-        if (asks().ask(mail, ws::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
+        if (asks().ask(mail, zengine::pane::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
             Asks::Asked::kHeld) {
             notice_ = places_stay() + " -- the layouts' owner could not be asked";
         }
@@ -1593,7 +1593,7 @@ private:
     // ---- Clipboard (the authoring line's paste) -----------------------------------------
 
     static bool admissible(std::string_view text) {
-        return zengine::workshop::pane_text::admissible(std::string(text));
+        return zengine::pane::pane_text::admissible(std::string(text));
     }
 
     /// A paste is asked of the window that shows the pane's area, and of nobody while none does.
@@ -1615,7 +1615,7 @@ private:
     // ---- Saying what the pane shows -----------------------------------------------------
 
     /// One row's text as this pane draws it, made printable before it is fit (`printable`,
-    /// `workshop/pane_text.hpp`), since a notice can relay another owner's diagnostic verbatim:
+    /// `pane/text.hpp`), since a notice can relay another owner's diagnostic verbatim:
     /// every character as written, a control character a space and an escape sequence left out.
     std::string fitted(const std::string& text) const {
         return fit(printable(text), columns());
@@ -1632,7 +1632,7 @@ private:
         if (meaning.kind != files_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(zengine::workshop::TextRow{fitted(text), ink}, std::move(means));
+        (void)room().push(zengine::pane::TextRow{fitted(text), ink}, std::move(means));
     }
 
     /// The whole picture. The notice leads and is composed first, since the row map records

@@ -18,7 +18,7 @@
 #include "builder/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
-#include "workshop/pane_text.hpp"
+#include "pane/text.hpp"
 #include "workshop/provenance.hpp"
 
 #include <filesystem>

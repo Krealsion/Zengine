@@ -376,8 +376,8 @@ public:
 };
 ```
 
-A pane Workshop seats draws the same way. `workshop::PaneDrawingFacet`
-([`workshop/pane_facets.hpp`](../../workshop/pane_facets.hpp)) holds the pane's room in Workshop
+A pane Workshop seats draws the same way. `pane::PaneDrawingFacet`
+([`pane/facets.hpp`](../../pane/facets.hpp)) holds the pane's room in Workshop
 and in a window alike: the weave writes one `picture(graphics::Sketch&)` and one
 `on_action(action, mail)`, and calls the facet's `show` where its state changed. The window that
 shows the area named by the pane's role is sent what changed; Workshop is sent the same picture
