@@ -166,7 +166,10 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
 - **Built** cold and Release, Loom and Zengine both as the next tag's release number:
   - Linux in Ubuntu 22.04 pinned by digest, its packages from Ubuntu's archive on one named day,
     and SDL with its X11 and Wayland drivers (`cmake/ZengineSdl.cmake` keeps SDL's guard under the
-    switch);
+    switch). The packages it downloads are cached, keyed by that day and the build set; the indexes
+    are fetched fresh every run, and a cached file stays only when its SHA-256 is the one they give
+    it, since apt takes a cached file of the right size without its hash. The install has its own
+    limit, `INSTALL_LIMIT_MIN`, and past it the job ends naming the archive;
   - Windows with WinLibs' GCC UCRT archive, pinned by SHA-256 and checked against the checksum
     WinLibs publishes.
   - Both repositories install `--strip` into one folder, packed by `tests/package/pack.py`, so the
