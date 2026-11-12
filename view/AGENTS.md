@@ -7,7 +7,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | path | what it is |
 |---|---|
-| `CMakeLists.txt` | `zengine-view`: a header-only INTERFACE target, internal, nothing installed |
+| `CMakeLists.txt` | `zengine-view`: a header-only INTERFACE target, exported as `zengine::view` with its four headers |
 | `description.hpp` | `view::Description`, its saved bytes, and `view::problem`, the rules |
 | `view.hpp` | the view renderer, `view::View`: one running view on its pane's canvas |
 | `host.hpp` | the view host, `view::Host`: each view its own participant |

@@ -15,7 +15,8 @@ The manager holds the role [`zengine.flow.host`](zengine.flow.host.md), whose ma
 request, its answer and its refusals. Its message definitions live in
 `flow/flow-host/vocabulary.hpp`, installed through `zengine::flow` alongside the graphical pane
 control shapes in `flow/flow-pane/vocabulary.hpp`. These headers let another participant speak
-the protocols. The manager implementation and pane model/view remain Workshop internals.
+the protocols. The manager itself, `flow/flow-host/runtime.hpp`, installs through `zengine::flow-host`
+for any host to mount, as Workshop and `zengine-app` do; the pane's model and view remain the pane's.
 Each request receives one authenticated, correlated answer. `FlowChanged` is a role-authored
 notification to inspect again, not an acknowledgement that an application operation succeeded.
 
