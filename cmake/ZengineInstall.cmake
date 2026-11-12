@@ -53,6 +53,7 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-manual
     zengine-maker
     zengine-flow
+    zengine-flow-host
     zengine-message-draft
     zengine-inventory-vocabulary
     zengine-source-transfer-vocabulary
@@ -74,6 +75,7 @@ set(ZENGINE_EXPORTED_TARGETS
 set_target_properties(zengine-manual PROPERTIES EXPORT_NAME manual)
 set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
 set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
+set_target_properties(zengine-flow-host PROPERTIES EXPORT_NAME flow-host)
 set_target_properties(zengine-message-draft PROPERTIES EXPORT_NAME message-draft)
 set_target_properties(zengine-inventory-vocabulary PROPERTIES EXPORT_NAME inventory)
 set_target_properties(zengine-source-transfer-vocabulary PROPERTIES EXPORT_NAME source-transfer)
@@ -200,7 +202,7 @@ set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/l
 set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp inventory/grant.hpp)
 install(FILES inventory/inventory-pane/vocabulary.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/inventory/inventory-pane)
 set(zengine_public_headers_editor/source-transfer editor/source-transfer/vocabulary.hpp)
-set(zengine_public_headers_flow/flow-host flow/flow-host/vocabulary.hpp)
+set(zengine_public_headers_flow/flow-host flow/flow-host/vocabulary.hpp flow/flow-host/runtime.hpp)
 set(zengine_public_headers_flow/flow-pane flow/flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)
     install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

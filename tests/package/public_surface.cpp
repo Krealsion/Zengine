@@ -10,6 +10,7 @@
 #include "maker/succession.hpp"
 #include "flow/graph.hpp"
 #include "flow/shape.hpp"
+#include "flow/flow-host/runtime.hpp"
 
 #include "component/text_box.hpp"
 #include "component/motion.hpp"

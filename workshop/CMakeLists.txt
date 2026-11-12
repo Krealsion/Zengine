@@ -38,9 +38,6 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.layouts.md)
 # shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.powers.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../introspection/docs/zengine.sources.md)
-# ...and the Flow host's (`flow/flow-host/runtime.hpp`, which Workshop mounts and does not
-# install): it rides Workshop's vocabulary, not the exported `zengine::flow`.
-zengine_manual(zengine-workshop-vocabulary INTERFACE ../flow/docs/zengine.flow.host.md)
 
 # ---- The authored load plan: its shape, its file, its execution, and the observation door ----
 #
@@ -186,8 +183,8 @@ target_link_libraries(zengine-workshop
             zengine::timer-rest zengine-workshop-bus-tally
             # ...and the load plan: the typed plan, its codec and its executor.
             zengine-workshop-load
-            # ...and the view host this host composes beside the Flow host.
-            zengine::view
+            # ...and the view host this host composes beside the Flow host, which it mounts.
+            zengine::view zengine::flow-host
             workshop-warnings workshop-sanitize)
 
 # ---- The one thing this host hands its build runner -------------------------------------

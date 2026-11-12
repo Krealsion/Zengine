@@ -766,7 +766,7 @@ foreach(stem IN ITEMS thermostat boundaries high_water empty)
     target_link_libraries(zengine-flow-${stem} PRIVATE zengine-flow)
 endforeach()
 add_executable(zengine-flow-tests test_flow.cpp test_flow_runtime.cpp test_flow_graph.cpp test_flow_view.cpp doctest_main.cpp)
-target_link_libraries(zengine-flow-tests PRIVATE zengine-flow zengine-graphics-vocabulary loom::kernel
+target_link_libraries(zengine-flow-tests PRIVATE zengine-flow zengine-flow-host zengine-graphics-vocabulary loom::kernel
                                                  zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-tests
@@ -774,15 +774,15 @@ zengine_test_definitions(zengine-flow-tests
     "FLOW_BOUNDARIES=\"$<TARGET_FILE:zengine-flow-boundaries>\""
     "FLOW_HIGH_WATER=\"$<TARGET_FILE:zengine-flow-high_water>\""
     "FLOW_EMPTY=\"$<TARGET_FILE:zengine-flow-empty>\"")
-# test_flow_runtime.cpp mounts the Timer and the Flow host, each answering from its role's manual.
+# test_flow_runtime.cpp mounts the Timer and the Flow host, each answering from its role's manual,
+# the Flow host's riding `zengine-flow-host`.
 zengine_manual(zengine-flow-tests PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
-zengine_manual(zengine-flow-tests PRIVATE ${PROJECT_SOURCE_DIR}/flow/docs/zengine.flow.host.md)
 add_dependencies(zengine-flow-tests zengine-flow-thermostat zengine-flow-boundaries
     zengine-flow-high_water zengine-flow-empty)
 zengine_doctest_test(flow zengine-flow-tests)
 add_executable(zengine-flow-pane-tests test_flow_pane.cpp doctest_main.cpp)
 # ...and Workshop's vocabulary for the discovery door it mounts, whose manual rides that target.
-target_link_libraries(zengine-flow-pane-tests PRIVATE zengine-flow zengine-activation loom::kernel
+target_link_libraries(zengine-flow-pane-tests PRIVATE zengine-flow zengine-flow-host zengine-activation loom::kernel
     zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-pane-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-pane-tests "FLOW_PANE_ARTIFACT=\"$<TARGET_FILE:zengine-flow-pane>\"")

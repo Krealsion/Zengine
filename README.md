@@ -195,7 +195,7 @@ folder, and each feature, the host and each library says what it is in its own `
 | [`editor/`](editor/README.md) | the Editor, standard or held by a Neovim, and the source material it carries | `zengine::neovim`, `zengine::source-transfer` |
 | [`external-host/`](external-host/README.md) | Workshop driven from another Loom host, and the Connections pane | not exported |
 | [`files/`](files/README.md) | Files: browse the project you launched in and open a file | not exported |
-| [`flow/`](flow/README.md) | Flow: author a stateful weave as a graph, edit it live, generate native C++ | `zengine::flow` |
+| [`flow/`](flow/README.md) | Flow: author a stateful weave as a graph, edit it live, generate native C++ | `zengine::flow`, `zengine::flow-host` |
 | [`info/`](info/README.md) | Info: independent views that inspect and edit a value | not exported |
 | [`introspection/`](introspection/README.md) | Loaded, Project and Powers: what a running system is made of | not exported |
 | [`inventory/`](inventory/README.md) | Inventory: stored typed values, portable toolboxes and hotkeys | `zengine::inventory` |
