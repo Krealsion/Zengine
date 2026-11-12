@@ -9,7 +9,6 @@
 // establish (WL-OPEN, agents/workshop/opening.md).
 
 #include "open_seam_vocabulary.hpp"
-#include "pane_seam_vocabulary.hpp"
 #include "setup.hpp"
 
 #include "activation/activation.hpp"

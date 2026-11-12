@@ -13,11 +13,11 @@
 
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
-#include "workshop/actor_scope.hpp" // the class an act that opens or writes is judged as
+#include "pane/operation.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening role the open is asked of
 #include "pane/causes.hpp"
 #include "pane/facets.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "pane/settings.hpp"
 #include "pane/settings_taken.hpp"
 #include "pane/text.hpp"
@@ -1356,7 +1356,7 @@ private:
         next.subject = row->name;
         next.path = zengine::persist::resolved_against(state_.current_dir, row->name);
         const std::string path = next.path;
-        ask_approval(std::move(next), ws::scope::kOpen, path, mail);
+        ask_approval(std::move(next), zengine::pane::act_class::kOpen, path, mail);
     }
 
     /// THE APPROVED OPEN, asked of the opening role, which arranges the document and the desk
@@ -1387,7 +1387,7 @@ private:
         FilesAsk next;
         next.kind = FilesAsk::Kind::kMark;
         next.place = state_.current_dir;
-        ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
+        ask_approval(std::move(next), zengine::pane::act_class::kWrite, std::string(), mail);
     }
 
     /// THE APPROVED MARK: the place the gesture stood in is marked, or forgotten, and saved.
@@ -1533,7 +1533,8 @@ private:
         FilesAsk next = asking(FilesAsk::Kind::kStart);
         next.subject = launch->name;
         next.place = launch->kind;
-        ask_approval(std::move(next), std::vector<std::string>{ws::scope::kBuild, ws::scope::kWrite},
+        ask_approval(std::move(next), std::vector<std::string>{zengine::pane::act_class::kBuild,
+                                                               zengine::pane::act_class::kWrite},
                      std::string(), mail);
     }
 
@@ -1580,7 +1581,7 @@ private:
         next.kind = FilesAsk::Kind::kUseRecipes;
         next.subject = row->name;
         next.path = zengine::persist::resolved_against(state_.current_dir, row->name);
-        ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
+        ask_approval(std::move(next), zengine::pane::act_class::kWrite, std::string(), mail);
     }
 
     /// THE APPROVED CATALOG, asked of the project role, which installs it or says why not.

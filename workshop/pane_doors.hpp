@@ -9,7 +9,7 @@
 // names nobody and is not containment: the loader binds `allow_any()` to every library it opens.
 
 #include "builder_seam_vocabulary.hpp"
-#include "pane_seam_vocabulary.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "weave.hpp"
 
 #include "activation/activation.hpp"

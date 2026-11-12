@@ -169,6 +169,39 @@ struct ManagedOpenProgress {
               ZEN_FIELD(awaiting), ZEN_FIELD(pending));
 };
 
+// ---- One source, opened in the Editor ------------------------------------------
+
+/// Open this path as the source document: asked of `zengine.opening`, or of `zengine.editor`,
+/// which relays it to the managed opening (WL-OPEN-01).
+struct OpenSourceRequested {
+    std::string path;
+    ZEN_SHAPE(OpenSourceRequested, 1, ZEN_FIELD(path));
+};
+
+/// What opening came to: `accepted`, or the door's own sentence, which the pane says in its own
+/// row. What `accepted` establishes is WL-OPEN-02's.
+struct SourceOpened {
+    bool accepted = false;
+    std::string refusal;
+    ZEN_SHAPE(SourceOpened, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal));
+};
+
+// ---- A pane's code, reached from the pane ---------------------------------------
+
+/// The source behind a pane's running code is open, because a weaver asked from that pane: said
+/// once, when the open Edit Code asked for was accepted and the host still names the same code.
+/// Published to any, as Workshop's role. A reading, not an order: it starts no build.
+struct PaneSourceOpened {
+    std::string role;   ///< the pane's provider role, as Loom stamped its offer
+    std::string pane;     ///< the pane key, in that role's namespace
+    std::string name;     ///< what the weaver sees the pane called
+    std::string artifact; ///< the artifact the role's running code was realized from
+    std::string recipe;   ///< the one authored recipe that produces it
+    std::string source;   ///< the file now open: that recipe's single source
+    ZEN_SHAPE(PaneSourceOpened, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
+              ZEN_FIELD(artifact), ZEN_FIELD(recipe), ZEN_FIELD(source));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_OPEN_SEAM_VOCABULARY_HPP

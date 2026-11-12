@@ -6,6 +6,7 @@
 // Workshop law: agents/workshop/keyboard.md (+3 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
+#include "pane/operation.hpp"
 
 namespace zengine::workshop {
 
@@ -19,7 +20,7 @@ void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
                        : a == Act::kBandKeys ? "the band's keys were not respelled"
                                              : "the Hotkeys view's keys were not respelled";
     // The toggle is saved as it is stated, so it is a file write, judged for the hand.
-    if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {});
+    if (const std::string refused = judge_classes(input_actor_, {pane::act_class::kWrite}, {});
         !refused.empty()) {
         say(std::string(what) + " -- " + refused, true);
         return;

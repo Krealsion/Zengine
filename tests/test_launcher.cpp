@@ -13,7 +13,7 @@
 #include "launcher/vocabulary.hpp"
 #include "lifecycle_door.hpp"
 #include "maker/weave.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 
 #include <zen/kernel/kernel.hpp>
 

@@ -68,8 +68,8 @@ Rigs: `tests/editor_transfer_story.hpp`, `tests/workshop_switch_rig.hpp`.
 - `workshop/workshop.cpp` mounts the opening manager (`workshop/opening.hpp`) and the editor
   switch (`workshop/editor_switch.hpp`, with its grant) for the role `zengine.editor`.
 - `workshop/default-load-plan.json` loads the role and authors its choices `standard` and `neovim`; `workshop/CMakeLists.txt` stages both weaves.
-- Seam vocabulary: `workshop/pane_seam_vocabulary.hpp` (`kEditorRole`, the open),
-  `workshop/open_seam_vocabulary.hpp`, `workshop/editor_handoff_vocabulary.hpp`,
+- Seam vocabulary: `workshop/pane_seam_vocabulary.hpp` (`kEditorRole`),
+  `workshop/open_seam_vocabulary.hpp` (the open), `workshop/editor_handoff_vocabulary.hpp`,
   `workshop/editor_switch_vocabulary.hpp`; the carry is `pane/carry.hpp`.
 - Both Editors read files through `persist/file.hpp`, and the standard Editor writes through
   it; `workshop/pane_migration.hpp` reads a desk saved under the Editor's old role.

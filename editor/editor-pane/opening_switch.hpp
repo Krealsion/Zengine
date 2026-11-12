@@ -19,7 +19,6 @@
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "pane/rows.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 

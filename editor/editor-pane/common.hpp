@@ -20,7 +20,7 @@
 #include "workshop/open_seam_vocabulary.hpp"
 #include "pane/rows.hpp"
 #include "pane/menu.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "pane/text.hpp"
 #include "pane/vocabulary.hpp"
 #include "persist/file.hpp"

@@ -16,7 +16,8 @@
 #include "app/program.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.launcher.hpp" // this role's manual, compiled in from its page
-#include "workshop/pane_seam_vocabulary.hpp"
+#include "pane/operation.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "view/view-builder/vocabulary.hpp"
 #include "files/vocabulary.hpp"
 #include "workshop/command_vocabulary.hpp"

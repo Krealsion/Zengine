@@ -11,7 +11,6 @@
 // goes through `BuildRequested` to the Builder role.
 
 // `kProjectRole` and `SourceOpened` are the files seam's, included and never respelled.
-#include "pane_seam_vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
 

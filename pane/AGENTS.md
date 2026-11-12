@@ -9,7 +9,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `vocabulary.hpp` | `PaneCatalogRequested`, `PaneOffered`, `PaneKey`, `PaneTextInput`, `PaneKeys`, `PaneActions`, `PaneActionRequested`, `PaneQuitRequested`, `PaneQuitAnswered` and the rest of the seam |
 | `presenter_vocabulary.hpp` | `MenuGranted`, `MenuShown`, `MenuClosed`, `HeldMenu`: the presenter's seam |
-| `operation.hpp`, `carry.hpp` | `PaneOperationRequested` and its answer; a carried envelope, bounded by `kMaxCarryBytes` |
+| `operation.hpp`, `carry.hpp` | `PaneOperationRequested` and its answer, the act classes it names (`act_class::kBuild`, `act_class::kWrite`, `act_class::kOpen`); a carried envelope, bounded by `kMaxCarryBytes` |
 | `settings.hpp`, `settings_taken.hpp` | `PaneSettingsDeclared`, `PaneSettings`, `PaneSetting`; `PaneSettingsFacet` |
 | `document.hpp` | a pane's manual, asked of the pane |
 | `menu.hpp`, `escape.hpp` | `pane_menu::Asked`, `pane_menu::Offer`; `pane_escape::answer` |

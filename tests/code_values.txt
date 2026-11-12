@@ -227,7 +227,7 @@ name  zengine.opening            workshop/open_seam_vocabulary.hpp      kOpening
 name  zengine.palette            workshop/command_vocabulary.hpp        kPaletteRole
 name  zengine.powers             workshop/powers_vocabulary.hpp         kPowersRole
 name  zengine.presenter          pane/vocabulary.hpp           kPresenterRole
-name  zengine.project            workshop/pane_seam_vocabulary.hpp      kProjectRole
+name  zengine.project            workshop/project_seam_vocabulary.hpp   kProjectRole
 name  zengine.realization        builder/vocabulary.hpp                 kRealizationRole
 name  zengine.sources            workshop/sample_vocabulary.hpp         kSampleRole
 name  zengine.terminal           terminal/vocabulary.hpp                kTerminalPaneRole

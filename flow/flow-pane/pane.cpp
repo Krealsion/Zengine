@@ -8,7 +8,6 @@
 #include "graphics/vocabulary.hpp"
 #include "inventory/codec.hpp"
 #include "operator/reference.hpp"
-#include "workshop/actor_scope.hpp"
 #include "component/fingerprint.hpp"
 #include "pane/carry.hpp"
 #include "pane/causes.hpp"
@@ -1841,7 +1840,7 @@ private:
     FlowAsk writing = asking(FlowAsk::Kind::kWrite);
     writing.action = verb;
     writing.values = std::move(values);
-    if (asks().approve(mail, std::move(writing), mail.correlation(), {ws::scope::kWrite}) !=
+    if (asks().approve(mail, std::move(writing), mail.correlation(), {zengine::pane::act_class::kWrite}) !=
         Asks::Asked::kHeld)
       throw std::invalid_argument(pane::Model::writing(verb) +
                                   " was not done: Workshop could not be asked");

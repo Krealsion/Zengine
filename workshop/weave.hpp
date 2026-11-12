@@ -22,7 +22,6 @@
 #include "desktop_seam_vocabulary.hpp"   // the application-defaults owner: rows, launches, the floor
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "builder/vocabulary.hpp" // a module's suffix, which the stem rule reads
-#include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
 #include "open_seam_vocabulary.hpp"  // the managed opening's conversation
 #include "settings_seam_vocabulary.hpp" // one pane's settings, read and written by message
 #include "editor_switch_vocabulary.hpp" // what a switch of the Editor is waiting on

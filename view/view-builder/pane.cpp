@@ -15,13 +15,13 @@
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
-#include "workshop/actor_scope.hpp"
+#include "pane/operation.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "pane/canvas_drawing.hpp"
 #include "pane/carry.hpp"
 #include "pane/causes.hpp"
 #include "pane/drawing.hpp"
 #include "pane/facets.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "pane/settings.hpp"
 #include "pane/settings_taken.hpp"
 #include "pane/vocabulary.hpp"
@@ -1109,7 +1109,8 @@ private:
         }
         ViewBuilderAsk saving = asking(ViewBuilderAsk::Kind::kSave);
         saving.path = model_.path;
-        if (asks().approve(mail, std::move(saving), mail.correlation(), {ws::scope::kWrite}) != Asks::Asked::kHeld)
+        if (asks().approve(mail, std::move(saving), mail.correlation(),
+                           {zengine::pane::act_class::kWrite}) != Asks::Asked::kHeld)
             model_.notice = "Not saved: Workshop could not be asked to allow it";
     }
     /// EXPORT THE SAVED VIEW AS AN APP (app/folder.hpp): judged first, with nothing written; an
@@ -1142,7 +1143,8 @@ private:
         ViewBuilderAsk exporting = asking(ViewBuilderAsk::Kind::kExport);
         exporting.path = file_;
         exporting.replace = judged.exists;
-        if (asks().approve(mail, std::move(exporting), mail.correlation(), {ws::scope::kWrite}) != Asks::Asked::kHeld)
+        if (asks().approve(mail, std::move(exporting), mail.correlation(),
+                           {zengine::pane::act_class::kWrite}) != Asks::Asked::kHeld)
             model_.notice = "Not exported: Workshop could not be asked to allow it";
     }
     /// ...ALLOWED, IT IS JUDGED AGAIN ON THE WORLD AS IT IS NOW and written: the same view's file,
@@ -1194,7 +1196,7 @@ private:
         ViewBuilderAsk starting = asking(ViewBuilderAsk::Kind::kStart);
         starting.path = std::filesystem::path(file_).stem().string();
         if (asks().approve(mail, std::move(starting), mail.correlation(),
-                           {ws::scope::kBuild, ws::scope::kWrite}) != Asks::Asked::kHeld)
+                           {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite}) != Asks::Asked::kHeld)
             model_.notice = "Not started: Workshop could not be asked to allow it";
     }
     /// ...ALLOWED, THE LAUNCHER IS ASKED, and its answer is said.

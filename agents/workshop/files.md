@@ -320,7 +320,7 @@ directory that cannot be listed is a refusal, not an empty listing"
 ### WL-FILES-15
 `files/vocabulary.hpp` kActionPickBuildable
 `files/recipe_authoring.hpp` pick_buildable chooser_choose authoring_commit
-`workshop/pane_seam_vocabulary.hpp` RecipeAuthorRequested
+`workshop/project_seam_vocabulary.hpp` RecipeAuthorRequested
 `tests/test_workshop_panes_files.cpp` "a weaver authors a recipe row in-pane, and the host writes
 it"
 
@@ -336,8 +336,10 @@ and a declared id that moves nothing still spends it" "an id Files resolved in o
 the next" "each Files mode's Return is its own id, and a keymap moves each alone"
 
 ### WL-FILES-17
-`workshop/pane_seam_vocabulary.hpp` ProjectRootRequested ProjectRoot RecipeUseRequested
-RecipeAuthorRequested RecipeOutcome OpenSourceRequested SourceOpened kEditorRole
+`workshop/project_seam_vocabulary.hpp` ProjectRootRequested ProjectRoot RecipeUseRequested
+RecipeAuthorRequested RecipeOutcome
+`workshop/open_seam_vocabulary.hpp` OpenSourceRequested SourceOpened
+`workshop/pane_seam_vocabulary.hpp` kEditorRole
 `workshop/pane_doors.hpp` ProjectDoor
 `editor/editor-pane/pane.cpp` on(OpenSourceRequested)
 `tests/test_workshop_files.cpp` "the project door answers the weave that asked, and nobody else" "a

@@ -436,8 +436,8 @@ joint-publication reference page, never restated here. What crosses, all in
 `workshop/open_seam_vocabulary.hpp` unless named otherwise:
 
 ```text
-OpenSourceRequested v1 {path}   requester -> zengine.opening   (pane_seam_vocabulary.hpp; also
-                                                                 zengine.editor, which RELAYS)
+OpenSourceRequested v1 {path}   requester -> zengine.opening   (also zengine.editor, which
+                                                                 RELAYS)
 SourceOpened v1 {accepted, refusal}   the answer: published AND applied by both owners, or why not
 PresentationTrialRequested v1 / PresentationTrial v3   manager -> desk: would it seat, and the room
                                                            its area will have (`OpeningRoom`)

@@ -13,9 +13,9 @@
 #include "files/files.hpp"
 #include "files/vocabulary.hpp"
 #include "builder/recipe.hpp" // what a drafted one-file recipe makes, said when it is written
-#include "workshop/actor_scope.hpp"
+#include "pane/operation.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "pane/menu.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "pane/text.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
@@ -424,7 +424,7 @@ inline void FilesWeave::compose_recipe(loom::Mail& mail) {
             draft.config = a.values[4];
         }
     }
-    ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
+    ask_approval(std::move(next), zengine::pane::act_class::kWrite, std::string(), mail);
 }
 
 /// THE APPROVED DRAFT, sent as it stood at the ask, while the line is still open on it: the

@@ -35,7 +35,7 @@
 #include "pane/document.hpp"
 #include "pane/menu.hpp"
 #include "pane/operation.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "pane/settings.hpp"
 #include "pane/settings_taken.hpp"
 #include "pane/text.hpp"

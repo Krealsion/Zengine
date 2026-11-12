@@ -19,12 +19,12 @@
 #include "view/view-builder/vocabulary.hpp"
 #include "view/host.hpp"
 #include "workshop/actor_scope.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "pane/canvas_drawing.hpp"
 #include "pane/carry.hpp"
 #include "pane/drawing.hpp"
 #include "pane/picture.hpp"
 #include "pane/operation.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "pane/settings.hpp"
 #include "pane/vocabulary.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
@@ -2552,7 +2552,7 @@ TEST_CASE("an export Workshop refuses writes nothing, and says why") {
         const auto& m = x.rig.desk->heard[i];
         if (loom::same_identity(m.payload.schema(), *loom::schema_of<zengine::pane::v2::PaneOperationRequested>()))
             write_asked = loom::from_value<zengine::pane::v2::PaneOperationRequested>(m.payload).classes ==
-                          std::vector<std::string>{ws::scope::kWrite};
+                          std::vector<std::string>{zengine::pane::act_class::kWrite};
     }
     CHECK(write_asked);
     CHECK(x.rig.says("Not exported: not now"));
@@ -2758,7 +2758,7 @@ TEST_CASE("Run app asks Workshop for a build and a write for the hand, then the 
         if (loom::same_identity(x.rig.desk->heard[i].payload.schema(),
                                 *loom::schema_of<zengine::pane::v2::PaneOperationRequested>()))
             classes = loom::from_value<zengine::pane::v2::PaneOperationRequested>(x.rig.desk->heard[i].payload).classes;
-    CHECK(classes == std::vector<std::string>{ws::scope::kBuild, ws::scope::kWrite});
+    CHECK(classes == std::vector<std::string>{zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite});
 
     // ALLOWED: the launcher is asked for the app by its name, and its answer said.
     x.rig.desk->allow = true;

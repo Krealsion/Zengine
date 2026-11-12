@@ -19,6 +19,9 @@
 #include "builder/builder-pane/vocabulary.hpp"
 #include "notices/vocabulary.hpp"
 #include "workshop/actor_scope.hpp"
+#include "pane/operation.hpp"
+#include "workshop/open_seam_vocabulary.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "pane/document.hpp"
@@ -2750,7 +2753,7 @@ TEST_CASE("a guest without build is refused whole in the notices record while th
     b.r.extent(161, 48);
     b.r.extent(160, 48);
     guest_hand::GuestHand g(b.r, {"input"});
-    const std::string why = zengine::workshop::scope::judge(g.row, {}, zengine::workshop::scope::kBuild);
+    const std::string why = zengine::workshop::scope::judge(g.row, {}, zengine::pane::act_class::kBuild);
     const std::string whole = "`snake` was not built -- " + why;
     REQUIRE(why.find("builds and loads") != std::string::npos);
     const std::size_t asked = b.tool->asked.size();
@@ -3110,7 +3113,7 @@ TEST_CASE("the Builder's edit-source asks class open for the source it found bef
                 Said{"open", {}, loom::from_value<OpenSourceRequested>(*ev.payload).path});
         }
     });
-    const std::vector<std::string> open_class{ws::scope::kOpen};
+    const std::vector<std::string> open_class{zengine::pane::act_class::kOpen};
 
     SUBCASE("the weaver's e asks about the source it found, then opens it") {
         b.next_source.source = source.generic_string();

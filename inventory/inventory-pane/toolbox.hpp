@@ -4,7 +4,6 @@
 #define ZENGINE_INVENTORY_PANE_TOOLBOX_HPP
 #include "toolbox_file.hpp"
 #include "pane/operation.hpp"
-#include "workshop/actor_scope.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "pane/menu.hpp"
@@ -43,7 +42,7 @@ public:
                                                        gesture}, ++asks)
                 : pending_.send_to_role(mail.as_role(kRole), zengine::pane::pane_menu::kWorkshopRole,
                       pane::v2::PaneOperationRequested{pane, kRole, InventoryToolboxSave::zen_name, 1,
-                                                           gesture, {workshop::scope::kWrite}, {}}, ++asks);
+                                                           gesture, {pane::act_class::kWrite}, {}}, ++asks);
             if (!queued) fail("Toolbox permission request could not be queued", mail);
             else notice = "Checking authority for the toolbox file";
         } else start(mail, asks);
@@ -55,7 +54,7 @@ public:
         prepare(std::move(path), false, false, layout, std::move(due));
         stage_ = Stage::scope;
         if (!pending_.send_to_role(mail.as_role(kRole), workshop::kGuestsRole, pane::ActorScopeRequested{
-                static_cast<std::int64_t>(mail.sender().value), pane, {workshop::scope::kWrite},
+                static_cast<std::int64_t>(mail.sender().value), pane, {pane::act_class::kWrite},
                 InventoryToolboxSave::zen_name}, ++asks))
             fail("Toolbox write check could not be queued", mail);
         else notice = "Checking the sender's authority to write the toolbox file";

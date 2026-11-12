@@ -11,6 +11,7 @@
 
 #include "desktop_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
+#include "pane/operation.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -21,12 +22,6 @@
 #include <vector>
 
 namespace zengine::workshop::scope {
-
-/// The three action classes. An act names every class it is: the Builder's role line writes a
-/// plan row and builds, so it asks `build` and `write` both.
-inline constexpr const char* kBuild = "build";
-inline constexpr const char* kWrite = "write";
-inline constexpr const char* kOpen = "open";
 
 /// The power that reads the desk's words and pictures, as the guests file spells it
 /// (`guests::kPowerCapture`).
@@ -88,17 +83,17 @@ inline std::string judge(const GuestRowFacts& row, const HostFact& host, std::st
                          const std::string& subject = {}) {
     if (!row.admitted) return {};
     const std::string who = "guest '" + row.name + "'";
-    if (action_class == kBuild) {
-        if (row.may(kBuild)) return {};
+    if (action_class == pane::act_class::kBuild) {
+        if (row.may(pane::act_class::kBuild)) return {};
         return who + " may not build here: its row has no `build`, and only `build` reaches the "
                      "Builder's builds and loads";
     }
-    if (action_class == kWrite) {
+    if (action_class == pane::act_class::kWrite) {
         if (host.development) return {};
         return "this is a weaver's host: only the weaver's hand writes a file here, and " + who +
                " is not the weaver";
     }
-    if (action_class == kOpen) {
+    if (action_class == pane::act_class::kOpen) {
         if (host.development || !same_file(subject, host.guests_file)) return {};
         return "this is a weaver's host: the guests file opens only by the weaver's hand";
     }
@@ -120,8 +115,8 @@ inline std::string judge_all(const GuestRowFacts& row, const HostFact& host,
 /// its own role, so its owner's question about the sender meets no guest; the send is judged at
 /// its approval instead, for the hand that asked it (`judge_send`).
 inline std::vector<std::string> classes_of_send(std::string_view shape) {
-    if (shape == "InventoryToolboxSave" || shape == "WorkshopQuitRequested") return {kWrite};
-    if (shape == "OpenSourceRequested") return {kOpen};
+    if (shape == "InventoryToolboxSave" || shape == "WorkshopQuitRequested") return {pane::act_class::kWrite};
+    if (shape == "OpenSourceRequested") return {pane::act_class::kOpen};
     return {};
 }
 
@@ -131,7 +126,7 @@ inline std::vector<std::string> classes_of_send(std::string_view shape) {
 /// no class, or this is a development host.
 inline std::string judge_send(const GuestRowFacts& row, const HostFact& host, std::string_view shape) {
     for (const std::string& c : classes_of_send(shape)) {
-        if (c == kOpen) {
+        if (c == pane::act_class::kOpen) {
             if (!row.admitted || host.development) continue;
             return "this is a weaver's host: an open sent on guest '" + row.name +
                    "''s behalf shows Workshop no path, and only the weaver's hand opens one so";

@@ -11,7 +11,8 @@
 
 #include "builder/builder-pane/vocabulary.hpp"
 
-#include "workshop/actor_scope.hpp" // the action classes each act asks Workshop about
+#include "pane/operation.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/notice_seam_vocabulary.hpp" // a refusal said whole, beside the painted row
 #include "workshop/open_seam_vocabulary.hpp" // the opening role the open is asked of
@@ -1115,12 +1116,12 @@ private:
     /// second, the beat that learns the path, under its first beat's gesture.
     static std::vector<std::string> classes_of(Act kind) {
         if (kind == Act::kRow) {
-            return {ws::scope::kBuild, ws::scope::kWrite};
+            return {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite};
         }
         if (kind == Act::kOpen) {
-            return {ws::scope::kOpen};
+            return {zengine::pane::act_class::kOpen};
         }
-        return {ws::scope::kBuild};
+        return {zengine::pane::act_class::kBuild};
     }
 
     /// ASK WORKSHOP WHETHER THIS GESTURE'S ACTOR MAY DO THE ACT, and hold the act until it
