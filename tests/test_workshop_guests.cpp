@@ -12,6 +12,8 @@
 #include "role_manual.hpp"
 
 #include "workshop/actor_scope.hpp"
+#include "pane/operation.hpp"
+#include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_door.hpp"
@@ -22,7 +24,6 @@
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/notice_seam_vocabulary.hpp"
 #include "pane/carry.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
@@ -1675,9 +1676,11 @@ TEST_CASE("action classes: a guest's send is its shape's classes -- a toolbox sa
     namespace scope = zengine::workshop::scope;
     // THE NAMES ARE THE OWNERS' OWN SHAPES, so a renamed shape is a red here, not a send unjudged.
     CHECK(scope::classes_of_send(zengine::inventory_pane::InventoryToolboxSave::zen_name) ==
-          std::vector<std::string>{scope::kWrite});
-    CHECK(scope::classes_of_send(ws::WorkshopQuitRequested::zen_name) == std::vector<std::string>{scope::kWrite});
-    CHECK(scope::classes_of_send(ws::OpenSourceRequested::zen_name) == std::vector<std::string>{scope::kOpen});
+          std::vector<std::string>{zengine::pane::act_class::kWrite});
+    CHECK(scope::classes_of_send(ws::WorkshopQuitRequested::zen_name) ==
+          std::vector<std::string>{zengine::pane::act_class::kWrite});
+    CHECK(scope::classes_of_send(ws::OpenSourceRequested::zen_name) ==
+          std::vector<std::string>{zengine::pane::act_class::kOpen});
     CHECK(scope::classes_of_send(zengine::pane::PaneValueCarryRequested::zen_name).empty());
     scope::GuestRowFacts guest;
     guest.admitted = true;
@@ -1715,19 +1718,21 @@ TEST_CASE("action classes: a guest builds only with build, writes nothing and op
     scope::HostFact development = weaver;
     development.development = true;
 
-    CHECK(scope::judge(guest, weaver, scope::kBuild).find("has no `build`") != std::string::npos);
-    CHECK(scope::judge(guest, development, scope::kBuild).find("has no `build`") != std::string::npos);
+    CHECK(scope::judge(guest, weaver, zengine::pane::act_class::kBuild).find("has no `build`") != std::string::npos);
+    CHECK(scope::judge(guest, development, zengine::pane::act_class::kBuild).find("has no `build`") != std::string::npos);
     guest.powers.push_back("build");
-    CHECK(scope::judge(guest, weaver, scope::kBuild).empty());
-    CHECK(scope::judge(guest, weaver, scope::kWrite).find("only the weaver's hand writes a file here") !=
+    CHECK(scope::judge(guest, weaver, zengine::pane::act_class::kBuild).empty());
+    CHECK(scope::judge(guest, weaver, zengine::pane::act_class::kWrite).find("only the weaver's hand writes a file here") !=
           std::string::npos);
-    CHECK(scope::judge(guest, development, scope::kWrite).empty());
-    CHECK(scope::judge(guest, weaver, scope::kOpen, "some-other-file.txt").empty());
-    CHECK(scope::judge(guest, weaver, scope::kOpen, f.path).find("the guests file opens only by the weaver's hand") !=
+    CHECK(scope::judge(guest, development, zengine::pane::act_class::kWrite).empty());
+    CHECK(scope::judge(guest, weaver, zengine::pane::act_class::kOpen, "some-other-file.txt").empty());
+    CHECK(scope::judge(guest, weaver, zengine::pane::act_class::kOpen,
+                       f.path).find("the guests file opens only by the weaver's hand") !=
           std::string::npos);
-    CHECK(scope::judge(guest, development, scope::kOpen, f.path).empty());
+    CHECK(scope::judge(guest, development, zengine::pane::act_class::kOpen, f.path).empty());
     CHECK(scope::judge(guest, weaver, "delete").find("knows no action class 'delete'") != std::string::npos);
-    CHECK(scope::judge_all(guest, weaver, {scope::kBuild, scope::kWrite}).find("writes a file") !=
+    CHECK(scope::judge_all(guest, weaver, {zengine::pane::act_class::kBuild,
+                                           zengine::pane::act_class::kWrite}).find("writes a file") !=
           std::string::npos);
     CHECK(scope::refuse_text(guest, weaver).find("a guest's typed text rests in no pane") != std::string::npos);
     CHECK(scope::refuse_text(guest, development).empty());
@@ -1739,7 +1744,9 @@ TEST_CASE("action classes: a guest builds only with build, writes nothing and op
     CHECK(scope::refuse_carry(guest, development).empty());
     // NOT A GUEST: whatever its classes, a participant no door admitted is the weaver's own.
     const scope::GuestRowFacts local;
-    for (const char* c : {scope::kBuild, scope::kWrite, scope::kOpen}) CHECK(scope::judge(local, weaver, c, f.path).empty());
+    for (const char* c : {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite,
+                          zengine::pane::act_class::kOpen}) CHECK(scope::judge(local, weaver, c,
+                                                                               f.path).empty());
     CHECK(scope::refuse_text(local, weaver).empty());
     CHECK(scope::refuse_carry(local, weaver).empty());
 }
@@ -1765,9 +1772,9 @@ TEST_CASE("door: in a file with two rows of one name, each session holds the row
     CHECK(r.door->row_index(b) == std::optional<std::size_t>(1));
     const auto host = guests::host_fact_of(file);
     // THE ROW THE SESSION WAS ADMITTED UNDER is judged, never the last row of its name.
-    CHECK(zengine::workshop::scope::judge(r.door->facts(p), host, zengine::workshop::scope::kBuild)
+    CHECK(zengine::workshop::scope::judge(r.door->facts(p), host, zengine::pane::act_class::kBuild)
               .find("has no `build`") != std::string::npos);
-    CHECK(zengine::workshop::scope::judge(r.door->facts(b), host, zengine::workshop::scope::kBuild).empty());
+    CHECK(zengine::workshop::scope::judge(r.door->facts(b), host, zengine::pane::act_class::kBuild).empty());
     // A session that is not a guest's holds no row.
     CHECK_FALSE(r.door->facts(r.input_id).admitted);
     // ...AND A SESSION WHOSE CONNECTION HAS GONE IS STILL ITS ROW'S: an ask already on its way
@@ -1776,7 +1783,7 @@ TEST_CASE("door: in a file with two rows of one name, each session holds the row
     REQUIRE(r.beat_until([&] { return !r.door->guest_session(p); }));
     CHECK(r.door->row_index(p) == std::optional<std::size_t>(0));
     CHECK(r.door->facts(p).admitted);
-    CHECK(zengine::workshop::scope::judge(r.door->facts(p), host, zengine::workshop::scope::kWrite)
+    CHECK(zengine::workshop::scope::judge(r.door->facts(p), host, zengine::pane::act_class::kWrite)
               .find("only the weaver's hand writes a file here") != std::string::npos);
     CHECK(r.door->row_index(b) == std::optional<std::size_t>(1));
 }
@@ -2084,35 +2091,35 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     const auto session_of = [](const Guest& g) { return static_cast<std::int64_t>(g.client->session()); };
 
     // The weaver's own hand, session 0, is not narrowed, whatever its classes.
-    zengine::pane::ActorScopeJudged judged = ask(0, {zengine::workshop::scope::kWrite, zengine::workshop::scope::kBuild});
+    zengine::pane::ActorScopeJudged judged = ask(0, {zengine::pane::act_class::kWrite, zengine::pane::act_class::kBuild});
     CHECK(judged.allowed);
     CHECK(judged.refusal.empty());
     // An admitted guest within its row: `build` is the builder's.
-    judged = ask(session_of(builder), {zengine::workshop::scope::kBuild});
+    judged = ask(session_of(builder), {zengine::pane::act_class::kBuild});
     CHECK(judged.allowed);
     CHECK(judged.refusal.empty());
     // ...and outside it: the plain row has no `build`, and on a weaver's host no guest writes.
-    judged = ask(session_of(plain), {zengine::workshop::scope::kBuild});
+    judged = ask(session_of(plain), {zengine::pane::act_class::kBuild});
     CHECK_FALSE(judged.allowed);
     CHECK(judged.refusal.find("guest 'plain' may not build here: its row has no `build`") != std::string::npos);
-    judged = ask(session_of(builder), {zengine::workshop::scope::kBuild, zengine::workshop::scope::kWrite});
+    judged = ask(session_of(builder), {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite});
     CHECK_FALSE(judged.allowed);
     CHECK(judged.refusal.find("this is a weaver's host: only the weaver's hand writes a file here") !=
           std::string::npos);
     // ...AND THE SAME, ASKED IN WORKSHOP'S ROLE.
     asker = workshop_asker;
     asker_id = workshop_id;
-    judged = ask(session_of(plain), {zengine::workshop::scope::kBuild});
+    judged = ask(session_of(plain), {zengine::pane::act_class::kBuild});
     CHECK_FALSE(judged.allowed);
     CHECK(judged.refusal.find("has no `build`") != std::string::npos);
-    CHECK(ask(session_of(builder), {zengine::workshop::scope::kBuild}).allowed);
+    CHECK(ask(session_of(builder), {zengine::pane::act_class::kBuild}).allowed);
     asker = pane_asker;
     asker_id = pane_id;
     // A session this door never admitted -- one of this host's own, or no weave at all -- is not
     // narrowed.
-    judged = ask(static_cast<std::int64_t>(r.input_id.value), {zengine::workshop::scope::kWrite});
+    judged = ask(static_cast<std::int64_t>(r.input_id.value), {zengine::pane::act_class::kWrite});
     CHECK(judged.allowed);
-    judged = ask(999999, {zengine::workshop::scope::kWrite});
+    judged = ask(999999, {zengine::pane::act_class::kWrite});
     CHECK(judged.allowed);
     // A question naming no class is refused in words, as Workshop refuses it.
     judged = ask(session_of(plain), {});
@@ -2123,7 +2130,7 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     const std::int64_t gone = session_of(plain);
     plain.client.reset();
     REQUIRE(r.beat_until([&] { return !r.door->guest_session(loom::WeaveId{static_cast<std::uint64_t>(gone)}); }));
-    judged = ask(gone, {zengine::workshop::scope::kBuild});
+    judged = ask(gone, {zengine::pane::act_class::kBuild});
     CHECK_FALSE(judged.allowed);
     CHECK(judged.refusal.find("has no `build`") != std::string::npos);
     // ONLY A ROLE IS ANSWERED: the same question in no role's name hears nothing.

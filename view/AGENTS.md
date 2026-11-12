@@ -44,7 +44,7 @@ its census driver and manual witness), `workshop_panes_seam`
 - Workshop links `zengine-view` and stages `zengine-view-builder`: `workshop/CMakeLists.txt`.
 - The builder's optional plan row: `workshop/default-load-plan.json`.
 - The Pane Manager's `n` shows the View Builder: `workshop/desktop-pane/pane.cpp`.
-- The builder's seam: `workshop/pane_seam_vocabulary.hpp`, `pane/carry.hpp`,
+- The builder's seam: `workshop/project_seam_vocabulary.hpp`, `pane/carry.hpp`,
   `pane/menu.hpp`, `pane/operation.hpp`; it asks `zengine.project` where its
   file lives, answered in `workshop/pane_doors.hpp`.
 

@@ -78,6 +78,7 @@
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 #include "layouts_stand_in.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>

@@ -10,14 +10,12 @@
 #include "workshop/first-run/setup.hpp"
 #include "workshop/first-run/story.hpp"
 
-#include "workshop/actor_scope.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "pane/causes.hpp"
 #include "pane/drawing.hpp"
 #include "pane/operation.hpp"
 #include "pane/rows.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "pane/vocabulary.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
@@ -695,7 +693,7 @@ private:
         zengine::pane::v2::PaneOperationRequested asked;
         asked.pane = kPane;
         asked.gesture = static_cast<std::int64_t>(gesture);
-        asked.classes = {ws::scope::kBuild, ws::scope::kWrite};
+        asked.classes = {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite};
         approval_ask_ = ++asks_;
         if (!mail.as_role(kRole).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
             approval_ask_ = 0;

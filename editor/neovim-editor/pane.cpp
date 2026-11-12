@@ -52,6 +52,7 @@
 #include "pane/menu.hpp"
 #include "pane/operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "pane/text.hpp"
 #include "pane/vocabulary.hpp"
 

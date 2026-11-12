@@ -21,7 +21,6 @@
 #include "pane/carry.hpp"
 #include "pane/drawing.hpp"
 #include "pane/operation.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "pane/seat.hpp"
 #include "pane/vocabulary.hpp"
 #include "persist/file.hpp"

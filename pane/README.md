@@ -15,7 +15,7 @@ which a pane must use. Workshop is one host of it; a pane built against the inst
 |---|---|
 | `vocabulary.hpp` | the shapes of the seam: the offer, the keys, a declared row, the reveal, the quit, a menu's ask |
 | `presenter_vocabulary.hpp` | the presenter's seam: a granted menu, its showing and its close |
-| `operation.hpp`, `carry.hpp` | an owner operation a gesture approves, and what a pane carries out of itself |
+| `operation.hpp`, `carry.hpp` | an owner operation a gesture approves and the act classes it names, and what a pane carries out of itself |
 | `settings.hpp`, `settings_taken.hpp` | the settings a pane declares and is handed, and a facet that takes them |
 | `document.hpp` | a pane's manual, asked of the pane |
 | `menu.hpp`, `escape.hpp` | a requester's record of its menu, and Escape's default |

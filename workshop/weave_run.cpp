@@ -9,6 +9,7 @@
 #include "screen_canvas.hpp"
 
 #include "theme/stack_name.hpp" // the palette a stack of themes is named by
+#include "pane/operation.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -402,7 +403,7 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
 // WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::quit(loom::Mail& mail) {
     // A QUIT WRITES THE LAST SESSION, so it is a file write, judged for the hand that asked.
-    if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {}); !refused.empty()) {
+    if (const std::string refused = judge_classes(input_actor_, {pane::act_class::kWrite}, {}); !refused.empty()) {
         say("Workshop stays open -- " + refused + "; quitting writes the last session", true);
         return;
     }
@@ -469,7 +470,7 @@ void WorkshopWeave::end_quit(loom::Mail& mail) {
 void WorkshopWeave::on(const WorkshopQuitRequested&, loom::Mail& mail) {
     // ...and asked by message, the asker is the hand: a guest's quit on a weaver's host is refused.
     const InputActor asker{true, false, mail.sender()};
-    if (const std::string refused = judge_classes(asker, {scope::kWrite}, {}); !refused.empty()) {
+    if (const std::string refused = judge_classes(asker, {pane::act_class::kWrite}, {}); !refused.empty()) {
         (void)mail.answer(loom::Refused{"Workshop stays open -- " + refused + "; quitting writes the last session"});
         return;
     }

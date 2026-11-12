@@ -19,7 +19,6 @@
 #include "pane/text.hpp"
 #include "pane/operation.hpp"
 #include "pane/vocabulary.hpp"
-#include "workshop/actor_scope.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
 #include "launcher/vocabulary.hpp"
@@ -405,7 +404,7 @@ private:
         zengine::pane::v2::PaneOperationRequested asked;
         asked.pane = kPane;
         asked.gesture = static_cast<std::int64_t>(mail.correlation());
-        asked.classes = {ws::scope::kBuild, ws::scope::kWrite};
+        asked.classes = {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite};
         approval_ask_ = ++asks_;
         if (!mail.as_role(kRole).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
             approval_ask_ = 0;

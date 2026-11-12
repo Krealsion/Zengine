@@ -8,6 +8,7 @@
 #include "pane_migration.hpp"
 #include "weave.hpp"
 #include "window_persist.hpp"
+#include "pane/operation.hpp"
 
 #include <cstdio>
 
@@ -312,7 +313,7 @@ void WorkshopWeave::commit_layout_rename(loom::Mail& mail) {
 void WorkshopWeave::save_setup(loom::Mail& mail) {
     // A FILE WRITE, judged for the hand that asked (`actor_scope.hpp`): a guest's on a weaver's host
     // writes nothing.
-    if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {}); !refused.empty()) {
+    if (const std::string refused = judge_classes(input_actor_, {pane::act_class::kWrite}, {}); !refused.empty()) {
         say("the setup was not saved -- " + refused, true);
         return;
     }

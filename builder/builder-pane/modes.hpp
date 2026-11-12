@@ -14,7 +14,7 @@
 #include "builder/builder-pane/vocabulary.hpp"
 #include "builder/vocabulary.hpp"
 #include "workshop/builder_seam_vocabulary.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/project_seam_vocabulary.hpp"
 #include "pane/text.hpp"
 
 #include "component/list_window.hpp"

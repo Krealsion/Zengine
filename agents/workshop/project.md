@@ -216,7 +216,7 @@ nothing at all" "a valid EMPTY catalog is a replacement, not a failure"
 
 ### WL-PROJ-05
 `workshop/pane_doors.hpp` ProjectDoor
-`workshop/pane_seam_vocabulary.hpp` RecipeUseRequested RecipeOutcome
+`workshop/project_seam_vocabulary.hpp` RecipeUseRequested RecipeOutcome
 `workshop/weave.hpp` HostContext::use_recipes RecipeSwap
 `tests/test_workshop_files.cpp` "a weaver chooses a catalog in Files and every consumer moves with
 it" "selecting the catalog already in force is a reload, not a no-op" "the chooser needs no Builder

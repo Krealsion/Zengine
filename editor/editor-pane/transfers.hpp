@@ -27,7 +27,6 @@
 #include "pane/carry.hpp"
 #include "pane/menu.hpp"
 #include "pane/operation.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 

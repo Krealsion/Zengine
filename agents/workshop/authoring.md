@@ -61,7 +61,7 @@ WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 `files/vocabulary.hpp` kActionPickBuildable
 `files/recipe_authoring.hpp` pick_buildable cache_is_multi_config chooser_choose record_field
 compose_recipe field_at field_count
-`workshop/pane_seam_vocabulary.hpp` RecipeAuthorRequested RecipeOutcome
+`workshop/project_seam_vocabulary.hpp` RecipeAuthorRequested RecipeOutcome
 `workshop/pane_doors.hpp` ProjectDoor
 `workshop/weave.hpp` HostContext::RecipeDraft HostContext::author_recipe
 `workshop/authoring.hpp` RecipeAuthor author_recipe

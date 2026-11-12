@@ -25,7 +25,6 @@
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/notice_seam_vocabulary.hpp"

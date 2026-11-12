@@ -152,12 +152,17 @@ set(zengine_public_headers_pane       pane/vocabulary.hpp pane/operation.hpp pan
                                       pane/canvas_drawing.hpp pane/document.hpp pane/facets.hpp
                                       pane/rows_block.hpp pane/menu.hpp pane/escape.hpp
                                       pane/seat.hpp pane/presenter_vocabulary.hpp)
-# ...and Workshop's own, installed beside it: a desk's reading, its shortcuts and setup's control.
-# Nothing else under workshop/ is public. The guest seam says what this Workshop reports of the
-# hosts connected to it, so a probe on another host can ask for the inventory it is in.
+# ...and Workshop's own, installed beside it: a desk's reading, its shortcuts and setup's control,
+# and the seams a pane speaks to Workshop's in-process doors -- the opening, the project door and
+# the layouts' owner's settings. Nothing else under workshop/ is public. The guest seam says what
+# this Workshop reports of the hosts connected to it, so a probe on another host can ask for the
+# inventory it is in.
 set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_view.hpp
                                       workshop/pane_shortcuts.hpp
-                                      workshop/guest_seam_vocabulary.hpp)
+                                      workshop/guest_seam_vocabulary.hpp
+                                      workshop/open_seam_vocabulary.hpp
+                                      workshop/project_seam_vocabulary.hpp
+                                      workshop/settings_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
 # The graphics vocabulary an owner draws with, its colours by name -- the pool's generated names

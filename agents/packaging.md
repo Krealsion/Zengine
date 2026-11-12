@@ -25,8 +25,10 @@ Timer's beat is all its bus holds), `surface`, `input`, `ui`,
 `zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the pane
 contract, every header `zengine_public_headers_pane` lists, installed under `include/zengine/pane/`:
 the protocol `pane/vocabulary.hpp` and the optional helpers beside it; and Workshop's own beside it,
-`workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp`, `workshop/setup_control.hpp` and
-`workshop/guest_seam_vocabulary.hpp`, under `include/zengine/workshop/`), `neovim` (the one
+`workshop/pane_view.hpp`, `workshop/pane_shortcuts.hpp`, `workshop/setup_control.hpp`,
+`workshop/guest_seam_vocabulary.hpp` and the seams a pane speaks to Workshop's doors,
+`workshop/open_seam_vocabulary.hpp`, `workshop/project_seam_vocabulary.hpp` and
+`workshop/settings_seam_vocabulary.hpp`, under `include/zengine/workshop/`), `neovim` (the one
 header `editor/neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp`, `library.hpp` and `transfer.hpp`: typed editing, schema closure and reusable

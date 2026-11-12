@@ -169,7 +169,7 @@ Builder follows that recipe"
 ### WL-CODE-03
 `workshop/weave_code.cpp` on(SourceOpened) on(DispatchRefused) same_code
 `workshop/weave.hpp` WorkshopWeave::CodeOpen WorkshopWeave::code_open_
-`workshop/pane_seam_vocabulary.hpp` PaneSourceOpened
+`workshop/open_seam_vocabulary.hpp` PaneSourceOpened
 `tests/test_workshop_panes_code.cpp` "a dirty Editor refuses the pane's source, the refusal is said,
 and the Builder is not moved" "an open no opening role could take is refused at dispatch by that
 attempt, and forged answers settle nothing" "an open that is never answered stays pending however

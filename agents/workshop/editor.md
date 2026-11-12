@@ -203,8 +203,9 @@ work as the Editor's other exits do, leaving the document as it was"
 on(PrepareSourceRequested) on_claim_published judge_source activate
 `editor/editor-pane/common.hpp` Candidate Relay
 `editor/editor-pane/editor.hpp` source_in EditorState
-`workshop/pane_seam_vocabulary.hpp` OpenSourceRequested SourceOpened kEditorRole
-`workshop/open_seam_vocabulary.hpp` PrepareSourceRequested SourcePrepared kOpeningRole
+`workshop/pane_seam_vocabulary.hpp` kEditorRole
+`workshop/open_seam_vocabulary.hpp` OpenSourceRequested SourceOpened PrepareSourceRequested SourcePrepared
+kOpeningRole
 `tests/test_workshop_panes_editor.cpp` "a clipboard answer refuses the open wherever it lands, and A
 keeps its paste" "the old door still opens and shows, or refuses truthfully, by a kept answer right"
 

@@ -6,6 +6,8 @@
 // Workshop law: agents/workshop/code.md (+1 register; agents/workshop.md routes)
 
 #include "weave.hpp"
+#include "pane/operation.hpp"
+#include "workshop/open_seam_vocabulary.hpp"
 
 #include <utility>
 
@@ -91,7 +93,7 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     }
     const HostContext::CodeSource::Recipe& recipe = code.recipes.front();
     // AN OPENING, judged for the hand that chose it, by what it opens (`actor_scope.hpp`).
-    if (const std::string judged = judge_classes(input_actor_, {scope::kOpen}, recipe.source);
+    if (const std::string judged = judge_classes(input_actor_, {pane::act_class::kOpen}, recipe.source);
         !judged.empty()) {
         say(name + "'s code was not opened -- " + judged, true);
         return;

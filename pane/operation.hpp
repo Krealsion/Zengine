@@ -8,6 +8,16 @@
 #include <vector>
 
 namespace zengine::pane {
+
+/// THE THREE ACT CLASSES an act of an owner operation names (`v2::PaneOperationRequested::classes`),
+/// every class it is: the Builder's role line writes a plan row and builds, so it asks `build` and
+/// `write` both. Which hand may act in a class is its host's to judge.
+namespace act_class {
+inline constexpr const char* kBuild = "build";
+inline constexpr const char* kWrite = "write";
+inline constexpr const char* kOpen = "open";
+} // namespace act_class
+
 // Continue a current pane gesture, named separately from this request’s correlation. The application checks
 // the initiating actor's live authority for this operation. This does not widen the pane's
 // own grant or license later operations; the pane must still make its ordinary gated send.
