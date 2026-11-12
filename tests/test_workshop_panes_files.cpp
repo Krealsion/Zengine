@@ -15,6 +15,7 @@
 #include "pane_window.hpp"
 
 #include "files/files.hpp"
+#include "files/marks_persist.hpp"
 #include "files/vocabulary.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/pane_doors.hpp"
@@ -4225,6 +4226,49 @@ TEST_CASE("Files' places are a section of the pane: shut at first and saying how
     CHECK(f.first().rfind("at " + f.r.host.project_dir, 0) == 0);
     CHECK(f.first().find("(origin)") != std::string::npos);
     CHECK(any_row(f.shown(), "alpha/"));
+}
+
+TEST_CASE("Files' places are cut on the section's last row when the pane holds more places than its room") {
+    // TWO MARKS THE PANE ALREADY READS, and a pixel height the offer does not grow, so the
+    // places outnumber the section whichever roots the machine reports. The cut is read as
+    // the places case reads one: the count on the section's last row, the strip on the next,
+    // and every granted row written.
+    FilesRig f("files-places-cut");
+    std::filesystem::create_directory(f.root / "alpha");
+    put_file(f.root / "workshop-marks.json",
+             zengine::workshop::marks_persist::to_text(
+                 {(f.root / "marked-one").generic_string(),
+                  (f.root / "marked-two").generic_string()}));
+    f.open();
+    f.author_height(10, 160, 47); // seven rows: header, places, one listing row, the strip
+    REQUIRE_MESSAGE(f.granted_rows() == 7, "the pane was granted ", f.granted_rows(), " rows");
+
+    std::vector<std::string> rows = f.shown();
+    INFO("shut\n", picture(rows));
+    const std::int64_t at = row_beginning(rows, "+ places (");
+    REQUIRE(at == 1);
+    const std::size_t held = places_said(rows[static_cast<std::size_t>(at)]);
+    REQUIRE(held >= 4); // the origin, the two marks, and every filesystem root
+
+    press_pane(f.r, f.kind, at, 0);
+    rows = f.shown();
+    INFO("opened\n", picture(rows));
+    CHECK(rows[1] == "- places");
+    REQUIRE(f.granted_rows() == 7);
+    const std::int64_t listing = row_beginning(rows, "> alpha/");
+    REQUIRE(listing > 3);
+    const std::size_t section = static_cast<std::size_t>(listing - 2);
+    REQUIRE(section < held);
+    const std::size_t shown = section - 1;
+    REQUIRE(shown >= 2);
+    for (std::size_t i = 0; i < shown; ++i) {
+        CHECK(rows[2 + i].rfind("    ", 0) == 0);
+    }
+    CHECK(rows[2 + shown] ==
+          "  " + zengine::pane::pane_text::omitted_text(held - shown, "more"));
+    REQUIRE(rows.size() > static_cast<std::size_t>(listing) + 1);
+    CHECK(rows[static_cast<std::size_t>(listing) + 1].rfind("[menu]", 0) == 0);
+    CHECK(static_cast<std::int64_t>(rows.size()) == f.granted_rows());
 }
 
 TEST_CASE("in a window that reports a resting pointer, Files' shut places peek over the rows under their header and take no room, the pointer on what the peek shows keeps it, a press there opens them, a move a held press carries is no rest, and the leave ends the peek") {
