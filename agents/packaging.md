@@ -6,10 +6,8 @@ any public header, or any exported target's link line. The installed-package wit
 
 ## Zengine is a package a stranger installs
 
-`cmake/ZengineInstall.cmake` is the whole public consumer surface, in one file: which targets
-are exported, which headers are installed, which artifacts ride along, and the reason each
-package is or is not in the set. Change the boundary there, not in a package's own
-`CMakeLists.txt`.
+`cmake/ZengineInstall.cmake` owns the boundary ([`AGENTS.md`](../AGENTS.md)) and the reason each
+package is or is not in the set: change it there, not in a package's own `CMakeLists.txt`.
 
 ```cmake
 find_package(zengine 0.1 CONFIG REQUIRED)     # resolves Zengine's Loom dependency too
@@ -135,15 +133,14 @@ and each third party's licence text (`workshop/package/`). Under it:
   the series alone, and Workshop's `--version` says it is no package;
 - Workshop compiles no CMake, so its Builder refuses in its own words and its banner says it
   builds nothing;
-- the launcher's demo service is the package's own `share/zengine/loom-tools/demo.py`, beside the
-  tool packages, started against the package by a Python 3.8 or newer found on the PATH, which the
-  package does not carry (`launcher/CMakeLists.txt`, [the launcher](launcher.md));
+- the launcher's demo service is the package's own `share/zengine/loom-tools/demo.py`, run by a
+  Python 3.8 or newer found on the PATH, which the package does not carry ([the launcher](launcher.md));
 - every compile maps its source, build and prefix folders away (`-ffile-prefix-map`), the fetched
   SDL's included, and on MinGW-w64 every executable links its runtime statically, so an image names
   no build machine and needs nothing beside the package but the system;
 - the launchers make the weaver's project outside the package (`%USERPROFILE%\Zengine`,
-  `~/Zengine`, `terminal/` inside for the terminal's) and write `zengine-app.path` there, the
-  package's `zengine-app`, which an exported app's `run.cmd` and `run.sh` start (`app/folder.hpp`).
+  `~/Zengine`, `terminal/` inside for the terminal's) and write `zengine-app.path` there
+  ([the app](../app/docs/app.md#which-zengine-app-the-launchers-start)).
 
 It is a Release build with GCC or Clang, refused otherwise at configure, installed with
 `cmake --install --strip`; the installed-package witness's package arm
@@ -172,16 +169,14 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
     limit, `INSTALL_LIMIT_MIN`, and past it the job ends naming the archive;
   - Windows with WinLibs' GCC UCRT archive, pinned by SHA-256 and checked against the checksum
     WinLibs publishes.
-  - Both repositories install `--strip` into one folder, packed by `tests/package/pack.py`, so the
+  - Both repositories install into one folder, packed by `tests/package/pack.py`, so the
     same files make the same bytes.
 - **Judged** on a runner that did not build it, extracted under a folder named with a space and
   letters outside the code page: `--version` naming the commit and a clean tree, then the judges
   (`tests/package/judges/`), the first of them one release number in all the package says, then
-  the story (`tests/package/story.py`): the tally setup started from the package by the
-  package's own demo service (`demo.py start --package`), its walk `export` passed, the exported
-  app's launcher naming the package's `zengine-app`, the app answered at its console until every row
-  runs, and still running once Workshop has stopped. Its pictures and the app's console are kept on
-  the run, red or green. Then `SHA256SUMS`.
+  the story (`tests/package/story.py`, whose header says each step): the tally app, exported from
+  the package's own Workshop, runs in the package's `zengine-app` and outlives Workshop. Its
+  pictures and the app's console are kept on the run, red or green. Then `SHA256SUMS`.
 - **What a red judge does.** Nothing is published while any judge is red.
 - **Published** by a night, or by a dispatch asked to (`publish: true`); a pull request and a
   dispatch that is not asked publish nothing. The workflow's own token alone does it:
