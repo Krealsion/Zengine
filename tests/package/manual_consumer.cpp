@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// A stranger's weave carries its manual as Zengine's do: the page `kitchen-oven.md`, compiled in by
-// the installed `zengine_manual()` as `manuals/kitchen.oven.hpp`, read back here, beside the door a
-// role answers for the shapes it accepts (`manual/vocabulary.hpp`), from `zengine::manual` alone.
+// A stranger's weave carries its manual as Zengine's do: the page `tests/package/kitchen-oven.md`,
+// compiled in by the installed `zengine_manual()` as `manuals/kitchen.oven.hpp`, read back here,
+// beside the door a role answers for the shapes it accepts (`manual/vocabulary.hpp`), from
+// `zengine::manual` alone.
 
 #include "manual/vocabulary.hpp"
 

@@ -469,8 +469,9 @@ write_basic_package_version_file(
 
 # Beside them, the function a program built against the package calls to run in the UTF-8 code
 # page on Windows, as every program this repository builds does, and the manifest it gives; the
-# generator of colours by name, which a pane's slots are generated with; and a weave's manual,
-# compiled into the target that carries it (zengine_manual()).
+# generator of colours by name, which a pane's slots are generated with; a weave's manual,
+# compiled into the target that carries it (zengine_manual()); and the loadable-weave pattern
+# (zengine_weave(), zengine_provider(), zengine_stage_sdl()).
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfigVersion.cmake
@@ -478,6 +479,7 @@ install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/utf8-code-page.manifest
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineNames.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineManual.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineWeave.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
 
 # The pool, the terminal's own look and the shipped themes, as the JSON the names and palettes above

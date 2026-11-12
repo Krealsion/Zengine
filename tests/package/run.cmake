@@ -237,6 +237,13 @@ if(NOT probe_product)
 endif()
 message(STATUS "package witness: the Workshop probe builds as a stranger, from installed headers alone ok")
 
+file(GLOB woven "${stranger_bin}/oven-woven.*" "${stranger_bin}/${ZEN_CONFIG}/oven-woven.*")
+list(FILTER woven EXCLUDE REGEX "\.(a|lib|exp|pdb)$")
+if(NOT woven)
+    message(FATAL_ERROR "package witness: the installed zengine_weave() produced no loadable weave in ${stranger_bin}")
+endif()
+message(STATUS "package witness: a stranger's weave builds by the installed weave pattern ok")
+
 zen_find_program_in(surfaces witness-surfaces "${stranger_bin}")
 zen_run("every exported target, from the installed headers" "${surfaces}")
 

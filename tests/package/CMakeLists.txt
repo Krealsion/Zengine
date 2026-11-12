@@ -140,10 +140,18 @@ add_dependencies(flow-host flow-native)
 add_executable(witness-message-drafts message_draft_consumer.cpp)
 target_link_libraries(witness-message-drafts PRIVATE zengine::message-draft zengine::flow zengine::pane)
 
+# ---- the same weave, built by the installed pattern ------------------------------------------
+# zengine_weave() is the package's own loadable-weave pattern, Loom's contract applied and the
+# manual compiled in, as Zengine builds its own weaves; zengine_stage_sdl() stages the SDL this
+# package carries beside a host, or nothing. run.cmake requires the image.
+zengine_weave(oven-woven oven.cpp MANUAL kitchen-oven.md)
+target_link_libraries(oven-woven PRIVATE zengine::timer)
+zengine_stage_sdl(kitchen-host)
+
 # ---- a stranger's weave carries its manual -------------------------------------------------
-# manual_consumer.cpp reads back the page kitchen-oven.md, compiled in by the installed
-# zengine_manual() and answered from `zengine::manual`: a manual the package stopped carrying, or a
-# module that reads this source tree, fails here.
+# manual_consumer.cpp reads back the page tests/package/kitchen-oven.md, compiled in by the
+# installed zengine_manual() and answered from `zengine::manual`: a manual the package stopped
+# carrying, or a module that reads this source tree, fails here.
 add_executable(witness-manual manual_consumer.cpp)
 target_link_libraries(witness-manual PRIVATE zengine::manual)
 zengine_manual(witness-manual PRIVATE kitchen-oven.md)

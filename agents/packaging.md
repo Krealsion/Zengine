@@ -78,22 +78,23 @@ does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`)
 artifacts from `lib/zengine/` by a path relative to its own, so it names no machine's layout, and
 with the GUI window out it runs an app whose window is the TUI window.
 
-**Three CMake modules ride along**, installed beside the package config, which includes each.
+**Four CMake modules ride along**, installed beside the package config, which includes each.
 `zengine_code_page(<target>...)`, `cmake/ZengineCodePage.cmake` with the manifest it gives: a
 stranger's program calls it to run in the UTF-8 code page on Windows, as every program this
 repository builds does (VM-PLAT-16); elsewhere it does nothing. `zengine_names()` and
 `zengine_palettes()`, `cmake/ZengineNames.cmake`: a stranger's pane generates its slots' names from
 its JSON as Zengine's own panes do, with CMake 3.22 or newer, the package's floor; the pool's and
 the shipped themes' JSON install under `share/zengine/graphics/`. `zengine_manual()`,
-`cmake/ZengineManual.cmake`: a stranger's weave compiles its page into itself as `manuals/<role>.hpp`
-and answers from it, as every Zengine weave does. The installed-package witness calls it for
+`cmake/ZengineManual.cmake`: a weave's page compiled in, as every Zengine weave carries its own.
+`zengine_weave()`, `zengine_provider()` and `zengine_stage_sdl()`, `cmake/ZengineWeave.cmake`: this
+tree's weave pattern. The installed-package witness calls it for
 every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;
 `public_surface.cpp` checks the code page it runs in.
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
 Every one of them is a weave but `zengine-operators-basic`, a provider (enforced by
-`zengine_provider()` in the top-level `CMakeLists.txt`). The public
+`zengine_provider()`, `cmake/ZengineWeave.cmake`). The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`
 CTest entry keeps the retired spellings from coming back — it owns the list of them, so this
