@@ -381,8 +381,20 @@ def main():
         note("look_pictures", dict((n, arts[n]["path"]) for n in stems if n))
         rec_rows = c2.deliveries_to(look["session"])["rows"]
         by_corr = dict((a["correlation"], a) for a in look["asks"])
-        crossing = [r for r in rec_rows if r["crossing"] and r["far_shape"] == "SurfaceCaptured"
-                    and r["crossing_payload"] == "retained"]
+
+        def crossing_read(r):
+            # The crossing a row descends from, read back: its fields beside the row's own, or
+            # None. A loom.history.Record holds it as one union -- "none", {"unread": ...} or
+            # {"read": {...}} -- and an earlier one held it flattened beside a flag.
+            x = r.get("crossing")
+            if isinstance(x, dict):
+                return dict(r, **x["read"]) if "read" in x else None
+            if x is True and r.get("crossing_payload") == "retained":
+                return r
+            return None
+
+        crossing = [x for x in (crossing_read(r) for r in rec_rows)
+                    if x is not None and x["far_shape"] == "SurfaceCaptured"]
         joined = by_corr.get(crossing[0]["correlation"]) if crossing else None
         check("J8 the picture's answer is traced to its crossing: far session, far author, attempt",
               crossing and crossing[0]["far_session"] == links["workshop"]["far_session"] and
