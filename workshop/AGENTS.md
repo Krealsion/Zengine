@@ -9,9 +9,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `desktop-pane/` | the Pane Manager and Hotkeys: `zengine-desktop-pane`, a loadable weave; its law: desktop, desktop-presenting, keymap-edit, keyboard |
 | `menu-presenter/` | shows a pane's menu: `zengine-menu-presenter`, a loadable weave; its law: pane-menu, and the second button in `agents/panes.md` |
-| `palette/` | the Command Palette: `zengine-palette`, a loadable weave listing every action and pane by name and asking Workshop to run one (`command_vocabulary.hpp`); its law: WL-DESK-18 in `agents/workshop/desktop.md` |
+| `palette/` | the Command Palette: `zengine-palette`, a loadable weave listing every action and pane by name and asking Workshop to run one (`command_vocabulary.hpp`); its law: WL-DESK-18 |
 | `workshop.cpp` | the host's `main`: `zengine-workshop` |
-| `weave.hpp`, `weave_*.cpp` | Workshop's own weave: the session, input bound to gestures; it composes the Terminal's door, `terminal/door.hpp` |
+| `weave.hpp`, `weave_*.cpp` | Workshop's own weave: the session, input bound to gestures |
+| `terminal/` | the Terminal's door, completer and record's picture; the pane is the root's |
 | `desk_read.hpp`, `weave_desk_read.cpp` | the desk read by message: where words and parts stand and how a reading pages (the header); the weave's answers; its law: desk-read |
 | `weave_inspection.cpp` | a pane as an inspector's subject, and one write through its rows' owner; its law: info-body |
 | `screen.hpp`, `screen_*.cpp` | the screen: session facts and gestures, composed into a canvas |
@@ -19,7 +20,6 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `keymap.hpp`, with its part `keymap_join.hpp` | the action catalog and the keymap, spelled by `input/gesture_grammar.hpp`; override admission and the joins of a pane's and an application's rows |
 | `setup.hpp`, with its part `setup_reconcile.hpp` | the setup: its value, its checks and its edits; what the live panes make of it |
 | `layouts/` | the desk's owner, `zengine.layouts`, mounted in-process: the run of layouts and its store (`run.hpp`, `store.hpp`), the role (`owner.hpp`), its vocabulary, and the session it alone writes (`session_persist.hpp`, `session_history.hpp`); its law: layouts, tab-run, session-restore, settings, setting-locks |
-| `pane/vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |
 | `*_seam_vocabulary.hpp`, `pane_doors.hpp` | the seams to loaded panes and guests; the doors |
 | `*_persist.hpp` | the files: setup, keymap, preferences, recipes, load plan, and Workshop's window file |
 | `load_*.hpp`, `*-load-plan.json` | load plan and executor (`zengine-workshop-load`); the plans |
@@ -84,6 +84,7 @@ program with its files); the subjects are in the
 | [settings](../agents/workshop/settings.md) | `workshop_panes_settings` (settings), `workshop_panes_editor` (opening), `workshop_persistence` |
 | [setup-file](../agents/workshop/setup-file.md) | `workshop_panes_seam` (window, seam), `workshop_persistence`, `workshop_screen` |
 | [tab-run](../agents/workshop/tab-run.md) | `workshop_screen`, `workshop_host`, `workshop_persistence` |
+| [terminal-door](../agents/workshop/terminal-door.md) | `workshop_panes_terminal` (terminal, powers), `workshop_host` |
 
 ## Suites
 

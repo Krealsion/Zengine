@@ -16,4 +16,4 @@ command would manufacture a different observation and possibly repeat effects. B
 Missing/evicted entries refuse; the <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB copy
 carrier limit stays visible.
 
-**Laws supported.** [WL-TERM-17](../workshop/terminal.md).
+**Laws supported.** [WL-TERM-17](../workshop/terminal-door.md).

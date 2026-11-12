@@ -712,14 +712,14 @@ TEST_CASE("the image that presents a participant cannot reach one") {
     buffer << in.rdbuf();
     const std::string source = buffer.str();
     REQUIRE_FALSE(source.empty());
-    // The host's door, completer and record picture stand beside the pane in its folder, so each
-    // is forbidden by both spellings that would reach it from here.
+    // The host's door, completer and record picture are Workshop's (`workshop/terminal/`), each
+    // forbidden by its spelling, and by the one it would have beside the pane.
     for (const char* forbidden : {"#include <zen/terminal", "#include <zen/host/terminal_wiring.hpp>",
                                   "#include \"workshop/weave.hpp\"",
                                   "#include \"workshop/screen.hpp\"",
-                                  "#include \"terminal/complete.hpp\"", "#include \"complete.hpp\"",
-                                  "#include \"terminal/door.hpp\"", "#include \"door.hpp\"",
-                                  "#include \"terminal/transcript.hpp\"",
+                                  "#include \"workshop/terminal/complete.hpp\"", "#include \"complete.hpp\"",
+                                  "#include \"workshop/terminal/door.hpp\"", "#include \"door.hpp\"",
+                                  "#include \"workshop/terminal/transcript.hpp\"",
                                   "#include \"transcript.hpp\""}) {
         CAPTURE(forbidden);
         CHECK(source.find(forbidden) == std::string::npos);

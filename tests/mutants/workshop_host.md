@@ -8,7 +8,7 @@ page](README.md) says how an entry reads and how `tests/mutants/run.py` runs it.
 
 Completion makes one pass, so `required-first` offers the required fields alone.
 
-In `terminal/complete.hpp`:
+In `workshop/terminal/complete.hpp`:
 
 ```diff
 -            if (!split) {
@@ -26,7 +26,7 @@ Red in `zengine-workshop-host-tests`:
 
 Completion ignores the split and keeps the shape's order.
 
-In `terminal/complete.hpp`:
+In `workshop/terminal/complete.hpp`:
 
 ```diff
 -        const bool split = field_order == CompletionFieldOrder::RequiredFirst;

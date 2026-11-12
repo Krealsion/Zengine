@@ -41,7 +41,7 @@ consumer-specific behavior of its extracted panes.
 | the application's defaults: their role, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
 | a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [weaver-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the typed rows a property is edited through, the file doors, an old object document | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
-| the terminal participant, its pane's seam, the completer; the pane's history and view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
+| the Terminal pane and its seam; the participant, its door, the completer and its speech; the pane's history and view of the record | [terminal](workshop/terminal.md) · [terminal-door](workshop/terminal-door.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
 | a guest's hand: the guests file's host, its row, action classes, what a weaver's host refuses, each hand's gestures | [guests](workshop/guests.md) `WL-GUEST` |
 | a guest that reads and points by door: the file's version 3, a role, a by-pane read, a guide mark | [guide](workshop/guide.md) `WL-GUIDE` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |

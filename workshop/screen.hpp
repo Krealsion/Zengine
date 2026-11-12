@@ -885,7 +885,7 @@ struct Session {
     bool selection_ring_plain = false;
     /// WHETHER THE TERMINAL'S COMPLETION OFFERS A SHAPE'S REQUIRED FIELDS FIRST:
     /// `workshop.completion-order`.
-    // WL-TERM-04 -- agents/workshop/terminal.md
+    // WL-TERM-04 -- agents/workshop/terminal-door.md
     bool completion_required_first = false;
     /// The arrangement's measures as the weaver set them: the coarse step, the snap's reach and
     /// the stack's fallback height.
