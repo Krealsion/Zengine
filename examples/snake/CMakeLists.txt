@@ -36,7 +36,7 @@ target_link_libraries(snake-board PRIVATE zengine-graphics-vocabulary)
 add_executable(zengine-snake play.cpp)
 target_link_libraries(zengine-snake
     PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy zengine-graphics-vocabulary
-            zengine-input-vocabulary zengine-timer-vocabulary zengine-timer-rest
+            zengine-input-vocabulary zengine-timer-vocabulary
             zengine-workshop-bus-tally zengine-warnings zengine-sanitize)
 set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score snake-pilot
     snake-board zengine-graphics zengine-window-tui zengine-timer)

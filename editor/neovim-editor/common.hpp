@@ -91,9 +91,9 @@ inline constexpr std::int64_t kMinUiCols = 12;
 inline constexpr std::int64_t kDefaultRows = 24;
 inline constexpr std::int64_t kDefaultCols = 80;
 
-/// THE BEAT this weave asks of the Timer while it holds the role.
-inline constexpr const char* kBeatId = "zengine.neovim-editor.beat";
-inline constexpr std::int64_t kBeatMs = 10;
+/// How soon this weave looks at Neovim again on the host's wait's clock while it must pump on
+/// time, and how often it polls pipes the wait cannot hold.
+inline constexpr std::int64_t kLookAgainMs = 10;
 
 /// HOW LONG A QUESTION MAY TAKE: long enough for any Neovim that is not waiting, short enough that a
 /// Neovim that is stuck costs a weaver a moment rather than a Workshop.

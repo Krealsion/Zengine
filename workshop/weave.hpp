@@ -25,7 +25,6 @@
 #include "open_seam_vocabulary.hpp"  // the managed opening's conversation
 #include "settings_seam_vocabulary.hpp" // one pane's settings, read and written by message
 #include "editor_switch_vocabulary.hpp" // what a switch of the Editor is waiting on
-#include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
 #include "prefs_persist.hpp"
 #include "screen.hpp"
@@ -54,6 +53,7 @@
 #include "workshop/terminal/door.hpp" // the door onto the terminal participant, composed below
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
+#include <zen/host/wait_set.hpp>
 #include <zen/terminal/session.hpp>
 #include <zen/weave.hpp>
 
@@ -145,10 +145,6 @@ struct HostContext {
     /// never unavailable. Empty answers no.
     // WL-DESK-04 -- agents/workshop/desktop.md
     std::function<bool(std::string_view role)> role_pending;
-
-    /// WHAT MONOTONIC TIME IT IS, ANSWERED BY THE HOST -- `frontier`'s seam exactly.
-    // WL-PTR-01 -- agents/workshop/pointer.md
-    std::function<std::int64_t()> interaction_now;
 
     /// Does whoever holds `role` now accept `shape`? Read off the bus at the call
     /// (`holder_accepts_on`). It picks which published version to send and promises nothing about
@@ -564,7 +560,9 @@ class WorkshopWeave
                                           // the theme role asking where the themes are, and
                                           // what laying a stack said
                                           zengine::theme::ThemesPlacedRequested,
-                                          zengine::theme::StackSaid>,
+                                          zengine::theme::StackSaid,
+                                          // the host's one wait, with the time on its clock
+                                          loom::host::Waited>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
                                         zengine::pane::PaneCanvasHover,
                                         zengine::graphics::ClipboardCopy,
@@ -615,9 +613,10 @@ class WorkshopWeave
                                         zengine::pane::PaneKeys,
                                         zengine::input::PointerTimingAsked>,
                              loom::WeaveBase,
-                             // the one latest claim
-                             // this host makes -- the managed pane's presentation.
-                             loom::Claims<zengine::workshop::PanePresentation>> {
+                             // the latest claims this host makes -- the managed pane's
+                             // presentation, and what it waits on in the host's wait.
+                             loom::Claims<zengine::workshop::PanePresentation,
+                                          loom::host::WaitSet>> {
     friend TerminalDoorFacet; // the door repaints the desk after the line it authored
 
 public:
@@ -746,7 +745,7 @@ public:
         PaneViewRequested view;
         PanePointRequested point;
         GuideRequested guide;
-        std::int64_t since = 0;
+        std::optional<std::int64_t> since; ///< on the wait's clock, once it handed one
         std::int64_t epoch = 0;
     };
     std::uint64_t ask_area(loom::Mail& mail, const std::string& area);
@@ -784,6 +783,9 @@ public:
     /// THE DOUBLE-CLICK TIME, from the input role alone: two Shift taps of one hand are a double
     /// Shift within it.
     void on(const zengine::input::PointerTimingSaid& said, loom::Mail& mail);
+    /// The host's one wait: whether it holds this weave's claim, and the time (`now_`).
+    // WL-PTR-01 -- agents/workshop/pointer.md
+    void on(const loom::host::Waited& w, loom::Mail& mail);
     /// SHIFT LET GO: half of a tap toward a double Shift (`shift_tapped`); every other release
     /// is no act.
     void on(const zengine::input::KeyReleased& k, loom::Mail& mail);
@@ -1713,9 +1715,19 @@ private:
     /// THE PROJECT FRONTIER, READ ALIVE, NOW.
     ProjectFrontier frontier_now() const;
 
-    /// What monotonic time it is: the host's reading if it wired one, the steady clock if not;
-    /// spent at once by the caller, stored nowhere.
-    std::int64_t interaction_now() const;
+    /// THE TIME, AS THE HOST'S ONE WAIT HANDS IT (`loom::host::Waited::now_ms`), kept only while
+    /// a wait holds this weave's claim: what Shift's taps, the desk reads' rate and a desk wait's
+    /// bound are timed by. Nothing here reads a clock; a host with no wait gives no time.
+    /// What this weave waits for in the host's wait, claimed as its role after a delivery that
+    /// changed it or took a wake: the soonest time something it times is due, a time already past
+    /// while something waits to be handed one, else nothing.
+    void claim_time(loom::Mail& mail);
+    std::optional<std::int64_t> wanted_until() const;
+    bool time_held_ = false;              ///< a host's wait holds this weave's claim, as it said
+    std::optional<std::int64_t> now_;     ///< the latest time that wait handed over
+    bool time_claimed_ = false;           ///< a WaitSet was claimed
+    bool time_woke_ = false;              ///< a wake was taken since the last claim
+    std::optional<std::int64_t> time_until_; ///< the time the last claim named
     /// THE DESK NUMBER AND WHAT IT WAS LAST SAID FOR, and Layouts' picture the same way: host
     /// keepings a reading names, each moved when what it numbers is said differently.
     mutable std::int64_t desk_number_ = 0;
@@ -1763,9 +1775,9 @@ private:
     /// ...and whether what the desk says may have moved, so its number is computed again; a
     /// picture aimed at moves stamps only.
     bool desk_owed_ = true;
-    /// EACH ASKER'S DESK READS IN THE LAST SECOND, bounded by the rate; an asker with none is
-    /// forgotten at the next read.
-    std::map<std::uint64_t, std::vector<std::int64_t>> desk_reads_;
+    /// EACH ASKER'S DESK READS IN THE LAST SECOND, bounded by the rate, each at the time the
+    /// host's wait handed over next (none until it did); an asker with none is forgotten.
+    std::map<std::uint64_t, std::vector<std::optional<std::int64_t>>> desk_reads_;
     /// ONE GUIDE MARK A GUEST SESSION, keyed by its WeaveId: the pane and the part it names, its
     /// words and the guest's row name, the pane's holder and incarnation when it was made, and
     /// where it was last drawn (empty while its part shows nowhere).
@@ -2086,7 +2098,7 @@ private:
             bool held = false;
             bool repeated = false;
             bool tapped = false;
-            std::int64_t first_ms = 0;
+            std::optional<std::int64_t> first_ms; ///< the time handed after its press
         } shift_tap;
         /// EVERY ACT THIS HAND SENT A PANE -- an action, a press, a shortcut, a menu's choice --
         /// newest last and bounded: what a classed ask naming no send may spend while it is

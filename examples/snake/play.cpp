@@ -3,7 +3,7 @@
 
 // zengine-snake, the playable host: it owns the boot list and its loop's rest, and nothing else --
 // it draws nothing of the game, knows no snake rules, reads no keys and keeps no time: between
-// turns it rests as long as the Timer's beat allows (timer/rest.hpp). The world keeps its own
+// turns it rests in one wait on its window and the Timer's time. The world keeps its own
 // rules, keys and beat; the TUI window reads the terminal and shows what owners draw;
 // the directory introduces the two; and the console weave arranges the window, chooses its
 // palette, speaks the status line and sends every lifecycle command (examples/snake/README.md).
@@ -23,8 +23,7 @@
 #include "graphics/themes.hpp" // generated: the shipped themes, as palettes
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "timer/os_clock.hpp"
-#include "timer/rest.hpp"
+#include "timer/vocabulary.hpp"
 
 #include <zen/host/reactor.hpp>
 #include "timer/vocabulary.hpp"
@@ -627,28 +626,28 @@ int main(int argc, char** argv) {
     boot("load timer service",
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), {timer::kTimerRole}});
 
-    // The whole game runs in this loop: a turn, then one wait on the window's terminal for as long
-    // as the Timer's beat allows. A turn that leaves nothing queued means nothing here will ever
-    // speak again.
-    zengine::timer::MonotonicClock clock;
-    zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
+    // The whole game runs in this loop: a turn, then one wait on the window's terminal and the
+    // Timer's time -- only looking while the bus holds more, resting until one of them is ready or
+    // due when it holds nothing. An empty bus and a wait with nothing to wait on means nothing here
+    // will ever speak again.
     loom::host::Reactor wait(bus);
     wait.trust(kWindowRole);
+    wait.trust(timer::kTimerRole);
     while (!ctx.quit) {
         (void)bus.pump_pending();
         if (ctx.quit) {
             break;
         }
-        if (bus.pending() == 0) {
-            std::printf("zengine-snake - the bus went quiet without a quit "
-                        "(no timer service deployed?): time is gone, exiting.\n");
+        const bool idle = bus.pending() == 0;
+        const loom::host::Reactor::Woke woke = idle ? wait.after_turn() : wait.after_turn(0);
+        if (idle && bus.pending() == 0 && woke.roles == 0 && woke.due == 0) {
+            std::printf("zengine-snake - the bus went quiet without a quit and nothing waits to "
+                        "speak (no timer service deployed?): time is gone, exiting.\n");
             break;
         }
-        (void)wait.after_turn(rest.quiet_ms(bus));
     }
     said_last.lines = tally.lines();
-    said_last.lines.push_back("rested " + std::to_string(wait.lasted()) +
-                              " times between turns until the Timer's deadline, and was woken " +
-                              std::to_string(wait.woken()) + " times before it");
+    said_last.lines.push_back("rested in its one wait until something was ready or due, and was "
+                              "woken " + std::to_string(wait.woken()) + " times");
     return 0;
 }

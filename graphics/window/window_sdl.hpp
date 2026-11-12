@@ -814,8 +814,11 @@ public:
         return std::move(polled.events);
     }
 
-    /// The clock the window counts the weaver's clicks by: its backend's, where it keeps one.
-    std::int64_t now_ms() { return device_now_ms(backend_); }
+    /// The clock the window counts the weaver's clicks by: its backend's, where it keeps one, else
+    /// the time the host's wait handed the window.
+    std::optional<std::int64_t> now_ms(std::optional<std::int64_t> handed) {
+        return device_now_ms(backend_, handed);
+    }
 
     /// Whether the GUI window was asked to close since the request was last taken.
     bool close_requested() const noexcept { return close_requested_; }

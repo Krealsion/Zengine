@@ -10,10 +10,9 @@
 
 #include "kitchen.hpp"
 
-#include "timer/os_clock.hpp"
-#include "timer/rest.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -201,17 +200,16 @@ int main(int argc, char** argv) {
     bus.publish_as(waiter_id, loom::Message(loom::to_value(BakeOrder{"sourdough", 40}),
                                             waiter_id, loom::WeaveId{0}));
 
-    // The host loop: with the Timer service loaded the bus is never idle (the service seeds its
-    // next beat at every beat), so `drain_until_idle()` here would never return. `pump_pending()`
-    // dispatches what was waiting and hands control back, so the condition below is checked at
-    // all, and the host rests between turns as long as the Timer's beat allows. The 4000 is this
-    // fixture's patience, not a dispatch budget.
-    timer::MonotonicClock clock;
-    timer::Rest<timer::MonotonicClock> rest(clock);
+    // The host loop: a turn, then one wait on the Timer's time -- only looking while the bus holds
+    // more, resting until the Timer is due when it holds nothing. The Timer claims its soonest
+    // timer's time in that wait and is handed the time there, so nothing is queued to keep time.
+    // The 4000 is this fixture's patience, not a dispatch budget.
+    loom::host::Reactor wait(bus);
+    wait.trust(timer::kTimerRole);
     int laps = 0;
     for (; laps < 4000 && !waiter->served; ++laps) {
         bus.pump_pending();
-        (void)rest.after_turn(bus);
+        (void)(bus.pending() != 0 ? wait.after_turn(0) : wait.after_turn());
     }
 
     if (!with_timer) {

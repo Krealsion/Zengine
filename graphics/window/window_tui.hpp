@@ -262,8 +262,11 @@ public:
     }
 
     std::vector<zengine::input::InputEvent> poll() { return terminal_.poll(); }
-    /// The clock the window counts the weaver's clicks by: its terminal's, where it keeps one.
-    std::int64_t now_ms() { return device_now_ms(terminal_); }
+    /// The clock the window counts the weaver's clicks by: its terminal's, where it keeps one, else
+    /// the time the host's wait handed the window.
+    std::optional<std::int64_t> now_ms(std::optional<std::int64_t> handed) {
+        return device_now_ms(terminal_, handed);
+    }
 
     /// What a host's wait waits on for this window, as its terminal says; nothing to wait on for a
     /// terminal that cannot say.

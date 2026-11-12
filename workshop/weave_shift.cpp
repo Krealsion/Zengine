@@ -23,7 +23,6 @@ void WorkshopWeave::on(const input::PointerTimingSaid& said, loom::Mail& mail) {
 // WL-KEY-19 -- agents/workshop/keyboard.md
 bool WorkshopWeave::shift_tapped(const input::KeyPressed& k, loom::Mail& mail) {
     Hand& h = hand();
-    const std::int64_t now = interaction_now();
     // A PRESS WHILE THIS HAND'S SHIFT IS HELD is the key repeating: that hold is no tap, until
     // its release, and the pair is lost.
     if (h.shift_tap.held) {
@@ -32,14 +31,16 @@ bool WorkshopWeave::shift_tapped(const input::KeyPressed& k, loom::Mail& mail) {
         h.shift_tap.repeated = true;
         return false;
     }
+    // THE SECOND OF A PAIR comes while the first tap stands: the host's wait ends a tap once its
+    // double-click time has passed, before any later key it reads, so no press is timed here. A
+    // weave no wait holds keeps no time, and pairs no taps.
     const bool alone = (k.modifiers & ~input::mod::kShift) == 0;
-    const bool second = h.shift_tap.tapped && alone && now >= h.shift_tap.first_ms &&
-                        now - h.shift_tap.first_ms <= double_click_ms_;
+    const bool late = h.shift_tap.first_ms && now_ && *now_ - *h.shift_tap.first_ms > double_click_ms_;
+    const bool second = time_held_ && h.shift_tap.tapped && alone && !late;
     h.shift_tap = {};
     if (!second) {
         if (alone) {
-            h.shift_tap.held = true;
-            h.shift_tap.first_ms = now;
+            h.shift_tap.held = true; // its time is the next the wait hands over
         }
         return false;
     }

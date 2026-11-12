@@ -5,18 +5,19 @@
 #define ZENGINE_WORKSHOP_GUEST_DOOR_HPP
 
 // The guest door: the one participant holding this Workshop's listener, its admission policy, its
-// connection inventory and each admitted session's row. A weave, not a loop: the host loop never
-// returns while a Timer beats, so the door services the bridge on a repeating beat, from inside
-// the bus. Not authority: every guest's send is checked at the bus under the guest's own grant.
+// connection inventory and each admitted session's row. A weave, not a loop: it claims what the
+// crossing waits on as its role, and services the bridge from inside the bus when the host's one
+// wait wakes it. Not authority: every guest's send is checked at the bus under the guest's own
+// grant.
 
 #include "guest_seam_vocabulary.hpp"
-#include "timer/held_beat.hpp"
 #include "guests.hpp"
+#include "activation/activation.hpp"
 #include "pane/operation.hpp" // the question about a sender's scope, and its answer
 
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
-#include "timer/binding.hpp"
+#include "timer/source_wait.hpp"
 
 #include "manuals/zengine.guests.hpp" // this role's manual, compiled in from its page
 
@@ -24,7 +25,6 @@
 #include <zen/weave.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
-#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -38,15 +38,15 @@ namespace zengine::workshop {
 using pane::ActorScopeJudged;
 using pane::ActorScopeRequested;
 
-/// The beat the door services the crossing on: `kGuestsRole`'s own, so a successor inherits it.
-inline constexpr const char* kGuestBeatId = "zengine.guests.service";
-inline constexpr std::int64_t kGuestBeatMs = 10;
+/// How soon the door looks again on the host's wait's clock while an ask waits for the plan to
+/// come to rest, which only a look can see, and how often it polls a crossing the wait cannot hold.
+inline constexpr std::int64_t kGuestLookAgainMs = 10;
 /// How many asks for the plan at rest the door holds at once.
 inline constexpr std::size_t kGuestPlanHeld = 32;
 
 /// Two honest counters, poke-inspectable like any state.
 struct GuestDoorState {
-    std::int64_t services = 0; ///< beats on which the crossing was serviced
+    std::int64_t services = 0; ///< looks on which the crossing was serviced
     std::int64_t said = 0;     ///< inventories published
     ZEN_EXPOSE();
     ZEN_SHAPE(GuestDoorState, 1, ZEN_FIELD(services), ZEN_FIELD(said));
@@ -63,7 +63,7 @@ using GuestDoorBase =
     loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections, GuestRowDescribed,
                v2::GuestRowDescribed, GuestPlanSaid, ActorScopeJudged, loom::Refused,
                input::InputSessionClosed>,
-    zengine::timer::TimedWeave, loom::Claims<loom::host::WaitSet>>;
+    loom::WeaveBase, loom::Claims<loom::host::WaitSet>>;
 
 class GuestDoor final : public GuestDoorBase {
 public:
@@ -77,24 +77,29 @@ public:
           server_(std::make_unique<loom::BridgeServer>(bus, listener,
                                                        guests::admission_of(file_, admitted_))) {
         server_->on_connection([this](const loom::Connection& c) { on_connection(c); });
-        beat_ = this->timers().repeat_to_role(kGuestBeatId, std::chrono::milliseconds(kGuestBeatMs),
-                                              kGuestsRole, &GuestDoor::on_beat);
     }
 
     using GuestDoorBase::on;
 
-    /// What the host's one wait said about the door: a connection, a guest's bytes or an answer
-    /// the crossing owes is ready, so the door serves now; or the wait holds the door's claim, or
-    /// no longer does, so its beat stops or runs (timer/held_beat.hpp).
+    /// MOUNTED: what the crossing waits on, claimed as `kGuestsRole` by the door itself, `self` the
+    /// id the bus gave it, so the host's wait holds the listener from the first turn. Every
+    /// delivery after claims it again (`after_delivery`).
+    void open(loom::Switchboard& bus, loom::WeaveId self) {
+        (void)bus.role_claim_as(self, kGuestsRole, loom::to_value(server_->wait_set()));
+    }
+
+    /// What the host's one wait said about the door, with the time on its clock: a connection, a
+    /// guest's bytes or an answer the crossing owes is ready, or the time it claimed came, so the
+    /// door serves now; or the wait holds the door's claim, or no longer does
+    /// (timer/source_wait.hpp).
     void on(const loom::host::Waited& w, loom::Mail& mail) {
-        if (waited_.hear(w, mail)) {
-            on_beat(zengine::timer::TimerFired{}, mail);
+        if (wait_.hear(w, mail)) {
+            look(mail);
         }
     }
 
-    /// After every delivery, whatever it changed: what the crossing waits on is claimed and the
-    /// beat run as that leaves it (`settle_wait`); an ask held for the plan keeps it running.
-    void after_delivery(loom::Mail& mail) { settle_wait(mail); }
+    /// After every delivery, whatever it changed: what the crossing waits on claimed as the door's
+    /// role (`settle_wait`); an ask held for the plan claims a time to look again too.
 
     /// A presenter that just arrived asks; it is answered with the inventory as it stands.
     void on(const GuestConnectionsRequested&, loom::Mail& mail) {
@@ -152,7 +157,7 @@ public:
     }
 
     /// WHERE THE PLAN IS, from the reading the host wired: at once, or with `wait` held until the
-    /// plan is at rest and answered on the door's beat. The rows the answer names reach a guest only
+    /// plan is at rest and answered on the door's look. The rows the answer names reach a guest only
     /// when its row already shows rows' names. Held asks are bounded; past the bound, refused.
     // WL-GUEST-12 -- agents/workshop/guests.md
     void on(const GuestPlanRequested& asked, loom::Mail& mail) {
@@ -201,7 +206,7 @@ public:
         (void)mail.answer(ActorScopeJudged{refusal.empty(), refusal});
     }
 
-    /// The host's reading of its realization owner, read at every ask and on every beat that
+    /// The host's reading of its realization owner, read at every ask and on every look that
     /// holds an ask; it keeps no copy of the plan.
     using PlanReading = std::function<GuestPlanSaid()>;
     void reads_plan(PlanReading reading) { plan_ = std::move(reading); }
@@ -213,7 +218,7 @@ public:
     }
     bool disconnect(std::uint64_t connection) { return server_->disconnect(connection); }
 
-    /// Told, on the door's beat, of every guest session that has gone -- host wiring for what else
+    /// Told, on the door's look, of every guest session that has gone -- host wiring for what else
     /// held something on that guest's behalf (the observation relay forgets its subscriptions).
     void when_gone(std::function<void(loom::WeaveId)> tell) { when_gone_ = std::move(tell); }
 
@@ -251,8 +256,8 @@ public:
     /// The guests file this door admits by.
     const guests::GuestsFile& file() const { return file_; }
 
-    /// Service the crossing once, outside the beat -- for a host or a suite that turns the
-    /// bus itself. Inside a beat the door does this on its own.
+    /// Service the crossing once, outside a look -- for a host or a suite that turns the bus
+    /// itself. When the host's wait wakes it, the door does this on its own.
     void service() { server_->service(); }
 
     loom::BridgeServer& server() { return *server_; }
@@ -390,7 +395,7 @@ private:
     }
 
     /// The server's word about a connection, from inside `service()`: remembered, and acted on
-    /// at the end of the beat where there is a Mail to act with.
+    /// at the end of the look where there is a Mail to act with.
     void on_connection(const loom::Connection& c) {
         dirty_ = true;
         if (c.state == loom::ConnectionState::Admitted && c.session.valid()) {
@@ -413,7 +418,8 @@ private:
 
     void remember(loom::WeaveId session, std::size_t row) { sessions_[session.value] = row; }
 
-    void on_beat(const zengine::timer::TimerFired&, loom::Mail& mail) {
+    /// A look: the crossing serviced, and what it said acted on with this delivery's Mail.
+    void look(loom::Mail& mail) {
         ++this->state_.services;
         server_->service();
         for (const loom::WeaveId& session : gone_) {
@@ -464,24 +470,23 @@ private:
     }
 
     /// What the crossing waits on claimed as this role after every delivery (Loom's
-    /// `BridgeServer::wait_set`: the listener, every guest and what the crossing owes), and the
-    /// beat run as the host's wait leaves it: stopped while the wait holds the claim, running while
-    /// it does not and while an ask waits for the plan to come to rest, which only a look can see.
+    /// `BridgeServer::wait_set`: the listener, every guest and what the crossing owes), with a time
+    /// to look again while an ask waits for the plan to come to rest; a crossing the wait cannot
+    /// hold is polled on that time alone.
     void settle_wait(loom::Mail& mail) {
-        waited_.settle(mail, kGuestsRole, server_->wait_set(), !held_.empty(), beat_);
+        wait_.settle(mail, kGuestsRole, server_->wait_set(), !held_.empty(), kGuestLookAgainMs);
     }
 
     std::string listen_;
     guests::GuestsFile file_;
     std::shared_ptr<guests::AdmittedRows> admitted_;
     std::unique_ptr<loom::BridgeServer> server_;
-    GuestDoorBase::Handle beat_;
-    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this role's claim
-    bool dirty_ = true; ///< the first beat says the inventory once, empty or not
+    zengine::timer::SourceWait wait_; ///< what the host's wait last said, and the time it handed
+    bool dirty_ = true; ///< the first look says the inventory once, empty or not
     std::vector<loom::WeaveId> gone_;
     std::function<void(loom::WeaveId)> when_gone_;
     std::vector<loom::Connection> ended_; ///< closed since the last inventory, said once
-    std::vector<std::uint64_t> let_go_;   ///< closed or refused since the last beat: their rows forgotten
+    std::vector<std::uint64_t> let_go_;   ///< closed or refused since the last look: their rows forgotten
     /// EVERY SESSION THIS DOOR ADMITTED, AND ITS ROW, kept past its connection for the process's
     /// life: an ask already on its way about a guest that has since gone is judged as that guest's,
     /// never as no guest's, and forgetting one would make it no guest's. One entry per session a
@@ -491,17 +496,10 @@ private:
     std::vector<HeldPlanAsk> held_; ///< asks for the plan at rest, at most `kGuestPlanHeld`
 };
 
-/// THE DOOR'S GRANT: its beat, its inventory, an asker's own row, where the plan is, a sender's
-/// scope judged, a refusal, what a shape it accepts does, and one word to the Input role.
-/// Nothing else.
+/// THE DOOR'S GRANT: its inventory, an asker's own row, where the plan is, a sender's scope
+/// judged, a refusal, what a shape it accepts does, and one word to the Input role. Nothing else.
 inline loom::Grant guest_door_grant() {
     loom::Grant g;
-    g.allow_to_role(zengine::timer::EnsureRoleTimer::zen_name,
-                    zengine::timer::EnsureRoleTimer::zen_version, zengine::timer::kTimerRole);
-    g.allow_to_role(zengine::timer::EnsureTimer::zen_name, zengine::timer::EnsureTimer::zen_version,
-                    zengine::timer::kTimerRole);
-    g.allow_to_role(zengine::timer::CancelTimer::zen_name, zengine::timer::CancelTimer::zen_version,
-                    zengine::timer::kTimerRole);
     g.allow_to_any(GuestConnections::zen_name, GuestConnections::zen_version);
     g.allow_to_any(v2::GuestConnections::zen_name, v2::GuestConnections::zen_version);
     g.allow_to_any(v3::GuestConnections::zen_name, v3::GuestConnections::zen_version);
