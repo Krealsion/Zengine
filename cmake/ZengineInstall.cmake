@@ -50,6 +50,7 @@ include(CMakePackageConfigHelpers)
 # the tree needs it; agents/packaging.md says what each grants, and the end of this file what is
 # out. EXPORT_NAME makes `zengine::timer` the same target from this tree and from a prefix.
 set(ZENGINE_EXPORTED_TARGETS
+    zengine-manual
     zengine-maker
     zengine-flow
     zengine-message-draft
@@ -69,6 +70,7 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-neovim-editor-vocabulary
     zengine-graphics-vocabulary)
 
+set_target_properties(zengine-manual PROPERTIES EXPORT_NAME manual)
 set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
 set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
 set_target_properties(zengine-message-draft PROPERTIES EXPORT_NAME message-draft)
@@ -110,7 +112,7 @@ set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/input_weave.hpp)
 set(zengine_public_headers_ui         ui/vocabulary.hpp
                                       ui/layout.hpp)
-set(zengine_public_headers_manual     manual/manual.hpp)
+set(zengine_public_headers_manual     manual/manual.hpp manual/vocabulary.hpp)
 set(zengine_public_headers_component  component/motion.hpp
                                       component/unicode_width.hpp
                                       component/text.hpp
@@ -466,14 +468,16 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion)
 
 # Beside them, the function a program built against the package calls to run in the UTF-8 code
-# page on Windows, as every program this repository builds does, and the manifest it gives; and
-# the generator of colours by name, which a pane's slots are generated with.
+# page on Windows, as every program this repository builds does, and the manifest it gives; the
+# generator of colours by name, which a pane's slots are generated with; and a weave's manual,
+# compiled into the target that carries it (zengine_manual()).
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfigVersion.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineCodePage.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/utf8-code-page.manifest
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineNames.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineManual.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
 
 # The pool, the terminal's own look and the shipped themes, as the JSON the names and palettes above

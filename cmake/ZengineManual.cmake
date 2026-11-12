@@ -9,7 +9,11 @@ if(CMAKE_VERSION VERSION_LESS 3.18)
                         "${CMAKE_VERSION}")
 endif()
 
-set(ZENGINE_MANUAL_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+# Where `manual/manual.hpp` stands: this source tree, or the installed package's include folder,
+# which its config names before including this file.
+if(NOT DEFINED ZENGINE_MANUAL_ROOT)
+    set(ZENGINE_MANUAL_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+endif()
 
 # The bounds, read from their owner. A bound renamed or gone stops the split: a page judged by a
 # number this file guessed would be judged by nobody's law.
@@ -432,8 +436,10 @@ inline constexpr Manual kManual{\"${zm_ROLE}\", std::string_view(kName, ${name_n
 
 } // namespace zengine::manual::pages::${ident}
 ")
-    target_include_directories(${target} ${scope} "${dir}")
-    target_link_libraries(${target} ${scope} zengine-manual)
+    target_include_directories(${target} ${scope} "$<BUILD_INTERFACE:${dir}>")
+    target_link_libraries(${target} ${scope} zengine::manual)
+    # ...and the header written down on the target, for the install of a target that is exported.
+    set_property(TARGET ${target} APPEND PROPERTY ZENGINE_MANUAL_HEADERS "${dir}/manuals/${zm_ROLE}.hpp")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                  "${page}" "${ZENGINE_MANUAL_ROOT}/manual/manual.hpp")
 endfunction()

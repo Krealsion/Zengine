@@ -17,7 +17,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine::graphics
                                                             zengine::ui
                                                             zengine::component
                                                             zengine-builder-vocabulary
-                                                            zengine-manual
+                                                            zengine::manual
                                                             zengine::operator
                                                             zengine::persist
                                                             zengine::property

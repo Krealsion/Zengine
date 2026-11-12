@@ -20,7 +20,8 @@ target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 house and a guest spell them identically: `activation`, `timer`, `timer-rest` (`timer/rest.hpp`
 and the OS clock it naps on, `timer/os_clock.hpp`: the rest a host takes between turns while the
 Timer's beat is all its bus holds), `surface`, `input`, `ui`,
-`component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
+`manual` (a weave's manual as the weave carries it, `manual/manual.hpp`, and the door a role
+answers for the shapes it accepts, `manual/vocabulary.hpp`), `component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
 `columns`, the control strip, and pure `motion::Path` sampling: every header
 `zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the pane
 contract, every header `zengine_public_headers_pane` lists, installed under `include/zengine/pane/`:
@@ -77,13 +78,15 @@ does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`)
 artifacts from `lib/zengine/` by a path relative to its own, so it names no machine's layout, and
 with the GUI window out it runs an app whose window is the TUI window.
 
-**Two CMake modules ride along**, installed beside the package config, which includes both.
+**Three CMake modules ride along**, installed beside the package config, which includes each.
 `zengine_code_page(<target>...)`, `cmake/ZengineCodePage.cmake` with the manifest it gives: a
 stranger's program calls it to run in the UTF-8 code page on Windows, as every program this
 repository builds does (VM-PLAT-16); elsewhere it does nothing. `zengine_names()` and
 `zengine_palettes()`, `cmake/ZengineNames.cmake`: a stranger's pane generates its slots' names from
 its JSON as Zengine's own panes do, with CMake 3.22 or newer, the package's floor; the pool's and
-the shipped themes' JSON install under `share/zengine/graphics/`. The installed-package witness calls it for
+the shipped themes' JSON install under `share/zengine/graphics/`. `zengine_manual()`,
+`cmake/ZengineManual.cmake`: a stranger's weave compiles its page into itself as `manuals/<role>.hpp`
+and answers from it, as every Zengine weave does. The installed-package witness calls it for
 every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;
 `public_surface.cpp` checks the code page it runs in.
 

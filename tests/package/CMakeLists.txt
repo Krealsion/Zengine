@@ -20,6 +20,7 @@ add_executable(witness-surfaces public_surface.cpp)
 target_link_libraries(witness-surfaces
     PRIVATE
         zengine::inventory
+        zengine::manual
         zengine::activation
         zengine::maker
         zengine::flow
@@ -139,8 +140,17 @@ add_dependencies(flow-host flow-native)
 add_executable(witness-message-drafts message_draft_consumer.cpp)
 target_link_libraries(witness-message-drafts PRIVATE zengine::message-draft zengine::flow zengine::pane)
 
+# ---- a stranger's weave carries its manual -------------------------------------------------
+# manual_consumer.cpp reads back the page kitchen-oven.md, compiled in by the installed
+# zengine_manual() and answered from `zengine::manual`: a manual the package stopped carrying, or a
+# module that reads this source tree, fails here.
+add_executable(witness-manual manual_consumer.cpp)
+target_link_libraries(witness-manual PRIVATE zengine::manual)
+zengine_manual(witness-manual PRIVATE kitchen-oven.md)
+
 # ---- every program here runs in the UTF-8 code page on Windows, as a stranger asks ---------
 # run.cmake refuses a program built without it there, and public_surface.cpp checks the code page
 # it runs in; elsewhere the line does nothing.
 zengine_code_page(witness-surfaces witness-graphics witness-pane-menu witness-pane-settings
-                  witness-pane-window kitchen-host flow-author flow-host witness-message-drafts)
+                  witness-pane-window kitchen-host flow-author flow-host witness-message-drafts
+                  witness-manual)

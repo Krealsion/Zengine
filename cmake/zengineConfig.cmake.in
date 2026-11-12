@@ -46,4 +46,10 @@ find_dependency(loom 0.1)
 
 include("${CMAKE_CURRENT_LIST_DIR}/zengineTargets.cmake")
 
+# zengine_manual(<target> <PRIVATE|INTERFACE> <page>): a weave's manual, its page split into the
+# sections its role answers from (`manual/vocabulary.hpp`), compiled into the target as
+# `manuals/<role>.hpp`, as every Zengine weave carries its own. Needs zengine::manual, above.
+set(ZENGINE_MANUAL_ROOT "${ZENGINE_PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/zengine")
+include("${CMAKE_CURRENT_LIST_DIR}/ZengineManual.cmake")
+
 @ZENGINE_WASM_WEAVE_CONFIG@check_required_components(zengine)
