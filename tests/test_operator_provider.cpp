@@ -808,7 +808,7 @@ struct LiveRig : ProviderRig {
         bus.add_observer([this](const loom::BusEvent& ev) {
             if (ev.kind == loom::EventKind::Delivered) {
                 ++deliveries;
-                if (ev.schema_name != tmr::Drive::zen_name &&
+                if (ev.schema_name != loom::host::Waited::zen_name &&
                     ev.schema_name != tmr::TimerFired::zen_name) {
                     ++traffic;
                 }

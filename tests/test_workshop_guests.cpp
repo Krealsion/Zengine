@@ -188,10 +188,11 @@ struct Rig {
         door->zen_set_self(door_id);
     }
 
-    /// ONE BEAT: the Timer's word to the door, exactly as the service would say it, then the
-    /// bus drained. The door services the crossing inside it.
+    /// ONE LOOK: the host's wait's word to the door that what the crossing waits on is ready,
+    /// exactly as the wait would say it (from no sender), then the bus drained. The door services
+    /// the crossing inside it.
     void beat() {
-        bus.send(door_id, loom::Message(loom::to_value(zengine::timer::TimerFired{ws::kGuestBeatId})));
+        bus.send(door_id, loom::Message(loom::to_value(loom::host::Waited{0, true, true, std::string(), false, 0})));
         bus.drain_until_idle();
     }
 

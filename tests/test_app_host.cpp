@@ -190,11 +190,11 @@ struct Run {
         pump();
     }
 
-    /// The window's own beat, with what the suite queued for it to read.
+    /// Looks at the window, with what the suite queued for it to read.
     void pump() {
         for (int n = 0; n < 3; ++n) {
             bus.send(window, loom::Message(loom::to_value(
-                                 zengine::timer::TimerFired{gw::kPumpTimerId})));
+                                 zengine::graphics::PumpSurface{})));
             turn();
         }
     }

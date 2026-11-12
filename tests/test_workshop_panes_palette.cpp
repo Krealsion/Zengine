@@ -509,6 +509,7 @@ struct Hands {
     PaneRig& r;
     InputRole* seat = nullptr;
     loom::WeaveId id{};
+    HubTime* time = nullptr; ///< Workshop's own times, kept by a host's wait, when a case keeps them
     explicit Hands(PaneRig& rig) : r(rig) {
         auto made = std::make_unique<InputRole>();
         seat = made.get();
@@ -525,7 +526,9 @@ struct Hands {
         seat->next = [actor, e](loom::Mail& m) {
             (void)m.as_role(input::kInputRole).publish(input::AttributedInput{actor == 0, actor, e});
         };
+        if (time) time->settle();
         (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        if (time) time->settle();
         r.bus.drain_until_idle();
     }
     /// SHIFT TAPPED: pressed alone and let go, by `actor`'s hand.
@@ -562,6 +565,8 @@ TEST_CASE("WL-KEY-19: two Shift taps of one hand open the palette; a held Shift,
     start(r, tools);
     REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
     Hands hands(r);
+    HubTime time(r.bus, r.clock); // the taps are timed by the host's wait, as Workshop's host runs it
+    hands.time = &time;
     // EACH PART ENDS PUT DOWN, and with a key of each hand, so no tap carries into the next.
     const auto put_down = [&] {
         if (on_desk(r, kPaletteRole, kPalettePane)) r.key(input::scan::kEscape);

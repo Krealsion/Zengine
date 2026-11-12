@@ -21,6 +21,7 @@
 
 #include "attention/vocabulary.hpp"
 #include "external-host/connections-pane/vocabulary.hpp"
+#include "timer/binding.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/drawing.hpp"
 #include "graphics/elements.hpp"
@@ -751,8 +752,7 @@ struct TypedWindow {
     /// The window reads what was typed, on its own beat.
     void type(const std::string& bytes) {
         term.typed += bytes;
-        r.bus.send(window, loom::Message(loom::to_value(zengine::timer::TimerFired{
-                               gfx::window::kPumpTimerId})));
+        r.bus.send(window, loom::Message(loom::to_value(zengine::graphics::PumpSurface{})));
         r.drain();
     }
     /// The window's own beat, with nothing typed.
@@ -5148,7 +5148,7 @@ struct LitWindow {
     /// The window's own beat, with what the suite queued for it to read.
     void pump() {
         r.bus.send(window, loom::Message(loom::to_value(
-                               zengine::timer::TimerFired{gw::kPumpTimerId})));
+                               zengine::graphics::PumpSurface{})));
         r.drain();
     }
     void press(std::int64_t x, std::int64_t y) {
@@ -7003,7 +7003,7 @@ struct SdlWeave {
     /// The window's own beat: it empties SDL's queue.
     void pump() {
         r.bus.send(window, loom::Message(loom::to_value(
-                               zengine::timer::TimerFired{gw::kPumpTimerId})));
+                               zengine::graphics::PumpSurface{})));
         r.drain();
     }
 };
@@ -7185,7 +7185,7 @@ struct RealLit {
     }
     void pump() {
         r.bus.send(window, loom::Message(loom::to_value(
-                               zengine::timer::TimerFired{gw::kPumpTimerId})));
+                               zengine::graphics::PumpSurface{})));
         r.drain();
     }
     gfx::WindowShown shown() {

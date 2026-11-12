@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
 
-#include "weavelib/virtual_step.hpp" // the suites' virtual beat
+#include <zen/host/reactor.hpp>
 #include "flow/flow-host/runtime.hpp"
 #include "flow/example.hpp"
 #include "operator/primitives.hpp"
@@ -278,17 +278,6 @@ TEST_CASE("Flow refuses stopping while its own input is still dispatching") {
     CHECK(rig.ask(fh::FlowStop{"draft"}).ok);
 }
 
-namespace {
-struct StepClock {
-    std::int64_t* now = nullptr;
-    std::int64_t now_ms() const { return *now; }
-    std::int64_t step_ms() const { return zengine::testing::kVirtualStepMs; }
-    void elapse_ms(std::int64_t milliseconds) const {
-        if (milliseconds > 0) *now += milliseconds;
-    }
-};
-} // namespace
-
 TEST_CASE("Flow observes quiet state changes through the existing timer conversation") {
     Rig rig; // ClockStart has already drained while no Timer service exists.
     auto project = rig.project();
@@ -308,26 +297,31 @@ TEST_CASE("Flow observes quiet state changes through the existing timer conversa
     };
     CHECK_FALSE(changed());
     // The actual Timer service appears later and announces itself through its
-    // attested activation. The virtual clock makes its real scheduling policy
-    // deterministic. No host poll, hand-authored TimerReady, or synthetic firing
+    // attested activation. The host's wait on a clock that moves only when told makes its real
+    // scheduling policy deterministic. No host poll, hand-authored TimerReady, or synthetic firing
     // bridges the initial refusal: the standing binding must reconcile itself.
-    std::int64_t now = 0;
-    using Service = zengine::timer::TimerServiceT<StepClock>;
-    auto service = std::make_unique<Service>(StepClock{&now});
+    loom::host::ManualClock clock;
+    loom::host::Reactor host_wait(rig.bus, clock);
+    host_wait.trust(zengine::timer::kTimerRole);
+    const auto turn = [&] {
+        rig.bus.pump_pending();
+        (void)(rig.bus.pending() != 0 ? host_wait.after_turn(0) : host_wait.after_turn());
+    };
+    auto service = std::make_unique<zengine::timer::TimerWeave>();
     auto* timer = service.get();
     auto grant = loom::emit_default_grant(*timer);
     const auto timer_id = rig.bus.register_weave(std::move(service), std::move(grant), zengine::timer::kTimerRole);
     timer->zen_set_self(timer_id);
     const auto door = zengine::testing::mount_door(rig.bus);
     zengine::testing::order_activation(rig.bus, door, timer_id, 1);
-    for (unsigned turn = 0; turn < 128 && !changed(); ++turn) rig.bus.pump_pending();
+    for (unsigned n = 0; n < 128 && !changed(); ++n) turn();
     REQUIRE(changed());
-    CHECK(now >= 16);
+    CHECK(clock.now_ms() >= 16);
     rig.bus.send_as_to_role(rig.client, fh::kFlowHostRole,
         loom::Message(loom::to_value(fh::FlowInspect{"draft", 0}), rig.client, {}, 901));
     std::optional<fh::FlowAnswer> observed;
-    for (unsigned turn = 0; turn < 16 && !observed; ++turn) {
-        rig.bus.pump_pending();
+    for (unsigned n = 0; n < 16 && !observed; ++n) {
+        turn();
         for (const auto& message : rig.reader->messages)
             if (message.correlation == 901 && loom::same_identity(message.payload.schema(), *loom::schema_of<fh::FlowAnswer>()))
                 observed = loom::from_value<fh::FlowAnswer>(message.payload);
@@ -340,9 +334,10 @@ TEST_CASE("Flow observes quiet state changes through the existing timer conversa
 
 TEST_CASE("Flow's clock beats only while an input is in flight or a change is untold") {
     Rig rig;
-    std::int64_t now = 0;
-    using Service = zengine::timer::TimerServiceT<StepClock>;
-    auto service = std::make_unique<Service>(StepClock{&now});
+    loom::host::ManualClock clock;
+    loom::host::Reactor host_wait(rig.bus, clock);
+    host_wait.trust(zengine::timer::kTimerRole);
+    auto service = std::make_unique<zengine::timer::TimerWeave>();
     auto* timer = service.get();
     auto timer_grant = loom::emit_default_grant(*timer);
     const auto timer_id = rig.bus.register_weave(std::move(service), std::move(timer_grant),
@@ -350,8 +345,8 @@ TEST_CASE("Flow's clock beats only while an input is in flight or a change is un
     timer->zen_set_self(timer_id);
     zengine::testing::order_activation(rig.bus, zengine::testing::mount_door(rig.bus), timer_id, 1);
 
-    // The beats are the clock's firings as the bus delivered them; the virtual clock moves only
-    // while the Timer's own chain turns, so a span of it is a count of turns.
+    // The beats are the clock's firings as the bus delivered them; the clock moves only as the
+    // host's wait moves it, to the soonest time due or to the time the case waits until.
     std::int64_t beats = 0;
     const auto tap = rig.bus.add_observer([&](const loom::BusEvent& event) {
         if (event.kind == loom::EventKind::Delivered && event.payload != nullptr &&
@@ -360,9 +355,12 @@ TEST_CASE("Flow's clock beats only while an input is in flight or a change is un
             ++beats;
     });
     const auto wait = [&](std::int64_t ms) {
-        const auto until = now + ms;
-        for (unsigned turn = 0; turn < 100000 && now < until; ++turn) rig.bus.pump_pending();
-        REQUIRE(now >= until);
+        const auto until = clock.now_ms() + ms;
+        for (unsigned n = 0; n < 100000 && clock.now_ms() < until; ++n) {
+            rig.bus.pump_pending();
+            (void)host_wait.after_turn(rig.bus.pending() != 0 ? 0 : until - clock.now_ms());
+        }
+        REQUIRE(clock.now_ms() >= until);
     };
     const auto changes = [&] {
         return std::count_if(rig.reader->messages.begin(), rig.reader->messages.end(), [](const auto& message) {
@@ -373,8 +371,9 @@ TEST_CASE("Flow's clock beats only while an input is in flight or a change is un
         const auto corr = ++rig.correlation;
         rig.bus.send_as_to_role(rig.client, fh::kFlowHostRole,
             loom::Message(loom::to_value(request), rig.client, {}, corr));
-        for (unsigned turn = 0; turn < 4096; ++turn) {
+        for (unsigned n = 0; n < 4096; ++n) {
             rig.bus.pump_pending();
+            (void)(rig.bus.pending() != 0 ? host_wait.after_turn(0) : host_wait.after_turn());
             for (const auto& message : rig.reader->messages)
                 if (message.correlation == corr &&
                     loom::same_identity(message.payload.schema(), *loom::schema_of<fh::FlowAnswer>()))

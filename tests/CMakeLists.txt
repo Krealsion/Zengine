@@ -138,8 +138,9 @@ endfunction()
 # ---- the suites' own weave libraries ---------------------------------------------------
 # Fixtures built as every weave here is (zengine_weave, the Loom's reloadable-weave contract) and
 # loaded through the real kernel. Where one source makes several libraries, the difference under
-# test is one definition and everything else is identical. timer_virtual.cpp is the shipped Timer
-# over a clock whose nap advances virtual time: its claims are about durations.
+# test is one definition and everything else is identical. timer_virtual.cpp is the shipped Timer,
+# which a suite hands the time of a clock that moves only when told: its claims are about
+# durations.
 zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp
               MANUAL ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)

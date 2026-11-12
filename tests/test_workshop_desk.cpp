@@ -96,10 +96,15 @@ struct DeskRig {
     }
 
     void ask(std::function<void(loom::Mail&)> what) {
+        if (time) time->settle();
         asker->next = std::move(what);
         (void)r.bus.send(asker_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        if (time) time->settle();
         r.bus.drain_until_idle();
     }
+    /// Workshop handed the time by a host's wait on the case's reading (`HubTime`), from now on.
+    std::unique_ptr<HubTime> time;
+    void keep_time() { time = std::make_unique<HubTime>(r.bus, r.clock); }
 
     /// The desk said whole, or the refusal's reason.
     std::string read(DeskRead& out) {
@@ -2365,7 +2370,9 @@ std::string read_by(DeskRig& d, const OtherAsker& who, DeskRead& out) {
     who.asker->refusals.clear();
     const std::size_t before = who.asker->reads.size();
     who.asker->next = [](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, DeskReadRequested{}); };
+    if (d.time) d.time->settle();
     (void)d.r.bus.send(who.id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+    if (d.time) d.time->settle();
     d.r.bus.drain_until_idle();
     if (!who.asker->refusals.empty()) return who.asker->refusals.back();
     REQUIRE(who.asker->reads.size() == before + 1);
@@ -2876,7 +2883,8 @@ TEST_CASE("a pane whose provider left waits for one, and no reading says it is i
 
 TEST_CASE("past four desk reads in one second an asker is refused in words, and reads again a second later") {
     DeskRig d;
-    d.r.clock.spaced(0); // every reading of the clock at one instant, until the case moves it
+    d.r.clock.spaced(0); // the wait's clock at one instant, until the case moves it
+    d.keep_time();
     DeskRead read;
     for (std::int64_t i = 0; i < kDeskReadsPerSecond; ++i) {
         CAPTURE(i);
