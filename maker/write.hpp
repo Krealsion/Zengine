@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -48,6 +49,12 @@ inline loom::Cell default_cell(const loom::TypeRef& type) {
         return loom::Cell::message(default_value(type.message));
     case loom::Kind::List:
         return loom::Cell::list(loom::Cell::Array());
+#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
+    case loom::Kind::Union: // its first case, at that case's zero
+        return loom::Cell::message(default_value(type.message));
+    case loom::Kind::Any:
+        throw std::invalid_argument("a field holding a value of any shape has no zero");
+#endif
     }
     return loom::Cell::integer(0);
 }

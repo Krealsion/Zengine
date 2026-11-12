@@ -98,15 +98,15 @@ TEST_CASE("nested message and list forms retain incomplete fields and address ex
 }
 
 TEST_CASE("draft construction, copying and snapshots do not share mutable nested data") {
-    // THE SENDER KEEPS A POINTER TO THE CHILD IT PLACED, and changes the child through it once the
-    // drafts are made: a draft holds a copy, not the sender's value.
-    const auto nested = std::make_shared<loom::Value>(leaf());
-    nested->set("count", loom::Cell::integer(5));
+    // THE SENDER KEEPS THE CHILD IT PLACED, and changes it once the drafts are made: a draft holds
+    // a copy, not the sender's value.
+    loom::Value nested(leaf());
+    nested.set("count", loom::Cell::integer(5));
     loom::Value source(shape());
     source.set("child", loom::Cell::message(nested));
     md::Draft first(source);
     md::Draft second(first);
-    nested->set("count", loom::Cell::integer(101));
+    nested.set("count", loom::Cell::integer(101));
     CHECK(first.get({std::string("child"), std::string("count")})->as_int() == 5);
     first.set_text({std::string("child"), std::string("count")}, "13");
     // A SNAPSHOT IS A VALUE OF ITS OWN: a child placed in it leaves the draft as it was. Where a

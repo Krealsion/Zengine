@@ -122,6 +122,10 @@ private:
         }
         case loom::Kind::Message: return depth > 1 ? "{...}" : fields_text(*c.as_message(), depth + 1);
         case loom::Kind::List: return "[" + std::to_string(c.as_list().size()) + "]";
+#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
+        case loom::Kind::Union: return depth > 1 ? "{...}" : fields_text(*c.as_message(), depth + 1);
+        case loom::Kind::Any: return "?"; // a cell holds a Message or a Union, never Any
+#endif
         }
         return "?";
     }
