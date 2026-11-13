@@ -13,9 +13,10 @@
 # `doors <file> <name> <count>` is the shapes one `loom::Accept<...>` list names, the list named by
 # the class, struct or alias whose line opens nearest before it; `hooks <file> <struct> <count>`
 # the `std::function` members of a struct a host hands a weave, from four on; `lines <file>
-# <class> <count>` the lines of a class from 1000 on, an alarm that asks a question and decides
-# nothing. A new door is a changed row where review sees it; a round that deletes lowers its row
-# in the same change. The hub's doors and its host's hooks are marked to fall.
+# <class> <count>` the lines of a class from 1000 on. A new door is a changed row where review
+# sees it; a round that deletes lowers its row in the same change. The hub's doors, its host's
+# hooks and every class's lines are marked to fall: a class past the threshold only shrinks, and
+# one that falls below it loses its row.
 #
 # `cmake -DZEN_CENSUS_WRITE=<file> -P tests/check_census.cmake` writes the rows as the tree stands,
 # to diff. ASCII only.
@@ -181,13 +182,13 @@ hooks workshop/editor_switch.hpp EditorSwitchHost 4
 hooks workshop/layouts/store.hpp LayoutsHost 4
 hooks workshop/weave.hpp HostContext 18 falls
 
-lines builder/builder-pane/pane.cpp BuilderPaneWeave 1663
-lines editor/editor-pane/pane.cpp EditorPaneWeave 1179
-lines editor/neovim-editor/pane.cpp NeovimEditorWeave 1125
-lines files/files.cpp FilesWeave 1614
-lines flow/flow-pane/pane.cpp FlowPane 2542
-lines graphics/window/window.hpp Window 1428
-lines info/property_view.hpp PropertyView 1002
-lines info/value_view.hpp ValueView 1361
-lines view/view-builder/pane.cpp ViewBuilderPane 1337
-lines workshop/weave.hpp WorkshopWeave 1841
+lines builder/builder-pane/pane.cpp BuilderPaneWeave 1663 falls
+lines editor/editor-pane/pane.cpp EditorPaneWeave 1179 falls
+lines editor/neovim-editor/pane.cpp NeovimEditorWeave 1125 falls
+lines files/files.cpp FilesWeave 1614 falls
+lines flow/flow-pane/pane.cpp FlowPane 2542 falls
+lines graphics/window/window.hpp Window 1428 falls
+lines info/property_view.hpp PropertyView 1002 falls
+lines info/value_view.hpp ValueView 1361 falls
+lines view/view-builder/pane.cpp ViewBuilderPane 1337 falls
+lines workshop/weave.hpp WorkshopWeave 1841 falls
