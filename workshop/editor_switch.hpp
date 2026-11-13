@@ -12,7 +12,8 @@
 
 #include "editor_handoff_vocabulary.hpp"
 #include "editor_switch_vocabulary.hpp"
-#include "load_plan.hpp"
+#include "realization/load_plan.hpp"
+#include "realization/vocabulary.hpp"
 
 #include "manual/vocabulary.hpp"
 #include "timer/binding.hpp"
@@ -43,12 +44,6 @@ struct EditorSwitchHost {
     /// THE ROLE A SWITCH MOVES: the role of the one pane the host manages, spelled where the
     /// host spells it, and never here.
     std::string role;
-    /// The plan's authored choices for `zengine.editor`, read at the moment of the ask.
-    std::function<std::vector<load::ChoiceIntent>()> choices;
-    /// The artifact holding the role now, as realization recorded it (empty: none).
-    std::function<std::string()> holder;
-    /// The image a choice's artifact runs from when a switch loads it.
-    std::function<std::string(const std::string& stem)> image_of;
     /// Record that the role is held by `weave`, loaded from `image`, for choice `stem`. Empty
     /// on success, else the owner's refusal.
     std::function<std::string(const std::string& stem, loom::WeaveId weave, const std::string& image)>
@@ -71,6 +66,9 @@ struct EditorSwitchState {
 /// the host-tier calls it was handed.
 inline loom::Grant editor_switch_grant(const std::string& role) {
     loom::Grant g;
+    // The plan's authored choices, which one holds the role and the image each runs from: the
+    // realization owner's claim, read at every delivery.
+    g.allow_observe(realization::ChoicesHeld::zen_name, realization::ChoicesHeld::zen_version);
     g.allow_to_any(EditorSwitchAnswered::zen_name, EditorSwitchAnswered::zen_version);
     g.allow_to_any(EditorSwitchProgress::zen_name, EditorSwitchProgress::zen_version);
     // ...and what a shape it accepts does, from its own page, to the one who asked.
@@ -166,13 +164,14 @@ public:
     // ---- the four doors a weaver's asker uses -------------------------------------------------
 
     void on(const EditorSwitchRequested& asked, loom::Mail& mail) {
+        see(mail);
         if (host_.role.empty()) {
             answer_now(mail, refused_answer(0, asked.destination,
                                             "this host manages no editor role to switch"));
             return;
         }
-        const std::vector<load::ChoiceIntent> choices = authored();
-        const load::ChoiceIntent* destination = choice_named(choices, asked.destination);
+        const std::vector<realization::ChoiceIntent> choices = authored();
+        const realization::ChoiceIntent* destination = choice_named(choices, asked.destination);
         if (destination == nullptr) {
             answer_now(mail, refused_answer(0, asked.destination,
                                             asked.destination.empty()
@@ -181,7 +180,7 @@ public:
                                                       asked.destination + "`"));
             return;
         }
-        const std::string holding = host_.holder ? host_.holder() : std::string();
+        const std::string holding = holder();
         if (holding.empty()) {
             answer_now(mail, refused_answer(0, destination->name,
                                             "nobody holds " + host_.role +
@@ -224,6 +223,7 @@ public:
     }
 
     void on(const EditorSwitchConfirmed& confirmed, loom::Mail& mail) {
+        see(mail);
         if (answer_superseded(mail, confirmed.op)) {
             return;
         }
@@ -248,6 +248,7 @@ public:
     }
 
     void on(const EditorSwitchCancelled& cancelled, loom::Mail& mail) {
+        see(mail);
         if (answer_superseded(mail, cancelled.op)) {
             return;
         }
@@ -271,11 +272,17 @@ public:
         abandon(mail, switch_outcome::kCancelled, said);
     }
 
-    void on(const EditorSwitchStatusRequested&, loom::Mail& mail) { answer_now(mail, status_answer()); }
+    void on(const EditorSwitchStatusRequested&, loom::Mail& mail) {
+        see(mail);
+        answer_now(mail, status_answer());
+    }
 
     /// THE SAME STATUS, ANSWERED TO THE ASKER ALONE: a pane that shows it asks so, and nothing of it
     /// is published, so Workshop says nothing of it.
-    void on(const EditorSwitchQuietStatusRequested&, loom::Mail& mail) { (void)mail.answer(status_answer()); }
+    void on(const EditorSwitchQuietStatusRequested&, loom::Mail& mail) {
+        see(mail);
+        (void)mail.answer(status_answer());
+    }
 
     /// WHICH CHOICE HOLDS THE ROLE, WHICH ARE AUTHORED AND WHAT IS UNDER WAY, as a status answer.
     EditorSwitchAnswered status_answer() {
@@ -302,6 +309,7 @@ public:
     // ---- the incumbent's answers ----------------------------------------------------------------
 
     void on(const EditorHandoffJudged& judged, loom::Mail& mail) {
+        see(mail);
         if (!answers(mail, Stage::Judging, judged.op)) {
             return;
         }
@@ -332,6 +340,7 @@ public:
     }
 
     void on(const EditorHandoffOffered& offered, loom::Mail& mail) {
+        see(mail);
         if (!answers(mail, Stage::Boundary, offered.op) || !(mail.sender() == op_.incumbent)) {
             return;
         }
@@ -385,6 +394,7 @@ public:
     // ---- the candidate's answers ----------------------------------------------------------------
 
     void on(const EditorWarmed& warmed, loom::Mail& mail) {
+        see(mail);
         if (!answers(mail, Stage::Warming, warmed.op) || !(mail.sender() == op_.candidate)) {
             return;
         }
@@ -404,6 +414,7 @@ public:
     }
 
     void on(const EditorAdopted& adopted, loom::Mail& mail) {
+        see(mail);
         if (op_.stage != Stage::Adopting || adopted.op != op_.id || !op_.txn.has_value()) {
             return;
         }
@@ -447,6 +458,7 @@ public:
     // ---- the successor's answer ------------------------------------------------------------------
 
     void on(const EditorLive& live, loom::Mail& mail) {
+        see(mail);
         if (!answers(mail, Stage::Proving, live.op)) {
             return;
         }
@@ -466,6 +478,7 @@ public:
         // THE ROLE MOVED: realization records who holds it, whatever the successor says next.
         const std::string recorded =
             host_.record ? host_.record(op_.destination_stem, op_.candidate, op_.image) : std::string();
+        see(mail);
         if (!recorded.empty()) {
             op_.notes.push_back("the realization record was not updated: " + recorded);
         }
@@ -491,6 +504,7 @@ public:
     }
 
     void on(const EditorRetired& retired, loom::Mail& mail) {
+        see(mail);
         if (!answers(mail, Stage::Retiring, retired.op) || !(mail.sender() == op_.incumbent)) {
             return;
         }
@@ -505,6 +519,7 @@ public:
     // ---- refusals the bus reports --------------------------------------------------------------
 
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        see(mail);
         if (!mail.dispatch_refused() || op_.stage == Stage::Idle || op_.stage == Stage::AwaitingConsent) {
             return;
         }
@@ -530,6 +545,7 @@ public:
                 if (host_.record) {
                     (void)host_.record(op_.destination_stem, op_.candidate, op_.image);
                 }
+                see(mail);
                 retained_ = op_.from_stem;
                 EditorSwitchAnswered failed =
                     base_answer(op_.id, switch_outcome::kFailedAfterCommit, op_.destination);
@@ -594,7 +610,7 @@ private:
         finish(mail);
     }
 
-    void begin_op(loom::Mail& mail, const load::ChoiceIntent& destination, const std::string& holding) {
+    void begin_op(loom::Mail& mail, const realization::ChoiceIntent& destination, const std::string& holding) {
         (void)mail;
         op_ = Op{};
         op_.id = ++next_op_;
@@ -602,7 +618,7 @@ private:
         op_.destination_stem = destination.stem;
         op_.from_stem = holding;
         op_.from = holding;
-        for (const load::ChoiceIntent& c : authored()) {
+        for (const realization::ChoiceIntent& c : authored()) {
             if (c.stem == holding) {
                 op_.from = c.name;
             }
@@ -627,7 +643,7 @@ private:
         // A RETIRED EDITOR KEPT AFTER A FAILURE is released first: the role's holder carries the
         // document now, and the retained weave would hold the name the destination loads under.
         release_retained();
-        op_.image = host_.image_of ? host_.image_of(op_.destination_stem) : std::string();
+        op_.image = image_of(op_.destination_stem);
         op_.txn.emplace(*host_.bus, *host_.kernel);
         loom::PreparedReplacement::Start start;
         start.initiator_id = self();
@@ -752,7 +768,7 @@ private:
         if (retained_.empty() || host_.kernel == nullptr) {
             return;
         }
-        const std::string holding = host_.holder ? host_.holder() : std::string();
+        const std::string holding = holder();
         if (retained_ != holding) {
             (void)host_.kernel->unload(retained_);
         }
@@ -836,9 +852,9 @@ private:
         a.op = op;
         a.outcome = outcome;
         a.destination = destination;
-        const std::vector<load::ChoiceIntent> choices = authored();
-        const std::string holding = host_.holder ? host_.holder() : std::string();
-        for (const load::ChoiceIntent& c : choices) {
+        const std::vector<realization::ChoiceIntent> choices = authored();
+        const std::string holding = holder();
+        for (const realization::ChoiceIntent& c : choices) {
             a.choices.push_back(c.name);
             if (c.stem == holding) {
                 a.active = c.name;
@@ -853,22 +869,47 @@ private:
         return a;
     }
 
-    std::vector<load::ChoiceIntent> authored() const {
-        std::vector<load::ChoiceIntent> out;
-        if (!host_.choices) {
-            return out;
-        }
-        for (const load::ChoiceIntent& c : host_.choices()) {
+    /// THE REALIZATION OWNER'S CLAIM OF EVERY AUTHORED CHOICE, read afresh at every delivery and
+    /// after every record this switch makes: which holds the role, and the image each runs from.
+    void see(loom::Mail& mail) {
+        held_ = realization::latest<realization::ChoicesHeld>(mail).value_or(
+            realization::ChoicesHeld{});
+    }
+
+    /// The plan's authored choices for the role.
+    std::vector<realization::ChoiceIntent> authored() const {
+        std::vector<realization::ChoiceIntent> out;
+        for (const realization::ChoiceHeld& c : held_.choices) {
             if (c.role == host_.role) {
-                out.push_back(c);
+                out.push_back(realization::ChoiceIntent{c.role, c.name, c.stem});
             }
         }
         return out;
     }
 
-    static const load::ChoiceIntent* choice_named(const std::vector<load::ChoiceIntent>& choices,
+    /// The artifact holding the role now, as realization claims it (empty: none).
+    std::string holder() const {
+        for (const realization::ChoiceHeld& c : held_.choices) {
+            if (c.role == host_.role && c.holds) {
+                return c.stem;
+            }
+        }
+        return std::string();
+    }
+
+    /// The image a choice's artifact runs from when a switch loads it.
+    std::string image_of(const std::string& stem) const {
+        for (const realization::ChoiceHeld& c : held_.choices) {
+            if (c.stem == stem) {
+                return c.image;
+            }
+        }
+        return std::string();
+    }
+
+    static const realization::ChoiceIntent* choice_named(const std::vector<realization::ChoiceIntent>& choices,
                                                   const std::string& name) {
-        for (const load::ChoiceIntent& c : choices) {
+        for (const realization::ChoiceIntent& c : choices) {
             if (c.name == name) {
                 return &c;
             }
@@ -911,6 +952,8 @@ private:
     loom::WeaveId self() const { return self_id_; }
 
     EditorSwitchHost host_;
+    /// The realization owner's latest claim of the authored choices, as `see` last read it.
+    realization::ChoicesHeld held_;
     loom::WeaveId self_id_{};
     Handle beat_;
     Op op_;

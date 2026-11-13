@@ -12,9 +12,9 @@
 // is the discovery door's (workshop/powers_door.hpp).
 
 #include "arrangement_vocabulary.hpp"
-#include "load_execute.hpp"
-#include "load_persist.hpp" // `mode_word` -- ONE spelling of `normal`/`overlay`
-#include "load_plan.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_persist.hpp" // `mode_word` -- ONE spelling of `normal`/`overlay`
+#include "realization/load_plan.hpp"
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
@@ -48,16 +48,16 @@ inline const char* offer_token(op::OfferOutcome outcome) {
 
 /// The token for where realization has got with one authored row, total; here for
 /// `offer_token`'s reason.
-inline const char* state_token(load::RowState state) {
+inline const char* state_token(realization::RowState state) {
     switch (state) {
-    case load::RowState::Pending: return kPendingToken;
-    case load::RowState::Loading: return kLoadingToken;
-    case load::RowState::Resolved: return kResolvedToken;
-    case load::RowState::Refused: return kRefusedToken;
-    case load::RowState::Reloading: return kReloadingToken;
-    case load::RowState::Switched: return kSwitchedToken;
-    case load::RowState::Unavailable: return kUnavailableToken;
-    case load::RowState::Authored: break;
+    case realization::RowState::Pending: return kPendingToken;
+    case realization::RowState::Loading: return kLoadingToken;
+    case realization::RowState::Resolved: return kResolvedToken;
+    case realization::RowState::Refused: return kRefusedToken;
+    case realization::RowState::Reloading: return kReloadingToken;
+    case realization::RowState::Switched: return kSwitchedToken;
+    case realization::RowState::Unavailable: return kUnavailableToken;
+    case realization::RowState::Authored: break;
     }
     return kAuthoredToken;
 }
@@ -66,14 +66,14 @@ inline const char* state_token(load::RowState state) {
 
 /// WHAT A WEAVER CAN DO ABOUT A ROW THAT IS NOT RUNNING, said by the owner that knows why.
 /// Empty for a row that needs nothing, or whose next step no one here can name.
-inline std::string next_action_of(load::RowState state, const std::string& stem) {
+inline std::string next_action_of(realization::RowState state, const std::string& stem) {
     switch (state) {
-    case load::RowState::Unavailable:
+    case realization::RowState::Unavailable:
         return "make '" + stem + "' available (build it), then relaunch Workshop -- this run "
                "stepped over it and will not return to it";
-    case load::RowState::Refused:
+    case realization::RowState::Refused:
         return "fix what the refusal names, then relaunch -- the project stopped at this row";
-    case load::RowState::Pending:
+    case realization::RowState::Pending:
         return "build it; its authored participation is performed then";
     default: return std::string();
     }
@@ -82,25 +82,25 @@ inline std::string next_action_of(load::RowState state, const std::string& stem)
 /// Pair every authored row with what realization made of it, by stem (a key: `check_plan` refuses
 /// a repeat), in authored order. Both halves come from the one owner: the mount mode exists only
 /// in the plan and the resolved identity only in its rows, so neither is rebuilt from the other.
-inline v2::ResolvedArrangement describe_resolved(const load::PlanExecutor& realization,
+inline v2::ResolvedArrangement describe_resolved(const realization::Owner& realization,
                                                  std::string plan) {
-    const load::LoadPlan& authored = realization.plan();
+    const realization::LoadPlan& authored = realization.plan();
     v2::ResolvedArrangement out;
     out.plan = std::move(plan);
     out.artifacts.reserve(authored.artifacts.size());
-    for (const load::ArtifactIntent& intent : authored.artifacts) {
+    for (const realization::ArtifactIntent& intent : authored.artifacts) {
         v3::ArtifactParticipation row;
         row.artifact = intent.stem;
         row.optional = intent.optional;
         // `mode_word` is the plan file's own function: what a weaver wrote is what they read.
         if (intent.provider.has_value()) {
-            row.authored_provider = load_persist::mode_word(intent.provider->mode);
+            row.authored_provider = realization::load_persist::mode_word(intent.provider->mode);
         }
         if (intent.weave.has_value()) {
             row.authored_role = intent.weave->role;
         }
         // Where realization has got with it, asked even when nothing resolved.
-        const load::RowState state = realization.state_of(intent.stem);
+        const realization::RowState state = realization.state_of(intent.stem);
         row.state = state_token(state);
         // The reason and the next step are the owner's, asked rather than parsed out of a banner.
         row.reason = realization.reason_of(intent.stem);
@@ -110,7 +110,7 @@ inline v2::ResolvedArrangement describe_resolved(const load::PlanExecutor& reali
             out.artifacts.push_back(std::move(row));
             continue;
         }
-        for (const load::ResolvedArtifact& done : realization.resolved()) {
+        for (const realization::ResolvedArtifact& done : realization.resolved()) {
             if (done.stem != intent.stem) {
                 continue;
             }
@@ -125,15 +125,15 @@ inline v2::ResolvedArrangement describe_resolved(const load::PlanExecutor& reali
     }
     // THEN THE CHOICES THAT RAN WITHOUT BEING ARTIFACT ROWS, in authored order: a role a
     // switch moved is held by one of these, and it is authored intent as much as a row is.
-    for (const load::ChoiceIntent& choice : authored.choices) {
+    for (const realization::ChoiceIntent& choice : authored.choices) {
         bool is_row = false;
-        for (const load::ArtifactIntent& intent : authored.artifacts) {
+        for (const realization::ArtifactIntent& intent : authored.artifacts) {
             is_row = is_row || intent.stem == choice.stem;
         }
         if (is_row) {
             continue;
         }
-        for (const load::ResolvedArtifact& done : realization.resolved()) {
+        for (const realization::ResolvedArtifact& done : realization.resolved()) {
             if (done.stem != choice.stem) {
                 continue;
             }
@@ -171,7 +171,7 @@ inline ResolvedArrangement in_version_one(const v2::ResolvedArrangement& said) {
     return out;
 }
 
-inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realization,
+inline ResolvedArrangement describe_arrangement(const realization::Owner& realization,
                                                 std::string plan) {
     return in_version_one(describe_resolved(realization, std::move(plan)));
 }
@@ -199,7 +199,7 @@ public:
     /// by whoever mounts the door. Empty answers no, and every answer crosses in version 1.
     using Accepts = std::function<bool(std::string_view role, const loom::Schema& shape)>;
 
-    ArrangementDoor(const load::PlanExecutor& realization, std::string plan,
+    ArrangementDoor(const realization::Owner& realization, std::string plan,
                     Accepts accepts = Accepts())
         : realization_(&realization), plan_(std::move(plan)), accepts_(std::move(accepts)) {}
 
@@ -229,7 +229,7 @@ private:
         return true;
     }
 
-    const load::PlanExecutor* realization_;
+    const realization::Owner* realization_;
     /// The file the host read: provenance, not identity.
     std::string plan_;
     Accepts accepts_;

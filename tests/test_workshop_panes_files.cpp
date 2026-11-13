@@ -540,7 +540,7 @@ struct FilesRig {
     void mount_project_door() {
         wire_recipes();
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
-                                                  ProjectDoor::Frontier{}, ProjectDoor::Names{},
+                                                  ProjectDoor::Names{},
                                                   ProjectDoor::Source{}, r.host.use_recipes,
                                                   r.host.author_recipe);
         ProjectDoor* raw = door.get();

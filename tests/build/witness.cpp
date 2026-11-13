@@ -11,8 +11,8 @@
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
 
-#include "workshop/load_execute.hpp"
-#include "workshop/load_persist.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_persist.hpp"
 #include "pane/vocabulary.hpp"
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
@@ -55,8 +55,8 @@
 namespace {
 
 namespace builder = zengine::builder;
-namespace load = zengine::workshop::load;
-namespace load_persist = zengine::workshop::load_persist;
+namespace load = zengine::realization;
+namespace load_persist = zengine::realization::load_persist;
 namespace op = zengine::op;
 namespace recipe_persist = zengine::workshop::recipe_persist;
 namespace workshop = zengine::workshop;
@@ -484,7 +484,7 @@ int main(int argc, char** argv) {
                                                  current_recipes.views(),
                                                  current_recipes.source());
 
-    // ---- The realization owner, its voice, and the one dangerous grant ----------
+    // ---- The realization owner, and the one dangerous grant ------------------------
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
@@ -492,16 +492,11 @@ int main(int argc, char** argv) {
                          builder::ArtifactRealized::zen_version);
     operate.allow_to_any(builder::ArtifactPromoted::zen_name,
                          builder::ArtifactPromoted::zen_version);
-    load::BootAnswers answers;
-    auto speaker = std::make_unique<load::PlanBooter>(answers);
-    load::PlanBooter& voice = *speaker;
-    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate));
-    voice.zen_set_self(booter);
 
     bool refused = false;
     workshop::staging::Host staging_host{args.dir, &current_recipes, &so_in, 0};
-    load::PlanExecutor executor(
-        bus, operators, operator_host, voice, manager, answers,
+    const load::Mounted mounted = load::mount(
+        bus, std::move(operate), operators, operator_host, manager,
         [&args](const std::string& stem) { return so_in(args.dir, stem); },
         [&refused](const load::Executed& done) {
             for (const load::ResolvedArtifact& row : done.resolved) {
@@ -582,7 +577,7 @@ int main(int argc, char** argv) {
                                         std::stoll(parts[3]), args.read, [&bus] { bus.stop(); });
     }
 
-    executor.begin(read_plan.plan);
+    mounted.owner().begin(read_plan.plan);
 
     // ASK THE TOOL WHAT IT IS, the way an opening pane does. Root-sent, because this
     // is the host and a host may put a message on its own bus.

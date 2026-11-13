@@ -34,6 +34,8 @@ pane              library
 persist           library
 property          library
 quarry            quarry
+realization       library
+tally             library
 terminal          feature
 theme             feature
 tests             tests

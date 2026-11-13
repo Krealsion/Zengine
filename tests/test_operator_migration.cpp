@@ -486,7 +486,7 @@ TEST_CASE("the migration seam names no loader, no plan and no filesystem") {
     const std::string source = slurp(OPERATOR_MIGRATION_HPP);
     REQUIRE_FALSE(source.empty());
     for (const char* forbidden : {"provider_host.hpp", "operator/image.hpp", "mount_provider",
-                                  "load_plan", "load_execute", "std::filesystem", "dlopen",
+                                  "load_plan", "realization/owner", "std::filesystem", "dlopen",
                                   "LoadLibrary", "ifstream"}) {
         CAPTURE(forbidden);
         CHECK(source.find(forbidden) == std::string::npos);

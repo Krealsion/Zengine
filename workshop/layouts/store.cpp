@@ -2336,7 +2336,7 @@ std::string LayoutStore::fold_layout_entries() {
 }
 
 // WL-SESSION-13, WL-SESSION-15 -- agents/workshop/session.md
-std::string LayoutStore::save_session() {
+std::string LayoutStore::save_session(const std::vector<session_persist::WorkshopChoice>& chosen) {
     if (host_->session_path.empty()) {
         return "isolated run -- no session file";
     }
@@ -2344,8 +2344,7 @@ std::string LayoutStore::save_session() {
         return host_->session_path + " could not be read and will not be written over";
     }
     const Written written = session_persist::save_file(
-        host_->session_path, layout_run(run_), live_at(run_), run_.next_id,
-        host_->chosen ? host_->chosen() : std::vector<session_persist::WorkshopChoice>{});
+        host_->session_path, layout_run(run_), live_at(run_), run_.next_id, chosen);
     if (!written.accepted) {
         return written.refusal;
     }

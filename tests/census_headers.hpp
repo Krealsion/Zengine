@@ -57,8 +57,9 @@
 #include "workshop/keymap_persist.hpp"
 #include "workshop/layouts/owner.hpp"
 #include "workshop/layouts/vocabulary.hpp"
-#include "workshop/load_execute.hpp"
-#include "workshop/load_persist.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_persist.hpp"
+#include "realization/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
 #include "pane/carry.hpp"
@@ -174,18 +175,21 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::keymap_persist::v1::WorkshopKeymap>(), // WorkshopKeymap v1
         shape<::zengine::workshop::keymap_persist::WorkshopKeymap>(), // WorkshopKeymap v2
         shape<::zengine::workshop::keymap_persist::WorkshopKeymapRow>(), // WorkshopKeymapRow v1
-        shape<::zengine::workshop::load::BootState>(), // BootState v1
-        shape<::zengine::workshop::load_persist::WorkshopLoadAlternative>(), // WorkshopLoadAlternative v1
-        shape<::zengine::workshop::load_persist::v1::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v1
-        shape<::zengine::workshop::load_persist::v3::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v2
-        shape<::zengine::workshop::load_persist::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v3
-        shape<::zengine::workshop::load_persist::WorkshopLoadChoice>(), // WorkshopLoadChoice v1
-        shape<::zengine::workshop::load_persist::v1::WorkshopLoadFile>(), // WorkshopLoadFile v1
-        shape<::zengine::workshop::load_persist::v2::WorkshopLoadFile>(), // WorkshopLoadFile v2
-        shape<::zengine::workshop::load_persist::v3::WorkshopLoadFile>(), // WorkshopLoadFile v3
-        shape<::zengine::workshop::load_persist::WorkshopLoadFile>(), // WorkshopLoadFile v4
-        shape<::zengine::workshop::load_persist::WorkshopLoadProvider>(), // WorkshopLoadProvider v1
-        shape<::zengine::workshop::load_persist::WorkshopLoadWeave>(), // WorkshopLoadWeave v1
+        shape<::zengine::realization::BootState>(), // BootState v1
+        shape<::zengine::realization::ChoiceHeld>(), // ChoiceHeld v1
+        shape<::zengine::realization::ChoicesHeld>(), // ChoicesHeld v1
+        shape<::zengine::realization::PlanWhere>(), // PlanWhere v1
+        shape<::zengine::realization::load_persist::WorkshopLoadAlternative>(), // WorkshopLoadAlternative v1
+        shape<::zengine::realization::load_persist::v1::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v1
+        shape<::zengine::realization::load_persist::v3::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v2
+        shape<::zengine::realization::load_persist::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v3
+        shape<::zengine::realization::load_persist::WorkshopLoadChoice>(), // WorkshopLoadChoice v1
+        shape<::zengine::realization::load_persist::v1::WorkshopLoadFile>(), // WorkshopLoadFile v1
+        shape<::zengine::realization::load_persist::v2::WorkshopLoadFile>(), // WorkshopLoadFile v2
+        shape<::zengine::realization::load_persist::v3::WorkshopLoadFile>(), // WorkshopLoadFile v3
+        shape<::zengine::realization::load_persist::WorkshopLoadFile>(), // WorkshopLoadFile v4
+        shape<::zengine::realization::load_persist::WorkshopLoadProvider>(), // WorkshopLoadProvider v1
+        shape<::zengine::realization::load_persist::WorkshopLoadWeave>(), // WorkshopLoadWeave v1
         shape<zengine::pane::v2::PaneActions>(), // PaneActions v2
         shape<::zengine::workshop::PanePresentation>(), // PanePresentation v1
         shape<::zengine::workshop::v3::PresentationAdmitRequested>(), // PresentationAdmitRequested v3

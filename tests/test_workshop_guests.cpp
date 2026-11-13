@@ -9,6 +9,7 @@
 // weave. The capture door is the windows'; here, only that `capture` reaches a window's role.
 
 #include "doctest.h"
+#include "realization_claims.hpp"
 #include "role_manual.hpp"
 
 #include "workshop/actor_scope.hpp"
@@ -162,7 +163,7 @@ struct Rig {
     loom::WeaveId input_id{};
     std::uint16_t port = 0;
 
-    explicit Rig(const guests::GuestsFile& file) {
+    explicit Rig(const guests::GuestsFile& file, bool reads_plan = true) {
         {
             // IN ITS ROLE: a guest's session is asked of `zengine.input` by role, never by id.
             auto w = std::make_unique<input::InputWeaveT<FakeReader>>(FakeReader{&feed});
@@ -184,7 +185,7 @@ struct Rig {
         auto d = std::make_unique<ws::GuestDoor>(bus, listener,
                                                  "127.0.0.1:" + std::to_string(port), file);
         door = d.get();
-        door_id = bus.register_weave(std::move(d), ws::guest_door_grant(),
+        door_id = bus.register_weave(std::move(d), ws::guest_door_grant(reads_plan),
                                      std::string(ws::kGuestsRole));
         door->zen_set_self(door_id);
     }
@@ -2535,22 +2536,23 @@ TEST_CASE("observation: DeskStamps needs capture, and a capture row listing it i
 
 namespace {
 
-/// A PLAN THAT REALIZES LATE, as the door reads it: the host's reading of its realization owner,
-/// moved by the case where the owner's own walk would move it.
+/// A PLAN THAT REALIZES LATE, as the door reads it: the realization owner's claim of where the plan
+/// is, claimed by a stand-in in its role and moved by the case where the owner's own walk would move
+/// it (`claim` after each move).
 struct LatePlan {
+    explicit LatePlan(loom::Switchboard& bus) : owner(bus) { claim(); }
+
+    RealizationClaims owner;
     std::string state = ws::kPlanLoading;
     std::string waiting_on;
     std::vector<std::string> unavailable;
 
-    ws::GuestDoor::PlanReading reading() {
-        return [this] {
-            ws::GuestPlanSaid said;
-            said.state = state;
-            said.at_rest = state != ws::kPlanLoading;
-            said.waiting_on = waiting_on;
-            said.unavailable = unavailable;
-            return said;
-        };
+    void claim() const {
+        zengine::realization::PlanWhere where;
+        where.state = state;
+        where.waiting_on = waiting_on;
+        where.unavailable = unavailable;
+        owner.where(where);
     }
 };
 
@@ -2596,9 +2598,9 @@ guests::GuestsFile plan_guests() {
 
 TEST_CASE("door: a guest admitted while the plan loads waits for it at rest, then its first ask is answered") {
     Rig r(plan_guests());
-    LatePlan plan;
+    LatePlan plan(r.bus);
     plan.unavailable = {"zengine-optional-tool"};
-    r.door->reads_plan(plan.reading());
+    plan.claim();
     Guest agent(r.port, "agent", "one");
     Guest plain(r.port, "plain", "two");
     REQUIRE(r.beat_until([&] {
@@ -2638,6 +2640,7 @@ TEST_CASE("door: a guest admitted while the plan loads waits for it at rest, the
     // THE ROW STILL TO COME IS REALIZED, and the plan comes to rest: both held asks are answered.
     realize_late_inventory(r.bus);
     plan.state = ws::kPlanComplete;
+    plan.claim();
     REQUIRE(r.beat_until([&] {
         agent.poll();
         plain.poll();
@@ -2664,8 +2667,7 @@ TEST_CASE("door: a guest admitted while the plan loads waits for it at rest, the
 
 TEST_CASE("door: a plan waiting or refused answers held asks, naming rows only to capture or inspect") {
     Rig r(plan_guests());
-    LatePlan plan;
-    r.door->reads_plan(plan.reading());
+    LatePlan plan(r.bus);
     Guest agent(r.port, "agent", "one");
     Guest plain(r.port, "plain", "two");
     REQUIRE(r.beat_until([&] {
@@ -2684,6 +2686,7 @@ TEST_CASE("door: a plan waiting or refused answers held asks, naming rows only t
     // A ROW WAITING ON THE WEAVER IS AT REST: it does not keep a guest out until somebody builds.
     plan.state = ws::kPlanWaiting;
     plan.waiting_on = "zengine-inventory";
+    plan.claim();
     REQUIRE(r.beat_until([&] {
         agent.poll();
         plain.poll();
@@ -2697,6 +2700,7 @@ TEST_CASE("door: a plan waiting or refused answers held asks, naming rows only t
     CHECK(plain.answered<ws::GuestPlanSaid>(1)->waiting_on.empty());
     // ...nor does a plan that refused: asked with `wait`, it is answered at once.
     plan.state = ws::kPlanRefused;
+    plan.claim();
     plan.waiting_on.clear();
     plain.ask(ws::kGuestsRole, 2, ws::GuestPlanRequested{true});
     REQUIRE(r.beat_until([&] {
@@ -2715,8 +2719,8 @@ TEST_CASE("door: a plan waiting or refused answers held asks, naming rows only t
 
 TEST_CASE("door: held plan asks are bounded, a gone guest's are let go, and no reading is refused") {
     {
-        // NO READING WIRED: nothing to say, and that is said.
-        Rig r(plan_guests());
+        // NO READING GRANTED: nothing to say, and that is said.
+        Rig r(plan_guests(), false);
         Guest agent(r.port, "agent", "one");
         REQUIRE(r.beat_until([&] {
             agent.poll();
@@ -2728,11 +2732,10 @@ TEST_CASE("door: held plan asks are bounded, a gone guest's are let go, and no r
             return agent.answered<loom::Refused>(1).has_value();
         }));
         CHECK(agent.answered<loom::Refused>(1)->reason ==
-              "this host wired no reading of its load plan");
+              "this host grants the door no reading of its load plan");
     }
     Rig r(plan_guests());
-    LatePlan plan;
-    r.door->reads_plan(plan.reading());
+    LatePlan plan(r.bus);
     Guest agent(r.port, "agent", "one");
     REQUIRE(r.beat_until([&] {
         agent.poll();
@@ -2773,6 +2776,7 @@ TEST_CASE("door: held plan asks are bounded, a gone guest's are let go, and no r
     CHECK(next.said_as<ws::GuestPlanSaid>().size() == 1); // only the one that synced
     CHECK(next.said_as<loom::Refused>().empty());
     plan.state = ws::kPlanComplete;
+    plan.claim();
     REQUIRE(r.beat_until([&] {
         next.poll();
         return next.said_as<ws::GuestPlanSaid>().size() == ws::kGuestPlanHeld + 1;

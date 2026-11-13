@@ -20,7 +20,7 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 - [The menu presenter](docs/zengine.presenter.md), `zengine.presenter`: how a pane's menu is shown,
   worked and answered
 - [The opening role](docs/zengine.opening.md), `zengine.opening`: how a source opens in the Editor
-- [The realization owner](docs/zengine.realization.md), `zengine.realization`: the load plan
+- [The realization owner](../realization/docs/zengine.realization.md), `zengine.realization`: the load plan
   performed, and what becomes of a build offered to the running project
 - [The arrangement door](docs/zengine.arrangement.md), `zengine.arrangement`: the role the
   `Project` pane asks what the project asked for and what came of it

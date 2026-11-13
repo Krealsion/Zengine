@@ -70,15 +70,15 @@ std::string line_starting(const std::string& text, const std::string& start) {
 /// The probe's plan without its window and Timer rows, which the suite stands in for.
 std::string suite_plan() {
     const std::string probe = text_of(fs::path(TALLY_APP_DIR) / app::kPlanName);
-    const zengine::workshop::load_persist::LoadedPlan read =
-        zengine::workshop::load_persist::from_text(probe);
+    const zengine::realization::load_persist::LoadedPlan read =
+        zengine::realization::load_persist::from_text(probe);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
-    zengine::workshop::load::LoadPlan plan = read.plan;
+    zengine::realization::LoadPlan plan = read.plan;
     std::erase_if(plan.artifacts, [](const auto& row) {
         return row.stem == "zengine-window-sdl" || row.stem == "zengine-timer";
     });
     REQUIRE(plan.artifacts.size() == 3);
-    return zengine::workshop::load_persist::to_text(plan);
+    return zengine::realization::load_persist::to_text(plan);
 }
 
 /// A copy of the tally app's folder of its own, with the suite's plan, and no decisions in it.
@@ -166,7 +166,7 @@ struct Run {
         turn();
     }
 
-    std::string waiting_on() const { return host->executor().waiting_on(); }
+    std::string waiting_on() const { return host->owner().waiting_on(); }
 
     /// The GUI window over the suite's pixel backend, at its role, activated as Loom's control
     /// door activates a loaded weave: it offers itself.
@@ -299,7 +299,7 @@ TEST_CASE("each row of the app's plan waits on its console until decided there, 
     CHECK(run.host->operators().size() == 0);
     CHECK(has(run.said.str(), "waiting on this console: zengine-operators-basic"));
     CHECK(has(run.said.str(), "authority trust zengine-operators-basic"));
-    CHECK(run.host->executor().resolved().empty());
+    CHECK(run.host->owner().resolved().empty());
 
     // ...a yes to a row behind it waits its turn: the plan's order is the walk's.
     run.command("authority trust zengine-app-weave");
@@ -316,13 +316,13 @@ TEST_CASE("each row of the app's plan waits on its console until decided there, 
     // walk waits on the directory.
     run.command("authority trust zengine-operators-basic");
     CHECK(run.host->operators().size() > 0);
-    CHECK(run.host->executor().state_of("zengine-app-weave") ==
-          zengine::workshop::load::RowState::Resolved);
+    CHECK(run.host->owner().state_of("zengine-app-weave") ==
+          zengine::realization::RowState::Resolved);
     CHECK(run.waiting_on() == "zengine-graphics");
     CHECK(has(run.said.str(), "waiting on this console: zengine-graphics"));
 
     run.command("authority trust zengine-graphics");
-    CHECK(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+    CHECK(run.host->owner().state() == zengine::realization::Realization::Complete);
     CHECK(has(run.said.str(), "running: 3 of 3 artifacts"));
     CHECK_FALSE(run.host->ended());
 
@@ -368,7 +368,7 @@ TEST_CASE("a start whose plan waits on its console offers one line first that le
 
         // THE ONE LINE: every row runs, and nothing more is asked.
         run.command("trust plan");
-        CHECK(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+        CHECK(run.host->owner().state() == zengine::realization::Realization::Complete);
         CHECK(has(run.said.str(), "running: 3 of 3 artifacts"));
         CHECK(has(run.said.str(), "'zengine-graphics' may run, as built (build " +
                                       build_of("zengine-graphics").substr(0, 8) + ")"));
@@ -391,7 +391,7 @@ TEST_CASE("a start whose plan waits on its console offers one line first that le
         REQUIRE(again.open());
         again.host->begin();
         again.turn();
-        CHECK(again.host->executor().state() == zengine::workshop::load::Realization::Complete);
+        CHECK(again.host->owner().state() == zengine::realization::Realization::Complete);
         CHECK_FALSE(has(again.said.str(), "trust plan"));
     }
     {
@@ -458,11 +458,11 @@ TEST_CASE("the plan's one line leaves an artifact the console denied denied, and
     const loom::host::AuthorityRule* denied = run.host->store().find("zengine-graphics");
     REQUIRE(denied != nullptr);
     CHECK_FALSE(denied->may_run);
-    CHECK(run.host->executor().state_of("zengine-app-weave") ==
-          zengine::workshop::load::RowState::Resolved);
+    CHECK(run.host->owner().state_of("zengine-app-weave") ==
+          zengine::realization::RowState::Resolved);
 
     run.command("authority trust zengine-graphics");
-    CHECK(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+    CHECK(run.host->owner().state() == zengine::realization::Realization::Complete);
 }
 
 TEST_CASE("a second start whose builds are unchanged asks nothing; a build the console did not see is asked again; and two hosts never run one app") {
@@ -477,14 +477,14 @@ TEST_CASE("a second start whose builds are unchanged asks nothing; a build the c
         first.host->begin();
         for (const char* stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"})
             first.command(std::string("authority trust ") + stem);
-        REQUIRE(first.host->executor().state() == zengine::workshop::load::Realization::Complete);
+        REQUIRE(first.host->owner().state() == zengine::realization::Realization::Complete);
     }
     {
         Run again(folder);
         REQUIRE(again.open());
         again.host->begin();
         again.turn();
-        CHECK(again.host->executor().state() == zengine::workshop::load::Realization::Complete);
+        CHECK(again.host->owner().state() == zengine::realization::Realization::Complete);
         CHECK_FALSE(has(again.said.str(), "waiting on this console"));
     }
     {
@@ -533,7 +533,7 @@ TEST_CASE("the app's weave runs its flow and its view, and its panel is drawn in
     run.host->begin();
     for (const char* stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"})
         run.command(std::string("authority trust ") + stem);
-    REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+    REQUIRE(run.host->owner().state() == zengine::realization::Realization::Complete);
     run.mount_window();
 
     // DRAWN in its area, placed where app.json says, painted by the skin it names.
@@ -568,7 +568,7 @@ TEST_CASE("a field of the app's view is clicked into in its window and typed int
     run.host->begin();
     for (const char* stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"})
         run.command(std::string("authority trust ") + stem);
-    REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+    REQUIRE(run.host->owner().state() == zengine::realization::Realization::Complete);
     run.mount_window();
     REQUIRE(has(run.shown(), "Total: waiting"));
 
@@ -595,7 +595,7 @@ TEST_CASE("the app's window tells the app's weave and its views nothing they do 
     run.host->begin();
     for (const char* stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"})
         run.command(std::string("authority trust ") + stem);
-    REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+    REQUIRE(run.host->owner().state() == zengine::realization::Realization::Complete);
     std::vector<std::string> refused;
     const loom::ObserverId tap = run.bus.add_observer([&](const loom::BusEvent& ev) {
         // The suite loads no input role, so the window's ask for the double-click time finds no

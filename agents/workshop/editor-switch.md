@@ -110,15 +110,15 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 ## Proven by
 
 ### WL-SWITCH-01
-`workshop/load_plan.hpp` check_choices ChoiceIntent LoadPlan::choices check_plan
-`workshop/load_persist.hpp` WorkshopLoadChoice to_text from_text
+`realization/load_plan.hpp` check_choices ChoiceIntent LoadPlan::choices check_plan
+`realization/load_persist.hpp` WorkshopLoadChoice to_text from_text
 `tests/test_workshop_load.cpp` "a plan authoring no choices is written as version 1, byte for byte
 what it always was" "choices are written as version 2 and read back as the same plan, byte for byte"
 "a version-2 file with no choices is refused, and a version-1 file cannot carry choices" "the choice
 law: one start holder that is a choice, one role per artifact, one spelling per word"
 
 ### WL-SWITCH-02
-`workshop/load_execute.hpp` record_choice_holder choice_holder image_of reload_refusal
+`realization/owner.hpp` record_choice_holder choice_holder image_of reload_refusal
 ResolvedArtifact::switched_to
 `workshop/arrangement.hpp` kSwitchedToken
 `introspection/resolved.hpp` kSwitchedRow
@@ -177,9 +177,11 @@ own asks for the switch's status are answered to it and say nothing in Notices, 
 at the Terminal is said"
 
 ### WL-SWITCH-08
-`workshop/load_plan.hpp` remember_choices
+`realization/load_plan.hpp` remember_choices
 `workshop/layouts/session_persist.hpp` WorkshopChoice kMaxRememberedChoices WorkshopSession::choices
-`workshop/weave.hpp` HostContext::chosen HostContext::choice_note
+`workshop/weave.hpp` HostContext::choice_note
+`workshop/layouts/owner.cpp` realization::ChoicesHeld
+`realization/owner.hpp` Owner::choices_claimed
 `workshop/workshop.cpp` remember_choices
 `workshop/layouts/store.hpp` chosen
 `tests/test_workshop_persistence.cpp` "a start loads the remembered choice in its role's row,

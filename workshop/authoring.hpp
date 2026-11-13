@@ -11,8 +11,8 @@
 // plan row goes into the project plan. The running project answers first, then the file.
 // Workshop law: agents/workshop/authoring.md
 
-#include "load_execute.hpp"
-#include "load_persist.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_persist.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 #include "recipe_persist.hpp"
@@ -152,13 +152,13 @@ inline HostContext::RecipeSwap author_recipe(const RecipeAuthor& host,
 /// host's staging rule -- read for where a product is, never for an act.
 struct PlanAuthor {
     std::string path;
-    load::LoadPlan rows;
-    load::PlanExecutor* executor = nullptr;
+    realization::LoadPlan rows;
+    realization::Owner* owner = nullptr;
     const staging::Host* staging = nullptr;
 };
 
 inline bool plan_names(const PlanAuthor& plan, const std::string& stem) {
-    for (const load::ArtifactIntent& a : plan.rows.artifacts) {
+    for (const realization::ArtifactIntent& a : plan.rows.artifacts) {
         if (a.stem == stem) {
             return true;
         }
@@ -173,17 +173,17 @@ inline HostContext::PlanAppend append_plan_row(PlanAuthor& plan, const std::stri
                                                const std::string& role,
                                                const std::string& recipe) {
     HostContext::PlanAppend out;
-    load::ArtifactIntent row;
+    realization::ArtifactIntent row;
     row.stem = stem;
-    row.weave = load::WeaveIntent{role};
-    const Written law = load::check_artifact(row);
+    row.weave = realization::WeaveIntent{role};
+    const Written law = realization::check_artifact(row);
     if (!law.accepted) {
         out.refusal = law.refusal;
         return out;
     }
-    load::LoadPlan candidate = plan.rows;
+    realization::LoadPlan candidate = plan.rows;
     candidate.artifacts.push_back(row);
-    const Written whole = load::check_plan(candidate);
+    const Written whole = realization::check_plan(candidate);
     if (!whole.accepted) {
         out.refusal = whole.refusal;
         return out;
@@ -192,11 +192,11 @@ inline HostContext::PlanAppend append_plan_row(PlanAuthor& plan, const std::stri
         out.refusal = "this run began nowhere -- a plan row needs a project to be written into";
         return out;
     }
-    if (plan.executor == nullptr) {
+    if (plan.owner == nullptr) {
         out.refusal = "this host has no realization owner to append to";
         return out;
     }
-    const load::PlanExecutor::Appended taken = plan.executor->append(row);
+    const realization::Owner::Appended taken = plan.owner->append(row);
     if (!taken.accepted) {
         out.refusal = taken.refusal;
         return out;
@@ -208,11 +208,11 @@ inline HostContext::PlanAppend append_plan_row(PlanAuthor& plan, const std::stri
     // cursor, never from the detail's words -- and its recipe's product is on disk. Behind
     // another frontier, resolved already, or with nothing built yet, there is nothing to
     // finish, and `product` stays empty.
-    out.frontier = plan.executor->waiting_on() == stem;
+    out.frontier = plan.owner->waiting_on() == stem;
     if (out.frontier && plan.staging != nullptr) {
         out.product = staging::product_of(*plan.staging, stem, recipe);
     }
-    const Written saved = load_persist::save_file(plan.path, plan.rows);
+    const Written saved = realization::load_persist::save_file(plan.path, plan.rows);
     if (!saved.accepted) {
         out.detail += "; the plan file was NOT written: " + saved.refusal;
         return out;

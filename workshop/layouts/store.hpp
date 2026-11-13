@@ -49,9 +49,6 @@ struct LayoutsHost {
     std::function<loom::WeaveId(std::string_view)> role_holder;
     std::function<std::int64_t(loom::WeaveId)> incarnation_of;
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
-    /// Which authored choice holds each switchable role now, written into the session.
-    // WL-SWITCH-08 -- agents/workshop/editor-switch.md
-    std::function<std::vector<session_persist::WorkshopChoice>()> chosen;
 };
 
 /// ONE PANE THE CATALOG LISTS, as the store reads it: its name, and whether the presenter can
@@ -219,7 +216,8 @@ public:
     const std::string& session_refusal() const noexcept { return session_refusal_; }
     /// WRITE THE SESSION, at an orderly close: the run and the choices. Empty when written, else
     /// why not. Once a session holds what the settings file kept for layouts, the file drops it.
-    std::string save_session();
+    /// Write the session, with `chosen`: which authored choice holds each switchable role now.
+    std::string save_session(const std::vector<session_persist::WorkshopChoice>& chosen);
     /// Whether the settings file still carries layouts' entries no written session holds.
     bool carries_layout_entries() const;
 

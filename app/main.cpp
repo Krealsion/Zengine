@@ -8,7 +8,7 @@
 #include "app/host.hpp"
 #include "app/program.hpp"
 
-#include "workshop/bus_tally.hpp"
+#include "tally/bus_tally.hpp"
 
 #include <zen/host/line_input.hpp>
 #include <zen/host/reactor.hpp>
@@ -58,10 +58,10 @@ int main(int argc, char** argv) {
     }
 
     loom::Switchboard bus;
-    // Where the bus spent its time (workshop/bus_tally.hpp), said on the way out, however it ends.
-    zengine::workshop::BusTally tally(bus);
+    // Where the bus spent its time (tally/bus_tally.hpp), said on the way out, however it ends.
+    zengine::tally::BusTally tally(bus);
     struct SaidLast {
-        const zengine::workshop::BusTally& tally;
+        const zengine::tally::BusTally& tally;
         ~SaidLast() {
             for (const std::string& line : tally.lines()) {
                 std::cout << "zengine-app - " << line << '\n';
@@ -88,8 +88,7 @@ int main(int argc, char** argv) {
     const auto rest = [&bus, &wait] {
         return bus.pending() != 0 ? wait.after_turn(0) : wait.after_turn();
     };
-    namespace load = zengine::workshop::load;
-    for (const std::string& role : load::plan_roles(host.executor().plan())) {
+    for (const std::string& role : zengine::realization::plan_roles(host.owner().plan())) {
         wait.trust(role);
     }
     bool console_open = true;
@@ -103,7 +102,7 @@ int main(int argc, char** argv) {
         // A load in flight is answered within turns of the bus: the next line waits for it, so a
         // line typed ahead is read against the plan as that load left it, and the wait does not
         // wake for it meanwhile.
-        if (!idle && host.executor().state() == zengine::workshop::load::Realization::Loading) {
+        if (!idle && host.owner().state() == zengine::realization::Realization::Loading) {
             wait.watch(nullptr);
             (void)wait.after_turn(0);
             continue;
@@ -116,11 +115,11 @@ int main(int argc, char** argv) {
             if (idle && bus.pending() == 0 && nothing_waited) {
                 // Nothing will speak again and nobody can answer: a plan still waiting on the
                 // console did not run, which the exit says.
-                const bool waiting = host.executor().state() ==
-                                     zengine::workshop::load::Realization::Waiting;
+                const bool waiting = host.owner().state() ==
+                                     zengine::realization::Realization::Waiting;
                 std::cout << "zengine-app - the console's input ended and nothing here will "
                              "speak again: ending"
-                          << (waiting ? ", its plan still waiting on " + host.executor().waiting_on()
+                          << (waiting ? ", its plan still waiting on " + host.owner().waiting_on()
                                       : std::string())
                           << ".\n";
                 std::cout.flush();

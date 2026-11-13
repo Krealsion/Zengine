@@ -66,6 +66,7 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-property
     zengine-operator
     zengine-operator-consumer
+    zengine-realization
     zengine-pane-vocabulary
     zengine-view
     zengine-neovim-editor-vocabulary
@@ -85,6 +86,7 @@ set_target_properties(zengine-input-vocabulary    PROPERTIES EXPORT_NAME input)
 set_target_properties(zengine-ui-vocabulary       PROPERTIES EXPORT_NAME ui)
 set_target_properties(zengine-component           PROPERTIES EXPORT_NAME component)
 set_target_properties(zengine-persist             PROPERTIES EXPORT_NAME persist)
+set_target_properties(zengine-realization         PROPERTIES EXPORT_NAME realization)
 set_target_properties(zengine-property            PROPERTIES EXPORT_NAME property)
 set_target_properties(zengine-operator            PROPERTIES EXPORT_NAME operator)
 set_target_properties(zengine-operator-consumer   PROPERTIES EXPORT_NAME operator-consumer)
@@ -127,7 +129,8 @@ set(zengine_public_headers_component  component/motion.hpp
                                       component/accordion.hpp
                                       component/fingerprint.hpp)
 set(zengine_public_headers_persist    persist/written.hpp
-                                      persist/path_admission.hpp)
+                                      persist/path_admission.hpp
+                                      persist/file.hpp)
 set(zengine_public_headers_property   property/property.hpp)
 set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/catalog.hpp
@@ -169,6 +172,12 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_v
 # though Workshop's Builder and launcher answer them: what to build and what a build came to, the
 # recipe a weaver authors (`builder/`), and what to launch (`launcher/`).
 set(zengine_public_headers_builder    builder/vocabulary.hpp builder/recipe.hpp)
+# The realization owner both hosts mount, Workshop and the app host: the load plan, its file, the
+# owner and what it claims (`realization/`); and the tally of where a host's bus spends its time
+# (`tally/`).
+set(zengine_public_headers_realization realization/load_plan.hpp realization/load_persist.hpp
+                                       realization/owner.hpp realization/vocabulary.hpp)
+set(zengine_public_headers_tally      tally/bus_tally.hpp)
 set(zengine_public_headers_launcher   launcher/vocabulary.hpp)
 # The view package: a view described as data, its renderer and the host that registers each view as
 # its own participant, the host's manual with it (below).
@@ -218,7 +227,7 @@ endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
                     editor/source-transfer activation timer input ui manual component persist property
-                    operator pane builder launcher view workshop editor/neovim-editor graphics graphics/elements
+                    operator pane builder realization tally launcher view workshop editor/neovim-editor graphics graphics/elements
                     graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})

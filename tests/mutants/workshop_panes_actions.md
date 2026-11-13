@@ -105,7 +105,9 @@ An ask for the inventory is answered nothing.
 In `workshop/weave_desktop.cpp`:
 
 ```diff
--    (void)mail.answer(inventory_reading());
+-    (void)mail.answer(
+-        inventory_reading(realization::latest<realization::PlanWhere>(mail).value_or(
+-            realization::PlanWhere{})));
 -}
 +    (void)0;
 +}

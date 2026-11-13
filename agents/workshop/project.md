@@ -200,7 +200,7 @@ directory is not a source base"
 `workshop/recipes.hpp` CurrentRecipes RecipeView CurrentRecipes::hold
 `workshop/workshop.cpp` BuildRunnerWeave BuilderWeave
 `builder/weave.hpp` BuilderWeave::path_ BuilderWeave::before_
-`workshop/load_execute.hpp` AwaitingBuild
+`realization/owner.hpp` AwaitingBuild
 `tests/test_workshop_files.cpp` "the owner derives the tool's view from the recipes it is holding"
 "holding a new catalog replaces the contents, never the object" "the host's edit-source answer is
 asked of the owner, not of a copy"
@@ -291,7 +291,7 @@ captured root is the catalog in force when no --recipes is given"
 ### WL-PROJ-16
 `workshop/recipe_persist.hpp` complete_recipes
 `workshop/staging.hpp` stage promote copy_fresh
-`workshop/load_execute.hpp` PlanExecutor::reload PlanExecutor::promote PlanExecutor::revert
+`realization/owner.hpp` Owner::reload Owner::promote Owner::revert
 reload_refusal_words
 `builder/builder-pane/pane.cpp` build_realize promote_image revert_image
 `builder/builder-pane/vocabulary.hpp` BuilderPaneState::arm
@@ -306,14 +306,14 @@ a plain build that worked, `B` is the button" "`P` and `R` are one offer each, a
 artifact"
 
 ### WL-PROJ-17
-`workshop/load_plan.hpp` AlternativeIntent ArtifactIntent::otherwise kMaxRowAlternatives
+`realization/load_plan.hpp` AlternativeIntent ArtifactIntent::otherwise kMaxRowAlternatives
 check_alternatives take_next_alternative take_role
-`workshop/load_persist.hpp` WorkshopLoadAlternative WorkshopLoadArtifact::otherwise version_for
+`realization/load_persist.hpp` WorkshopLoadAlternative WorkshopLoadArtifact::otherwise version_for
 kRetiredGraphicalPlanName retired_plan
-`workshop/load_execute.hpp` PassedOver passed_over_words PlanExecutor::Installed
-PlanExecutor::passed_over
+`realization/owner.hpp` PassedOver passed_over_words Owner::Installed
+Owner::passed_over Owner::where_claimed
 `workshop/workshop.cpp` Arguments::tui
-`workshop/weave.hpp` HostContext::passed_over
+`workshop/weave_handlers.cpp` speak_startup_notes
 `workshop/weave_handlers.cpp` speak_startup_notes
 `workshop/attention.hpp` gave_way kGaveWayKeyPrefix
 `graphics/window/window_sdl_backend.hpp` ProcessSdlBackend

@@ -22,9 +22,9 @@
 #include "workshop/arrangement.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
-#include "workshop/load_execute.hpp"
-#include "workshop/load_persist.hpp"
-#include "workshop/load_plan.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_persist.hpp"
+#include "realization/load_plan.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "pane/vocabulary.hpp"
 #include "workshop/powers_door.hpp"
@@ -69,8 +69,8 @@ namespace {
 
 namespace op = zengine::op;
 namespace workshop = zengine::workshop;
-namespace load = zengine::workshop::load;
-namespace load_persist = zengine::workshop::load_persist;
+namespace load = zengine::realization;
+namespace load_persist = zengine::realization::load_persist;
 namespace tmr = zengine::timer;
 using zengine::persist::Written;
 
@@ -300,19 +300,34 @@ private:
     Answered* into_;
 };
 
-/// MOUNT A PLAN BOOTER AND KEEP THE PARTICIPANT: `loom::mount_granted` hands back only a
-/// WeaveId, and a realization owner is wired to the weave itself so a settled answer can wake
-/// it. The host writes the grant, and this is that act: `zen.LoadWeave` to this Manager and
-/// nothing else, spelled out rather than derived from the Emit set, for `mount_door`'s reason.
-inline load::PlanBooter& mount_booter_in(loom::Switchboard& bus, loom::WeaveId manager,
-                                         load::BootAnswers& answers, loom::WeaveId& id) {
+/// MOUNT A REALIZATION OWNER AND KEEP THE PARTICIPANT, in no role, so several stand beside the
+/// rig's own, which holds `zengine.realization`. The host writes the grant, and this is that act:
+/// `zen.LoadWeave` to this Manager and nothing else, spelled out rather than derived from the Emit
+/// set, for `mount_door`'s reason. `made` are the owner's arguments after the Manager.
+template <class... Made>
+load::Mounted mount_owner_granted(loom::Switchboard& bus, loom::Grant grant, loom::WeaveId& id,
+                                  op::Catalog& catalog, const op::OperatorHostSurface& operators,
+                                  loom::WeaveId manager, Made&&... made) {
+    auto made_owner = std::make_unique<load::Owner>(bus, catalog, operators, manager,
+                                                    std::forward<Made>(made)...);
+    load::Owner& owner = *made_owner;
+    id = bus.register_weave(std::move(made_owner), std::move(grant));
+    owner.zen_set_self(id);
+    return load::Mounted(bus, id, owner);
+}
+
+template <class... Made>
+load::Mounted mount_owner_in(loom::Switchboard& bus, loom::WeaveId manager, loom::WeaveId& id,
+                             op::Catalog& catalog, const op::OperatorHostSurface& operators,
+                             Made&&... made) {
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-    auto speaker = std::make_unique<load::PlanBooter>(answers);
-    load::PlanBooter& voice = *speaker;
-    id = bus.register_weave(std::move(speaker), std::move(operate));
-    voice.zen_set_self(id);
-    return voice;
+    auto made_owner = std::make_unique<load::Owner>(bus, catalog, operators, manager,
+                                                    std::forward<Made>(made)...);
+    load::Owner& owner = *made_owner;
+    id = bus.register_weave(std::move(made_owner), std::move(operate));
+    owner.zen_set_self(id);
+    return load::Mounted(bus, id, owner);
 }
 
 // ---- a host shaped exactly like `workshop.cpp` ---------------------------------
@@ -329,31 +344,35 @@ struct PlanRig {
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
 
-    load::BootAnswers answers;
-    loom::WeaveId booter;
-    load::PlanBooter& voice = mount_booter_in(bus, manager, answers, booter);
-
     Heard heard;
     loom::WeaveId witness;
 
-    /// DECLARED AFTER THE KERNEL, exactly as `main()` declares it, and asking whether an artifact
-    /// is held as `main()` asks: its file in the stage, by the one stem-to-file rule.
-    load::PlanExecutor executor{
-        bus,
+    /// MOUNTED AFTER THE KERNEL, exactly as `main()` mounts it, in its role, and asking whether an
+    /// artifact is held as `main()` asks: its file in the stage, by the one stem-to-file rule.
+    load::Mounted mounted = load::mount(
+        bus, booter_grant(manager),
         catalog,
         operators,
-        voice,
         manager,
-        answers,
         [](const std::string& stem) { return stage().so(stem); },
-        load::PlanExecutor::Settled(),
-        load::PlanExecutor::AwaitingBuild(),
-        load::PlanExecutor::StageArtifact(),
-        load::PlanExecutor::PromoteImage(),
+        load::Owner::Settled(),
+        load::Owner::AwaitingBuild(),
+        load::Owner::StageArtifact(),
+        load::Owner::PromoteImage(),
         [](const std::string& stem) {
             std::error_code ec;
             return std::filesystem::exists(std::filesystem::path(stage().so(stem)), ec) && !ec;
-        }};
+        });
+    load::Owner& executor = mounted.owner();
+    loom::WeaveId booter = mounted.id();
+    load::BootAnswers& answers = executor.answers();
+
+    /// The grant a host writes its owner: `zen.LoadWeave` to this Manager and nothing else.
+    static loom::Grant booter_grant(loom::WeaveId to) {
+        loom::Grant operate;
+        operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, to);
+        return operate;
+    }
 
     PlanRig() {
         loom::Grant reach;
@@ -372,7 +391,7 @@ struct PlanRig {
 
     /// REALIZE A WHOLE PLAN, BY BEING THE HOST. The turning is here, in the caller: production
     /// Workshop begins realization and returns to its loop; a case has no loop, so it turns the
-    /// crank itself, as any script driving a Loom host does. `PlanExecutor` holds no
+    /// crank itself, as any script driving a Loom host does. `Owner` holds no
     /// `pump_pending`, drain, wait or fuse. A fixed count and no predicate: a case that cares
     /// asserts the state afterwards, and `state()` names which of the five it is.
     load::Executed realize(load::LoadPlan plan, int turns = 32) {
@@ -387,15 +406,13 @@ struct PlanRig {
     /// owner over the same catalog and Kernel, as this does; that is what makes a runtime
     /// provider collision reachable, since one plan cannot name an artifact twice.
     load::Executed realize_again(load::LoadPlan plan, int turns = 32) {
-        extra_answers.push_back(std::make_unique<load::BootAnswers>());
         loom::WeaveId id{};
-        load::PlanBooter& speaker = mount_booter_in(bus, manager, *extra_answers.back(), id);
-        extra_owners.push_back(std::make_unique<load::PlanExecutor>(
-            bus, catalog, operators, speaker, manager, *extra_answers.back(),
-            [](const std::string& stem) { return stage().so(stem); }));
-        extra_owners.back()->begin(std::move(plan));
+        extra_owners.push_back(std::make_unique<load::Mounted>(
+            mount_owner_in(bus, manager, id, catalog, operators,
+                           [](const std::string& stem) { return stage().so(stem); })));
+        extra_owners.back()->owner().begin(std::move(plan));
         drain(turns);
-        return extra_owners.back()->outcome();
+        return extra_owners.back()->owner().outcome();
     }
 
     /// Schedule one timer on a live service and read back the delay it STORED.
@@ -447,7 +464,7 @@ struct PlanRig {
     /// ...AND THE SAME DOOR OVER SOMEBODY ELSE'S OWNER, so a case can point it at a
     /// realization that is deliberately stuck mid-row. The door is unchanged; what
     /// changes is which owner it is reading.
-    loom::WeaveId mount_door_over(const load::PlanExecutor& owner,
+    loom::WeaveId mount_door_over(const load::Owner& owner,
                                   std::string plan_path = std::string(),
                                   workshop::ArrangementDoor::Accepts accepts = {}) {
         auto door = std::make_unique<workshop::ArrangementDoor>(owner, std::move(plan_path),
@@ -570,8 +587,7 @@ struct PlanRig {
     /// identities, and must go before the Kernel, the catalog and the surface -- the
     /// same order `main()` gets from declaring its executor after its Kernel. The
     /// answer records go after the owners that read them, for the same reason.
-    std::vector<std::unique_ptr<load::BootAnswers>> extra_answers;
-    std::vector<std::unique_ptr<load::PlanExecutor>> extra_owners;
+    std::vector<std::unique_ptr<load::Mounted>> extra_owners;
 
 private:
     loom::WeaveId door_{};
@@ -705,7 +721,7 @@ constexpr std::int64_t kOverlaidAnswer = -500;
 /// A PARTICIPANT THIS HOST ADMITS, saying something well-formed about somebody else's
 /// conversation -- not a forgery, which is why it is the falsifier. `zen.Result`, `zen.Ack` and
 /// `zen.Refused` are universal: any weave granted them may send one to any weave accepting
-/// them, as the plan booter does. All that is wrong is a correlation the booter never opened.
+/// them, as the realization owner does. All that is wrong is a correlation the booter never opened.
 struct StrayState {
     std::int64_t idle = 0;
     ZEN_SHAPE(StrayState, 1, ZEN_FIELD(idle));
@@ -796,7 +812,7 @@ constexpr std::uint64_t kSlowWeaveId = 4242;
 /// WHAT ACTUALLY REACHED THE BOOTER, so no case below can pass because a stray answer
 /// never arrived at all. A wall that is never knocked on is not a wall that held.
 struct AnswersSeen {
-    int at_booter = 0;      ///< answer-shaped messages DELIVERED to the plan booter
+    int at_booter = 0;      ///< answer-shaped messages DELIVERED to the realization owner
     int stray = 0;          ///< ...of which carried the stray correlation
     int refused_by_bus = 0; ///< any answer shape the bus refused instead of delivering
 };
@@ -3372,12 +3388,13 @@ TEST_CASE("a turn that delivers nothing does not mean no answer is coming") {
     // the substrate's own ANS-02, with no timing.
     loom::Switchboard bus;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId booter =
-        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    loom::WeaveId booter{};
+    const load::Mounted owner = mount_owner_in(bus, slow, booter, catalog, operators,
+                                               [](const std::string& stem) { return stem; });
+    load::BootAnswers& answers = owner.owner().answers();
 
     // THE COUNTER'S SHAPE, pinned here because `kStrayCorrelation` above depends on it:
     // this record's numbering is its own, starts at zero and pre-increments.
@@ -3441,12 +3458,13 @@ TEST_CASE("an answer from the weave that WAS asked, about another conversation, 
     // conversation is wrong: the arm that requires the correlation, and a stale answer's shape.
     loom::Switchboard bus;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId booter =
-        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    loom::WeaveId booter{};
+    const load::Mounted owner = mount_owner_in(bus, slow, booter, catalog, operators,
+                                               [](const std::string& stem) { return stem; });
+    load::BootAnswers& answers = owner.owner().answers();
 
     const std::uint64_t mine = answers.ask(slow);
     bus.send_as(booter, slow,
@@ -3500,16 +3518,17 @@ TEST_CASE("an unanswered load stays UNANSWERED, and nothing invents a third answ
     // "the answer became impossible": those are somebody else's state.
     PlanRig rig;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
     loom::WeaveId booter{};
-    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
 
     // THE PRODUCTION OWNER, pointed at a respondent that never answers. Everything
     // else is real: a real artifact on disk, the real operator offer around it, the
     // real send. Only the answer is missing.
-    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
-                               [](const std::string& stem) { return stage().so(stem); }};
+    const load::Mounted stalled_mounted = mount_owner_in(
+        rig.bus, slow, booter, rig.catalog, rig.operators,
+        [](const std::string& stem) { return stage().so(stem); });
+    load::Owner& stalled = stalled_mounted.owner();
+    load::BootAnswers& answers = stalled.answers();
     stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
 
     // ...AND A HUNDRED TURNS, past the sixty-four a fuse on this wait once allowed, so a fuse
@@ -3544,12 +3563,13 @@ TEST_CASE("an unanswered load stays UNANSWERED, and nothing invents a third answ
 TEST_CASE("the load record SPENDS the reusable book, and the book says what it asked") {
     loom::Switchboard bus;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId booter =
-        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    loom::WeaveId booter{};
+    const load::Mounted owner = mount_owner_in(bus, slow, booter, catalog, operators,
+                                               [](const std::string& stem) { return stem; });
+    load::BootAnswers& answers = owner.owner().answers();
     (void)booter;
 
     // ONE CONVERSATION IS ALL IT EVER HAS: this adapter asks for one load at a time and nothing
@@ -3584,34 +3604,32 @@ TEST_CASE("the OWNER'S DEATH is what stops caring, and it forgets") {
     // "Stopping a wait and forgetting an ask are different facts", and a persistent owner never
     // gives up on a clock -- so the one honest occasion for `forget` is the owner ceasing to
     // exist, which its destructor says, and this is that. The test is continuation, not loop
-    // exit: after the owner is gone the book is empty, the respondent untouched, and the NEXT
-    // conversation on the same record is a new number that settles on its own answer.
+    // exit: the owner taken off the bus with a row in flight takes its book with it, the
+    // respondent is untouched, and the next conversation, the rig's own, settles on its answer.
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
     loom::WeaveId stalled_booter{};
-    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, rig.answers, stalled_booter);
 
     {
         // ONE LOAD THAT NOBODY ANSWERS, through the real owner: a real artifact on disk,
         // the real operator offer around it, the real send. Only the answer is missing.
-        load::PlanExecutor stalled{rig.bus,  rig.catalog, rig.operators, voice,
-                                   slow,     rig.answers,
-                                   [](const std::string& stem) { return stage().so(stem); }};
+        const load::Mounted stalled_mounted = mount_owner_in(
+            rig.bus, slow, stalled_booter, rig.catalog, rig.operators,
+            [](const std::string& stem) { return stage().so(stem); });
+        load::Owner& stalled = stalled_mounted.owner();
         stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
         rig.drain(8);
         REQUIRE(stalled.state() == load::Realization::Loading);
         // WHILE IT LIVES IT IS STILL WAITING, the half a fuse would get wrong.
-        REQUIRE(rig.answers.awaiting());
-        REQUIRE(rig.answers.book().outstanding() == 1);
+        REQUIRE(stalled.answers().awaiting());
+        REQUIRE(stalled.answers().book().outstanding() == 1);
         REQUIRE(slow_state.held);
-    } // <-- the owner dies here, with a row in flight
+    } // <-- the owner leaves the bus here, with a row in flight
 
     // THE LOCAL BOOK SAYS WHAT THIS HOST IS DOING, and there is no longer a this-host to
-    // be doing it: the record is gone because nothing can ever read it again.
-    CHECK_FALSE(rig.answers.awaiting());
-    CHECK(rig.answers.book().outstanding() == 0);
-    CHECK(rig.answers.asking() == 0);
+    // be doing it: the record went with the owner, and nothing on the bus answers to its id.
+    CHECK_FALSE(rig.bus.participant(stalled_booter).valid());
 
     // ...AND THE FAR END IS UNTOUCHED. No message was sent, no DeferredAnswer was
     // revoked, and the respondent holds the answer right it held a moment ago. This is
@@ -3640,12 +3658,13 @@ TEST_CASE("a late answer to a forgotten load settles nothing -- including the NE
     // would pass for a reason that has nothing to do with what it claims.
     loom::Switchboard bus;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId booter =
-        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    loom::WeaveId booter{};
+    const load::Mounted owner = mount_owner_in(bus, slow, booter, catalog, operators,
+                                               [](const std::string& stem) { return stem; });
+    load::BootAnswers& answers = owner.owner().answers();
 
     // ---- ASK A, DEFERRED, THEN LOCALLY FORGOTTEN --------------------------------
     const std::uint64_t a = answers.ask(slow);
@@ -3703,31 +3722,29 @@ TEST_CASE("a late answer to a forgotten load settles nothing -- including the NE
 }
 
 TEST_CASE("repeated local abandonment does not fill the book, and refuses nothing") {
-    // SIXTEEN ROUNDS, each an owner's whole life: an owner that ceases to exist with a row in
-    // flight abandons its conversation, and the book is empty before and after every one -- a
-    // book that still accumulated would refuse loads within a few rounds.
+    // SIXTEEN ROUNDS, each an owner's whole life: an owner that leaves the bus with a row in
+    // flight abandons its conversation and takes its book with it, and the rig's own owner's book
+    // is empty before and after every one -- a book that still accumulated would refuse loads.
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
     loom::WeaveId stalled_booter{};
-    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, rig.answers, stalled_booter);
 
     constexpr int kRounds = 16;
     for (int i = 0; i < kRounds; ++i) {
         REQUIRE(rig.answers.book().outstanding() == 0); // the baseline, before each ask
         {
-            load::PlanExecutor stalled{rig.bus,  rig.catalog, rig.operators, voice,
-                                       slow,     rig.answers,
-                                       [](const std::string& stem) {
-                                           return stage().so(stem);
-                                       }};
+            const load::Mounted stalled_mounted = mount_owner_in(
+                rig.bus, slow, stalled_booter, rig.catalog, rig.operators,
+                [](const std::string& stem) { return stage().so(stem); });
+            load::Owner& stalled = stalled_mounted.owner();
             stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
             rig.drain(4);
             REQUIRE(stalled.state() == load::Realization::Loading);
             // NO ROUND MINTS A REFUSAL -- neither a fuse's sentence nor a capacity's: nothing
             // refused, because nothing did.
             REQUIRE(stalled.refusal().empty());
-            REQUIRE(rig.answers.book().outstanding() == 1);
+            REQUIRE(stalled.answers().book().outstanding() == 1);
         }
         CHECK(rig.answers.book().outstanding() == 0); // ...and back to baseline
 
@@ -3779,12 +3796,12 @@ TEST_CASE("a load conversation that cannot be opened refuses, and never succeeds
     // owner that sent anyway would sit in `Loading` forever, waiting for an answer it could
     // never recognise.
     PlanRig rig;
-    load::BootAnswers answers;
     loom::WeaveId booter{};
-    load::PlanBooter& voice = mount_booter_in(rig.bus, rig.manager, answers, booter);
-    load::PlanExecutor nowhere{rig.bus,         rig.catalog, rig.operators, voice,
-                               loom::WeaveId{}, answers,
-                               [](const std::string& stem) { return stage().so(stem); }};
+    const load::Mounted nowhere_mounted = mount_owner_in(
+        rig.bus, loom::WeaveId{}, booter, rig.catalog, rig.operators,
+        [](const std::string& stem) { return stage().so(stem); });
+    load::Owner& nowhere = nowhere_mounted.owner();
+    load::BootAnswers& answers = nowhere.answers();
 
     nowhere.begin(plan_of({weaves("zengine-plain-weave", "test.nowhere")}));
     const load::Executed done = nowhere.outcome();
@@ -3806,12 +3823,13 @@ TEST_CASE("a load conversation that cannot be opened refuses, and never succeeds
 TEST_CASE("dropping a load conversation is local, and claims nothing of the far end") {
     loom::Switchboard bus;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId booter =
-        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    loom::WeaveId booter{};
+    const load::Mounted owner = mount_owner_in(bus, slow, booter, catalog, operators,
+                                               [](const std::string& stem) { return stem; });
+    load::BootAnswers& answers = owner.owner().answers();
 
     const std::uint64_t mine = answers.ask(slow);
     bus.send_as(booter, slow,
@@ -3848,7 +3866,7 @@ TEST_CASE("dropping a load conversation is local, and claims nothing of the far 
 // =============================================================================
 // 11. REALIZATION IS LIVING — it survives the frame that started it: an owner issues one
 //     load and RETURNS TO ITS HOST with a row in flight. ⚠ Every turn is spent by the test;
-//     `PlanExecutor` has no pump, drain, wait or fuse, which `test_operator_provider.cpp` reads.
+//     `Owner` has no pump, drain, wait or fuse, which `test_operator_provider.cpp` reads.
 // =============================================================================
 
 // ---- 11.1 the boundary itself -------------------------------------------------
@@ -3919,16 +3937,17 @@ TEST_CASE("unrelated work is delivered while a plan row is still outstanding") {
     // the row hangs.
     PlanRig rig;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
     loom::WeaveId booter{};
-    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
 
     std::int64_t nudges = 0;
     const loom::WeaveId bystander = loom::mount<Bystander>(rig.bus, nudges);
 
-    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
-                               [](const std::string& stem) { return stage().so(stem); }};
+    const load::Mounted stalled_mounted = mount_owner_in(
+        rig.bus, slow, booter, rig.catalog, rig.operators,
+        [](const std::string& stem) { return stage().so(stem); });
+    load::Owner& stalled = stalled_mounted.owner();
+    load::BootAnswers& answers = stalled.answers();
 
     // ORDINARY WORK ALREADY ON THE QUEUE WHEN REALIZATION BEGINS -- the sharpest form
     // of "the owner does not drive Loom", and the one that holds even against a
@@ -4250,14 +4269,15 @@ TEST_CASE("a stray answer cannot advance a plan that is waiting for its own") {
     // the project from inside somebody else's conversation.
     PlanRig rig;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
     loom::WeaveId booter{};
-    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
     const loom::WeaveId stray = loom::mount<Stray>(rig.bus);
 
-    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
-                               [](const std::string& stem) { return stage().so(stem); }};
+    const load::Mounted stalled_mounted = mount_owner_in(
+        rig.bus, slow, booter, rig.catalog, rig.operators,
+        [](const std::string& stem) { return stage().so(stem); });
+    load::Owner& stalled = stalled_mounted.owner();
+    load::BootAnswers& answers = stalled.answers();
     stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled"),
                            weaves("zengine-provider-min", "test.next")}));
     rig.drain(4);
@@ -4412,13 +4432,13 @@ TEST_CASE("the DOOR answers `loading` across the real seam, mid-flight") {
     // in the middle rather than at a moment a turn count happened to produce.
     PlanRig rig;
     SlowAnswers slow_state;
-    load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
     loom::WeaveId booter{};
-    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
 
-    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
-                               [](const std::string& stem) { return stage().so(stem); }};
+    const load::Mounted stalled_mounted = mount_owner_in(
+        rig.bus, slow, booter, rig.catalog, rig.operators,
+        [](const std::string& stem) { return stage().so(stem); });
+    load::Owner& stalled = stalled_mounted.owner();
     rig.mount_door_over(stalled, "mid.json");
     rig.mount_asker();
 
@@ -4502,20 +4522,15 @@ RealizedEars& mount_ears(loom::Switchboard& bus, loom::Grant grant) {
     return raw;
 }
 
-/// THE HOST'S OWN BOOTER GRANT: reach the Manager with `zen.LoadWeave`, and say what the
+/// THE HOST'S OWN OWNER GRANT: reach the Manager with `zen.LoadWeave`, and say what the
 /// project made of a newly built artifact. Spelled out rather than derived from the Emit set,
-/// for `mount_booter_in`'s reason.
-load::PlanBooter& mount_booter_with_answer(loom::Switchboard& bus, loom::WeaveId manager,
-                                           load::BootAnswers& answers, loom::WeaveId& id) {
+/// for `mount_owner_in`'s reason.
+loom::Grant answer_grant(loom::WeaveId manager) {
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     operate.allow_to_any(zengine::builder::ArtifactRealized::zen_name,
                          zengine::builder::ArtifactRealized::zen_version);
-    auto speaker = std::make_unique<load::PlanBooter>(answers);
-    load::PlanBooter& voice = *speaker;
-    id = bus.register_weave(std::move(speaker), std::move(operate));
-    voice.zen_set_self(id);
-    return voice;
+    return operate;
 }
 
 /// A stem this stage has no file for, and no artifact in this repository is called.
@@ -4539,12 +4554,7 @@ struct PendingRig {
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
 
-    load::BootAnswers answers;
     loom::WeaveId booter;
-    /// THE BOOTER'S GRANT GAINS EXACTLY ONE RULE HERE, and it is the host's own: it
-    /// may say `ArtifactRealized` to anyone who accepts it. It still may not DO
-    /// anything -- the one dangerous rule in this process is unchanged.
-    load::PlanBooter& voice = mount_booter_with_answer(bus, manager, answers, booter);
 
     /// THE STEMS THIS HOST SAYS ARE WAITING. A `std::set` in spirit and a vector in
     /// fact, because the point is that the executor asks a QUESTION and the host owns
@@ -4552,15 +4562,13 @@ struct PendingRig {
     std::vector<std::string> waiting;
     RealizedEars* ears = nullptr;
 
-    load::PlanExecutor executor{
-        bus,
-        catalog,
-        operators,
-        voice,
-        manager,
-        answers,
+    /// THE BOOTER'S GRANT GAINS EXACTLY ONE RULE HERE, and it is the host's own: it
+    /// may say `ArtifactRealized` to anyone who accepts it. It still may not DO
+    /// anything -- the one dangerous rule in this process is unchanged.
+    load::Mounted mounted = mount_owner_granted(
+        bus, answer_grant(manager), booter, catalog, operators, manager,
         [](const std::string& stem) { return stage().so(stem); },
-        load::PlanExecutor::Settled(),
+        load::Owner::Settled(),
         [this](const std::string& stem) {
             for (const std::string& held : waiting) {
                 if (held == stem) {
@@ -4568,7 +4576,9 @@ struct PendingRig {
                 }
             }
             return false;
-        }};
+        });
+    load::Owner& executor = mounted.owner();
+    load::BootAnswers& answers = executor.answers();
 
     PendingRig() { ears = &mount_ears(bus, loom::Grant{}); }
 
@@ -4700,7 +4710,7 @@ TEST_CASE("realizing the waiting row resumes the walk at the NEXT authored row")
     // THE WEAVER ASKS. The row's authored participation -- its role, its order, its
     // surfaces -- comes from the PLAN and nowhere else: nothing in this call names
     // one, and nothing could.
-    const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-plain-weave");
+    const load::Owner::Asked asked = rig.executor.realize("zengine-plain-weave");
     CHECK(asked.started);
     CHECK(asked.refusal.empty());
     CHECK(rig.executor.state() == load::Realization::Loading);
@@ -4753,7 +4763,7 @@ TEST_CASE("a provider-only waiting row settles, and the walk resumes, before `re
                 .waiting_on == "zengine-provider-min");
 
     const std::size_t before = rig.catalog.size();
-    const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-provider-min");
+    const load::Owner::Asked asked = rig.executor.realize("zengine-provider-min");
     CHECK(asked.started);
     // NOTHING IS OWED BY ANYBODY, so the row is over the instant its mount returns --
     // no turn was spent and no conversation was opened. AND THE ROW BEHIND IT IS OVER
@@ -4765,7 +4775,7 @@ TEST_CASE("a provider-only waiting row settles, and the walk resumes, before `re
     REQUIRE(rig.executor.resolved().size() == 2);
     CHECK(rig.executor.resolved()[0].stem == "zengine-provider-min");
     CHECK(rig.executor.resolved()[1].stem == "zengine-provider-a");
-    const load::PlanExecutor::Realized settled = rig.executor.take_realization();
+    const load::Owner::Realized settled = rig.executor.take_realization();
     CHECK(settled.settled);
     CHECK(settled.realized);
 }
@@ -4832,7 +4842,7 @@ TEST_CASE("an absent artifact cannot REORDER an overlay past what it covers") {
     // The overlay installs over nothing (which the catalog permits), the walk resumes,
     // and the ordinary mount it was meant to cover collides with it -- the REAL
     // existing refusal, in the catalog's own words, at the row that actually refused.
-    const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-provider-min");
+    const load::Owner::Asked asked = rig.executor.realize("zengine-provider-min");
     REQUIRE(asked.started);
     CHECK(rig.executor.state() == load::Realization::Failed);
     CHECK(rig.executor.refusal().find("artifact 'zengine-operators-basic'") !=
@@ -4861,7 +4871,7 @@ TEST_CASE("a LATER authored row may be built early, and is not realized early") 
     // Builder owns building, and a recipe it exposes is a recipe a weaver may run. The
     // file `zengine-plain-weave` is on this stage and has been all along -- which is
     // exactly the state a successful early build leaves behind.
-    const load::PlanExecutor::Asked early = rig.executor.realize("zengine-plain-weave");
+    const load::Owner::Asked early = rig.executor.realize("zengine-plain-weave");
 
     // ...AND IT DID NOT LEAPFROG THE FRONTIER.
     CHECK_FALSE(early.started);
@@ -4884,7 +4894,7 @@ TEST_CASE("a LATER authored row may be built early, and is not realized early") 
     // the later row is not, and the only difference between them is where their plan
     // puts them. (`kUnbuilt` still has no file, so the row itself then refuses in the
     // loader's own words -- which is the retry case below, not this one.)
-    const load::PlanExecutor::Asked frontier = rig.executor.realize(kUnbuilt);
+    const load::Owner::Asked frontier = rig.executor.realize(kUnbuilt);
     CHECK(frontier.started);
 }
 
@@ -4899,7 +4909,7 @@ TEST_CASE("a refused realization returns the row to the frontier and does NOT "
          weaves("zengine-plain-weave", "zen.plain")}));
     REQUIRE(done.waiting_on == kUnbuilt);
 
-    const load::PlanExecutor::Asked asked = rig.executor.realize(kUnbuilt);
+    const load::Owner::Asked asked = rig.executor.realize(kUnbuilt);
     REQUIRE(asked.started);
     rig.drain(16);
 
@@ -4979,14 +4989,14 @@ TEST_CASE("the door refuses everything the AUTHORED PLAN does not sanction") {
 
     // A STEM THE PROJECT NEVER AUTHORED. A build can produce a file; only the
     // project's own plan can say how it participates, so there is nothing to perform.
-    const load::PlanExecutor::Asked stranger = rig.executor.realize("zengine-timer");
+    const load::Owner::Asked stranger = rig.executor.realize("zengine-timer");
     CHECK_FALSE(stranger.started);
     CHECK(stranger.refusal.find("does not name artifact") != std::string::npos);
 
     // A ROW THAT IS ALREADY PART OF THE RUNNING PROJECT. ⚠ THIS ARM IS A RELOAD IN PLACE, and
     // a provider-only row has no weave to reload: refused in words, never loaded a second
     // time. (A live WEAVE row's reload has tier 13.)
-    const load::PlanExecutor::Asked live = rig.executor.realize("zengine-operators-basic");
+    const load::Owner::Asked live = rig.executor.realize("zengine-operators-basic");
     CHECK_FALSE(live.started);
     CHECK(live.refusal.find("loaded no weave in this run") != std::string::npos);
     CHECK(live.refusal.find("unmount-and-remount is not built") != std::string::npos);
@@ -5000,7 +5010,7 @@ TEST_CASE("the door refuses everything the AUTHORED PLAN does not sanction") {
 TEST_CASE("an unstarted owner and a refused project each say so, and neither realizes anything") {
     {
         PendingRig rig;
-        const load::PlanExecutor::Asked early = rig.executor.realize("zengine-plain-weave");
+        const load::Owner::Asked early = rig.executor.realize("zengine-plain-weave");
         CHECK_FALSE(early.started);
         CHECK(early.refusal.find("has not begun") != std::string::npos);
     }
@@ -5011,7 +5021,7 @@ TEST_CASE("an unstarted owner and a refused project each say so, and neither rea
         PendingRig rig;
         rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")}));
         REQUIRE(rig.executor.state() == load::Realization::Failed);
-        const load::PlanExecutor::Asked after = rig.executor.realize("zengine-plain-weave");
+        const load::Owner::Asked after = rig.executor.realize("zengine-plain-weave");
         CHECK_FALSE(after.started);
         CHECK(after.refusal.find("stopped at a refusal") != std::string::npos);
     }
@@ -5024,21 +5034,15 @@ TEST_CASE("the host is told when realization comes to REST, waiting included") {
     // weaver staring at a project that is short an artifact with no line to read.
     PendingRig rig;
     std::vector<load::Executed> rests;
-    // ITS OWN BOOTER AND ITS OWN ANSWER RECORD: one owner, one conversation, so a second
-    // owner on this runtime brings the participant that speaks for it.
-    load::BootAnswers answers;
+    // ITS OWN OWNER: one owner, one conversation, so a second owner on this runtime is a
+    // participant of its own.
     loom::WeaveId id{};
-    load::PlanBooter& speaker = mount_booter_with_answer(rig.bus, rig.manager, answers, id);
-    load::PlanExecutor owner{
-        rig.bus,
-        rig.catalog,
-        rig.operators,
-        speaker,
-        rig.manager,
-        answers,
+    const load::Mounted second = mount_owner_granted(
+        rig.bus, answer_grant(rig.manager), id, rig.catalog, rig.operators, rig.manager,
         [](const std::string& stem) { return stage().so(stem); },
         [&rests](const load::Executed& done) { rests.push_back(done); },
-        [](const std::string& stem) { return stem == std::string("zengine-plain-weave"); }};
+        [](const std::string& stem) { return stem == std::string("zengine-plain-weave"); });
+    load::Owner& owner = second.owner();
 
     owner.begin(plan_of({provides("zengine-operators-basic"),
                          weaves("zengine-plain-weave", "zen.plain")}));
@@ -5193,11 +5197,10 @@ std::string so_of(std::string_view dir, std::string_view stem) {
     return std::string(dir) + "/" + std::string(stem) + kArtifactSuffix;
 }
 
-/// THE HOST'S BOOTER GRANT FOR RELOADS: `zen.LoadWeave` and `zen.ReloadWeave` to the Manager,
-/// and the three observations it may publish. Spelled out for `mount_booter_in`'s reason -- a
+/// THE HOST'S OWNER GRANT FOR RELOADS: `zen.LoadWeave` and `zen.ReloadWeave` to the Manager,
+/// and the three observations it may publish. Spelled out for `mount_owner_in`'s reason -- a
 /// rig that minted the grant could not notice a host quietly widening it.
-load::PlanBooter& mount_booter_reloading(loom::Switchboard& bus, loom::WeaveId manager,
-                                         load::BootAnswers& answers, loom::WeaveId& id) {
+loom::Grant reloading_grant(loom::WeaveId manager) {
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
@@ -5207,11 +5210,7 @@ load::PlanBooter& mount_booter_reloading(loom::Switchboard& bus, loom::WeaveId m
                          zengine::builder::ArtifactRealized::zen_version);
     operate.allow_to_any(zengine::builder::ArtifactPromoted::zen_name,
                          zengine::builder::ArtifactPromoted::zen_version);
-    auto speaker = std::make_unique<load::PlanBooter>(answers);
-    load::PlanBooter& voice = *speaker;
-    id = bus.register_weave(std::move(speaker), std::move(operate));
-    voice.zen_set_self(id);
-    return voice;
+    return operate;
 }
 
 /// A RIG WHOSE HOST CAN STAGE A BUILT PRODUCT AND PROMOTE A RUNNING IMAGE: `PendingRig` with a
@@ -5227,9 +5226,7 @@ struct ReloadRig {
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
 
-    load::BootAnswers answers;
     loom::WeaveId booter;
-    load::PlanBooter& voice = mount_booter_reloading(bus, manager, answers, booter);
 
     std::vector<std::string> waiting;
     RealizedEars* ears = nullptr;
@@ -5240,15 +5237,10 @@ struct ReloadRig {
     workshop::CurrentRecipes recipes;
     workshop::staging::Host staging{stage().dir.string(), &recipes, &so_of, 0};
 
-    load::PlanExecutor executor{
-        bus,
-        catalog,
-        operators,
-        voice,
-        manager,
-        answers,
+    load::Mounted mounted = mount_owner_granted(
+        bus, reloading_grant(manager), booter, catalog, operators, manager,
         [](const std::string& stem) { return stage().so(stem); },
-        load::PlanExecutor::Settled(),
+        load::Owner::Settled(),
         [this](const std::string& stem) {
             for (const std::string& held : waiting) {
                 if (held == stem) {
@@ -5262,7 +5254,9 @@ struct ReloadRig {
         },
         [this](const std::string& stem, const std::string& image) {
             return workshop::staging::promote(staging, stem, image);
-        }};
+        });
+    load::Owner& executor = mounted.owner();
+    load::BootAnswers& answers = executor.answers();
 
     ReloadRig() {
         ears = &mount_ears(bus, loom::Grant{});
@@ -5567,13 +5561,13 @@ TEST_CASE("a reload is one conversation: a second ask is refused while it is ope
                 .waiting_on == kUnbuilt);
     rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
     // OPEN THE RELOAD BY HAND, and hold it open: no turns are spent.
-    const load::PlanExecutor::Asked asked =
+    const load::Owner::Asked asked =
         rig.executor.realize("zengine-plain-weave", "recipe-zengine-plain-weave");
     REQUIRE_MESSAGE(asked.started, asked.refusal);
     CHECK(rig.executor.state() == load::Realization::Loading);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Reloading);
     // A SECOND ASK, OF ANY KIND, IS REFUSED: the owner is not between rows.
-    const load::PlanExecutor::Asked again =
+    const load::Owner::Asked again =
         rig.executor.realize("zengine-plain-weave", "recipe-zengine-plain-weave");
     CHECK_FALSE(again.started);
     CHECK(again.refusal.find("not between rows") != std::string::npos);
@@ -5711,12 +5705,12 @@ TEST_CASE("the realization owner answers what each shape it accepts does from it
                          zengine::builder::ArtifactPromoted::zen_version);
     operate.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
                          zengine::manual::ShapeDocumentShown::zen_version);
-    load::BootAnswers answers;
-    auto speaker = std::make_unique<load::PlanBooter>(answers);
-    load::PlanBooter& voice = *speaker;
-    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate),
-                                                   zengine::builder::kRealizationRole);
-    voice.zen_set_self(booter);
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    const load::Mounted owner = load::mount(bus, std::move(operate), catalog, operators,
+                                            loom::WeaveId{},
+                                            [](const std::string& stem) { return stem; });
+    const loom::WeaveId booter = owner.id();
     // ...ASKED AS ANY WEAVE ASKS: every shape its gate accepts beside Loom's answers.
     CHECK(check_role_manual(bus, zengine::builder::kRealizationRole) == 3);
     check_page_names_accepted(zengine::manual::pages::zengine_realization::kManual,
@@ -5741,7 +5735,7 @@ TEST_CASE("the realization owner numbers each ask it takes, and every answer nam
         }
         // THE BOOTER'S OWN COUNT IS THE NUMBER IT LAST NAMED: one more for each ask taken, and
         // none for an ask refused.
-        const auto asked = [&rig] { return rig.voice.snapshot().get("asked")->as_int(); };
+        const auto asked = [&rig] { return rig.executor.snapshot().get("asked")->as_int(); };
         CHECK(asked() == 0);
         rig.product("zengine-plain-weave", (rig.products() / "rebuilt.tmp").string().c_str());
         rig.offer("zengine-plain-weave");
@@ -5937,7 +5931,7 @@ TEST_CASE("a reload's copy is a file nothing wrote before, and a name another pr
     owner.hold("/zen/development-build-recipes.json", {recipe}, &so_of);
     workshop::staging::Host here{host.generic_string(), &owner, &so_of, 0};
 
-    const load::PlanExecutor::Staged first = workshop::staging::stage(here, "zengine-attention-pane",
+    const load::Owner::Staged first = workshop::staging::stage(here, "zengine-attention-pane",
                                                             "attention", /*reload=*/true);
     REQUIRE_MESSAGE(first.ok, first.refusal);
     CHECK(first.path == std::filesystem::path(so_of(
@@ -5949,7 +5943,7 @@ TEST_CASE("a reload's copy is a file nothing wrote before, and a name another pr
 
     // A SECOND PROCESS, COUNTING FROM ONE TOO, PASSES OVER BOTH.
     workshop::staging::Host there{host.generic_string(), &owner, &so_of, 0};
-    const load::PlanExecutor::Staged second = workshop::staging::stage(there, "zengine-attention-pane",
+    const load::Owner::Staged second = workshop::staging::stage(there, "zengine-attention-pane",
                                                              "attention", /*reload=*/true);
     REQUIRE_MESSAGE(second.ok, second.refusal);
     CHECK(second.path.find("zengine-attention-pane-3") != std::string::npos);
@@ -5957,7 +5951,7 @@ TEST_CASE("a reload's copy is a file nothing wrote before, and a name another pr
 
     // ...AND A PROMOTION KEEPS WHAT IT WRITES OVER UNDER A NAME NOBODY HOLDS EITHER.
     write_file(so_of(host.generic_string(), "zengine-attention-pane"), "the default\n");
-    const load::PlanExecutor::Promoted promoted =
+    const load::Owner::Promoted promoted =
         workshop::staging::promote(there, "zengine-attention-pane", second.path);
     REQUIRE_MESSAGE(promoted.ok, promoted.detail);
     CHECK(promoted.kept.find("zengine-attention-pane-4-promoted-over") != std::string::npos);
@@ -5982,7 +5976,7 @@ TEST_CASE("`append` in Complete performs the new row by the ordinary three steps
     REQUIRE(rig.executor.state() == load::Realization::Complete);
     // THE ROW IS APPENDED AND PERFORMED: the offer, the load, the conversation -- the
     // owner is `Loading`, as a startup weave row leaves it.
-    const load::PlanExecutor::Appended taken =
+    const load::Owner::Appended taken =
         rig.executor.append(weaves("zengine-plain-weave", "zen.plain"));
     REQUIRE_MESSAGE(taken.accepted, taken.refusal);
     CHECK(taken.detail == "loading");
@@ -6005,7 +5999,7 @@ TEST_CASE("`append` in Complete performs the new row by the ordinary three steps
     CHECK(said.artifacts[1].state == std::string(workshop::kResolvedToken));
     // A PROVIDER-ONLY ROW SETTLES INSIDE THE CALL, as at startup (an overlay, because
     // the basic provider already supplies `math.max` and a silent shadowing is refused).
-    const load::PlanExecutor::Appended synchronous =
+    const load::Owner::Appended synchronous =
         rig.executor.append(provides("zengine-provider-min", op::MountMode::Overlay));
     REQUIRE_MESSAGE(synchronous.accepted, synchronous.refusal);
     CHECK(synchronous.detail == "resolved");
@@ -6021,7 +6015,7 @@ TEST_CASE("`append` while Waiting queues the row behind the frontier as `authore
     rig.waiting = {kBuiltLate};
     REQUIRE(rig.realize(plan_of({weaves(kBuiltLate, "zen.late")})).waiting_on == kBuiltLate);
     // BEHIND THE FRONTIER: authored, not looked at, and the frontier unmoved.
-    const load::PlanExecutor::Appended taken =
+    const load::Owner::Appended taken =
         rig.executor.append(weaves("zengine-plain-weave", "zen.plain"));
     REQUIRE_MESSAGE(taken.accepted, taken.refusal);
     CHECK(taken.detail.find("authored behind '" + std::string(kBuiltLate) + "'") !=
@@ -6041,7 +6035,7 @@ TEST_CASE("`append` while Waiting queues the row behind the frontier as `authore
     CHECK(rig.executor.resolved()[1].stem == "zengine-plain-weave");
     // ...AND AN APPENDED ROW THE HOST SAYS IS WAITING becomes the new frontier.
     rig.waiting.push_back(kUnbuilt);
-    const load::PlanExecutor::Appended pending = rig.executor.append(weaves(kUnbuilt, "zen.oven"));
+    const load::Owner::Appended pending = rig.executor.append(weaves(kUnbuilt, "zen.oven"));
     REQUIRE_MESSAGE(pending.accepted, pending.refusal);
     CHECK(pending.detail.find("pending") != std::string::npos);
     CHECK(rig.executor.state() == load::Realization::Waiting);
@@ -6052,7 +6046,7 @@ TEST_CASE("`append` is refused mid-row and after a refusal, and a duplicate stem
     {
         // BEFORE THE PLAN BEGAN.
         PlanRig rig;
-        const load::PlanExecutor::Appended early =
+        const load::Owner::Appended early =
             rig.executor.append(weaves("zengine-plain-weave", "zen.plain"));
         CHECK_FALSE(early.accepted);
         CHECK(early.refusal.find("has not begun") != std::string::npos);
@@ -6063,7 +6057,7 @@ TEST_CASE("`append` is refused mid-row and after a refusal, and a duplicate stem
         PlanRig rig;
         rig.executor.begin(plan_of({weaves("zengine-plain-weave", "zen.plain")}));
         REQUIRE(rig.executor.state() == load::Realization::Loading);
-        const load::PlanExecutor::Appended mid =
+        const load::Owner::Appended mid =
             rig.executor.append(provides("zengine-operators-basic"));
         CHECK_FALSE(mid.accepted);
         CHECK(mid.refusal.find("not between rows") != std::string::npos);
@@ -6072,14 +6066,14 @@ TEST_CASE("`append` is refused mid-row and after a refusal, and a duplicate stem
         REQUIRE(rig.executor.state() == load::Realization::Complete);
         // A DUPLICATE STEM IS THE PLAN'S OWN REFUSAL, in the file's own words, and the
         // plan is exactly what it was.
-        const load::PlanExecutor::Appended twice =
+        const load::Owner::Appended twice =
             rig.executor.append(weaves("zengine-plain-weave", "zen.again"));
         CHECK_FALSE(twice.accepted);
         CHECK(twice.refusal.find("declared twice") != std::string::npos);
         CHECK(rig.executor.plan().artifacts.size() == 1);
         CHECK(rig.executor.state() == load::Realization::Complete);
         // ...AND AN EMPTY ROLE TOO.
-        const load::PlanExecutor::Appended nameless = rig.executor.append(weaves(kUnbuilt, ""));
+        const load::Owner::Appended nameless = rig.executor.append(weaves(kUnbuilt, ""));
         CHECK_FALSE(nameless.accepted);
         CHECK(nameless.refusal.find("needs a role") != std::string::npos);
     }
@@ -6088,7 +6082,7 @@ TEST_CASE("`append` is refused mid-row and after a refusal, and a duplicate stem
         PlanRig rig;
         REQUIRE_FALSE(rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")})).ok);
         REQUIRE(rig.executor.state() == load::Realization::Failed);
-        const load::PlanExecutor::Appended after =
+        const load::Owner::Appended after =
             rig.executor.append(provides("zengine-operators-basic"));
         CHECK_FALSE(after.accepted);
         CHECK(after.refusal.find("stopped at a refusal") != std::string::npos);
@@ -7153,7 +7147,7 @@ TEST_CASE("a recorded switch moves a role between its authored choices, and ever
     CHECK(rig.executor.image_of("zengine-other-weave") == stage().so("zengine-other-weave"));
 
     // AWAY: the role moves to a choice the plan names only as a choice.
-    const load::PlanExecutor::Recorded away = rig.executor.record_choice_holder(
+    const load::Owner::Recorded away = rig.executor.record_choice_holder(
         "test.plain", "zengine-other-weave", loom::WeaveId{first.value + 100}, "/staged/other");
     REQUIRE_MESSAGE(away.accepted, away.refusal);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Switched);
@@ -7177,7 +7171,7 @@ TEST_CASE("a recorded switch moves a role between its authored choices, and ever
     CHECK_FALSE(other->default_image);
 
     // A rebuild of the row that is not running is refused in words; nothing is reloaded.
-    const load::PlanExecutor::Asked rebuilt = rig.executor.realize("zengine-plain-weave", "plain");
+    const load::Owner::Asked rebuilt = rig.executor.realize("zengine-plain-weave", "plain");
     CHECK_FALSE(rebuilt.started);
     CHECK(rebuilt.refusal.find("is not running") != std::string::npos);
 
@@ -7199,7 +7193,7 @@ TEST_CASE("a recorded switch moves a role between its authored choices, and ever
     CHECK(code.reload.empty());
 
     // BACK: the plan's own row is live again with the weave the switch back admitted.
-    const load::PlanExecutor::Recorded back = rig.executor.record_choice_holder(
+    const load::Owner::Recorded back = rig.executor.record_choice_holder(
         "test.plain", "zengine-plain-weave", loom::WeaveId{first.value + 200}, stage().so("zengine-plain-weave"));
     REQUIRE_MESSAGE(back.accepted, back.refusal);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
@@ -7217,7 +7211,7 @@ TEST_CASE("a recorded switch moves a role between its authored choices, and ever
 
     // AND ON TO A THIRD: every row the role left names where it is now -- the one a switch
     // left earlier as much as the one it leaves this time.
-    const load::PlanExecutor::Recorded onward = rig.executor.record_choice_holder(
+    const load::Owner::Recorded onward = rig.executor.record_choice_holder(
         "test.plain", "zengine-third-weave", loom::WeaveId{first.value + 300}, "/staged/third");
     REQUIRE_MESSAGE(onward.accepted, onward.refusal);
     CHECK(rig.executor.choice_holder("test.plain") == "zengine-third-weave");
@@ -7235,11 +7229,11 @@ TEST_CASE("a switch is recorded only for an authored choice, and a refused recor
         plan_of({weaves("zengine-plain-weave", "test.plain")}),
         {load::ChoiceIntent{"test.plain", "plain", "zengine-plain-weave"}}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
-    const load::PlanExecutor::Recorded stranger = rig.executor.record_choice_holder(
+    const load::Owner::Recorded stranger = rig.executor.record_choice_holder(
         "test.plain", "zengine-not-authored", loom::WeaveId{999}, "/x");
     CHECK_FALSE(stranger.accepted);
     CHECK(stranger.refusal.find("authors no choice 'zengine-not-authored'") != std::string::npos);
-    const load::PlanExecutor::Recorded wrong_role = rig.executor.record_choice_holder(
+    const load::Owner::Recorded wrong_role = rig.executor.record_choice_holder(
         "test.other", "zengine-plain-weave", loom::WeaveId{999}, "/x");
     CHECK_FALSE(wrong_role.accepted);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);

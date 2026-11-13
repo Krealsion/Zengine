@@ -16,7 +16,7 @@
 #include "app/vocabulary.hpp"
 #include "launcher/start.hpp"
 #include "launcher/vocabulary.hpp"
-#include "workshop/load_persist.hpp"
+#include "realization/load_persist.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -178,7 +178,7 @@ inline LaunchJudged judge_launch(const Launch& asked, const std::string& project
         if (ec || real.parent_path() != real_apps) {
             return refuse("'" + asked.name + "' is not a folder directly in " + apps.generic_string());
         }
-        const auto plan = workshop::load_persist::load_file((real / app::kPlanName).string());
+        const auto plan = realization::load_persist::load_file((real / app::kPlanName).string());
         if (!plan.outcome.accepted) {
             return refuse("the app '" + asked.name + "' has no plan this Workshop reads: " +
                           plan.outcome.refusal);

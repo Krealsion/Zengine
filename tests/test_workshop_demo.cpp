@@ -708,7 +708,7 @@ TEST_CASE("demo ready wait before attachment completes once after the initial pr
 }
 
 namespace {
-/// The Weave Manager's caller, as Workshop's plan booter is.
+/// The Weave Manager's caller, as Workshop's realization owner is.
 struct DemoBooterState { std::int64_t said = 0; ZEN_SHAPE(DemoBooterState, 1, ZEN_FIELD(said)); };
 class DemoBooter final : public loom::WeaveBase<DemoBooter, DemoBooterState,
     loom::Accept<loom::Result, loom::Ack, loom::Refused>,

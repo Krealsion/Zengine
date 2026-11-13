@@ -9,9 +9,13 @@
 
 #include "workshop/layouts/owner.hpp"
 
+#include "realization/vocabulary.hpp"
+
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace zengine::workshop {
 using pane::PaneSettingRow;
@@ -175,7 +179,18 @@ void LayoutsOwner::on(const SessionSaveRequested&, loom::Mail& mail) {
                                                      "orderly close, and asked by it alone"});
         return;
     }
-    const std::string refused = store_.save_session();
+    // WHICH AUTHORED CHOICE HOLDS EACH SWITCHABLE ROLE NOW, the realization owner's claim
+    // (`ChoicesHeld`), read as the session is written (WL-SWITCH-08).
+    std::vector<session_persist::WorkshopChoice> chosen;
+    if (const std::optional<realization::ChoicesHeld> held =
+            realization::latest<realization::ChoicesHeld>(mail)) {
+        for (const realization::ChoiceHeld& c : held->choices) {
+            if (c.holds) {
+                chosen.push_back(session_persist::WorkshopChoice{c.role, c.name});
+            }
+        }
+    }
+    const std::string refused = store_.save_session(chosen);
     if (refused.empty()) {
         ++state_.saves;
     }
@@ -503,6 +518,9 @@ loom::Grant layouts_grant() {
                         kWorkshopProvider);
     grant.allow_to_role(WeaversActRequested::zen_name, WeaversActRequested::zen_version,
                         kWorkshopProvider);
+    // ...and observing which authored choice holds each switchable role, the realization owner's
+    // claim, written into the session.
+    grant.allow_observe(realization::ChoicesHeld::zen_name, realization::ChoicesHeld::zen_version);
     return grant;
 }
 

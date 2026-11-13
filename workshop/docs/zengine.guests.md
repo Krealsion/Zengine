@@ -84,7 +84,7 @@ run never declares is refused in. The answer tells the two apart.
   `refused`; `at_rest`; and the rows it names, `waiting_on` and the optional rows stepped over
   (`unavailable`), said only to a row with `capture` or `inspect`, which already reads rows' names,
   and to Workshop's own participants. To any other row they are empty.
-- **Refuses:** `this host wired no reading of its load plan`; past the asks it holds at once, `the
+- **Refuses:** `this host grants the door no reading of its load plan`; past the asks it holds at once, `the
   guest door already holds <n> asks for the plan at rest; ask again without wait, or once one is
   answered`; and `the bus could not hold this ask for the plan at rest; ask again without wait`. A
   held ask whose guest goes is let go, unanswered.

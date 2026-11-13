@@ -33,8 +33,8 @@ installed-package witness, `tests/package/run.cmake` (not a CTest entry), starts
 
 ## Host side
 
-- The plan's executor and its codec are Workshop's, header-only: `workshop/load_execute.hpp`,
-  `workshop/load_persist.hpp` (`zengine-workshop-load`).
+- The plan's owner and its codec are the realization library's, header-only and installed:
+  `realization/owner.hpp`, `realization/load_persist.hpp` (`zengine-realization`).
 - The Flow host and the view host, composed as Workshop composes them: `flow/flow-host/runtime.hpp`,
   `view/host.hpp`.
 - The decisions, the warden and the `authority` command are Loom's installed `loom::host-policy`.

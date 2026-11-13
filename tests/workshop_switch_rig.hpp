@@ -152,7 +152,7 @@ struct SwitchRig {
 
     void mount_project_door() {
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
-                                                  ProjectDoor::Frontier{}, ProjectDoor::Names{},
+                                                  ProjectDoor::Names{},
                                                   r.host.recipe_source);
         ProjectDoor* raw = door.get();
         loom::Grant say;
@@ -162,17 +162,14 @@ struct SwitchRig {
     }
 
     /// THE COORDINATOR, WIRED AS THE HOST WIRES IT: the bus and the Kernel, and the realization
-    /// owner's four readings.
+    /// owner's record of where the role went; the choices it reads from the owner's claim.
     void mount_switcher() {
         EditorSwitchHost host;
         host.bus = &r.bus;
         host.kernel = &r.kernel;
         host.role = r.host.managed_pane.provider;
-        host.choices = [this] { return r.plan_->plan().choices; };
-        host.holder = [this] { return r.plan_->choice_holder(pane::kEditorPaneRole); };
-        host.image_of = [this](const std::string& stem) { return r.plan_->image_of(stem); };
         host.record = [this](const std::string& stem, loom::WeaveId weave, const std::string& image) {
-            const load::PlanExecutor::Recorded done =
+            const load::Owner::Recorded done =
                 r.plan_->record_choice_holder(pane::kEditorPaneRole, stem, weave, image);
             return done.accepted ? std::string() : done.refusal;
         };

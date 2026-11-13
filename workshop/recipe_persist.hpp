@@ -50,7 +50,7 @@ inline constexpr const char* kDefaultRecipesName = "default-build-recipes.json";
 // WL-AUTH-01 -- agents/workshop/authoring.md
 inline constexpr const char* kProjectRecipesName = "build-recipes.json";
 
-/// Which catalog is in force at launch: `load_persist::plan_in_force`'s rule (an explicit
+/// Which catalog is in force at launch: `realization::load_persist::plan_in_force`'s rule (an explicit
 /// `--recipes`, else the project catalog, else the shipped default). The shipped default may be
 /// absent, the ordinary "nothing to build", which the caller says with the same probe.
 // WL-PROJ-15 -- agents/workshop/project.md

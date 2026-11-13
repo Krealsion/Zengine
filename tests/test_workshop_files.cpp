@@ -19,7 +19,7 @@
 #include "editor/editor-pane/editor.hpp" // the Editor's source law, asked of each development entry
 #include "workshop/develop.hpp"   // ...and the launch that runs that script, then its host
 #include "workshop/authoring.hpp"
-#include "workshop/load_persist.hpp"
+#include "realization/load_persist.hpp"
 #include "workshop/recipe_persist.hpp"
 // ...AND WHO HOLDS THE COMPLETED ANSWER, and how a catalog file BECOMES that answer. One
 // owner per running Workshop, read by every recipe consumer; the two tiers at the end of
@@ -73,6 +73,7 @@
 using zengine::persist::AdmittedPath;
 using zengine::persist::admit_path;
 using zengine::persist::launch_project_dir;
+namespace load_persist = zengine::realization::load_persist;
 
 // ============================================================================
 // Support: a project on disk, and a Workshop launched into it
@@ -179,7 +180,7 @@ struct ProjectRig {
 /// after `host.recipe_source` is set, because the door captures it by value.
 inline void mount_project_door_with_source(ProjectRig& r) {
     const std::string marks = (r.root / "workshop-marks.json").generic_string();
-    auto door = std::make_unique<ProjectDoor>(r.t.host.project_dir, marks, ProjectDoor::Frontier{},
+    auto door = std::make_unique<ProjectDoor>(r.t.host.project_dir, marks,
                                               ProjectDoor::Names{}, r.t.host.recipe_source);
     ProjectDoor* raw = door.get();
     loom::Grant grant;
@@ -1460,7 +1461,7 @@ struct DoorRig {
 
     void mount_project(ProjectDoor::Use use = nullptr, ProjectDoor::Author author = nullptr) {
         auto door = std::make_unique<ProjectDoor>(
-            r.t.host.project_dir, marks_path, ProjectDoor::Frontier{}, ProjectDoor::Names{},
+            r.t.host.project_dir, marks_path, ProjectDoor::Names{},
             ProjectDoor::Source{}, std::move(use), std::move(author));
         project = door.get();
         loom::Grant grant;

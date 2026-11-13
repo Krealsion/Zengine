@@ -2667,7 +2667,7 @@ TEST_CASE("the generated project consumes the PACKAGE and nothing private") {
     // ...AND WHAT IS NOT IN IT IS THE OTHER HALF OF THE SAME CLAIM: no include directory into a
     // source tree, no build-tree path, no named library file, compiler, flag or link line. Read
     // with the prose stripped, as every source tripwire here reads (`test_operator_provider.cpp`
-    // reads `load_execute.hpp` the same way): the generated file EXPLAINS in a comment that it
+    // reads `realization/owner.hpp` the same way): the generated file EXPLAINS in a comment that it
     // names no `.so` or `.dll`, and a scan that could not tell a comment from a command would
     // fail on that sentence.
     const std::string code = commands_of(text, recipe);
@@ -3177,7 +3177,7 @@ namespace {
 /// One source file, with its prose stripped FIRST: these files EXPLAIN what they refuse to do
 /// -- the header says out loud that nothing here waits, sleeps or runs on another thread -- and
 /// a check that could not tell a sentence from a statement would forbid the explanation. The
-/// load plan executor's tripwire reads `load_execute.hpp` this way; this applies it to the two
+/// realization owner's tripwire reads `realization/owner.hpp` this way; this applies it to the two
 /// participants a build conversation passes through.
 std::string code_of(const char* path) {
     std::ifstream in(path);
@@ -3245,7 +3245,7 @@ TEST_CASE("no semantic build consumer drives dispatch waiting for its own result
     // realization owner decides. A Builder that reached the Kernel, the Weave Manager, the
     // catalog or the plan executor directly would be performing a load, routing around every
     // eligibility rule the authored plan owns.
-    for (const char* forbidden : {"zen/kernel", "Kernel", "LoadWeave", "PlanExecutor",
+    for (const char* forbidden : {"zen/kernel", "Kernel", "LoadWeave", "Owner",
                                   "mount_provider", "op::Catalog"}) {
         CHECK_MESSAGE(tool.find(forbidden) == std::string::npos, "builder/weave.hpp names '",
                       forbidden, "', which is realization authority in the BUILD half");

@@ -45,7 +45,7 @@ Red in `zengine-workshop-shapes-tests`:
 
 ## rig-booter-state-named-boot-state
 
-The test rig's booter state is named `BootState`, as the plan booter's is.
+The test rig's booter state is named `BootState`, as the realization owner's is.
 
 In `tests/workshop_support.hpp`:
 

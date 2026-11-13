@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_LOAD_EXECUTE_HPP
-#define ZENGINE_WORKSHOP_LOAD_EXECUTE_HPP
+#ifndef ZENGINE_REALIZATION_OWNER_HPP
+#define ZENGINE_REALIZATION_OWNER_HPP
 
-// Performing an authored load plan (agents/realization.md). The owner walks the rows in authored
-// order -- mount the provider, offer this host's operator resolution, load the weave -- and returns
-// to the host while a load's answer is outstanding. It stops at the first row it cannot perform, a
-// barrier and never a hole; rolls back only the refusing row's own mount; and reloads a live
-// weave-only row in place from a copy the host staged. No loader, scheduler or solver lives here.
+// The realization owner (agents/realization.md): one participant, in the role
+// `zengine.realization`, that performs an authored load plan and is its own voice on the bus. It
+// walks the rows in authored order -- mount the provider, offer this host's operator resolution,
+// load the weave -- and returns to the host while a load's answer is outstanding. It stops at the
+// first row it cannot perform, a barrier and never a hole; rolls back only the refusing row's own
+// mount; and reloads a live weave-only row in place from a copy the host staged. What it knows it
+// claims as its role (realization/vocabulary.hpp). No loader, scheduler or solver lives here.
 
-#include "load_plan.hpp"
+#include "realization/load_plan.hpp"
+#include "realization/vocabulary.hpp"
 
 #include "builder/vocabulary.hpp"
 #include "activation/activation.hpp"
@@ -30,17 +33,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop::load {
+namespace zengine::realization {
 
 using zengine::persist::Written;
-
-class PlanExecutor;
 
 // ---- What the runtime made of one authored row --------------------------------
 
@@ -309,7 +311,7 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
 }
 
 /// Can a rebuilt image of this resolved row be reloaded in place at all? The rules about the row,
-/// not the image, in the owner's words, or empty. `PlanExecutor::reloadable` spends it; a host
+/// not the image, in the owner's words, or empty. `Owner::reloadable` spends it; a host
 /// reads it to tell a weaver before an edit. One rule, so the two sentences cannot disagree.
 inline std::string reload_refusal(const ResolvedArtifact& done) {
     if (!done.switched_to.empty()) {
@@ -331,9 +333,9 @@ inline std::string reload_refusal(const ResolvedArtifact& done) {
     return std::string();
 }
 
-// ---- The weave that asks, and hears the answer --------------------------------
+// ---- What the owner heard, and its own state ------------------------------------
 
-/// What the plan booter heard about the load it last asked for. An arrival settles the load only
+/// What the owner heard about the load it last asked for. An arrival settles the load only
 /// if both its correlation and its bus-stamped sender match the one outstanding ask
 /// (`loom::AskBook`): a correlation identifies, it does not authenticate (Loom ANS-05). What stays
 /// here is payload semantics: which answer means success, and what a `zen.Result`'s text is.
@@ -394,8 +396,7 @@ private:
     std::uint64_t current_ = 0;
 };
 
-/// The plan booter's own state: a count. What it hears goes into the host's `BootAnswers`, which
-/// the executor and the host both read.
+/// The owner's state as a weave: a count. What it hears about a load is its `BootAnswers`.
 struct BootState {
     /// Realization asks taken, ever: the last number a taken `RealizationAsked` named.
     std::int64_t asked = 0;
@@ -403,120 +404,25 @@ struct BootState {
     ZEN_SHAPE(BootState, 1, ZEN_FIELD(asked));
 };
 
-/// The weave that asks the Weave Manager to load, reload, promote and revert a plan's artifacts.
-/// It holds kernel reach, and the host writes that grant. It is the bridge, not the state machine:
-/// it hears an answer, checks that it settles this booter's conversation, and hands it to the
-/// owner. The bus outlives the owner, so the owner wires `wakes` and clears it. An offered
-/// artifact's announced path is never used, and the owner decides whether a stem is eligible.
-class PlanBooter
+// ---- The realization owner -----------------------------------------------------
+
+/// Performs an authored plan against one host's runtime, across the host's own turns, and is the
+/// participant that asks the Weave Manager to load, reload, promote and revert the plan's
+/// artifacts: it holds kernel reach, and the host writes that grant. It hears an answer, checks
+/// that it settles its one conversation, and moves the walk on; an offered artifact's announced
+/// path is never used. Everything it uses is handed in at its making. It holds an
+/// `op::OperatorOffer` across a load, so the host mounts it through `mount`, whose handle the host
+/// declares after the Kernel and which takes the owner off the bus first (agents/realization.md).
+/// The host advances Loom; this decides what the facts mean, and claims them as its role.
+class Owner
     : public zengine::With<zengine::manual::ManualFacet<
           zengine::manual::pages::zengine_realization::kManual>>::Weave<
-          PlanBooter, BootState,
+          Owner, BootState,
           loom::Accept<loom::Result, loom::Ack, loom::Refused, zengine::builder::OfferArtifact,
                        zengine::builder::PromoteArtifact, zengine::builder::RevertArtifact>,
           loom::Emit<loom::LoadWeave, loom::ReloadWeave, zengine::builder::ArtifactRealized,
-                     zengine::builder::ArtifactPromoted, zengine::builder::RealizationAsked>> {
-public:
-    explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
-
-    /// A build produced an artifact and the weaver offered it: ask the owner, publish its answer.
-    void on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail);
-
-    /// The weaver asked for the running image to become the one a restart loads.
-    void on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail);
-
-    /// The weaver asked for the image before the last reload to run again; a refusal is published
-    /// now, an acceptance answered later, as a load is.
-    void on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail);
-
-    /// Whose unfinished work an answer to this booter wakes, or nobody. Called only by
-    /// `PlanExecutor`'s constructor and destructor.
-    void wakes(PlanExecutor* owner) noexcept { owner_ = owner; }
-
-    /// Which weave this is: the executor sends its load as this booter, so the answer comes back
-    /// to something that can hear it.
-    loom::WeaveId speaker() const noexcept { return self_; }
-
-    void on(const loom::Result& r, loom::Mail& mail) {
-        if (!settles(mail)) {
-            return;
-        }
-        answers_->answered = true;
-        answers_->refused = false;
-        // `zen.Result` carries text; one this host cannot parse is still an answer, just not a
-        // WeaveId anybody may quote.
-        answers_->weave = 0;
-        try {
-            answers_->weave = static_cast<std::uint64_t>(std::stoull(r.value));
-        } catch (...) {
-            answers_->weave = 0;
-        }
-        answers_->settled();
-        wake(mail);
-    }
-
-    void on(const loom::Ack&, loom::Mail& mail) {
-        if (!settles(mail)) {
-            return;
-        }
-        answers_->answered = true;
-        answers_->refused = false;
-        answers_->settled();
-        wake(mail);
-    }
-
-    void on(const loom::Refused& r, loom::Mail& mail) {
-        if (!settles(mail)) {
-            return;
-        }
-        answers_->answered = true;
-        answers_->refused = true;
-        answers_->reason = r.reason;
-        answers_->settled();
-        wake(mail);
-    }
-
-private:
-    /// Hand the settled fact over, after `settled()`.
-    void wake(loom::Mail& mail);
-
-    /// The one door all three answer shapes pass through: a wall on two of three is no wall. An
-    /// arrival that does not settle this load is left alone -- not refused, not recorded.
-    bool settles(const loom::Mail& mail) const {
-        return answers_->settles(mail.correlation(), mail.sender());
-    }
-
-    /// SAY WHAT BECAME OF ONE ASK before anything else about it (`RealizationAsked`): its number
-    /// when taken, minted here and never reused in this booter's life; 0 and why when not.
-    std::int64_t heard(const std::string& artifact, const char* act, bool taken,
-                       const std::string& refusal, loom::Mail& mail) {
-        const std::int64_t number = taken ? ++state_.asked : 0;
-        (void)mail.publish(zengine::builder::RealizationAsked{artifact, act, number, taken, refusal});
-        return number;
-    }
-
-    /// The owner's answer to the ask in flight, which is then answered.
-    void realized(const std::string& stem, bool done, const std::string& detail,
-                  bool default_image, loom::Mail& mail) {
-        (void)mail.publish(
-            zengine::builder::ArtifactRealized{stem, done, detail, default_image, in_flight_});
-        in_flight_ = 0;
-    }
-
-    BootAnswers* answers_;
-    /// The host-side owner this booter speaks for, or null (a rig that wants only the payload).
-    PlanExecutor* owner_ = nullptr;
-    std::int64_t in_flight_ = 0; ///< the taken ask whose answer is still owed; 0 when none is
-};
-
-
-// ---- The realization owner -----------------------------------------------------
-
-/// Performs an authored plan against one host's runtime, across the host's own turns; everything
-/// it uses is handed in. Host-side for lifetime: it holds an `op::OperatorOffer`, so it is a local
-/// of the host's `main` declared after the Kernel, never a weave (agents/realization.md). The host
-/// advances Loom; this decides what the facts mean.
-class PlanExecutor {
+                     zengine::builder::ArtifactPromoted, zengine::builder::RealizationAsked>,
+          loom::WeaveBase, loom::Claims<PlanWhere, ChoicesHeld>> {
 public:
     /// How a host spells an artifact stem as a file. The host owns the rule, so one plan is legal
     /// on every platform.
@@ -562,38 +468,120 @@ public:
     /// an artifact is not one where it failed. Empty means every artifact is held.
     using Installed = std::function<bool(const std::string& stem)>;
 
-    /// The booter as an object: this sends as its id and wires the answer path through it.
-    PlanExecutor(loom::Switchboard& bus, op::Catalog& catalog,
-                 const op::OperatorHostSurface& operators, PlanBooter& voice,
-                 loom::WeaveId manager, BootAnswers& answers, ArtifactPath path_of,
-                 Settled settled = Settled(), AwaitingBuild awaiting = AwaitingBuild(),
-                 StageArtifact stage = StageArtifact(), PromoteImage promote = PromoteImage(),
-                 Installed installed = Installed())
-        : bus_(&bus), catalog_(&catalog), operators_(&operators), voice_(&voice),
-          manager_(manager), answers_(&answers), path_of_(std::move(path_of)),
-          settled_(std::move(settled)), awaiting_(std::move(awaiting)),
-          stage_(std::move(stage)), promote_(std::move(promote)),
-          installed_(std::move(installed)) {
-        voice_->wakes(this);
-    }
+    /// Made with everything it uses: the bus it sends its loads on as itself, the catalog and the
+    /// operator surface a row mounts into and offers, the Weave Manager it asks, and the host's
+    /// rules (`mount` makes one and puts it on the bus).
+    Owner(loom::Switchboard& bus, op::Catalog& catalog, const op::OperatorHostSurface& operators,
+          loom::WeaveId manager, ArtifactPath path_of, Settled settled = Settled(),
+          AwaitingBuild awaiting = AwaitingBuild(), StageArtifact stage = StageArtifact(),
+          PromoteImage promote = PromoteImage(), Installed installed = Installed())
+        : bus_(&bus), catalog_(&catalog), operators_(&operators), manager_(manager),
+          path_of_(std::move(path_of)), settled_(std::move(settled)),
+          awaiting_(std::move(awaiting)), stage_(std::move(stage)), promote_(std::move(promote)),
+          installed_(std::move(installed)) {}
 
-    PlanExecutor(const PlanExecutor&) = delete;
-    PlanExecutor& operator=(const PlanExecutor&) = delete;
-    PlanExecutor(PlanExecutor&&) = delete;
-    PlanExecutor& operator=(PlanExecutor&&) = delete;
+    Owner(const Owner&) = delete;
+    Owner& operator=(const Owner&) = delete;
+    Owner(Owner&&) = delete;
+    Owner& operator=(Owner&&) = delete;
 
-    /// Release what a row may still hold, in the safe order: the booter's pointer to this (the bus
-    /// outlives this object), the operator offer (its image share goes before the Kernel unloads),
-    /// then an ask that will never be resumed is forgotten, locally. The catalog is not unwound.
-    ~PlanExecutor() {
-        if (voice_ != nullptr) {
-            voice_->wakes(nullptr);
-        }
+    /// Release what a row may still hold, in the safe order: the operator offer (its image share
+    /// goes before the Kernel unloads), then an ask that will never be resumed is forgotten,
+    /// locally. The catalog is not unwound.
+    ~Owner() override {
         offer_.reset();
-        if (answers_->awaiting()) {
-            answers_->stopped_waiting();
+        if (answers_.awaiting()) {
+            answers_.stopped_waiting();
         }
     }
+
+    // ---- What it hears ---------------------------------------------------------------
+
+    /// A build produced an artifact and the weaver offered it: realize it, and say what came of
+    /// it -- a refusal as loudly as an acceptance, both as `ArtifactRealized`, after
+    /// `RealizationAsked`. A weave row is still loading here, and its answer is published later
+    /// from the load's settling path, naming this ask.
+    void on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail) {
+        const Asked asked = realize(offer.artifact, offer.recipe);
+        const std::int64_t number = heard(offer.artifact, zengine::builder::realization_act::kOffer,
+                                          asked.started, asked.refusal, mail);
+        if (!asked.started) {
+            (void)mail.publish(zengine::builder::ArtifactRealized{
+                offer.artifact, false, asked.refusal, default_image_of(offer.artifact), 0});
+            return;
+        }
+        in_flight_ = number;
+        say_realized(mail);
+    }
+
+    /// The weaver asked for the running image to become the one a restart loads: a promotion is
+    /// synchronous, so its answer names its ask in the same delivery.
+    void on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail) {
+        const Promoted done = promote(ask.artifact);
+        const std::int64_t number =
+            heard(ask.artifact, zengine::builder::realization_act::kPromote, true, std::string(),
+                  mail);
+        (void)mail.publish(
+            zengine::builder::ArtifactPromoted{ask.artifact, done.ok, done.detail, number});
+    }
+
+    /// The weaver asked for the image before the last reload to run again. A revert is a reload:
+    /// an accepted one is answered later from the `Ack` path, naming its ask; a refusal now.
+    void on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail) {
+        const Asked asked = revert(ask.artifact);
+        const std::int64_t number = heard(ask.artifact, zengine::builder::realization_act::kRevert,
+                                          asked.started, asked.refusal, mail);
+        if (!asked.started) {
+            (void)mail.publish(zengine::builder::ArtifactRealized{
+                ask.artifact, false, asked.refusal, default_image_of(ask.artifact), 0});
+            return;
+        }
+        in_flight_ = number;
+    }
+
+    void on(const loom::Result& r, loom::Mail& mail) {
+        if (!settles(mail)) {
+            return;
+        }
+        answers_.answered = true;
+        answers_.refused = false;
+        // `zen.Result` carries text; one this host cannot parse is still an answer, just not a
+        // WeaveId anybody may quote.
+        answers_.weave = 0;
+        try {
+            answers_.weave = static_cast<std::uint64_t>(std::stoull(r.value));
+        } catch (...) {
+            answers_.weave = 0;
+        }
+        answers_.settled();
+        woke(mail);
+    }
+
+    void on(const loom::Ack&, loom::Mail& mail) {
+        if (!settles(mail)) {
+            return;
+        }
+        answers_.answered = true;
+        answers_.refused = false;
+        answers_.settled();
+        woke(mail);
+    }
+
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (!settles(mail)) {
+            return;
+        }
+        answers_.answered = true;
+        answers_.refused = true;
+        answers_.reason = r.reason;
+        answers_.settled();
+        woke(mail);
+    }
+
+    /// What this owner heard about the load it last asked for: the one conversation it holds.
+    /// A rig drives the answer path by hand through it.
+    BootAnswers& answers() noexcept { return answers_; }
+    const BootAnswers& answers() const noexcept { return answers_; }
 
     // ---- Beginning, and continuing ---------------------------------------------
 
@@ -601,7 +589,8 @@ public:
     /// that needs a fact not here yet. By value, because the owner outlives the expression that
     /// started it; this copy is the authored half the projection reads. A second call is refused.
     void begin(LoadPlan plan) {
-        if (state_ != Realization::Unstarted) {
+        const Telling told{*this};
+        if (where_ != Realization::Unstarted) {
             return;
         }
         plan_ = std::move(plan);
@@ -613,18 +602,19 @@ public:
             current_.stem = retired.stem;
             refusal_ = std::move(retired.refusal);
             refused_why_ = "is retired";
-            state_ = Realization::Failed;
+            where_ = Realization::Failed;
             announce();
             return;
         }
-        state_ = Realization::Advancing;
+        where_ = Realization::Advancing;
         advance();
     }
 
-    /// The load this owner asked for has settled: called by `PlanBooter` from that delivery,
-    /// never by a host. The booter already judged the arrival; with nothing outstanding, inert.
+private:
+    /// The load this owner asked for has settled: called from that delivery, once the arrival was
+    /// judged to settle it (`settles`); with nothing outstanding, inert.
     void answered() {
-        if (state_ != Realization::Loading) {
+        if (where_ != Realization::Loading) {
             return;
         }
         // A reload settles its own way: no row is judged, and the plan does not advance.
@@ -635,8 +625,8 @@ public:
         // The offer's custody ends here: after the load, before the row is judged or the next
         // row begins.
         offer_.reset();
-        if (answers_->refused) {
-            fail("weave load refused: " + answers_->reason);
+        if (answers_.refused) {
+            fail("weave load refused: " + answers_.reason);
             // A row that gave way tries its next artifact, on the same row.
             if (gave_way_) {
                 gave_way_ = false;
@@ -644,24 +634,25 @@ public:
                 return;
             }
             // An optional row that refused leaves the owner advancing: resume the walk here.
-            if (state_ == Realization::Advancing) {
+            if (where_ == Realization::Advancing) {
                 ++cursor_;
                 advance();
             }
             return;
         }
         current_.weave_loaded = true;
-        current_.weave = loom::WeaveId{answers_->weave};
+        current_.weave = loom::WeaveId{answers_.weave};
         // A row loaded from the plan runs from the plan's own file, the one a restart loads.
         current_.image = path_of_(current_.stem);
         current_.default_image = true;
         // One settling path, whoever asked: the frontier moves on by one.
         settled_row();
         ++cursor_;
-        state_ = Realization::Advancing;
+        where_ = Realization::Advancing;
         advance();
     }
 
+public:
     // ---- Realizing THE waiting row, because a weaver asked --------------------------
 
     /// What asking for one row came to at once: `started` false means nothing moved and `refusal`
@@ -676,7 +667,8 @@ public:
     /// frontier -- any other row is refused by the name of the row in front of it. An ineligible
     /// ask changes nothing and fails nothing. The recipe only reaches the host's staging rule.
     Asked realize(const std::string& stem, const std::string& recipe = std::string()) {
-        if (state_ != Realization::Waiting && state_ != Realization::Complete) {
+        const Telling told{*this};
+        if (where_ != Realization::Waiting && where_ != Realization::Complete) {
             return Asked{false, why_not_asked_now()};
         }
         for (std::size_t i = 0; i < resolved_.size(); ++i) {
@@ -697,7 +689,7 @@ public:
                                     "own plan can say how it participates"};
         }
         // The refusal names the row in front: that is what a weaver can act on.
-        if (state_ != Realization::Waiting) {
+        if (where_ != Realization::Waiting) {
             return Asked{false, "artifact '" + stem +
                                     "' is not waiting to be realized in this run"};
         }
@@ -718,10 +710,10 @@ public:
             }
         }
         on_demand_ = true;
-        state_ = Realization::Advancing;
+        where_ = Realization::Advancing;
         perform_row(cursor_);
         // A row with no weave intent is already over: the walk resumes before this returns.
-        if (state_ == Realization::Advancing) {
+        if (where_ == Realization::Advancing) {
             ++cursor_;
             advance();
         }
@@ -733,7 +725,8 @@ public:
     /// Run the image before the last reload again: a reload from `previous`, same shapes by
     /// construction. Refused in words with no previous image, or whenever a reload would be.
     Asked revert(const std::string& stem) {
-        if (state_ != Realization::Waiting && state_ != Realization::Complete) {
+        const Telling told{*this};
+        if (where_ != Realization::Waiting && where_ != Realization::Complete) {
             return Asked{false, why_not_asked_now()};
         }
         for (std::size_t i = 0; i < resolved_.size(); ++i) {
@@ -759,7 +752,8 @@ public:
     /// reload is the plan's file, the host keeps those bytes aside (`kept`), so a revert still runs
     /// the code the weaver had.
     Promoted promote(const std::string& stem) {
-        if (state_ != Realization::Waiting && state_ != Realization::Complete) {
+        const Telling told{*this};
+        if (where_ != Realization::Waiting && where_ != Realization::Complete) {
             return Promoted{false, why_not_asked_now(), std::string()};
         }
         for (ResolvedArtifact& done : resolved_) {
@@ -814,8 +808,9 @@ public:
     /// frontier; any other state refuses. Nothing here writes a file (`workshop/authoring.hpp`).
     // WL-AUTH-03 -- agents/workshop/authoring.md
     Appended append(ArtifactIntent row) {
-        if (state_ == Realization::Unstarted || state_ == Realization::Failed ||
-            state_ == Realization::Loading || state_ == Realization::Advancing) {
+        const Telling told{*this};
+        if (where_ == Realization::Unstarted || where_ == Realization::Failed ||
+            where_ == Realization::Loading || where_ == Realization::Advancing) {
             return Appended{false, why_not_asked_now(), std::string()};
         }
         LoadPlan candidate = plan_;
@@ -826,12 +821,12 @@ public:
         }
         plan_ = std::move(candidate);
         const std::string& stem = plan_.artifacts.back().stem;
-        if (state_ == Realization::Waiting) {
+        if (where_ == Realization::Waiting) {
             return Appended{true, std::string(),
                             "authored behind '" + waiting_on() + "', which the project is waiting on"};
         }
         // COMPLETE: the cursor rests at the old end, which is exactly the new row.
-        state_ = Realization::Advancing;
+        where_ = Realization::Advancing;
         advance();
         std::string said;
         switch (state_of(stem)) {
@@ -871,6 +866,7 @@ public:
     // WL-SWITCH-02 -- agents/workshop/editor-switch.md
     Recorded record_choice_holder(const std::string& role, const std::string& stem,
                                   loom::WeaveId weave, const std::string& image) {
+        const Telling told{*this};
         bool authored = false;
         for (const ChoiceIntent& c : plan_.choices) {
             authored = authored || (c.role == role && c.stem == stem);
@@ -878,7 +874,7 @@ public:
         if (!authored) {
             return Recorded{false, "this project authors no choice '" + stem + "' for " + role};
         }
-        if (state_ == Realization::Loading || state_ == Realization::Advancing) {
+        if (where_ == Realization::Loading || where_ == Realization::Advancing) {
             return Recorded{false, why_not_asked_now()};
         }
         // Every row not holding the role now names where it went, one an earlier switch left too.
@@ -956,7 +952,7 @@ public:
     /// The row realization is waiting on, or empty: derived from the cursor, never stored.
     const std::string& waiting_on() const noexcept {
         static const std::string kNone;
-        return state_ == Realization::Waiting && cursor_ < plan_.artifacts.size()
+        return where_ == Realization::Waiting && cursor_ < plan_.artifacts.size()
                    ? plan_.artifacts[cursor_].stem
                    : kNone;
     }
@@ -964,7 +960,7 @@ public:
     /// How many authored rows are behind the waiting row (0 when none), derived from the cursor so
     /// a presentation needs no copy of the plan.
     std::size_t behind() const noexcept {
-        return state_ == Realization::Waiting && cursor_ < plan_.artifacts.size()
+        return where_ == Realization::Waiting && cursor_ < plan_.artifacts.size()
                    ? plan_.artifacts.size() - cursor_ - 1
                    : 0;
     }
@@ -992,7 +988,7 @@ public:
     }
 
     /// How far realization has got with the plan as a whole.
-    Realization state() const noexcept { return state_; }
+    Realization state() const noexcept { return where_; }
 
     /// WHICH AUTHORED ROW REALIZATION IS AT: the index of the row in flight, or the
     /// row that refused, or `plan().artifacts.size()` once every row has resolved.
@@ -1003,11 +999,11 @@ public:
     RowState state_of(const std::string& stem) const noexcept {
         // Reloading first: the row is resolved and a conversation about it is open.
         if (reloading_.has_value() && resolved_[*reloading_].stem == stem &&
-            state_ == Realization::Loading) {
+            where_ == Realization::Loading) {
             return RowState::Reloading;
         }
         // Loading next: a row a weaver asked for is the row the cursor is still on.
-        if (current_.stem == stem && state_ == Realization::Loading) {
+        if (current_.stem == stem && where_ == Realization::Loading) {
             return RowState::Loading;
         }
         for (const ResolvedArtifact& done : resolved_) {
@@ -1015,7 +1011,7 @@ public:
                 return done.switched_to.empty() ? RowState::Resolved : RowState::Switched;
             }
         }
-        if (current_.stem == stem && state_ == Realization::Failed) {
+        if (current_.stem == stem && where_ == Realization::Failed) {
             return RowState::Refused;
         }
         for (const SteppedOver& gone : stepped_over_) {
@@ -1037,16 +1033,16 @@ public:
                 return gone.why;
             }
         }
-        if (state_ == Realization::Failed && current_.stem == stem) {
+        if (where_ == Realization::Failed && current_.stem == stem) {
             return refused_why_;
         }
         return std::string();
     }
 
     /// The correlation of the load conversation currently outstanding, or 0.
-    std::uint64_t asking() const noexcept { return answers_->asking(); }
+    std::uint64_t asking() const noexcept { return answers_.asking(); }
 
-    /// What this executor has actually put into the runtime, in the order it did.
+    /// What this owner has actually put into the runtime, in the order it did.
     const std::vector<ResolvedArtifact>& resolved() const noexcept { return resolved_; }
 
     /// WHICH ARTIFACT STOPPED THE PLAN AND WHY, in the deepest layer's own words.
@@ -1057,7 +1053,7 @@ public:
     /// loading plan and a waiting one both answer false, the waiting one with a named `waiting_on`.
     Executed outcome() const {
         Executed out;
-        out.ok = state_ == Realization::Complete;
+        out.ok = where_ == Realization::Complete;
         out.refusal = refusal_;
         out.resolved = resolved_;
         out.waiting_on = waiting_on();
@@ -1098,7 +1094,7 @@ private:
     /// begin until row N settled -- which is what makes an overlay's catalog order deterministic --
     /// and a waiting row stops the walk.
     void advance() {
-        while (state_ == Realization::Advancing && cursor_ < plan_.artifacts.size()) {
+        while (where_ == Realization::Advancing && cursor_ < plan_.artifacts.size()) {
             // A ROW'S ARTIFACT THIS INSTALLATION DOES NOT HOLD gives way to the next it names,
             // unsaid, before anything is asked of it.
             ArtifactIntent& row = plan_.artifacts[cursor_];
@@ -1108,7 +1104,7 @@ private:
             // Asked before anything is mounted or commanded. A yes stops the walk: the rows behind
             // stay `Authored`, and `realize` is the only door past this line.
             if (awaiting_ && awaiting_(plan_.artifacts[cursor_].stem)) {
-                state_ = Realization::Waiting;
+                where_ = Realization::Waiting;
                 // Told last, with the cursor and the state already settled.
                 announce();
                 return;
@@ -1118,18 +1114,18 @@ private:
                 gave_way_ = false; // the row's next artifact, on the same row
                 continue;
             }
-            if (state_ == Realization::Advancing) {
+            if (where_ == Realization::Advancing) {
                 ++cursor_;
             }
         }
-        if (state_ == Realization::Advancing) {
+        if (where_ == Realization::Advancing) {
             complete();
         }
     }
 
     /// Perform one authored row as far as this process can take it now: mount, offer, load, in
     /// that order for both callers, because the order within one artifact is semantic law. On
-    /// return `state_` is `Advancing` (settled), `Loading`, `Failed` or `Waiting` (an on-demand
+    /// return `where_` is `Advancing` (settled), `Loading`, `Failed` or `Waiting` (an on-demand
     /// refusal, which leaves the frontier where the ask found it).
     void perform_row(std::size_t index) {
         {
@@ -1171,7 +1167,7 @@ private:
                 return;
             }
 
-            const std::uint64_t correlation = answers_->ask(manager_);
+            const std::uint64_t correlation = answers_.ask(manager_);
             if (correlation == 0) {
                 // No conversation, so no command: an answer this host could not recognize would
                 // leave the row `Loading` forever.
@@ -1181,18 +1177,18 @@ private:
                      "commanded");
                 return;
             }
-            const loom::WeaveId booter = voice_->speaker();
+            const loom::WeaveId me = self_;
             const std::string& role = artifact.weave->role;
-            bus_->send_as(booter, manager_,
+            bus_->send_as(me, manager_,
                           loom::Message(loom::to_value(loom::LoadWeave{artifact.stem, path,
                                                                        std::vector<std::string>(
                                                                            role.empty() ? 0U : 1U,
                                                                            role)}),
-                                        booter, booter, correlation));
+                                        me, me, correlation));
             // The boundary: the command is queued and nothing has delivered it. The host's loop
             // does, and the Manager's answer wakes `answered()`; turning the bus here is the defect
             // this owner exists to avoid.
-            state_ = Realization::Loading;
+            where_ = Realization::Loading;
             return;
         }
     }
@@ -1230,7 +1226,7 @@ private:
     }
 
     /// Open the one reload conversation over `path`: the three moves a load makes -- the offer,
-    /// the conversation, the command sent as the booter -- then return; `answered()` settles it.
+    /// the conversation, the command sent as this owner -- then return; `answered()` settles it.
     Asked open_reload(std::size_t index, const std::string& path, bool revert) {
         const std::string& stem = resolved_[index].stem;
         offer_.emplace(*operators_, path);
@@ -1241,7 +1237,7 @@ private:
             return Asked{false, why};
         }
         const std::uint64_t correlation =
-            answers_->ask(manager_, loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version);
+            answers_.ask(manager_, loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version);
         if (correlation == 0) {
             offer_.reset();
             return Asked{false, "artifact '" + stem +
@@ -1249,15 +1245,15 @@ private:
                                     "this host was given as its Weave Manager; nothing was "
                                     "reloaded"};
         }
-        const loom::WeaveId booter = voice_->speaker();
-        bus_->send_as(booter, manager_,
-                      loom::Message(loom::to_value(loom::ReloadWeave{stem, path}), booter, booter,
+        const loom::WeaveId me = self_;
+        bus_->send_as(me, manager_,
+                      loom::Message(loom::to_value(loom::ReloadWeave{stem, path}), me, me,
                                     correlation));
         reloading_ = index;
         reload_path_ = path;
         reverting_ = revert;
-        resume_ = state_;
-        state_ = Realization::Loading;
+        resume_ = where_;
+        where_ = Realization::Loading;
         return Asked{true, std::string()};
     }
 
@@ -1268,9 +1264,9 @@ private:
         const op::OfferOutcome offer = offer_.has_value() ? offer_->outcome()
                                                           : op::OfferOutcome::NotAConsumer;
         offer_.reset();
-        if (answers_->refused) {
+        if (answers_.refused) {
             realized_ = Realized{true, row.stem, false,
-                                 reload_refusal_words(row.stem, answers_->reason),
+                                 reload_refusal_words(row.stem, answers_.reason),
                                  row.default_image};
         } else {
             row.previous = row.image;
@@ -1295,7 +1291,7 @@ private:
         reloading_.reset();
         reload_path_.clear();
         reverting_ = false;
-        state_ = resume_;
+        where_ = resume_;
     }
 
     /// The current row participated in full; kept in authored order. It does not move the cursor:
@@ -1323,10 +1319,10 @@ private:
 
     /// Why an ask cannot be answered right now, for the three states not between rows.
     std::string why_not_asked_now() const {
-        if (state_ == Realization::Unstarted) {
+        if (where_ == Realization::Unstarted) {
             return "realization has not begun";
         }
-        if (state_ == Realization::Failed) {
+        if (where_ == Realization::Failed) {
             return "this project's realization stopped at a refusal and is not "
                    "performing any further rows";
         }
@@ -1350,7 +1346,7 @@ private:
                 PassedOver{row.stem, row.otherwise.front().stem, passed_over_words(why)});
             take_next_alternative(row);
             current_ = ResolvedArtifact{};
-            state_ = Realization::Advancing;
+            where_ = Realization::Advancing;
             gave_way_ = true;
             return;
         }
@@ -1362,26 +1358,26 @@ private:
             plan_.artifacts[cursor_].optional) {
             stepped_over_.push_back(SteppedOver{current_.stem, why});
             current_ = ResolvedArtifact{};
-            state_ = Realization::Advancing;
+            where_ = Realization::Advancing;
             return;
         }
         if (on_demand_) {
             realized_ = Realized{true, current_.stem, false, said};
             on_demand_ = false;
             current_ = ResolvedArtifact{};
-            state_ = Realization::Waiting;
+            where_ = Realization::Waiting;
             return;
         }
         refusal_ = said;
         refused_why_ = why;
-        state_ = Realization::Failed;
+        where_ = Realization::Failed;
         announce();
     }
 
     /// Every authored row settled -- performed, or optional and recorded `Unavailable` -- reached
     /// only by the walk running off the end. A fact about realization, not the process.
     void complete() {
-        state_ = Realization::Complete;
+        where_ = Realization::Complete;
         announce();
     }
 
@@ -1393,14 +1389,114 @@ private:
         }
     }
 
+    // ---- what it says, and what it claims -----------------------------------------------------
+
+    /// The one door all three answer shapes pass through: a wall on two of three is no wall. An
+    /// arrival that does not settle this load is left alone -- not refused, not recorded.
+    bool settles(const loom::Mail& mail) const {
+        return answers_.settles(mail.correlation(), mail.sender());
+    }
+
+    /// An answer settled the load in flight: move the walk on, then announce a row a weaver asked
+    /// for once, as the answer to the ask in flight -- it holds one realization conversation at a
+    /// time.
+    void woke(loom::Mail& mail) {
+        const Telling told{*this};
+        answered();
+        say_realized(mail);
+    }
+
+    /// The last on-demand realization's answer, published naming the ask in flight, when there is
+    /// one to say.
+    void say_realized(loom::Mail& mail) {
+        const Realized settled = take_realization();
+        if (!settled.settled) {
+            return;
+        }
+        (void)mail.publish(zengine::builder::ArtifactRealized{
+            settled.stem, settled.realized, settled.detail, settled.default_image, in_flight_});
+        in_flight_ = 0;
+    }
+
+    /// SAY WHAT BECAME OF ONE ASK before anything else about it (`RealizationAsked`): its number
+    /// when taken, minted here and never reused in this owner's life; 0 and why when not.
+    std::int64_t heard(const std::string& artifact, const char* act, bool taken,
+                       const std::string& refusal, loom::Mail& mail) {
+        const std::int64_t number = taken ? ++state_.asked : 0;
+        (void)mail.publish(
+            zengine::builder::RealizationAsked{artifact, act, number, taken, refusal});
+        return number;
+    }
+
+    /// WHERE THE PLAN IS, as the role claims it.
+    PlanWhere where_claimed() const {
+        PlanWhere out;
+        out.state = where_ == Realization::Complete ? kPlanComplete
+                    : where_ == Realization::Waiting ? kPlanWaiting
+                    : where_ == Realization::Failed  ? kPlanRefused
+                                                     : kPlanLoading;
+        out.waiting_on = waiting_on();
+        out.behind = static_cast<std::int64_t>(behind());
+        for (const SteppedOver& gone : stepped_over_) {
+            out.unavailable.push_back(gone.stem);
+        }
+        for (const PassedOver& gone : passed_over_) {
+            out.gave_way.push_back(gone.sentence());
+        }
+        for (const ArtifactIntent& row : plan_.artifacts) {
+            if (row.weave.has_value() && !row.weave->role.empty() &&
+                role_pending(row.weave->role)) {
+                bool named = false;
+                for (const std::string& role : out.to_come) {
+                    named = named || role == row.weave->role;
+                }
+                if (!named) {
+                    out.to_come.push_back(row.weave->role);
+                }
+            }
+        }
+        return out;
+    }
+
+    /// EVERY AUTHORED CHOICE, as the role claims it.
+    ChoicesHeld choices_claimed() const {
+        ChoicesHeld out;
+        for (const ChoiceIntent& c : plan_.choices) {
+            out.choices.push_back(ChoiceHeld{c.role, c.name, c.stem, image_of(c.stem),
+                                             choice_holder(c.role) == c.stem});
+        }
+        return out;
+    }
+
+    /// Claim what this owner knows, as its role, once it is on the bus: what an entry point
+    /// changed is claimed as it returns (`Telling`), so a reader dispatched after it reads it.
+    void tell() {
+        if (!self_.valid()) {
+            return;
+        }
+        (void)bus_->role_claim_as(self_, zengine::builder::kRealizationRole,
+                                  loom::to_value(where_claimed()));
+        (void)bus_->role_claim_as(self_, zengine::builder::kRealizationRole,
+                                  loom::to_value(choices_claimed()));
+    }
+
+    /// Claims at the end of the entry point that holds it, however that entry point returns.
+    struct Telling {
+        explicit Telling(Owner& told) noexcept : owner(told) {}
+        Owner& owner;
+        Telling(const Telling&) = delete;
+        Telling& operator=(const Telling&) = delete;
+        ~Telling() { owner.tell(); }
+    };
+
     loom::Switchboard* bus_;
     op::Catalog* catalog_;
     const op::OperatorHostSurface* operators_;
-    /// The participant that speaks and hears for this owner, never null: the constructor is the
-    /// only place the link is made.
-    PlanBooter* voice_;
     loom::WeaveId manager_;
-    BootAnswers* answers_;
+    /// What it heard about the load it last asked for: its one conversation.
+    BootAnswers answers_;
+    /// The taken ask whose answer is still owed; 0 when none is.
+    std::int64_t in_flight_ = 0;
     ArtifactPath path_of_;
     Settled settled_;
     /// The one question this owner cannot answer for itself. Empty means nothing waits.
@@ -1436,10 +1532,10 @@ private:
     /// constructs it in place and `reset()` withdraws it. Empty outside a load.
     std::optional<op::OperatorOffer> offer_;
     /// Where the whole plan is.
-    Realization state_ = Realization::Unstarted;
+    Realization where_ = Realization::Unstarted;
     /// Which artifact stopped it, and why.
     std::string refusal_;
-    /// What this executor has put into the runtime, in the order it did.
+    /// What this owner has put into the runtime, in the order it did.
     std::vector<ResolvedArtifact> resolved_;
 
     // ---- a row a weaver asked for ---------------------------------------------------------------
@@ -1463,72 +1559,52 @@ private:
     Realization resume_ = Realization::Complete;
 };
 
-/// Defined here because the owner it hands the fact to is declared above.
-inline void PlanBooter::wake(loom::Mail& mail) {
-    if (owner_ == nullptr) {
-        return;
+// ---- Mounting it ----------------------------------------------------------------
+
+/// THE OWNER ON THE BUS, held by the host that mounted it: the bus owns the participant, and this
+/// handle takes it off the bus when it goes, so the host declares it after the Kernel and the
+/// owner's operator offer goes before the Kernel unloads. Moved, never copied.
+class Mounted {
+public:
+    Mounted(loom::Switchboard& bus, loom::WeaveId id, Owner& owner) noexcept
+        : bus_(&bus), id_(id), owner_(&owner) {}
+    Mounted(const Mounted&) = delete;
+    Mounted& operator=(const Mounted&) = delete;
+    Mounted(Mounted&& other) noexcept
+        : bus_(std::exchange(other.bus_, nullptr)), id_(other.id_),
+          owner_(std::exchange(other.owner_, nullptr)) {}
+    Mounted& operator=(Mounted&&) = delete;
+    ~Mounted() {
+        if (bus_ != nullptr) {
+            (void)bus_->unregister_weave(id_);
+        }
     }
-    owner_->answered();
-    // A row a weaver asked for is announced once, as the answer to the ask that is in flight: the
-    // owner leaves the fact for one reader, and it holds one realization conversation at a time.
-    const PlanExecutor::Realized settled = owner_->take_realization();
-    if (settled.settled) {
-        realized(settled.stem, settled.realized, settled.detail, settled.default_image, mail);
-    }
+
+    /// The participant, as the host that mounted it reaches it: to begin the plan, and to ask
+    /// what a host alone asks.
+    Owner& owner() const noexcept { return *owner_; }
+    /// Which weave it is.
+    loom::WeaveId id() const noexcept { return id_; }
+
+private:
+    loom::Switchboard* bus_;
+    loom::WeaveId id_;
+    Owner* owner_;
+};
+
+/// PUT A REALIZATION OWNER ON `bus` in its role, under the grant its host writes -- its reach to
+/// the Weave Manager is the dangerous grant in the process, and an owner that granted itself would
+/// be orchestration minting kernel reach. `made` are the owner's own arguments after the bus.
+template <class... Made>
+Mounted mount(loom::Switchboard& bus, loom::Grant grant, Made&&... made) {
+    auto made_owner = std::make_unique<Owner>(bus, std::forward<Made>(made)...);
+    Owner& owner = *made_owner;
+    const loom::WeaveId id = bus.register_weave(std::move(made_owner), std::move(grant),
+                                                zengine::builder::kRealizationRole);
+    owner.zen_set_self(id);
+    return Mounted(bus, id, owner);
 }
 
-/// Put the Builder's offer to the owner and publish what it made of it -- a refusal as loudly as
-/// an acceptance, both as `ArtifactRealized`, after `RealizationAsked`. With no owner wired this
-/// says nothing. A weave row is still loading here, and its answer is published later from the
-/// load's settling path, naming this ask.
-inline void PlanBooter::on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail) {
-    if (owner_ == nullptr) {
-        return;
-    }
-    const PlanExecutor::Asked asked = owner_->realize(offer.artifact, offer.recipe);
-    const std::int64_t number = heard(offer.artifact, zengine::builder::realization_act::kOffer,
-                                      asked.started, asked.refusal, mail);
-    if (!asked.started) {
-        (void)mail.publish(zengine::builder::ArtifactRealized{
-            offer.artifact, false, asked.refusal, owner_->default_image_of(offer.artifact), 0});
-        return;
-    }
-    in_flight_ = number;
-    const PlanExecutor::Realized settled = owner_->take_realization();
-    if (settled.settled) {
-        realized(settled.stem, settled.realized, settled.detail, settled.default_image, mail);
-    }
-}
+} // namespace zengine::realization
 
-/// Ask the owner, publish what it said: a promotion is synchronous, so its answer names its ask in
-/// the same delivery.
-inline void PlanBooter::on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail) {
-    if (owner_ == nullptr) {
-        return;
-    }
-    const PlanExecutor::Promoted done = owner_->promote(ask.artifact);
-    const std::int64_t number =
-        heard(ask.artifact, zengine::builder::realization_act::kPromote, true, std::string(), mail);
-    (void)mail.publish(zengine::builder::ArtifactPromoted{ask.artifact, done.ok, done.detail, number});
-}
-
-/// A revert is a reload: an accepted one is answered later from the `Ack` path, naming its ask; a
-/// refusal now.
-inline void PlanBooter::on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail) {
-    if (owner_ == nullptr) {
-        return;
-    }
-    const PlanExecutor::Asked asked = owner_->revert(ask.artifact);
-    const std::int64_t number = heard(ask.artifact, zengine::builder::realization_act::kRevert,
-                                      asked.started, asked.refusal, mail);
-    if (!asked.started) {
-        (void)mail.publish(zengine::builder::ArtifactRealized{
-            ask.artifact, false, asked.refusal, owner_->default_image_of(ask.artifact), 0});
-        return;
-    }
-    in_flight_ = number;
-}
-
-} // namespace zengine::workshop::load
-
-#endif // ZENGINE_WORKSHOP_LOAD_EXECUTE_HPP
+#endif // ZENGINE_REALIZATION_OWNER_HPP

@@ -234,6 +234,7 @@ TEST_CASE("a choice whose recipe is gone is released, not inherited") {
     // before `two` left is no pick between the two.
     b.frontier.waiting = true;
     b.frontier.artifact = "b";
+    b.claim_frontier();
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
     b.letter(input::scan::kF, "f");
@@ -403,6 +404,7 @@ TEST_CASE("a recipe making its pane native and boxed is a row for each, and `b` 
     b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
     b.frontier.waiting = true;
     b.frontier.artifact = "tally.wasm";
+    b.claim_frontier();
     b.letter(input::scan::kF, "f");
     REQUIRE(b.tool->asked.size() == 2);
     CHECK(b.tool->asked[1] == "tally");
@@ -555,12 +557,14 @@ TEST_CASE("the frontier row comes from the host's read-only door") {
     b.frontier.waiting = true;
     b.frontier.artifact = "zengine-snake";
     b.frontier.blocked = 3;
+    b.claim_frontier();
     b.open();
 
     CHECK(b.text().find("waiting zengine-snake (snake, blocks 3)") != std::string::npos);
 
     // NOT WAITING IS THE ABSENCE OF THE ROW, not a row saying nothing is blocked.
     b.frontier = ProjectFrontier{};
+    b.claim_frontier();
     b.tool_says(); // any settled status re-asks the frontier
     CHECK(b.text().find("waiting ") == std::string::npos);
 }
@@ -570,6 +574,7 @@ TEST_CASE("`f` builds and realizes the one recipe that makes the frontier") {
     b.tool->catalog = catalog_of({{"one", "a"}, {"snake", "zengine-snake"}});
     b.frontier.waiting = true;
     b.frontier.artifact = "zengine-snake";
+    b.claim_frontier();
     b.open();
 
     b.letter(input::scan::kF, "f");
@@ -593,12 +598,14 @@ TEST_CASE("`f` refuses in words, and never chooses between recipes") {
     // WAITING ON SOMETHING NO RECIPE PRODUCES.
     b.frontier.waiting = true;
     b.frontier.artifact = "zengine-nothing";
+    b.claim_frontier();
     b.letter(input::scan::kF, "f");
     CHECK(b.text().find("no authored recipe produces") != std::string::npos);
     CHECK(b.tool->asked.empty());
 
     // SEVERAL PRODUCE IT: named and counted, and the pick left to the weaver.
     b.frontier.artifact = "a";
+    b.claim_frontier();
     b.letter(input::scan::kF, "f");
     CHECK(b.text().find("2 recipes produce") != std::string::npos);
     CHECK(b.tool->asked.empty());
@@ -615,6 +622,7 @@ TEST_CASE("the recipe `f` took as the one producer carries no pick of another re
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.frontier.waiting = true;
     b.frontier.artifact = "a";
+    b.claim_frontier();
     b.open();
 
     b.letter(input::scan::kC, "c"); // an explicit pick: `two`, which does not produce `a`
@@ -871,7 +879,7 @@ TEST_CASE("the package links no kernel and mounts nothing") {
     CHECK(cmake.find("target_link_libraries(zengine-builder-pane PRIVATE loom::kernel") ==
           std::string::npos); // ...and does not link it
     const std::string source = file_source(BUILDER_PANE_SOURCE);
-    for (const char* forbidden : {"PlanExecutor", "load_execute", "OfferArtifact", "RunBuild",
+    for (const char* forbidden : {"realization/owner.hpp", "realization::Owner", "OfferArtifact", "RunBuild",
                                   "kBuildRunnerRole", "HostContext", "Session&"}) {
         CHECK_MESSAGE(source.find(forbidden) == std::string::npos, "the pane names '",
                       forbidden, "'");
@@ -2635,6 +2643,7 @@ TEST_CASE("a guest without build is refused b, B, f and load-built in words on e
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.frontier.waiting = true;
     b.frontier.artifact = "zengine-snake";
+    b.claim_frontier();
     b.open(240, 60, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
            /*with_presenter=*/true);
     guest_hand::GuestHand g(b.r, {"input"}, development);
@@ -2861,6 +2870,7 @@ TEST_CASE("the weaver's f, and the role line's commit then build, stand with a k
         b.tool->catalog = catalog_of({{"one", "a"}, {"snake", "zengine-snake"}});
         b.frontier.waiting = true;
         b.frontier.artifact = "zengine-snake";
+        b.claim_frontier();
         b.open();
         REQUIRE(b.r.kernel.weave_id(pane::kBuilderPaneStem).value != 0);
         BetweenBeats beats(b, ProjectFrontierRequested::zen_name, ProjectFrontierSaid::zen_name);
@@ -3402,6 +3412,7 @@ enum class Standing { kBuilt, kRealized };
 void builder_in(BuilderRig& b, const std::string& mode, Standing standing) {
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.frontier = ProjectFrontier{true, "tally", 0};
+    b.claim_frontier();
     b.next_source.source = (b.root / "tally.cpp").generic_string();
     b.open();
     b.author_height(40, 160, 48);

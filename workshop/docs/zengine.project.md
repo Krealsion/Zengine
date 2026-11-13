@@ -18,7 +18,7 @@ recipe file in force is the list the Builder builds from
 ([the recipe file](../../builder/docs/recipes.md)); every judgement about a file's bytes and a
 recipe's fields is the recipe owner's. The *load plan* says which artifacts a project runs and as
 what ([choosing what a run is made of](load-plans.md)); a row added to it goes first to the running
-project, whose realization owner, [`zengine.realization`](zengine.realization.md), takes it or
+project, whose realization owner, [`zengine.realization`](../../realization/docs/zengine.realization.md), takes it or
 refuses it, and only a row it took is written to the file. The role passes on what was asked
 and answers with what came of it, in the owner's own words, never reworded; a refused act leaves
 the project exactly as it was.
@@ -140,7 +140,7 @@ in [the recipe file](../../builder/docs/recipes.md)'s format. A plan row is writ
 
 ## See also
 
-- [`zengine.realization`](zengine.realization.md), which performs the plan.
+- [`zengine.realization`](../../realization/docs/zengine.realization.md), which performs the plan.
 - [`zengine.builder`](../../builder/docs/zengine.builder.md), which builds from the recipe file in
   force.
 - [Choosing what a run is made of](load-plans.md) and [the authored load plan](load-plan.md).

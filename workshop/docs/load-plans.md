@@ -258,7 +258,7 @@ The `Project` pane calls the waiting row `pending`, and every row behind it `aut
 ## When a built artifact is loaded again
 
 A build offered to the running project ([load after build](../../builder/docs/zengine.builder-pane.md#builderarm),
-or `f`) is decided by the realization owner, [`zengine.realization`](zengine.realization.md). A row
+or `f`) is decided by the realization owner, [`zengine.realization`](../../realization/docs/zengine.realization.md). A row
 that is **waiting** is realized: the product is copied into place and loaded. A row that is
 **already live** is **reloaded in place**:
 
@@ -296,7 +296,7 @@ An artifact that also supplies operators to the catalog is not reloaded, and a r
 provider has no weave to reload; both are refused in words.
 
 Every offer, promotion and revert the owner hears is numbered, and its answer names that number;
-[follow one](zengine.realization.md#follow) by it, since a status that reads `promoted:` may be an
+[follow one](../../realization/docs/zengine.realization.md#follow) by it, since a status that reads `promoted:` may be an
 older promotion's.
 
 ## What a plan cannot do

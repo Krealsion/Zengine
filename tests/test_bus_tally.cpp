@@ -2,14 +2,14 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // Suite `bus_tally`: the tally a host keeps of where its bus spends its time
-// (`workshop/bus_tally.hpp`), over a real bus and real handlers: each weave's handler time from
+// (`tally/bus_tally.hpp`), over a real bus and real handlers: each weave's handler time from
 // Loom's own stamps, and an input reaching its paint through the weave it reached.
 
 #include "doctest.h"
 
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "workshop/bus_tally.hpp"
+#include "tally/bus_tally.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -26,9 +26,9 @@
 namespace {
 
 namespace g = zengine::graphics;
-using zengine::workshop::BusTally;
-using zengine::workshop::HandlerRow;
-using zengine::workshop::PaintRow;
+using zengine::tally::BusTally;
+using zengine::tally::HandlerRow;
+using zengine::tally::PaintRow;
 
 struct TallyPing {
     std::int64_t n = 0;

@@ -670,7 +670,7 @@ TEST_CASE("weave: inventory loads unloads and loads fresh through the ordinary k
 
 namespace {
 
-/// The Weave Manager's caller, as Workshop's plan booter is: it loads and reloads the inventory
+/// The Weave Manager's caller, as Workshop's realization owner is: it loads and reloads the inventory
 /// through the Manager, so the image is told it is live (`zen.Activated`) as in a running Workshop.
 class Booter final : public loom::WeaveBase<Booter, PumpState,
                                             loom::Accept<loom::Result, loom::Ack, loom::Refused>,

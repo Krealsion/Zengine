@@ -713,8 +713,8 @@ TEST_CASE("the production host owns ONE catalog, and owns it for longer than the
 
     // ...and the ONE surface over it is handed to the thing that performs the plan, which makes
     // the shipped Timer host-backed in the shipped host. The mount/offer/load order is read in
-    // `load_execute.hpp` by `test_operator_provider.cpp`: this file names no artifact.
-    const std::size_t executor = host.find("load::PlanExecutor executor(");
+    // `realization/owner.hpp` by `test_operator_provider.cpp`: this file names no artifact.
+    const std::size_t executor = host.find("realization::mount(");
     REQUIRE(executor != std::string::npos);
     CHECK(kernel < executor);
     // ...and the surface is among the first things handed to it -- a SECOND find rather than
