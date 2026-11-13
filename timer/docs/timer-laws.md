@@ -66,7 +66,10 @@ time.
 MEANS
 - the letter is meaningful on the successor's clock, whatever epoch it runs;
 - writing the letter fires nothing, cancels nothing, advances nothing — being
-  asked to describe yourself is not an event in a schedule's life.
+  asked to describe yourself is not an event in a schedule's life;
+- the clock read is the host's wait's: a Timer the wait holds writes its letter
+  when the next wait hands it the time, and one no wait holds writes from its
+  last wake, the one time it has.
 
 DOES NOT MEAN
 - that deadlines are "preserved" as instants — a moving clock cannot cross as

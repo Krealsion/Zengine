@@ -83,7 +83,7 @@ class TimerWeave
                        loom::PrepareShutdown, loom::Bequest, loom::Refused, loom::DispatchRefused,
                        PrepareTimerHandover>,
           loom::Emit<TimerFired, TimerReady, TimerResolution, loom::Bequest, loom::ClaimBequest,
-                     TimerCandidatePrepared, TimerCandidateDeclined>,
+                     loom::Refused, TimerCandidatePrepared, TimerCandidateDeclined>,
           loom::WeaveBase, loom::Claims<loom::host::WaitSet>> {
 public:
     TimerWeave() = default;
@@ -194,6 +194,7 @@ public:
         if (mail.sender().valid() || !activation_.activated()) {
             return;
         }
+        waited_on_ = w.held;
         if (w.due) {
             ++this->state_.wakes;
             woke_ = true;
@@ -204,10 +205,12 @@ public:
             if (w.due && claim_open_ && ++bootstrap_wakes_ >= claim_budget_) {
                 resolve_bootstrap(mail, /*letter=*/nullptr); // nobody answered: fresh
             }
+            write_letters(mail);
             return;
         }
         anchor_waiting();
         fire_due(mail);
+        write_letters(mail);
     }
 
     void on(const StartTimer& s, loom::Mail& mail) {
@@ -239,16 +242,29 @@ public:
     }
 
     /// "You are being replaced; say what your heir should know": how far each schedule has got,
-    /// the one thing a re-ask cannot rebuild, measured from the last time this Timer was handed.
-    /// Nothing fires, cancels or advances. Answered to the stamped sender, with its correlation.
+    /// written at the time the next wait hands over (a time already past is claimed for it), after
+    /// what is due then fired; at once, from the last wake, where no wait holds this Timer or its
+    /// role has left it (a prepared replacement asks after its commit). Being asked fires, cancels
+    /// and advances nothing. Sent to the stamped sender under its correlation; past
+    /// `kMaxLettersHeld` waiting asks, refused in words (timer/docs/zengine.timer.md, About).
     void on(const loom::PrepareShutdown&, loom::Mail& mail) {
-        TimerHandoff handoff;
-        // The published bound, from the writing side.
-        handoff.entries = describe_table(kMaxHandoffEntries);
-        loom::Bequest letter;
-        letter.role = kTimerRole;
-        letter.items.push_back(loom::bequeath_item(handoff));
-        mail.send(mail.sender(), letter, mail.correlation());
+        const LetterAsk asked{mail.sender(), mail.correlation()};
+        if (!activation_.activated() || !waited_on_) {
+            write_letter(mail, asked);
+            return;
+        }
+        if (letters_due_.size() >= kMaxLettersHeld) {
+            mail.send(asked.to,
+                      loom::Refused{"this Timer already holds " + std::to_string(kMaxLettersHeld) +
+                                    " asks for its letter until the host's wait hands it the "
+                                    "time; ask again once one is answered"},
+                      asked.correlation);
+            return;
+        }
+        letters_due_.push_back(asked);
+        if (!claim_wait(mail)) {
+            write_letters(mail); // the role is not this Timer's: no wait will hand it a time
+        }
     }
 
     /// The steward's answer to our claim: a letter.
@@ -303,16 +319,12 @@ public:
         if (!activation_.activated()) {
             return;
         }
-        const std::optional<std::int64_t> until = wanted_until();
-        if (claimed_ && !woke_ && until == claimed_until_) {
+        if (claimed_ && !woke_ && wanted_until() == claimed_until_) {
             return;
         }
-        loom::host::WaitSet set;
-        set.until_ms = until;
-        (void)mail.as_role(kTimerRole).claim(set);
-        claimed_ = true;
-        claimed_until_ = until;
-        woke_ = false;
+        if (!claim_wait(mail) && !letters_due_.empty()) {
+            write_letters(mail); // the role left this Timer: no wait will hand it a time
+        }
     }
 
     /// The state a reload carries: the counters, and every standing timer as the letter describes
@@ -368,6 +380,12 @@ private:
         std::string fallback;
     };
 
+    /// An ask for the letter: whom it is written to, and the correlation it answers under.
+    struct LetterAsk {
+        loom::WeaveId to{};
+        std::uint64_t correlation = 0;
+    };
+
     /// Where this incarnation is in deciding what it inherited: awaiting from construction, not
     /// activation, so an operation arriving before the activation is held too -- it was sent
     /// after the fork point, and a fresh request beats inherited state for the same key.
@@ -384,9 +402,12 @@ private:
     enum class Preparation { None, Accepted, Declined };
 
     /// The time this Timer waits for, as its claim says it: a time already past while it must
-    /// learn the time (an entry waiting to be anchored, or a bootstrap counting wakes), else its
-    /// soonest deadline, else none.
+    /// learn the time (a letter waiting to be written, an entry waiting to be anchored, or a
+    /// bootstrap counting wakes), else its soonest deadline, else none.
     std::optional<std::int64_t> wanted_until() const {
+        if (!letters_due_.empty()) {
+            return kTimePast; // a letter waits for the time the next wait hands over
+        }
         if (bootstrap_ == Bootstrap::Awaiting) {
             return claim_open_ ? std::optional<std::int64_t>(kTimePast) : std::nullopt;
         }
@@ -494,6 +515,40 @@ private:
                                             e.delay_ms, e.repeat, left});
         }
         return out;
+    }
+
+    /// What this Timer waits for, claimed as its role, and recorded as claimed either way; false
+    /// when the claim is refused, the role not this Timer's.
+    bool claim_wait(loom::Mail& mail) {
+        const std::optional<std::int64_t> until = wanted_until();
+        loom::host::WaitSet set;
+        set.until_ms = until;
+        const bool accepted = static_cast<bool>(mail.as_role(kTimerRole).claim(set));
+        claimed_ = true;
+        claimed_until_ = until;
+        woke_ = false;
+        return accepted;
+    }
+
+    /// THE LETTER, to whoever asked for it, with its correlation: the table as it stands at the
+    /// time last handed.
+    void write_letter(loom::Mail& mail, const LetterAsk& asked) const {
+        TimerHandoff handoff;
+        // The published bound, from the writing side.
+        handoff.entries = describe_table(kMaxHandoffEntries);
+        loom::Bequest letter;
+        letter.role = kTimerRole;
+        letter.items.push_back(loom::bequeath_item(handoff));
+        mail.send(asked.to, letter, asked.correlation);
+    }
+
+    /// Every letter that waited for the time, written now that the wait handed it, in the order
+    /// asked.
+    void write_letters(loom::Mail& mail) {
+        for (const LetterAsk& asked : letters_due_) {
+            write_letter(mail, asked);
+        }
+        letters_due_.clear();
     }
 
     /// Letter records as timers due their remaining time after the next time handed, appended to
@@ -831,6 +886,9 @@ private:
     bool claimed_ = false;                 ///< a WaitSet has been claimed since activation
     std::optional<std::int64_t> claimed_until_; ///< the time that claim named
     bool woke_ = false;                         ///< a wake was taken since the last claim
+    bool waited_on_ = false; ///< the host's wait holds this Timer's claim, as it last said
+    std::vector<LetterAsk> letters_due_; ///< asks for the letter waiting for the time, at most
+                                         ///< `kMaxLettersHeld`
     Bootstrap bootstrap_ = Bootstrap::Awaiting; ///< open from construction; closed by the decision
     std::int64_t bootstrap_wakes_ = 0;          ///< wakes spent waiting for the claim's answer
     std::int64_t claim_budget_ = kBootstrapWakes; ///< how many that mode allows before it gives up

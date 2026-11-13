@@ -9,7 +9,7 @@ neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
 # Tripwires in this suite read examples/snake/play.cpp and examples/snake/world.cpp as text (VM-WALL-11).
 snake                             doctest           always  35
-timer                             doctest           always  87
+timer                             doctest           always  90
 # Tripwires in this suite read the SDL queue's reader as text: input/translate_sdl_core.hpp and
 # graphics/window/window_sdl_backend.hpp (VM-WALL-11).
 input                             doctest           always  59

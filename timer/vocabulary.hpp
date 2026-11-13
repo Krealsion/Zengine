@@ -236,6 +236,10 @@ inline constexpr std::size_t kMaxHandoffEntries = 32;
 /// (`deferred_dropped`), and an ordered request is refused with a receipt.
 inline constexpr std::size_t kMaxDeferredOps = 32;
 
+/// How many asks for its letter (`zen.PrepareShutdown`) the service holds until the host's wait
+/// hands it the time it writes them at; one past it is refused, in words.
+inline constexpr std::size_t kMaxLettersHeld = 4;
+
 /// The correlation on the service's one claim per activation: a conversation label, public and
 /// no secret. What makes an answer trustworthy is Loom's attestation (`Mail::answers_ask()`).
 inline constexpr std::uint64_t kClaimCorrelation = 0x71E5;

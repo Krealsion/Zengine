@@ -137,6 +137,7 @@ ZEN_SANITIZER_BUILD_PEAK_GB     tests/sanitizer_lane.cmake                ZEN_SA
 # ---- the Timer
 kPreparedClaimWakes             timer/vocabulary.hpp                      kPreparedClaimWakes
 kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHandoffEntries
+kMaxLettersHeld                 timer/vocabulary.hpp                      kMaxLettersHeld
 
 # ---- theme: a theme's files and a stack
 # What one theme's files hold and what one resolution and one stack may spend: each file's entries,

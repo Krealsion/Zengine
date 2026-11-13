@@ -29,11 +29,11 @@ predecessor or a reload, 0 for a fresh start) and `gone` (timers dropped because
 fire at is gone; a role's stay for its next holder).
 
 When the Timer is replaced, its standing timers cross to its successor as remaining durations in
-a letter, `TimerHandoff`, measured from the last time the wait handed it: two seconds left then
-is two seconds left when it lands, the time since that wake paused. A letter carries at most
+a letter, `TimerHandoff`, written at the time the next wait hands it, or at its last wake where no
+wait holds it: two seconds left then is two seconds left when it lands. A letter carries at most
 `kMaxHandoffEntries` timers, the first in table order; the rest start as after a hard replacement.
-Reloaded in place, it keeps its counters and every standing timer, carried in its state as
-remaining durations, and announces `TimerReady` again: an ask to preserve finds its timer there.
+Reloaded in place, it keeps its counters and its standing timers, as remaining durations from its
+last wake, and announces `TimerReady` again: an ask to preserve finds its timer there.
 Unloaded, its timers end with it.
 
 ## Use
@@ -179,13 +179,14 @@ the Timer is activated.
 
 The Timer says, unasked: `TimerReady` v1, once per activation after it has decided what it
 inherited; `TimerFired` v1, to the weave or role a timer names, each time it comes due;
-`TimerResolution` v1, to the sender of an ordered ask. Activated, it claims its predecessor's
-letter (`zen.ClaimBequest` to the Loom's manager role) and waits `kBootstrapWakes` wakes for it,
-or starts fresh at once when the bus refuses the claim (`zen.DispatchRefused`); a `TimerFired`
-the bus refuses for a weave that is gone drops that weave's timers. Asked `zen.PrepareShutdown`,
-it answers with a `zen.Bequest` holding `TimerHandoff` v1. After every wake, and whenever what it
-waits for changed, it claims `loom.host.WaitSet` v2 as the role: `until_ms`, its soonest timer's
-time, a time already past while it must learn the time, none when nothing stands.
+`TimerResolution` v1, to the sender of an ordered ask. Activated, it claims its predecessor's letter
+(`zen.ClaimBequest` to the Loom's manager role) and waits `kBootstrapWakes` wakes for it, or starts
+fresh at once when the bus refuses the claim (`zen.DispatchRefused`); a `TimerFired` the bus refuses
+for a weave that is gone drops that weave's timers. Asked `zen.PrepareShutdown`, it answers with a
+`zen.Bequest` holding `TimerHandoff` v1 once the next wait hands it the time, at once where no wait
+holds it, and past `kMaxLettersHeld` waiting asks with a `zen.Refused`. After every wake, and
+whenever what it waits for changed, it claims `loom.host.WaitSet` v2 as the role: `until_ms`, its
+soonest timer's time, a time already past while it must learn the time, none when nothing stands.
 
 ## See also
 

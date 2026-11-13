@@ -192,6 +192,8 @@ struct Letters {
     std::vector<loom::Bytes> items; ///< what a Letter answer hands over
     std::int64_t claims = 0;        ///< how many claims arrived
     std::vector<loom::Bytes> received; ///< letters the steward was given
+    std::vector<std::uint64_t> received_corr; ///< the correlation each letter came under
+    std::vector<std::string> refused;         ///< a predecessor's refusals to write, in words
     std::uint64_t last_claim_corr = 0;
 };
 
@@ -202,7 +204,7 @@ struct StewardState {
 
 class FakeSteward
     : public loom::WeaveBase<FakeSteward, StewardState,
-                             loom::Accept<loom::ClaimBequest, loom::Bequest>,
+                             loom::Accept<loom::ClaimBequest, loom::Bequest, loom::Refused>,
                              loom::Emit<loom::PrepareShutdown, loom::Bequest, loom::Refused>> {
 public:
     explicit FakeSteward(Letters& box) : box_(&box) {}
@@ -241,12 +243,15 @@ public:
         }
     }
 
-    /// The predecessor's answer to PrepareShutdown lands here.
-    void on(const loom::Bequest& letter, loom::Mail&) {
+    /// The predecessor's answer to PrepareShutdown lands here...
+    void on(const loom::Bequest& letter, loom::Mail& mail) {
         for (const loom::Bytes& item : letter.items) {
             box_->received.push_back(item);
+            box_->received_corr.push_back(mail.correlation());
         }
     }
+    /// ...or its refusal to write one.
+    void on(const loom::Refused& r, loom::Mail&) { box_->refused.push_back(r.reason); }
 
 private:
     Letters* box_;
@@ -336,19 +341,41 @@ struct FakeRig {
         return a.value().get(field)->as_int();
     }
 
-    /// Ask the service to write its letter, as the steward would, and decode it: the bus turned with
-    /// no wait between, so no time passes and nothing fires between the asks before it and it.
-    std::vector<TimerHandoffEntry> prepare_shutdown() {
+    /// Ask the service for its letter, as the steward would, under `correlation`: delivered in
+    /// this turn, the bus turned with no wait.
+    void ask_letter(std::uint64_t correlation = 77) {
         REQUIRE(steward.valid());
-        const std::size_t before = letters.received.size();
         bus.send_as(steward, service,
-                    loom::Message(loom::to_value(loom::PrepareShutdown{}), steward, steward, 77));
-        bus.drain_until_idle(); // delivered in this turn: no wake between the asks and the letter
-        REQUIRE(letters.received.size() == before + 1);
+                    loom::Message(loom::to_value(loom::PrepareShutdown{}), steward, steward,
+                                  correlation));
+        bus.drain_until_idle();
+    }
+
+    /// The last letter the steward was given, decoded.
+    std::vector<TimerHandoffEntry> last_letter() {
+        REQUIRE_FALSE(letters.received.empty());
         const std::optional<TimerHandoff> h =
             loom::claim_item<TimerHandoff>(letters.received.back());
         REQUIRE(h.has_value());
         return h->entries;
+    }
+
+    /// Ask the service to write its letter and decode it: the host's loop turned until it came,
+    /// which, under a wait that holds the Timer, is the next wait -- on this clock no time passes
+    /// there, since the Timer claims a time already past.
+    std::vector<TimerHandoffEntry> prepare_shutdown() {
+        const std::size_t before = letters.received.size();
+        ask_letter();
+        host_loop(bus, wait, clock, [&] { return letters.received.size() > before; });
+        REQUIRE(letters.received.size() == before + 1);
+        return last_letter();
+    }
+
+    /// The host's wait trusts the Timer's role no longer, and says so: from then no wait holds the
+    /// Timer, and a letter it is asked for is written at once.
+    void unwait() {
+        wait.distrust(kTimerRole);
+        bus.drain_until_idle();
     }
 
     /// Speak AS a weave (stamped sender, authorized against ITS grant) — how
@@ -1112,9 +1139,10 @@ std::int64_t interpreted_delay_with(zengine::op::Catalog operators, std::int64_t
     FakeRig r(std::move(operators));
     r.mount_steward(Letters::Answer::Refuse);
     r.run_wakes(3, /*start=*/true);
-    // Queued so the letter is written in the SAME turn the ask lands in, before any wake can
-    // fire and retire a one-shot that is already due. Same reason the due-or-overdue letter
-    // case queues its ask this way.
+    // No wait holds the Timer from here, so the letter is written in the SAME turn the ask lands
+    // in, before any wake can fire and retire a one-shot that is already due. Same reason the
+    // due-or-overdue letter case asks this way.
+    r.unwait();
     r.ask_as(r.ear, StartTimer{"probe", delay_ms, repeat});
     const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
     REQUIRE(offered.size() == 1);
@@ -2800,12 +2828,11 @@ TEST_CASE("letter: the predecessor describes every standing entry as a REMAINING
     CHECK(r.count("active") == active_before);
 }
 
-TEST_CASE("letter: what is left is measured from the last time the Timer was handed -- the time "
-          "since its last wake is paused, as replacement downtime is") {
-    // The Timer reads no clock: it knows the time the host's wait last handed it. Between wakes
-    // the host's clock moves and the Timer is told nothing, so a letter written then measures
-    // from that wake. Pinned as the behaviour it is, beside its bound: the gap is never longer
-    // than the time to the soonest deadline, since the wait wakes the Timer then.
+TEST_CASE("letter: at a replacement the Timer learns the time from the host's wait and writes its "
+          "letter then -- three seconds gone with no wake between leave two") {
+    // The Timer reads no clock. Asked for its letter between wakes, it claims a time already past,
+    // so the next wait hands it the time, and the letter is written at that time, under the
+    // asker's correlation, after what was due then fired.
     FakeRig r;
     r.mount_steward(Letters::Answer::Refuse);
     r.run_wakes(3, /*start=*/true);
@@ -2815,9 +2842,87 @@ TEST_CASE("letter: what is left is measured from the last time the Timer was han
     r.run_until(3000); // the clock moves; nothing is due, so nothing wakes the Timer
     REQUIRE(r.count("wakes") == wakes);
 
-    const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
+    // ASKED, NOT YET WRITTEN: the turn the ask lands in writes nothing...
+    r.ask_letter(41);
+    CHECK(r.letters.received.empty());
+    // ...the next wait hands the time, and the letter is written then.
+    host_loop(r.bus, r.wait, r.clock, [&] { return !r.letters.received.empty(); });
+    REQUIRE(r.letters.received.size() == 1);
+    CHECK(r.letters.received_corr.back() == 41);
+    CHECK(r.count("wakes") == wakes + 1);
+    const std::vector<TimerHandoffEntry> offered = r.last_letter();
     REQUIRE(offered.size() == 1);
-    CHECK(offered[0].remaining_ms == 5000); // from the time last handed, 0, not from 3000
+    CHECK(offered[0].remaining_ms == 2000); // from 3000, the time the wait handed
+    CHECK(r.count("fired") == 0);           // being asked fired nothing
+    CHECK(r.count("active") == 1);
+}
+
+TEST_CASE("letter: a Timer no wait holds writes at once, from its last wake -- the one time it has") {
+    // A host that runs no wait hands the Timer no time; its letter cannot wait for one, so it is
+    // written in the turn it is asked, from the last time handed, the gap since then paused. The
+    // gap is never longer than the time to the soonest deadline under a wait, which wakes it then.
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_wakes(3, /*start=*/true);
+    r.ask_as(r.ear, StartTimer{"far", 5000, false});
+    r.run_wakes(1); // anchored at 0, due at 5000
+    r.unwait();     // and from now no wait holds the Timer: it is told so
+    r.run_until(3000);
+    r.ask_letter();
+    REQUIRE(r.letters.received.size() == 1); // in the turn it was asked
+    const std::vector<TimerHandoffEntry> offered = r.last_letter();
+    REQUIRE(offered.size() == 1);
+    CHECK(offered[0].remaining_ms == 5000); // from the last wake, at 0, not from 3000
+}
+
+TEST_CASE("reload: the state a reload carries is measured from the last wake -- a reload gives the "
+          "Timer no turn first, so it has no other time") {
+    // Loom takes a reload's snapshot in the reload itself, with no delivery to the weave before
+    // it, so the Timer cannot ask the wait for the time as it does for a letter.
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_wakes(3, /*start=*/true);
+    r.ask_as(r.ear, StartTimer{"far", 5000, false});
+    r.run_wakes(1); // anchored at 0, due at 5000
+    r.run_until(3000);
+    loom::Unverified u = loom::parse(r.bus.snapshot_bytes(r.service));
+    loom::Admission a = loom::admit(u, loom::schema_of<TimerState>());
+    REQUIRE(a.ok());
+    const TimerState carried = loom::from_value<TimerState>(a.value());
+    REQUIRE(carried.standing.size() == 1);
+    CHECK(carried.standing[0].remaining_ms == 5000); // from the last wake, at 0
+}
+
+TEST_CASE("letter: a letter waiting for the time is written when the wait lets the Timer go, at the "
+          "time it says; asks past the bound are refused in words, and each is answered under "
+          "its own correlation") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_wakes(3, /*start=*/true);
+    r.ask_as(r.ear, StartTimer{"far", 5000, false});
+    r.run_wakes(1); // anchored at 0
+    r.run_until(1000);
+    // HELD, AND BOUNDED: as many asks as the Timer holds wait; one more is refused at once.
+    for (std::uint64_t i = 0; i < kMaxLettersHeld; ++i) {
+        r.ask_letter(100 + i);
+    }
+    CHECK(r.letters.received.empty());
+    CHECK(r.letters.refused.empty());
+    r.ask_letter(999);
+    REQUIRE(r.letters.refused.size() == 1);
+    CHECK(r.letters.refused[0].find("already holds " + std::to_string(kMaxLettersHeld) +
+                                    " asks for its letter") != std::string::npos);
+    CHECK(r.letters.received.empty());
+    // THE WAIT LETS THE TIMER GO before it wakes it: what it says carries the time, and every
+    // waiting letter is written at it, in the order asked.
+    r.unwait();
+    REQUIRE(r.letters.received.size() == kMaxLettersHeld);
+    for (std::uint64_t i = 0; i < kMaxLettersHeld; ++i) {
+        CHECK(r.letters.received_corr[i] == 100 + i);
+    }
+    const std::vector<TimerHandoffEntry> offered = r.last_letter();
+    REQUIRE(offered.size() == 1);
+    CHECK(offered[0].remaining_ms == 4000); // from 1000, the time the wait said last
 }
 
 TEST_CASE("letter: a due or overdue entry transfers with ZERO remaining, never a negative "
@@ -2826,9 +2931,10 @@ TEST_CASE("letter: a due or overdue entry transfers with ZERO remaining, never a
     r.mount_steward(Letters::Answer::Refuse);
     r.run_wakes(3, /*start=*/true);
 
-    // Queued so the letter is written in the SAME pump, before any beat can
-    // fire it: a schedule that is due right now is exactly the case an
-    // unguarded subtraction gets wrong.
+    // Asked where no wait holds the Timer, so the letter is written in the SAME turn, before any
+    // wake can fire it: a schedule that is due right now is exactly the case an unguarded
+    // subtraction gets wrong.
+    r.unwait();
     r.ask_as(r.ear, StartTimer{"due.now", 0, false});
     const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
     REQUIRE(offered.size() == 1);
