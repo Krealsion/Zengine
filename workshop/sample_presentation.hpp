@@ -154,10 +154,8 @@ inline std::string render_cell(const loom::Cell& cell, const std::string& label,
         // serialized value, and rendering them as base64 would be a codec's answer
         // to a person's question. The length is the one thing that is always true.
         return "(bytes, " + std::to_string(cell.as_bytes().size()) + " octets)";
-#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
     case loom::Kind::Union: // one case, rendered as a message of that one field
     case loom::Kind::Any:   // a cell holds a Message or a Union, never Any
-#endif
     case loom::Kind::Message: {
         const auto& nested = cell.as_message();
         if (nested == nullptr) {

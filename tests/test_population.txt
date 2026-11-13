@@ -115,7 +115,7 @@ configure_switches                script            always
 sanitizer_lane                    script            always
 flow                              doctest           always  82
 
-message_draft                     doctest           always  11
+message_draft                     doctest           always  13
 theme                             doctest           always  10
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always

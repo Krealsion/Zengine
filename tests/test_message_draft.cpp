@@ -288,3 +288,72 @@ TEST_CASE("field acquisition preserves empty kinds and checks even an empty list
     loom::Registry registry; registry.register_schema(changed);
     CHECK_THROWS(md::read_draft(md::store_draft("empty", draft), &registry));
 }
+
+namespace {
+// A union field: one of a leaf, a count, or a case that carries nothing.
+std::shared_ptr<const loom::Schema> pick() {
+    return loom::make_union("drafttest.Pick", 1,
+                            {loom::case_of("leaf", loom::type_message(leaf())),
+                             loom::case_of("count", loom::type_of(loom::Kind::Int)), loom::case_bare("none")});
+}
+std::shared_ptr<const loom::Schema> holder() {
+    return loom::SchemaBuilder("drafttest.Holder", 1).message("pick", pick()).build();
+}
+} // namespace
+
+TEST_CASE("a union field's draft holds one case: choosing another replaces it, and a bare case is chosen") {
+    md::Draft draft(holder());
+    const md::Path pick_path{std::string("pick")};
+    draft.create_message(pick_path);
+    CHECK(draft.get(pick_path) != nullptr);
+    CHECK(md::summary(draft.get(pick_path)) == "no case");
+    const auto errors = draft.errors();
+    REQUIRE(errors.size() == 1);
+    CHECK(errors.front().kind == loom::ErrorKind::NoCase);
+
+    draft.set_text({std::string("pick"), std::string("count")}, "7");
+    CHECK(md::summary(draft.get(pick_path)) == "count");
+    CHECK(draft.ready());
+    draft.create_message({std::string("pick"), std::string("leaf")});
+    CHECK(draft.get({std::string("pick"), std::string("count")}) == nullptr);
+    draft.set_text({std::string("pick"), std::string("leaf"), std::string("count")}, "3");
+    CHECK(draft.get({std::string("pick"), std::string("leaf"), std::string("count")})->as_int() == 3);
+    CHECK(md::summary(draft.get(pick_path)) == "leaf");
+
+    std::vector<std::string> rows;
+    for (const auto& row : draft.rows()) rows.push_back(row.label + (row.present ? "+" : "-"));
+    CHECK(rows == std::vector<std::string>{"pick+", "pick.leaf+", "pick.leaf.count+", "pick.leaf.caption-",
+                                           "pick.count-", "pick.none-"});
+
+    draft.choose({std::string("pick"), std::string("none")});
+    CHECK(md::summary(draft.get(pick_path)) == "none");
+    CHECK(draft.get({std::string("pick"), std::string("leaf")}) == nullptr);
+    CHECK(draft.ready());
+    md::Draft copy(draft);
+    CHECK(md::summary(copy.get(pick_path)) == "none");
+    draft.unset({std::string("pick"), std::string("count")}); // a case not held: the held one stays
+    CHECK(md::summary(draft.get(pick_path)) == "none");
+    draft.unset({std::string("pick"), std::string("none")});
+    CHECK(md::summary(draft.get(pick_path)) == "no case");
+    CHECK_THROWS_AS(draft.set_text({std::string("pick"), std::string("leaf"), std::string("count")}, "1"),
+                    std::invalid_argument);
+}
+
+TEST_CASE("a library keeps a union field's case, a bare one included, and an unfinished case") {
+    md::Draft bare(holder());
+    bare.create_message({std::string("pick")});
+    bare.choose({std::string("pick"), std::string("none")});
+    md::Draft unfinished(holder());
+    unfinished.create_message({std::string("pick")});
+    unfinished.create_message({std::string("pick"), std::string("leaf")});
+    md::Library library;
+    library.put("bare", bare);
+    library.put("unfinished", unfinished);
+    auto loaded = md::read_library(md::library_bytes(library));
+    REQUIRE(loaded.find("bare"));
+    CHECK(md::summary(loaded.find("bare")->get({std::string("pick")})) == "none");
+    CHECK(loaded.find("bare")->admit());
+    REQUIRE(loaded.find("unfinished"));
+    CHECK(md::summary(loaded.find("unfinished")->get({std::string("pick")})) == "leaf");
+    CHECK_FALSE(loaded.find("unfinished")->admit());
+}

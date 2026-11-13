@@ -873,13 +873,13 @@ private:
     static constexpr std::size_t kBrief = 60;
     static std::string brief(const std::vector<Field>& fields, const std::vector<std::size_t>& depths, std::size_t at) {
         const Field& f = fields[at];
-        if (f.row.type.kind != loom::Kind::Message) return f.row.summary;
+        if (!message_draft::nests(f.row.type.kind)) return f.row.summary;
         std::string out = "{";
         for (std::size_t i = at + 1; i < fields.size() && depths[i] > depths[at]; ++i) {
             if (depths[i] != depths[at] + 1) continue;
             const bool holds = i + 1 < fields.size() && depths[i + 1] > depths[i];
             const std::string word = own_name(fields[i]) + " " +
-                (holds && fields[i].row.type.kind == loom::Kind::Message ? std::string("{...}") : fields[i].row.summary);
+                (holds && message_draft::nests(fields[i].row.type.kind) ? std::string("{...}") : fields[i].row.summary);
             if (out.size() + word.size() > kBrief) { out += out.size() > 1 ? ", ..." : "..."; break; }
             out += (out.size() > 1 ? ", " : "") + word;
         }
@@ -911,7 +911,7 @@ private:
     void begin_edit(const std::vector<Field>& fields) {
         const Field* f = find(fields, selected_);
         if (!f || lost_) { notice_ = lost_ ? "The selected field is no longer here; choose a field" : "Choose a field first"; return; }
-        if (f->metadata || f->row.type.kind == loom::Kind::Message || f->row.type.kind == loom::Kind::List ||
+        if (f->metadata || message_draft::nests(f->row.type.kind) || f->row.type.kind == loom::Kind::List ||
             f->row.type.kind == loom::Kind::Bytes) {
             notice_ = f->metadata ? "Capture metadata is read-only"
                                   : "Select a scalar field inside this value; byte fields are read-only here";

@@ -66,16 +66,26 @@ public:
                                               std::size_t depth = 0) {
         depth_check(depth);
         if (const auto found = schemas_.find(source.get()); found != schemas_.end()) return found->second;
-        loom::SchemaBuilder builder(source->name(), source->version());
-        for (const auto& field : source->fields()) builder.add({field.name, type(field.type, depth + 1), false});
-        auto made = builder.build();
+        std::shared_ptr<const loom::Schema> made;
+        if (source->is_union()) { // a union holds one case whatever its presence: its cases' own relax
+            std::vector<loom::Field> cases;
+            for (const auto& field : source->fields())
+                cases.push_back(field.carries ? loom::case_of(field.name, type(field.type, depth + 1))
+                                              : loom::case_bare(field.name));
+            made = loom::make_union(source->name(), source->version(), std::move(cases));
+        } else {
+            loom::SchemaBuilder builder(source->name(), source->version());
+            for (const auto& field : source->fields()) builder.add({field.name, type(field.type, depth + 1), false});
+            made = builder.build();
+        }
         schemas_.emplace(source.get(), made);
         return made;
     }
 private:
     loom::TypeRef type(const loom::TypeRef& source, std::size_t depth) {
         depth_check(depth);
-        if (source.kind == loom::Kind::Message) return loom::type_message(schema(source.message, depth));
+        if (source.kind == loom::Kind::Message || source.kind == loom::Kind::Union)
+            return loom::type_message(schema(source.message, depth));
         if (source.kind == loom::Kind::List) return loom::type_list(type(*source.element, depth + 1));
         return source;
     }
@@ -87,6 +97,15 @@ inline loom::Value project_value(const loom::Value& value, const std::shared_ptr
                                  std::size_t depth = 0) {
     depth_check(depth);
     loom::Value projected(schema);
+    if (schema->is_union()) {
+        if (const auto held = value.chosen()) {
+            const auto& field = schema->fields()[*held];
+            if (const auto* cell = value.get(field.name))
+                projected.set(field.name, project_cell(*cell, field.type, depth + 1));
+            else projected.choose(field.name);
+        }
+        return projected;
+    }
     for (const auto& field : schema->fields())
         if (const auto* cell = value.get(field.name))
             projected.set(field.name, project_cell(*cell, field.type, depth + 1));
@@ -94,7 +113,8 @@ inline loom::Value project_value(const loom::Value& value, const std::shared_ptr
 }
 inline loom::Cell project_cell(const loom::Cell& cell, const loom::TypeRef& type, std::size_t depth) {
     depth_check(depth);
-    if (type.kind == loom::Kind::Message)
+    // An Any field's value stays whole, under its own shape: a draft never builds one.
+    if (type.kind == loom::Kind::Message || type.kind == loom::Kind::Union)
         return loom::Cell::message(project_value(*cell.as_message(), type.message, depth));
     if (type.kind == loom::Kind::List) {
         loom::Cell::Array items;

@@ -63,11 +63,12 @@ inline std::string migration_identity(const loom::Schema& from, const loom::Sche
 }
 
 /// What shape this definition converts to, or nullptr: the answer's single port must carry a
-/// Message, whose schema is the target. Anything else is an ordinary operator, not a broken
-/// conversion.
+/// record's or a union's value, whose schema is the target. Anything else is an ordinary
+/// operator, not a broken conversion.
 inline const loom::Schema* migration_target(const OperatorDef& def) noexcept {
     const std::vector<loom::Field>& ports = def.outputs()->fields();
-    if (ports.size() != 1 || ports[0].type.kind != loom::Kind::Message) {
+    if (ports.size() != 1 ||
+        (ports[0].type.kind != loom::Kind::Message && ports[0].type.kind != loom::Kind::Union)) {
         return nullptr;
     }
     return ports[0].type.message.get();
