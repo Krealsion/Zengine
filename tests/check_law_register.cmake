@@ -87,11 +87,10 @@ foreach(zen_family IN LISTS ZEN_LAW_FAMILIES)
     endif()
 endforeach()
 
-# Every *.md under this directory is budgeted (below). The routed documents that are not yet
-# registers are over the register budget today and are named here, so the sweep can demand
-# that each one either stays over it or leaves this list -- the list shrinks, never grows.
+# Every *.md under this directory is budgeted (below). A page past its kind's default names its
+# steps in tests/raised_budgets.txt: the budget is that default times (1 + 0.2 * steps), in whole
+# bytes, the remainder dropped.
 set(ZEN_LAW_AGENTS_DIR agents)
-set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md)
 
 # The budgets, in bytes, the stricter reading (an em dash is three). Line width is held in
 # registers, routers and decision records, a table row excepted: a line past ZEN_LAW_LINE_BYTES
@@ -981,10 +980,8 @@ function(zen_law_unmarked text out)
     string(REGEX REPLACE "<!-- value [^>]*-->|<!-- /value -->" "" bare "${text}")
     set(${out} "${bare}" PARENT_SCOPE)
 endfunction()
-# A register's two budgets: its laws, everything before the appendix heading, and the whole file.
-# Sets ${out} to the problems, empty when both fit.
-function(zen_law_budget_problems rel text heading out)
-    set(problems "")
+# A register's two lengths: its laws, everything before the appendix heading, and the whole file.
+function(zen_law_budget_lengths text heading out_laws out_file)
     string(FIND "${text}" "\n${heading}\n" at)
     if(at EQUAL -1)
         set(laws "${text}")
@@ -994,6 +991,14 @@ function(zen_law_budget_problems rel text heading out)
     endif()
     string(LENGTH "${laws}" law_bytes)
     string(LENGTH "${text}" file_bytes)
+    set(${out_laws} "${law_bytes}" PARENT_SCOPE)
+    set(${out_file} "${file_bytes}" PARENT_SCOPE)
+endfunction()
+# A register's two budgets: its laws, everything before the appendix heading, and the whole file.
+# Sets ${out} to the problems, empty when both fit.
+function(zen_law_budget_problems rel text heading out)
+    set(problems "")
+    zen_law_budget_lengths("${text}" "${heading}" law_bytes file_bytes)
     if(law_bytes GREATER ZEN_LAW_REGISTER_BYTES)
         list(APPEND problems "${rel} is ${law_bytes} bytes above its appendix (a register's laws are at most ${ZEN_LAW_REGISTER_BYTES})")
     endif()
@@ -1001,6 +1006,119 @@ function(zen_law_budget_problems rel text heading out)
         list(APPEND problems "${rel} is ${file_bytes} bytes with its appendix (a register's whole file is at most ${ZEN_LAW_FILE_BYTES})")
     endif()
     set(${out} "${problems}" PARENT_SCOPE)
+endfunction()
+# A page's budget at `steps`: its kind's default times (1 + 0.2 * steps), whole bytes, the
+# remainder dropped. Zero steps is the default. tests/raised_budgets.txt holds the steps.
+function(zen_law_raised_budget default steps out)
+    math(EXPR budget "${default} * (5 + ${steps}) / 5")
+    set(${out} "${budget}" PARENT_SCOPE)
+endfunction()
+function(zen_law_step_word n out)
+    if(n EQUAL 1)
+        set(${out} "step" PARENT_SCOPE)
+    else()
+        set(${out} "steps" PARENT_SCOPE)
+    endif()
+endfunction()
+# One measured page against its row. kind is router, register, core or file. A register is judged
+# on both sides, each default raised by the same steps. Sets ${out} to the problems, empty when
+# the row is the fewest that holds the page. steps is at least 1: a page with no row is held to
+# its default by the sweep, which says so in the words it always has.
+function(zen_law_raised_problems rel steps kind law_bytes file_bytes out)
+    set(problems "")
+    zen_law_step_word("${steps}" step_word)
+    if(kind STREQUAL "register")
+        zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" "${steps}" laws_budget)
+        zen_law_raised_budget("${ZEN_LAW_FILE_BYTES}" "${steps}" file_budget)
+        if(law_bytes GREATER laws_budget)
+            list(APPEND problems "${rel} is ${law_bytes} bytes above its appendix, past its budget of ${laws_budget} (${steps} ${step_word} in tests/raised_budgets.txt; a register's laws are at most that)")
+        endif()
+        if(file_bytes GREATER file_budget)
+            list(APPEND problems "${rel} is ${file_bytes} bytes with its appendix, past its budget of ${file_budget} (${steps} ${step_word} in tests/raised_budgets.txt; a register's whole file is at most that)")
+        endif()
+        if(steps GREATER 0)
+            math(EXPR lower_steps "${steps} - 1")
+            zen_law_step_word("${lower_steps}" lower_word)
+            zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" "${lower_steps}" laws_lower)
+            zen_law_raised_budget("${ZEN_LAW_FILE_BYTES}" "${lower_steps}" file_lower)
+            if(NOT law_bytes GREATER laws_lower AND NOT file_bytes GREATER file_lower)
+                list(APPEND problems "${rel} fits ${lower_steps} ${lower_word} (laws ${laws_lower}, file ${file_lower}), so its row of ${steps} ${step_word} in tests/raised_budgets.txt can fall a step")
+            endif()
+        endif()
+    else()
+        if(kind STREQUAL "router")
+            set(default "${ZEN_LAW_ROUTER_BYTES}")
+            set(what "a router")
+        elseif(kind STREQUAL "core")
+            set(default "${ZEN_LAW_CORE_BYTES}")
+            set(what "${ZEN_LAW_CORE}")
+        else()
+            set(default "${ZEN_LAW_REGISTER_BYTES}")
+            set(what "a file under ${ZEN_LAW_AGENTS_DIR}/")
+        endif()
+        zen_law_raised_budget("${default}" "${steps}" budget)
+        if(file_bytes GREATER budget)
+            list(APPEND problems "${rel} is ${file_bytes} bytes, past its budget of ${budget} (${steps} ${step_word} in tests/raised_budgets.txt; ${what} is at most that)")
+        endif()
+        if(steps GREATER 0)
+            math(EXPR lower_steps "${steps} - 1")
+            zen_law_step_word("${lower_steps}" lower_word)
+            zen_law_raised_budget("${default}" "${lower_steps}" lower)
+            if(NOT file_bytes GREATER lower)
+                list(APPEND problems "${rel} is ${file_bytes} bytes, which fits ${lower_steps} ${lower_word} (budget ${lower}), so its row of ${steps} ${step_word} in tests/raised_budgets.txt can fall a step")
+            endif()
+        endif()
+    endif()
+    set(${out} "${problems}" PARENT_SCOPE)
+endfunction()
+# A row names a page this sweep measures, or it is a page that is gone.
+function(zen_law_raised_gone rel pages out)
+    if(rel IN_LIST pages)
+        set(${out} "" PARENT_SCOPE)
+    else()
+        set(${out} "tests/raised_budgets.txt names ${rel}, which is not a page this check budgets" PARENT_SCOPE)
+    endif()
+endfunction()
+# The rows of tests/raised_budgets.txt, from the text. A comment and a blank are passed. A row is
+# a page and a positive number of steps, once. Sets the pages, the steps in the same order, and
+# the problems.
+function(zen_law_read_raised text out_rels out_steps out_problems)
+    string(REPLACE "\r" "" text "${text}")
+    string(REPLACE ";" "${ZEN_SOH}" text "${text}")
+    string(REPLACE "[" "${ZEN_STX}" text "${text}")
+    string(REPLACE "]" "${ZEN_ETX}" text "${text}")
+    string(REPLACE "\\" "${ZEN_EOT}" text "${text}")
+    string(REPLACE "\n" ";" rows "${text}")
+    set(rels "")
+    set(steps "")
+    set(problems "")
+    set(n 0)
+    foreach(row IN LISTS rows)
+        math(EXPR n "${n} + 1")
+        if(row MATCHES "^[ \t]*#" OR row MATCHES "^[ \t]*$")
+            continue()
+        endif()
+        if(NOT row MATCHES "^([^ \t]+)[ \t]+([0-9]+)[ \t]*$")
+            zen_law_show("${row}" shown)
+            list(APPEND problems "tests/raised_budgets.txt:${n} is not a page and its steps: ${shown}")
+            continue()
+        endif()
+        set(rel "${CMAKE_MATCH_1}")
+        set(step "${CMAKE_MATCH_2}")
+        if(step EQUAL 0)
+            list(APPEND problems "tests/raised_budgets.txt:${n} ${rel} has 0 steps; a page at its default has no row")
+            continue()
+        endif()
+        if(rel IN_LIST rels)
+            list(APPEND problems "tests/raised_budgets.txt:${n} ${rel} is a second row; a page has one")
+            continue()
+        endif()
+        list(APPEND rels "${rel}")
+        list(APPEND steps "${step}")
+    endforeach()
+    set(${out_rels} "${rels}" PARENT_SCOPE)
+    set(${out_steps} "${steps}" PARENT_SCOPE)
+    set(${out_problems} "${problems}" PARENT_SCOPE)
 endfunction()
 function(zen_law_count_lines text out)
     string(REGEX MATCHALL "\n" nl "${text}")
@@ -2111,6 +2229,83 @@ if(NOT law_pairs_count EQUAL 4
         "grow past their budget.")
 endif()
 
+# Raised budgets, on canaries: a page a byte past its row, a row whose page still fits one step
+# lower, and a row whose page is gone are refused. A page exactly at its budget, and one a byte
+# past the previous step, are held. A register's two sides take the same steps.
+zen_law_raised_budget(16384 1 pin_laws)
+zen_law_raised_budget(24576 1 pin_file)
+zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" 0 pin_zero)
+if(NOT pin_laws EQUAL 19660 OR NOT pin_file EQUAL 29491
+   OR NOT pin_zero EQUAL ZEN_LAW_REGISTER_BYTES)
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- a raised budget truncated to ${pin_laws} and "
+        "${pin_file} (want 19660 and 29491) and ${pin_zero} at zero steps (want "
+        "${ZEN_LAW_REGISTER_BYTES}). The remainder of a fifth would then be kept.")
+endif()
+zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" 2 canary_at)
+zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" 1 canary_prev)
+math(EXPR canary_over_bytes "${canary_at} + 1")
+math(EXPR canary_edge_bytes "${canary_prev} + 1")
+zen_law_raised_problems("canary/over.md" 2 "file" 0 "${canary_over_bytes}" canary_over)
+zen_law_raised_problems("canary/fall.md" 2 "file" 0 "${canary_prev}" canary_fall)
+zen_law_raised_problems("canary/at.md" 2 "file" 0 "${canary_at}" canary_at_problems)
+zen_law_raised_problems("canary/edge.md" 2 "file" 0 "${canary_edge_bytes}" canary_edge)
+zen_law_raised_gone("canary/gone.md" "agents/operators.md" canary_gone)
+zen_law_raised_gone("agents/operators.md" "agents/operators.md" canary_kept)
+zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" 2 reg_laws_at)
+zen_law_raised_budget("${ZEN_LAW_FILE_BYTES}" 2 reg_file_at)
+zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" 1 reg_laws_prev)
+zen_law_raised_budget("${ZEN_LAW_FILE_BYTES}" 1 reg_file_prev)
+math(EXPR reg_laws_over "${reg_laws_at} + 1")
+math(EXPR reg_file_over "${reg_file_at} + 1")
+math(EXPR reg_file_edge "${reg_file_prev} + 1")
+zen_law_raised_problems("canary/reg-laws.md" 2 "register" "${reg_laws_over}" "${reg_file_at}" canary_reg_laws)
+zen_law_raised_problems("canary/reg-file.md" 2 "register" "${reg_laws_at}" "${reg_file_over}" canary_reg_file)
+zen_law_raised_problems("canary/reg-at.md" 2 "register" "${reg_laws_at}" "${reg_file_at}" canary_reg_at)
+zen_law_raised_problems("canary/reg-fall.md" 2 "register" "${reg_laws_prev}" "${reg_file_prev}" canary_reg_fall)
+zen_law_raised_problems("canary/reg-side.md" 1 "register" "${reg_laws_prev}" "${reg_file_edge}" canary_reg_side)
+zen_law_raised_problems("canary/reg-held.md" 2 "register" "${reg_laws_prev}" "${reg_file_edge}" canary_reg_held)
+set(canary_table "agents/kept.md 2\n\n# note\nagents/kept.md 4\nnot-a-row\nagents/zero.md 0\n")
+zen_law_read_raised("${canary_table}" canary_rels canary_steps canary_rows)
+set(canary_clean "agents/kept.md 2\n")
+zen_law_read_raised("${canary_clean}" canary_clean_rels canary_clean_steps canary_clean_rows)
+if(NOT canary_over MATCHES "canary/over.md is ${canary_over_bytes} bytes, past its budget of ${canary_at}"
+   OR canary_over MATCHES "can fall"
+   OR NOT canary_fall MATCHES "canary/fall.md is ${canary_prev} bytes, which fits 1 step \\(budget ${canary_prev}\\)"
+   OR NOT canary_fall MATCHES "can fall a step"
+   OR NOT canary_at_problems STREQUAL ""
+   OR NOT canary_edge STREQUAL ""
+   OR NOT canary_gone MATCHES "tests/raised_budgets.txt names canary/gone.md, which is not a page this check budgets"
+   OR NOT canary_kept STREQUAL ""
+   OR NOT canary_reg_laws MATCHES "above its appendix, past its budget of ${reg_laws_at}"
+   OR canary_reg_laws MATCHES "can fall"
+   OR NOT canary_reg_file MATCHES "with its appendix, past its budget of ${reg_file_at}"
+   OR canary_reg_file MATCHES "can fall"
+   OR NOT canary_reg_at STREQUAL ""
+   OR NOT canary_reg_fall MATCHES "fits 1 step \\(laws ${reg_laws_prev}, file ${reg_file_prev}\\)"
+   OR NOT canary_reg_fall MATCHES "can fall a step"
+   OR NOT canary_reg_side MATCHES "with its appendix, past its budget of ${reg_file_prev}"
+   OR canary_reg_side MATCHES "can fall"
+   OR NOT canary_reg_held STREQUAL ""
+   OR NOT canary_rels STREQUAL "agents/kept.md" OR NOT canary_steps STREQUAL "2"
+   OR NOT canary_rows MATCHES "is a second row" OR NOT canary_rows MATCHES "is not a page and its steps"
+   OR NOT canary_rows MATCHES "has 0 steps"
+   OR NOT canary_clean_rels STREQUAL "agents/kept.md" OR NOT canary_clean_steps STREQUAL "2"
+   OR NOT canary_clean_rows STREQUAL "")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the raised budgets said '${canary_over}' of a page past "
+        "its row, '${canary_fall}' of a row that could fall a step, '${canary_gone}' of a page "
+        "that is gone, '${canary_at_problems}' at the budget and '${canary_edge}' a byte past the "
+        "previous step. A register said '${canary_reg_laws}' of its laws, '${canary_reg_file}' of "
+        "its file, '${canary_reg_at}' at both, '${canary_reg_fall}' where both fit a lower step, "
+        "'${canary_reg_side}' where only the file needs the next step and '${canary_reg_held}' "
+        "once the row has it. The table read '${canary_rows}' (${canary_rels} / ${canary_steps}) "
+        "and a clean one '${canary_clean_rows}' (${canary_clean_rels} / ${canary_clean_steps}). "
+        "A page could then outgrow its row, keep a step it does not need, or name a page that is gone.")
+endif()
+message(STATUS "law-register: raised-budget canaries refused '${canary_over}' and '${canary_fall}' and '${canary_gone}'")
+message(STATUS "law-register: raised-budget register canaries refused '${canary_reg_laws}' and '${canary_reg_file}' and '${canary_reg_fall}' and '${canary_reg_side}'")
+
 # ---- the VM form: a method register ---------------------------------------------------------
 # `## VM-<AREA>-NN — <title>`, `METHOD — <one sentence>`, `BECAUSE — <at most three lines>`; under
 # `## Seen`, the register's end, `### VM-<AREA>-NN` and `nowhere yet` or what the proof grammar
@@ -2391,8 +2586,21 @@ endif()
 #
 # A file's bytes are counted without its value markers or carriage returns. A router is one named
 # in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; a register's laws have a budget, and its whole file one;
-# every other file under agents/ has the register budget, except the documents ZEN_LAW_UNBUDGETED
-# names, which must stay over it while listed. A record over the flag size is counted.
+# every other file under agents/ has the register budget. tests/raised_budgets.txt raises a page,
+# its kind's default times (1 + 0.2 * steps). A record over the flag size is counted.
+
+function(zen_law_steps_of rel rels steps out)
+    set(found 0)
+    set(i 0)
+    foreach(name IN LISTS rels)
+        if(name STREQUAL rel)
+            list(GET steps ${i} found)
+            break()
+        endif()
+        math(EXPR i "${i} + 1")
+    endforeach()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
 
 file(GLOB_RECURSE agents_md RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${ZEN_LAW_AGENTS_DIR}/*.md")
 list(SORT agents_md)
@@ -2400,21 +2608,35 @@ list(LENGTH agents_md agents_md_count)
 if(agents_md_count EQUAL 0)
     message(FATAL_ERROR "law-register: no *.md under ${ZEN_LAW_AGENTS_DIR}/ at all; check ZEN_REPO.")
 endif()
+set(raised_path "${ZEN_REPO}/tests/raised_budgets.txt")
+if(NOT EXISTS "${raised_path}")
+    zen_law_fail("tests/raised_budgets.txt does not exist")
+    set(raised_rels "")
+    set(raised_steps "")
+else()
+    file(READ "${raised_path}" raised_text)
+    zen_law_read_raised("${raised_text}" raised_rels raised_steps raised_read_problems)
+    foreach(p IN LISTS raised_read_problems)
+        zen_law_fail("${p}")
+    endforeach()
+endif()
 set(records_flagged 0)
-set(unbudgeted_report "")
+set(raised_report "")
+set(budgeted_pages "")
 foreach(rel IN LISTS agents_md)
+    list(APPEND budgeted_pages "${rel}")
     zen_law_text("${rel}" budget_text)
     zen_law_unmarked("${budget_text}" budget_text)
     string(LENGTH "${budget_text}" bytes)
+    zen_law_steps_of("${rel}" "${raised_rels}" "${raised_steps}" steps)
     if(rel IN_LIST ZEN_LAW_ROUTERS OR rel IN_LIST ZEN_VM_ROUTERS)
-        if(bytes GREATER ZEN_LAW_ROUTER_BYTES)
+        if(steps GREATER 0)
+            zen_law_raised_problems("${rel}" "${steps}" "router" 0 "${bytes}" budget_problems)
+            foreach(p IN LISTS budget_problems)
+                zen_law_fail("${p}")
+            endforeach()
+        elseif(bytes GREATER ZEN_LAW_ROUTER_BYTES)
             zen_law_fail("${rel} is ${bytes} bytes (a router is at most ${ZEN_LAW_ROUTER_BYTES})")
-        endif()
-    elseif(rel IN_LIST ZEN_LAW_UNBUDGETED)
-        if(bytes GREATER ZEN_LAW_REGISTER_BYTES)
-            string(APPEND unbudgeted_report " ${rel} ${bytes}")
-        else()
-            zen_law_fail("${rel} is ${bytes} bytes, within the register budget, and is still named in ZEN_LAW_UNBUDGETED; remove it there")
         endif()
     elseif(rel IN_LIST register_files OR rel IN_LIST vm_register_files)
         if(rel IN_LIST register_files)
@@ -2422,30 +2644,55 @@ foreach(rel IN LISTS agents_md)
         else()
             set(heading "${ZEN_VM_APPENDIX_HEADING}")
         endif()
-        zen_law_budget_problems("${rel}" "${budget_text}" "${heading}" budget_problems)
-        foreach(p IN LISTS budget_problems)
-            zen_law_fail("${p}")
-        endforeach()
+        if(steps GREATER 0)
+            zen_law_budget_lengths("${budget_text}" "${heading}" law_bytes file_bytes)
+            zen_law_raised_problems("${rel}" "${steps}" "register" "${law_bytes}" "${file_bytes}" budget_problems)
+            foreach(p IN LISTS budget_problems)
+                zen_law_fail("${p}")
+            endforeach()
+        else()
+            zen_law_budget_problems("${rel}" "${budget_text}" "${heading}" budget_problems)
+            foreach(p IN LISTS budget_problems)
+                zen_law_fail("${p}")
+            endforeach()
+        endif()
     else()
-        if(bytes GREATER ZEN_LAW_REGISTER_BYTES)
+        if(steps GREATER 0)
+            zen_law_raised_problems("${rel}" "${steps}" "file" 0 "${bytes}" budget_problems)
+            foreach(p IN LISTS budget_problems)
+                zen_law_fail("${p}")
+            endforeach()
+        elseif(bytes GREATER ZEN_LAW_REGISTER_BYTES)
             zen_law_fail("${rel} is ${bytes} bytes (a file under ${ZEN_LAW_AGENTS_DIR}/ is at most ${ZEN_LAW_REGISTER_BYTES}; a router ${ZEN_LAW_ROUTER_BYTES})")
         endif()
         if(rel MATCHES "^${ZEN_LAW_RECORD_DIR}/" AND bytes GREATER ZEN_LAW_RECORD_FLAG_BYTES)
             math(EXPR records_flagged "${records_flagged} + 1")
         endif()
     endif()
-endforeach()
-foreach(rel IN LISTS ZEN_LAW_UNBUDGETED)
-    if(NOT rel IN_LIST agents_md)
-        zen_law_fail("ZEN_LAW_UNBUDGETED names ${rel}, which does not exist; remove it there")
+    if(steps GREATER 0)
+        string(APPEND raised_report " ${rel} ${steps} ${bytes}")
     endif()
 endforeach()
+list(APPEND budgeted_pages "${ZEN_LAW_CORE}")
 zen_law_text("${ZEN_LAW_CORE}" budget_text)
 zen_law_unmarked("${budget_text}" budget_text)
 string(LENGTH "${budget_text}" bytes)
-if(bytes GREATER ZEN_LAW_CORE_BYTES)
+zen_law_steps_of("${ZEN_LAW_CORE}" "${raised_rels}" "${raised_steps}" steps)
+if(steps GREATER 0)
+    zen_law_raised_problems("${ZEN_LAW_CORE}" "${steps}" "core" 0 "${bytes}" budget_problems)
+    foreach(p IN LISTS budget_problems)
+        zen_law_fail("${p}")
+    endforeach()
+    string(APPEND raised_report " ${ZEN_LAW_CORE} ${steps} ${bytes}")
+elseif(bytes GREATER ZEN_LAW_CORE_BYTES)
     zen_law_fail("${ZEN_LAW_CORE} is ${bytes} bytes (at most ${ZEN_LAW_CORE_BYTES})")
 endif()
+foreach(rel IN LISTS raised_rels)
+    zen_law_raised_gone("${rel}" "${budgeted_pages}" gone)
+    if(NOT gone STREQUAL "")
+        zen_law_fail("${gone}")
+    endif()
+endforeach()
 
 # ---- witness debts are written in both places or in neither -------------------------------
 #
@@ -3074,7 +3321,7 @@ endforeach()
 message(STATUS "law-register: ${vm_register_count} method registers, ${vm_entry_count} entries -- "
                "${vm_applied_count} applied in the tree (floor ${ZEN_VM_APPLIED_FLOOR}), ${vm_nowhere_count} nowhere yet")
 message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/ within budget; "
-               "unbudgeted, still over:${unbudgeted_report}; records over "
+               "raised:${raised_report}; records over "
                "${ZEN_LAW_RECORD_FLAG_BYTES} bytes: ${records_flagged}")
 message(STATUS "law-register: ${path_count} proof paths, ${ident_count} identifiers, "
                "${witness_checked} witnesses checked against ${witness_count} TEST_CASE/SUBCASE "

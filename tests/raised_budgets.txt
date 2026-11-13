@@ -1,0 +1,9 @@
+# A page held above its kind's default, one row `<page> <steps>`, read by law_register
+# (tests/check_law_register.cmake). The budget is that default times (1 + 0.2 * steps),
+# in whole bytes, the remainder dropped. A register's laws and its whole file both take
+# the row's steps, each from its own default. The row is the fewest steps that hold the
+# page. A row arrives in the pull request that needs it. ASCII only.
+agents/operators.md 7
+agents/packaging.md 1
+agents/panes.md 19
+agents/realization.md 8

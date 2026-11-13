@@ -6,7 +6,7 @@ any public header, or any exported target's link line. The installed-package wit
 
 ## Zengine is a package a stranger installs
 
-`cmake/ZengineInstall.cmake` owns the boundary ([`AGENTS.md`](../AGENTS.md)) and the reason each
+`cmake/ZengineInstall.cmake` owns the boundary and the reason each
 package is or is not in the set: change it there, not in a package's own `CMakeLists.txt`.
 
 ```cmake
@@ -18,7 +18,7 @@ target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 house and a guest spell them identically: `activation`, `timer`, `input`, `ui`,
 `manual` (a weave's manual as the weave carries it, `manual/manual.hpp`, and the door a role
 answers for the shapes it accepts, `manual/vocabulary.hpp`), `component` (every header `zengine_public_headers_component` lists: the text box, the list
-mechanics, the control strip, motion sampling), `operator`, `operator-consumer`, `pane` (the pane
+mechanics, the control strip, motion sampling), `persist` (what a write came to, `persist/written.hpp`, and a filesystem path taken into the one path vocabulary or refused, `persist/path_admission.hpp`), `property` (a typed connection to one property of one thing, the text a value is written and read in, and an inspector's line over it, `property/property.hpp`), `operator`, `operator-consumer`, `pane` (the pane
 contract, every header `zengine_public_headers_pane` lists, installed under `include/zengine/pane/`:
 the protocol `pane/vocabulary.hpp` and the optional helpers beside it; and Workshop's own beside it,
 a desk's reading and the seams a pane speaks to Workshop's doors, every header

@@ -9,7 +9,8 @@ set(ZEN_TEXT_CHECKS doc_links doc_names package_vocabulary law_register source_c
 
 # Besides Markdown and the images under a docs/ folder, what a documentation-only change may
 # touch: the text checks themselves and the files only they read.
-set(ZEN_TEXT_ONLY_FILES tests/code_values.txt tests/folders.txt tests/census.txt tests/doc_names.txt)
+set(ZEN_TEXT_ONLY_FILES tests/code_values.txt tests/folders.txt tests/census.txt tests/doc_names.txt
+    tests/raised_budgets.txt)
 
 # The folders whose first-party source doc_links and source_comments read: each row of
 # tests/folders.txt whose kind holds code a build compiles or a lane runs, and the root

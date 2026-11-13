@@ -77,7 +77,10 @@ the official lane, and self-test before they answer:
   identifier and witness resolving, every record reciprocal with the WHY lines that name it,
   every `// WL-` or `// MW-` pointer naming the declaration beneath it, every file under
   `agents/` within its byte budget — a register's laws <!-- value ZEN_LAW_REGISTER_BYTES grouped -->16,384<!-- /value --> and its whole file
-  <!-- value ZEN_LAW_FILE_BYTES grouped -->24,576<!-- /value -->, a router <!-- value ZEN_LAW_ROUTER_BYTES grouped -->12,288<!-- /value -->, `AGENTS.md` <!-- value ZEN_LAW_CORE_BYTES grouped -->20,480<!-- /value --> — no plan code or step label in a case name, a law id a name opens with declared, every case a
+  <!-- value ZEN_LAW_FILE_BYTES grouped -->24,576<!-- /value -->, a router <!-- value ZEN_LAW_ROUTER_BYTES grouped -->12,288<!-- /value -->, `AGENTS.md`
+  <!-- value ZEN_LAW_CORE_BYTES grouped -->20,480<!-- /value -->, a page `tests/raised_budgets.txt` names taking that default times (1 + 0.2 × its
+  steps), in whole bytes, rounded down, a register's laws and its whole file alike — no plan code or step
+  label in a case name, a law id a name opens with declared, every case a
   current-facing document cites by name existing wherever the citation stands, every WL, MW or VM
   id a source comment names declared, and no development-phase id in a current-facing Markdown
   file.
