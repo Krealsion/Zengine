@@ -43,7 +43,8 @@ routed by [workshop/AGENTS.md](../workshop/AGENTS.md).
 - `editor` — the buffer (`editor-pane/editor.hpp`) as values, with nothing of the host;
   `tests/test_editor.cpp`
 - `neovim` — the hosting library against a scriptable fake Neovim (`tests/neovim_fixture.cpp`):
-  arithmetic, framing, custody, every failing start; `tests/test_neovim.cpp`
+  arithmetic, framing, custody, every failing start, its bounds on the time it is handed;
+  `tests/test_neovim.cpp`
 - `neovim_journey` — gate `session-neovim`: `external-host/tools/workshop-machine/nvim_edit.py` against a
   real Neovim in a real Workshop; `tests/session/neovim_journey.py`
 - `neovim_live` — gate `neovim`: the hosting library against a real, sandboxed Neovim;

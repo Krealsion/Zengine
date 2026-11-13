@@ -19,6 +19,7 @@
 #if defined(NEOVIM_PROGRAM)
 
 #include <chrono>
+#include <filesystem>
 #include <thread>
 
 namespace {
@@ -171,24 +172,42 @@ std::string all_rows(NeovimStory& s) {
     return out;
 }
 
+/// What Neovim says on its command line when the keys `wait_in_neovim` set up have been typed.
+constexpr const char* kTypedLater = "typed-by-neovim-itself";
+
 /// NEOVIM WILL BE WAITING FOR INPUT when the next choice is made: a callback Neovim runs by itself
-/// types `keys` after `ms`, leaving the buffer as it is -- an unfinished `g`, or a count.
+/// after `ms` of its own time says so on its command line and types `keys`, leaving the buffer as
+/// it is -- an unfinished `g`, or a count.
 void wait_in_neovim(NeovimStory& s, const char* keys, int ms) {
     s.focus();
-    s.keys(std::string(":lua vim.defer_fn(function() vim.api.nvim_feedkeys('") + keys + "', 'n', false) end, " +
-           std::to_string(ms) + ")");
+    s.keys(std::string(":lua vim.defer_fn(function() vim.api.nvim_echo({{'") + kTypedLater +
+           "'}}, false, {}) vim.api.nvim_feedkeys('" + keys + "', 'n', false) end, " + std::to_string(ms) + ")");
     s.key(input::scan::kReturn);
     s.settle();
 }
 
 /// A COMMAND DROPPED ON A cpp BUFFER, and its menu answered with its Terminal line once Neovim has
-/// begun waiting for input (`wait_in_neovim` 1200 ms before).
+/// begun waiting for input: once its screen says the keys were typed (`wait_in_neovim`), which is
+/// Neovim's own time, never the pane's.
 void choose_line_while_waiting(NeovimStory& s) {
     s.drag(s.inventory, s.row_of(s.inventory, "beat command"), 2, s.editor, 1, 0);
     REQUIRE(s.r.session().presented.open);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1400));
+    REQUIRE(s.until([&] { return s.shows(kTypedLater); }));
     s.settle();
     s.key(input::scan::kReturn); // "Insert its Terminal line"
+}
+
+/// UNTIL `path` EXISTS, with no beat: what Neovim wrote by itself, waited for in real time while
+/// the pane hears nothing.
+bool appears(const std::string& path, int ms = 20000) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+    while (!std::filesystem::exists(path)) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return true;
 }
 
 /// HOW MANY ROWS READ `text` -- a drop inserted twice would show twice.
@@ -457,12 +476,15 @@ TEST_CASE("a drop aimed at a picture Neovim has since redrawn is refused and cha
     s.add(text_pair("DROPPED"), "word");
     // NEOVIM REDRAWS ON ITS OWN, and no beat carries the new screen to the pane: a timer inside
     // Neovim rewrites line 1 after the pane last said its picture, so the drop names a stale one.
+    // Once it has drawn the line it writes a file, which the case waits for, beating nothing.
+    const std::string drawn = (std::filesystem::path(path).parent_path() / "timer-drew").string();
     s.focus();
-    s.keys(":call timer_start(250, {-> setline(1, 'changed by a timer')})");
+    s.keys(":call timer_start(250, {-> [setline(1, 'changed by a timer'), execute('redraw'), writefile([], '" +
+           drawn + "')]})");
     s.key(input::scan::kReturn);
     s.settle();
     REQUIRE(s.row(1) == "first");
-    std::this_thread::sleep_for(std::chrono::milliseconds(700));
+    REQUIRE(appears(drawn));
     s.drag(s.inventory, s.row_of(s.inventory, "word"), 2, s.editor, 2, 1);
     INFO(s.notice() << "\n" << all_rows(s));
     CHECK(s.notice().find("moved under the drop") != std::string::npos);

@@ -279,7 +279,9 @@ weave makes, editing `path` when named. Answered `zen.Result`, `<Neovim> is list
 
 `NeovimStatusRequested` v1, from any weave granted it: what runs and what it holds, asked of Neovim now. Answered
 `zen.Result`: `<Neovim> (<how it is attached>) is editing <file>, saved, in mode n`, or `Neovim is
-not running` and why.
+not running` and why. A Neovim that does not answer within the question's bound, counted on the
+host's wait's clock from the first wake after the ask, is said at that bound: `<Neovim> (<how it
+is attached>) could not say what it holds: Neovim did not answer within <bound> ms`.
 
 ### `NeovimStopRequested`
 

@@ -7,8 +7,9 @@
 // Custody of one Neovim process, and of nothing else: a conversation, so this holds a process it
 // both writes to and reads from, and nothing waits unless it was asked to wait for a bounded
 // time. `start_child` gives a running child or why nothing runs, in words; `pump` writes what the
-// pipe takes now and reads what is there now; `wait(ms)` is the one bounded wait; `finish(grace)`
-// gives a child asked to leave `grace` ms, then forces it. It decides nothing a Neovim is told.
+// pipe takes now and reads what is there now; `wait(ms)` is the one bounded wait; at an owner's
+// end, `say_last` and `finish(grace)` give its last words and the child a grace on the operating
+// system's time, then force it. It decides nothing a Neovim is told.
 // Workshop law: agents/workshop/neovim.md
 
 // A partial write is the ordinary case: Neovim reads its input only when its loop runs (measured:
@@ -25,6 +26,7 @@
 
 #include <zen/host/wait_set.hpp>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -446,6 +448,11 @@ public:
     /// THE ONE BOUNDED WAIT: returns when output may be available, the child has gone, or `ms`
     /// passed. True unless the time ran out.
     bool wait(int ms);
+
+    /// AT AN OWNER'S END, ITS LAST WORDS: `out` written while the pipe takes it, what arrives
+    /// meanwhile read and dropped, for at most `grace_ms` of the operating system's time -- as
+    /// `finish` gives its grace, since nothing else runs then.
+    void say_last(std::string& out, int grace_ms);
 
     /// What that wait waits on, for a host's one wait to hold instead (`loom::host::WaitSet`):
     /// Windows, each pipe's pending read and the process while it runs; POSIX, the socket and the
@@ -1196,6 +1203,17 @@ inline ChildStart start_child(const LaunchSpec& spec) {
 }
 
 #endif
+
+inline void Child::say_last(std::string& out, int grace_ms) {
+    std::string dropped;
+    const auto until =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(grace_ms < 0 ? 0 : grace_ms);
+    while (!out.empty() && holds() && std::chrono::steady_clock::now() < until) {
+        (void)pump(out, dropped, 1u << 16);
+        dropped.clear();
+        (void)wait(1);
+    }
+}
 
 } // namespace zengine::neovim
 

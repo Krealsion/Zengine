@@ -16,6 +16,7 @@
 
 #include "editor/neovim-editor/vocabulary.hpp"
 #include "neovim_environment.hpp"
+#include "neovim_time.hpp"
 #include "pane_window.hpp"
 #include "editor/neovim/child.hpp"
 #include "timer/vocabulary.hpp"
@@ -52,15 +53,29 @@ bool holder_hears_beats(SwitchRig& s) {
     return false;
 }
 
+/// THE TIME EVERY CASE'S WAKES HAND THE PANE: the machine's, moved on where a case says.
+PaneTime& pane_time() {
+    static PaneTime time;
+    return time;
+}
+
+/// TIME A CASE MOVES ON, ENDING WITH THE CASE: the next case's wakes hand the machine's again.
+struct MovedTime {
+    explicit MovedTime(std::int64_t ms) { pane_time().pass(ms); }
+    ~MovedTime() { pane_time().reset(); }
+    MovedTime(const MovedTime&) = delete;
+    MovedTime& operator=(const MovedTime&) = delete;
+};
+
 /// ONE BEAT, AS THE TIMER WOULD GIVE IT: to the switch coordinator, and to the role's holder when
 /// it hears one -- the Neovim-backed Editor, from its activation, so also while a switch proves
-/// it. Then drain.
+/// it -- the host's wake, at the case's time. Then drain.
 void beat(SwitchRig& s) {
     (void)s.r.bus.send(s.switcher_id, loom::Message(loom::to_value(zengine::timer::TimerFired{
                                                         "zengine.editor-switch.beat"}),
                                                     loom::WeaveId{}, loom::WeaveId{}, 0));
     if (holder_hears_beats(s)) {
-        (void)s.r.bus.send(s.holder(), host_wake());
+        (void)s.r.bus.send(s.holder(), pane_time().wake());
     }
     s.r.bus.drain_until_idle();
 }
@@ -146,6 +161,34 @@ public:
         }
     }
 };
+
+/// A CONSOLE ON THE RIG, allowed the Neovim editor's status and stop.
+struct Console {
+    ConsoleSeat* seat = nullptr;
+    loom::WeaveId id{};
+};
+Console console_on(SwitchRig& s) {
+    auto held = std::make_unique<ConsoleSeat>();
+    Console c{held.get(), {}};
+    loom::Grant may_ask;
+    may_ask.allow_to_role(nve::NeovimStatusRequested::zen_name, nve::NeovimStatusRequested::zen_version,
+                          nve::kEditorRole);
+    may_ask.allow_to_role(nve::NeovimStopRequested::zen_name, nve::NeovimStopRequested::zen_version,
+                          nve::kEditorRole);
+    c.id = s.r.bus.register_weave(std::move(held), std::move(may_ask), std::string("zengine.test.console"));
+    c.seat->zen_set_self(c.id);
+    return c;
+}
+
+/// THE CONSOLE ASKS the Neovim editor `asked`, from inside its own delivery; then drain.
+template <class Asked>
+void console_asks(SwitchRig& s, const Console& c, Asked asked) {
+    c.seat->next = [asked](loom::Mail& mail) {
+        (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorRole, asked);
+    };
+    (void)s.r.bus.send(c.id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    s.r.bus.drain_until_idle();
+}
 
 /// THE TIMER, AS FAR AS AN ORDER GOES: it records what it was asked and answers it by the Timer's
 /// own rule for reading an order's continuity (`continuity_from`) -- refused when that rule cannot
@@ -300,7 +343,7 @@ TEST_CASE("a Neovim that never answers keeps the switch pending and cancellable,
     CHECK(s.holder() == first);
 }
 
-TEST_CASE("a Neovim that never answers a question holds no handler: the rest of the bus keeps delivering, and the ask is answered in words once its bound passes") {
+TEST_CASE("a Neovim that never answers a question holds no handler: the rest of the bus keeps delivering, the pane claims the question's bound in the host's wait, and the ask is answered in words at it") {
     SwitchRig s("nvim-mute");
     NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "mute");
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
@@ -327,6 +370,17 @@ TEST_CASE("a Neovim that never answers a question holds no handler: the rest of 
     console->next = [](loom::Mail& mail) {
         (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorRole, nve::NeovimStatusRequested{});
     };
+    // FROM HERE THE HOST'S OWN WAIT WAKES THE PANE, on a clock that moves only when told, ahead of
+    // every time the pane has heard.
+    loom::host::ManualClock clock(pane_time().now_ms() + 1);
+    loom::host::Reactor wait(s.r.bus, clock);
+    wait.trust(nve::kEditorRole);
+    const auto turn = [&](bool rest) {
+        (void)(rest ? wait.after_turn() : wait.after_turn(0));
+        s.r.bus.drain_until_idle();
+    };
+    turn(false);
+    const std::int64_t asked_at = clock.now_ms();
     const auto began = std::chrono::steady_clock::now();
     (void)s.r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     s.r.bus.drain_until_idle();
@@ -339,11 +393,62 @@ TEST_CASE("a Neovim that never answers a question holds no handler: the rest of 
     CHECK(console->answers.empty());
     // ...AND THE BUS KEEPS DELIVERING: the Editor's own state is read while the question stands.
     CHECK(s.read("ready") == "true");
-    // THE ASK IS ANSWERED, in words, once its bound has passed with no answer.
-    REQUIRE(beat_until(s, [&] { return !console->answers.empty(); }, 10000));
-    CHECK_MESSAGE(console->answers.back().find("did not answer within") != std::string::npos,
+    // THE PANE CLAIMS THE QUESTION'S BOUND: it begins at the next time the wait hands, and the
+    // pane's claim names when it comes. Looking only, the wait never moves the clock.
+    for (int i = 0; i < 4; ++i) {
+        turn(false);
+    }
+    REQUIRE(wait.sources().size() == 1);
+    const std::optional<std::int64_t> claimed = wait.sources().front().until_ms;
+    REQUIRE(claimed.has_value());
+    CHECK(clock.now_ms() == asked_at);
+    const std::int64_t bound = *claimed - asked_at;
+    CHECK(bound > 0);
+    CHECK(console->answers.empty());
+    // THE ASK IS ANSWERED, in words, AT ITS BOUND: the wait, finding nothing ready, moves the clock
+    // to the pane's claim and wakes it there -- nothing slept, nothing polled.
+    for (int i = 0; i < 20 && console->answers.empty(); ++i) {
+        turn(true);
+    }
+    REQUIRE_FALSE(console->answers.empty());
+    CHECK(clock.now_ms() == asked_at + bound);
+    CHECK_MESSAGE(console->answers.back().find("did not answer within " + std::to_string(bound) + " ms") !=
+                      std::string::npos,
                   console->answers.back());
     s.r.bus.remove_observer(watching);
+}
+
+TEST_CASE("a Neovim started after the pane heard no time for a while is given its whole start, from the next time the wait hands") {
+    SwitchRig s("nvim-start-late");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "ok");
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    const Console console = console_on(s);
+    console_asks(s, console, nve::NeovimStopRequested{true});
+    REQUIRE(beat_until(s, [&] { return s.read("running") == "false"; }));
+    // NO NEOVIM RUNS, so the pane claims nothing to wait on and no wake hands it the time while
+    // the clock moves on, past every bound a start has.
+    const MovedTime moved(60000);
+    // AN OPEN STARTS NEOVIM AGAIN: its start is counted from the next wake, so the Neovim, ready
+    // within a few, takes the open.
+    const SourceOpened opened = open_through_role(s, "late.txt", "late\n");
+    CHECK_MESSAGE(opened.accepted, opened.refusal);
+    CHECK(s.read("running") == "true");
+}
+
+TEST_CASE("a question asked after the pane heard no time for a while is given its whole bound, from the next time the wait hands") {
+    SwitchRig s("nvim-ask-late");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "ok");
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    const Console console = console_on(s);
+    // THE PANE HEARS NO WAKE while the clock moves on past a question's bound...
+    const MovedTime moved(60000);
+    // ...AND IS ASKED: the question is sent, and Neovim answers it on a later wake.
+    console_asks(s, console, nve::NeovimStatusRequested{});
+    REQUIRE(beat_until(s, [&] { return !console.seat->answers.empty(); }));
+    CHECK_MESSAGE(console.seat->answers.back().find("is editing") != std::string::npos, console.seat->answers.back());
+    CHECK(console.seat->answers.back().find("did not answer within") == std::string::npos);
 }
 
 TEST_CASE("the Neovim editor holding the role with no Neovim says so on its pane, refuses an open in words, and permits the quit") {

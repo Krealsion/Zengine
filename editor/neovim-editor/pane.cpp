@@ -208,14 +208,14 @@ public:
     }
 
     /// What the host's one wait said about this role, with the time on its clock: Neovim is ready
-    /// to be read, or the time the pane claimed came, so the pane pumps now; or the wait holds the
-    /// pane's claim, or no longer does (timer/source_wait.hpp).
+    /// to be read, or the time the pane claimed came, so the pane pumps now on that time; or the
+    /// wait holds the pane's claim, or no longer does (timer/source_wait.hpp).
     void on(const loom::host::Waited& w, loom::Mail& mail) {
         if (!activation_.activated()) {
             return;
         }
         if (wait_.hear(w, mail)) {
-            pump(mail);
+            pump(mail, wait_.now_ms());
         }
     }
 
@@ -744,7 +744,7 @@ private:
 
     /// A NEOVIM, RUNNING AND READY, for an answer that needs one: `then` runs once, now when one
     /// is ready or cannot start, else in the pump where it becomes ready or fails, or at most
-    /// `kStartWaitMs` after the first waiter.
+    /// `kStartWaitMs` after the first wake that follows the first waiter.
     void when_ready(loom::Mail& mail, Ready then) {
         if (!running()) {
             then(false, failure_.empty() ? not_running_words() : failure_, mail);
@@ -755,7 +755,7 @@ private:
             return;
         }
         if (readies_.empty()) {
-            ready_since_ = wait_.now_ms(); // none yet: the next time the wait hands over
+            ready_since_.reset();
         }
         readies_.push_back(std::move(then));
     }
@@ -769,7 +769,7 @@ private:
         when_ready(mail, std::move(then));
     }
 
-    void settle_readies(loom::Mail& mail) {
+    void settle_readies(loom::Mail& mail, const std::optional<std::int64_t>& handed) {
         if (readies_.empty()) {
             return;
         }
@@ -779,11 +779,10 @@ private:
             ok = true;
         } else if (!running()) {
             why = failure_.empty() ? not_running_words() : failure_;
-        } else if (const std::optional<std::int64_t> now = wait_.now_ms();
-                   !ready_since_ && now) {
-            ready_since_ = now;
+        } else if (!ready_since_) {
+            ready_since_ = handed; // the wait has not woken the pane since the first waiter came
             return;
-        } else if (!now || *now - *ready_since_ < kStartWaitMs) {
+        } else if (!handed || *handed - *ready_since_ < kStartWaitMs) {
             return;
         } else {
             why = "Neovim did not become ready within " + std::to_string(kStartWaitMs / 1000) + " seconds";
@@ -821,31 +820,32 @@ private:
 
     // ---- The wait, the pump and what it observed --------------------------------------------
 
-    /// MOVE NEOVIM'S BYTES, APPLY WHAT IT SAID, and run what follows each answer it gave.
-    void pump(loom::Mail& mail) {
+    /// MOVE NEOVIM'S BYTES, APPLY WHAT IT SAID, run what follows; on `handed`, the wake's time.
+    void pump(loom::Mail& mail, const std::optional<std::int64_t>& handed = std::nullopt) {
         if (host_ != nullptr) {
             nv::Observed seen = std::move(carried_);
             carried_ = nv::Observed{};
             if (host_->phase() != nv::Host::Phase::Idle) {
-                seen.merge(host_->pump());
+                seen.merge(host_->pump(handed));
             }
             absorb(mail, std::move(seen));
         }
-        settle_readies(mail);
+        settle_readies(mail, handed);
         hear(mail);
     }
 
-    /// What Neovim's pipes wait on claimed as this role after every delivery, with a time to pump
-    /// again while the pane must pump on time -- at once for output a read left, `kLookAgainMs` on
-    /// for a question waiting out its bound, bytes the pipe has not taken, a Neovim not yet ready by
-    /// its bound; pipes the wait cannot hold are polled on that time alone.
+    /// What Neovim's pipes wait on claimed as this role after every delivery, with the time to look
+    /// by (`look_again`): its soonest bound, `Host::due_ms` or `ready_by`, said when it comes.
     void settle_wait(loom::Mail& mail) {
         bool now = false;
-        const loom::host::WaitSet set =
-            host_ != nullptr ? host_->wait_set(&now) : loom::host::WaitSet{};
-        const bool on_time =
-            now || !readies_.empty() || (host_ != nullptr && host_->on_time());
-        wait_.settle(mail, nve::kEditorRole, set, on_time, now ? 0 : kLookAgainMs);
+        const loom::host::WaitSet set = host_ != nullptr ? host_->wait_set(&now) : loom::host::WaitSet{};
+        std::optional<std::int64_t> due = host_ != nullptr ? host_->due_ms() : std::nullopt;
+        if (!readies_.empty()) {
+            due = due && *due < ready_by(ready_since_) ? *due : ready_by(ready_since_);
+        }
+        const LookAgain look = look_again(due, wait_.now_ms(), now,
+                                          host_ != nullptr && host_->on_time(), wait_.held());
+        wait_.settle(mail, nve::kEditorRole, set, look.on_time, look.every_ms);
     }
 
     // WL-NVIM-07 -- agents/workshop/neovim.md

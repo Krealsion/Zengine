@@ -64,10 +64,11 @@ LAW — No handler waits on Neovim: a question is answered on the wake that hear
 MEANS
 - a bus ask the Editor answers from Neovim is answered when Neovim answers, and the bus delivers meanwhile;
 - a warm-up that never answers keeps the switch pending and cancellable; with no Neovim the pane says so, an open is refused in words, and the quit is permitted;
-- the pane is a source of the host's one wait: it claims Neovim's pipes, and the time its next bound comes, and is woken then.
+- the pane is a source of the host's one wait: it claims Neovim's pipes and its next bound, each begun at the first time the wait hands after it was set, and is woken then.
 
 DOES NOT MEAN
-- that a press or a cursor races its question: a press on the highlight reaches Neovim once it has said what it selected, a location's cursor once it has shown the file.
+- that a press or a cursor races its question: a press on the highlight reaches Neovim once it has said what it selected, a location's cursor once it has shown the file;
+- that Neovim keeps the wait's time: it is a real process on the machine's, and ending it waits on the machine's.
 
 WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
@@ -145,7 +146,7 @@ refusal writes nothing"
 `editor/neovim-editor/pane.cpp` compose say status_text on(AreaRoom)
 `editor/neovim-editor/common.hpp` Preview
 `editor/neovim-editor/opening_switch.hpp` on_claim_published
-`editor/neovim/host.hpp` Host::flushes_at_answer
+`editor/neovim/host.hpp` Outcome::flushes
 `tests/test_neovim.cpp` "an answer says the screen as it stood when the answer came, not the one
 drawn after it" "the projection: a block cursor is its cell, a bar is a caret, rows carry their
 meaning" "the projection: Visual runs through the cursor cell, blockwise is the cursor row, a menu
@@ -172,13 +173,17 @@ consent, and carries the current one" "an unfinished command in Neovim is reset 
 said, and a prompt refuses the switch until it is answered"
 
 ### WL-NVIM-05
-`editor/neovim/host.hpp` Host::ask_later Host::start
-`editor/neovim-editor/pane.cpp` ask ask_rpc hear when_ready ensure_running settle_wait
+`editor/neovim/host.hpp` Host::ask_later Host::start Host::pump Host::due_ms Host::hand Bound
+`editor/neovim/child.hpp` Child::say_last
+`editor/neovim-editor/pane.cpp` ask ask_rpc hear when_ready ensure_running settle_readies settle_wait
 on(Waited)
 `editor/neovim-editor/opening_switch.hpp` on(EditorWarmRequested) settle_warm
 `editor/neovim-editor/transfers.hpp` press_at settle_location
 `tests/test_workshop_neovim.cpp` "a Neovim that never answers a question holds no handler: the rest
-of the bus keeps delivering, and the ask is answered in words once its bound passes" "the Neovim
+of the bus keeps delivering, the pane claims the question's bound in the host's wait, and the ask is
+answered in words at it" "a Neovim started after the pane heard no time for a while is given its
+whole start, from the next time the wait hands" "a question asked after the pane heard no time for
+a while is given its whole bound, from the next time the wait hands" "the Neovim
 editor is a source of the host's wait: it claims what it reads as its role, orders the Timer
 nothing, and reads when the wait wakes it" "a Neovim choice whose program is not there refuses the switch in
 words, and the standard Editor keeps editing" "a Neovim older than 0.11 refuses the switch naming
@@ -186,6 +191,9 @@ its version" "a Neovim that stops at a prompt while starting refuses the switch 
 Neovim that never answers keeps the switch pending and cancellable, and the candidate goes with the
 cancel" "the Neovim editor holding the role with no Neovim says so on its pane, refuses an open in
 words, and permits the quit"
+`tests/test_neovim.cpp` "a start that never answers fails at its bound on the time the owner is
+handed, from the first time handed after it, never before" "a question a peer holds is said
+outstanding at the first pump its bound has passed on the time handed, its ending heard late, once"
 
 ### WL-NVIM-06
 `editor/neovim-editor/pane.cpp` snapshot on(PaneQuitRequested) answer_quit absorb
