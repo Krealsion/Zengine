@@ -34,7 +34,21 @@
 #include "view/view-builder/vocabulary.hpp"
 #include "view/host.hpp"
 #include "view/view.hpp"
+#include "examples/tally-app/tally.hpp"
+#include "flow/project.hpp"
+#include "flow/shape.hpp"
+#include "inventory/codec.hpp"
+#include "maker/definition.hpp"
+#include "maker/succession.hpp"
+#include "message-draft/transfer.hpp"
+#include "operator/host.hpp"
+#include "operator/provider.hpp"
+#include "operator/reference.hpp"
+#include "operator/source.hpp"
+#include "view/description.hpp"
 #include "workshop/arrangement.hpp"
+#include "workshop/guests.hpp"
+#include "workshop/host_sources.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/editor_switch.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
@@ -328,6 +342,47 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::snake::SnakeBoardState>(), // SnakeBoardState v1
         // Said by the GUI window, which a build without SDL has no manifest of.
         shape<zengine::graphics::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
+        // BUILT BY HAND, under a quoted name: a file's format, a value carried as bytes inside
+        // another, a description's words. Each is the function that builds it.
+        ::zengine::examples::tally_app::total_shape(),
+        ::zengine::flow::project_schema(),
+        ::zengine::flow::shape::carried_shape_schema(),
+        ::zengine::inventory::pair_schema(),
+        ::zengine::maker::field_source_schema(),
+        ::zengine::maker::emit_record_schema(),
+        ::zengine::maker::on_record_schema(),
+        ::zengine::maker::on_record_v1_schema(),
+        ::zengine::maker::conversion_schema(),
+        ::zengine::maker::definition_schema(),
+        ::zengine::maker::definition_v1_schema(),
+        ::zengine::maker::succession_state_schema(),
+        ::zengine::message_draft::preset_schema(),
+        ::zengine::message_draft::library_schema(),
+        ::zengine::message_draft::stored_draft_schema(),
+        ::zengine::message_draft::path_step_schema(),
+        ::zengine::message_draft::field_value_schema(),
+        ::zengine::op::operator_desc_schema(),
+        ::zengine::op::composition_binding_schema(),
+        ::zengine::op::composition_fold_schema(),
+        ::zengine::op::composition_node_schema(),
+        ::zengine::op::composition_node_v1_schema(),
+        ::zengine::op::composition_schema(),
+        ::zengine::op::composition_v1_schema(),
+        ::zengine::op::operator_contribution_schema(),
+        ::zengine::op::operator_contribution_v2_schema(),
+        ::zengine::op::operator_contribution_v1_schema(),
+        ::zengine::op::operator_ref_schema(),
+        ::zengine::op::detail::unresolvable_pack(),
+        ::zengine::view::element_schema(),
+        ::zengine::view::shows_schema(),
+        ::zengine::view::intent_field_schema(),
+        ::zengine::view::intent_schema(),
+        ::zengine::view::description_schema(),
+        ::zengine::view::description_schema_v1(),
+        ::zengine::workshop::detail::project_anchor_schema(),
+        ::zengine::workshop::detail::recipe_catalog_facts_schema(),
+        ::zengine::workshop::detail::recipe_catalog_schema(),
+        ::zengine::workshop::guests::guests_file_schema(),
     };
 }
 
