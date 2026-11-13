@@ -31,7 +31,9 @@ for the plan waits for the plan to come to rest, or while the wait cannot hold t
 Launch Workshop with `--guests <file>`; it says where it listens and which weave holds the door,
 `zengine-workshop - guests: listening on 127.0.0.1:7654 for 1 guest(s) named in guests.json (door:
 weave #12; the Connections pane lists them)`.
-Then any admitted session may ask for its own row
+The door listens before the plan is realized, so a guest that will ask a role the plan loads asks
+first where the plan is, with `wait`, and asks the role once it is at rest: a role not loaded yet
+is no role. Then any admitted session may ask for its own row
 ([`GuestRowDescribedRequested`](zengine.guests.md#guestrowdescribedrequested)) and where the plan is
 ([`GuestPlanRequested`](zengine.guests.md#guestplanrequested)); a row with `inspect` may ask for the inventory
 ([`GuestConnectionsRequested`](zengine.guests.md#guestconnectionsrequested)), as Workshop's own participants do. A
