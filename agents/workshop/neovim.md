@@ -179,8 +179,8 @@ on(Waited)
 `editor/neovim-editor/transfers.hpp` press_at settle_location
 `tests/test_workshop_neovim.cpp` "a Neovim that never answers a question holds no handler: the rest
 of the bus keeps delivering, and the ask is answered in words once its bound passes" "the Neovim
-editor orders its beat in words the Timer reads, and a
-refused beat is said on its pane" "a Neovim choice whose program is not there refuses the switch in
+editor is a source of the host's wait: it claims what it reads as its role, orders the Timer
+nothing, and reads when the wait wakes it" "a Neovim choice whose program is not there refuses the switch in
 words, and the standard Editor keeps editing" "a Neovim older than 0.11 refuses the switch naming
 its version" "a Neovim that stops at a prompt while starting refuses the switch in its words" "a
 Neovim that never answers keeps the switch pending and cancellable, and the candidate goes with the
