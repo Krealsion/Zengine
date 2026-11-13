@@ -1053,9 +1053,9 @@ set(ZENGINE_WORKSHOP_FIXTURES
 # One Workshop suite: the shared link line, artifact paths and includes plus what this one alone
 # needs, so the suites agree by construction (a second copy of a link line is a second answer).
 # `SOURCES` is a list because a suite is not a file (VM-POP-12); `PART <name> <sources...>` groups
-# in its place run the one program as an entry a part, `workshop_<suite>_<part>`, and `PIECES` after
-# a part's sources runs it as pieces (VM-POP-22). Every arm fails closed: a mistyped keyword would
-# otherwise be dropped silently and a test family go missing while everything reports green.
+# in its place run the one program as an entry a part, `workshop_<suite>_<part>`; `PIECES` after a
+# part's sources, or a partless suite's, runs it as pieces (VM-POP-22). Every arm fails closed: a
+# mistyped keyword would else be dropped silently, a test family missing while all reports green.
 function(zengine_workshop_suite entry)
     # The parts are walked here: cmake_parse_arguments keeps one list per keyword, which would
     # run every part's sources together.
@@ -1065,6 +1065,8 @@ function(zengine_workshop_suite entry)
     set(part "")
     set(naming FALSE)
     set(cutting FALSE)
+    set(suite_pieces "")
+    set(suite_cutting FALSE)
     foreach(arg IN LISTS ARGN)
         if(naming)
             if(arg IN_LIST keywords OR NOT arg MATCHES "^[a-z][a-z0-9_]*$")
@@ -1083,22 +1085,30 @@ function(zengine_workshop_suite entry)
             set(part_pieces_${arg} "")
             set(naming FALSE)
             set(cutting FALSE)
+            set(suite_cutting FALSE)
         elseif(arg STREQUAL "PART")
             set(naming TRUE)
         elseif(arg STREQUAL "PIECES")
-            if(part STREQUAL "" OR cutting)
+            if(cutting OR suite_pieces OR suite_cutting OR (part STREQUAL "" AND parts))
                 message(FATAL_ERROR
-                    "zengine_workshop_suite(${entry}): PIECES once, after a part's sources: a "
-                    "part's pieces are its own.")
+                    "zengine_workshop_suite(${entry}): PIECES once, after a part's sources, or "
+                    "once for a suite of no parts: a part's pieces are its own.")
             endif()
-            set(cutting TRUE)
-            set(cut_${part} TRUE)
+            if(part STREQUAL "")
+                set(suite_cutting TRUE)
+            else()
+                set(cutting TRUE)
+                set(cut_${part} TRUE)
+            endif()
         elseif(arg IN_LIST keywords)
             set(part "")
             set(cutting FALSE)
+            set(suite_cutting FALSE)
             list(APPEND rest ${arg})
         elseif(cutting)
             list(APPEND part_pieces_${part} ${arg})
+        elseif(suite_cutting)
+            list(APPEND suite_pieces ${arg})
         elseif(NOT part STREQUAL "")
             list(APPEND part_sources_${part} ${arg})
         else()
@@ -1107,6 +1117,11 @@ function(zengine_workshop_suite entry)
     endforeach()
     if(naming)
         message(FATAL_ERROR "zengine_workshop_suite(${entry}): PART at the end, with no name.")
+    endif()
+    if(parts AND suite_pieces)
+        message(FATAL_ERROR
+            "zengine_workshop_suite(${entry}): PIECES for the whole suite beside PART. A suite in "
+            "parts cuts each part.")
     endif()
     cmake_parse_arguments(WS "" "" "SOURCES;DEFINITIONS;NEEDS;LINKS" ${rest})
     if(parts AND WS_SOURCES)
@@ -1153,7 +1168,9 @@ function(zengine_workshop_suite entry)
     zengine_test_definitions(${target}
         "ZENGINE_WORKSHOP_SUITE=\"${entry}\"" ${ZENGINE_WORKSHOP_DEFS} ${WS_DEFINITIONS})
     add_dependencies(${target} ${ZENGINE_WORKSHOP_FIXTURES} ${WS_NEEDS})
-    if(NOT parts)
+    if(suite_pieces)
+        zengine_doctest_pieces(workshop_${entry} ${target} PIECES ${suite_pieces})
+    elseif(NOT parts)
         zengine_doctest_test(workshop_${entry} ${target})
     endif()
     # ONE `--source-file`, its patterns joined by commas: doctest reads an option once, from its
@@ -1270,7 +1287,9 @@ zengine_workshop_suite(host
 zengine_workshop_suite(desk SOURCES test_workshop_desk.cpp test_workshop_desk_read.cpp
     LINKS zengine-view zengine-flow zengine-workshop-guests
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
-                "ZENGINE_TIMELINES_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/timelines-now-$<CONFIG>\"")
+                "ZENGINE_TIMELINES_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/timelines-now-$<CONFIG>\""
+    # ...run as pieces of a minute or less under the sanitizer lane, cut by its cases' seconds.
+    PIECES 73 80)
 
 # THE SHAPES THIS TREE PUBLISHES: the copies of published shapes beside the current ones, every
 # name one component's, and the census -- every product weave's manifest and the headers' shapes,
@@ -1322,7 +1341,7 @@ zengine_workshop_suite(panes
               test_workshop_panes_first_run.cpp
               test_workshop_panes_guests.cpp
               test_workshop_panes_guide.cpp
-         PIECES 47 50 74 112 139
+         PIECES 61 78 80 113 136 174
     # the panes that read the running system: introspection and what sampling costs, Attention
     # and Connections, what Workshop said and the Notices pane, the View Builder's rows;
     PART inspect test_workshop_panes_introspection.cpp
@@ -1335,14 +1354,14 @@ zengine_workshop_suite(panes
               test_workshop_inventory_info.cpp
               test_workshop_inventory_folders.cpp
               test_workshop_info_views.cpp
-         PIECES 2 3 15 35 60 86 128 129
+         PIECES 2 3 8 22 36 50 70 86 124 128 129
     # a pane's settings across the seam, and one setting end to end;
     PART settings test_workshop_panes_settings.cpp
                   test_workshop_panes_legend.cpp
     # the Terminal as a loaded weave, and finding powers through it;
     PART terminal test_workshop_panes_terminal.cpp
                   test_workshop_panes_powers.cpp
-         PIECES 47
+         PIECES 26 75
     # the Builder, Files, a pane's code and a build's output, with the action census, which
     # drives every role's census and press drivers: they register in every process of the
     # program, whatever it selects;
@@ -1351,12 +1370,12 @@ zengine_workshop_suite(panes
                  test_workshop_panes_code.cpp
                  test_workshop_panes_output.cpp
                  test_workshop_panes_tally.cpp
-         PIECES 77 85 112 158
+         PIECES 68 78 79 89 113 151 187
     # the Editor and its typed carry, and the opening manager.
     PART editor test_workshop_panes_editor.cpp
                 test_workshop_editor_transfers.cpp
                 test_workshop_panes_opening.cpp
-         PIECES 110
+         PIECES 90
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane zengine-builder-pane-reworded
           zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-demo-control
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
@@ -1874,74 +1893,89 @@ zengine_script_test(sanitizer_lane ${CMAKE_CURRENT_SOURCE_DIR}/check_sanitizer_l
 # ---- longest first under a parallel CTest -----------------------------------------------
 # At -j<n> CTest starts entries in descending COST, and a declared COST outranks the one it
 # measures into Testing/Temporary/CTestCostData.txt, so this table orders every parallel run, a
-# fresh tree's too. A value is the seconds an entry took in its slowest CI build job at bba71c3, for
-# every entry of 5 s or more, a panes part's or piece's its cases' seconds under the sanitizer lane
-# at c69e77ad; an entry left out runs by the cost CTest measured for it, or after these if none.
+# fresh tree's too. A value is an entry's seconds in its slowest CI build job at c9ac655a, for every
+# entry of 5 s or more, a Workshop suite's part's or piece's its cases' seconds under the sanitizer
+# lane at d78c3e86; an entry left out runs by the cost CTest measured, or after these if none.
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/test_population.txt zengine_cost_population
      REGEX "^[A-Za-z0-9_]+[ \t]")
 foreach(zengine_cost_row IN ITEMS
-        "neovim_journey:275"
-        "workshop_desk:225"
-        "story_journey:183"
-        "graphics:149"
-        "workshop_panes_info_8:112"
-        "workshop_neovim:103"
-        "workshop_shapes:72"
+        "flow_pane:219"
+        "story_journey:176"
+        "neovim_journey:160"
+        "workshop_panes_info_11:69"
+        "view_builder:66"
+        "workshop_persistence:65"
+        "tutorial_walks:60"
         "workshop_panes_editor_1:60"
-        "workshop_panes_hand_3:60"
-        "workshop_panes_hand_4:60"
-        "workshop_panes_hand_5:60"
-        "workshop_panes_info_5:60"
+        "workshop_panes_hand_1:60"
+        "workshop_panes_info_3:60"
         "workshop_panes_info_6:60"
-        "workshop_panes_hand_1:59"
-        "workshop_panes_info_3:58"
-        "workshop_panes_project_4:58"
-        "workshop_panes_info_7:57"
-        "workshop_panes_terminal_2:56"
-        "workshop_panes_hand_2:55"
-        "workshop_panes_project_2:55"
-        "workshop_panes_terminal_1:55"
-        "workshop_panes_info_4:54"
-        "workshop_panes_project_3:54"
-        "workshop_persistence:50"
-        "workshop_panes_project_1:49"
-        "workshop_journey:48"
-        "workshop_panes_hand_6:44"
-        "workshop_panes_project_5:44"
-        "workshop_panes_inspect:43"
-        "builder:41"
-        "source_comments:40"
-        "tutorial_walks:40"
-        "workshop_panes_info_2:39"
-        "workshop_panes_info_9:38"
-        "workshop_load:34"
-        "workshop_panes_seam:33"
-        "inventory:32"
-        "law_register:31"
-        "workshop_panes_info_1:27"
-        "code_values:24"
-        "tutor_walk:24"
-        "flow_pane:20"
-        "view_builder:20"
-        "workshop_panes_editor_2:19"
-        "operator:18"
-        "workshop_panes_settings:18"
-        "workshop_screen:16"
-        "workshop_files:15"
-        "timer:12"
-        "workshop_host:12"
-        "guest_journey:11"
-        "graphics_drawer_compiles:9"
-        "workshop_editor_switch:9"
-        "flow:8"
-        "timer_raw_activation_refused:7"
-        "doc_links:6"
-        "graphics_change_outside_list_refused:6"
+        "workshop_panes_info_8:60"
+        "workshop_panes_info_9:60"
+        "workshop_panes_project_1:60"
+        "workshop_panes_project_6:60"
+        "workshop_panes_project_7:60"
+        "workshop_panes_terminal_1:60"
+        "workshop_panes_hand_4:59"
+        "workshop_panes_info_5:59"
+        "workshop_screen:58"
+        "workshop_desk_1:57"
+        "workshop_panes_inspect:57"
+        "workshop_panes_info_2:56"
+        "workshop_panes_project_3:56"
+        "workshop_panes_hand_3:55"
+        "workshop_panes_hand_7:55"
+        "workshop_panes_info_4:55"
+        "source_comments:54"
+        "workshop_panes_project_4:54"
+        "workshop_panes_terminal_2:54"
+        "workshop_panes_info_12:53"
+        "workshop_panes_project_5:53"
+        "workshop_panes_hand_6:49"
+        "workshop_panes_terminal_3:49"
+        "graphics:48"
+        "workshop_panes_hand_2:48"
+        "workshop_journey:46"
+        "app_host:45"
+        "workshop_desk_2:45"
+        "workshop_neovim:44"
+        "code_values:43"
+        "law_register:43"
+        "builder:42"
+        "workshop_panes_editor_2:41"
+        "workshop_panes_seam:41"
+        "workshop_panes_info_1:35"
+        "workshop_panes_hand_5:33"
+        "workshop_panes_info_7:31"
+        "workshop_host:27"
+        "workshop_shapes:26"
+        "guest_journey:24"
+        "workshop_panes_settings:23"
+        "workshop_desk_3:20"
+        "workshop_editor_switch:19"
+        "workshop_panes_project_8:18"
+        "ui:17"
+        "workshop_panes_project_2:17"
+        "configure_switches:16"
+        "graphics_drawer_compiles:15"
+        "workshop_panes_info_10:14"
+        "tutor_walk:12"
+        "workshop_document:12"
+        "snake:11"
+        "manual:10"
+        "workshop_load:10"
+        "doc_links:9"
+        "doc_names:9"
+        "sanitizer_lane:9"
+        "operator:8"
+        "package_judges:8"
+        "timer_activation_hook_compiles:8"
+        "flow:7"
+        "graphics_change_outside_list_refused:7"
+        "inventory:7"
+        "workshop_files:7"
         "graphics_own_after_delivery_refused:6"
-        "neovim_live:6"
-        "timer_activation_hook_compiles:6"
-        "timer_missing_using_refused:6"
-        "workshop_document:6")
+        "timer_raw_activation_refused:6")
     string(REPLACE ":" ";" zengine_cost_pair "${zengine_cost_row}")
     list(GET zengine_cost_pair 0 zengine_cost_entry)
     list(GET zengine_cost_pair 1 zengine_cost_value)
