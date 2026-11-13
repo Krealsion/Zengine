@@ -2,9 +2,9 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The `doc_names` entry (docs/contributing/build-and-test.md): does each name a router or a
-# much-read page gives in backticks still name something -- a file or folder of this tree, or, where
-# a router names a suite, a CTest entry? doc_links holds the Markdown links and law_register the law
-# ids and the cases; a name in backticks is this check's.
+# much-read page gives in backticks still name something -- a file or folder of this tree, a suite
+# a router names, or a suite, an entry or a gate a sentence names beside that word? doc_links holds
+# the Markdown links and law_register the law ids; a name in backticks is this check's.
 #   cmake -P tests/check_doc_names.cmake    (from the repository root, or -DZEN_REPO=<repo>)
 
 cmake_minimum_required(VERSION 3.16)
@@ -43,6 +43,11 @@ string(ASCII 3 ZEN_NAMES_ETX)   # ]
 string(ASCII 4 ZEN_NAMES_EOT)   # ;
 string(REPLACE ";" "|" ZEN_NAMES_EXT_RX "${ZEN_NAMES_EXTENSIONS}")
 set(ZEN_NAMES_PATH_RX "^[A-Za-z0-9_.*{][A-Za-z0-9_.+*{},/-]*(/|[.](${ZEN_NAMES_EXT_RX}))$")
+# A suite, an entry or a gate a sentence names: the names before the word, or the names after it.
+# A hyphen stays in the token, so a gate such as `session-pty` is one name.
+set(ZEN_NAMES_ID "`[a-z][a-z0-9_-]*`")
+set(ZEN_NAMES_SEP "(, and | and | or |, )")
+set(ZEN_NAMES_SAID_RX "(${ZEN_NAMES_ID}${ZEN_NAMES_SEP})*${ZEN_NAMES_ID}( CTest)? (suites|suite|entries|entry|gates|gate)|(suites|suite|entries|entry|gates|gate) (${ZEN_NAMES_ID}${ZEN_NAMES_SEP}?)+")
 
 # ---- the readings, one place each so the self-test exercises the real ones --------------------
 
@@ -203,13 +208,14 @@ endfunction()
 
 # One page, read: each problem, `<page>:<line>: `<name>` <what>`, appended to the global
 # ZEN_NAMES_PROBLEMS, the names read counted in ZEN_NAMES_READ. A fenced block is code and is not
-# read; a span left open at a line's end closes on the next. A router (`router` names the section
-# whose bullets name suites) names a suite at the head of such a bullet, before its dash, and in
-# `## Law` after `witnessed by`, to the item's end or its first `;`, or in the last cell of a
-# table whose last heading says so.
+# read; a span left open at a line's end closes on the next. A router names a suite at a bullet's
+# head, after `witnessed by`, or in that table's last cell. A sentence names a suite, an entry or
+# a gate beside that word, joined with the next line until a blank line or a fence.
 function(zen_names_page label dir router text)
     string(REPLACE "\n" ";" lines "${text}")
-    set(n 0)
+    list(APPEND lines "")
+    list(LENGTH lines count)
+    math(EXPR last "${count} - 2")
     set(read 0)
     set(fence FALSE)
     set(carry FALSE)
@@ -217,8 +223,11 @@ function(zen_names_page label dir router text)
     set(witness FALSE)
     set(paren FALSE)
     set(witness_table FALSE)
-    foreach(line IN LISTS lines)
-        math(EXPR n "${n} + 1")
+    foreach(i RANGE 0 ${last})
+        list(GET lines ${i} line)
+        math(EXPR n "${i} + 1")
+        math(EXPR j "${i} + 1")
+        list(GET lines ${j} next)
         if(line MATCHES "^[ \t]*```")
             if(fence)
                 set(fence FALSE)
@@ -314,6 +323,48 @@ function(zen_names_page label dir router text)
             endif()
         endforeach()
 
+        # ---- a suite, an entry or a gate a sentence names ------------------------------------
+        string(LENGTH "${line}" line_len)
+        set(joined "${next}")
+        if(joined MATCHES "^[ \t]*(```|$)")
+            set(joined "")
+        endif()
+        set(rest "${line} ${joined}")
+        set(base 0)
+        while(rest MATCHES "${ZEN_NAMES_SAID_RX}")
+            set(said "${CMAKE_MATCH_0}")
+            string(FIND "${rest}" "${said}" at)
+            math(EXPR start "${base} + ${at}")
+            if(NOT start LESS line_len)
+                break()
+            endif()
+            string(LENGTH "${said}" said_len)
+            math(EXPR cut "${at} + ${said_len}")
+            string(SUBSTRING "${rest}" ${cut} -1 rest)
+            math(EXPR base "${base} + ${cut}")
+            set(population "${ZEN_NAMES_POPULATION}")
+            set(kind "a suite or a CTest entry, and tests/test_population.txt declares no such CTest entry")
+            if(said MATCHES "(^| )gates?( |$)")
+                set(population "${ZEN_NAMES_GATES}")
+                set(kind "a gate, and no row of tests/test_population.txt rides it")
+            endif()
+            string(REGEX MATCHALL "${ZEN_NAMES_ID}" ids "${said}")
+            foreach(id IN LISTS ids)
+                math(EXPR read "${read} + 1")
+                string(REPLACE "`" "" bare "${id}")
+                set(at_line ${n})
+                string(FIND "${line}" "${id}" here)
+                if(here EQUAL -1)
+                    math(EXPR at_line "${n} + 1")
+                endif()
+                if(bare IN_LIST population)
+                    continue()
+                endif()
+                set_property(GLOBAL APPEND PROPERTY ZEN_NAMES_PROBLEMS
+                    "${label}:${at_line}: `${bare}` is named as ${kind}")
+            endforeach()
+        endwhile()
+
         # ---- paths ----------------------------------------------------------------------------
         if(NOT line MATCHES "`")
             continue()
@@ -361,7 +412,8 @@ endfunction()
 # name exactly the second kind, by page, line and name, before the tree is asked anything.
 set(ZEN_NAMES_TREE "\n/tests/kept.cpp\n/tests/test_panes_button.cpp\n/tests/test_panes_code.cpp\n/part/pane.cpp\n/part/snake/board.hpp\n/agents/law.md\n/quarry-free.txt\n")
 set(ZEN_NAMES_TOP tests part agents)
-set(ZEN_NAMES_POPULATION kept_suite other_suite)
+set(ZEN_NAMES_POPULATION kept_suite other_suite third_suite)
+set(ZEN_NAMES_GATES open kept-gate)
 set(ZEN_NAMES_ROWS "made.json" "include/zengine/")
 string(CONCAT st_page
     "# canary\n"                                                                              # 1
@@ -373,7 +425,7 @@ string(CONCAT st_page
     "`include/zengine/pane/`, `tests/board.hpp`, `-DZEN=tests/x.cpp`, `a(b).cpp`, a span `left\n"  # 7
     "open.md` then `part/pane.cpp`\n"                                                           # 8
     "```\n"
-    "`tests/fenced.cpp`\n"                                                                      # 10
+    "`tests/fenced.cpp` and suite `fenced_suite`\n"                                             # 10
     "```\n"
     "\n"
     "## Law\n"                                                                                # 13
@@ -388,7 +440,12 @@ string(CONCAT st_page
     "## Suites\n"                                                                             # 22
     "\n"
     "- `kept_suite`, `absent_suite` -- what `after_dash` is\n"                                 # 24
-    "A `prose_word` names no suite.\n")
+    "A `prose_word` names no suite.\n"                                                          # 25
+    "The `kept_suite`, `other_suite` and `gone_a` suites, the `kept_suite` CTest entry, the `gone_b` CTest entry, suite `other_suite`, suite `gone_c`,\n"  # 26
+    "entries `other_suite`, `kept_suite`,\n"                                                    # 27
+    "`gone_d` or `third_suite`, entry `kept_suite`, entry `gone_e`.\n"                          # 28
+    "The `open` gate, the `gone_f` gate, gates `open` and `gone_g`, gate `kept-gate`, gate `gone-h`, the `kept-gate` gate, the `gone-k` gate.\n"  # 29
+    "The `other_suite` and `gone_j` entries stay a list. A `word` alone names no suite, nor does the `gone_i` case.\n")  # 30
 zen_names_swap("${st_page}" st_text)
 set_property(GLOBAL PROPERTY ZEN_NAMES_PROBLEMS "")
 set_property(GLOBAL PROPERTY ZEN_NAMES_USED "")
@@ -406,7 +463,17 @@ set(st_want
     "canary/AGENTS.md:7: `tests/board.hpp` names no file or folder of this tree"
     "canary/AGENTS.md:16: `lost_suite` is named as a suite, and tests/test_population.txt declares no such CTest entry"
     "canary/AGENTS.md:20: `gone_suite` is named as a suite, and tests/test_population.txt declares no such CTest entry"
-    "canary/AGENTS.md:24: `absent_suite` is named as a suite, and tests/test_population.txt declares no such CTest entry")
+    "canary/AGENTS.md:24: `absent_suite` is named as a suite, and tests/test_population.txt declares no such CTest entry"
+    "canary/AGENTS.md:26: `gone_a` is named as a suite or a CTest entry, and tests/test_population.txt declares no such CTest entry"
+    "canary/AGENTS.md:26: `gone_b` is named as a suite or a CTest entry, and tests/test_population.txt declares no such CTest entry"
+    "canary/AGENTS.md:26: `gone_c` is named as a suite or a CTest entry, and tests/test_population.txt declares no such CTest entry"
+    "canary/AGENTS.md:28: `gone_d` is named as a suite or a CTest entry, and tests/test_population.txt declares no such CTest entry"
+    "canary/AGENTS.md:28: `gone_e` is named as a suite or a CTest entry, and tests/test_population.txt declares no such CTest entry"
+    "canary/AGENTS.md:29: `gone_f` is named as a gate, and no row of tests/test_population.txt rides it"
+    "canary/AGENTS.md:29: `gone_g` is named as a gate, and no row of tests/test_population.txt rides it"
+    "canary/AGENTS.md:29: `gone-h` is named as a gate, and no row of tests/test_population.txt rides it"
+    "canary/AGENTS.md:29: `gone-k` is named as a gate, and no row of tests/test_population.txt rides it"
+    "canary/AGENTS.md:30: `gone_j` is named as a suite or a CTest entry, and tests/test_population.txt declares no such CTest entry")
 if(NOT st_problems STREQUAL st_want)
     string(REPLACE ";" "\n  " st_shown "${st_problems}")
     string(REPLACE ";" "\n  " st_wanted "${st_want}")
@@ -417,12 +484,22 @@ if(NOT st_used STREQUAL "made.json;include/zengine/")
     message(FATAL_ERROR "doc-names: SELF-TEST FAILED -- the canary used the rows '${st_used}', "
                         "want 'made.json;include/zengine/'")
 endif()
-# The same page read as no router names no suite.
+# The same page read as no router still names a sentence's misses, and none of the router's.
+set(st_plain "")
+foreach(item IN LISTS st_want)
+    if(item MATCHES "`(lost_suite|gone_suite|absent_suite)`")
+        continue()
+    endif()
+    string(REPLACE "canary/AGENTS.md:" "canary/page.md:" plain "${item}")
+    list(APPEND st_plain "${plain}")
+endforeach()
 set_property(GLOBAL PROPERTY ZEN_NAMES_PROBLEMS "")
 zen_names_page("canary/page.md" "part" "" "${st_text}")
 get_property(st_problems GLOBAL PROPERTY ZEN_NAMES_PROBLEMS)
-if(st_problems MATCHES "suite")
-    message(FATAL_ERROR "doc-names: SELF-TEST FAILED -- a page that is no router was read for suites")
+if(NOT st_problems STREQUAL st_plain)
+    string(REPLACE ";" "\n  " st_shown "${st_problems}")
+    string(REPLACE ";" "\n  " st_wanted "${st_plain}")
+    message(FATAL_ERROR "doc-names: SELF-TEST FAILED -- a page that is no router read as\n  ${st_shown}\nwant\n  ${st_wanted}")
 endif()
 set_property(GLOBAL PROPERTY ZEN_NAMES_PROBLEMS "")
 set_property(GLOBAL PROPERTY ZEN_NAMES_USED "")
@@ -488,19 +565,25 @@ endforeach()
 
 file(STRINGS "${ZEN_REPO}/tests/test_population.txt" pop_rows REGEX "^[^#]")
 set(ZEN_NAMES_POPULATION "")
+set(ZEN_NAMES_GATES "")
 foreach(row IN LISTS pop_rows)
     string(REGEX REPLACE "#.*$" "" row "${row}")
     string(STRIP "${row}" row)
     if(row MATCHES "^([^ \t]+)[ \t]")
         list(APPEND ZEN_NAMES_POPULATION "${CMAKE_MATCH_1}")
     endif()
+    if(row MATCHES "^[^ \t]+[ \t]+[^ \t]+[ \t]+([^ \t]+)")
+        list(APPEND ZEN_NAMES_GATES "${CMAKE_MATCH_1}")
+    endif()
 endforeach()
 list(REMOVE_DUPLICATES ZEN_NAMES_POPULATION)
+list(REMOVE_DUPLICATES ZEN_NAMES_GATES)
 list(LENGTH ZEN_NAMES_POPULATION population_count)
+list(LENGTH ZEN_NAMES_GATES gate_count)
 list(LENGTH page_files page_count)
-if(population_count EQUAL 0 OR page_count EQUAL 0)
-    message(FATAL_ERROR "doc-names: ${page_count} pages and ${population_count} CTest entries read; "
-                        "an empty population is a failure, not a pass (VM-POP-01)")
+if(population_count EQUAL 0 OR gate_count EQUAL 0 OR page_count EQUAL 0)
+    message(FATAL_ERROR "doc-names: ${page_count} pages, ${population_count} CTest entries and "
+                        "${gate_count} gates read; an empty population is a failure, not a pass (VM-POP-01)")
 endif()
 
 # ---- the names the tree does not hold ---------------------------------------------------------
@@ -548,8 +631,8 @@ endforeach()
 
 get_property(read GLOBAL PROPERTY ZEN_NAMES_READ)
 list(LENGTH ZEN_NAMES_ROWS row_count)
-message(STATUS "doc-names: ${read} names read in ${page_count} pages against ${tree_count} files and "
-               "${population_count} CTest entries; ${row_count} names the tree does not hold")
+message(STATUS "doc-names: ${read} names read in ${page_count} pages against ${tree_count} files, "
+               "${population_count} CTest entries and ${gate_count} gates; ${row_count} names the tree does not hold")
 if(read EQUAL 0)
     message(FATAL_ERROR "doc-names: no name read; an empty population is a failure, not a pass (VM-POP-01)")
 endif()
@@ -559,7 +642,9 @@ if(problems)
     message(FATAL_ERROR "doc-names FAILED: ${problem_count} problem(s):\n  ${shown}\n"
                         "A name a page gives in backticks is a file or folder of this tree, read from the "
                         "root, from the page's folder or as the tail of a path, or a row of "
-                        "tests/doc_names.txt; a suite a router names is a CTest entry.")
+                        "tests/doc_names.txt; a suite a router names is a CTest entry, and a suite, an entry or a gate "
+                        "a sentence names is one tests/test_population.txt declares.")
 endif()
 message(STATUS "doc-names: PASSED -- every path a router or a much-read page names is in the tree or "
-               "in tests/doc_names.txt, and every suite a router names is a CTest entry")
+               "in tests/doc_names.txt, every suite a router names is a CTest entry, and every suite, "
+               "entry and gate a sentence names is one tests/test_population.txt declares")
