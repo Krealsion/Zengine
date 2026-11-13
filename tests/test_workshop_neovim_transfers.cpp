@@ -66,8 +66,7 @@ struct NeovimStory : NeovimHome, TransferStory {
 
     /// ONE BEAT, AS THE TIMER WOULD GIVE IT, then drain.
     void tick() {
-        (void)r.bus.send(holder(), loom::Message(loom::to_value(zengine::timer::TimerFired{"zengine.neovim-editor.beat"}),
-                                                 loom::WeaveId{}, loom::WeaveId{}, 0));
+        (void)r.bus.send(holder(), host_wake());
         r.bus.drain_until_idle();
     }
     template <class Done>

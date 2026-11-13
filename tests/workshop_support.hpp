@@ -903,6 +903,20 @@ struct InteractionClock {
     void spaced(std::int64_t ms) { step = ms; }
 };
 
+/// THE HOST'S OWN WORD TO A SOURCE OF ITS WAIT, as a rig gives it: what the source claimed is
+/// ready and its time came, on the machine's clock -- a source over a real child process keeps
+/// real time. It has no sender, as only the host's has.
+inline loom::Message host_wake() {
+    loom::host::Waited w;
+    w.held = true;
+    w.ready = true;
+    w.due = true;
+    w.now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+                   .count();
+    return loom::Message(loom::to_value(w), loom::WeaveId{}, loom::WeaveId{}, 0);
+}
+
 /// THE HOST'S ONE WAIT FOR WORKSHOP'S OWN TIMES, AS A RIG KEEPS IT: a `loom::host::Reactor` on the
 /// case's reading, trusting Workshop's role, so Workshop is handed the time as its host hands it --
 /// Shift's taps, the desk reads' rate and a desk wait's bound are timed by it, and a rig without one

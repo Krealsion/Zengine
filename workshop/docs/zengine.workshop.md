@@ -574,6 +574,12 @@ role ([`vocabulary.hpp`](../layouts/vocabulary.hpp)).
 
 ## Hears
 
+### `loom.host.Waited`
+
+`loom.host.Waited` v2, from the host alone, with the time on its wait's clock: what Workshop still
+times -- Shift's taps, the desk reads' rate, how long a desk wait has waited -- it times by this,
+and claims, as its role, the soonest such time. From any participant it is nothing.
+
 ### `LiveLayout`
 
 `LiveLayout` v3, from `zengine.layouts`: the live desk, each row with Workshop's own `workshop.`
