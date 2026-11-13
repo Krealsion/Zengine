@@ -1562,7 +1562,7 @@ zengine_doctest_test(builder zengine-builder-tests)
 # is: no rig, window or plan, only a bus, a socket and the door.
 add_executable(zengine-workshop-guests-tests test_workshop_guests.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-guests-tests
-    PRIVATE loom::bridge loom::switchboard loom::core zengine-workshop-guests
+    PRIVATE loom::bridge loom::switchboard loom::core loom::host-policy zengine-workshop-guests
             zengine-input-vocabulary zengine-graphics-vocabulary zengine-timer-vocabulary
             zengine::inventory zengine-warnings zengine-sanitize)
 target_include_directories(zengine-workshop-guests-tests PRIVATE

@@ -35,7 +35,7 @@ maker                             doctest           always  29
 # Tripwires in this suite read builder/weave.hpp, builder/runner.hpp and workshop/workshop.cpp as
 # text (VM-WALL-11).
 builder                           doctest           always  71
-workshop_guests                   doctest           always  40
+workshop_guests                   doctest           always  43
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always

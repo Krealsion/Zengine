@@ -38,6 +38,7 @@
 #include "timer/vocabulary.hpp"
 
 #include <zen/bridge/client.hpp>
+#include <zen/host/reactor.hpp>
 #include <zen/serialize.hpp>
 #include <zen/switchboard/door.hpp>
 #include <zen/switchboard.hpp>
@@ -742,6 +743,74 @@ TEST_CASE("door: a row written admit ask is refused when the file is read, namin
         CHECK(decided);
         CHECK_FALSE(waiting);
     }
+}
+
+TEST_CASE("door: a host's one wait wakes the door through one connection again and again, the door "
+          "claiming what the crossing waits on anew after every delivery") {
+    Scratch f("waited");
+    f.write(kTwoGuests);
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    // MOUNTED AS A HOST MOUNTS IT: the door claims what the crossing waits on as its role, and the
+    // host's wait trusts that role. Nothing here services the crossing or sends the door a word: a
+    // turn, then the wait, as Workshop's loop runs them.
+    r.door->open(r.bus, r.door_id);
+    loom::host::Reactor wait(r.bus);
+    wait.trust(ws::kGuestsRole);
+    const auto turn_until = [&](const std::function<bool()>& done) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        while (!done()) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                return false;
+            }
+            r.bus.drain_until_idle();
+            (void)wait.after_turn(20);
+        }
+        return true;
+    };
+    const auto door_source = [&] {
+        for (const loom::host::Reactor::Source& s : wait.sources()) {
+            if (s.role == ws::kGuestsRole) {
+                return s;
+            }
+        }
+        return loom::host::Reactor::Source{};
+    };
+
+    Guest g(r.port, "agent", "open-sesame");
+    REQUIRE(turn_until([&] {
+        g.poll();
+        return g.client->admitted();
+    }));
+    const std::uint64_t woken_to_admit = door_source().wakes;
+    CHECK(woken_to_admit >= 1);
+    // THE SAME CONNECTION, A SECOND AND A THIRD TIME: its bytes wake the door, and the answer they
+    // set in motion leaves on the wake the crossing's owing raises.
+    g.ask(input::kInputRole, 1, input::InputSessionRequested{"first"});
+    REQUIRE(turn_until([&] {
+        g.poll();
+        return g.answered<input::InputSessionOpened>(1).has_value();
+    }));
+    input::InjectInput batch;
+    batch.session = g.answered<input::InputSessionOpened>(1)->session;
+    input::InjectedEvent down;
+    down.kind = "KeyPressed";
+    down.scancode = input::scan::kP;
+    batch.events = {down};
+    g.ask(input::kInputRole, 2, batch);
+    REQUIRE(turn_until([&] {
+        g.poll();
+        return g.answered<input::InputInjected>(2).has_value();
+    }));
+    CHECK(g.answered<input::InputInjected>(2)->admitted == 1);
+    REQUIRE(r.heard.size() == 1);
+    CHECK(as<input::KeyPressed>(r.heard, 0).scancode == input::scan::kP);
+    const loom::host::Reactor::Source door = door_source();
+    CHECK(door.held);
+    CHECK(door.why.empty());
+    CHECK(door.wakes >= woken_to_admit + 2);
 }
 
 TEST_CASE("door: a guest injects through the real Input weave, and its socket's end ends its session") {

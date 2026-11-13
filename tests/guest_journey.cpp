@@ -13,6 +13,7 @@
 
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
+#include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/setup_control.hpp"
 
 #include <zen/bridge/client.hpp>
@@ -56,6 +57,7 @@ namespace {
 
 namespace input = zengine::input;
 namespace gfx = zengine::graphics;
+namespace workshop = zengine::workshop;
 
 int failures = 0;
 
@@ -223,6 +225,15 @@ struct Guest {
         client->send_to_role(far_role, c, loom::serialize(loom::to_value(msg)), settle);
         client->flush();
         return c;
+    }
+    /// Where the plan is, held until it is at rest (WL-GUEST-12): the door listens before the plan
+    /// is realized, so a shape a row still to come declares is refused until then.
+    bool plan_at_rest(int timeout_ms = 60000) {
+        const std::uint64_t c =
+            ask(workshop::kGuestsRole, workshop::GuestPlanRequested{true});
+        const std::optional<workshop::GuestPlanSaid> said =
+            answer<workshop::GuestPlanSaid>(c, timeout_ms);
+        return said.has_value() && said->at_rest;
     }
     /// Wait for the host's `Settled` under `correlation`; true when it came.
     bool settled(std::uint64_t correlation, int timeout_ms = 10000) {
@@ -430,6 +441,7 @@ int main(int argc, char** argv) {
     }
     check(g.client->established_name() == "agent",
           "as the name the guests file establishes, not the one it claimed");
+    check(g.plan_at_rest(), "...and hears the plan at rest, asked with wait");
 
     const std::uint64_t open = g.ask(input::kInputRole, input::InputSessionRequested{"journey"});
     const std::optional<input::InputSessionOpened> opened = g.answer<input::InputSessionOpened>(open);
@@ -593,7 +605,8 @@ int main(int argc, char** argv) {
                 return w.client->admitted() || w.client->denied() || w.client->disconnected();
             },
             5000);
-        return check(w.client->admitted(), "...and is admitted");
+        return check(w.client->admitted(), "...and is admitted") &&
+               check(w.plan_at_rest(), "...and hears the plan at rest, asked with wait");
     };
     const auto look = [](Guest& w) {
         const std::uint64_t asked = w.ask(kMedium, gfx::SurfaceCaptureRequested{});
