@@ -4,10 +4,9 @@
 what your weave *is*, use [TimedWeave](timed-weaves.md) instead.
 
 Time in Zen is a service: the `zengine-timer` weave holds the `zengine.timer`
-role, owns the monotonic clock, and delivers beats to whoever asks; the host
-rests between turns for as long as the Timer says the bus may
-([`timer/rest.hpp`](../rest.hpp)). Your weave never sleeps, never polls, and
-never talks to an id — always to the role.
+role and fires timers for whoever asks, at the times the host's one wait hands it
+([the host's wait](#the-hosts-wait)). Your weave never sleeps, never polls, never
+reads a clock, and never talks to an id — always to the role.
 
 ## Order a timer
 
@@ -47,7 +46,7 @@ schedule the handoff already preserved
 void on(const TimerReady&, loom::Mail& mail) { place_my_orders(mail); }
 ```
 
-If your rhythm is fixed — "this weave beats every 50 ms" — skip all of this
+If your rhythm is fixed — "this weave ticks every 50 ms" — skip all of this
 plumbing and use [`TimedWeave`](timed-weaves.md), which re-places declared
 orders for you at exactly the right moments.
 
@@ -59,15 +58,17 @@ choice is honored per timer, and the receipt tells you what actually happened.
 Deeper: [the Timer's manual](zengine.timer.md), every message it accepts and what it does when
 it is replaced.
 
-## What the cap bounds
+## The host's wait
 
-A host rests between turns until what is due next, so no firing is late for the rest. With
-nothing due it rests at most `kBeatCapMs` (`timer/vocabulary.hpp`), and that bound is a safety net,
-not a source's lateness: a host that rests in Loom's one wait (`loom::host::Reactor`) wakes at once
-for every source the wait holds -- a window, the Input role, a Neovim pane, the guest door each
-claim what they wait on -- and a source the wait does not hold keeps a beat of its own
-([`timer/held_beat.hpp`](../held_beat.hpp)). So the cap is the longest that anything neither waited
-on nor due goes unseen, and the one turn a second an idle host keeps.
+A host turns its bus and then rests in Loom's one wait (`loom::host::Reactor`), on every role it
+trusts: the Timer's among them, with every source's -- a window, the Input role, a Neovim pane,
+the guest door each claim what they wait on, and a time when they must look
+([`timer/source_wait.hpp`](../source_wait.hpp)). The Timer claims the time its soonest timer is
+due, and the wait wakes it then, handing it the time; with nothing standing it claims no time, and
+an idle host rests until something is ready. Workshop and the app trust the Timer's role; a host
+that does not wait on it -- one that runs no wait, or `loom-host`, which trusts no role -- never
+wakes a Timer, so its timers never fire there.
 
-A suite's virtual clock that books each beat as elapsed may name a shorter step (`step_ms`), so
-virtual seconds pass in many beats; a host's clock has none.
+A suite runs its host's loop on a clock that moves only when told (`loom::host::ManualClock`): a
+wait that finds nothing ready moves it to the soonest time due, so a case says "until this time"
+and every duration is exact.

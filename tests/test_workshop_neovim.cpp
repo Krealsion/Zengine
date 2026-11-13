@@ -45,7 +45,7 @@ inline std::vector<load::ChoiceIntent> standard_and_neovim() {
 /// activation on, as it orders its beat; the standard Editor does not.
 bool holder_hears_beats(SwitchRig& s) {
     for (const auto& schema : s.r.bus.accepted_schemas(s.holder())) {
-        if (schema->name() == zengine::timer::TimerFired::zen_name) {
+        if (schema->name() == loom::host::Waited::zen_name) {
             return true;
         }
     }
@@ -60,9 +60,7 @@ void beat(SwitchRig& s) {
                                                         "zengine.editor-switch.beat"}),
                                                     loom::WeaveId{}, loom::WeaveId{}, 0));
     if (holder_hears_beats(s)) {
-        (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(zengine::timer::TimerFired{
-                                                         "zengine.neovim-editor.beat"}),
-                                                     loom::WeaveId{}, loom::WeaveId{}, 0));
+        (void)s.r.bus.send(s.holder(), host_wake());
     }
     s.r.bus.drain_until_idle();
 }
@@ -472,21 +470,28 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         const std::string area = pane_area(role, nve::kEditorPane);
         SwitchRig w("nvim-names-window");
         NeovimEnvironment env(w.root, (w.root / "no-such-dir" / "nvim").string());
+        // Before the pane loads: a library built with its own C runtime keeps the environment it
+        // loaded with.
+        set_env("ZENGINE_NEOVIM_PROFILE", "no-such-profile");
         RoomAsks directory(w.r.bus);
         w.open(standard_and_neovim(), nve::kNeovimEditorStem);
         // THE ROOM IS ASKED ONCE, on the holder's activation, as the role.
         CHECK(directory.times(area, role) == 1);
-        // A NOTICE THE PANE SAYS, as a refused beat makes one: each reason a change of its rows.
-        const auto refuse_beat = [&w](const std::string& why) {
-            (void)w.r.bus.send(w.holder(), loom::Message(loom::to_value(zengine::timer::TimerResolution{
-                                                             "zengine.neovim-editor.beat",
-                                                             zengine::timer::kResolutionRefused, why}),
+        // A NOTICE THE PANE SAYS, as a start its profile refuses makes one, naming where it looked
+        // for the profile: started from each folder, a change of its rows; from the same one
+        // again, no change. The process's working folder is every library's alike.
+        const auto refuse_start_in = [&w](const std::string& folder) {
+            const std::filesystem::path was = std::filesystem::current_path();
+            std::filesystem::create_directories(w.root / folder);
+            std::filesystem::current_path(w.root / folder);
+            (void)w.r.bus.send(w.holder(), loom::Message(loom::to_value(nve::NeovimStartRequested{}),
                                                          loom::WeaveId{}, loom::WeaveId{}, 0));
             w.r.bus.drain_until_idle();
+            std::filesystem::current_path(was);
         };
         pw::Window window(w.r.bus);
         pw::PaneWindow& seen = window.weave();
-        window.room(area, role, 60, 8);
+        window.room(area, role, 600, 8); // room for the whole notice, a folder's path in it
         REQUIRE(seen.heard.size() == 1);
         CHECK(seen.heard[0].whole);
         CHECK(seen.refusals.empty());
@@ -501,35 +506,35 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         CHECK(w.read("running") == "false");
 
         // A CHANGE IS DRAWN AS WHAT CHANGED.
-        refuse_beat("first");
+        refuse_start_in("cwd-first");
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK_FALSE(seen.heard.back().whole);
-        CHECK(window.rows(area)[0].find("(first)") != std::string::npos);
+        CHECK(window.rows(area)[0].find("cwd-first") != std::string::npos);
 
         // A REFUSED CHANGE IS FOLLOWED AT ONCE BY THE WHOLE...
         seen.refuse_next = true;
         mark = seen.heard.size();
-        refuse_beat("second");
+        refuse_start_in("cwd-second");
         REQUIRE(seen.heard.size() == mark + 2);
         CHECK_FALSE(seen.heard[mark].whole);
         CHECK(seen.heard[mark + 1].whole);
         CHECK(seen.refusals.size() == 1);
-        CHECK(window.rows(area)[0].find("(second)") != std::string::npos);
+        CHECK(window.rows(area)[0].find("cwd-second") != std::string::npos);
 
         // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
         seen.refuse_next = true;
         mark = seen.heard.size();
-        window.room(area, role, 60, 8, 2); // the window started again, holding nothing
+        window.room(area, role, 600, 8, 2); // the window started again, holding nothing
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK(seen.heard[mark].whole);
         CHECK(seen.refusals.size() == 2);
-        refuse_beat("second"); // said again: the rows do not change
+        refuse_start_in("cwd-second"); // said again: the rows do not change
         CHECK(seen.heard.size() == mark + 1);
-        refuse_beat("third");
+        refuse_start_in("cwd-third");
         REQUIRE(seen.heard.size() == mark + 2);
         CHECK(seen.heard.back().whole);
         CHECK(seen.refusals.size() == 2);
-        CHECK(window.rows(area)[0].find("(third)") != std::string::npos);
+        CHECK(window.rows(area)[0].find("cwd-third") != std::string::npos);
         CHECK(seen.strangers == 0);
     }
     SwitchRig s("nvim-names");
@@ -542,30 +547,27 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
     CHECK(held_part_text(s.r.session(), s.kind, parts.at("status")) == s.status());
 }
 
-TEST_CASE("the Neovim editor orders its beat in words the Timer reads, and a refused beat is said on its pane") {
+TEST_CASE("the Neovim editor is a source of the host's wait: it claims what it reads as its role, "
+          "orders the Timer nothing, and reads when the wait wakes it") {
     SwitchRig s("nvim-beat");
     NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "ok");
     TimerSeat* timer = nullptr;
     s.before_plan = [&] { timer = mount_timer(s); };
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(timer != nullptr);
-    REQUIRE(timer->orders.size() == 1);
-    const zengine::timer::EnsureTimer& order = timer->orders.front();
-    CHECK(order.id == "zengine.neovim-editor.beat");
-    CHECK(order.delay_ms == 10);
-    CHECK(order.repeat);
-    CHECK(zengine::timer::continuity_from(order.preferred).has_value());
-    CHECK(zengine::timer::continuity_from(order.fallback).has_value());
-    CHECK_FALSE(s.shows("refused this editor's beat"));
+    CHECK(timer->orders.empty()); // no beat: the pane keeps no time of the Timer's
 
-    // A TIMER THAT SAYS NO is said where the weaver is looking.
-    timer->refuse = true;
-    const std::size_t before = timer->orders.size();
-    (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(zengine::timer::TimerReady{}), loom::WeaveId{},
-                                                 loom::WeaveId{}, 0));
+    // ITS CLAIM, as the host's wait reads it: the role's, held, naming what the pane reads.
+    loom::host::Reactor wait(s.r.bus);
+    wait.trust(nve::kEditorRole);
+    (void)wait.after_turn(0);
     s.r.bus.drain_until_idle();
-    REQUIRE(timer->orders.size() == before + 1);
-    CHECK_MESSAGE(s.shows("the Timer refused this editor's beat"), s.status());
+    REQUIRE(wait.sources().size() == 1);
+    CHECK(wait.sources().front().claimed);
+
+    // Woken by the host's own word, it reads Neovim until it is ready: no beat is asked for.
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    CHECK(timer->orders.empty());
 }
 
 TEST_CASE("a reload of the Neovim editor is refused while its Neovim runs, said on its pane, and Neovim keeps running") {
@@ -862,9 +864,7 @@ TEST_CASE("after a switch to Neovim, an open through the role shows another file
     });
     for (int turn = 0; turn < 400 && s.asker->opens.size() == before; ++turn) {
         (void)s.r.bus.pump_pending();
-        (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(zengine::timer::TimerFired{
-                                                         "zengine.neovim-editor.beat"}),
-                                                     loom::WeaveId{}, loom::WeaveId{}, 0));
+        (void)s.r.bus.send(s.holder(), host_wake());
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     s.r.bus.drain_until_idle();
@@ -1044,8 +1044,7 @@ TEST_CASE("from a Loom with no Workshop, Neovim listens for a second terminal, s
         while (console->answers.size() == before && std::chrono::steady_clock::now() < deadline) {
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             (void)r.bus.send(r.bus.role_holder(nve::kEditorRole),
-                             loom::Message(loom::to_value(zengine::timer::TimerFired{"zengine.neovim-editor.beat"}),
-                                           loom::WeaveId{}, loom::WeaveId{}, 0));
+                             host_wake());
             r.bus.drain_until_idle();
         }
         if (console->answers.size() != before + 1) {

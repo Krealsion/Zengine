@@ -7,8 +7,18 @@
 # says whose a folder is, the longest that holds a file deciding; a file the package installs is
 # the package's, and every other file is Zengine's. `line <file> <header> <count> falls` is a
 # reach across it: a file of one side including, <count> times, a header of the other that the
-# package does not install. `cmake -DZEN_CENSUS_WRITE=<file> -P tests/check_census.cmake` writes
-# the rows as the tree stands, to diff. ASCII only.
+# package does not install.
+#
+# What a file grows (agents/verification/checks.md, VM-CHECK-17), counted in the same code folders:
+# `doors <file> <name> <count>` is the shapes one `loom::Accept<...>` list names, the list named by
+# the class, struct or alias whose line opens nearest before it; `hooks <file> <struct> <count>`
+# the `std::function` members of a struct a host hands a weave, from four on; `lines <file>
+# <class> <count>` the lines of a class from 1000 on, an alarm that asks a question and decides
+# nothing. A new door is a changed row where review sees it; a round that deletes lowers its row
+# in the same change. The hub's doors and its host's hooks are marked to fall.
+#
+# `cmake -DZEN_CENSUS_WRITE=<file> -P tests/check_census.cmake` writes the rows as the tree stands,
+# to diff. ASCII only.
 
 side workshop/ workshop
 side builder/ workshop
@@ -88,3 +98,96 @@ line workshop/weave.hpp theme/vocabulary.hpp 1 falls
 line workshop/weave_guest_read.cpp attention/vocabulary.hpp 1 falls
 line workshop/weave_run.cpp theme/stack_name.hpp 1 falls
 line workshop/window_persist.hpp persist/file.hpp 1 falls
+
+doors app/host.hpp CloseDoor 2
+doors app/host.hpp PlaceDoor 1
+doors app/host.hpp Seat 4
+doors app/weave.cpp AppWeave 6
+doors attention/pane.cpp AttentionPaneWeave 1
+doors builder/builder-pane/pane.cpp BuilderPaneWeave 13
+doors builder/runner.hpp BuildRunnerBase 2
+doors builder/weave.hpp BuilderBase 10
+doors composer/composer.cpp ComposerWeave 13
+doors editor/editor-pane/pane.cpp EditorPaneWeave 35
+doors editor/neovim-editor/pane.cpp NeovimEditorWeave 38
+doors examples/guard-pane/guard.cpp Guard 6
+doors examples/numbered-presenter/presenter.cpp NumberedPresenter 7
+doors examples/snake/pilot.cpp SnakePilot 4
+doors examples/snake/play.cpp ConsoleWeave 5
+doors examples/snake/score.cpp ScoreWeave 1
+doors examples/snake/world.cpp SnakeWorld 6
+doors examples/snake/world.cpp SnakeWorld.2 4
+doors examples/tally-pane/tally.cpp Tally 7
+doors examples/tower-defense/td.cpp Game 6
+doors examples/workshop-probe/probe.hpp ProbeWeave 10
+doors external-host/connections-pane/pane.cpp ConnectionsPaneWeave 1
+doors external-host/demo-control/control.hpp Control 7
+doors files/files.cpp FilesWeave 10
+doors flow/flow-host/runtime.hpp Clock 1
+doors flow/flow-host/runtime.hpp Manager 7
+doors flow/flow-pane/pane.cpp FlowPane 21
+doors graphics/directory.cpp Directory 7
+doors graphics/drawing.hpp ActionFacet 3
+doors graphics/drawing.hpp DrawingFacet 2
+doors graphics/window/window.hpp WindowBase 21
+doors info/pane.cpp InfoPaneWeave 25
+doors input/double_click_setting.hpp DoubleClickSetting 2
+doors input/input_weave.hpp EmitsOf 8
+doors introspection/introspection.cpp IntrospectionWeave 14
+doors inventory/inventory-pane/pane.cpp InventoryPane 26
+doors inventory/weave.hpp InventoryWeave 25
+doors launcher/weave.cpp Launcher 4
+doors manual/vocabulary.hpp ManualFacet 1
+doors notices/notices-pane/pane.cpp NoticesPaneWeave 2
+doors notices/notices.cpp Base 4
+doors notices/notices.cpp NoticesWeave 4
+doors pane/document.hpp PaneManualFacet 1
+doors pane/facets.hpp AskFacet 2
+doors pane/facets.hpp PaneActionFacet 1
+doors pane/facets.hpp PaneFacet 3
+doors pane/facets.hpp PaneMenuFacet 1
+doors pane/facets.hpp Room 11
+doors pane/facets.hpp Room.2 10
+doors pane/facets.hpp Room.3 10
+doors pane/facets.hpp Room.4 9
+doors pane/seat.hpp MultiPaneFacet 12
+doors pane/seat.hpp MultiPaneFacet.2 11
+doors pane/settings_taken.hpp PaneSettingsFacet 1
+doors terminal/pane.cpp TerminalPaneWeave 10
+doors theme/weave.cpp Base 9
+doors theme/weave.cpp ThemeWeave 9
+doors timer/binding.hpp TimedWeave 4
+doors timer/timer_weave.hpp TimerWeave 13
+doors view/host.hpp Manager 5
+doors view/view-builder/pane.cpp ViewBuilderPane 19
+doors workshop/arrangement.hpp ArrangementDoor 1
+doors workshop/desktop-pane/pane.cpp DesktopWeave 19
+doors workshop/editor_switch.hpp EditorSwitchBase 12
+doors workshop/first-run/first_run.cpp FirstRun 18
+doors workshop/guest_door.hpp GuestDoorBase 8
+doors workshop/layouts/owner.hpp LayoutsOwner 23
+doors workshop/load_execute.hpp PlanBooter 6
+doors workshop/menu-presenter/presenter.cpp MenuPresenter 7
+doors workshop/opening.hpp OpeningManager 7
+doors workshop/palette/palette.cpp Palette 15
+doors workshop/pane_doors.hpp ProjectDoor 7
+doors workshop/powers_door.hpp PowersDoor 3
+doors workshop/sample_door.hpp SampleDoor 1
+doors workshop/terminal/door.hpp TerminalDoor 2
+doors workshop/weave.hpp WorkshopWeave 94 falls
+
+hooks workshop/develop.hpp World 5
+hooks workshop/editor_switch.hpp EditorSwitchHost 4
+hooks workshop/layouts/store.hpp LayoutsHost 4
+hooks workshop/weave.hpp HostContext 18 falls
+
+lines builder/builder-pane/pane.cpp BuilderPaneWeave 1663
+lines editor/editor-pane/pane.cpp EditorPaneWeave 1179
+lines editor/neovim-editor/pane.cpp NeovimEditorWeave 1125
+lines files/files.cpp FilesWeave 1614
+lines flow/flow-pane/pane.cpp FlowPane 2542
+lines graphics/window/window.hpp Window 1428
+lines info/property_view.hpp PropertyView 1002
+lines info/value_view.hpp ValueView 1361
+lines view/view-builder/pane.cpp ViewBuilderPane 1337
+lines workshop/weave.hpp WorkshopWeave 1841

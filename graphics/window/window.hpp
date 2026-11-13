@@ -12,7 +12,6 @@
 // (graphics/window/window_tui.hpp), light in a GUI window (graphics/window/window_sdl.hpp).
 
 #include "graphics/painting.hpp"
-#include "timer/held_beat.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/clicks.hpp"
 #include "graphics/window/compose.hpp"
@@ -20,10 +19,11 @@
 #include "graphics/window/seams.hpp"
 #include "graphics/window/store.hpp"
 
+#include "activation/activation.hpp"
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
-#include "timer/binding.hpp"
+#include "timer/source_wait.hpp"
 
 #include <zen/serialize.hpp>
 #include <zen/weave.hpp>
@@ -46,9 +46,9 @@
 
 namespace zengine::graphics::window {
 
-/// How often the window reads its medium: the Input weave's own beat.
-inline constexpr const char* kPumpTimerId = "zengine.window.pump";
-inline constexpr std::int64_t kPumpBeatMs = 10;
+/// How soon the window looks at its medium again on the host's wait's clock when the medium must
+/// look on time, and how often it polls a medium the wait cannot hold: the Input weave's own.
+inline constexpr std::int64_t kLookAgainMs = zengine::input::kLookAgainMs;
 
 /// What a window keeps across a reload: its incarnation, its areas with everything drawn in them,
 /// the element code offered for each type, the palettes offered it, and the next handle it names an
@@ -109,7 +109,7 @@ class Window;
 template <class Medium>
 using WindowBase = typename zengine::With<
     zengine::manual::ManualFacet<Medium::kManual>>::template Weave<Window<Medium>, WindowState,
-    loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
+    loom::Accept<loom::Activated, Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
                  ElementCodeOffered, PaletteOffered, GraphicsReady, WindowShowAsked, AreaShowAsked,
                  zengine::input::AttributedInput, ClipboardCopy, ClipboardTextRequested,
                  SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
@@ -121,7 +121,7 @@ using WindowBase = typename zengine::With<
                WindowShown, AreaShown, AreaSettled,
                SurfaceCloseRequested, SurfacePlacement, ClipboardText, SurfaceCaptured,
                SurfaceCaptureChunk, zengine::input::PointerTimingAsked, loom::Refused>,
-    zengine::timer::TimedWeave, loom::Claims<loom::host::WaitSet>>;
+    loom::WeaveBase, loom::Claims<loom::host::WaitSet>>;
 
 /// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
 /// keeps, paints, shows, lands and reads what the window asks of it.
@@ -130,10 +130,10 @@ class Window : public WindowBase<Medium> {
 public:
     using WindowBase<Medium>::on;
 
-    Window() : pump_(declare_pump()), next_press_(first_press()) {}
+    Window() : next_press_(first_press()) {}
     template <class Device>
     explicit Window(Device device)
-        : medium_(std::move(device)), pump_(declare_pump()), next_press_(first_press()) {}
+        : medium_(std::move(device)), next_press_(first_press()) {}
 
     // ---- drawing -------------------------------------------------------------------------
 
@@ -494,19 +494,20 @@ public:
         return out;
     }
 
-    /// The beat's work, asked for now.
+    /// A look at the medium, asked for now.
     void on(const PumpSurface&, loom::Mail& mail) { service_pump(mail); }
 
-    /// What the host's one wait said about this window: ready, so it looks now; or that it holds
-    /// the window's claim, or no longer does, so its beat stops or runs (timer/held_beat.hpp).
+    /// What the host's one wait said about this window, with the time on its clock: ready or due,
+    /// so it looks now; or that it holds the window's claim, or no longer does
+    /// (timer/source_wait.hpp).
     void on(const loom::host::Waited& w, loom::Mail& mail) {
-        if (held_.hear(w, mail)) {
+        if (wait_.hear(w, mail)) {
             service_pump(mail);
         }
     }
 
-    /// After every delivery, whatever it changed: what the window waits on is claimed and its beat
-    /// run as that leaves it (`settle_wait`).
+    /// After every delivery, whatever it changed: what the window waits on, and when its medium
+    /// must look again, claimed as its role (`settle_wait`).
     void after_delivery(loom::Mail& mail) { settle_wait(mail); }
 
     /// A picture of what the window last presented: now, or on the showing that passes
@@ -575,7 +576,10 @@ public:
 
     /// Started, or started again: a fresh window draws its incarnation (a reload carries the one
     /// it had), takes its medium, paints what its state keeps, shows it, and offers itself.
-    void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
+    void on(const loom::Activated& activated, loom::Mail& mail) {
+        if (!activation_.accept(mail, activated)) {
+            return; // unattested, forged, duplicate or replayed: nothing
+        }
         if (this->state_.epoch == 0) {
             this->state_.epoch = token();
         }
@@ -593,11 +597,6 @@ public:
     }
 
 private:
-    auto declare_pump() {
-        return this->timers().repeat(kPumpTimerId, std::chrono::milliseconds(kPumpBeatMs),
-                                     &Window::on_pump);
-    }
-
     // ---- input --------------------------------------------------------------------------------
 
     /// A point of the window in pixels: one in cells stands at its cell's centre.
@@ -611,9 +610,7 @@ private:
         return Point{sum(times_cell(x), kCellPx / 2), sum(times_cell(y), kCellPx / 2)};
     }
 
-    void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) { service_pump(mail); }
-
-    /// The beat: the medium measured, its queue read, its place said, its room offered, what it
+    /// A look: the medium measured, its queue read, its place said, its room offered, what it
     /// read sent on in the order read, and a close its desktop asked for published. A size is read
     /// at once and a maximize only with the queue, so a maximize is said before the room it brings.
     /// A key, its release and its text go to each owner placed to hear that moment; a button, a move
@@ -663,9 +660,9 @@ private:
         settle(mail, false);
     }
 
-    /// What this window waits on claimed as its role after every delivery, and its beat run as
-    /// the host's wait leaves it: stopped while the wait holds the claim, running while it does
-    /// not, while the medium cannot be waited on, and while the medium must look again soon.
+    /// What this window waits on claimed as its role after every delivery, with a time to look
+    /// again `kLookAgainMs` on while the medium must look again soon; a medium that cannot be
+    /// waited on, or one the wait cannot hold, is polled on that time alone.
     void settle_wait(loom::Mail& mail) {
         std::optional<loom::host::WaitSet> set;
         bool on_time = false;
@@ -675,7 +672,7 @@ private:
         if constexpr (requires { medium_.on_time(); }) {
             on_time = medium_.on_time();
         }
-        held_.settle(mail, role(), set, on_time, pump_);
+        wait_.settle(mail, role(), set, on_time, kLookAgainMs);
     }
 
     /// A hand: the weaver's own, which the platform gives, or a participant's the input role
@@ -791,7 +788,8 @@ private:
             it = clicks_.emplace(hand.key(), ClickCounter{}).first;
         }
         it->second.time(double_click_ms_);
-        return it->second.press(button, medium_.now_ms());
+        const std::optional<std::int64_t> at = medium_.now_ms(wait_.now_ms());
+        return at ? it->second.press(button, *at) : 1; // no time yet: a press counts alone
     }
 
     /// WHAT THE WINDOW DREW UNDER THE HAND, said with a button's moment: the area that shows it,
@@ -1526,8 +1524,8 @@ private:
     }
 
     Medium medium_;
-    typename WindowBase<Medium>::Handle pump_;
-    zengine::timer::HeldBeat held_; ///< whether a host's one wait holds this window's claim
+    zengine::ActivationCursor activation_; ///< which activation this incarnation lives under
+    zengine::timer::SourceWait wait_; ///< what the host's wait last said, and the time it handed
     std::map<HoldKey, Hold> holds_;
     /// The presses whose area the window withdrew or handed over while held, until their release:
     /// it reaches nobody. A hold an area in front ended is released where it lands.

@@ -11,32 +11,25 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cstdint>
 #include <limits>
+#include <optional>
 
 namespace zengine::graphics::window {
 
-/// A steady clock's milliseconds now: what a medium whose device keeps no clock counts by.
-inline std::int64_t steady_now_ms() noexcept {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-               std::chrono::steady_clock::now().time_since_epoch())
-        .count();
-}
-
-/// A device's clock, where it keeps one (`now_ms()`), else a steady clock: what a window counts
-/// the weaver's clicks by.
+/// A device's clock, where it keeps one (`now_ms()`), else the time the host's wait last handed the
+/// window (`handed`, none before it handed one): what a window counts the weaver's clicks by.
 template <class Device>
-std::int64_t device_now_ms(Device& device) {
+std::optional<std::int64_t> device_now_ms(Device& device, std::optional<std::int64_t> handed) {
     if constexpr (requires { device.now_ms(); }) {
         return device.now_ms();
     } else {
-        return steady_now_ms();
+        return handed;
     }
 }
 
-/// THE LAST PRESS OF ONE BUTTON, as it was counted: when it came, in a steady clock's
-/// milliseconds that are never kept or sent, and the clicks it counted (0: none yet).
+/// THE LAST PRESS OF ONE BUTTON, as it was counted: when it came, on the clock the window counts
+/// by, in milliseconds that are never kept or sent, and the clicks it counted (0: none yet).
 struct CountedPress {
     std::int64_t at_ms = 0;
     std::int64_t clicks = 0;

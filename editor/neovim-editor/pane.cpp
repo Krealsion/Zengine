@@ -27,13 +27,13 @@
 // the role held with no document; the orderly quit is refused while a buffer is unsaved; and a
 // reload is refused while Neovim runs (`snapshot`), since the process is its incarnation's.
 
-// The class is declared here with its lifecycle, its beat and pump, its keys, its quit, its
+// The class is declared here with its lifecycle, its wait and pump, its keys, its quit, its
 // clipboard and the pane it draws. opening_switch.hpp defines its opening and switching doors and
 // transfers.hpp its pointer and transfers, both included after it; common.hpp holds what the
 // three share: the bounds and names, the arithmetic and the records of its conversations.
 
 #include "editor/neovim-editor/common.hpp"
-#include "timer/held_beat.hpp"
+#include "timer/source_wait.hpp"
 #include "editor/neovim-editor/vocabulary.hpp"
 
 #include "editor/neovim/host.hpp"
@@ -132,8 +132,7 @@ using Settings = zengine::pane::PaneSettingsFacet<nve::kEditorPane, nve::kEditor
 using NeovimEditorBase = zengine::With<zengine::pane::PaneManualFacet<
     nve::kEditorPane, zengine::manual::pages::zengine_editor::kManual>, Settings>::Weave<
     class NeovimEditorWeave, nve::NeovimEditorState,
-    loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired, timer::TimerResolution,
-                 PaneCatalogRequested, PaneKey, PaneTextInput, PaneActionRequested, PaneQuitRequested,
+    loom::Accept<loom::Activated, PaneCatalogRequested, PaneKey, PaneTextInput, PaneActionRequested, PaneQuitRequested,
                  OpenSourceRequested, ws::v3::PrepareSourceRequested,
                  ManagedOpenProgress, ManagedOpenSettled,
                  SourceOpened, loom::DispatchRefused, ProjectRoot, graphics::ClipboardCopy,
@@ -151,7 +150,7 @@ using NeovimEditorBase = zengine::With<zengine::pane::PaneManualFacet<
                OpenSourceRequested,
                ProjectRootRequested, graphics::ClipboardCopy, graphics::ClipboardTextRequested,
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
-               EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
+               EditorRetired, loom::Result, loom::Refused,
                zengine::pane::PaneMenuRequested, zengine::pane::PaneOperationRequested,
                zengine::pane::PaneValueCarryRequested,
                graphics::Drawn, graphics::RoomAsked, zengine::pane::v2::PaneSettingsDeclared>,
@@ -192,7 +191,6 @@ public:
         if (!activation_.accept(mail, a)) {
             return;
         }
-        ensure_beat(mail);
         if (adopted_) {
             notice((doc_.modified ? "switched editors -- UNSAVED edits stand in " : "switched editors -- editing ") +
                        (doc_path().empty() ? std::string("no source") : shown_path(doc_path())),
@@ -209,41 +207,16 @@ public:
         resay_ = true;
     }
 
-    void on(const timer::TimerReady&, loom::Mail& mail) {
-        if (activation_.activated() && beating_) {
-            ensure_beat(mail);
-        }
-    }
-
-    void on(const timer::TimerFired& fired, loom::Mail& mail) {
-        if (fired.id != kBeatId || !activation_.activated()) {
-            return;
-        }
-        pump(mail);
-    }
-
-    /// What the host's one wait said about this role: Neovim is ready to be read, so the pane
-    /// pumps now; or the wait holds the pane's claim, or no longer does, so the beat stops or runs
-    /// (timer/held_beat.hpp).
+    /// What the host's one wait said about this role, with the time on its clock: Neovim is ready
+    /// to be read, or the time the pane claimed came, so the pane pumps now; or the wait holds the
+    /// pane's claim, or no longer does (timer/source_wait.hpp).
     void on(const loom::host::Waited& w, loom::Mail& mail) {
         if (!activation_.activated()) {
             return;
         }
-        if (waited_.hear(w, mail)) {
+        if (wait_.hear(w, mail)) {
             pump(mail);
         }
-    }
-
-    /// WHAT THE TIMER DID ABOUT THE BEAT. A refusal is said on the pane: without the beat, Neovim's
-    /// screen reaches the pane only when a key does.
-    void on(const timer::TimerResolution& r, loom::Mail& mail) {
-        if (r.id != kBeatId || r.resolved != timer::kResolutionRefused) {
-            return;
-        }
-        notice("the Timer refused this editor's beat (" + r.reason +
-                   ") -- Neovim's screen is redrawn here only when a key reaches it",
-               true);
-        say(mail);
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
@@ -660,7 +633,7 @@ private:
 
     // What a switch is judged from, asked of Neovim and answered when it answers: in
     // opening_switch.hpp.
-    void until_unblocked(std::chrono::steady_clock::time_point until, loom::Mail& mail,
+    void until_unblocked(std::int64_t until, loom::Mail& mail,
                          std::function<void(bool, loom::Mail&)> then);
     void export_later(int ms, loom::Mail& mail, Exported_then then);
     static std::optional<Exported> exported_of(const mp::Value& v);
@@ -782,7 +755,7 @@ private:
             return;
         }
         if (readies_.empty()) {
-            ready_by_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(kStartWaitMs);
+            ready_since_ = wait_.now_ms(); // none yet: the next time the wait hands over
         }
         readies_.push_back(std::move(then));
     }
@@ -806,10 +779,14 @@ private:
             ok = true;
         } else if (!running()) {
             why = failure_.empty() ? not_running_words() : failure_;
-        } else if (std::chrono::steady_clock::now() >= ready_by_) {
-            why = "Neovim did not become ready within " + std::to_string(kStartWaitMs / 1000) + " seconds";
-        } else {
+        } else if (const std::optional<std::int64_t> now = wait_.now_ms();
+                   !ready_since_ && now) {
+            ready_since_ = now;
             return;
+        } else if (!now || *now - *ready_since_ < kStartWaitMs) {
+            return;
+        } else {
+            why = "Neovim did not become ready within " + std::to_string(kStartWaitMs / 1000) + " seconds";
         }
         std::vector<Ready> all = std::move(readies_);
         readies_.clear();
@@ -842,18 +819,7 @@ private:
     void open_location(const st::Material& m, loom::Mail& mail);
     void settle_location(const SourceOpened& said);
 
-    // ---- The beat, the pump and what it observed --------------------------------------------
-
-    /// THE BEAT, ORDERED IN THE TIMER'S OWN WORDS: the binding layer's default continuity -- keep
-    /// the remaining time of a standing schedule, accept a restart -- spelled by the Timer
-    /// vocabulary, because the Timer refuses an order whose continuity it cannot read.
-    void ensure_beat(loom::Mail& mail) {
-        beating_ = true;
-        const timer::ContinuityOrder order;
-        (void)mail.send_to_role(timer::kTimerRole,
-                                timer::EnsureTimer{kBeatId, kBeatMs, true, timer::spelling_of(order.preferred),
-                                                   timer::fallback_spelling(order)});
-    }
+    // ---- The wait, the pump and what it observed --------------------------------------------
 
     /// MOVE NEOVIM'S BYTES, APPLY WHAT IT SAID, and run what follows each answer it gave.
     void pump(loom::Mail& mail) {
@@ -869,23 +835,17 @@ private:
         hear(mail);
     }
 
-    /// What Neovim's pipes wait on claimed as this role after every delivery, and the beat run as
-    /// the host's wait leaves it: stopped while the wait holds the claim, running while it does not
-    /// and while the pane must pump on time -- output a read left, a question waiting out its
-    /// bound, bytes the pipe has not taken, a Neovim not yet ready by its bound.
+    /// What Neovim's pipes wait on claimed as this role after every delivery, with a time to pump
+    /// again while the pane must pump on time -- at once for output a read left, `kLookAgainMs` on
+    /// for a question waiting out its bound, bytes the pipe has not taken, a Neovim not yet ready by
+    /// its bound; pipes the wait cannot hold are polled on that time alone.
     void settle_wait(loom::Mail& mail) {
         bool now = false;
         const loom::host::WaitSet set =
             host_ != nullptr ? host_->wait_set(&now) : loom::host::WaitSet{};
         const bool on_time =
             now || !readies_.empty() || (host_ != nullptr && host_->on_time());
-        const bool beats = waited_.settle(mail, nve::kEditorRole, set, on_time);
-        if (beats && !beating_) {
-            ensure_beat(mail);
-        } else if (!beats && beating_) {
-            beating_ = false;
-            (void)mail.send_to_role(timer::kTimerRole, timer::CancelTimer{kBeatId});
-        }
+        wait_.settle(mail, nve::kEditorRole, set, on_time, now ? 0 : kLookAgainMs);
     }
 
     // WL-NVIM-07 -- agents/workshop/neovim.md
@@ -1238,11 +1198,10 @@ private:
     std::shared_ptr<std::vector<Arrival>> inbox_ = std::make_shared<std::vector<Arrival>>();
     std::size_t asking_ = 0;
     bool hearing_ = false;
-    bool beating_ = false;          ///< the beat is asked of the Timer
-    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this role's claim
-    /// What waits for a starting Neovim, and until when.
+    zengine::timer::SourceWait wait_; ///< what the host's wait last said, and the time it handed
+    /// What waits for a starting Neovim, and since when on the host's wait's clock.
     std::vector<Ready> readies_;
-    std::chrono::steady_clock::time_point ready_by_{};
+    std::optional<std::int64_t> ready_since_;
     /// An opening is being prepared in Neovim now, before it is offered.
     bool preparing_ = false;
     /// What waits for Neovim's answer to a showing: a dropped location's cursor.

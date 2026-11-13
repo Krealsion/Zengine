@@ -54,10 +54,10 @@ accepted while the child still inherited the parent's handles.
 
 ## VM-PLAT-08 — On Windows a short sleep lasts a scheduler tick
 
-METHOD — On Windows `Sleep` and `sleep_for` wait a scheduler tick (~15.6 ms) for any shorter period; the host's rest naps on a high-resolution timer instead, and a case judges what a nap asks, never how long it took.
+METHOD — On Windows a short `Sleep` lasts a scheduler tick (~15.6 ms); a host rests in Loom's one wait, on a high-resolution timer, and a case judges the time a wait hands over, never how long it took.
 BECAUSE — `Sleep(1)` and a 1 ms `sleep_for` each took 15.5 ms on Windows 11 where a
 high-resolution waitable timer took 1.5, and `GetTickCount64` steps 15 or 16 ms; a busy machine
-lengthens every wait but cannot coarsen a reading or change what a nap asked.
+lengthens every wait but cannot coarsen a reading or change what a wait was asked.
 
 ## VM-PLAT-09 — A stale MinGW build tree can crash at startup
 
@@ -140,9 +140,7 @@ nowhere yet
 `graphics/window/terminal_io.hpp` native_terminal_size
 
 ### VM-PLAT-08
-`timer/os_clock.hpp` MonotonicClock MonotonicClock::now_ms MonotonicClock::nap_ms
-`tests/test_timer.cpp` "the shipped clock reads in single milliseconds, not in the scheduler's tick" "the shipped
-clock's nap asks Windows for the period it names, on a high-resolution timer"
+`tests/test_timer.cpp` host_loop "a Timer is woken at its deadlines and at nothing else: one more wake an arm"
 
 ### VM-PLAT-09
 nowhere yet

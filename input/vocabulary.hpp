@@ -15,7 +15,7 @@
 // produced, and a consumer never derives one from the other. Editing controls (Backspace,
 // Enter, Escape, Tab) are key transitions, never text. Exactly one Input weave, the holder of
 // `kInputRole`, produces these shapes, and there is no polling API. `PumpInput` is a drive door
-// for suites and timer-less hosts: it opens the weave's hands and asks nothing.
+// for suites and hosts that run no wait: it opens the weave's hands and asks nothing.
 
 #include <zen/weave/shape.hpp>
 
@@ -355,12 +355,10 @@ inline constexpr std::size_t kMaxHeldKeys = 16;
 /// which outlives any particular implementation being swapped in or out.
 inline constexpr const char* kInputRole = "zengine.input";
 
-/// The weave's own beat: a repeating role-addressed timer, held by `kInputRole` so a
-/// swapped-in successor inherits it, and re-established by the timer binding whenever the
-/// Timer says it is ready. It is also the terminal parser's only clock: a lone ESC is held until
-/// the next poll can say whether a sequence followed, so Escape resolves within one beat.
-inline constexpr const char* kPumpTimerId = "zengine.input.pump";
-inline constexpr std::int64_t kPumpBeatMs = 10;
+/// How soon the weave looks again on the host's wait's clock when it must look on time -- a motion
+/// playing, or the terminal parser holding a lone ESC until it can say whether a sequence followed,
+/// so Escape resolves within this -- and how often it polls a reader the wait cannot hold.
+inline constexpr std::int64_t kLookAgainMs = 10;
 
 } // namespace zengine::input
 

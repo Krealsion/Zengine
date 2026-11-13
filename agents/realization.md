@@ -136,9 +136,9 @@ begin(plan)                    the ordinary host loop        answered()
   its answer holds it off the queue entirely (measured: a zero-work turn with the answer owed,
   arriving afterwards). A timeout is not a settlement, and "the answer became impossible" is
   somebody else's state that nothing in this process knows.
-- **A drain to idle never returns on a process with the Timer service loaded** — a Timer that
-  has gone live re-arms its own beat inside its own handler. Workshop's loop drains and leaves
-  by `Switchboard::stop()`; a host that wants control between turns wants `pump_pending()`.
+- **A drain to idle waits on nothing** — it returns once the bus is empty, and no timer comes due
+  inside it: the Timer is woken only by the host's one wait. A host that wants control between
+  turns, and its timers fired, turns with `pump_pending()` and rests in that wait.
 - **ONE OWNER REALIZES ONE PLAN.** `begin` refuses a second rather than abandoning a cursor
   and a possibly-outstanding conversation. A host wanting a second arrangement against the
   same catalog and Kernel builds a SECOND owner — which is what makes a runtime provider

@@ -112,9 +112,10 @@ stand in one generated unit per target, the one compile each tree pays.
 
 ## VM-CHECK-17 — A census pins what the tree holds, and a row marked to fall only falls
 
-METHOD — A number the tree must not grow is a row of `tests/census.txt`, red where tree and row differ either way; a row marked `falls` is held to the change's base, and raised or new there it is red.
+METHOD — A number the tree must not grow unseen is a `tests/census.txt` row, red where tree and row differ; a row marked `falls` is held to its row at the change's base, and raised there is red.
 BECAUSE — a gain held by hand is given back by the next change that does not look; pinned, it is a
-changed row in that change's diff, and a change that closes a reach lowers the row with it.
+changed row in that change's diff -- reaches across the Workshop line, a weave's doors, a host's
+hooks, a class's lines -- and doors, not lines, are what grew a hub back after it was split.
 
 ## Seen
 
@@ -171,7 +172,7 @@ name and version"
 `tests/shapes.txt`
 
 ### VM-CHECK-17
-`tests/check_census.cmake` zen_census_judge zen_census_side
+`tests/check_census.cmake` zen_census_judge zen_census_side zen_census_counts zen_census_judge_counts
 `tests/census.txt`
 
 ### VM-CHECK-16

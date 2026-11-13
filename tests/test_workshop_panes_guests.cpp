@@ -932,7 +932,7 @@ struct DoorGuest {
     bool until(const std::function<bool()>& done) {
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
         for (;;) {
-            (void)r.bus.send(door_id, loom::Message(loom::to_value(zengine::timer::TimerFired{kGuestBeatId})));
+            (void)r.bus.send(door_id, loom::Message(loom::to_value(loom::host::Waited{0, true, true, std::string(), false, 0})));
             r.bus.drain_until_idle();
             std::vector<loom::BridgeEvent> got;
             client->poll(got);

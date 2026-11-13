@@ -81,7 +81,7 @@ declaring it, as the Builder pane's `builder.build` sends
 shape: the words around a link are the page's, and the check reads only which shapes it links.
 
 **A Hears entry names who sends it, by role**, in its first paragraph: from `` `<role>` `` where
-one role sends it (`` `Drive` v2, from `zengine.timer`, the Timer itself ``), with the role of any
+one role sends it (`` `TimerFired` v1, from `zengine.timer`, the Timer ``), with the role of any
 window that shows an area written `zengine.window.*`; from any weave of a kind where the sender
 is any such weave (`from any weave granted it`); or from the host, for what the host itself says.
 The role is one a manual is named by, one the value register names

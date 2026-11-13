@@ -8,8 +8,6 @@
 #include "app/host.hpp"
 #include "app/program.hpp"
 
-#include "timer/os_clock.hpp"
-#include "timer/rest.hpp"
 #include "workshop/bus_tally.hpp"
 
 #include <zen/host/line_input.hpp>
@@ -43,9 +41,6 @@ std::string artifact_dir(const std::string& here) {
     }
     return (fs::path(here) / ZENGINE_APP_ARTIFACTS).lexically_normal().generic_string();
 }
-
-/// How long the console waits for a line when the bus has nothing to do, in milliseconds.
-constexpr int kIdleWaitMs = 50;
 
 } // namespace
 
@@ -85,13 +80,14 @@ int main(int argc, char** argv) {
     host.begin();
 
     // The console: a turn of the bus, then one wait on the console's next line and every source
-    // the plan's roles say they wait on, as long as the Timer's beat lets the bus rest
-    // (timer/rest.hpp), then a line if one is whole. The bus is never drained, since a live Timer
-    // re-arms its beat at every turn (`pump_pending`, MSG-09).
+    // the plan's roles say they wait on, the Timer's time among them -- only looking while the bus
+    // holds more, resting until something is ready or due when it holds nothing -- then a line if
+    // one is whole.
     loom::host::LineInput console;
-    zengine::timer::MonotonicClock clock;
-    zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
     loom::host::Reactor wait(bus);
+    const auto rest = [&bus, &wait] {
+        return bus.pending() != 0 ? wait.after_turn(0) : wait.after_turn();
+    };
     namespace load = zengine::workshop::load;
     for (const std::string& role : load::plan_roles(host.executor().plan())) {
         wait.trust(role);
@@ -104,17 +100,20 @@ int main(int argc, char** argv) {
             break;
         }
         const bool idle = bus.pending() == 0;
-        const std::int64_t quiet = rest.quiet_ms(bus);
         // A load in flight is answered within turns of the bus: the next line waits for it, so a
         // line typed ahead is read against the plan as that load left it, and the wait does not
         // wake for it meanwhile.
         if (!idle && host.executor().state() == zengine::workshop::load::Realization::Loading) {
             wait.watch(nullptr);
-            (void)wait.after_turn(quiet);
+            (void)wait.after_turn(0);
             continue;
         }
         if (!console_open) {
-            if (idle) {
+            wait.watch(nullptr);
+            const loom::host::Reactor::Woke woke = rest();
+            const bool nothing_waited = !woke.line && !woke.own && woke.roles == 0 &&
+                                        woke.due == 0 && !woke.deadline;
+            if (idle && bus.pending() == 0 && nothing_waited) {
                 // Nothing will speak again and nobody can answer: a plan still waiting on the
                 // console did not run, which the exit says.
                 const bool waiting = host.executor().state() ==
@@ -127,12 +126,10 @@ int main(int argc, char** argv) {
                 std::cout.flush();
                 return waiting ? 5 : host.exit_code();
             }
-            wait.watch(nullptr);
-            (void)wait.after_turn(quiet);
             continue;
         }
         wait.watch(&console);
-        (void)wait.after_turn(idle ? kIdleWaitMs : quiet);
+        (void)rest();
         std::string line;
         switch (console.read(&line, 0)) {
         case loom::host::LineInput::Status::Line: host.command(line); break;

@@ -42,8 +42,6 @@
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
 #include "graphics/vocabulary.hpp"
-#include "timer/os_clock.hpp"
-#include "timer/rest.hpp"
 
 #include <zen/host/reactor.hpp>
 #include "timer/vocabulary.hpp"
@@ -593,13 +591,14 @@ int main(int argc, char** argv) {
         history_policy.recent_capacity = 100000;
         history_policy.default_retain_payload = false;
     }
-    // The beats: the last one, no recent context, no bytes -- findable, never flooding the window.
-    for (const char* shape : {timer::TimerFired::zen_name, timer::Drive::zen_name}) {
+    // The firings and the wakes: the last one, no recent context, no bytes -- findable, never
+    // flooding the window.
+    for (const char* shape : {timer::TimerFired::zen_name, loom::host::Waited::zen_name}) {
         history_policy.rules.push_back(loom::RetentionRule{
             std::string(shape), /*last_n=*/1, /*in_recent=*/false, /*retain_payload=*/false});
     }
     // The drawings, and the notice that the desk moved: remembered as events, not bytes; the
-    // notice, as a beat is, outside recent context -- the newest stands for each before it.
+    // notice, as a firing is, outside recent context -- the newest stands for each before it.
     history_policy.rules.push_back(loom::RetentionRule{
         std::string(gfx::Drawn::zen_name), 1, true, false});
     history_policy.rules.push_back(loom::RetentionRule{
@@ -799,8 +798,8 @@ int main(int argc, char** argv) {
     // ---- The guest door: other hosts, admitted deliberately (workshop/guest_door.hpp) -----------
     // Only with a `--guests` file: without one this Workshop cannot be connected to, the honest
     // default for a bridge with no transport security. The file's rows are the policy. Mounted
-    // before the plan runs, so the Timer's beat finds it: listening says the door is open, not that
-    // the plan is realized, which the door answers once the realization owner is wired below.
+    // before the plan runs, so the host's wait holds it from the first turn: listening says the
+    // door is open, not that the plan is realized, which the door answers once the realization owner is wired below.
     std::string guests_listen;
     GuestDoor* guest_door = nullptr;
     if (!args.guests.empty()) {
@@ -838,6 +837,7 @@ int main(int argc, char** argv) {
         const loom::WeaveId door_id = bus.register_weave(std::move(door), guest_door_grant(),
                                                          std::string(kGuestsRole));
         raw_door->zen_set_self(door_id);
+        raw_door->open(bus, door_id);
         std::printf("zengine-workshop - guests: listening on %s for %zu guest(s) named in %s "
                     "(door: weave #%s; the Connections pane lists them)\n",
                     guests_listen.c_str(), file.rows.size(), args.guests.c_str(),
@@ -1281,12 +1281,11 @@ int main(int argc, char** argv) {
     executor.begin(std::move(begun));
 
     // The loop: a turn, then one wait on every source the plan's roles and the guest door say
-    // they wait on, for as long as the Timer's beat allows (timer/rest.hpp), until `q`. A turn
-    // that ends with an empty queue means nothing will speak again: say so and leave. A native
-    // owner's showing runs inside the host's boundary (workshop/host_pump.hpp), so a throw there is
-    // Loom's Failed, told here in the owner's words.
-    zengine::timer::MonotonicClock clock;
-    zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
+    // they wait on and the times they are due, the Timer's among them -- only looking while the bus
+    // holds more, resting until something is ready or due when it holds nothing -- until `q`. An
+    // empty bus and a wait with nothing to wait on means nothing will speak again: say so and
+    // leave. A native owner's showing runs inside the host's boundary (workshop/host_pump.hpp), so
+    // a throw there is Loom's Failed, told here in the owner's words.
     loom::host::Reactor wait(bus);
     for (const std::string& role : load::plan_roles(executor.plan())) {
         wait.trust(role);
@@ -1294,6 +1293,7 @@ int main(int argc, char** argv) {
     if (guest_door != nullptr) {
         wait.trust(kGuestsRole);
     }
+    wait.trust(kWorkshopProvider); // the hub's own times: Shift's taps, its desk reads' rate
     while (!host.quit) {
         const ServedTurn served =
             serve_turn(bus, host.showings, [&journal](const std::string& said) {
@@ -1305,12 +1305,14 @@ int main(int argc, char** argv) {
         if (host.quit) {
             break;
         }
-        if (bus.pending() == 0) {
-            std::printf("zengine-workshop - the bus went quiet without a quit "
-                        "(no timer service deployed?): exiting.\n");
+        const bool idle = bus.pending() == 0;
+        const loom::host::Reactor::Woke woke = idle ? wait.after_turn() : wait.after_turn(0);
+        if (idle && bus.pending() == 0 && !woke.line && !woke.own && woke.roles == 0 &&
+            woke.due == 0) {
+            std::printf("zengine-workshop - the bus went quiet without a quit and nothing waits "
+                        "to speak: exiting.\n");
             break;
         }
-        (void)wait.after_turn(rest.quiet_ms(bus));
     }
 
     // ---- What this run knew, and what it kept: working memory and the durable record ----------
@@ -1335,9 +1337,8 @@ int main(int argc, char** argv) {
     for (const std::string& line : tally.lines()) {
         std::printf("zengine-workshop - %s\n", line.c_str());
     }
-    std::printf("zengine-workshop - rested %llu times between turns until the Timer's deadline, "
-                "and was woken %llu times before it\n",
-                static_cast<unsigned long long>(wait.lasted()),
+    std::printf("zengine-workshop - rested in its one wait until something was ready or due, and "
+                "was woken %llu times\n",
                 static_cast<unsigned long long>(wait.woken()));
     if (!args.dump.empty()) {
         std::ofstream dump(args.dump);

@@ -265,7 +265,8 @@ before treating a record as a total. Background and evidence traffic are not a s
 
 The launcher enables `--demo-history --dump history.txt` on Workshop. This uses its existing Loom
 Recorder, retaining up to 100,000 recent deliveries plus normal protected/last-call windows.
-Timer/Drive traffic keeps only its latest call; payload retention remains off by default, with
+The Timer's firings and the host's wakes keep only their latest call; payload retention remains
+off by default, with
 the existing explicit build-output rules. The dump is written on orderly quit. It records bus
 sequences and dispatch parents for causal analysis, and reports forgotten records. It is neither
 a complete time trace nor proof that an absent chain did no work. Loom owns recorder semantics.

@@ -38,7 +38,7 @@ target_link_libraries(zengine-app-host INTERFACE zengine-app-vocabulary zengine-
                                                  loom::switchboard loom::core)
 
 add_executable(zengine-app main.cpp)
-target_link_libraries(zengine-app PRIVATE zengine-app-host zengine-timer-rest
+target_link_libraries(zengine-app PRIVATE zengine-app-host
                                           zengine-workshop-bus-tally zengine-warnings
                                           zengine-sanitize)
 # Where the installed package's artifacts stand from the installed program, a relative path, so

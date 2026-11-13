@@ -210,7 +210,7 @@ the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengi
 
 | folder | what it owns | exported as |
 |---|---|---|
-| [`timer/`](timer/README.md) | the clock, the only sleep, one beat chain per activation | `zengine::timer` |
+| [`timer/`](timer/README.md) | timers, fired at the time the host's one wait hands over | `zengine::timer` |
 | [`input/`](input/README.md) | the sole producer of key, text and pointer moments | `zengine::input` |
 | [`graphics/`](graphics/README.md) | drawing into a window: nodes, elements, colours by name, the two windows and their palettes | `zengine::graphics` |
 | [`ui/`](ui/README.md) | authored places and sizes in words, solved in a room in whole pixels | `zengine::ui` |

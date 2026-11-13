@@ -7,28 +7,25 @@
 // The Input weave, over an injected Reader: anything with `std::vector<V> poll()` for a variant
 // V of published shapes (input.cpp and input_sdl.cpp translate native events; the suite's fake
 // feeds scripted batches). It publishes whatever a poll hands back, by shape, and its Emit set
-// is derived from V. It declares a repeating beat on `kPumpTimerId`, addressed to `kInputRole`
-// so a successor inherits it, and the timer binding keeps it established; `PumpInput` is the
-// same hands on direct request, for suites and timer-less hosts. Facets compose onto it: the
-// role's page (role_page.hpp) adds the door that answers what each accepted shape does; with
+// is derived from V. It reads when the host's one wait wakes `kInputRole`: what the reader waits
+// on is ready, or the time the weave claimed came (`timer/source_wait.hpp`); `PumpInput` is the
+// same hands on direct request, for suites and hosts that run no wait. Facets compose onto it:
+// the role's page (role_page.hpp) adds the door that answers what each accepted shape does; with
 // none the weave has no such door. Reference: input/docs/zengine.input.md.
 
 #include "component/motion.hpp"
-#include "timer/held_beat.hpp"
+#include "timer/source_wait.hpp"
 #include "translate.hpp"
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "timer/binding.hpp"
 
 #include <zen/weave.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
 #include <algorithm>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -86,49 +83,54 @@ struct EmitsOf<std::variant<Ts...>> {
 };
 
 /// The doors every Input weave accepts.
-using Accepts = loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed, InjectInput,
-                             PointerMotionRequested, PointerTimingAsked, loom::host::Waited>;
+using Accepts = loom::Accept<loom::Activated, PumpInput, InputSessionRequested,
+                             InputSessionClosed, InjectInput, PointerMotionRequested,
+                             PointerTimingAsked, loom::host::Waited>;
 
 } // namespace detail
 
 template <class Reader, class... Facets>
 class InputWeaveT;
 
-/// The base, named once: the timer binding beneath, and the facets a build composes on.
+/// The base, named once: the facets a build composes on.
 template <class Reader, class... Facets>
 using InputWeaveBase = typename zengine::With<Facets...>::template Weave<
     InputWeaveT<Reader, Facets...>, InputState, detail::Accepts,
-    typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type, zengine::timer::TimedWeave,
+    typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type, loom::WeaveBase,
     loom::Claims<loom::host::WaitSet>>;
 
 template <class Reader, class... Facets>
 class InputWeaveT : public InputWeaveBase<Reader, Facets...> {
 public:
-    InputWeaveT() { declare_pump(); }
-    using Clock = std::chrono::steady_clock;
-    using Now = std::function<Clock::time_point()>;
-    explicit InputWeaveT(Reader reader, Now now = [] { return Clock::now(); })
-        : reader_(std::move(reader)), now_(std::move(now)) { declare_pump(); }
+    InputWeaveT() = default;
+    explicit InputWeaveT(Reader reader) : reader_(std::move(reader)) {}
 
-    /// The one line of ceremony the binding cannot remove: this weave has its
-    /// own `on` handler, which would otherwise HIDE the binding layer's three.
-    /// (WeaveBase dispatches via self->on(...) on the derived type.)
+    /// The facets' doors, beside this weave's own (WeaveBase dispatches via self->on(...) on the
+    /// derived type).
     using InputWeaveBase<Reader, Facets...>::on;
 
-    /// The direct door: the same hands, on request, for suites, diagnostics and
-    /// timer-less hosts.
+    /// Loaded, or loaded again: nothing to do but be delivered, so what the reader waits on is
+    /// claimed from the first turn on (`after_delivery`).
+    void on(const loom::Activated&, loom::Mail&) {}
+
+    /// The direct door: the same hands, on request, for suites, diagnostics and hosts that run no
+    /// wait.
     void on(const PumpInput&, loom::Mail& mail) { pump(mail); }
 
-    /// What the host's one wait said about this role: ready, so it reads now; or that it holds
-    /// the role's claim, or no longer does, so the beat stops or runs (timer/held_beat.hpp).
+    /// What the host's one wait said about this role, with the time on its clock: ready or due, so
+    /// it reads now; or that it holds the role's claim, or no longer does (timer/source_wait.hpp).
     void on(const loom::host::Waited& w, loom::Mail& mail) {
-        if (held_.hear(w, mail)) {
+        const bool look = wait_.hear(w, mail);
+        if (motion_.answer.valid() && !motion_.started && wait_.now_ms()) {
+            motion_.started = wait_.now_ms(); // the first time handed since the motion was asked
+        }
+        if (look) {
             pump(mail);
         }
     }
 
-    /// After every delivery, whatever it changed: what the reader waits on is claimed and the beat
-    /// run as that leaves it (`settle_wait`).
+    /// After every delivery, whatever it changed: what the reader waits on, and when it must look
+    /// again, claimed as this role (`settle_wait`).
     void after_delivery(loom::Mail& mail) { settle_wait(mail); }
 
     /// The state a reload carries: the counters, the last number given, and the open session --
@@ -297,7 +299,7 @@ public:
         motion_.path = component::motion::Path::curved(
             {static_cast<double>(session_.last_x), static_cast<double>(session_.last_y)},
             {static_cast<double>(request.x), static_cast<double>(request.y)}, request.bend);
-        motion_.started = now_();
+        motion_.started.reset();
         motion_.duration = request.duration_ms;
         motion_.first = session_.seq + 1;
     }
@@ -496,12 +498,12 @@ private:
     struct Motion {
         loom::DeferredAnswer answer;
         component::motion::Path path;
-        Clock::time_point started;
+        std::optional<std::int64_t> started; ///< on the host's wait's clock, once it handed one
         std::int64_t duration = 0, first = 0;
     };
     void advance_motion(loom::Mail& mail) {
-        if (!motion_.answer.valid()) return;
-        const double elapsed = std::chrono::duration<double, std::milli>(now_()-motion_.started).count();
+        if (!motion_.answer.valid() || !motion_.started || !wait_.now_ms()) return;
+        const double elapsed = static_cast<double>(*wait_.now_ms() - *motion_.started);
         const double t = component::motion::progress(elapsed, static_cast<double>(motion_.duration));
         const auto p = motion_.path.at(t);
         const auto x = static_cast<std::int64_t>(std::llround(p.x));
@@ -520,17 +522,6 @@ private:
         }
     }
 
-    void declare_pump() {
-        pump_ = this->timers().repeat_to_role(kPumpTimerId,
-                                              std::chrono::milliseconds(kPumpBeatMs), kInputRole,
-                                              &InputWeaveT::on_pump_beat);
-    }
-
-    /// The beat: the same hands PumpInput opens, on the clock's schedule. No id
-    /// filtering here — the binding routed this firing to this callback because
-    /// this callback is the one that asked for that id.
-    void on_pump_beat(const zengine::timer::TimerFired&, loom::Mail& mail) { pump(mail); }
-
     void pump(loom::Mail& mail) {
         ++this->state_.pumped;
         advance_motion(mail);
@@ -540,10 +531,10 @@ private:
         }
     }
 
-    /// What the reader waits on claimed as this role after every delivery, and the beat run as
-    /// the host's wait leaves it: stopped while the wait holds the claim, running while it does
-    /// not, while the reader cannot say what it waits on, while it holds part of a sequence, and
-    /// while a motion plays.
+    /// What the reader waits on claimed as this role after every delivery, with a time to look
+    /// again `kLookAgainMs` on while it holds part of a sequence and while a motion plays; a
+    /// reader that cannot say what it waits on, or one the wait cannot hold, is polled on that
+    /// time alone.
     void settle_wait(loom::Mail& mail) {
         std::optional<loom::host::WaitSet> set;
         bool on_time = motion_.answer.valid();
@@ -553,14 +544,12 @@ private:
         if constexpr (requires { reader_.holding(); }) {
             on_time = on_time || reader_.holding();
         }
-        held_.settle(mail, kInputRole, set, on_time, pump_);
+        wait_.settle(mail, kInputRole, set, on_time, kLookAgainMs);
     }
 
-    typename InputWeaveBase<Reader, Facets...>::Handle pump_;
-    zengine::timer::HeldBeat held_; ///< whether a host's one wait holds this role's claim
+    zengine::timer::SourceWait wait_; ///< what the host's wait last said, and the time it handed
     Reader reader_;
     Session session_;
-    Now now_ = [] { return Clock::now(); };
     Motion motion_;
     std::int64_t double_click_ms_ = kDefaultDoubleClickMs;
 };

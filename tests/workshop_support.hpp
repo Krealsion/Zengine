@@ -80,6 +80,7 @@
 #include "layouts_stand_in.hpp"
 #include "workshop/project_seam_vocabulary.hpp"
 
+#include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -881,12 +882,11 @@ inline const Condition* condition_by_key(const std::vector<Condition>& all, cons
     return nullptr;
 }
 
-/// THE MONOTONIC READING A CASE OWNS -- what a rig wires into `HostContext::interaction_now` and
-/// into the windows that count the weaver's clicks, so "how long ago was the last press" is a thing
-/// a case STATES rather than outruns. It advances on every reading, by default past the longest
-/// double-click time input takes, so every press a rig publishes is an ordinary press: two presses
-/// in a case are two deliberate aims. A case that wants a DOUBLE-click says so (`together`), and
-/// the pace is the only thing it has to say.
+/// THE MONOTONIC READING A CASE OWNS -- what the windows count the weaver's clicks by, and what
+/// a rig keeping Workshop's own times runs its wait on (`HubTime`), so "how long ago was the last
+/// press" is a thing a case STATES. It advances on every reading, by default past the longest
+/// double-click time input takes, so two presses in a case are two deliberate aims; a case that
+/// wants a DOUBLE-click says so (`together`), and the pace is the only thing it has to say.
 struct InteractionClock {
     std::int64_t now = 0;
     std::int64_t step = input::kMostDoubleClickMs + 1;
@@ -901,6 +901,58 @@ struct InteractionClock {
     void apart() { step = input::kMostDoubleClickMs + 1; }
     /// ...or exactly this far apart, for the two cases that pin the boundary itself.
     void spaced(std::int64_t ms) { step = ms; }
+};
+
+/// THE HOST'S OWN WORD TO A SOURCE OF ITS WAIT, as a rig gives it: what the source claimed is
+/// ready and its time came, on the machine's clock -- a source over a real child process keeps
+/// real time. It has no sender, as only the host's has.
+inline loom::Message host_wake() {
+    loom::host::Waited w;
+    w.held = true;
+    w.ready = true;
+    w.due = true;
+    w.now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+                   .count();
+    return loom::Message(loom::to_value(w), loom::WeaveId{}, loom::WeaveId{}, 0);
+}
+
+/// THE HOST'S ONE WAIT FOR WORKSHOP'S OWN TIMES, AS A RIG KEEPS IT: a `loom::host::Reactor` on the
+/// case's reading, trusting Workshop's role, so Workshop is handed the time as its host hands it --
+/// Shift's taps, the desk reads' rate and a desk wait's bound are timed by it, and a rig without one
+/// keeps none. The clock moves only when told: by the case (`clock.now`), by each turn of `settle`
+/// (`clock.step`, the case's pace), and by nothing it reads.
+struct HubTime {
+    struct OnReading final : loom::host::Clock {
+        InteractionClock* clock = nullptr;
+        std::int64_t now_ms() const override { return clock->now; }
+        bool moves_on_its_own() const noexcept override { return false; }
+        void arrive(std::int64_t ms) override {
+            if (ms > clock->now) clock->now = ms;
+        }
+    };
+    loom::Switchboard& bus;
+    OnReading reading;
+    loom::host::Reactor wait;
+    HubTime(loom::Switchboard& b, InteractionClock& clock) : bus(b), reading(on(clock)), wait(b, reading) {
+        wait.trust(kWorkshopProvider);
+        settle();
+    }
+    static OnReading on(InteractionClock& clock) {
+        OnReading r;
+        r.clock = &clock;
+        return r;
+    }
+    /// THE BUS TURNED UNTIL IDLE, the case's pace of time passing at each turn and the wait looking
+    /// after it: what was due by then is handed to Workshop before the case's next step.
+    void settle() {
+        for (int turn = 0; turn < 64; ++turn) {
+            bus.drain_until_idle();
+            reading.clock->now += reading.clock->step;
+            (void)wait.after_turn(0);
+            if (bus.pending() == 0) return;
+        }
+    }
 };
 
 // ---- The stack's stand-in: a runtime pane every `Live` admits first --------------------------
@@ -1026,8 +1078,7 @@ struct Live {
     }
 
     Live() {
-        host.interaction_now = [this] { return clock.read(); };
-        // ...and the windows' clock, which they count the weaver's clicks by, the same reading.
+        // The windows' clock, which they count the weaver's clicks by.
         windows.clock([this] { return clock.read(); });
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
         host.dir = WORKSHOP_SKINS_DIR;
@@ -3449,8 +3500,7 @@ struct PaneRig {
     }
 
     PaneRig() {
-        host.interaction_now = [this] { return clock.read(); };
-        // ...and the windows' clock, which they count the weaver's clicks by, the same reading.
+        // The windows' clock, which they count the weaver's clicks by.
         windows.clock([this] { return clock.read(); });
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
         host.dir = WORKSHOP_SKINS_DIR;

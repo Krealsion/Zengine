@@ -589,8 +589,9 @@ inline void NeovimEditorWeave::settle_warm(loom::Mail& mail) {
 
 // ---- What a switch is judged from, asked of Neovim ------------------------------------------
 
-/// UNTIL NEOVIM IS NO LONGER WAITING FOR INPUT, or `until`: its fast mode, asked on each beat.
-inline void NeovimEditorWeave::until_unblocked(std::chrono::steady_clock::time_point until, loom::Mail& mail,
+/// UNTIL NEOVIM IS NO LONGER WAITING FOR INPUT, or `until` on the host's wait's clock: its fast
+/// mode, asked again after each answer.
+inline void NeovimEditorWeave::until_unblocked(std::int64_t until, loom::Mail& mail,
                                                std::function<void(bool, loom::Mail&)> then) {
     ask_rpc("nvim_get_mode", nv::rpc::params(), kAskMs, mail, [this, until, then](const Answer& a, loom::Mail& later) {
         const mp::Value* blocking = a.result.has_value() ? a.result->get("blocking") : nullptr;
@@ -598,7 +599,8 @@ inline void NeovimEditorWeave::until_unblocked(std::chrono::steady_clock::time_p
             then(true, later);
             return;
         }
-        if (!running() || std::chrono::steady_clock::now() >= until) {
+        const std::optional<std::int64_t> now = wait_.now_ms();
+        if (!running() || (now && *now >= until)) {
             then(false, later);
             return;
         }
@@ -762,7 +764,7 @@ inline void NeovimEditorWeave::judge(loom::Mail& mail, Judged then) {
                     // THE ESCAPE IS TYPEAHEAD, and the fast mode is answered ahead of typeahead:
                     // asked at once it would still say waiting. So Neovim is asked until it has
                     // taken the key.
-                    until_unblocked(std::chrono::steady_clock::now() + std::chrono::milliseconds(kAskMs), l2,
+                    until_unblocked(wait_.now_ms().value_or(0) + kAskMs, l2,
                                     [this, next, then, waiting](bool, loom::Mail& l3) {
                                         export_later(kAdoptMs, l3,
                                                      [this, next, then, waiting](std::optional<Exported> again,

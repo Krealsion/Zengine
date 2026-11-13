@@ -47,8 +47,8 @@ loom_weave_build_contract(oven)             # <-- see below. Do not skip this.
 set_target_properties(oven PROPERTIES PREFIX "")
 
 add_executable(kitchen-host kitchen_host.cpp)
-target_link_libraries(kitchen-host PRIVATE zengine::timer zengine::timer-rest loom::switchboard
-                                           loom::kernel)
+target_link_libraries(kitchen-host PRIVATE zengine::timer loom::switchboard loom::kernel
+                                           loom::host-policy)
 zengine_code_page(kitchen-host)             # on Windows, every path it handles is UTF-8
 ```
 
@@ -70,7 +70,6 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | target | what linking it grants |
 |---|---|
 | `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
-| `zengine::timer-rest` | a host's rest between turns, as long as the Timer says the bus may |
 | `zengine::graphics` | draw in a window's area: the vocabulary, the canvas, the drawing facet, pixels and roles |
 | `zengine::input` | receive key, text and pointer moments; translate a byte stream |
 | `zengine::ui` | author places and sizes in words; read what a room solved, in whole pixels |
@@ -266,10 +265,9 @@ program.
 // kitchen_host.cpp
 #include "kitchen.hpp"
 
-#include "timer/os_clock.hpp"
-#include "timer/rest.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
@@ -418,14 +416,14 @@ int main(int argc, char** argv) {
                                             waiter_id, loom::WeaveId{0}));
 
     // The host loop. `pump_pending()` dispatches what was waiting and hands control
-    // back, so this condition is checked every turn while the Timer service keeps
-    // beating, and the rest naps between turns as long as the Timer says the bus may.
+    // back, so this condition is checked every turn; then the host's one wait looks while
+    // the bus holds more, and rests until the Timer is due when it holds nothing.
     // The 4000 is this program's patience, not a dispatch budget.
-    timer::MonotonicClock clock;
-    timer::Rest<timer::MonotonicClock> rest(clock);
+    loom::host::Reactor wait(bus);
+    wait.trust(timer::kTimerRole);
     for (int turn = 0; turn < 4000 && !waiter->served; ++turn) {
         bus.pump_pending();
-        (void)rest.after_turn(bus);
+        (void)(bus.pending() != 0 ? wait.after_turn(0) : wait.after_turn());
     }
 
     std::printf("kitchen: %s\n", waiter->served ? "the bake completed" : "NOTHING WAS SERVED");
@@ -440,13 +438,14 @@ Five host facts worth having up front:
   host's address space, so this is reviewability, not containment. `Kernel::containment_note()`
   says so out loud; read it literally.
 - **`bus.pump_pending()` is the host loop's call.** It dispatches exactly the work that was
-  waiting and gives control back, so the loop above can check `waiter->served` every turn while
-  the Timer service keeps beating. Between turns the host rests (`zengine::timer::Rest`, from
-  `zengine::timer-rest`): no handler sleeps, so without it the loop spins through its patience
-  before a 40 ms bake is due. Its counterpart `bus.drain_until_idle()` keeps going until
-  the bus is idle, which is right for settling a world or for a host whose whole program *is*
-  the bus — and with the Timer service loaded that bus is never idle, exactly as the name
-  says.
+  waiting and gives control back, so the loop above can check `waiter->served` every turn.
+  Between turns the host rests in its one wait (Loom's `loom::host::Reactor`, from
+  `loom::host-policy`), trusting the Timer's role: the Timer claims the time its soonest timer is
+  due, and the wait wakes it then and hands it the time. No handler sleeps or reads a clock, and
+  a host that runs no wait on the Timer's role never fires a timer. Its counterpart
+  `bus.drain_until_idle()` keeps going until the bus is idle, which is right for settling a world
+  or for a host whose whole program *is* the bus -- but it waits on nothing, so no timer comes
+  due inside it.
 - **Loading is answered, not merely started — and answered *to you*.** `Kernel::is_loaded`
   turns true the instant the load returns, while the `zen.Result` naming the new weave is
   still queued, so `load()` above waits for the answer and a refusal stops you instead of

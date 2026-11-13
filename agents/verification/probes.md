@@ -25,10 +25,10 @@ different key than the hand pressed, in one look.
 
 ## VM-PROBE-04 — An instrument has a cost: measure it, name it, pin it
 
-METHOD — An instrument has a cost: measure it, name it as a constant, and pin it by asserting the service's own counter rather than absorbing it into the arithmetic.
-BECAUSE — a read of the service's clock costs queue turns and the beat parked behind the ask
-runs inside one, so the read is one beat stale; absorbed into the arithmetic, that is a suite
-proving the wrong number and calling it exact.
+METHOD — An instrument has a cost: measure it, name it, and pin it by asserting the service's own counter rather than absorbing it into the arithmetic.
+BECAUSE — a Timer read with no wait first (a reload's state, a letter no wait holds) measures
+from its last wake, so a ruler that gives it no wake first reads a stale number; absorbed into the
+arithmetic, that is a suite proving the wrong number and calling it exact.
 
 ## VM-PROBE-05 — The probe's own process is a variable
 
@@ -108,7 +108,7 @@ rig's own, so no guest is given a tap on a host.
 nowhere yet
 
 ### VM-PROBE-04
-`tests/test_timer.cpp` kRulerTrailingBeats
+`tests/test_timer.cpp` hand_time_at "letter: a Timer no wait holds writes at once, from its last wake -- the one time it has"
 
 ### VM-PROBE-05
 nowhere yet

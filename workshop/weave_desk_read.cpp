@@ -17,7 +17,6 @@
 #include <zen/serialize.hpp>
 
 #include <algorithm>
-#include <chrono>
 #include <map>
 #include <optional>
 #include <string>
@@ -43,14 +42,6 @@ constexpr std::string_view kPageStale =
 
 constexpr std::string_view kPointStale =
     "pane point unavailable: what the pane shows moved; read it again";
-
-/// The steady clock's milliseconds: how long a wait has waited, whatever clock a host reads its
-/// interactions by.
-std::int64_t wait_clock_ms() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-               std::chrono::steady_clock::now().time_since_epoch())
-        .count();
-}
 
 template <class T>
 void answer_now(loom::Mail& mail, const Said<T>& said) {
@@ -555,7 +546,6 @@ void WorkshopWeave::take_area_answer(loom::Mail& mail, std::uint64_t ask,
 // past its bound, or one whose window changed, refused in words.
 // WL-READ-08 -- agents/workshop/desk-read.md
 void WorkshopWeave::finish_desk_waits(loom::Mail& mail) {
-    const std::int64_t now = wait_clock_ms();
     for (std::size_t i = 0; i < desk_waits_.size();) {
         DeskWait& w = desk_waits_[i];
         bool ready = true;
@@ -563,7 +553,8 @@ void WorkshopWeave::finish_desk_waits(loom::Mail& mail) {
             const auto taken = area_readings_.find(area);
             if (taken == area_readings_.end() || taken->second.number < number) ready = false;
         }
-        const bool stale = w.epoch != window_epoch_ || now - w.since >= kDeskWaitMs;
+        const bool stale = w.epoch != window_epoch_ ||
+                           (w.since && now_ && *now_ - *w.since >= kDeskWaitMs);
         if (!ready && !stale) {
             ++i;
             continue;
@@ -621,7 +612,7 @@ bool WorkshopWeave::wait_on_areas(loom::Mail& mail, DeskWait wait, const std::ve
         }
         wait.needs.emplace_back(area, number);
     }
-    wait.since = wait_clock_ms();
+    wait.since.reset(); // the next time the host's wait hands over
     wait.epoch = window_epoch_;
     desk_waits_.push_back(std::move(wait));
     return true;
@@ -760,24 +751,22 @@ void WorkshopWeave::on(const PanePointRequested& asked, loom::Mail& mail) {
 }
 
 // AT MOST A FEW DESK READS A SECOND, EACH ASKER: every read composes the whole desk, so past the
-// rate the ask is refused in words, and the asker reads again when its oldest read is a second old.
+// rate the ask is refused in words, and the asker reads again when its oldest read is a second old
+// -- said from the last time the host's wait handed over, so never sooner than it is. The host's
+// wait forgets a read a second old (`on(Waited)`); a weave no wait holds keeps no time, and no rate.
 // WL-READ-03 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::take_desk_read(loom::WeaveId asker) {
-    const std::int64_t now = interaction_now();
-    for (auto it = desk_reads_.begin(); it != desk_reads_.end();) {
-        std::vector<std::int64_t>& times = it->second;
-        times.erase(std::remove_if(times.begin(), times.end(),
-                                   [now](std::int64_t t) { return now - t >= 1000; }),
-                    times.end());
-        it = times.empty() ? desk_reads_.erase(it) : std::next(it);
+    if (!time_held_) {
+        return {};
     }
-    std::vector<std::int64_t>& mine = desk_reads_[asker.value];
+    std::vector<std::optional<std::int64_t>>& mine = desk_reads_[asker.value];
     if (static_cast<std::int64_t>(mine.size()) >= kDeskReadsPerSecond) {
-        const std::int64_t wait = 1000 - (now - mine.front());
+        const std::optional<std::int64_t> oldest = mine.front();
+        const std::int64_t wait = oldest && now_ ? 1000 - (*now_ - *oldest) : 1000;
         return "desk read refused: at most " + std::to_string(kDeskReadsPerSecond) +
                " a second, each asker -- read again in " + std::to_string(wait) + " ms";
     }
-    mine.push_back(now);
+    mine.emplace_back(); // its time is the next the wait hands over
     return {};
 }
 

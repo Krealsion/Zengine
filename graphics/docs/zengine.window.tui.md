@@ -32,9 +32,8 @@ as runs: a cursor move, the ink, the glyphs. A drawing or a change saying `more`
 showing back; the next message from that drawer without it shows everything since, once. Any other
 message the window handles shows what it changed.
 
-**Keys and the pointer.** The window reads its terminal on its own beat, the Timer's
-`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, and sends what it read on in
-order. A pointer moment lands in the front-most area that takes its cell: one
+**Keys and the pointer.** The window reads its terminal when the host's one wait wakes it
+([`Waited`](#loomhostwaited)), and sends what it read on in order. A pointer moment lands in the front-most area that takes its cell: one
 placed to hear the pointer takes every cell in it, any other only where it drew an action or an
 element. A left press on an element whose code takes it is the element's; else, in an area deaf to
 the pointer, its record's action goes to the owner (`ActionRequested`); else, in one hearing it,
@@ -53,7 +52,7 @@ told when it settled (`AreaSettled`).
 A key, its text and its release go to each owner placed to hear that moment, front to back, naming
 the area and the hand (`AreaKeyPressed` and its kin). An owner placed to hear the pointer is given
 each pointer moment in its area as it was, at its cell's centre in the area's pixels
-(`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
+(`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one look go as one. A
 press holds its button for its area until its release, under one number; its arranger hears where it
 landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Each names its hand
 ([`AttributedInput`](#attributedinput)), a press its clicks
@@ -184,14 +183,15 @@ reading the terminal.
 
 ### `PumpSurface`
 
-`PumpSurface` v1 asks for the beat's work now.
+`PumpSurface` v1 asks for a look now, for a host that runs no wait.
 
 - **Takes:** nothing.
-- **Answers:** nothing; the window does what its beat does ([`TimerFired`](#timerfired)): it
+- **Answers:** nothing; the window does what a wake does ([`Waited`](#loomhostwaited)): it
   measures the terminal, offering itself again at another size in cells, and sends on what the
   terminal typed.
 - **Refuses:** nothing.
-- **Example:** a suite, or a host with no Timer, pumps the window after typing into its terminal.
+- **Example:** a suite, or a host that runs no wait, pumps the window after typing into its
+  terminal.
 
 ### `SurfaceCaptureRequested`
 
@@ -263,29 +263,13 @@ nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports
 `GraphicsReady` v1, from `zengine.graphics`, a directory started afresh: the window offers itself again
 (`WindowOffered`), and keeps its areas until the directory says otherwise.
 
-### `TimerFired`
-
-`TimerFired` v1, from `zengine.timer`, the Timer: the window's beat, `zengine.window.pump`. It measures the
-terminal, and at another size in cells shows its whole picture at that size and offers itself
-again (`WindowOffered`) with the new size and the same incarnation. Then it reads what the terminal
-typed and sends the keys, their releases, their text and the pointer on.
-
-### `TimerReady`
-
-`TimerReady` v1, from `zengine.timer`, the Timer: the service is there, first or again; the window orders its beat
-again.
-
-### `TimerResolution`
-
-`TimerResolution` v1, from `zengine.timer`, the Timer: what became of the window's order for its beat, kept by its
-timer binding.
-
 ### `loom.host.Waited`
 
-`loom.host.Waited` v1, from the host alone, about what the window claims it waits on after every
-delivery (`loom.host.WaitSet`): its terminal's input, and on POSIX a resize. Held, the beat stops,
-running again only while a lone Escape waits; let go, it runs; ready, the window does what its
-beat does at once. From any participant it is nothing.
+`loom.host.Waited` v2, from the host alone, with the time: what the window claims (its
+terminal's input, a resize on POSIX, and a time while a lone Escape waits) is ready or due. It
+measures the terminal -- at another size in cells it shows its picture again and offers itself
+again (`WindowOffered`) -- then sends on what the terminal typed. From any participant it is
+nothing.
 
 ### `ClipboardCopy`
 
@@ -318,8 +302,8 @@ introduction; `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged` v4, `
 `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered` v1 as placed to hear each. To an arranger
 following an area not its own: `AreaPressed` v4, `AreaHoldEnded`, `AreaPointerLeft` v1; following
 one, `AreaSettled` v1; to any arranger, `AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`,
-`ClipboardText`, `SurfaceCaptured`, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its
-beat's order.
+`ClipboardText`, `SurfaceCaptured`, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the host's one
+wait, its claim, as its role.
 
 ## Files
 

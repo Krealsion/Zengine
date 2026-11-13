@@ -33,7 +33,7 @@ namespace zengine::timer {
 /// `delay_ms` (`repeat`). `id` is your own name for it, scoped to you; asking again with the same
 /// id replaces the schedule (an upsert, which is also how a cadence changes). Delays are
 /// normalized (`timer.normalize_delay`): a repeat below 1 ms becomes 1, a negative one-shot fires
-/// on the next beat. Sent by a root (no weave), there is no one to deliver to: dropped, counted.
+/// at the next wake. Sent by a root (no weave), there is no one to deliver to: dropped, counted.
 struct StartTimer {
     std::string id;
     std::int64_t delay_ms = 0;
@@ -88,20 +88,6 @@ struct TimerFired {
 /// ordered re-ask preferring `preserve_remaining` keeps a matching schedule exactly as it was.
 struct TimerReady {
     ZEN_SHAPE(TimerReady, 1);
-};
-
-/// The service's own beat: role-addressed (a loaded weave cannot address itself), and a claim of
-/// ownership rather than a nudge (TIMER-01). It is acted on only when the service is activated,
-/// its stamped sender is the chain's own, `activation_sender` and `activation_sequence` name the
-/// current activation, and `serial` is the one expected next; anything else is ignored whole.
-/// `activation_sender` is canonical decimal text, since a WeaveId is unsigned 64-bit and the
-/// wire's Int is signed.
-struct Drive {
-    std::string activation_sender;      ///< canonical decimal of the activating sender's WeaveId
-    std::int64_t activation_sequence = 0;
-    std::int64_t serial = 0;
-    ZEN_SHAPE(Drive, 2, ZEN_FIELD(activation_sender), ZEN_FIELD(activation_sequence),
-              ZEN_FIELD(serial));
 };
 
 // ---- continuity: the order, and the receipt ---------------------------------
@@ -250,20 +236,26 @@ inline constexpr std::size_t kMaxHandoffEntries = 32;
 /// (`deferred_dropped`), and an ordered request is refused with a receipt.
 inline constexpr std::size_t kMaxDeferredOps = 32;
 
+/// How many asks for its letter (`zen.PrepareShutdown`) the service holds until the host's wait
+/// hands it the time it writes them at; one past it is refused, in words.
+inline constexpr std::size_t kMaxLettersHeld = 4;
+
 /// The correlation on the service's one claim per activation: a conversation label, public and
 /// no secret. What makes an answer trustworthy is Loom's attestation (`Mail::answers_ask()`).
 inline constexpr std::uint64_t kClaimCorrelation = 0x71E5;
 
-/// The bootstrap: how many of its own beats a fresh incarnation waits for its claim's answer
-/// before deciding it inherited nothing. A count of queue turns, never milliseconds, derived from
-/// the dispatch order (timer_weave.hpp traces it).
-inline constexpr std::int64_t kBootstrapBeats = 2;
+/// The bootstrap's bound: how many wakes of the host's wait a fresh incarnation spends waiting for
+/// its claim's answer before deciding it inherited nothing. A count of turns, never milliseconds,
+/// from the dispatch order: the claim goes out at activation, the steward's answer is queued in
+/// the turn after, and the wait's second wake is queued behind it (timer_weave.hpp). A steward
+/// that is not there is the bus's refusal of the claim, which decides at once.
+inline constexpr std::int64_t kBootstrapWakes = 2;
 
 // ---- prepared replacement: the preparation conversation ---------------------
 //
 // A prepared candidate is readied while the incumbent keeps serving, so it cannot be handed a
 // schedule then: it would be stale by admission. The boundary is the admission itself -- the
-// beat chain rides the role, the role moves, and the sealed incumbent writes the letter
+// claim of time rides the role, the role moves, and the sealed incumbent writes the letter
 // afterwards, through the same `zen.PrepareShutdown` -> `TimerHandoff` the graceful path uses.
 
 /// What a candidate is asked to be ready for: `inherit` (a letter is coming; hold everything
@@ -295,35 +287,16 @@ struct TimerCandidateDeclined {
     ZEN_SHAPE(TimerCandidateDeclined, 1, ZEN_FIELD(transaction), ZEN_FIELD(reason));
 };
 
-/// How many beats a prepared incarnation waits for the promised letter before starting fresh. It
-/// must exceed the coordinator's round trip after admission -- the letter lands after beat 2
-/// (activation; claim and beat 0; the incumbent's letter ask; beat 1; the letter to the preparer;
-/// beat 2; the claim's answer) -- and must be bounded, or a dead preparer would leave an admitted
-/// Timer holding every operation forever. Eight is headroom; a count of queue turns.
-inline constexpr std::int64_t kPreparedClaimBeats = 8;
+/// How many wakes of the host's wait a prepared incarnation spends waiting for the promised letter
+/// before starting fresh. It must exceed the coordinator's round trip after admission -- the
+/// incumbent's letter ask, the letter to the preparer, the claim's answer: a turn each -- and must
+/// be bounded, or a preparer alive and silent would leave an admitted Timer holding every
+/// operation forever; one that is gone is the bus's refusal of the claim. Eight is headroom.
+inline constexpr std::int64_t kPreparedClaimWakes = 8;
 
 /// The role slot the TimerService holds: the address "whoever provides
 /// time", which outlives any particular implementation being swapped in.
 inline constexpr const char* kTimerRole = "zengine.timer";
-
-/// The beat cap: the longest a host rests between turns when nothing is due sooner
-/// (`timer/rest.hpp`). Not a firing's lateness, since a rest ends at the soonest deadline, nor a
-/// source's, since a host's one wait ends for whatever it holds and a source it does not hold
-/// keeps a beat of its own. A safety net: the longest anything neither waited on nor due can go
-/// unseen, and the one turn a second an idle host keeps.
-inline constexpr std::int64_t kBeatCapMs = 1000;
-
-/// How long the bus may rest, as the Timer claims it as its role at every beat that fired what
-/// was due: until `until_ms`, a reading of the Timer's own monotonic clock -- the soonest deadline,
-/// or `kBeatCapMs` from that beat when nothing is due sooner -- with `serial` the beat it queued
-/// behind it. A latest claim, not a message: a host reads it between turns and rests only while
-/// that beat is all its bus holds (`timer/rest.hpp`). The reading means something only in the
-/// process the Timer runs in, and a host that never reads it is served the same, only busier.
-struct TimerRest {
-    std::int64_t serial = 0;
-    std::int64_t until_ms = 0;
-    ZEN_SHAPE(TimerRest, 1, ZEN_FIELD(serial), ZEN_FIELD(until_ms));
-};
 
 } // namespace zengine::timer
 

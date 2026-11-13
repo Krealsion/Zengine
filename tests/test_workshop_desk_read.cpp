@@ -1047,7 +1047,7 @@ TEST_CASE("a capture guest reads a high-text picture whole over the bridge, page
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
         for (;;) {
             (void)d.r.bus.send(door_id, loom::Message(loom::to_value(
-                                            zengine::timer::TimerFired{kGuestBeatId})));
+                                            loom::host::Waited{0, true, true, std::string(), false, 0})));
             d.r.bus.drain_until_idle();
             std::vector<loom::BridgeEvent> got;
             guest.poll(got);

@@ -178,9 +178,8 @@ target_link_libraries(zengine-workshop
             # here to save a plan row. The operator package is the host half of the catalog this host
             # owns, which starts empty and is filled by mounting providers.
             zengine::operator
-            # ...and the rest between turns, on the OS clock (timer/rest.hpp), and the tally of
-            # where the bus spends its time (workshop/bus_tally.hpp).
-            zengine::timer-rest zengine-workshop-bus-tally
+            # ...and the tally of where the bus spends its time (workshop/bus_tally.hpp).
+            zengine-workshop-bus-tally
             # ...and the load plan: the typed plan, its codec and its executor.
             zengine-workshop-load
             # ...and the view host this host composes beside the Flow host, which it mounts.

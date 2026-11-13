@@ -10,6 +10,7 @@
 
 #include "theme/stack_name.hpp" // the palette a stack of themes is named by
 #include "pane/operation.hpp"
+#include "timer/source_wait.hpp" // a time already past, claimed to be handed the time
 
 #include <algorithm>
 #include <vector>
@@ -28,8 +29,103 @@ ProjectFrontier WorkshopWeave::frontier_now() const {
     return host_->frontier ? host_->frontier() : ProjectFrontier{};
 }
 
-std::int64_t WorkshopWeave::interaction_now() const {
-    return host_->interaction_now ? host_->interaction_now() : interaction_now_ms();
+// WL-PTR-01 -- agents/workshop/pointer.md
+void WorkshopWeave::on(const loom::host::Waited& w, loom::Mail& mail) {
+    if (mail.sender().valid()) {
+        return; // a participant's word is no time; only the host's own wait hands one
+    }
+    time_held_ = w.held;
+    if (!w.held) {
+        now_.reset();
+        return;
+    }
+    if (w.due) {
+        time_woke_ = true;
+    }
+    if (!now_ || w.now_ms > *now_) {
+        now_ = w.now_ms;
+    }
+    const std::int64_t now = *now_;
+    // SHIFT'S TAPS: a press waiting for its time is handed this one; a tap whose double-click time
+    // has passed is no first half of a pair any more.
+    each_hand([&](Hand& h) {
+        Hand::ShiftTap& t = h.shift_tap;
+        if ((t.held || t.tapped) && !t.first_ms) {
+            t.first_ms = now;
+        } else if (t.tapped && t.first_ms && now - *t.first_ms > double_click_ms_) {
+            t.tapped = false;
+        }
+    });
+    // THE DESK READS' RATE: each read waiting for its time is handed this one; a read a second old
+    // no longer counts.
+    for (auto it = desk_reads_.begin(); it != desk_reads_.end();) {
+        std::vector<std::optional<std::int64_t>>& times = it->second;
+        for (std::optional<std::int64_t>& t : times) {
+            if (!t) {
+                t = now;
+            }
+        }
+        times.erase(std::remove_if(times.begin(), times.end(),
+                                   [now](const std::optional<std::int64_t>& t) {
+                                       return now - *t >= 1000;
+                                   }),
+                    times.end());
+        it = times.empty() ? desk_reads_.erase(it) : std::next(it);
+    }
+    // A DESK WAIT'S BOUND runs from the first time handed after it began.
+    for (DeskWait& d : desk_waits_) {
+        if (!d.since) {
+            d.since = now;
+        }
+    }
+    finish_desk_waits(mail);
+}
+
+std::optional<std::int64_t> WorkshopWeave::wanted_until() const {
+    if (!time_held_) {
+        return std::nullopt;
+    }
+    std::optional<std::int64_t> until;
+    const auto sooner = [&until](std::optional<std::int64_t> at, std::int64_t after) {
+        const std::int64_t t = at ? *at + after : zengine::timer::kTimePast;
+        if (!until || t < *until) {
+            until = t;
+        }
+    };
+    const auto tap = [&](const Hand& h) {
+        const Hand::ShiftTap& t = h.shift_tap;
+        if ((t.held || t.tapped) && !t.first_ms) {
+            sooner(std::nullopt, 0);
+        } else if (t.tapped) {
+            sooner(t.first_ms, double_click_ms_ + 1);
+        }
+    };
+    tap(weaver_hand_);
+    for (const Hand& h : guest_hands_) {
+        tap(h);
+    }
+    for (const auto& [asker, times] : desk_reads_) {
+        for (const std::optional<std::int64_t>& t : times) {
+            sooner(t, 1000);
+        }
+    }
+    for (const DeskWait& d : desk_waits_) {
+        sooner(d.since, kDeskWaitMs);
+    }
+    return until;
+}
+
+void WorkshopWeave::claim_time(loom::Mail& mail) {
+    const std::optional<std::int64_t> until = wanted_until();
+    if (time_claimed_ && !time_woke_ && until == time_until_) {
+        return;
+    }
+    loom::host::WaitSet set;
+    set.until_ms = until;
+    (void)mail.as_role(kWorkshopProvider).claim(set);
+    time_claimed_ = true;
+    time_woke_ = false;
+    time_until_ = until;
 }
 
 void WorkshopWeave::repaint(loom::Mail& mail) {

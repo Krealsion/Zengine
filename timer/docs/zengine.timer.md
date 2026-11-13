@@ -2,39 +2,38 @@
 
 **Manual.** The Timer: the weave that gives other weaves time as messages, answering to the role
 `zengine.timer` (a role is the name a weave answers to). A weave never sleeps or polls to wait:
-it asks the Timer for a beat, once or on repeat, and `TimerFired` arrives when the beat is due. It
+it asks the Timer for a time, once or on repeat, and `TimerFired` arrives when that time comes. It
 is the loadable weave `zengine-timer`, which a plan loads; it offers no pane, and other weaves
 reach it by the messages below. A weave whose rhythm is part of what it is declares that rhythm
 once with [TimedWeave](timed-weaves.md) and never sends these itself.
 
 ## About
 
-The Timer is the one place in the running system that keeps time, in beats, its own `Drive`
-messages, one chain from each activation: loading it is what starts time, and no host winds it.
-Each beat fires what is due and sends the next, and sleeps nowhere: the host rests between turns
-while the next beat is all its bus holds ([`timer/rest.hpp`](../rest.hpp)), until what is due,
-at most `kBeatCapMs` ([what it bounds](timers.md#what-the-cap-bounds)). A repeating timer that
-came due late fires once and keeps its rhythm.
+The Timer reads no clock: it claims the time its soonest timer is due, and the host's one wait
+wakes it then with the time (Hears, Follow). Nothing is queued to keep time. An ask is anchored at
+the next time handed over: one more wake an arm. A host that does not wait on its role never wakes
+it ([the host's wait](timers.md#the-hosts-wait)). A late repeating timer fires once.
 
 A delay is normalized before it is scheduled, by the rule `timer.normalize_delay`
 ([`timer/normalize.hpp`](../normalize.hpp)): a repeating delay below 1 ms becomes 1, a one-shot
-below 0 becomes 0 and fires on the next beat, and every other delay is left as it is. The rule is
+below 0 becomes 0 and is due at once, and every other delay is left as it is. The rule is
 an operator: a Timer whose host offered it an operator surface when it was made spends the host's
 rule, and one offered nothing spends the rule this repository authors
 ([the operator host](../../operator/docs/operator-host.md)). An offer that cannot serve the rule
 refuses the load, its reason on stderr after `zengine-timer: `.
 
-What it keeps is its table of standing timers, and six counters a poke reads (`TimerState`):
-`beats`, `fired`, `active`, `dropped` (asks with nobody to answer), `deferred_dropped` (asks lost
-from a full hold) and `inherited` (timers it began with, from a predecessor or a reload, 0 for a
-fresh start).
+What it keeps is its table of standing timers, and seven counters a poke reads (`TimerState`):
+`wakes` (the wait's wakes it took), `fired`, `active`, `dropped` (asks with nobody to answer),
+`deferred_dropped` (asks lost from a full hold), `inherited` (timers it began with, from a
+predecessor or a reload, 0 for a fresh start) and `gone` (timers dropped because the weave they
+fire at is gone; a role's stay for its next holder).
 
 When the Timer is replaced, its standing timers cross to its successor as remaining durations in
-a letter, `TimerHandoff`, written at one clock read: two seconds left when it was written is two
-seconds left when it lands, and the time between is paused. A letter carries at most
+a letter, `TimerHandoff`, written at the time the next wait hands it, or at its last wake where no
+wait holds it: two seconds left then is two seconds left when it lands. A letter carries at most
 `kMaxHandoffEntries` timers, the first in table order; the rest start as after a hard replacement.
-Reloaded in place, it keeps its counters and every standing timer, carried in its state as
-remaining durations, and announces `TimerReady` again: an ask to preserve finds its timer there.
+Reloaded in place, it keeps its counters and its standing timers, as remaining durations from its
+last wake, and announces `TimerReady` again: an ask to preserve finds its timer there.
 Unloaded, its timers end with it.
 
 ## Use
@@ -153,9 +152,10 @@ to become the Timer.
 - **Takes:** `transaction`, echoed back; `continuity`, `inherit` (a letter is coming from the
   live Timer: hold every ask until it lands) or `fresh` (carry nothing and wait for nothing).
 - **Answers:** `TimerCandidatePrepared{transaction}` to the asker: room for a whole letter is
-  reserved and the candidate knows where its letter comes from. Once admitted the role moves, the
-  old chain ends, and the sealed incumbent writes its letter. The candidate, activated, asks the
-  preparer for it by id and waits at most `kPreparedClaimBeats` beats before starting fresh; told
+  reserved and the candidate knows where its letter comes from. Once admitted the role moves, and
+  its claim on the host's wait with it, and the sealed incumbent writes its letter. The candidate,
+  activated, asks the preparer for it by id and waits at most `kPreparedClaimWakes` wakes before
+  starting fresh; told
   `fresh`, it asks nobody. A failed attempt leaves the live Timer and its timers as they were.
 - **Refuses:** `TimerCandidateDeclined{transaction, reason}`: `this Timer is already live under
   an accepted activation; a serving service is not a candidate`; `this incarnation has already
@@ -167,25 +167,26 @@ to become the Timer.
 
 ## Hears
 
-### `Drive`
+### `loom.host.Waited`
 
-`Drive` v2, from `zengine.timer`, the Timer itself: its own beat. A beat is acted on only when
-the Timer is activated, the beat names the current activation, carries the serial expected next
-and comes from the chain's own sender; any other is ignored whole.
+`loom.host.Waited` v2, from the host's one wait, with no sender: the time, `now_ms`, on the
+wait's clock, and `due` when the time the Timer claimed came. The Timer anchors what waited for a
+time at it and fires what is due by it. One from any participant is nothing, and so is one before
+the Timer is activated.
+
 
 ## Follow
 
-The Timer says, unasked: `TimerReady` v1, published once per activation after it has decided
-what it inherited; `TimerFired` v1, to the weave or the role a timer names, each time it comes
-due; `TimerResolution` v1, to the weave that sent an ordered ask. Activated, it claims its
-predecessor's letter, `zen.ClaimBequest` to the Loom's manager role, and waits `kBootstrapBeats`
-beats for it before starting fresh; asked `zen.PrepareShutdown`, it answers with a `zen.Bequest`
-holding `TimerHandoff` v1, firing, cancelling and advancing nothing. At every beat that fired what
-was due it claims `TimerRest` v1 as the role, a latest claim rather than a message: `serial`,
-the beat it sent next, and `until_ms`, the reading of its own clock until which the bus may rest.
-A host reads it between turns (`timer/rest.hpp`); the reading means something only in the
-Timer's process. To follow it, accept `TimerReady` and the receipts of your own orders; its
-counters are read by a poke.
+The Timer says, unasked: `TimerReady` v1, once per activation after it has decided what it
+inherited; `TimerFired` v1, to the weave or role a timer names, each time it comes due;
+`TimerResolution` v1, to the sender of an ordered ask. Activated, it claims its predecessor's letter
+(`zen.ClaimBequest` to the Loom's manager role) and waits `kBootstrapWakes` wakes for it, or starts
+fresh at once when the bus refuses the claim (`zen.DispatchRefused`); a `TimerFired` the bus refuses
+for a weave that is gone drops that weave's timers. Asked `zen.PrepareShutdown`, it answers with a
+`zen.Bequest` holding `TimerHandoff` v1 once the next wait hands it the time, at once where no wait
+holds it, and past `kMaxLettersHeld` waiting asks with a `zen.Refused`. After every wake, and
+whenever what it waits for changed, it claims `loom.host.WaitSet` v2 as the role: `until_ms`, its
+soonest timer's time, a time already past while it must learn the time, none when nothing stands.
 
 ## See also
 

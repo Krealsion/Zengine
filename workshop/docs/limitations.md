@@ -72,16 +72,15 @@ observer**. This is a recorded Loom seam, not a Zengine choice; the practical co
 that "it loads and nothing happens" is still the failure a newcomer hits first, and diagnosing
 it needs a tap. See [getting started](../../docs/getting-started.md#when-it-does-not-work).
 
-### Loading the Timer service makes the process permanently non-quiescent
+### A timer fires only where the host waits on the Timer's role
 
-The service seeds its one successor beat at every beat, so from the moment it is loaded the bus
-always has something queued — whether or not any schedule is outstanding. The consequence for a
-host is that **"wait until the bus goes quiet" is never a termination condition once the Timer is
-loaded**: `loom::Switchboard::drain_until_idle()` on such a process does not return, exactly as
-its name and contract say, and spins rather than rests, since no handler sleeps. A host loop asks
-for `pump_pending()`, gets control back every turn, and rests between turns as long as the Timer
-says the bus may (`timer/rest.hpp`), in one wait on every source it trusts (Loom's
-`loom::host::Reactor`); Workshop, `zengine-app` and snake all turn so.
+The Timer reads no clock: it claims the time its soonest timer is due, and the host's one wait
+(Loom's `loom::host::Reactor`) wakes it then. A host that does not wait on the Timer's role never
+wakes it, so its timers never fire there: `loom::Switchboard::drain_until_idle()` waits on
+nothing, and `loom-host` trusts no role, so a Timer loaded there is woken by nothing until a plan
+can say the host waits on it. Workshop, `zengine-app` and snake turn the bus with
+`pump_pending()` and rest in that wait, trusting the Timer's role
+([the host's wait](../../timer/docs/timers.md#the-hosts-wait)).
 
 ## Workshop
 

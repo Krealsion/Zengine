@@ -551,11 +551,16 @@ jobs:
           }
           start window --env SDL_VIDEO_DRIVER=offscreen --expect "loaded: zengine-window-sdl" \
             --needle "did not load, so"
+          # Here the TUI window has no terminal, so nothing could reach that Workshop but a guest,
+          # and one nothing can reach says so and ends: it is started with a door admitting nobody,
+          # as a weaver starts one an agent drives (outside the runner's folders, which it names).
+          printf '{"listen":"127.0.0.1:0","guests":[]}\n' > /tmp/zengine-no-guests.json
           start tui --env SDL_VIDEO_DRIVER=offscreen --expect "loaded: zengine-window-tui" \
-            --needle "zengine-window-sdl" -- --tui
+            --needle "zengine-window-sdl" -- --tui --guests /tmp/zengine-no-guests.json
           start no-display --env SDL_VIDEO_DRIVER=zengine-no-such-driver \
             --expect "loaded: zengine-window-tui" \
-            --expect "\`zengine-window-sdl\` did not load, so \`zengine-window-tui\` stands in its row"
+            --expect "\`zengine-window-sdl\` did not load, so \`zengine-window-tui\` stands in its row" \
+            -- --guests /tmp/zengine-no-guests.json
 
       - name: Walk the story
         run: |
@@ -618,16 +623,19 @@ jobs:
           python -I -X utf8 "$J\release_number.py" $pkg $env:VERSION
           python -I -X utf8 "$J\pe_imports.py" $pkg
           python -I -X utf8 "$J\private_scan.py" $pkg 'D:\a\Zengine' 'D:/a/Zengine' 'D:\a\_temp' 'D:/a/_temp' 'hostedtoolcache'
-          # Started as a weaver starts it, each in the window it means (the Linux judge says why).
+          # Started as a weaver starts it, each in the window it means, the TUI window's with a door
+          # admitting nobody (the Linux judge says why).
+          $noGuests = Join-Path $env:RUNNER_TEMP 'zengine-no-guests.json'
+          Set-Content -LiteralPath $noGuests -Value '{"listen":"127.0.0.1:0","guests":[]}'
           $starts = @(
             @('window', @('--env', 'SDL_VIDEO_DRIVER=offscreen', '--expect', 'loaded: zengine-window-sdl',
                           '--needle', 'did not load, so')),
             @('tui', @('--env', 'SDL_VIDEO_DRIVER=offscreen', '--expect', 'loaded: zengine-window-tui',
-                       '--needle', 'zengine-window-sdl', '--', '--tui')),
+                       '--needle', 'zengine-window-sdl', '--', '--tui', '--guests', $noGuests)),
             @('no-display', @('--env', 'SDL_VIDEO_DRIVER=zengine-no-such-driver',
                               '--expect', 'loaded: zengine-window-tui', '--expect',
                               ('`zengine-window-sdl` did not load, so `zengine-window-tui` ' +
-                               'stands in its row')))
+                               'stands in its row'), '--', '--guests', $noGuests))
           )
           foreach ($start in $starts) {
             python -I -X utf8 "$J\first_start.py" $pkg (Join-Path $pkg 'bin\zengine-workshop.exe') --seconds 15 `

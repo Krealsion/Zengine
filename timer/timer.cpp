@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The TimerService weave library: time's only door to the OS. Scheduling lives in
-// timer_weave.hpp (pinned over a fake clock); the real Clock -- the monotonic read and the nap --
-// is os_clock.hpp's, bound here because this weave's whole purpose is time and no host winds it
-// (TIMER-02). It also decides which operator truth this instance spends: its constructor takes
-// the host's offer inside `create()`, the only window a scoped offer leaves open
-// (operator/docs/operator-host.md).
+// The TimerService weave library. Scheduling lives in timer_weave.hpp, handed the time by the
+// host's one wait (TIMER-02): nothing here reads a clock. This file decides which operator truth
+// the instance spends: its constructor takes the host's offer inside `create()`, the only window a
+// scoped offer leaves open (operator/docs/operator-host.md).
 // Timer law: timer/docs/timer-laws.md
 
 #include "normalize.hpp"
-#include "os_clock.hpp"
 #include "timer_weave.hpp"
 #include "vocabulary.hpp"
 
@@ -26,17 +23,14 @@
 
 namespace {
 
-using zengine::timer::MonotonicClock;
-
-/// The shipped Timer: the service over the real clock, spending whatever authority this load was
-/// offered -- a constructor and nothing else, since `ZEN_EXPORT_WEAVE` builds with `new S()`. It
-/// may refuse to exist: an offer that cannot serve `timer.normalize_delay` at this Timer's
+/// The shipped Timer: the service, spending whatever authority this load was offered -- a
+/// constructor and nothing else, since `ZEN_EXPORT_WEAVE` builds with `new S()`. It may refuse to
+/// exist: an offer that cannot serve `timer.normalize_delay` at this Timer's
 /// signature throws, the reason goes to stderr, and the Kernel refuses the load in the throw's
 /// words.
-class TimerService : public zengine::timer::TimerServiceT<MonotonicClock> {
+class TimerService : public zengine::timer::TimerWeave {
 public:
-    TimerService()
-        : zengine::timer::TimerServiceT<MonotonicClock>(MonotonicClock{}, offered_authority()) {}
+    TimerService() : zengine::timer::TimerWeave(offered_authority()) {}
 
 private:
     static zengine::timer::DelayAuthority offered_authority() {

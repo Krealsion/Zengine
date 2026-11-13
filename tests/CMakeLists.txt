@@ -138,8 +138,9 @@ endfunction()
 # ---- the suites' own weave libraries ---------------------------------------------------
 # Fixtures built as every weave here is (zengine_weave, the Loom's reloadable-weave contract) and
 # loaded through the real kernel. Where one source makes several libraries, the difference under
-# test is one definition and everything else is identical. timer_virtual.cpp is the shipped Timer
-# over a clock whose nap advances virtual time: its claims are about durations.
+# test is one definition and everything else is identical. timer_virtual.cpp is the shipped Timer,
+# which a suite hands the time of a clock that moves only when told: its claims are about
+# durations.
 zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp
               MANUAL ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
 target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)
@@ -350,7 +351,7 @@ zengine_test_definitions(zengine-editor-pane-losing ZENGINE_EDITOR_TEST_LOSSES=1
 # test cases, which stock doctest calls a success (VM-POP-04).
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
 target_link_libraries(zengine-tests
-    PRIVATE loom::kernel loom::switchboard loom::core
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy
             zengine-graphics-vocabulary zengine-input-vocabulary zengine-timer-vocabulary
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-tests PRIVATE
@@ -370,7 +371,7 @@ zengine_test_definitions(zengine-tests
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-tui>\""
     # The world's beat, over virtual time: a pace is a claim about durations.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
-    # The host's source, for the tripwire that no privileged wind returns: a root Drive is
+    # The host's source, for the tripwire that it winds nothing and waits on the Timer's role: it
     # inert, so only reading the file can catch one (VM-WALL-11).
     "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/examples/snake/play.cpp\""
     # The world's source, for the binding tripwire: hand-written ceremony and the binding behave
@@ -384,7 +385,7 @@ zengine_doctest_test(snake zengine-tests)
 # with nobody pumping them.
 add_executable(zengine-timer-tests test_timer.cpp doctest_main.cpp)
 target_link_libraries(zengine-timer-tests
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy zengine-timer-vocabulary
             zengine-input-vocabulary zengine-graphics-vocabulary zengine-operator
             zengine-operator-stranger zengine-warnings zengine-sanitize)
 target_include_directories(zengine-timer-tests PRIVATE
@@ -767,6 +768,7 @@ foreach(stem IN ITEMS thermostat boundaries high_water empty)
 endforeach()
 add_executable(zengine-flow-tests test_flow.cpp test_flow_runtime.cpp test_flow_graph.cpp test_flow_view.cpp doctest_main.cpp)
 target_link_libraries(zengine-flow-tests PRIVATE zengine-flow zengine-flow-host zengine-graphics-vocabulary loom::kernel
+                                                 loom::host-policy
                                                  zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-tests
@@ -949,11 +951,11 @@ zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphi
 # One entry per subject (VM-POP-11), an entry holding several sources where one object cannot
 # (VM-POP-12), and tests/workshop_support.hpp what several need (VM-POP-13). They prove Workshop in
 # a window, its desk read there (rig_windows.hpp). A case that loads a product loads the library a
-# weaver runs. Only `workshop_load` loads the real Timer: in a rig that drains to idle its beat
-# never returns.
+# weaver runs. Only `workshop_load` loads the real Timer: a rig that drains to idle runs no wait,
+# and nothing else hands a Timer the time.
 set(ZENGINE_WORKSHOP_LIBS
     zengine-workshop-rig-windows
-    loom::kernel loom::switchboard loom::core loom::terminal
+    loom::kernel loom::switchboard loom::core loom::terminal loom::host-policy
     # The vocabulary is the headers and the logic their bodies, compiled once
     # (workshop/CMakeLists.txt): a suite that included the bodies would emit them all again.
     zengine-workshop-vocabulary zengine-workshop-logic zengine-workshop-load
@@ -1560,7 +1562,7 @@ zengine_doctest_test(builder zengine-builder-tests)
 # is: no rig, window or plan, only a bus, a socket and the door.
 add_executable(zengine-workshop-guests-tests test_workshop_guests.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-guests-tests
-    PRIVATE loom::bridge loom::switchboard loom::core zengine-workshop-guests
+    PRIVATE loom::bridge loom::switchboard loom::core loom::host-policy zengine-workshop-guests
             zengine-input-vocabulary zengine-graphics-vocabulary zengine-timer-vocabulary
             zengine::inventory zengine-warnings zengine-sanitize)
 target_include_directories(zengine-workshop-guests-tests PRIVATE
@@ -1759,7 +1761,7 @@ endif()
 # rot unseen.
 add_executable(zengine-build-witness build/witness.cpp)
 target_link_libraries(zengine-build-witness
-    PRIVATE loom::kernel loom::switchboard loom::core
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy
             zengine-builder-vocabulary zengine-workshop-load zengine-operator
             zengine-timer-vocabulary zengine-pane-vocabulary
             zengine-warnings zengine-sanitize)
@@ -1780,7 +1782,7 @@ zengine_test_definitions(zengine-build-witness
 # behaviour lives here.
 add_executable(zengine-audit-probes test_audit_probes.cpp doctest_main.cpp)
 target_link_libraries(zengine-audit-probes
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy zengine-timer-vocabulary
             zengine-operator zengine-warnings zengine-sanitize)
 target_include_directories(zengine-audit-probes PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party

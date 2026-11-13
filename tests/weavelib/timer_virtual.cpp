@@ -1,52 +1,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Timer service over a virtual clock: the shipped `TimerServiceT` in every respect but the
-// clock, which books each beat's wait as elapsed (`elapse_ms`). Continuity is a claim about durations
-// (TIMER-03), so each beat is exactly `kVirtualStepMs` of virtual time and every duration an exact
-// integer nobody waits for, through the real kernel, swap and bequest. Three libraries from this
-// source: the incumbent, the prepared candidate (the same code, since what prepares must be what
-// goes live), and a candidate that declines, broken here rather than by a branch in the package.
+// The suites' Timer libraries: the shipped `TimerWeave`, built as timer.cpp builds it, so a suite
+// that runs its host's wait on a clock that moves only when told (`loom::host::ManualClock`) holds
+// every duration exact through the real kernel, swap and bequest (TIMER-03). Three libraries from
+// this source: the incumbent, the prepared candidate (the same code, since what prepares must be
+// what goes live), and a candidate that declines, broken here rather than by a branch in the
+// package.
 
 #include "timer/normalize.hpp"
-#include "virtual_step.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
 #include "operator/host.hpp"
 
+#include <zen/host/wait_set.hpp>
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
+#include <zen/weave/dispatch_refusal.hpp>
 
 #include <cstdint>
 
 namespace {
 
-/// Time that moves only when the service decides to wait for it.
-///
-/// `elapse_ms` returns instantly and books a beat's wait as elapsed. A wait of zero
-/// or less is the service saying something is already due, and moves nothing.
-struct VirtualClock {
-    std::int64_t now = 0;
-
-    std::int64_t now_ms() { return now; }
-    std::int64_t step_ms() const { return zengine::testing::kVirtualStepMs; }
-
-    void elapse_ms(std::int64_t ms) {
-        if (ms > 0) {
-            now += ms;
-        }
-    }
-};
-
-/// The suite's Timer, built as the shipped one is built over `MonotonicClock`: the same class but
-/// for the clock, so the canonicality witnesses run on virtual time.
-class VirtualTimerService : public zengine::timer::TimerServiceT<VirtualClock> {
+/// The suite's Timer, built as the shipped one is: the same class, spending what its host offers,
+/// handed its time by the suite's host's wait.
+class VirtualTimerService : public zengine::timer::TimerWeave {
 public:
     VirtualTimerService()
-        : zengine::timer::TimerServiceT<VirtualClock>(
-              VirtualClock{}, zengine::timer::DelayAuthority(zengine::op::OperatorHost::offered())) {
-    }
+        : zengine::timer::TimerWeave(
+              zengine::timer::DelayAuthority(zengine::op::OperatorHost::offered())) {}
 };
 
 #if defined(ZENGINE_TIMER_DECLINES)
@@ -67,14 +50,15 @@ struct BrokenState {
 class DecliningTimerCandidate
     : public loom::WeaveBase<
           DecliningTimerCandidate, BrokenState,
-          loom::Accept<loom::Activated, timer::Drive, timer::StartTimer, timer::StartRoleTimer,
-                       timer::EnsureTimer, timer::EnsureRoleTimer, timer::CancelTimer,
-                       timer::CancelAllMyTimers, loom::PrepareShutdown, loom::Bequest,
-                       loom::Refused, timer::PrepareTimerHandover,
-                       zengine::manual::ShapeDocumentRequested>,
-          loom::Emit<timer::TimerFired, timer::TimerReady, timer::Drive, timer::TimerResolution,
+          loom::Accept<loom::Activated, loom::host::Waited, timer::StartTimer,
+                       timer::StartRoleTimer, timer::EnsureTimer, timer::EnsureRoleTimer,
+                       timer::CancelTimer, timer::CancelAllMyTimers, loom::PrepareShutdown,
+                       loom::Bequest, loom::Refused, loom::DispatchRefused,
+                       timer::PrepareTimerHandover, zengine::manual::ShapeDocumentRequested>,
+          loom::Emit<timer::TimerFired, timer::TimerReady, timer::TimerResolution,
                      loom::Bequest, loom::ClaimBequest, timer::TimerCandidatePrepared,
-                     timer::TimerCandidateDeclined, zengine::manual::ShapeDocumentShown>> {
+                     timer::TimerCandidateDeclined, zengine::manual::ShapeDocumentShown>,
+          loom::Claims<loom::host::WaitSet>> {
 public:
     void on(const timer::PrepareTimerHandover& p, loom::Mail& mail) {
         ++state_.asked;
@@ -86,7 +70,8 @@ public:
     // ignored the production contract would pass an isolation proof by being
     // inert rather than by being sealed.
     void on(const loom::Activated&, loom::Mail&) {}
-    void on(const timer::Drive&, loom::Mail&) {}
+    void on(const loom::host::Waited&, loom::Mail&) {}
+    void on(const loom::DispatchRefused&, loom::Mail&) {}
     void on(const timer::StartTimer&, loom::Mail&) {}
     void on(const timer::StartRoleTimer&, loom::Mail&) {}
     void on(const timer::EnsureTimer&, loom::Mail&) {}

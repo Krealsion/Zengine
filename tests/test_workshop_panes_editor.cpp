@@ -5943,9 +5943,7 @@ namespace nve = zengine::neovim_editor;
 /// ONE BEAT TO THE NEOVIM-BACKED EDITOR, as the Timer would give it (no Timer is mounted), then
 /// drain.
 void neovim_beat(EditorRig& e) {
-    (void)e.r.bus.send(e.image, loom::Message(loom::to_value(zengine::timer::TimerFired{
-                                                  "zengine.neovim-editor.beat"}),
-                                              loom::WeaveId{}, loom::WeaveId{}, 0));
+    (void)e.r.bus.send(e.image, host_wake());
     e.r.bus.drain_until_idle();
 }
 

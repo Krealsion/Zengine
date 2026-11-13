@@ -10,10 +10,9 @@
 
 #include "kitchen.hpp"
 
-#include "timer/os_clock.hpp"
-#include "timer/rest.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -201,17 +200,16 @@ int main(int argc, char** argv) {
     bus.publish_as(waiter_id, loom::Message(loom::to_value(BakeOrder{"sourdough", 40}),
                                             waiter_id, loom::WeaveId{0}));
 
-    // The host loop: with the Timer service loaded the bus is never idle (the service seeds its
-    // next beat at every beat), so `drain_until_idle()` here would never return. `pump_pending()`
-    // dispatches what was waiting and hands control back, so the condition below is checked at
-    // all, and the host rests between turns as long as the Timer's beat allows. The 4000 is this
-    // fixture's patience, not a dispatch budget.
-    timer::MonotonicClock clock;
-    timer::Rest<timer::MonotonicClock> rest(clock);
+    // The host loop: a turn, then one wait on the Timer's time -- only looking while the bus holds
+    // more, resting until the Timer is due when it holds nothing. The Timer claims its soonest
+    // timer's time in that wait and is handed the time there, so nothing is queued to keep time.
+    // The 4000 is this fixture's patience, not a dispatch budget.
+    loom::host::Reactor wait(bus);
+    wait.trust(timer::kTimerRole);
     int laps = 0;
     for (; laps < 4000 && !waiter->served; ++laps) {
         bus.pump_pending();
-        (void)rest.after_turn(bus);
+        (void)(bus.pending() != 0 ? wait.after_turn(0) : wait.after_turn());
     }
 
     if (!with_timer) {
@@ -242,22 +240,26 @@ int main(int argc, char** argv) {
     if (!waiter->served) {
         return 1;
     }
-    // THE RECURRING-WORK WITNESS. Two facts, and neither is worth anything without the
-    // other: the host got control back many times over, AND the service that made that
-    // interesting is still going. A run where the chain had died would satisfy the first
-    // alone, and would prove only that a quiet bus can be pumped.
+    // THE HOST'S REST, WITNESSED. Two facts, and neither is worth anything without the other:
+    // the host got control back more than once -- it rested in its wait until the bake was due --
+    // AND, what the serving turn set off delivered, the bus is empty: the Timer keeps its time by
+    // its claim on the wait, and nothing is queued to keep it.
     std::printf("kitchen: the host loop kept control for %d turn(s)\n", laps);
     if (laps < 2) {
         std::printf("kitchen: THE HOST LOOP NEVER REALLY LOOPED\n");
         return 1;
     }
-    if (bus.pending() == 0) {
-        std::printf("kitchen: THE BUS WENT IDLE -- the Timer chain is not alive, so this run "
-                    "proves nothing about servicing a live one\n");
+    for (int turn = 0; turn < 64 && bus.pending() != 0; ++turn) {
+        bus.pump_pending();
+        (void)wait.after_turn(0);
+    }
+    if (bus.pending() != 0) {
+        std::printf("kitchen: THE BUS IS STILL BUSY (%zu queued) -- something keeps time on it\n",
+                    bus.pending());
         return 1;
     }
-    std::printf("kitchen: the bus is still busy (%zu queued) -- quiescence was never coming, "
-                "and the host never asked for it\n", bus.pending());
+    std::printf("kitchen: the bus is empty -- the Timer keeps time by its claim, and the host "
+                "rests in its wait\n");
     // AN ORDINARY SUCCESS LOOKS LIKE ONE. Not a preference about volume: every refusal
     // this run could produce would be a real one, so a single line here means either the
     // program is broken or the runtime is presenting a non-event as a failure. It was the

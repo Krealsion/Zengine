@@ -21,10 +21,10 @@ grant. Its own answers are to the asker alone, and a guest is never told another
 
 When a connection ends, the door closes the input session its guest held, on the guest's behalf,
 lets go of the ask for the plan the guest was holding, and the observation relay beside it forgets
-the guest's subscriptions. The door does its work on a beat of its own from the Timer, or, where a
-host's one wait holds what the crossing waits on -- its listener, every guest and what it owes them
--- when that wait says the crossing is ready; it then lets its beat go, keeping it only while an
-ask for the plan waits for the plan to come to rest.
+the guest's subscriptions. The door is a source of the host's one wait, opened by its host at
+mount: it claims what the crossing waits on -- its listener, every guest and what it owes them --
+and does its work when that wait says the crossing is ready, or at a time it claimed while an ask
+for the plan waits for the plan to come to rest, or while the wait cannot hold the crossing.
 
 ## Use
 
@@ -111,27 +111,13 @@ guest: the Inventory pane, refused `NoSuchTarget`, saves.
 
 ## Hears
 
-### `TimerFired`
-
-`TimerFired` v1, from `zengine.timer`, the Timer: the door's beat, `zengine.guests.service`. On each, the door admits,
-refuses and ends connections, answers the asks for the plan once it is at rest, and publishes the
-inventory when a connection came, changed or went. Shape: [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
-
-### `TimerReady`
-
-`TimerReady` v1, from `zengine.timer`, the Timer: it is live, so the door asks for its beat again. Shape:
-[`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
-
-### `TimerResolution`
-
-`TimerResolution` v1, from `zengine.timer`, the Timer: what it made of the door's ask for its beat. Shape:
-[`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
-
 ### `loom.host.Waited`
 
-`loom.host.Waited` v1, from the host alone: its one wait holds the door's claim, so the beat stops;
-holds it no longer, so the beat runs again; or the crossing is ready, and the door does what its
-beat does at once. From any participant it is nothing.
+`loom.host.Waited` v2, from the host alone, with the time on its wait's clock: the crossing is
+ready, or the time the door claimed came, and the door admits, refuses and ends connections,
+answers the asks for the plan once it is at rest, and publishes the inventory when a connection
+came, changed or went; or the wait holds the door's claim, or no longer does, and the door looks
+on a time alone meanwhile. From any participant it is nothing.
 
 ## Follow
 

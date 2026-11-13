@@ -1,6 +1,6 @@
-# The Timer package: time, message-shaped. The vocabulary, one loadable weave that is its sole
-# authority over time, and the rest a host takes between turns while the Timer's beat is all its
-# bus holds -- the only sleep in a running system.
+# The Timer package: time, message-shaped. The vocabulary, what a source claims of the host's one
+# wait (`source_wait.hpp`), and one loadable weave that is its sole authority over time, handed the
+# time by that wait.
 
 # The vocabulary travels as a header-only interface target, same as input's:
 # consumers spell `#include "timer/vocabulary.hpp"`. Portable — shapes are
@@ -10,19 +10,10 @@ target_include_directories(zengine-timer-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::timer ALIAS zengine-timer-vocabulary)
-# What the two shipped headers need, on their own lines: vocabulary.hpp includes
-# <zen/weave/shape.hpp>, and binding.hpp <zen/weave.hpp> and the activation cursor. In this tree
+# What the shipped headers need, on their own lines: vocabulary.hpp includes <zen/weave/shape.hpp>,
+# binding.hpp <zen/weave.hpp> and the activation cursor, and source_wait.hpp <zen/host/wait_set.hpp>. In this tree
 # the omission would be invisible; from an installed package it decides whether a consumer compiles.
 target_link_libraries(zengine-timer-vocabulary INTERFACE loom::core zengine::activation)
-
-# The rest between turns (`timer/rest.hpp`) over the OS clock (`timer/os_clock.hpp`): header-only,
-# a host's, reading the Timer's claim off the host's own Switchboard.
-add_library(zengine-timer-rest INTERFACE)
-target_include_directories(zengine-timer-rest INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
-add_library(zengine::timer-rest ALIAS zengine-timer-rest)
-target_link_libraries(zengine-timer-rest INTERFACE zengine-timer-vocabulary loom::switchboard)
 
 # The weave itself needs a Loom that can HOST loadable weaves (the same
 # honest question every package asks: does this install export loom::kernel?).
@@ -32,7 +23,7 @@ if(NOT TARGET loom::kernel)
 endif()
 
 # The weave carries the Timer role's manual and answers a shape's section from it
-# (`ShapeDocumentRequested`, manual/vocabulary.hpp); every target that builds `TimerServiceT`
+# (`ShapeDocumentRequested`, manual/vocabulary.hpp); every target that builds `TimerWeave`
 # carries the page too, since timer_weave.hpp answers from it.
 zengine_weave(zengine-timer timer.cpp MANUAL docs/zengine.timer.md)
 # The service reads its own activation, and executes its delay rule rather than implementing it:

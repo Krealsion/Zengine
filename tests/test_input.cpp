@@ -26,9 +26,11 @@
 #include "role_manual.hpp"
 
 #include "graphics/vocabulary.hpp" // the one lifecycle fact a reader of SDL's queue could hand on
-#include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
+#include "timer/source_wait.hpp" // the time a source claims, and the time it is handed
+#include "timer/vocabulary.hpp"
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
+#include <zen/host/clock.hpp>
 #include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
@@ -225,38 +227,6 @@ struct Seen {
 struct WitnessState {
     std::int64_t noted = 0;
     ZEN_SHAPE(WitnessState, 1, ZEN_FIELD(noted));
-};
-
-/// What the weave asked the Timer package for, field by field.
-struct BeatAsk {
-    std::string id;
-    std::int64_t delay_ms = 0;
-    bool repeat = false;
-    std::string role;
-    std::string preferred;
-    std::string fallback;
-};
-
-struct CatcherState {
-    std::int64_t asks = 0;
-    ZEN_SHAPE(CatcherState, 1, ZEN_FIELD(asks));
-};
-
-/// A stand-in TimerService: holds the timer role and records the exact asks.
-/// It never beats — the case that uses it delivers the firings by hand, so
-/// the weave's side of the contract is pinned without a clock in sight.
-class BeatCatcher
-    : public loom::WeaveBase<BeatCatcher, CatcherState,
-                             loom::Accept<zengine::timer::EnsureRoleTimer>, loom::Emit<>> {
-public:
-    explicit BeatCatcher(std::vector<BeatAsk>& asks) : asks_(&asks) {}
-    void on(const zengine::timer::EnsureRoleTimer& s, loom::Mail&) {
-        ++state_.asks;
-        asks_->push_back(BeatAsk{s.id, s.delay_ms, s.repeat, s.role, s.preferred, s.fallback});
-    }
-
-private:
-    std::vector<BeatAsk>* asks_;
 };
 
 /// mount(), plus a role binding (the weave sugar has no role parameter; the
@@ -1590,66 +1560,66 @@ TEST_CASE("the weave's EMIT SET is whatever its reader can hand it, and order is
     CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[6]));
 }
 
-TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks again, "
-          "the beat polls, alien ids do not") {
+TEST_CASE("the weave arranges its own wait: activation claims the role's, the host's wake reads, "
+          "and a participant's word reads nothing") {
     loom::Switchboard bus;
+    loom::host::ManualClock clock;
+    loom::host::Reactor wait(bus, clock);
+    wait.trust(std::string(kInputRole));
     std::vector<std::vector<InputEvent>> feed;
     feed.push_back({KeyPressed{scan::kD, "D"}});
 
-    const loom::WeaveId weave = loom::mount<InputWeaveT<FakeReader>>(bus, FakeReader{&feed});
+    const loom::WeaveId weave =
+        mount_into_role<InputWeaveT<FakeReader>>(bus, std::string(kInputRole), FakeReader{&feed});
     std::vector<InputEvent> heard;
     (void)loom::mount<Ears>(bus, heard);
-    std::vector<BeatAsk> asks;
-    (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
     // A first breath is Loom's to grant. The suite activates through a real
     // lifecycle initiator holding a real authority, because that is the only way a
     // weave can be activated at all — hand-posting the public shape is exactly
     // the forgery the attestation refuses.
     const loom::WeaveId door = zengine::testing::mount_door(bus);
 
-    // ITS OWN ACTIVATION is its first breath (TIMER-02): the weave asks for ITS
-    // beat, wire content pinned field by field. This is the trigger that makes
-    // load order stop mattering — loaded long after the Timer, it still asks.
+    // ITS OWN ACTIVATION is its first breath: the weave claims, as its role, what its reader
+    // waits on. This reader cannot say, so the claim is a time alone -- a time already past,
+    // since no time was handed yet -- and nothing was read before the wait said so. The wait
+    // reads the claim after the turn, finds it due, and wakes the role.
     zengine::testing::order_activation(bus, door, weave, 1);
     bus.drain_until_idle();
-    REQUIRE(asks.size() == 1);
-    CHECK(asks[0].id == kPumpTimerId);
-    CHECK(asks[0].delay_ms == kPumpBeatMs);
-    CHECK(asks[0].repeat);
-    CHECK(asks[0].role == kInputRole);
-    // The ORDER travels with the ask (TIMER-03): this weave prefers to keep the
-    // remaining time across a Timer succession, and accepts a restart when there
-    // is nothing to keep.
-    CHECK(asks[0].preferred == zengine::timer::kPreserveRemaining);
-    CHECK(asks[0].fallback == zengine::timer::kRestartDelay);
+    CHECK(heard.empty());
+    const loom::host::Reactor::Woke woke = wait.after_turn(0);
+    CHECK(woke.due == 1);
+    REQUIRE(wait.sources().size() == 1);
+    CHECK(wait.sources()[0].claimed);
+    CHECK(wait.sources()[0].handles == 0);
 
-    // A duplicate activation asks for nothing — the cursor's whole job, and
-    // what keeps a re-delivered stimulus from doing non-idempotent work.
-    zengine::testing::order_activation(bus, door, weave, 1);
-    bus.drain_until_idle();
-    CHECK(asks.size() == 1);
-
-    // The TimerService's availability notice arrives (root-published, as the
-    // fanout would deliver it — and the recipient count pins that in this rig
-    // the input weave is the ONLY listener): the weave asks AGAIN. That is the
-    // opposite load order's rescue, and it is an upsert, never a doubling.
-    CHECK(bus.publish(loom::Message(loom::to_value(zengine::timer::TimerReady{}))) == 1);
-    bus.drain_until_idle();
-    REQUIRE(asks.size() == 2);
-    CHECK(asks[1].id == kPumpTimerId);
-    CHECK(asks[1].role == kInputRole);
-
-    // The beat opens the same hands the pump does...
-    bus.send(weave, loom::Message(loom::to_value(zengine::timer::TimerFired{kPumpTimerId})));
+    // Woken, the role reads, and claims its next look on the time it was handed, `kLookAgainMs`
+    // on.
     bus.drain_until_idle();
     REQUIRE(heard.size() == 1);
     CHECK(as<KeyPressed>(heard, 0).scancode == scan::kD);
+    CHECK(clock.now_ms() == 0);
+    (void)wait.after_turn(0); // reads the new claim; nothing is due yet
+    CHECK(wait.sources()[0].until_ms == std::optional<std::int64_t>(kLookAgainMs));
 
-    // ...and someone else's timer aimed at this role opens nothing.
-    feed.push_back({KeyPressed{scan::kW, "W"}});
-    bus.send(weave, loom::Message(loom::to_value(zengine::timer::TimerFired{"someone.else"})));
+    // A duplicate activation claims nothing new and reads nothing — the cursor's whole job.
+    zengine::testing::order_activation(bus, door, weave, 1);
     bus.drain_until_idle();
-    CHECK(heard.size() == 1); // the alien id did not poll the reader
+    CHECK(heard.size() == 1);
+
+    // ...and the wait's word from a participant opens nothing: only the host's own is a wake.
+    std::vector<InputEvent> forger_heard;
+    loom::Grant may;
+    may.allow_to_role(loom::host::Waited::zen_name, loom::host::Waited::zen_version,
+                      std::string(kInputRole));
+    const loom::WeaveId forger = loom::mount_granted<Ears>(bus, std::move(may), forger_heard);
+    feed.push_back({KeyPressed{scan::kW, "W"}});
+    loom::host::Waited said;
+    said.held = true;
+    said.due = true;
+    said.now_ms = 1000;
+    bus.send_as_to_role(forger, kInputRole, loom::Message(loom::to_value(said), forger));
+    bus.drain_until_idle();
+    CHECK(heard.size() == 1); // the forged wake did not read the reader
 }
 
 // ============================================================================
@@ -1692,8 +1662,8 @@ TEST_CASE("the input .so answers what each shape it accepts does, from its role'
         reader.ask(InjectInput::zen_name, InjectInput::zen_version);
     CHECK(said.group == "Commands");
     CHECK(said.page == std::string(zengine::manual::pages::zengine_input::kManual.content_id));
-    CHECK(reader.ask(zengine::timer::TimerFired::zen_name, zengine::timer::TimerFired::zen_version)
-              .group == "Hears");
+    CHECK(reader.ask(loom::host::Waited::zen_name, loom::host::Waited::zen_version).group ==
+          "Hears");
 }
 
 TEST_CASE("keys become turns: a key its window gives steers the real world through its own keys, "
@@ -2026,10 +1996,9 @@ struct SessionRig {
     Agent* agent = nullptr;
     loom::WeaveId agent_id{};
 
-    InputWeaveT<FakeReader>::Clock::time_point now{};
     SessionRig() {
         // IN ITS ROLE, because a session is asked of `zengine.input`, never of a WeaveId.
-        auto w = std::make_unique<InputWeaveT<FakeReader>>(FakeReader{&feed}, [this] { return now; });
+        auto w = std::make_unique<InputWeaveT<FakeReader>>(FakeReader{&feed});
         InputWeaveT<FakeReader>* raw = w.get();
         loom::Grant grant = loom::emit_default_grant(*raw);
         loom::allow_poke_answers(grant);
@@ -2046,6 +2015,16 @@ struct SessionRig {
         bus.send(agent_id, loom::Message(loom::to_value(PumpInput{})));
         bus.drain_until_idle();
         agent->next_ = nullptr;
+    }
+    /// The host's one wait waking the role at `ms` on its clock: its own word, with no sender, the
+    /// time it hands over being what a motion is timed by.
+    void wake(std::int64_t ms) {
+        loom::host::Waited w;
+        w.held = true;
+        w.due = true;
+        w.now_ms = ms;
+        bus.send(weave, loom::Message(loom::to_value(w)));
+        bus.drain_until_idle();
     }
     void open(std::string purpose = "a suite's hand") {
         act([purpose](loom::Mail& m) {
@@ -2507,15 +2486,16 @@ TEST_CASE("session: held keys accumulate across batches only to the limit, and a
     }
 }
 
-TEST_CASE("session motion follows elapsed time and cancels without leaving a held button") {
+TEST_CASE("session motion follows the time the host's wait hands over, and cancels without "
+          "leaving a held button") {
     SessionRig r; r.open();
     r.inject({button(1, true, 10, 20)});
     r.act([&](loom::Mail& m) { m.send_to_role(kInputRole,
         PointerMotionRequested{r.agent->session, 110, 20, 1000, 40}); });
     const auto answers = r.agent->answers.size();
-    r.now += std::chrono::milliseconds(500);
-    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
-    r.bus.drain_until_idle();
+    r.wake(0);   // the first time handed since the ask: the motion starts there
+    REQUIRE(r.heard.size() == 1); // and has not moved yet
+    r.wake(500);
     REQUIRE(r.heard.size() == 2);
     CHECK(as<PointerMoved>(r.heard, 1).x == 60);
     CHECK(as<PointerMoved>(r.heard, 1).y == 50);
@@ -2523,18 +2503,15 @@ TEST_CASE("session motion follows elapsed time and cancels without leaving a hel
     r.inject({typed("must not arrive")});
     CHECK(r.last().find("in progress") != std::string::npos);
     CHECK(r.heard.size() == 2);
-    r.now += std::chrono::milliseconds(1500); // a late pump skips catch-up samples
-    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
-    r.bus.drain_until_idle();
+    r.wake(2000); // a late wake skips catch-up samples
     REQUIRE(r.heard.size() == 3);
     CHECK(as<PointerMoved>(r.heard, 2).x == 110);
     CHECK(as<PointerMoved>(r.heard, 2).y == 20);
     CHECK(r.last() == "injected 2..3 (2)");
     r.act([&](loom::Mail& m) { m.send_to_role(kInputRole,
         PointerMotionRequested{r.agent->session, 210, 20, 1000, 0}); });
-    r.now += std::chrono::milliseconds(500);
-    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
-    r.bus.drain_until_idle();
+    r.wake(2000); // the first time handed since this ask
+    r.wake(2500);
     CHECK(as<PointerMoved>(r.heard, 3).x == 160);
     CHECK(as<PointerMoved>(r.heard, 3).y == 20);
     r.close();
@@ -2542,9 +2519,7 @@ TEST_CASE("session motion follows elapsed time and cancels without leaving a hel
     CHECK_FALSE(as<PointerButton>(r.heard, 4).pressed);
     CHECK(as<PointerButton>(r.heard, 4).x == 160);
     CHECK(r.agent->answers[r.agent->answers.size()-2].find("cancelled") != std::string::npos);
-    r.now += std::chrono::seconds(3);
-    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
-    r.bus.drain_until_idle();
+    r.wake(5500);
     CHECK(r.heard.size() == 5);
 }
 
@@ -2957,9 +2932,9 @@ TEST_CASE("the TUI window's own reader takes, reads and gives back the terminal 
 #endif
 
 // ============================================================================
-// A host's one wait (Loom's `zen/host/reactor.hpp`): the role's beat stops only once the host's
-// wait holds what its reader waits on, and what it waits on then wakes it; a host with no wait,
-// and a `Waited` from any participant, leave the beat as it was (timer/held_beat.hpp).
+// A host's one wait (Loom's `zen/host/reactor.hpp`): it holds what the role's reader waits on, and
+// what it waits on then wakes it; a host with no wait, and a `Waited` from any participant, wake
+// nothing (timer/source_wait.hpp).
 
 namespace {
 
@@ -3042,46 +3017,18 @@ struct WaitableReader {
     }
 };
 
-struct BookState {
-    std::int64_t asks = 0;
-    ZEN_SHAPE(BookState, 1, ZEN_FIELD(asks));
-};
-
-/// A stand-in Timer that counts the role's asks for its beat and its cancels of it.
-class BeatBook : public loom::WeaveBase<BeatBook, BookState,
-                                        loom::Accept<zengine::timer::EnsureRoleTimer,
-                                                     zengine::timer::CancelTimer>,
-                                        loom::Emit<>> {
-public:
-    void on(const zengine::timer::EnsureRoleTimer& s, loom::Mail&) {
-        if (s.id == kPumpTimerId) {
-            ++ensures;
-        }
-    }
-    void on(const zengine::timer::CancelTimer& c, loom::Mail&) {
-        if (c.id == kPumpTimerId) {
-            ++cancels;
-        }
-    }
-    int ensures = 0;
-    int cancels = 0;
-};
-
-/// The weave in its role over a waitable reader, ears, the stand-in Timer, and its activation.
+/// The weave in its role over a waitable reader, ears, and its activation.
 struct HeldRig {
     loom::Switchboard bus;
     Signal signal;
     std::vector<std::vector<InputEvent>> feed;
     std::vector<InputEvent> heard;
-    BeatBook* book = nullptr;
     loom::WeaveId weave{};
 
     HeldRig() {
         weave = mount_into_role<InputWeaveT<WaitableReader>>(bus, std::string(kInputRole),
                                                              WaitableReader{&signal, &feed});
         (void)loom::mount<Ears>(bus, heard);
-        const loom::WeaveId timer = mount_into_role<BeatBook>(bus, zengine::timer::kTimerRole);
-        book = static_cast<BeatBook*>(bus.weave(timer));
         const loom::WeaveId door = zengine::testing::mount_door(bus);
         zengine::testing::order_activation(bus, door, weave, 1);
         bus.drain_until_idle();
@@ -3092,19 +3039,17 @@ struct HeldRig {
 
 } // namespace
 
-TEST_CASE("held: the role's beat stops once a host's one wait holds its reader, and what the "
-          "reader waits on wakes it") {
+TEST_CASE("held: a host's one wait holds the reader the role claims, and what the reader waits on "
+          "wakes it at once") {
     HeldRig r;
-    REQUIRE(r.book->ensures == 1);
-    CHECK(r.book->cancels == 0); // claimed, but no host has said it waits
-
     loom::host::Reactor wait(r.bus);
-    wait.trust(kInputRole);
+    wait.trust(std::string(kInputRole));
     (void)wait.after_turn(0);
     r.bus.drain_until_idle();
-    CHECK(r.book->cancels == 1); // held: the beat is let go
     REQUIRE_FALSE(wait.sources().empty());
     CHECK(wait.sources().front().held);
+    CHECK(wait.sources().front().handles == 1);
+    CHECK_FALSE(wait.sources().front().until_ms.has_value()); // nothing to look for on time
 
     // What the reader waits on is ready: the wait ends for it, and the role reads at once.
     r.feed.push_back({KeyPressed{scan::kD, "D"}});
@@ -3119,33 +3064,35 @@ TEST_CASE("held: the role's beat stops once a host's one wait holds its reader, 
     r.bus.drain_until_idle();
     REQUIRE(r.heard.size() == 1);
     CHECK(std::get<KeyPressed>(r.heard[0]).name == "D");
-    CHECK(r.book->ensures == 1); // and the beat stays let go
+}
 
-    // The host stops waiting on it: the beat runs again.
-    wait.distrust(kInputRole);
+TEST_CASE("held: with no host's wait the role is woken by nothing, and PumpInput is its direct "
+          "door") {
+    HeldRig r;
+    r.feed.push_back({KeyPressed{scan::kD, "D"}});
+    r.signal.set();
     r.bus.drain_until_idle();
-    CHECK(r.book->ensures == 2);
+    CHECK(r.heard.empty()); // nothing woke it: nothing polls on a beat of its own
+    r.bus.send_to_role(kInputRole, loom::Message(loom::to_value(PumpInput{})));
+    r.bus.drain_until_idle();
+    REQUIRE(r.heard.size() == 1);
+    CHECK(std::get<KeyPressed>(r.heard[0]).name == "D");
 }
 
-TEST_CASE("held: with no host's wait the role's beat is never let go") {
+TEST_CASE("held: a Waited from a participant is nothing, so no weave wakes the role") {
     HeldRig r;
-    for (int i = 0; i < 5; ++i) {
-        r.bus.send_to_role(kInputRole, loom::Message(loom::to_value(PumpInput{})));
-        r.bus.drain_until_idle();
-    }
-    CHECK(r.book->ensures == 1);
-    CHECK(r.book->cancels == 0);
-}
-
-TEST_CASE("held: a Waited from a participant is nothing, so no weave stops the role's beat") {
-    HeldRig r;
+    std::vector<InputEvent> forger_heard;
     loom::Grant may;
     may.allow_to_role(loom::host::Waited::zen_name, loom::host::Waited::zen_version,
                       std::string(kInputRole));
-    const loom::WeaveId forger = loom::mount_granted<BeatBook>(r.bus, std::move(may));
+    const loom::WeaveId forger = loom::mount_granted<Ears>(r.bus, std::move(may), forger_heard);
+    r.feed.push_back({KeyPressed{scan::kD, "D"}});
+    r.signal.set();
     loom::host::Waited said;
     said.held = true;
+    said.ready = true;
+    said.due = true;
     r.bus.send_as_to_role(forger, kInputRole, loom::Message(loom::to_value(said), forger));
     r.bus.drain_until_idle();
-    CHECK(r.book->cancels == 0);
+    CHECK(r.heard.empty());
 }
