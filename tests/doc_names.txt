@@ -9,8 +9,6 @@ app-session.json                 written
 apps/                            written
 boxed/                           written
 loom-boot.json                   written
-run.cmd                          written
-run.sh                           written
 src/example.cpp                  written
 view-builder.json                written
 workshop-keymap.json             written
