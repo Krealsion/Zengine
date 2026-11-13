@@ -689,7 +689,7 @@ def turn_wheel(ctx, hand, step):
         ctx.check(words, "wheel: %s/%s paints no word within %gs" % (provider, pane, seconds))
         no_press_yet(ctx, view, "wheel", provider, pane, seconds)
         at = words[0]
-    hand.inject([moment(ctx, "PointerWheel", wheel_dx=dx, wheel_dy=dy, x=at["x"], y=at["y"],
+    hand.inject([moment(ctx, "PointerWheel", dx=dx, dy=dy, x=at["x"], y=at["y"],
                         space=at["space"])])
     return {"part": name, "x": at["x"], "y": at["y"], "dx": dx, "dy": dy}
 

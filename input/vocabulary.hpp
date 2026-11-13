@@ -21,6 +21,9 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace zengine::input {
@@ -268,38 +271,29 @@ struct InputSessionClosed {
     ZEN_SHAPE(InputSessionClosed, 1, ZEN_FIELD(session), ZEN_FIELD(holder));
 };
 
-/// One moment an agent composed. `kind` says which of the published shapes it becomes and
-/// which fields are read; the rest are ignored. The kinds are the shapes' own names, so an
-/// agent that knows the Input reference knows the spelling.
-struct InjectedEvent {
-    std::string kind; ///< "KeyPressed" "KeyReleased" "TextEntered" "PointerMoved" "PointerButton" "PointerWheel"
-    std::int64_t scancode = 0;  ///< KeyPressed / KeyReleased: `scan::`
-    std::string name;           ///< KeyPressed / KeyReleased: the courtesy spelling, may be empty
-    std::int64_t modifiers = 0; ///< every kind but TextEntered: `mod::`
-    std::string text;           ///< TextEntered: UTF-8, as the platform would have committed it
-    std::int64_t button = 0;    ///< PointerButton: 1 left, 2 middle, 3 right
-    bool pressed = false;       ///< PointerButton
-    std::int64_t x = 0;         ///< pointer kinds: the position, in `space`
-    std::int64_t y = 0;
-    std::int64_t dx = 0;        ///< PointerMoved: the delta
-    std::int64_t dy = 0;
-    std::int64_t space = 0;     ///< pointer kinds: `space::kCells` or `space::kPixels`; unknown is refused
-    double wheel_dx = 0;        ///< PointerWheel: the notches
-    double wheel_dy = 0;
-    ZEN_SHAPE(InjectedEvent, 1, ZEN_FIELD(kind), ZEN_FIELD(scancode), ZEN_FIELD(name),
-              ZEN_FIELD(modifiers), ZEN_FIELD(text), ZEN_FIELD(button), ZEN_FIELD(pressed),
-              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(dx), ZEN_FIELD(dy), ZEN_FIELD(space),
-              ZEN_FIELD(wheel_dx), ZEN_FIELD(wheel_dy));
+/// ONE MOMENT: which of the six published shapes it is, holding that shape's own fields. Its case
+/// is named by the shape's name, so an agent that knows the Input reference knows the spelling,
+/// and a case it does not declare is refused by the gate, before any weave reads it.
+struct Moment {
+    using Is = std::variant<KeyPressed, KeyReleased, TextEntered, PointerMoved, PointerButton, PointerWheel>;
+    Is is;
+    ZEN_UNION(Moment, 1, is);
+
+    Moment() = default;
+    /// Each of the six is a moment, as a variant holds one of its alternatives.
+    template <class E>
+        requires std::is_constructible_v<Is, E&&>
+    Moment(E&& e) : is(std::forward<E>(e)) {}
 };
 
 /// PUBLISH THESE MOMENTS, IN THIS ORDER, through the session. Judged whole: a batch with an
-/// unknown kind, an unknown pointer space, a key outside 1..`kMaxScancode`, a moment that would
-/// hold more than `kMaxHeldKeys` keys down, or more than `kMaxInjectedEvents` moments publishes
-/// nothing and is refused with the offending index. Answered `InputInjected`.
+/// unknown pointer space, a key outside 1..`kMaxScancode`, a button outside 1..3, empty text, a
+/// moment that would hold more than `kMaxHeldKeys` keys down, or more than `kMaxInjectedEvents`
+/// moments publishes nothing and is refused with the offending index. Answered `InputInjected`.
 struct InjectInput {
     std::int64_t session = 0;
-    std::vector<InjectedEvent> events;
-    ZEN_SHAPE(InjectInput, 1, ZEN_FIELD(session), ZEN_FIELD(events));
+    std::vector<Moment> events;
+    ZEN_SHAPE(InjectInput, 2, ZEN_FIELD(session), ZEN_FIELD(events));
 };
 
 /// Move from the session's last pointer position over elapsed time. bend=0 is linear;
@@ -314,14 +308,15 @@ struct PointerMotionRequested {
               ZEN_FIELD(duration_ms), ZEN_FIELD(bend));
 };
 
-/// The input role's attributed companion to the legacy event. Consumers that authorize
-/// UI operations use this statement only with authenticated zengine.input authorship.
-/// Local platform input has local=true and actor=0; injected input names its actual holder.
+/// EVERY MOMENT THE ROLE PUBLISHES, SAID AGAIN WITH WHOSE IT IS, beside the moment itself.
+/// Consumers that authorize UI operations use this statement only with authenticated
+/// zengine.input authorship. Local platform input has local=true and actor=0; injected input
+/// names its actual holder.
 struct AttributedInput {
     bool local = false;
     std::int64_t actor = 0;
-    InjectedEvent event;
-    ZEN_SHAPE(AttributedInput, 1, ZEN_FIELD(local), ZEN_FIELD(actor), ZEN_FIELD(event));
+    Moment event;
+    ZEN_SHAPE(AttributedInput, 2, ZEN_FIELD(local), ZEN_FIELD(actor), ZEN_FIELD(event));
 };
 
 /// WHAT THE WEAVE DID WITH A BATCH: the session's own sequence numbers of the first and last

@@ -28,6 +28,9 @@
 
 namespace zengine::workshop::guests {
 
+/// The guests file's shape: every version's words in one envelope, each row's beneath it.
+std::shared_ptr<const loom::Schema> guests_file_schema();
+
 inline constexpr const char* kPowerInput = "input";
 inline constexpr const char* kPowerCapture = "capture";
 inline constexpr const char* kPowerInspect = "inspect";

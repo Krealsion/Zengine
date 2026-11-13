@@ -10,6 +10,7 @@
 // which traps are the rig's.
 #include "workshop_support.hpp"
 #include "input/input_weave.hpp"
+#include "moments.hpp"
 #include "workshop/actor_scope.hpp"
 #include <zen/host/grant_wiring.hpp>
 
@@ -83,7 +84,7 @@ struct GuestHand {
         hand = actor.get();
         loom::Grant g;
         g.allow_to_role(input::InputSessionRequested::zen_name, 1, input::kInputRole);
-        g.allow_to_role(input::InjectInput::zen_name, 1, input::kInputRole);
+        g.allow_to_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole);
         id = r.bus.register_weave(std::move(actor), g);
         hand->zen_set_self(id);
         row.admitted = true;
@@ -116,31 +117,16 @@ struct GuestHand {
     }
 
     // ---- the guest's moments, injected -------------------------------------------------
-    static input::InjectedEvent key_event(std::int64_t scan, std::int64_t mods, bool down) {
-        input::InjectedEvent e;
-        e.kind = down ? "KeyPressed" : "KeyReleased";
-        e.scancode = scan;
-        e.modifiers = mods;
-        return e;
+    static input::Moment key_event(std::int64_t scan, std::int64_t mods, bool down) {
+        if (down) return {input::KeyPressed{scan, "", mods}};
+        return {input::KeyReleased{scan, "", mods}};
     }
-    static input::InjectedEvent text_event(const std::string& text) {
-        input::InjectedEvent e;
-        e.kind = "TextEntered";
-        e.text = text;
-        return e;
-    }
+    static input::Moment text_event(const std::string& text) { return {input::TextEntered{text}}; }
     /// A button at a canvas cell, as the terminal medium reports it (`PaneRig::press_cell`).
-    static input::InjectedEvent button_event(std::int64_t cx, std::int64_t cy, bool down, std::int64_t button = 1) {
-        input::InjectedEvent e;
-        e.kind = "PointerButton";
-        e.button = button;
-        e.pressed = down;
-        e.space = input::space::kCells;
-        e.x = cx;
-        e.y = cy;
-        return e;
+    static input::PointerButton button_event(std::int64_t cx, std::int64_t cy, bool down, std::int64_t button = 1) {
+        return {button, down, cx, cy, input::space::kCells, input::mod::kNone};
     }
-    void inject(std::vector<input::InjectedEvent> events) {
+    void inject(std::vector<input::Moment> events) {
         act([&](loom::Mail& m) {
             m.send_to_role(input::kInputRole, input::InjectInput{hand->session, std::move(events)});
         });
@@ -177,7 +163,7 @@ struct GuestHand {
     /// THE WEAVER'S MOMENTS AND THEN THE GUEST'S, queued before either is delivered: Workshop
     /// routes the weaver's first, and the guest's lands before anything the weaver's act made a
     /// pane ask in return -- the interleaving an approval must survive.
-    void weaver_then_guest(std::vector<WeaverReader::Event> mine, std::vector<input::InjectedEvent> theirs) {
+    void weaver_then_guest(std::vector<WeaverReader::Event> mine, std::vector<input::Moment> theirs) {
         for (auto& e : mine) weaver->push_back(std::move(e));
         r.bus.send_to_role(input::kInputRole, loom::Message(loom::to_value(input::PumpInput{})));
         hand->next = [this, theirs](loom::Mail& m) {

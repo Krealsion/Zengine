@@ -24,6 +24,18 @@ inline loom::Cell restamp_cell(const loom::Cell& cell, const loom::TypeRef& type
 inline loom::Value restamp(const loom::Value& written,
                            const std::shared_ptr<const loom::Schema>& version) {
     loom::Value out(version);
+    if (version->is_union()) { // the case held, if the version has it
+        const auto held = written.chosen();
+        const loom::Field* field = held ? version->find(written.schema().fields()[*held].name) : nullptr;
+        if (field != nullptr) {
+            if (const loom::Cell* cell = written.get(field->name); cell != nullptr) {
+                out.set(field->name, restamp_cell(*cell, field->type));
+            } else {
+                out.choose(field->name);
+            }
+        }
+        return out;
+    }
     for (const loom::Field& field : version->fields()) {
         if (written.schema().find(field.name) == nullptr) {
             continue;
@@ -36,10 +48,11 @@ inline loom::Value restamp(const loom::Value& written,
 }
 
 inline loom::Cell restamp_cell(const loom::Cell& cell, const loom::TypeRef& type) {
-    if (type.kind == loom::Kind::Message) {
+    if (type.kind == loom::Kind::Message || type.kind == loom::Kind::Union) {
         return loom::Cell::message(restamp(*cell.as_message(), type.message));
     }
-    if (type.kind == loom::Kind::List && type.element->kind == loom::Kind::Message) {
+    if (type.kind == loom::Kind::List &&
+        (type.element->kind == loom::Kind::Message || type.element->kind == loom::Kind::Union)) {
         loom::Cell::Array items;
         for (const loom::Cell& item : cell.as_list()) {
             items.push_back(restamp_cell(item, *type.element));

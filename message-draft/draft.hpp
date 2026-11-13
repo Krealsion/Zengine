@@ -29,15 +29,33 @@ inline std::string path_label(const Path& path) {
     return out;
 }
 
+/// Whether a field of this kind holds a nested value: a record's, a union's, or either (Any). A
+/// cell holds a Message or a Union, never Any.
+inline bool nests(loom::Kind kind) noexcept {
+    return kind == loom::Kind::Message || kind == loom::Kind::Union || kind == loom::Kind::Any;
+}
+
 namespace detail {
 inline constexpr std::size_t max_depth = 64;
 inline void depth_check(std::size_t depth) {
     if (depth > max_depth) throw std::invalid_argument("draft exceeds 64 nesting levels");
 }
 inline loom::Cell clone_cell(const loom::Cell& cell, std::size_t depth);
+/// A union's held case into `out`: its value cloned, or the case chosen when it carries nothing.
+inline void clone_case(const loom::Value& value, loom::Value& out, std::size_t depth) {
+    const auto held = value.chosen();
+    if (!held) return;
+    const auto& name = value.schema().fields()[*held].name;
+    if (const auto* cell = value.get(name)) out.set(name, clone_cell(*cell, depth + 1));
+    else out.choose(name);
+}
 inline loom::Value clone_value(const loom::Value& value, std::size_t depth = 0) {
     depth_check(depth);
     loom::Value out(value.schema_ptr());
+    if (value.schema().is_union()) {
+        clone_case(value, out, depth);
+        return out;
+    }
     for (const auto& field : value.schema().fields())
         if (const auto* cell = value.get(field.name))
             out.set(field.name, clone_cell(*cell, depth + 1));
@@ -45,7 +63,7 @@ inline loom::Value clone_value(const loom::Value& value, std::size_t depth = 0) 
 }
 inline loom::Cell clone_cell(const loom::Cell& cell, std::size_t depth) {
     depth_check(depth);
-    if (cell.kind() == loom::Kind::Message) {
+    if (nests(cell.kind())) {
         if (!cell.as_message()) throw std::invalid_argument("null message in draft");
         return loom::Cell::message(clone_value(*cell.as_message(), depth));
     }
@@ -58,7 +76,7 @@ inline loom::Cell clone_cell(const loom::Cell& cell, std::size_t depth) {
 }
 inline void check_partial(const loom::Value& value) {
     for (const auto& error : loom::diagnose(value, value.schema()))
-        if (error.kind != loom::ErrorKind::MissingField)
+        if (error.kind != loom::ErrorKind::MissingField && error.kind != loom::ErrorKind::NoCase)
             throw std::invalid_argument(error.message());
 }
 
@@ -69,9 +87,22 @@ inline loom::Value edited_value(const loom::Value& value, const Path& path, std:
                                const std::optional<loom::Cell>& replacement) {
     depth_check(at);
     const auto* name = std::get_if<std::string>(&path.at(at));
-    if (!name || !value.schema().find(*name))
-        throw std::invalid_argument("draft path does not name a declared field");
+    const loom::Field* named = name ? value.schema().find(*name) : nullptr;
+    if (!named) throw std::invalid_argument("draft path does not name a declared field");
     loom::Value out(value.schema_ptr());
+    if (value.schema().is_union()) { // a union holds one case: choosing one replaces the held one
+        if (at + 1 == path.size()) {
+            if (!replacement) {
+                if (!value.has(*name)) clone_case(value, out, at);
+            } else if (named->carries) out.set(*name, *replacement);
+            else out.choose(*name);
+        } else {
+            const auto* cell = value.get(*name);
+            if (!cell) throw std::invalid_argument("choose the case before editing its contents");
+            out.set(*name, edited_cell(*cell, path, at + 1, replacement));
+        }
+        return out;
+    }
     for (const auto& field : value.schema().fields()) {
         const auto* cell = value.get(field.name);
         if (field.name != *name) {
@@ -88,7 +119,7 @@ inline loom::Value edited_value(const loom::Value& value, const Path& path, std:
 inline loom::Cell edited_cell(const loom::Cell& cell, const Path& path, std::size_t at,
                              const std::optional<loom::Cell>& replacement) {
     depth_check(at);
-    if (cell.kind() == loom::Kind::Message && cell.as_message())
+    if (nests(cell.kind()) && cell.as_message())
         return loom::Cell::message(edited_value(*cell.as_message(), path, at, replacement));
     const auto* index = std::get_if<std::size_t>(&path.at(at));
     if (cell.kind() != loom::Kind::List || !index || *index >= cell.as_list().size())
@@ -120,6 +151,11 @@ public:
 
 inline std::string summary(const loom::Cell* cell) {
     if (!cell) return "absent";
+    if (cell->kind() == loom::Kind::Union && cell->as_message()) { // the case it holds
+        const auto& value = *cell->as_message();
+        const auto held = value.chosen();
+        return held ? value.schema().fields()[*held].name : "no case";
+    }
     switch (cell->kind()) {
     case loom::Kind::Int: return std::to_string(cell->as_int());
     case loom::Kind::Float: {
@@ -133,10 +169,8 @@ inline std::string summary(const loom::Cell* cell) {
     case loom::Kind::Bytes: return std::to_string(cell->as_bytes().size()) + " bytes";
     case loom::Kind::Message: return "message";
     case loom::Kind::List: return std::to_string(cell->as_list().size()) + " items";
-#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
-    case loom::Kind::Union: return "one of its cases";
+    case loom::Kind::Union: return "no case"; // a union cell holding a value is read above
     case loom::Kind::Any: return "message"; // a cell holds a Message or a Union, never Any
-#endif
     }
     return {};
 }
@@ -180,7 +214,7 @@ public:
     void unset(const Path& path) { edit(path, std::nullopt); }
     void set_text(const Path& path, std::string_view text) {
         const auto field_type = type(path);
-        if (field_type.kind == loom::Kind::Bytes || field_type.kind == loom::Kind::Message ||
+        if (field_type.kind == loom::Kind::Bytes || nests(field_type.kind) ||
             field_type.kind == loom::Kind::List)
             throw std::invalid_argument("this kind needs a typed value, not scalar text");
         const detail::ScalarSource source(field_type);
@@ -191,10 +225,18 @@ public:
         if (!composed) throw std::invalid_argument(path_label(path) + ": " + composed.error);
         set(path, composed.cells.at("value"));
     }
+    /// A record field's value with its fields absent, or a union field's holding no case yet.
     void create_message(const Path& path) {
         const auto field_type = type(path);
-        if (field_type.kind != loom::Kind::Message) throw std::invalid_argument("field is not a Message");
+        if (field_type.kind != loom::Kind::Message && field_type.kind != loom::Kind::Union)
+            throw std::invalid_argument("field is not a Message or a Union");
         set(path, loom::Cell::message(loom::Value(field_type.message)));
+    }
+    /// Hold a union's case that carries nothing, in place of the case held.
+    void choose(const Path& path) {
+        if (path.size() < 2 || !std::holds_alternative<std::string>(path.back()))
+            throw std::invalid_argument("draft path does not name a union's case");
+        edit(path, loom::Cell::boolean(true));
     }
     void create_list(const Path& path) {
         if (type(path).kind != loom::Kind::List) throw std::invalid_argument("field is not a List");
@@ -218,27 +260,35 @@ public:
     }
     std::vector<Row> rows() const {
         std::vector<Row> out;
-        std::function<void(const loom::TypeRef&, const loom::Cell*, Path, bool)> add;
-        add = [&](const loom::TypeRef& field_type, const loom::Cell* cell, Path path, bool required) {
+        std::function<void(const loom::TypeRef&, const loom::Cell*, bool, Path, bool)> add;
+        // A nested value's fields, by the value's own shape (an Any field's names its own); each
+        // of a union's cases is a row, the held one present, none of them required alone.
+        const auto add_fields = [&](const loom::Value& value, const Path& path) {
+            const bool one_of = value.schema().is_union();
+            for (const auto& field : value.schema().fields()) {
+                auto child = path;
+                child.emplace_back(field.name);
+                add(field.type, value.get(field.name), value.has(field.name), std::move(child),
+                    !one_of && field.required);
+            }
+        };
+        add = [&](const loom::TypeRef& field_type, const loom::Cell* cell, bool present, Path path,
+                  bool required) {
             detail::depth_check(path.size());
-            out.push_back({path, field_type, cell != nullptr, required, path_label(path), summary(cell)});
+            out.push_back({path, field_type, present, required, path_label(path),
+                           present && !cell ? std::string("chosen") : summary(cell)});
             if (!cell) return;
-            if (field_type.kind == loom::Kind::Message) {
-                for (const auto& field : field_type.message->fields()) {
-                    auto child = path;
-                    child.emplace_back(field.name);
-                    add(field.type, cell->as_message()->get(field.name), std::move(child), field.required);
-                }
+            if (nests(cell->kind()) && cell->as_message()) {
+                add_fields(*cell->as_message(), path);
             } else if (field_type.kind == loom::Kind::List) {
                 for (std::size_t i = 0; i < cell->as_list().size(); ++i) {
                     auto child = path;
                     child.emplace_back(i);
-                    add(*field_type.element, &cell->as_list()[i], std::move(child), true);
+                    add(*field_type.element, &cell->as_list()[i], true, std::move(child), true);
                 }
             }
         };
-        for (const auto& field : value_.schema().fields())
-            add(field.type, value_.get(field.name), {field.name}, field.required);
+        add_fields(value_, {});
         return out;
     }
 
@@ -252,9 +302,14 @@ private:
         const loom::Cell* cell = nullptr;
         for (const auto& step : path) {
             if (const auto* name = std::get_if<std::string>(&step)) {
-                if (field_type.kind != loom::Kind::Message)
+                if (!nests(field_type.kind))
                     throw std::invalid_argument("draft path expects a Message");
-                const auto* field = field_type.message->find(*name);
+                // An Any field names no shape: the value it holds names its own.
+                const loom::Schema* shape = field_type.message ? field_type.message.get()
+                                            : message           ? &message->schema()
+                                                                : nullptr;
+                if (!shape) throw std::invalid_argument("create the absent parent before editing its contents");
+                const auto* field = shape->find(*name);
                 if (!field) throw std::invalid_argument("draft path names an unknown field: " + *name);
                 if (!message) throw std::invalid_argument("create the absent parent before editing its contents");
                 cell = message->get(*name);
@@ -267,7 +322,7 @@ private:
                 auto element = *field_type.element;
                 field_type = std::move(element);
             }
-            message = cell && field_type.kind == loom::Kind::Message ? cell->as_message().get() : nullptr;
+            message = cell && nests(cell->kind()) ? cell->as_message().get() : nullptr;
         }
         return {std::move(field_type), cell};
     }

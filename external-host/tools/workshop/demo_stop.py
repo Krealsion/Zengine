@@ -20,7 +20,7 @@ def run(ctx):
         # A PRESENTED INTERACTION -- a menu a failed run left open -- is answered first by Escape,
         # as a weaver would.
         ctx.ask("zengine.input", "InjectInput", {"session": opened["session"],
-                "events": chord_moments(ctx, "escape")}, via=link, settle=True)
+                "events": chord_moments(ctx, "escape")}, version=2, via=link, settle=True)
         try:
             ctx.ask("zengine.workshop", "WorkshopQuitRequested", {}, via=link, timeout=60)
         except LinkOutcome:

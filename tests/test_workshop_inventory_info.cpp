@@ -430,9 +430,8 @@ TEST_CASE("portable slots: one batched drag moves into a row and a forged transf
         p.width={pane_unit::kPixels,72*gfx::kCellPx}; p.height={pane_unit::kPixels,10*gfx::kCellPx};
     }
     s.r.extent(179,60); s.r.extent(180,60); // a same-size extent reseats nothing: the view is placed now
-    auto press=s.button_at(s.source,2,true),release=s.button_at(kind,1,false),move=release;
-    move.kind="PointerMoved"; move.dx=release.x-press.x; move.dy=release.y-press.y;
-    s.batch({press,move,release});
+    auto press=s.button_at(s.source,2,true),release=s.button_at(kind,1,false);
+    s.batch({press,moments::moved(press,release),release});
     CHECK_MESSAGE(slots::placed(s.layout(),a)==row,(s.shown(s.source)+s.shown(kind)));
     CHECK(s.saved_entries().size()==1);
     const auto before=s.layout();
@@ -551,7 +550,7 @@ TEST_CASE("inventory Info: a concurrent writer wins and the stale draft remains 
 TEST_CASE("inventory Info: an ordinary message cannot impersonate physical weaver input") {
     InventoryStory t(false);
     t.click(t.source);
-    input::InjectedEvent key; key.kind = "KeyPressed"; key.scancode = input::scan::kReturn;
+    input::Moment key = input::KeyPressed{input::scan::kReturn, "", input::mod::kNone};
     t.r.publish(loom::to_value(input::AttributedInput{true, 0, key}));
     CHECK(t.shown(t.source).find("Click a receiving pane") == std::string::npos);
     t.r.key(input::scan::kReturn);
@@ -696,8 +695,8 @@ TEST_CASE("inventory collection UI: cancelled drags leave no held item or accide
     SUBCASE("newer input overtakes an acquisition") {
         InventoryStory t;
         auto press=t.button_at(t.source, 1, true), release=t.button_at(t.info, 0, false);
-        auto move=release; move.kind="PointerMoved";
-        input::InjectedEvent key; key.kind="KeyPressed"; key.scancode=input::scan::kEscape;
+        const auto move = moments::over(release);
+        input::Moment key = input::KeyPressed{input::scan::kEscape, "", input::mod::kNone};
         t.batch({press, move, release, key});
         CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
         t.click(t.info); CHECK(t.saved_entries().empty());
@@ -706,8 +705,7 @@ TEST_CASE("inventory collection UI: cancelled drags leave no held item or accide
         InventoryStory t;
         t.event(t.button_at(t.source, 1, true));
         auto release = t.button_at(t.info, 0, false);
-        auto move = release; move.kind = "PointerMoved";
-        t.event(move);
+        t.event(moments::over(release));
         t.physical->push_back(input::PointerButton{1, false, release.x, release.y, release.space, 0});
         t.pump_physical();
         CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
@@ -760,8 +758,7 @@ TEST_CASE("inventory collection UI: another drag cannot replace an unsaved Info 
 TEST_CASE("inventory collection UI: dragging an owned entry back into Inventory moves without copying") {
     InventoryStory t;
     auto press = t.button_at(t.source, 1, true), release = t.button_at(t.source, 0, false);
-    auto move = release; move.kind = "PointerMoved";
-    t.batch({press, move, release});
+    t.batch({press, moments::over(release), release});
     CHECK_MESSAGE(t.saved_entries().empty(), t.shown(t.source));
     CHECK(t.stored().item.get("count")->as_int() == 7);
     t.key(input::scan::kReturn); t.click(t.source, 0);
@@ -926,8 +923,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         auto press = s.button_at(s.source, 2, true);
         auto release = s.button_at(s.flow, 8, false);
         release.x += 40; // over the graph, right of Flow's rail
-        auto move = release;
-        move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+        const auto move = moments::moved(press, release);
         s.batch({press, move, release});
         REQUIRE_MESSAGE(removed, s.r.last_notice());
         CHECK_MESSAGE(s.r.last_notice().find("Value not delivered to zengine.flow") != std::string::npos,
@@ -956,8 +952,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         bool removed = false;
         RemoveObserver watch{s.r.bus, leave_once_sent(s, " -> ", slots::kRole, removed)};
         auto press = s.button_at(kind, at, true), release = s.button_at(s.source, 0, false);
-        auto move = release;
-        move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+        const auto move = moments::moved(press, release);
         s.batch({press, move, release});
         REQUIRE_MESSAGE(removed, s.r.last_notice());
         CHECK_MESSAGE(s.r.last_notice().find(std::string("Value not delivered to ") + slots::kRole) !=
@@ -1073,10 +1068,7 @@ TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas
     const std::int64_t first = marked_row(s, s.source);
     REQUIRE(first >= 0);
     const auto wheel = [&s](double dy) {
-        input::InjectedEvent e = s.button_at(s.source, 1, true);
-        e.kind = "PointerWheel";
-        e.wheel_dy = dy;
-        s.event(e);
+        s.event(moments::wheel(s.button_at(s.source, 1, true), dy));
     };
     wheel(-1); // toward the weaver: the next entry
     CHECK(marked_row(s, s.source) == first + 1);
@@ -1109,11 +1101,9 @@ TEST_CASE("while an entry is carried the wheel reaches the pane under the hand, 
     const std::int64_t alpha = s.row_of(s.source, "Alpha");
     REQUIRE(alpha >= 0);
     // The hand takes Alpha up and moves it over Bravo's row, still held: the carry stands.
-    input::InjectedEvent press = s.button_at(s.source, alpha, true);
-    input::InjectedEvent move = s.button_at(s.source, alpha + 1, true);
-    move.kind = "PointerMoved";
-    move.dx = move.x - press.x;
-    move.dy = move.y - press.y;
+    const input::PointerButton press = s.button_at(s.source, alpha, true);
+    const input::PointerButton there = s.button_at(s.source, alpha + 1, true);
+    const input::PointerMoved move = moments::moved(press, there);
     const std::string said_before = s.r.last_notice();
     s.event(press);
     s.event(move);
@@ -1121,19 +1111,12 @@ TEST_CASE("while an entry is carried the wheel reaches the pane under the hand, 
     CHECK_MESSAGE(s.r.last_notice() == said_before, s.r.last_notice());
     const std::int64_t before = marked_row(s, s.source);
     REQUIRE(before >= 0);
-    input::InjectedEvent wheel = move;
-    wheel.kind = "PointerWheel";
-    wheel.wheel_dy = -1; // toward the weaver: the next entry
-    s.event(wheel);
+    s.event(moments::wheel(there, -1)); // toward the weaver: the next entry
     CHECK_MESSAGE(s.r.last_notice() == said_before, s.r.last_notice());
     // The hand carries on over Info, so the carried value is drawn there and Inventory's rows read
     // as it draws them: its marker walked a row.
-    input::InjectedEvent release = s.button_at(s.info, 0, false);
-    input::InjectedEvent over = release;
-    over.kind = "PointerMoved";
-    over.dx = over.x - move.x;
-    over.dy = over.y - move.y;
-    s.event(over);
+    const input::PointerButton release = s.button_at(s.info, 0, false);
+    s.event(moments::moved(there, release));
     CHECK_MESSAGE(marked_row(s, s.source) == before + 1, s.shown(s.source));
     s.event(release);
     CHECK_MESSAGE(s.shown(s.info).find("COPY story.RuntimeItem") != std::string::npos,
@@ -1228,8 +1211,7 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         auto drag = [&](std::int64_t from, std::int64_t into, std::int64_t target_row = 0) {
             auto press = s.button_at(s.source, from, true);
             auto release = s.button_at(into, target_row, false);
-            auto move = release; move.kind = "PointerMoved";
-            s.batch({press, move, release});
+            s.batch({press, moments::over(release), release});
         };
         s.append(1, "source");
         s.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
@@ -1341,7 +1323,7 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     });
     RemoveObserver remove{s.r.bus, observer};
     auto press = s.button_at(kind, at, true), release = s.button_at(s.source, 0, false);
-    auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    const auto move = moments::moved(press, release);
     s.batch({press, move, release});
     REQUIRE_MESSAGE(s.saved_entries().size() == 1, (s.shown(kind) + s.shown(s.source) + s.r.last_notice()));
     const auto saved = s.saved_entries().front();
@@ -1381,7 +1363,7 @@ TEST_CASE("terminal capture: retrieval and Inventory storage need separate curre
         for(std::size_t i=0;i<rows.size();++i) if(rows[i].find("zen.Ack")!=std::string::npos) { at=static_cast<std::int64_t>(i);break; }
         REQUIRE_MESSAGE(at>=0,s.shown(kind));
         auto press=s.button_at(kind,at,true), release=s.button_at(s.source,0,false);
-        auto move=release; move.kind="PointerMoved"; move.dx=release.x-press.x;move.dy=release.y-press.y;
+        const auto move = moments::moved(press, release);
         s.batch({press,move,release});
         CHECK(s.saved_entries().empty());
         CHECK_MESSAGE(s.shown(permissions==191?kind:s.source).find("no authority")!=std::string::npos,
@@ -1414,7 +1396,7 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     REQUIRE_MESSAGE(at>=0, s.shown(kind));
     REQUIRE(rows[static_cast<std::size_t>(at+1)].find(kRigBoard) != std::string::npos);
     auto press=s.button_at(kind,at+1,true), release=s.button_at(s.source,0,false);
-    auto move=release; move.kind="PointerMoved"; move.dx=release.x-press.x; move.dy=release.y-press.y;
+    const auto move = moments::moved(press, release);
     s.batch({press,move,release});
     REQUIRE_MESSAGE(s.saved_entries().size()==1,(s.shown(kind)+s.shown(s.source)));
     CHECK(s.saved_entries().front().item.get("text")->as_text()=="wrapped");
@@ -1455,8 +1437,7 @@ TEST_CASE("a value dragged from Inventory onto Flow's canvas reaches Flow as a c
     auto press = s.button_at(s.source, 2, true);
     auto release = s.button_at(s.flow, 8, false);
     release.x += 40; // over the graph, right of Flow's rail
-    auto move = release;
-    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    const auto move = moments::moved(press, release);
     s.batch({press, move, release});
     s.r.bus.remove_observer(tap);
     INFO(s.r.last_notice());
@@ -1520,8 +1501,7 @@ TEST_CASE("an operator reference dragged out of Powers is kept by Inventory like
     auto press = s.button_at(s.powers, at, true);
     press.x += 4; // on the power's name, past the selection mark
     auto release = s.button_at(s.source, 0, false);
-    auto move = release;
-    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    const auto move = moments::moved(press, release);
     s.batch({press, move, release});
     INFO(s.r.last_notice());
     INFO(s.trace);
@@ -1545,10 +1525,8 @@ void press_text(InventoryStory& s, std::int64_t kind, const std::string& start, 
     REQUIRE(pane != nullptr);
     for (const HeldText& t : held_texts(kind))
         if (t.text.rfind(start, 0) == 0) {
-            input::InjectedEvent e;
-            e.kind = "PointerButton"; e.button = button; e.pressed = true; e.space = input::space::kCells;
-            e.x = (pane->placed_x + t.x) / gfx::kCellPx + 1;
-            e.y = (pane->placed_y + t.y) / gfx::kCellPx;
+            input::PointerButton e{button, true, (pane->placed_x + t.x) / gfx::kCellPx + 1,
+                                   (pane->placed_y + t.y) / gfx::kCellPx, input::space::kCells, input::mod::kNone};
             s.event(e);
             e.pressed = false;
             s.event(e);
@@ -1563,21 +1541,18 @@ void choose(InventoryStory& s, const std::string& label) {
     REQUIRE(menu_shown(s.r.session()));
     const auto line = presented_line_of(s.r, label);
     REQUIRE_MESSAGE(line >= 0, label);
-    input::InjectedEvent e;
-    e.kind = "PointerButton"; e.button = 1; e.pressed = true; e.space = input::space::kCells;
-    e.x = context_cell_x(s.r.session());
-    e.y = context_entry_cell_y(s.r.session(), static_cast<std::size_t>(line));
+    input::PointerButton e{1, true, context_cell_x(s.r.session()),
+                           context_entry_cell_y(s.r.session(), static_cast<std::size_t>(line)),
+                           input::space::kCells, input::mod::kNone};
     s.event(e);
     e.pressed = false;
     s.event(e);
 }
-/// Where a canvas pane drew a line beginning `start`, as a hand's pointer event in cells.
-input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::string& start,
-                             const char* what = "PointerButton") {
+/// Where a canvas pane drew a line beginning `start`, as a hand's button in cells.
+input::PointerButton at_text(InventoryStory& s, std::int64_t kind, const std::string& start) {
     const auto* pane = s.r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
-    input::InjectedEvent e;
-    e.kind = what; e.button = 1; e.space = input::space::kCells;
+    input::PointerButton e{1, false, 0, 0, input::space::kCells, input::mod::kNone};
     for (const HeldText& t : held_texts(kind))
         if (t.text.rfind(start, 0) == 0) {
             e.x = (pane->placed_x + t.x) / gfx::kCellPx + 1;
@@ -1589,16 +1564,12 @@ input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::st
     FAIL("no line beginning `" << start << "` in " << all);
     return e;
 }
-/// A local place of a canvas pane, in pixels, as a hand's pointer event in cells.
-input::InjectedEvent at_local(InventoryStory& s, std::int64_t kind, std::int64_t x, std::int64_t y,
-                              const char* what = "PointerButton") {
+/// A local place of a canvas pane, in pixels, as a hand's button in cells.
+input::PointerButton at_local(InventoryStory& s, std::int64_t kind, std::int64_t x, std::int64_t y) {
     const auto* pane = s.r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
-    input::InjectedEvent e;
-    e.kind = what; e.button = 1; e.space = input::space::kCells;
-    e.x = (pane->placed_x + x) / gfx::kCellPx;
-    e.y = (pane->placed_y + y) / gfx::kCellPx;
-    return e;
+    return {1, false, (pane->placed_x + x) / gfx::kCellPx, (pane->placed_y + y) / gfx::kCellPx,
+            input::space::kCells, input::mod::kNone};
 }
 /// The View Builder's design area, read off its picture: the ground the view's own picture brought.
 zengine::view_builder::Area design_of(InventoryStory& s) {
@@ -1608,11 +1579,10 @@ zengine::view_builder::Area design_of(InventoryStory& s) {
     return {};
 }
 /// A hand's drag in one batch: pressed where `from` was drawn, moved, and released at `to`.
-void drag_between(InventoryStory& s, input::InjectedEvent from, input::InjectedEvent to) {
-    from.kind = "PointerButton"; from.pressed = true;
-    to.kind = "PointerButton"; to.pressed = false;
-    auto move = to;
-    move.kind = "PointerMoved"; move.dx = to.x - from.x; move.dy = to.y - from.y;
+void drag_between(InventoryStory& s, input::PointerButton from, input::PointerButton to) {
+    from.pressed = true;
+    to.pressed = false;
+    const auto move = moments::moved(from, to);
     s.batch({from, move, to});
 }
 bool pictured(InventoryStory&, std::int64_t kind, const std::string& part) {
@@ -1718,7 +1688,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     auto from = at_text(s, s.flow, "tally.Total {");
     auto to = at_text(s, s.builder, "> label1  label");
     from.pressed = true; s.event(from);
-    auto move = to; move.kind = "PointerMoved"; move.dx = to.x - from.x; move.dy = to.y - from.y;
+    const auto move = moments::moved(from, to);
     s.event(move);
     CHECK(s.r.last_notice().find("Dragging") == std::string::npos);
     to.pressed = false; s.event(to);
@@ -1779,9 +1749,8 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     auto from = at_text(s, s.flow, "tally.Total {");
     from.pressed = true;
     s.event(from);
-    auto over = at_local(s, s.builder, label.x + 2 * gfx::kCellPx, label.y + gfx::kCellPx / 2, "PointerMoved");
-    over.dx = over.x - from.x; over.dy = over.y - from.y;
-    s.event(over);
+    auto over = at_local(s, s.builder, label.x + 2 * gfx::kCellPx, label.y + gfx::kCellPx / 2);
+    s.event(moments::moved(from, over));
     const auto landing = [&] {
         const std::vector<HeldRect> rects = held_rects(s.builder);
         return std::any_of(rects.begin(), rects.end(), [&](const auto& r) {
@@ -1791,7 +1760,7 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     CHECK(landing());
     CHECK_FALSE(pictured(s, s.builder, "shows tally.Total"));
     auto to = over;
-    to.kind = "PointerButton"; to.pressed = false;
+    to.pressed = false;
     s.event(to);
     CHECK(pictured(s, s.builder, "shows tally.Total.total"));
     CHECK(pictured(s, s.builder, "label1: waiting"));
@@ -2100,9 +2069,8 @@ TEST_CASE("portable slots: an entry's transfer placed where the window drew a vi
     })};
     const std::int64_t at = row_saying(s, s.source, "A : ");
     REQUIRE_MESSAGE(at >= 0, s.shown(s.source));
-    auto press = s.button_at(s.source, at, true), move = s.button_at(s.source, at + 3, false);
-    move.kind = "PointerMoved"; move.dx = 0; move.dy = 3;
-    s.batch({press, move});
+    auto press = s.button_at(s.source, at, true), there = s.button_at(s.source, at + 3, false);
+    s.batch({press, input::PointerMoved{there.x, there.y, 0, 3, there.space, input::mod::kNone}});
     REQUIRE_MESSAGE(!token.empty(), s.shown(s.source));
     // That transfer, placed where the window drew the row view before B came: refused.
     const auto before = s.layout();
@@ -2145,8 +2113,7 @@ TEST_CASE("a value released on Flow before its carry is answered carries the win
     auto press = s.button_at(s.source, 2, true);
     auto release = s.button_at(s.flow, 8, false);
     release.x += 40; // over the graph, right of Flow's rail
-    auto move = release;
-    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    const auto move = moments::moved(press, release);
     s.hand->next = [&](loom::Mail& m) {
         m.send_to_role(input::kInputRole, input::InjectInput{s.hand->session, {press, move, release}});
     };

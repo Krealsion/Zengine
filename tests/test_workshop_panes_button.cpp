@@ -2200,10 +2200,7 @@ TEST_CASE("a release in a menu's area carries its own press's number when anothe
     const std::int64_t y = context_entry_cell_y(t.r.session(), static_cast<std::size_t>(line));
     guest_hand::GuestHand g(t.r, {"input"});
     t.r.window_button(x, y, true);
-    input::InjectedEvent wheel = guest_hand::GuestHand::button_event(1, 1, true);
-    wheel.kind = "PointerWheel";
-    wheel.wheel_dy = -1.0;
-    g.inject({wheel});
+    g.inject({moments::wheel(guest_hand::GuestHand::button_event(1, 1, true), -1.0)});
     REQUIRE(g.hand->refusals.empty());
     REQUIRE(t.foreign_open());
     t.r.window_button(x, y, false);

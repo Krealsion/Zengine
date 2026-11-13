@@ -6451,7 +6451,7 @@ struct ReadDesk {
         return heard.shown.back();
     }
     /// A participant's pointer moment, published by the input role under its hand.
-    void inject(std::int64_t actor, zengine::input::InjectedEvent e, bool local = false) {
+    void inject(std::int64_t actor, zengine::input::Moment e, bool local = false) {
         r.bus.role_publish_as(
             input, zengine::input::kInputRole,
             loom::Message(loom::to_value(zengine::input::AttributedInput{local, actor, e})));
@@ -6464,33 +6464,18 @@ struct ReadDesk {
             loom::Message(loom::to_value(zengine::input::PointerTimingSaid{ms})));
         r.drain();
     }
-    static zengine::input::InjectedEvent button(std::int64_t x, std::int64_t y, bool down,
-                                                std::int64_t which = 1) {
-        zengine::input::InjectedEvent e;
-        e.kind = "PointerButton";
-        e.button = which;
-        e.pressed = down;
-        e.x = x;
-        e.y = y;
-        e.space = zengine::input::space::kPixels;
-        return e;
+    static zengine::input::Moment button(std::int64_t x, std::int64_t y, bool down,
+                                         std::int64_t which = 1) {
+        namespace in = zengine::input;
+        return in::PointerButton{which, down, x, y, in::space::kPixels, in::mod::kNone};
     }
-    static zengine::input::InjectedEvent wheel(std::int64_t x, std::int64_t y) {
-        zengine::input::InjectedEvent e;
-        e.kind = "PointerWheel";
-        e.wheel_dy = 1.0;
-        e.x = x;
-        e.y = y;
-        e.space = zengine::input::space::kPixels;
-        return e;
+    static zengine::input::Moment wheel(std::int64_t x, std::int64_t y) {
+        namespace in = zengine::input;
+        return in::PointerWheel{0, 1.0, x, y, in::space::kPixels, in::mod::kNone};
     }
-    static zengine::input::InjectedEvent move(std::int64_t x, std::int64_t y) {
-        zengine::input::InjectedEvent e;
-        e.kind = "PointerMoved";
-        e.x = x;
-        e.y = y;
-        e.space = zengine::input::space::kPixels;
-        return e;
+    static zengine::input::Moment move(std::int64_t x, std::int64_t y) {
+        namespace in = zengine::input;
+        return in::PointerMoved{x, y, 0, 0, in::space::kPixels, in::mod::kNone};
     }
 };
 

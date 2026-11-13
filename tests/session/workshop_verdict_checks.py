@@ -66,13 +66,21 @@ class Scripted:
         self.numbered = []  # (row, text) of each word the last version 3 reading numbered
         self.conn = SimpleNamespace(schema=self.schema)
 
-    def schema(self, *args):
+    def schema(self, name, version=1):
+        """Moment and its six cases, as the host describes them (zengine/input/vocabulary.hpp)."""
         t = self.steps
-        fields = [("kind", t.TEXT), ("scancode", t.INT), ("modifiers", t.INT), ("text", t.TEXT),
-                  ("button", t.INT), ("pressed", t.BOOL), ("x", t.INT), ("y", t.INT),
-                  ("space", t.INT), ("dx", t.INT), ("dy", t.INT)]
+        pointer = [("x", t.INT), ("y", t.INT), ("space", t.INT), ("modifiers", t.INT)]
+        key = [("scancode", t.INT), ("name", t.TEXT), ("modifiers", t.INT)]
+        shapes = {"KeyPressed": key, "KeyReleased": key, "TextEntered": [("text", t.TEXT)],
+                  "PointerMoved": [("x", t.INT), ("y", t.INT), ("dx", t.INT), ("dy", t.INT),
+                                   ("space", t.INT), ("modifiers", t.INT)],
+                  "PointerButton": [("button", t.INT), ("pressed", t.BOOL)] + pointer,
+                  "PointerWheel": [("dx", t.FLOAT), ("dy", t.FLOAT)] + pointer}
+        if name == "Moment":
+            return SimpleNamespace(fields=[SimpleNamespace(name=n, type=SimpleNamespace(ref=(n, 1)))
+                                           for n in shapes])
         return SimpleNamespace(fields=[SimpleNamespace(name=n, type=SimpleNamespace(kind=k))
-                                       for n, k in fields])
+                                       for n, k in shapes[name]])
 
     def check(self, condition, message):
         if not condition:
@@ -101,7 +109,9 @@ class Scripted:
             self.session_open = False
             return {}
         if shape == "InjectInput":
-            for m in fields["events"]:
+            for spelled in fields["events"]:  # {case: fields}, read as one record
+                (kind, given), = spelled.items()
+                m = dict(given, kind=kind)
                 self.moments.append(m)
                 self.typed(m)
             return {"session": 1, "admitted": len(fields["events"])}

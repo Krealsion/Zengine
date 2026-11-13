@@ -178,6 +178,8 @@ bool within(const std::string& inner, const std::vector<std::string>& outer) {
 
 } // namespace
 
+std::shared_ptr<const loom::Schema> guests_file_schema() { return file_schema(); }
+
 bool split_listen(const std::string& listen, std::string* host, std::uint16_t* port) {
     const std::size_t colon = listen.rfind(':');
     if (colon == std::string::npos || colon + 1 >= listen.size()) {

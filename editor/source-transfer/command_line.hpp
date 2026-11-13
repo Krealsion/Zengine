@@ -108,14 +108,12 @@ inline std::optional<std::string> argument(const loom::Field& f, const loom::Cel
     case loom::Kind::List:
         why = "field `" + f.name + "` is a list, which a Terminal line cannot compose";
         return std::nullopt;
-#if defined(LOOM_KIND_UNION) // a Loom whose Kind has Union and Any
     case loom::Kind::Union:
         why = "field `" + f.name + "` is a union, which a Terminal line cannot compose";
         return std::nullopt;
     case loom::Kind::Any:
         why = "field `" + f.name + "` holds a value of any shape, which a Terminal line cannot compose";
         return std::nullopt;
-#endif
     }
     why = "field `" + f.name + "` has a kind this line does not know";
     return std::nullopt;

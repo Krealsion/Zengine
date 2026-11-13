@@ -22,7 +22,7 @@ set(ZEN_CENSUS_CODE_KINDS feature host library examples)
 set(ZEN_CENSUS_SOURCES *.hpp *.h *.cpp *.c *.hpp.in *.h.in *.cpp.in)
 set(ZEN_CENSUS_SIDES workshop zengine)
 # A struct with this many `std::function` members or more is a host's hooks; a class this many
-# lines long or more is past the threshold its row is an alarm at.
+# lines long or more is past the threshold, and its row pins it from there.
 set(ZEN_CENSUS_HOOKS_FROM 4)
 set(ZEN_CENSUS_CLASS_LINES_FROM 1000)
 

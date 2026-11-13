@@ -67,7 +67,7 @@ struct Views : InventoryStory {
         FAIL("no column 0 in pane " << kind);
         return 0;
     }
-    input::InjectedEvent at(std::int64_t kind, std::int64_t row, std::int64_t column, bool down) {
+    input::PointerButton at(std::int64_t kind, std::int64_t row, std::int64_t column, bool down) {
         auto e = button_at(kind, row, down);
         e.x = x_of(kind, row, column);
         return e;
@@ -121,8 +121,7 @@ struct Views : InventoryStory {
                       std::int64_t to_kind, std::pair<std::int64_t, std::int64_t> to) {
         auto press = at(from_kind, from.first, from.second, true);
         auto release = at(to_kind, to.first, to.second, false);
-        auto move = release; move.kind = "PointerMoved";
-        move.dx = release.x - press.x; move.dy = release.y - press.y;
+        const auto move = moments::moved(press, release);
         batch({press, move, release});
     }
     /// A NEW VIEW FROM THE DEFAULT PANE'S KEYS, placed where the case says.
@@ -1356,8 +1355,8 @@ TEST_CASE("pane point: a point names the cell a control is drawn on, and a moved
     REQUIRE(s.hand->word_points.size() == 1);
     const auto point = s.hand->word_points.back();
     CHECK(point.space == input::space::kCells);
-    input::InjectedEvent e; e.kind = "PointerButton"; e.button = 1; e.space = point.space; e.x = point.x; e.y = point.y;
-    e.pressed = true; s.event(e); e.pressed = false; s.event(e);
+    input::PointerButton e{1, true, point.x, point.y, point.space, input::mod::kNone};
+    s.event(e); e.pressed = false; s.event(e);
     CHECK_MESSAGE(s.saved_entries().size() == entries + 1, s.shown(a));
     s.hand->expect_refusal = true;
     const std::int64_t other = view.stamp.fingerprint + 1; // a reading the pane does not stand on
@@ -1389,10 +1388,7 @@ TEST_CASE("info views: the wheel walks a view's fields a notch at a time on its 
     const std::string first = selected_field(s, a);
     REQUIRE_MESSAGE(first.find("name:") != std::string::npos, s.shown(a));
     const auto wheel = [&](double dy) {
-        input::InjectedEvent e = s.at(a, at.first, at.second, true);
-        e.kind = "PointerWheel";
-        e.wheel_dy = dy;
-        s.event(e);
+        s.event(moments::wheel(s.at(a, at.first, at.second, true), dy));
     };
     wheel(-1); // toward the weaver: the next field
     const std::string second = selected_field(s, a);

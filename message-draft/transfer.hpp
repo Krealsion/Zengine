@@ -51,11 +51,13 @@ inline loom::Cell prune(const loom::Cell& cell, const loom::TypeRef& type,
     depth_check(at);
     if (at == path.size()) return clone_cell(cell, 0);
     if (const auto* name = std::get_if<std::string>(&path[at])) {
-        if (type.kind != loom::Kind::Message) throw std::invalid_argument("field path expects Message");
-        const auto* field = type.message->find(*name);
+        if (!nests(type.kind)) throw std::invalid_argument("field path expects Message");
+        // An Any field names no shape: the value it holds names its own.
+        const auto shape = type.message ? type.message : cell.as_message()->schema_ptr();
+        const auto* field = shape->find(*name);
         const auto* child = cell.as_message()->get(*name);
         if (!field || !child) throw std::invalid_argument("selected field is absent");
-        loom::Value result(type.message);
+        loom::Value result(shape);
         result.set(*name, prune(*child, field->type, path, at + 1));
         return loom::Cell::message(std::move(result));
     }
@@ -112,7 +114,7 @@ inline void require_type(const loom::TypeRef& expected, const loom::TypeRef& act
     detail::depth_check(depth);
     if (expected.kind != actual.kind) throw std::invalid_argument("field kinds do not agree");
     if (expected.kind == loom::Kind::List) require_type(*expected.element, *actual.element, depth + 1);
-    if (expected.kind == loom::Kind::Message) {
+    if (expected.kind == loom::Kind::Message || expected.kind == loom::Kind::Union) {
         if (!loom::same_identity(*expected.message, *actual.message))
             throw std::invalid_argument("field message schemas do not agree");
         loom::Registry agreement;

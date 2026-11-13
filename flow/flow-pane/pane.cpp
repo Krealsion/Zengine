@@ -2355,7 +2355,7 @@ private:
       reveal();
     } else if (action == "value-row") {
       const auto row = model_.form->rows().at(flow::index_of(args.at(0)));
-      if (row.type.kind == loom::Kind::Message ||
+      if (row.type.kind == loom::Kind::Message || row.type.kind == loom::Kind::Union ||
           row.type.kind == loom::Kind::List)
         effect(model_.command("container", args), mail);
       else {

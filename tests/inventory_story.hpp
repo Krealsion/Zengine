@@ -16,6 +16,7 @@
 #include "inventory/inventory-pane/slots.hpp"
 #include "inventory/inventory-pane/presentation.hpp"
 #include "input/input_weave.hpp"
+#include "moments.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 #include <zen/host/grant_wiring.hpp>
 #include <zen/weave/poke.hpp>
@@ -196,7 +197,7 @@ struct InventoryStory {
         auto actor = std::make_unique<InventoryHand>(); hand = actor.get();
         loom::Grant actor_grant;
         actor_grant.allow_to_role(input::InputSessionRequested::zen_name, 1, input::kInputRole);
-        actor_grant.allow_to_role(input::InjectInput::zen_name, 1, input::kInputRole);
+        actor_grant.allow_to_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole);
         actor_grant.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
         actor_grant.allow_to_role(inv::v2::InventoryList::zen_name, 2, inv::kInventoryRole);
         actor_grant.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
@@ -247,27 +248,22 @@ struct InventoryStory {
         r.bus.send(hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
         r.bus.drain_until_idle(); hand->next = {};
     }
-    void event(input::InjectedEvent e) {
+    void event(input::Moment e) {
         act([&](loom::Mail& m) {
             m.send_to_role(input::kInputRole, input::InjectInput{hand->session, {std::move(e)}});
         });
     }
     void key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
-        input::InjectedEvent e; e.kind = "KeyPressed"; e.scancode = scan; e.modifiers = mods;
-        event(e); e.kind = "KeyReleased"; event(e);
+        event({input::KeyPressed{scan, "", mods}});
+        event({input::KeyReleased{scan, "", mods}});
     }
-    void text(const std::string& text) {
-        input::InjectedEvent e; e.kind = "TextEntered"; e.text = text; event(e);
-    }
+    void text(const std::string& text) { event({input::TextEntered{text}}); }
     void click(std::int64_t kind, std::int64_t row = 0, std::int64_t button = 1) {
-        const auto rect = external_body_rect(r.session(), kind);
-        input::InjectedEvent e; e.kind = "PointerButton"; e.button = button; e.pressed = true;
-        e.space = input::space::kCells; e.x = rect.x + 1;
-        e.y = rect.y + row +
-            external_title_rows(r.session().panes, kind, r.session().pane_titles);
+        auto e = button_at(kind, row, true);
+        e.button = button;
         REQUIRE(external_press_at(r.session().panes, r.session().setup.active,
             screen_of(r.session()), kind, r.session().pane_titles, e.space, e.x, e.y).named);
-        event(e); e.pressed = false; event(e);
+        event({e}); e.pressed = false; event({e});
     }
     std::string shown(std::int64_t kind) {
         std::string text;
@@ -305,25 +301,22 @@ struct InventoryStory {
         key(input::scan::kReturn); key(input::scan::kA, input::mod::kCtrl);
         text(value); key(input::scan::kReturn);
     }
-    input::InjectedEvent button_at(std::int64_t kind, std::int64_t row, bool down) {
+    input::PointerButton button_at(std::int64_t kind, std::int64_t row, bool down) {
         const auto rect = external_body_rect(r.session(), kind);
-        input::InjectedEvent e; e.kind = "PointerButton"; e.button = 1; e.pressed = down;
-        e.space = input::space::kCells; e.x = rect.x + 1;
-        e.y = rect.y + row +
-            external_title_rows(r.session().panes, kind, r.session().pane_titles);
-        return e;
+        return {1, down, rect.x + 1,
+                rect.y + row + external_title_rows(r.session().panes, kind, r.session().pane_titles),
+                input::space::kCells, input::mod::kNone};
     }
-    void batch(std::vector<input::InjectedEvent> events) {
+    void batch(std::vector<input::Moment> events) {
         act([&](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InjectInput{hand->session, events}); });
     }
-    input::InjectedEvent key_down(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
-        input::InjectedEvent e; e.kind = "KeyPressed"; e.scancode = scan; e.modifiers = mods;
-        return e;
+    input::Moment key_down(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
+        return {input::KeyPressed{scan, "", mods}};
     }
     /// ONE INJECTED EVENT, DELIVERED TURN BY TURN until `shape` has reached `target`, and the
     /// turn stopped there (VM-FIX-24): whatever that delivery queued is still waiting, so what a
     /// case enqueues next lands between a request and its answer. Nothing is drained.
-    bool until_delivered(const input::InjectedEvent& e, const std::string& shape, loom::WeaveId target) {
+    bool until_delivered(const input::Moment& e, const std::string& shape, loom::WeaveId target) {
         bool seen = false;
         const auto stop = r.bus.add_observer([&](const loom::BusEvent& ev) {
             if (seen || ev.kind != loom::EventKind::Delivered || ev.schema_name != shape || ev.target != target) return;
@@ -341,8 +334,7 @@ struct InventoryStory {
         auto press = button_at(source, from_row, true);
         auto release = button_at(info, 0, false);
         if (outside) { release.x = 179; release.y = 57; }
-        auto move = release; move.kind = "PointerMoved";
-        move.dx = release.x - press.x; move.dy = release.y - press.y;
+        const auto move = moments::moved(press, release);
         if (batched) batch({press, move, release});
         else { event(press); event(move); event(release); }
     }
@@ -429,19 +421,18 @@ struct InventoryStory {
         REQUIRE_MESSAGE(at != std::string::npos, text << " is not on row " << row << ": " << rows[static_cast<std::size_t>(row)]);
         return static_cast<std::int64_t>(at);
     }
-    input::InjectedEvent button_at(std::int64_t kind, std::int64_t row, std::int64_t column, bool down, std::int64_t button = 1) {
+    input::PointerButton button_at(std::int64_t kind, std::int64_t row, std::int64_t column, bool down, std::int64_t button = 1) {
         auto e = button_at(kind, row, down);
         e.x = external_body_rect(r.session(), kind).x + column; e.button = button;
         return e;
     }
     void click_at(std::int64_t kind, std::int64_t row, std::int64_t column, std::int64_t button = 1) {
-        event(button_at(kind, row, column, true, button)); event(button_at(kind, row, column, false, button));
+        event({button_at(kind, row, column, true, button)}); event({button_at(kind, row, column, false, button)});
     }
     /// Drag between two painted places in one batch (press, motion, release).
     void drag_to(std::int64_t from_kind, std::int64_t from_row, std::int64_t to_kind, std::int64_t to_row, std::int64_t to_column = 1) {
         auto press = button_at(from_kind, from_row, true), release = button_at(to_kind, to_row, to_column, false);
-        auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
-        batch({press, move, release});
+        batch({press, moments::moved(press, release), release});
     }
     void physical_click(std::int64_t kind) {
         // THE WEAVER'S OWN HAND, as the window that shows the desk reads it from its platform: a

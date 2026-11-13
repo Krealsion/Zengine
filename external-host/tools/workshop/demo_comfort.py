@@ -27,7 +27,7 @@ def run(ctx):
         for scroll in (0, -4, -100):
             if scroll:
                 at = hand.first("zengine.inventory-pane", "inventory")
-                hand.inject([moment(ctx, "PointerWheel", wheel_dy=scroll,
+                hand.inject([moment(ctx, "PointerWheel", dy=scroll,
                                     x=at["x"], y=at["y"], space=at["space"])])
             view = hand.words("zengine.inventory-pane", "inventory")
             text = [w["text"] for w in view["words"]]

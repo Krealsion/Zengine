@@ -68,9 +68,10 @@ struct BuilderState {
 
 } // namespace published
 
-/// The shape names a source declares: each `ZEN_SHAPE(<name>, ...)`, in order.
+/// The shape names a source declares: each `ZEN_SHAPE(<name>, ...)`, `ZEN_UNION(...)` and
+/// `ZEN_ENUM(...)`, in order.
 std::vector<std::string> shape_names_in(const std::string& text) {
-    static const std::regex shape(R"(\bZEN_SHAPE\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,)");
+    static const std::regex shape(R"(\bZEN_(?:SHAPE|UNION|ENUM)\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,)");
     std::vector<std::string> out;
     for (auto it = std::sregex_iterator(text.begin(), text.end(), shape);
          it != std::sregex_iterator(); ++it) {
@@ -173,6 +174,8 @@ TEST_CASE("no two components of this tree declare a shape of one name") {
     CHECK(shape_names_in("ZEN_SHAPE(Alpha, 1, ZEN_FIELD(x));\nZEN_SHAPE( Beta ,2);") ==
           std::vector<std::string>{"Alpha", "Beta"});
     CHECK(shape_names_in("NOT_ZEN_SHAPE(Gamma, 1); ZEN_SHAPES(Delta, 1); ZEN_SHAPE(1x, 1);").empty());
+    CHECK(shape_names_in("ZEN_UNION(Pick, 1, is); ZEN_ENUM(Mode, 1, a);") ==
+          std::vector<std::string>{"Pick", "Mode"});
     std::size_t declarations = 0;
     const auto names = declared_shape_names(ZENGINE_SOURCE_DIR, declarations);
     MESSAGE("read " << declarations << " shape declarations, " << names.size() << " names, under "

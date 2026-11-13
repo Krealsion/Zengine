@@ -91,7 +91,7 @@ inline bool same_type(const loom::TypeRef& a, const loom::TypeRef& b) {
     if (a.kind != b.kind) {
         return false;
     }
-    if (a.kind == loom::Kind::Message) {
+    if (a.kind == loom::Kind::Message || a.kind == loom::Kind::Union) {
         return a.message->content_id() == b.message->content_id();
     }
     if (a.kind == loom::Kind::List) {

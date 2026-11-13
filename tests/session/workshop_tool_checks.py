@@ -29,6 +29,13 @@ class CheckFailed(Exception):
 NO_COVER = {"by": [], "words": 0, "rect": {"x": 0, "y": 0, "w": 0, "h": 0}}
 
 
+def flat(moment):
+    """A spelled moment, ``{case: fields}``, as one record a check reads: its case under ``kind``,
+    beside its own fields."""
+    (kind, fields), = moment.items()
+    return dict(fields, kind=kind)
+
+
 def reading(provider, pane, words, parts, area, advance, line, fingerprint=1, in_flight=False):
     """A pane's reading as Workshop says it (PaneView version 7): its stamp -- the fixture names
     what a pane shows by one number, none for a picture no press is stamped with -- the place it
@@ -65,16 +72,22 @@ class Context:
         self.shape_reads = 0
         self.conn = SimpleNamespace(schema=self.schema)
 
-    def schema(self, *args):
+    def schema(self, name, version=1):
+        """Moment and its six cases, as the host describes them (zengine/input/vocabulary.hpp)."""
         self.shape_reads += 1
-        types = self.steps
-        fields = [("kind", types.TEXT), ("scancode", types.INT), ("name", types.TEXT),
-                  ("modifiers", types.INT), ("text", types.TEXT), ("button", types.INT),
-                  ("pressed", types.BOOL), ("x", types.INT), ("y", types.INT),
-                  ("dx", types.INT), ("dy", types.INT), ("space", types.INT),
-                  ("wheel_dx", types.FLOAT), ("wheel_dy", types.FLOAT)]
+        t = self.steps
+        pointer = [("x", t.INT), ("y", t.INT), ("space", t.INT), ("modifiers", t.INT)]
+        key = [("scancode", t.INT), ("name", t.TEXT), ("modifiers", t.INT)]
+        shapes = {"KeyPressed": key, "KeyReleased": key, "TextEntered": [("text", t.TEXT)],
+                  "PointerMoved": [("x", t.INT), ("y", t.INT), ("dx", t.INT), ("dy", t.INT),
+                                   ("space", t.INT), ("modifiers", t.INT)],
+                  "PointerButton": [("button", t.INT), ("pressed", t.BOOL)] + pointer,
+                  "PointerWheel": [("dx", t.FLOAT), ("dy", t.FLOAT)] + pointer}
+        if name == "Moment":
+            return SimpleNamespace(fields=[SimpleNamespace(name=n, type=SimpleNamespace(ref=(n, 1)))
+                                           for n in shapes])
         return SimpleNamespace(fields=[SimpleNamespace(name=n, type=SimpleNamespace(kind=k))
-                                       for n, k in fields])
+                                       for n, k in shapes[name]])
 
     def check(self, condition, message):
         if not condition:
@@ -110,7 +123,7 @@ class Context:
         if shape == "InjectInput":
             assert self.owner.open and options.get("settle")
             first = len(self.events) + 1
-            self.events.extend(fields["events"])
+            self.events.extend(flat(m) for m in fields["events"])
             return {"session": 1, "admitted": len(fields["events"]), "first_seq": first,
                     "last_seq": len(self.events)}
         if shape == "PointerMotionRequested":
@@ -826,13 +839,13 @@ class CanvasWorkshop(Context):
                 return pane.point(fields["word"], fields["column"])
             return pane.view(fields["provider"], fields["pane"], self.pointed)
         if shape == "InjectInput":
-            for e in fields["events"]:
+            for e in map(flat, fields["events"]):
                 if e["kind"] == "KeyPressed" and self.holder is not None:
                     self.holder.keyed(e["scancode"], e["modifiers"])
                 for pane in self.panes.values():
                     if e["kind"] in ("PointerButton", "PointerWheel") and pane.holds(e["x"], e["y"]):
                         if e["kind"] == "PointerWheel":
-                            pane.wheeled(e["wheel_dy"])
+                            pane.wheeled(e["dy"])
                         elif e["pressed"]:
                             self.holder = pane
                             pane.pressed(e["x"], e["y"])
@@ -1038,7 +1051,7 @@ class ActWorkshop(Context):
     def ask(self, role, shape, fields, **options):
         from loom_session.tool import Refused
         if shape == "InjectInput":
-            for e in fields["events"]:
+            for e in map(flat, fields["events"]):
                 self.moved(e)
         if shape in ("PaneViewRequested", "PanePointRequested") and \
                 options.get("version") != (7 if shape == "PaneViewRequested" else 4):
@@ -1343,6 +1356,21 @@ def run_checks(tools, runtime):
                               for e in ctx.events],
                              [("PointerButton", True, 3), ("PointerButton", False, 3)])
             self.assertEqual(ctx.owner.closes, 1)
+
+        def test_a_moment_is_one_case_of_moment_and_a_lone_shift_is_spelled(self):
+            ctx = Context(steps)
+            self.assertEqual(steps.moment(ctx, "PointerWheel", dy=-1.0, x=3, y=4, space=1),
+                             {"PointerWheel": {"dx": 0.0, "dy": -1.0, "x": 3, "y": 4, "space": 1,
+                                               "modifiers": 0}})
+            with self.assertRaisesRegex(ValueError, "Moment v1 has no case 'Hover'"):
+                steps.moment(ctx, "Hover")
+            with self.assertRaisesRegex(ValueError, "KeyPressed v1 declares no field wheel_dy"):
+                steps.moment(ctx, "KeyPressed", wheel_dy=1.0)
+            for spelling, scancode in (("shift", 225), ("left-shift", 225), ("right-shift", 229)):
+                self.assertEqual(steps.chord(spelling), (scancode, 0))
+            twice = [flat(m) for m in steps.chord_moments(ctx, "double-shift")]
+            self.assertEqual([(e["kind"], e["scancode"]) for e in twice],
+                             [("KeyPressed", 225), ("KeyReleased", 225)] * 2)
 
         def test_replacement_erases_before_optional_text_and_commit(self):
             for text in ("", "replacement"):
@@ -1873,7 +1901,7 @@ def run_checks(tools, runtime):
             self.assertEqual((at["name"], at["text"], at["row"]),
                              ("weave:zengine-inventory", "  zengine-inventory @zengine.inventory", 3))
             first = (loaded.column_x(8) + 3, loaded.row_y(0) + 7)  # "loaded weaves -- 6"'s middle
-            self.assertEqual([(e["x"], e["y"], e["wheel_dy"]) for e in ctx.events
+            self.assertEqual([(e["x"], e["y"], e["dy"]) for e in ctx.events
                               if e["kind"] == "PointerWheel"],
                              [first + (1,), first + (1,), first + (-1,), first + (-1,)])
             presses = [(e["x"], e["y"]) for e in ctx.events if e["kind"] == "PointerButton"]
@@ -2269,14 +2297,14 @@ def run_checks(tools, runtime):
             ctx = ActWorkshop(steps, [{"wheel": ["zengine.info", "info", "property:Height"], "dy": -1}],
                               self.INFO_ROWS, named=self.INFO_NAMES)
             self.act(ctx)
-            self.assertEqual([(e["x"], e["y"], e["space"], e["wheel_dx"], e["wheel_dy"])
+            self.assertEqual([(e["x"], e["y"], e["space"], e["dx"], e["dy"])
                               for e in ctx.events if e["kind"] == "PointerWheel"], [(50, 18, 2, 0.0, -1.0)])
             self.assertEqual(len([e for e in ctx.events if e["kind"] != "PointerWheel"]), 0)
             self.assertEqual(ctx.done()[0]["part"], "property:Height")
             ctx = ActWorkshop(steps, [{"wheel": ["zengine.editor", "editor"], "dy": 2, "dx": 0.5}], [],
                               panes={"editor": ["notes", "more"]})
             self.act(ctx)
-            self.assertEqual([(e["x"], e["y"], e["wheel_dx"], e["wheel_dy"]) for e in ctx.events],
+            self.assertEqual([(e["x"], e["y"], e["dx"], e["dy"]) for e in ctx.events],
                              [(6, 6, 0.5, 2.0)])
             ctx = ActWorkshop(steps, [{"wheel": ["zengine.info", "info", "property:Depth"], "dy": 1,
                                        "seconds": 0}], self.INFO_ROWS, named=self.INFO_NAMES)
@@ -2320,7 +2348,7 @@ def run_checks(tools, runtime):
                 {"wheel": list(self.LOADED) + ["weave:zengine-window-sdl"], "dy": 1},
                 {"absent": list(self.LOADED) + ["1 earlier"], "seconds": 0}])
             self.act(ctx)
-            wheels = [(e["x"], e["y"], e["wheel_dy"]) for e in ctx.events if e["kind"] == "PointerWheel"]
+            wheels = [(e["x"], e["y"], e["dy"]) for e in ctx.events if e["kind"] == "PointerWheel"]
             self.assertEqual(wheels, [(loaded.column_x(8) + 3, loaded.row_y(0) + 7, -1.0),
                                       (loaded.column_x(0) + 59 * 7 // 2, loaded.row_y(2) + 7, 1.0)])
             self.assertEqual(loaded.origin, 0)
@@ -2626,7 +2654,7 @@ def run_checks(tools, runtime):
                 start = held.field(*self.SAMPLE, "meta[0].requested_role")
                 end = held.field(*self.PRESET, "target_role")
                 held.drag(start, end, 500)
-                wheeled = [(e["x"], e["y"], e["wheel_dy"]) for e in ctx.events
+                wheeled = [(e["x"], e["y"], e["dy"]) for e in ctx.events
                            if e["kind"] == "PointerWheel"]
                 with self.assertRaisesRegex(ValueError, r"no visible part field:state_version in "
                                                         r"zengine.info/info.2"):

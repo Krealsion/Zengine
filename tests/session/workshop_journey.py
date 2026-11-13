@@ -48,7 +48,7 @@ EDIT_ADDS = '''    back = {"down": "up", "up": "down", "left": "right", "right":
         ctx.step("put back")
         ctx.ask("zengine.input", "InjectInput", {"session": session,
                                                  "events": chord_moments(ctx, back)},
-                via=link, settle=True)
+                version=2, via=link, settle=True)
         restored, restored_bytes = picture(ctx, link, "restored")
         ctx.check(restored_bytes != after_bytes, "%s changed nothing Workshop presents" % back)
         ctx.note("edited: %s pressed after the picture, and Workshop pictured again" % back)
@@ -327,8 +327,8 @@ def main():
               all(v is not None for v in resolvable.values()),
               [k for k, v in resolvable.items() if v is None])
         check("D3 the structural truth is the host's: InjectInput carries its events as nested shapes",
-              ("events", "List<InjectedEvent v1>", True) in [tuple(x) for x in
-                                                             resolvable.get("InjectInput v1") or []])
+              ("events", "List<Moment v1>", True) in [tuple(x) for x in
+                                                      resolvable.get("InjectInput v2") or []])
 
         s.start("workshop/connections", "who", {})
         who = s.wait("who", timeout=60)

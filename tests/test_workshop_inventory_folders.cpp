@@ -520,7 +520,7 @@ TEST_CASE("inventory folders: a folder removed before a filed drop is approved l
     const auto owner = s.folders().owner;
     auto press = s.button_at(s.source, s.row_of(s.source, "Moving"), true);
     auto release = s.button_at(s.source, s.row_of(s.source, "Doomed/"), false);
-    auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    const auto move = moments::moved(press, release);
     s.batch({press, move});
     // Stop right after the drop's filing request reaches Workshop for approval, then remove the
     // destination: the approved request must not retarget another folder or the root.
@@ -721,7 +721,7 @@ TEST_CASE("inventory folders: new copies land where they were dropped, and a dup
     REQUIRE(s.row_of(s.source, "Root > Shelf") == 1);
     const auto field = s.row_of(s.info, "count:");
     auto press = s.button_at(s.info, field, 3, true), release = s.button_at(s.source, s.row_of(s.source, "Root > Shelf") + 1, 3, false);
-    auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    const auto move = moments::moved(press, release);
     s.batch({press, move, release});
     CHECK_MESSAGE(in_shelf() == 2, (s.shown(s.source) + s.shown(s.info)));
     s.key(input::scan::kEscape);
@@ -932,7 +932,7 @@ TEST_CASE("inventory folders: a drag keeps the folder it was picked up from whil
     // 3. The read answers; the drag finishes on B.
     s.with_owner([](HeldOwner& o, loom::Mail& m) { o.answer_read(m); });
     auto release = s.button_at(s.source, s.row_of(s.source, "B/"), false);
-    auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    const auto move = moments::moved(press, release);
     s.batch({move, release});
     // 4. The filing names Root, where the pickup began; the owner refuses, and Item stays in A.
     REQUIRE_MESSAGE(s.owner->filed.size() == 1, s.shown(s.source));

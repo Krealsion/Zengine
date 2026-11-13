@@ -272,8 +272,8 @@ public:
         InputInjected done;
         done.session = session_.id;
         done.first_seq = session_.seq + 1;
-        for (const InjectedEvent& e : batch.events) {
-            publish_one(e, mail);
+        for (const Moment& m : batch.events) {
+            publish_one(m, mail);
         }
         done.last_seq = session_.seq;
         done.admitted = static_cast<std::int64_t>(batch.events.size());
@@ -345,54 +345,57 @@ private:
         std::int64_t last_space = space::kUnknown;
     };
 
-    static bool well_formed(const InjectedEvent& e, std::string* why) {
-        const bool pointer = e.kind == "PointerMoved" || e.kind == "PointerButton" ||
-                             e.kind == "PointerWheel";
-        if (e.kind != "KeyPressed" && e.kind != "KeyReleased" && e.kind != "TextEntered" &&
-            !pointer) {
-            *why = "unknown kind '" + e.kind + "'";
-            return false;
-        }
-        if (pointer && e.space != space::kCells && e.space != space::kPixels) {
-            *why = "a pointer moment needs a known space (cells or pixels)";
-            return false;
-        }
-        if ((e.kind == "KeyPressed" || e.kind == "KeyReleased") &&
-            (e.scancode < 1 || e.scancode > kMaxScancode)) {
-            *why = "scancode " + std::to_string(e.scancode) +
-                   " is outside the supported key domain 1.." + std::to_string(kMaxScancode);
-            return false;
-        }
-        if (e.kind == "PointerButton" && (e.button < 1 || e.button > 3)) {
-            *why = "a button is 1, 2 or 3";
-            return false;
-        }
-        if (e.kind == "TextEntered" && e.text.empty()) {
-            *why = "TextEntered carries text";
-            return false;
-        }
-        return true;
+    /// A MOMENT THE ROLE CAN PUBLISH: its case is one of the six, which the gate already held it
+    /// to; here its fields are judged, as its shape's reference says.
+    static bool well_formed(const Moment& m, std::string* why) {
+        return std::visit([why](const auto& e) {
+            using E = std::decay_t<decltype(e)>;
+            if constexpr (std::is_same_v<E, KeyPressed> || std::is_same_v<E, KeyReleased>) {
+                if (e.scancode < 1 || e.scancode > kMaxScancode) {
+                    *why = "scancode " + std::to_string(e.scancode) +
+                           " is outside the supported key domain 1.." + std::to_string(kMaxScancode);
+                    return false;
+                }
+            } else if constexpr (std::is_same_v<E, TextEntered>) {
+                if (e.text.empty()) {
+                    *why = "TextEntered carries text";
+                    return false;
+                }
+            } else {
+                if (e.space != space::kCells && e.space != space::kPixels) {
+                    *why = "a pointer moment needs a known space (cells or pixels)";
+                    return false;
+                }
+                if constexpr (std::is_same_v<E, PointerButton>) {
+                    if (e.button < 1 || e.button > 3) {
+                        *why = "a button is 1, 2 or 3";
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }, m.is);
     }
 
     /// WHAT THE SESSION WOULD HOLD after this moment, carried forward in `held`: a press of a
     /// key already down holds nothing new (an auto-repeat), a release lets one go, and a press
     /// past `kMaxHeldKeys` is refused -- the whole batch with it.
-    static bool holds(const InjectedEvent& e, std::vector<std::int64_t>& held, std::string* why) {
-        if (e.kind == "KeyPressed") {
+    static bool holds(const Moment& m, std::vector<std::int64_t>& held, std::string* why) {
+        if (const auto* e = std::get_if<KeyPressed>(&m.is)) {
             for (const std::int64_t k : held) {
-                if (k == e.scancode) {
+                if (k == e->scancode) {
                     return true;
                 }
             }
             if (held.size() >= kMaxHeldKeys) {
-                *why = "pressing scancode " + std::to_string(e.scancode) + " would hold " +
+                *why = "pressing scancode " + std::to_string(e->scancode) + " would hold " +
                        std::to_string(held.size() + 1) + " keys down at once; a session holds at "
                        "most " + std::to_string(kMaxHeldKeys) + " -- release one first";
                 return false;
             }
-            held.push_back(e.scancode);
-        } else if (e.kind == "KeyReleased") {
-            forget(held, e.scancode);
+            held.push_back(e->scancode);
+        } else if (const auto* r = std::get_if<KeyReleased>(&m.is)) {
+            forget(held, r->scancode);
         }
         return true;
     }
@@ -416,37 +419,28 @@ private:
         }
     }
 
-    void publish_one(const InjectedEvent& e, loom::Mail& mail) {
+    void publish_one(const Moment& m, loom::Mail& mail) {
         ++session_.seq;
-        if (e.kind == "KeyPressed") {
-            remember(session_.keys_down, e.scancode);
-            emit_event(KeyPressed{e.scancode, e.name, e.modifiers}, mail, false);
-        } else if (e.kind == "KeyReleased") {
-            forget(session_.keys_down, e.scancode);
-            emit_event(KeyReleased{e.scancode, e.name, e.modifiers}, mail, false);
-        } else if (e.kind == "TextEntered") {
-            emit_event(TextEntered{e.text}, mail, false);
-        } else if (e.kind == "PointerMoved") {
-            session_.last_x = e.x;
-            session_.last_y = e.y;
-            session_.last_space = e.space;
-            emit_event(PointerMoved{e.x, e.y, e.dx, e.dy, e.space, e.modifiers}, mail, false);
-        } else if (e.kind == "PointerButton") {
-            session_.last_x = e.x;
-            session_.last_y = e.y;
-            session_.last_space = e.space;
-            if (e.pressed) {
-                remember(session_.buttons_down, e.button);
-            } else {
-                forget(session_.buttons_down, e.button);
+        std::visit([&](const auto& e) {
+            using E = std::decay_t<decltype(e)>;
+            if constexpr (std::is_same_v<E, KeyPressed>) {
+                remember(session_.keys_down, e.scancode);
+            } else if constexpr (std::is_same_v<E, KeyReleased>) {
+                forget(session_.keys_down, e.scancode);
+            } else if constexpr (!std::is_same_v<E, TextEntered>) {
+                session_.last_x = e.x;
+                session_.last_y = e.y;
+                session_.last_space = e.space;
+                if constexpr (std::is_same_v<E, PointerButton>) {
+                    if (e.pressed) {
+                        remember(session_.buttons_down, e.button);
+                    } else {
+                        forget(session_.buttons_down, e.button);
+                    }
+                }
             }
-            emit_event(PointerButton{e.button, e.pressed, e.x, e.y, e.space, e.modifiers}, mail, false);
-        } else {
-            session_.last_x = e.x;
-            session_.last_y = e.y;
-            session_.last_space = e.space;
-            emit_event(PointerWheel{e.wheel_dx, e.wheel_dy, e.x, e.y, e.space, e.modifiers}, mail, false);
-        }
+            emit_event(e, mail, false);
+        }, m.is);
     }
 
     /// EVERYTHING THE SESSION STILL HELD DOWN COMES UP, as ordinary published moments, before
@@ -468,29 +462,13 @@ private:
         session_.buttons_down.clear();
     }
 
+    /// A moment is said attributed first, then as itself; what a reader hands that is no moment
+    /// (a window asked to close) is said as itself alone.
     template <class Event>
     void emit_event(const Event& event, loom::Mail& mail, bool local) {
-        InjectedEvent e;
-        if constexpr (std::is_same_v<Event, KeyPressed> || std::is_same_v<Event, KeyReleased>) {
-            e.kind = std::is_same_v<Event, KeyPressed> ? "KeyPressed" : "KeyReleased";
-            e.scancode = event.scancode; e.name = event.name; e.modifiers = event.modifiers;
-        } else if constexpr (std::is_same_v<Event, TextEntered>) {
-            e.kind = "TextEntered"; e.text = event.text;
-        } else if constexpr (std::is_same_v<Event, PointerMoved> ||
-                             std::is_same_v<Event, PointerButton> ||
-                             std::is_same_v<Event, PointerWheel>) {
-            e.x = event.x; e.y = event.y; e.space = event.space; e.modifiers = event.modifiers;
-            if constexpr (std::is_same_v<Event, PointerMoved>) {
-                e.kind = "PointerMoved"; e.dx = event.dx; e.dy = event.dy;
-            } else if constexpr (std::is_same_v<Event, PointerButton>) {
-                e.kind = "PointerButton"; e.button = event.button; e.pressed = event.pressed;
-            } else {
-                e.kind = "PointerWheel"; e.wheel_dx = event.dx; e.wheel_dy = event.dy;
-            }
-        }
-        if (!e.kind.empty()) {
+        if constexpr (std::is_constructible_v<Moment::Is, const Event&>) {
             (void)mail.as_role(kInputRole).publish(AttributedInput{
-                local, local ? 0 : static_cast<std::int64_t>(session_.holder.value), std::move(e)});
+                local, local ? 0 : static_cast<std::int64_t>(session_.holder.value), Moment{event}});
         }
         mail.publish(event);
     }
@@ -509,10 +487,9 @@ private:
         const auto x = static_cast<std::int64_t>(std::llround(p.x));
         const auto y = static_cast<std::int64_t>(std::llround(p.y));
         if (x != session_.last_x || y != session_.last_y || t == 1) {
-            InjectedEvent e;
-            e.kind = "PointerMoved"; e.x = x; e.y = y; e.space = session_.last_space;
-            e.dx = x-session_.last_x; e.dy = y-session_.last_y;
-            publish_one(e, mail);
+            publish_one(Moment{PointerMoved{x, y, x - session_.last_x, y - session_.last_y,
+                                            session_.last_space, mod::kNone}},
+                        mail);
         }
         if (t == 1) {
             const InputInjected done{session_.id, session_.seq-motion_.first+1,

@@ -62,7 +62,7 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::GuideRequested>(),
             loom::schema_of<ws::GuideAnswered>(), loom::schema_of<zengine::pane::PaneDocumentRequested>(),
             loom::schema_of<zengine::pane::PaneDocumentShown>(), loom::schema_of<zengine::pane::PaneDocumentSection>(),
-            loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
+            loom::schema_of<in::InjectInput>(),           loom::schema_of<in::Moment>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
             loom::schema_of<gfx::SurfaceCaptureRequested>(), loom::schema_of<gfx::SurfaceCaptured>(),
             loom::schema_of<gfx::SurfaceCaptureChunkRequested>(),
@@ -94,11 +94,12 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<zengine::builder::BuildStatus>()};
 }
 
-/// A participant that declares a DIFFERENT `InjectInput v1` -- the stale copy the wall exists for.
+/// A participant that declares a DIFFERENT `InjectInput` at Input's own version -- the stale copy
+/// the wall exists for.
 struct InjectInput {
     std::int64_t session = 0;
     std::string note;
-    ZEN_SHAPE(InjectInput, 1, ZEN_FIELD(session), ZEN_FIELD(note));
+    ZEN_SHAPE(InjectInput, zengine::input::InjectInput::zen_version, ZEN_FIELD(session), ZEN_FIELD(note));
 };
 struct Nothing {
     std::int64_t n = 0;
@@ -148,7 +149,7 @@ TEST_CASE("guest vocabulary: a divergent definition of one of its shapes is refu
         refused = true;
     }
     CHECK(refused);
-    CHECK(loom::same_identity(*bus.resolve_schema("InjectInput", 1),
+    CHECK(loom::same_identity(*bus.resolve_schema("InjectInput", zengine::input::InjectInput::zen_version),
                               *loom::schema_of<zengine::input::InjectInput>()));
 }
 
@@ -162,5 +163,5 @@ TEST_CASE("guest vocabulary: unloaded, it takes the shapes with it -- a tool tha
     std::unique_ptr<loom::Weave> gone = bus.unregister_weave(id);
     REQUIRE(gone != nullptr);
     CHECK(bus.resolve_schema("SurfaceCaptured", 1).get() == nullptr);
-    CHECK(bus.resolve_schema("InjectInput", 1).get() == nullptr);
+    CHECK(bus.resolve_schema("InjectInput", zengine::input::InjectInput::zen_version).get() == nullptr);
 }

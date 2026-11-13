@@ -112,28 +112,28 @@ behalf.
 
 ### `InjectInput`
 
-`InjectInput` v1 publishes moments you composed, in the order given, through your session.
+`InjectInput` v2 publishes moments you composed, in the order given, through your session.
 
-- **Takes:** `session`; `events`, each an `InjectedEvent` v1 whose `kind` names the shape it
+- **Takes:** `session`; `events`, each a `Moment` v1, a union whose one case is the shape it
   becomes -- `KeyPressed`, `KeyReleased`, `TextEntered`, `PointerMoved`, `PointerButton` or
-  `PointerWheel` -- and whose fields for that kind are read, the rest ignored. A key names a
-  scancode in 1..`kMaxScancode`, a button 1, 2 or 3, a pointer moment its space, cells or pixels.
-  A batch holds at most `kMaxInjectedEvents` moments, and a session at most `kMaxHeldKeys` keys
-  down; a press of a key already down is a repeat and holds nothing new.
+  `PointerWheel` -- holding that shape's fields; a case it does not declare the gate refuses. A key
+  names a scancode in 1..`kMaxScancode`, a button 1, 2 or 3, text a character, a pointer moment
+  its space, cells or pixels. A batch holds at most `kMaxInjectedEvents` moments, and a session at
+  most `kMaxHeldKeys` keys down; a press of a key already down is a repeat and holds nothing new.
 - **Answers:** `InputInjected` v1, to you alone: `admitted`, how many were published, and
   `first_seq` and `last_seq`, their numbers in the session's own count. Published is not
   processed: what a consumer makes of a moment is its own, later.
 - **Refuses:** in `zen.Refused`, publishing nothing: `no open input session numbered 2`; `input
   session 1 is another participant's`; `pointer motion is in progress`; `a batch carries at most
   <kMaxInjectedEvents> moments; this one has <n>`. The batch is judged whole first, each moment
-  against the keys the ones before it would leave held: `moment 1: unknown kind 'Hover'`; `moment 0:
-  a pointer moment needs a known space (cells or pixels)`; `moment 0: scancode <n> is outside the
-  supported key domain 1..<kMaxScancode>`; `moment 0: a button is 1, 2 or 3`; `moment 0:
-  TextEntered carries text`; `moment 2: pressing scancode <n> would hold <k> keys down at once; a
-  session holds at most <kMaxHeldKeys> -- release one first`.
-- **Example:** two moments, `{kind: "KeyPressed", scancode: scan::kA, modifiers: mod::kCtrl}` and
-  its `KeyReleased`, type Ctrl+A. A press and release at one point, sent again within the
-  double-click time, is a double click the window counts for your hand, never the weaver's.
+  against the keys the ones before it would leave held: `moment 0: a pointer moment needs a known
+  space (cells or pixels)`; `moment 0: scancode <n> is outside the supported key domain
+  1..<kMaxScancode>`; `moment 0: a button is 1, 2 or 3`; `moment 0: TextEntered carries text`;
+  `moment 2: pressing scancode <n> would hold <k> keys down at once; a session holds at most
+  <kMaxHeldKeys> -- release one first`.
+- **Example:** `{KeyPressed: {scancode: scan::kA, name: "", modifiers: mod::kCtrl}}` and its
+  `KeyReleased` type Ctrl+A. Within the double-click time, a `scan::kLeftShift` tap sent twice is
+  a double Shift, and a press and release at one point sent twice a double click, for your hand.
 
 ### `PointerMotionRequested`
 
@@ -190,8 +190,8 @@ participant it is nothing.
 
 The weave publishes each moment as it happens, in the platform's order: `KeyPressed` v2,
 `KeyReleased` v2, `TextEntered` v1, `PointerMoved` v1, `PointerButton` v1 and `PointerWheel` v1,
-in its own name. Just before each, it publishes `AttributedInput` v1 as `zengine.input`, carrying the
-same moment: `local` true and `actor` 0 for the platform's, `local` false and `actor` the holder's
+in its own name. Just before each, it publishes `AttributedInput` v2 as `zengine.input`, carrying the
+same moment as its `event`, a `Moment`: `local` true and `actor` 0 for the platform's, `local` false and `actor` the holder's
 weave id for a session's. Follow one of the two, not both, or you hear each moment twice. When the
 double-click time it holds changes, it publishes `PointerTimingSaid` v1 as `zengine.input`. Nothing
 else is said unasked, and there is no state to read but its two counters, by poke.

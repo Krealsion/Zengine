@@ -21,6 +21,7 @@
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -49,15 +50,48 @@ std::string id_text(loom::ContentId id) {
     return out;
 }
 
-/// Every (name, version) a source declares: each `ZEN_SHAPE(<name>, <version>,`.
+/// Every (name, version) a source declares: each `ZEN_SHAPE(<name>, <version>,`, `ZEN_UNION(...)`
+/// and `ZEN_ENUM(...)`, and each shape built by hand under a quoted name -- `SchemaBuilder("<name>",
+/// <version>)`, `make_schema(...)` or `make_union(...)`. A hand-built version written other than
+/// as a number is version 0: every version of that name is the tree's.
 std::vector<Key> shapes_declared_in(const std::string& text) {
-    static const std::regex shape(R"(\bZEN_SHAPE\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([0-9]+)\s*[,)])");
+    static const std::regex shape(
+        R"(\bZEN_(?:SHAPE|UNION|ENUM)\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([0-9]+)\s*[,)])");
+    static const std::regex built(
+        R"re(\b(?:SchemaBuilder|make_schema|make_union)\(\s*"([A-Za-z_][A-Za-z0-9_.]*)"\s*,\s*([^,)]+))re");
+    static const std::regex number(R"(\s*([0-9]+)\s*)");
     std::vector<Key> out;
     for (auto it = std::sregex_iterator(text.begin(), text.end(), shape);
          it != std::sregex_iterator(); ++it) {
         out.emplace_back((*it)[1].str(), static_cast<std::uint32_t>(std::stoul((*it)[2].str())));
     }
+    for (auto it = std::sregex_iterator(text.begin(), text.end(), built);
+         it != std::sregex_iterator(); ++it) {
+        const std::string version = (*it)[2].str();
+        std::smatch literal;
+        out.emplace_back((*it)[1].str(), std::regex_match(version, literal, number)
+                                             ? static_cast<std::uint32_t>(std::stoul(literal[1].str()))
+                                             : 0u);
+    }
     return out;
+}
+
+/// Whether the tree declares `k`: by its name and version, or by its name at every version.
+bool declares(const std::map<Key, std::string>& declared, const Key& k) {
+    return declared.count(k) == 1 || declared.count(Key{k.first, 0}) == 1;
+}
+
+/// THE SHAPES BUILT BY HAND WHERE NO FUNCTION A HEADER NAMES BUILDS THEM, each with why the census
+/// reads them nowhere: built in place, for one use.
+const std::map<std::string, const char*>& built_apart() {
+    static const std::map<std::string, const char*> apart{
+        {"fold.in", "a fold's counting ports, built where a fold's node is read (flow/graph_edit.hpp)"},
+        {"fold.out", "a fold's empty result, built beside its ports"},
+        {"zengine.message_draft.Scalar", "one field of the kind being typed: as many contents as kinds"},
+        {"zengine.flow.Observer", "an observer's empty state, built in its snapshot"},
+        {"zengine.view.View", "a view host's empty state, built in its snapshot"},
+    };
+    return apart;
 }
 
 /// EVERY SHAPE THE TREE'S OWN COMPONENTS DECLARE, with the file declaring it. The tests keep
@@ -197,6 +231,11 @@ TEST_CASE("every shape this tree publishes is pinned by content id under its nam
     CHECK(shapes_declared_in("ZEN_SHAPE(Alpha, 1, ZEN_FIELD(x));\nZEN_SHAPE( Beta , 12);") ==
           std::vector<Key>{{"Alpha", 1}, {"Beta", 12}});
     CHECK(shapes_declared_in("NOT_ZEN_SHAPE(Gamma, 1); ZEN_SHAPE(Delta, x);").empty());
+    CHECK(shapes_declared_in("ZEN_UNION(Pick, 2, is); ZEN_ENUM(Mode, 1, a, b);") ==
+          std::vector<Key>{{"Pick", 2}, {"Mode", 1}});
+    CHECK(shapes_declared_in(R"(SchemaBuilder("z.Built", 3) make_union("z.One", 1, {})
+                                make_schema("z.Named", kVersion, {}) Builder("z.Not", 1))") ==
+          std::vector<Key>{{"z.Built", 3}, {"z.One", 1}, {"z.Named", 0}});
 
     // WHAT THE TREE PUBLISHES: every product weave's manifest, and the headers' shapes, each with
     // every shape it nests.
@@ -223,14 +262,19 @@ TEST_CASE("every shape this tree publishes is pinned by content id under its nam
     std::map<Key, loom::ContentId> census;
     for (const Shape& s : every) {
         const Key k{s->name(), s->version()};
-        if (declared.count(k) == 0) continue;
+        if (!declares(declared, k)) continue;
         const auto [at, fresh] = census.emplace(k, s->content_id());
         CHECK_MESSAGE((fresh || at->second == s->content_id()),
                       key_text(k) << " is published with two contents: " << id_text(at->second)
                                   << " and " << id_text(s->content_id()));
     }
     for (const auto& [k, file] : declared) {
-        CHECK_MESSAGE(census.count(k) == 1,
+        if (built_apart().count(k.first) == 1) continue;
+        const bool published =
+            k.second != 0 ? census.count(k) == 1
+                          : std::any_of(census.begin(), census.end(),
+                                        [&](const auto& c) { return c.first.first == k.first; });
+        CHECK_MESSAGE(published,
                       key_text(k) << ", declared in " << file
                                   << ", is in no library's manifest and no census header: add it "
                                      "to tests/census_headers.hpp");

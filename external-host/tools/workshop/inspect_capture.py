@@ -205,7 +205,7 @@ def journey(ctx):
               "a bug in this tool, not a refusal for its caller to act on" %
               (expected, len(events)))
     done = ctx.ask("zengine.input", "InjectInput", {"session": session, "events": events},
-                   via=link, settle=True)
+                   version=2, via=link, settle=True)
     ctx.check(done["session"] == session and done["admitted"] == len(events) and
               done["last_seq"] - done["first_seq"] + 1 == len(events),
               "zengine.input answered for session %d with %d moment(s) (seq %d..%d), not the %d of "

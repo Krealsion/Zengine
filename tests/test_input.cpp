@@ -36,6 +36,7 @@
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
+#include <zen/serialize.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
@@ -2031,7 +2032,7 @@ struct SessionRig {
             (void)m.send_to_role(kInputRole, InputSessionRequested{purpose});
         });
     }
-    void inject(std::vector<InjectedEvent> events) {
+    void inject(std::vector<Moment> events) {
         act([this, events](loom::Mail& m) {
             InjectInput batch;
             batch.session = agent->session;
@@ -2050,34 +2051,11 @@ struct SessionRig {
     }
 };
 
-InjectedEvent key_down(std::int64_t sc, std::int64_t mods = mod::kNone) {
-    InjectedEvent e;
-    e.kind = "KeyPressed";
-    e.scancode = sc;
-    e.modifiers = mods;
-    return e;
-}
-InjectedEvent key_up(std::int64_t sc, std::int64_t mods = mod::kNone) {
-    InjectedEvent e = key_down(sc, mods);
-    e.kind = "KeyReleased";
-    return e;
-}
-InjectedEvent typed(const char* text) {
-    InjectedEvent e;
-    e.kind = "TextEntered";
-    e.text = text;
-    return e;
-}
-InjectedEvent button(std::int64_t b, bool down, std::int64_t x, std::int64_t y,
-                     std::int64_t sp = space::kPixels) {
-    InjectedEvent e;
-    e.kind = "PointerButton";
-    e.button = b;
-    e.pressed = down;
-    e.x = x;
-    e.y = y;
-    e.space = sp;
-    return e;
+Moment key_down(std::int64_t sc, std::int64_t mods = mod::kNone) { return KeyPressed{sc, "", mods}; }
+Moment key_up(std::int64_t sc, std::int64_t mods = mod::kNone) { return KeyReleased{sc, "", mods}; }
+Moment typed(const char* text) { return TextEntered{text}; }
+Moment button(std::int64_t b, bool down, std::int64_t x, std::int64_t y, std::int64_t sp = space::kPixels) {
+    return PointerButton{b, down, x, y, sp, mod::kNone};
 }
 
 } // namespace
@@ -2244,16 +2222,22 @@ TEST_CASE("session: an agent opens one, injects a batch, and a consumer hears th
 TEST_CASE("session: a batch is judged whole -- one bad moment publishes nothing, and says which") {
     SessionRig r;
     r.open();
-    InjectedEvent bad;
-    bad.kind = "Hover"; // not a shape this producer speaks
-    r.inject({typed("a"), bad, typed("b")});
-    CHECK(r.last() == "refused: moment 1: unknown kind 'Hover'");
-    CHECK(r.heard.empty());
-    InjectedEvent nowhere = button(1, true, 1, 1, space::kUnknown);
+    // A case Moment does not declare never reaches the weave: the gate refuses the batch.
+    std::string spelled = loom::compat::serialize(
+        loom::to_value(InjectInput{1, {TextEntered{"a"}, TextEntered{"b"}}}));
+    const std::size_t second = spelled.rfind("\"TextEntered\"");
+    REQUIRE(second != std::string::npos);
+    spelled.replace(second, std::string("\"TextEntered\"").size(), "\"Hover\"");
+    const auto hover = loom::admit(loom::compat::parse(spelled), loom::schema_of<InjectInput>(),
+                                   loom::Report::Full);
+    REQUIRE_FALSE(hover);
+    CHECK(hover.first_error().kind == loom::ErrorKind::UnknownField);
+    CHECK_MESSAGE(hover.first_error().path.find("Hover") != std::string::npos, hover.first_error().path);
+    Moment nowhere = button(1, true, 1, 1, space::kUnknown);
     r.inject({nowhere});
     CHECK(r.last().rfind("refused: moment 0: a pointer moment needs a known space", 0) == 0);
     CHECK(r.heard.empty());
-    std::vector<InjectedEvent> flood(kMaxInjectedEvents + 1, typed("x"));
+    std::vector<Moment> flood(kMaxInjectedEvents + 1, typed("x"));
     r.inject(flood);
     CHECK(r.last().rfind("refused: a batch carries at most", 0) == 0);
     CHECK(r.heard.empty());
@@ -2402,7 +2386,7 @@ TEST_CASE("session: arbitrary scancodes pressed batch after batch cannot pile up
     std::int64_t next = 1;
     std::size_t accepted = 0;
     for (int b = 0; b < 64; ++b) {
-        std::vector<InjectedEvent> batch;
+        std::vector<Moment> batch;
         for (std::size_t i = 0; i < kMaxInjectedEvents; ++i) {
             batch.push_back(key_down(next++));
         }
@@ -2559,7 +2543,7 @@ TEST_CASE("session: an in-place reload keeps the open session, its held keys and
         agent->next_ = nullptr;
         return agent->answers.empty() ? std::string("(no answer)") : agent->answers.back();
     };
-    const auto inject = [&](std::vector<InjectedEvent> events) {
+    const auto inject = [&](std::vector<Moment> events) {
         return act([&](loom::Mail& m) {
             InjectInput batch;
             batch.session = agent->session;

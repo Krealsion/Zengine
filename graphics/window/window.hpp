@@ -405,15 +405,12 @@ public:
             return;
         }
         const Hand hand{false, in.actor};
-        const i::InjectedEvent& e = in.event;
-        if (e.kind == "PointerButton") {
-            button(mail, i::PointerButton{e.button, e.pressed, e.x, e.y, e.space, e.modifiers},
-                   hand);
-        } else if (e.kind == "PointerMoved") {
-            motion(mail, i::PointerMoved{e.x, e.y, e.dx, e.dy, e.space, e.modifiers}, hand);
-        } else if (e.kind == "PointerWheel") {
-            wheel(mail, i::PointerWheel{e.wheel_dx, e.wheel_dy, e.x, e.y, e.space, e.modifiers},
-                  hand);
+        if (const auto* b = std::get_if<i::PointerButton>(&in.event.is)) {
+            button(mail, *b, hand);
+        } else if (const auto* m = std::get_if<i::PointerMoved>(&in.event.is)) {
+            motion(mail, *m, hand);
+        } else if (const auto* w = std::get_if<i::PointerWheel>(&in.event.is)) {
+            wheel(mail, *w, hand);
         } else {
             return;
         }

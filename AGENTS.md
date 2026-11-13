@@ -162,6 +162,12 @@ cmake -P tests/documentation_lane.cmake
   build tree, so a requirement the *package* fails to carry is invisible to them. Run it after
   touching any public header, exported link line, or `cmake/ZengineInstall.cmake`; it is not a
   CTest entry and `verify.cmake` will not run it for you.
+- **A change to how a host turns its bus** -- its loop, its wait, what it hands its sources --
+  owes two more that are no CTest entry, so neither the lane nor a loop over the affected entries
+  runs them: the build witness (`cmake -DZEN_BUILD_DIR=build -DZEN_WORK=<dir> -P
+  tests/build/run.cmake`), a weave built, loaded and reloaded through the Builder, and the Package
+  judges' first start (`tests/package/judges/README.md`), Workshop started from a built package.
+  The hosted runs run both; run them before the push when a host's loop changed.
 - Weave libraries go through `zengine_weave()` (which applies the Loom's reloadable-lifetime
   contract); providers that are not weaves go through `zengine_provider()`.
 

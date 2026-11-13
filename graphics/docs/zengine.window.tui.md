@@ -278,7 +278,7 @@ which no terminal confirms. It is no showing, and nothing answers it.
 
 ### `AttributedInput`
 
-`AttributedInput` v1, from `zengine.input` alone: a moment it injected for a participant, named
+`AttributedInput` v2, from `zengine.input` alone: a moment it injected for a participant, named
 `actor`. A press, move or wheel is landed as the window's own and told as that hand's, each hand
 holding its own presses; a key, text or a `local` moment is not taken. In an area placed for the
 weaver's hand alone (`weaver_only`) its press or wheel reaches nobody, its arranger is told

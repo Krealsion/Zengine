@@ -657,13 +657,14 @@ private:
             retain_form(); touched();
         } else if (action == "container") {
             need(1); if (!form) throw std::invalid_argument("open a form"); const auto row = form->rows().at(flow::index_of(args[0]));
-            if (row.type.kind == loom::Kind::Message) {
+            if (row.type.kind == loom::Kind::Message || row.type.kind == loom::Kind::Union) {
                 if (!row.present) form->create_message(row.path);
                 else notice = "Message already present; edit its fields below, or unset it explicitly.";
             }
             else if (row.type.kind == loom::Kind::List) {
                 if (!row.present) form->create_list(row.path);
-                else if (row.type.element->kind == loom::Kind::Message)
+                else if (row.type.element->kind == loom::Kind::Message ||
+                         row.type.element->kind == loom::Kind::Union)
                     form->append(row.path, loom::Cell::message(loom::Value(row.type.element->message)));
                 else form->append(row.path, zengine::maker::default_cell(*row.type.element));
             } else throw std::invalid_argument("selected field is not a container");
