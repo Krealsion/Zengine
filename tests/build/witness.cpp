@@ -22,6 +22,7 @@
 #include "operator/host_surface.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -589,18 +590,30 @@ int main(int argc, char** argv) {
                            loom::Message(loom::to_value(builder::StatusRequested{})));
 
     // ---- the host loop, the whole of this program's scheduling --------------------------
-    // `workshop.cpp`'s loop: everything runs inside `drain_until_idle()`, paced by the real Timer
-    // the plan loads (the runner asks it for a beat while it holds an operation, so nothing here
-    // polls), and a participant asking to stop ends it; an empty queue means nothing will speak
-    // again, so it says so and leaves. Nothing semantic turns it, and neither vocabulary has a
-    // shape to ask whether a build or a load is done. The driver, not this loop, bounds the clock.
-    while (!reporter->done && !refused) {
-        bus.drain_until_idle();
-        if (!reporter->done && !refused && bus.pending() == 0) {
-            std::printf("witness: the bus went quiet without an answer "
-                        "(no timer service deployed?)\n");
-            break;
+    // `workshop.cpp`'s loop: the bus turned until it is empty, then one wait on what the plan's
+    // roles claim -- the Timer's time among them, which the runner asks for while it holds an
+    // operation, so nothing here polls. An empty bus and nothing waited on means nothing will speak
+    // again: it says so and leaves. Neither vocabulary asks whether a build or a load is done; the
+    // driver, not this loop, bounds the clock.
+    loom::host::Reactor wait(bus);
+    for (const std::string& role : load::plan_roles(read_plan.plan)) {
+        wait.trust(role);
+    }
+    const auto turn_until = [&bus, &wait](const std::function<bool()>& done) {
+        while (!done()) {
+            bus.drain_until_idle();
+            if (done()) {
+                return true;
+            }
+            const loom::host::Reactor::Woke woke = wait.after_turn();
+            if (bus.pending() == 0 && woke.roles == 0 && woke.due == 0) {
+                return false; // quiet: nothing claimed a time, nothing is ready
+            }
         }
+        return true;
+    };
+    if (!turn_until([&] { return reporter->done || refused; })) {
+        std::printf("witness: the bus went quiet without an answer and nothing waits to speak\n");
     }
 
     if (refused) {
@@ -623,12 +636,7 @@ int main(int argc, char** argv) {
     // ...AND THE LOADED PRODUCT ANSWERS: pressed as Workshop presses it, and read back.
     if (hand != nullptr && last.realization == builder::realization::kRealized) {
         (void)bus.send(hand_id, loom::Message(loom::to_value(PressNow{})));
-        while (!hand->done) {
-            bus.drain_until_idle();
-            if (!hand->done && bus.pending() == 0) {
-                break;
-            }
-        }
+        (void)turn_until([&] { return hand->done; });
         std::printf("witness: pressed=%lld %s\n", static_cast<long long>(hand->pressed()),
                     hand->said.empty() ? "(nothing read)" : hand->said.c_str());
     }

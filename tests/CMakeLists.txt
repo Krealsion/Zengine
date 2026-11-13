@@ -1761,7 +1761,7 @@ endif()
 # rot unseen.
 add_executable(zengine-build-witness build/witness.cpp)
 target_link_libraries(zengine-build-witness
-    PRIVATE loom::kernel loom::switchboard loom::core
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy
             zengine-builder-vocabulary zengine-workshop-load zengine-operator
             zengine-timer-vocabulary zengine-pane-vocabulary
             zengine-warnings zengine-sanitize)
