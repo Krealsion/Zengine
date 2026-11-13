@@ -7,7 +7,7 @@ the line a weaver composes, the record it is shown, and the settings its layout 
 
 ## WL-TERM-12 — Up and Down walk the participant's commands while nothing is composed
 
-LAW — While the line is empty with no list asked for, or while a recalled line is browsed, Up and Down walk the `command` entries of the record the pane is shown, newest first.
+LAW — While the line is empty with no list asked for, or while a recalled line is browsed, Up and Down walk the entries of `command` in the record the pane is shown, newest first.
 
 MEANS
 - a run of one command is one step, and a position is `dropped` + index, which eviction keeps;

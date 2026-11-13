@@ -59,7 +59,7 @@ fails configuration out loud.
 
 ## The tree-reading checks
 
-The `script` entries `tests/text_checks.cmake` lists read the source tree rather than a build, ride
+The entries of kind `script` that `tests/text_checks.cmake` lists read the source tree rather than a build, ride
 the official lane, and self-test before they answer:
 
 - **`doc_links`** (`tests/check_doc_links.cmake`) — every relative link and anchor in a
