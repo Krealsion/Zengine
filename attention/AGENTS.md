@@ -39,7 +39,7 @@ and `attention/pane.cpp` are also sample artifact and source in `workshop_load`
 - The conditions: `workshop/attention.hpp`, `workshop/screen_attention.cpp`, published by
   `WorkshopWeave::say_conditions` in `workshop/weave_run.cpp`.
 - The pane protocol it speaks: `pane/vocabulary.hpp`, with `pane/text.hpp`,
-  `pane/parts.hpp`, `pane/menu.hpp` and `pane_canvas_rows.hpp`; its facets, `pane/facets.hpp` with
+  `pane/parts.hpp` and `pane/menu.hpp`; its facets, `pane/facets.hpp` with
   `pane/drawing.hpp`, and the drawing it makes, `graphics/vocabulary.hpp`.
 
 ## Pages

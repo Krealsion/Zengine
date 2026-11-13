@@ -59,7 +59,7 @@ read and never built ([the quarry's catalog](quarry/QUARRY-CATALOG.md)):
 
 The suites no one folder holds:
 
-- `doc_links`, `package_vocabulary`, `law_register`, `source_comments`, `code_values`, `folder_map`, `manual`
+- `doc_links`, `doc_names`, `package_vocabulary`, `law_register`, `source_comments`, `code_values`, `folder_map`, `manual`
   — the checks that read the source tree, each stating its contract in its own header (below)
 - `census` — the numbers `tests/census.txt` pins, the line between Workshop and Zengine among them
 - `smoke` — the one suite with no kernel, in `tests/smoke/`
@@ -138,12 +138,11 @@ cmake -P tests/documentation_lane.cmake
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`** — a bare run cannot say whether the
   population that ran is the population this repository meant to run.
-- **The lane runs in parallel**: add `-DZEN_CTEST_ARGS=-j<n>` (measured on Linux 56.2 s →
-  9.4 s at `-j24`). Same proofs. It is safe because no CTest entry writes
+- **The lane runs in parallel**: add `-DZEN_CTEST_ARGS=-j<n>`. Same proofs. It is safe because no CTest entry writes
   what this build tree builds — the compile-judged ones build their fixtures in a tree of their own
   ([agents/verification.md](agents/verification.md)); an entry that took custody of
   `${CMAKE_BINARY_DIR}` would put that back, and the registration helper refuses one that tries.
-  What sets the floor now is the longest single entry, so a suite that grows past its
+  What sets the floor is the longest single entry, so a suite that grows past its
   neighbours is the thing to watch, not the suite count. Both Windows libraries run it in
   parallel too, and CI runs every build job at `-j4`; an entry that cannot share the machine runs
   alone after the rest, named in `-DZEN_CTEST_APART=<entry>` (VM-LANE-11).
@@ -180,9 +179,12 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- Eight entries read the source tree rather than a build: `doc_links` (every repo-local
-  documentation reference must resolve, anchors included, and no current-facing file names a path
-  outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
+- The text checks (`tests/text_checks.cmake` lists them) read the source tree rather than a build:
+  `doc_links` (every repo-local documentation reference must resolve, anchors included, and no
+  current-facing file names a path outside the repository), `doc_names` (every file and folder a
+  router or a much-read page names in backticks is the tree's or a row of `tests/doc_names.txt`,
+  and every suite a router names a CTest entry), `package_vocabulary` (the installed package's
+  nouns), `law_register`
   (the registers under `agents/`: the form, every name they make, and every file's byte budget;
   every case a current-facing document cites and every law id a source comment or document names
   resolving; no plan code or step label in a case name, and in a current-facing document no plan

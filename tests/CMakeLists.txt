@@ -1849,8 +1849,8 @@ if(TARGET zengine-window-sdl)
 endif()
 
 # ---- the source-tree checks ------------------------------------------------------------
-# Six entries read the source tree rather than a build -- doc_links, package_vocabulary, law_register,
-# source_comments, code_values and folder_map -- each stating its contract in its own header.
+# The entries that read the source tree rather than a build, each stating its contract in its own
+# header.
 # They are CTest entries so a bare `ctest` carries them, and rows in tests/test_population.txt, so
 # deleting one is a red rather than a smaller lane.
 # The list is text_checks.cmake's, which the documentation lane runs too.

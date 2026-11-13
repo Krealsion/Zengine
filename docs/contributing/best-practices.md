@@ -476,8 +476,8 @@ witnessed by the installed-package witness and `package_vocabulary`.
 ## Documentation and its checks
 
 [Documentation conventions](repository-conventions.md#documentation-conventions) and
-[the population contract](../../AGENTS.md#the-population-contract); witnessed by `doc_links`,
-`package_vocabulary`, `law_register`, `source_comments`, `code_values` and `folder_map`, which the
+[the population contract](../../AGENTS.md#the-population-contract); witnessed by the text
+checks `tests/text_checks.cmake` lists, `doc_links` and `doc_names` among them, which the
 documentation lane runs together.
 
 - **A weave carries its manual, written in the form its page states**; the build refuses a page

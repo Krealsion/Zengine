@@ -44,8 +44,7 @@ Its cases in shared suites: `workshop_panes_seam`, `workshop_panes_project`, `wo
 and `workshop_panes_inspect` load Tally, Guard and the numbered presenter
 (`tests/test_workshop_panes_button.cpp`, `_code.cpp`, `_desktop.cpp`, `_introspection.cpp`);
 snake's weaves ride `graphics` (`tests/test_graphics.cpp`), `input` (`tests/test_input.cpp`),
-`timer` (`tests/test_timer.cpp`), `audit_probes` (`tests/test_audit_probes.cpp`) and `surface`
-(`tests/test_surface.cpp`);
+`timer` (`tests/test_timer.cpp`) and `audit_probes` (`tests/test_audit_probes.cpp`);
 `neovim_journey` (`tests/session/neovim_journey.py`) also runs `story.py`. The installed-package
 witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/` as a stranger.
 

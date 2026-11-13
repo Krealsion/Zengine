@@ -1,0 +1,31 @@
+# One row per name a router or a much-read page gives in backticks that is no file or folder of
+# this tree, `name kind`: what tests/check_doc_names.cmake reads when a name does not resolve. A
+# row ending in `/` holds every name that opens with it. The kinds: written, a file the product
+# writes or a weaver authors where it runs; generated, a file a build writes into its own tree;
+# installed, a path of the installed package or of the package a stranger downloads; loom, a file
+# of the Loom. A row no page needs is a red, so a name that comes to resolve leaves. ASCII only.
+app-authority.json               written
+app-session.json                 written
+apps/                            written
+boxed/                           written
+loom-boot.json                   written
+src/example.cpp                  written
+view-builder.json                written
+workshop-keymap.json             written
+workshop.json                    written
+CMakeCache.txt                   generated
+colors.hpp                       generated
+development-build-recipes.json   generated
+generated/                       generated
+graphics/colors.hpp              generated
+graphics/themes.hpp              generated
+launcher/configured.hpp          generated
+themes.hpp                       generated
+BUILD-INFO.txt                   installed
+README.txt                       installed
+bin/                             installed
+include/zengine/                 installed
+lib/                             installed
+share/zengine/                   installed
+workshop/setups/                 installed
+zen/                             loom

@@ -3,7 +3,7 @@
 Register `WL-FILES`: the browser over the machine, paths, marks and roots. One law per heading;
 cite by ID. Router: [`../workshop.md`](../workshop.md).
 
-⚠ THE BROWSER IS NOT THIS HOST'S CODE. It is `Zengine/files/`, a loadable weave in the role
+⚠ THE BROWSER IS NOT THIS HOST'S CODE. It is `files/`, a loadable weave in the role
 `zengine.files`, offering `project-files` and arriving by a plan row. This register stayed here
 because what it states is a law both sides keep: most of it constrains the package, and the last
 two entries constrain the host. Values are proved in `files_weave`, gestures in

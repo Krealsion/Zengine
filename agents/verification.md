@@ -59,12 +59,16 @@ fails configuration out loud.
 
 ## The tree-reading checks
 
-Six `script` entries read the source tree rather than a build, ride the official lane, and
-self-test before they answer:
+The `script` entries `tests/text_checks.cmake` lists read the source tree rather than a build, ride
+the official lane, and self-test before they answer:
 
 - **`doc_links`** (`tests/check_doc_links.cmake`) — every relative link and anchor in a
   current-facing document, every repository-relative `.md` path in a first-party comment, and no
   path outside the repository in any current-facing text file.
+- **`doc_names`** (`tests/check_doc_names.cmake`) — every name a router, a register or a
+  contributor's page gives in backticks that reads as a path is a file or folder of the tree, from
+  the root, from the page's folder or as the tail of a path, or a row of `tests/doc_names.txt`; a
+  suite a router names in `## Suites` or after `witnessed by` is a CTest entry.
 - **`package_vocabulary`** (`tests/check_package_vocabulary.cmake`) — the installed package's
   public variables name the physical thing; a retired spelling appears only in the checker.
 - **`law_register`** (`tests/check_law_register.cmake`) — the law registers its family table
@@ -89,6 +93,9 @@ self-test before they answer:
   folder and its kind; every feature, the host and every library holds a `README.md` and an
   `AGENTS.md` router within the router budget; every file under `agents/` but the decision records
   is routed by one router's `## Law`, and every CTest entry is claimed by one `## Suites`.
+- **`manual`** (`tests/check_manual.cmake`) — every weave's manual in form and carried by a
+  target, a pane's commands exactly its ids in the action census, and every key marker in a current
+  page its declared default.
 - **`census`** (`tests/check_census.cmake`) — every number `tests/census.txt` pins is the tree's,
   in either direction, and a row marked `falls` is not raised against the change's base
   (VM-CHECK-17): today the line between Workshop and Zengine, each include across it a row.
