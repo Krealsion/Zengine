@@ -185,7 +185,9 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   router or a much-read page names in backticks is the tree's or a row of `tests/doc_names.txt`,
   and every suite a router names a CTest entry), `package_vocabulary` (the installed package's
   nouns), `law_register`
-  (the registers under `agents/`: the form, every name they make, and every file's byte budget;
+  (the registers under `agents/`: the form, every name they make, and every file's byte budget,
+  a page `tests/raised_budgets.txt` names taking its kind's default times (1 + 0.2 × its steps),
+  in whole bytes, rounded down, a register's laws and its whole file alike;
   every case a current-facing document cites and every law id a source comment or document names
   resolving; no plan code or step label in a case name, and in a current-facing document no plan
   code, no development phase used as a clock and no history told in the forms the check names),
