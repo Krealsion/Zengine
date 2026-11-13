@@ -514,7 +514,7 @@ TEST_CASE("a drop aimed at a picture the text has since left is refused and chan
                 loom::Message(loom::to_value(gfx::AreaWheelTurned{area, 0, -3.0, 10, 10, 0, true, 0})));
         }
     });
-    s.batch({s.at(s.editor, 5, 3, "PointerButton", true), s.at(s.editor, 5, 3, "PointerButton", false)});
+    s.batch({s.at(s.editor, 5, 3, true), s.at(s.editor, 5, 3, false)});
     s.r.bus.remove_observer(tap);
     REQUIRE(wheeled);
     INFO(s.notice());
@@ -561,18 +561,11 @@ TEST_CASE("a press aimed at a picture where the text it lands on was not yet sel
     // ONE POLL: a press on the second line, and Shift+Down after it, which grows the selection over
     // that line: the window lands the press first, on the picture where the line was not yet
     // highlighted, and the key waits behind it.
-    input::InjectedEvent grow;
-    grow.kind = "KeyPressed";
-    grow.scancode = input::scan::kDown;
-    grow.modifiers = input::mod::kShift;
-    input::InjectedEvent grown = grow;
-    grown.kind = "KeyReleased";
-    auto press = s.at(s.editor, s.chrome() + 1, 2, "PointerButton", true);
-    auto release = s.at(s.inventory, target, 2, "PointerButton", false);
-    auto move = release;
-    move.kind = "PointerMoved";
-    move.dx = release.x - press.x;
-    move.dy = release.y - press.y;
+    const input::Moment grow = input::KeyPressed{input::scan::kDown, "", input::mod::kShift};
+    const input::Moment grown = input::KeyReleased{input::scan::kDown, "", input::mod::kShift};
+    auto press = s.at(s.editor, s.chrome() + 1, 2, true);
+    auto release = s.at(s.inventory, target, 2, false);
+    const auto move = moments::moved(press, release);
     s.batch({press, grow, grown, move, release});
     CHECK(s.stored().empty());
     const auto d = s.doc();
@@ -728,9 +721,7 @@ TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor a
     REQUIRE(s.open(s.write("b.txt", lines)).accepted);
     REQUIRE(s.doc().first_row == 0);
     const auto wheel = [&s] {
-        input::InjectedEvent e = s.at(s.editor, s.chrome() + 2, 1, "PointerWheel");
-        e.wheel_dy = -3.0;
-        s.batch({e});
+        s.batch({moments::wheel(s.at(s.editor, s.chrome() + 2, 1), -3.0)});
     };
     const std::string refused =
         "this is a weaver's host: the editor answers only the weaver's hand, and guest 'agent' is not the weaver";

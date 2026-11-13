@@ -570,7 +570,7 @@ run 00cc5c97/look -- passed (live)
   ask 11 InputSessionRequested v1 -> zengine.input via workshop: answer InputSessionOpened
   ask 14 SurfaceCaptureRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptured
   ask 16..60 SurfaceCaptureChunkRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptureChunk (23 asks)
-  ask 64 InjectInput v1 -> zengine.input via workshop: answer InputInjected
+  ask 64 InjectInput v2 -> zengine.input via workshop: answer InputInjected
   ask 67 SurfaceCaptureRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptured
   ask 69..113 SurfaceCaptureChunkRequested v1 -> zengine.window.gui via workshop: answer SurfaceCaptureChunk (23 asks)
   ask 117 InputSessionClosed v1 -> zengine.input via workshop: answer zen.Ack

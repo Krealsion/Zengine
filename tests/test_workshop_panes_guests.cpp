@@ -191,13 +191,7 @@ struct Weaver {
 void guest_click_on(InventoryStory& s, std::int64_t kind, const std::string& start,
                     std::int64_t into = 1) {
     const auto [x, y] = cell_of_run(s.r, kind, start, into);
-    input::InjectedEvent e;
-    e.kind = "PointerButton";
-    e.button = 1;
-    e.pressed = true;
-    e.space = input::space::kCells;
-    e.x = x;
-    e.y = y;
+    input::PointerButton e{1, true, x, y, input::space::kCells, input::mod::kNone};
     s.event(e);
     e.pressed = false;
     s.event(e);

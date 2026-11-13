@@ -187,7 +187,7 @@ lines editor/editor-pane/pane.cpp EditorPaneWeave 1179 falls
 lines editor/neovim-editor/pane.cpp NeovimEditorWeave 1125 falls
 lines files/files.cpp FilesWeave 1614 falls
 lines flow/flow-pane/pane.cpp FlowPane 2542 falls
-lines graphics/window/window.hpp Window 1428 falls
+lines graphics/window/window.hpp Window 1425 falls
 lines info/property_view.hpp PropertyView 1002 falls
 lines info/value_view.hpp ValueView 1361 falls
 lines view/view-builder/pane.cpp ViewBuilderPane 1337 falls

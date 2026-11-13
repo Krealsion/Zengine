@@ -21,6 +21,11 @@ NAMED.update(dict(("f%d" % (i + 1), 58 + i) for i in range(12)))
 # spelled by the character or its name; "+" separates a chord, so a plus is "shift+=".
 NAMED.update({"-": 45, "minus": 45, "=": 46, "equals": 46, "[": 47, "]": 48, ";": 51, "'": 52,
               "`": 53, ",": 54, "comma": 54, ".": 55, "period": 55, "/": 56, "slash": 56})
+# Shift alone, the key Workshop times as two taps (`double-shift`): `scan::kLeftShift` and
+# `scan::kRightShift`; "shift" is the left one.
+NAMED.update({"shift": 225, "left-shift": 225, "right-shift": 229})
+# A chord spelled as Workshop's own key `double-shift`: a lone Shift tapped twice.
+DOUBLE_SHIFT = "double-shift"
 MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
 # zengine/input/vocabulary.hpp space::: the TUI window reports cells, the GUI window pixels.
 SPACE_CELLS = 1
@@ -54,25 +59,30 @@ def chord(spelling):
 
 
 def moment(ctx, kind, **given):
-    """One WHOLE ``InjectedEvent`` of ``kind``: Workshop's gate refuses a moment that leaves out a
-    field its shape declares. The field list is the host's own descriptor, never restated here;
-    a field this moment does not use is zero, the default zengine/input/vocabulary.hpp declares
-    for every one of them."""
-    shape = ctx.conn.schema("InjectedEvent", 1)
+    """One WHOLE moment of ``kind``, a case of ``Moment`` (zengine/input/vocabulary.hpp), spelled
+    ``{kind: {...}}``: Workshop's gate refuses a case Moment does not declare and a moment that
+    leaves out a field its shape declares. The cases and each one's fields are the host's own
+    descriptors, never restated here; a field this moment does not use is zero, the default the
+    vocabulary declares for every one of them."""
+    union = ctx.conn.schema("Moment", 1)
+    case = next((f for f in union.fields if f.name == kind), None)
+    if case is None:
+        raise ValueError("Moment v1 has no case '%s' (it has: %s)"
+                         % (kind, ", ".join(f.name for f in union.fields)))
+    name, version = case.type.ref
+    shape = ctx.conn.schema(name, version)
     out = {}
     for f in shape.fields:
-        if f.name == "kind":
-            out[f.name] = kind
-        elif f.name in given:
+        if f.name in given:
             out[f.name] = given.pop(f.name)
         elif f.type.kind in ZERO:
             out[f.name] = ZERO[f.type.kind]
         else:
-            raise ValueError("InjectedEvent v1 declares '%s', which has no zero this tool can "
-                             "supply" % f.name)
+            raise ValueError("%s v%d declares '%s', which has no zero this tool can supply"
+                             % (name, version, f.name))
     if given:
-        raise ValueError("InjectedEvent v1 declares no field %s" % ", ".join(sorted(given)))
-    return out
+        raise ValueError("%s v%d declares no field %s" % (name, version, ", ".join(sorted(given))))
+    return {kind: out}
 
 
 def chord_moments(ctx, spelling, text="", repeat=1):
@@ -84,6 +94,8 @@ def chord_moments(ctx, spelling, text="", repeat=1):
     many times it is sent."""
     if repeat < 1:
         raise ValueError("repeat must press the chord at least once")
+    if spelling.strip().lower() == DOUBLE_SHIFT:
+        spelling, repeat = "shift", 2 * repeat
     code, mods = chord(spelling)
     events = []
     for _ in range(repeat):

@@ -160,19 +160,11 @@ public:
         note("session " + std::to_string(opened.session) + " opened by zengine.input");
         zengine::input::InjectInput batch;
         batch.session = opened.session;
-        zengine::input::InjectedEvent down;
-        down.kind = "KeyPressed";
-        down.scancode = run_.scancode;
-        down.modifiers = run_.modifiers;
-        zengine::input::InjectedEvent up = down;
-        up.kind = "KeyReleased";
-        batch.events.push_back(down);
-        batch.events.push_back(up);
+        namespace in = zengine::input;
+        batch.events.push_back(in::Moment{in::KeyPressed{run_.scancode, "", run_.modifiers}});
+        batch.events.push_back(in::Moment{in::KeyReleased{run_.scancode, "", run_.modifiers}});
         if (!run_.text.empty()) {
-            zengine::input::InjectedEvent typed;
-            typed.kind = "TextEntered";
-            typed.text = run_.text;
-            batch.events.push_back(typed);
+            batch.events.push_back(in::Moment{in::TextEntered{run_.text}});
         }
         batch_size_ = static_cast<std::int64_t>(batch.events.size());
         set_step(Step::Inject);

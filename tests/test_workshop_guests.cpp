@@ -449,7 +449,7 @@ TEST_CASE("observation: seeing the Builder's whole picture brings one read of th
     CHECK_FALSE(g.permits_role("BuildRequested", 2, "zengine.builder"));
     CHECK_FALSE(g.permits_role("StatusRequested", 1, "zengine.builder"));
     CHECK_FALSE(g.permits_role("BuildOutputRequested", 1, "zengine.builder"));
-    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     // A row that sees only the Builder's asks, or nothing of it, may not ask.
     guests::GuestRow asks_only = watcher;
     asks_only.observe = {{"zengine.builder", "BuildAsked", 1},
@@ -529,7 +529,7 @@ TEST_CASE("toolbox file access is an explicit power separate from inventory inpu
     CHECK_FALSE(files.permits_role("InventoryToolboxRestore", 1, "elsewhere"));
     CHECK_FALSE(files.permits_role("InventoryRestore", 1, inv::kInventoryRole));
     CHECK_FALSE(files.permits_role("InventoryViewEdit", 1, "zengine.inventory-pane"));
-    CHECK_FALSE(files.permits_role("InjectInput", 1, input::kInputRole));
+    CHECK_FALSE(files.permits_role("InjectInput", input::InjectInput::zen_version, input::kInputRole));
     // Organizing folders is inventory authority; a whole-collection restore is not, in either version.
     for (const char* shape : {"InventoryFile", "InventoryFolderCreate", "InventoryFolderRename",
                               "InventoryFolderMove", "InventoryFolderRemove"}) {
@@ -567,7 +567,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     row.may = {guests::kPowerInput};
     const loom::Grant in = guests::grant_for(row);
     CHECK(in.permits_role(input::InputSessionRequested::zen_name, 1, input::kInputRole));
-    CHECK(in.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK(in.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     CHECK(in.permits_role(input::InputSessionClosed::zen_name, 1, input::kInputRole));
     CHECK_FALSE(in.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
 
@@ -587,7 +587,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     }
     CHECK_FALSE(cap.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1,
                                  window_role + "desk"));
-    CHECK_FALSE(cap.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(cap.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     // THE DESK'S WORDS ARE `capture`'s, every reading of them asked of Workshop's role alone: the
     // desk read whole, a pane's page and a point in it, the inventory and the keymap.
     const std::vector<std::pair<const char*, std::uint32_t>> reads = {
@@ -609,7 +609,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     const loom::Grant look = guests::grant_for(row);
     CHECK(look.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
     CHECK(look.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
-    CHECK_FALSE(look.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(look.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     CHECK_FALSE(in.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
     // "inspect" reaches DISCOVERY (zen.DescribeAccepted), never the inventory's own doors:
     // inventory access is never a reinterpretation of an existing power.
@@ -626,7 +626,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     }
     CHECK(stow.permits_role(inv::InventoryCaptureDescribe::zen_name, 1, inv::kInventoryRole));
     CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
-    CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     CHECK_FALSE(stow.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1,
                                   std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow));
     // ...and whatever its powers, a row may ask for its own, and where the plan is.
@@ -795,9 +795,7 @@ TEST_CASE("door: a host's one wait wakes the door through one connection again a
     }));
     input::InjectInput batch;
     batch.session = g.answered<input::InputSessionOpened>(1)->session;
-    input::InjectedEvent down;
-    down.kind = "KeyPressed";
-    down.scancode = input::scan::kP;
+    input::Moment down = input::KeyPressed{input::scan::kP, "", input::mod::kNone};
     batch.events = {down};
     g.ask(input::kInputRole, 2, batch);
     REQUIRE(turn_until([&] {
@@ -834,17 +832,8 @@ TEST_CASE("door: a guest injects through the real Input weave, and its socket's 
         const std::int64_t session = g.answered<input::InputSessionOpened>(1)->session;
         input::InjectInput batch;
         batch.session = session;
-        input::InjectedEvent down;
-        down.kind = "KeyPressed";
-        down.scancode = input::scan::kP;
-        down.modifiers = input::mod::kCtrl;
-        input::InjectedEvent held;
-        held.kind = "PointerButton";
-        held.button = 1;
-        held.pressed = true;
-        held.x = 5;
-        held.y = 6;
-        held.space = input::space::kPixels;
+        input::Moment down = input::KeyPressed{input::scan::kP, "", input::mod::kCtrl};
+        const input::Moment held = input::PointerButton{1, true, 5, 6, input::space::kPixels, input::mod::kNone};
         batch.events = {down, held};
         g.ask(input::kInputRole, 2, batch);
         REQUIRE(r.beat_until([&] {
@@ -1043,11 +1032,8 @@ struct OrderRig {
     }
 };
 
-input::InjectedEvent ctrl_p() {
-    input::InjectedEvent e;
-    e.kind = "KeyPressed";
-    e.scancode = input::scan::kP;
-    e.modifiers = input::mod::kCtrl;
+input::Moment ctrl_p() {
+    input::Moment e = input::KeyPressed{input::scan::kP, "", input::mod::kCtrl};
     return e;
 }
 
@@ -1254,9 +1240,7 @@ TEST_CASE("observe: through the real door, a guest observes only what its row li
         }));
         input::InjectInput batch;
         batch.session = g.answered<input::InputSessionOpened>(3)->session;
-        input::InjectedEvent down;
-        down.kind = "KeyPressed";
-        down.scancode = input::scan::kT;
+        input::Moment down = input::KeyPressed{input::scan::kT, "", input::mod::kNone};
         batch.events = {down};
         g.ask(input::kInputRole, 4, batch, /*settle=*/true);
         REQUIRE(r.beat_until([&] {
@@ -1456,7 +1440,7 @@ TEST_CASE("guests file: the tutor role is capture and guide, a row adds to it, a
     CHECK(row.observe.empty());
     // NOTHING THE ROLE LEAVES OUT IS GRANTED: no input, no press, no keys heard.
     const loom::Grant g = guests::grant_for(row);
-    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     CHECK_FALSE(g.permits_role(input::InputSessionRequested::zen_name, 1, input::kInputRole));
     // ITS REACH, said: the role and what it expanded to, what it reads and where it points.
     const std::vector<std::string> scopes = guests::scopes_of(row);
@@ -1551,10 +1535,12 @@ TEST_CASE("observation: the weaver's input, a window's keys among it, is heard o
     whole.name = "whole";
     whole.capture = {"*"};
     for (guests::GuestRow* row : {&keys, &tutor, &whole}) {
-        for (const char* shape : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
-                                  input::KeyReleased::zen_name, input::TextEntered::zen_name}) {
+        for (const char* shape : {input::KeyPressed::zen_name, input::KeyReleased::zen_name,
+                                  input::TextEntered::zen_name}) {
             row->observe.push_back({input::kInputRole, shape, 1});
         }
+        row->observe.push_back({input::kInputRole, input::AttributedInput::zen_name,
+                                input::AttributedInput::zen_version});
         for (const char* shape : {gfx::AreaKeyPressed::zen_name, gfx::AreaKeyReleased::zen_name,
                                   gfx::AreaTextEntered::zen_name}) {
             row->observe.push_back({kWindowTuiRole, shape, 1});
@@ -1597,7 +1583,7 @@ TEST_CASE("observation: the weaver's input, a window's keys among it, is heard o
     const auto heard =
         guests::observation_of(file, [&](loom::WeaveId) -> std::optional<std::size_t> { return 0; });
     CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, input::kInputRole,
-                                              {{input::AttributedInput::zen_name, 1}}, "suite"})
+                                              {{input::AttributedInput::zen_name, input::AttributedInput::zen_version}}, "suite"})
               .allowed);
     CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, kWindowTuiRole,
                                               {{gfx::AreaKeyPressed::zen_name, 1}}, "suite"})
@@ -1634,11 +1620,11 @@ TEST_CASE("guests file: build grants no shape -- no guest is granted BuildReques
         CHECK_FALSE(g.permits_role(shape, 1, builder::kBuilderRole));
         CHECK_FALSE(g.permits(shape, 1, loom::WeaveId{7}));
     }
-    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     // ...and with input beside it, exactly input's grant: the class is read from the row, never sent.
     row.may = {guests::kPowerInput, guests::kPowerBuild};
     const loom::Grant both = guests::grant_for(row);
-    CHECK(both.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK(both.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole));
     CHECK_FALSE(both.permits_role(builder::BuildRequested::zen_name, 1, builder::kBuilderRole));
 }
 
@@ -2808,7 +2794,7 @@ TEST_CASE("demo power reaches only its setup and control owners") {
     CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.composer"));
     CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.inventory-pane"));
     CHECK_FALSE(grant.permits_role("PaneResetRequested", 1, "other.pane"));
-    CHECK_FALSE(grant.permits_role("InjectInput", 1, "zengine.input"));
+    CHECK_FALSE(grant.permits_role("InjectInput", input::InjectInput::zen_version, "zengine.input"));
     CHECK_FALSE(grant.permits_role("InventoryWrite", 1, "zengine.inventory"));
 }
 
@@ -2835,7 +2821,7 @@ TEST_CASE("open power reaches only the managed opening, and no other power opens
     CHECK_FALSE(grant.permits_role("PrepareSourceRequested", 1, "zengine.editor"));
     CHECK_FALSE(grant.permits_role("PrepareSourceRequested", 2, "zengine.editor"));
     CHECK_FALSE(grant.permits_role("PaneActionRequested", 1, "zengine.editor"));
-    CHECK_FALSE(grant.permits_role("InjectInput", 1, "zengine.input"));
+    CHECK_FALSE(grant.permits_role("InjectInput", input::InjectInput::zen_version, "zengine.input"));
     CHECK_FALSE(grant.permits_role("PaneValueCarryRequested", 1, "zengine.workshop"));
     // ...and a guests file may name it.
     Scratch f("open");

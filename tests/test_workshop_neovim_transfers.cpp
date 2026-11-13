@@ -103,12 +103,9 @@ struct NeovimStory : NeovimHome, TransferStory {
     }
     void drag(std::int64_t from, std::int64_t from_row, std::int64_t from_col, std::int64_t to, std::int64_t to_row,
               std::int64_t to_col) {
-        auto press = at(from, from_row, from_col, "PointerButton", true);
-        auto release = at(to, to_row, to_col, "PointerButton", false);
-        auto move = release;
-        move.kind = "PointerMoved";
-        move.dx = release.x - press.x;
-        move.dy = release.y - press.y;
+        auto press = at(from, from_row, from_col, true);
+        auto release = at(to, to_row, to_col, false);
+        const auto move = moments::moved(press, release);
         if (from != editor) {
             batch({press, move, release}); // a drop: Neovim hears of it at the release
             settle();

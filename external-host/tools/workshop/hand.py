@@ -248,7 +248,7 @@ class Hand:
         run's number for the press -- what an observation's ``cause`` names when the press set
         it in motion (``ctx.observe``)."""
         answer = self.ask("zengine.input", "InjectInput",
-                          {"session": self.session, "events": events}, settle=True)
+                          {"session": self.session, "events": events}, version=2, settle=True)
         self.ctx.check(answer["session"] == self.session and answer["admitted"] == len(events),
                        "input did not admit the requested moments")
         return answer
@@ -360,7 +360,7 @@ class Hand:
                 previous = visible
                 at = view["words"][0]
                 self.actions["wheel"] += 1
-                self.inject([moment(self.ctx, "PointerWheel", wheel_dy=direction,
+                self.inject([moment(self.ctx, "PointerWheel", dy=direction,
                                     x=at["x"], y=at["y"], space=at["space"])])
         return view, None
 

@@ -518,11 +518,7 @@ struct Hands {
         id = r.bus.register_weave(std::move(made), std::move(grant), input::kInputRole);
         seat->zen_set_self(id);
     }
-    void say(std::int64_t actor, const char* kind, std::int64_t scancode, std::int64_t mods) {
-        input::InjectedEvent e;
-        e.kind = kind;
-        e.scancode = scancode;
-        e.modifiers = mods;
+    void say(std::int64_t actor, const input::Moment& e) {
         seat->next = [actor, e](loom::Mail& m) {
             (void)m.as_role(input::kInputRole).publish(input::AttributedInput{actor == 0, actor, e});
         };
@@ -533,8 +529,8 @@ struct Hands {
     }
     /// SHIFT TAPPED: pressed alone and let go, by `actor`'s hand.
     void tap(std::int64_t actor) {
-        say(actor, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
-        say(actor, "KeyReleased", input::scan::kLeftShift, input::mod::kNone);
+        say(actor, input::KeyPressed{input::scan::kLeftShift, "", input::mod::kShift});
+        say(actor, input::KeyReleased{input::scan::kLeftShift, "", input::mod::kNone});
     }
 };
 
@@ -571,8 +567,8 @@ TEST_CASE("WL-KEY-19: two Shift taps of one hand open the palette; a held Shift,
     const auto put_down = [&] {
         if (on_desk(r, kPaletteRole, kPalettePane)) r.key(input::scan::kEscape);
         REQUIRE_FALSE(on_desk(r, kPaletteRole, kPalettePane));
-        hands.say(0, "KeyPressed", input::scan::kA, input::mod::kNone);
-        hands.say(77, "KeyPressed", input::scan::kA, input::mod::kNone);
+        hands.say(0, input::KeyPressed{input::scan::kA, "", input::mod::kNone});
+        hands.say(77, input::KeyPressed{input::scan::kA, "", input::mod::kNone});
     };
     r.clock.together();
 
@@ -584,18 +580,18 @@ TEST_CASE("WL-KEY-19: two Shift taps of one hand open the palette; a held Shift,
     put_down();
 
     // A HELD SHIFT repeats as presses with no release: no pair.
-    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
-    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
-    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
-    hands.say(0, "KeyReleased", input::scan::kLeftShift, input::mod::kNone);
-    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
+    hands.say(0, input::KeyPressed{input::scan::kLeftShift, "", input::mod::kShift});
+    hands.say(0, input::KeyPressed{input::scan::kLeftShift, "", input::mod::kShift});
+    hands.say(0, input::KeyPressed{input::scan::kLeftShift, "", input::mod::kShift});
+    hands.say(0, input::KeyReleased{input::scan::kLeftShift, "", input::mod::kNone});
+    hands.say(0, input::KeyPressed{input::scan::kLeftShift, "", input::mod::kShift});
     CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
-    hands.say(0, "KeyReleased", input::scan::kLeftShift, input::mod::kNone);
+    hands.say(0, input::KeyReleased{input::scan::kLeftShift, "", input::mod::kNone});
     put_down();
 
     // A KEY BETWEEN the taps breaks the pair.
     hands.tap(0);
-    hands.say(0, "KeyPressed", input::scan::kA, input::mod::kNone);
+    hands.say(0, input::KeyPressed{input::scan::kA, "", input::mod::kNone});
     hands.tap(0);
     CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
     put_down();

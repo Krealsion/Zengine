@@ -45,7 +45,7 @@ ArtifactParticipation v3 0x2a8b8a2e30adfe6c
 ArtifactPromoted v2 0xcd195946b477f817
 ArtifactRealized v3 0x4eb86e150248805f
 AttentionPaneState v1 0xf0a5ee0b4711aff9
-AttributedInput v1 0x865c27b914efdfbc
+AttributedInput v2 0x828144ef5c7534ec
 BootState v1 0x5f04b7184e717a33
 BuildAsked v1 0x2215f7302e39841e
 BuildFinished v2 0x3c7310d9d01acf1f
@@ -195,8 +195,7 @@ ImageArgs v1 0x8085ca3e3649508e
 ImageFace v2 0x2347b2f494dced96
 InfoPaneState v5 0x73cd22858387d7c6
 InfoViewState v2 0xa86bcd051f67708b
-InjectInput v1 0xba1df87065468101
-InjectedEvent v1 0x719ab21c82df56a2
+InjectInput v2 0x6899bce45e87f20f
 InputInjected v1 0x0adb8445b9edd033
 InputSessionClosed v1 0xcec4c650dd70beb7
 InputSessionOpened v1 0xa104795692bb284c
@@ -295,6 +294,7 @@ MenuReturned v1 0x2ebe17f3ee281c8e
 MenuShown v3 0x82d8842753c1e64d
 MenuWithdrawn v1 0x5d4547eeb3e57fbe
 ModeCauses v1 0xf0a98b0403aadda4
+Moment v1 0x01ce67cb8b28f530
 NeovimEditorState v1 0x5de22f665f5bb6d1
 NeovimStartRequested v1 0x88b541cccf223cbc
 NeovimStatusRequested v1 0x6e604950c0890f1b

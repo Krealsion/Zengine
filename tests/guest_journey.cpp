@@ -462,12 +462,8 @@ int main(int argc, char** argv) {
 
     input::InjectInput batch;
     batch.session = opened->session;
-    input::InjectedEvent down;
-    down.kind = "KeyPressed";
-    down.scancode = input::scan::kP;
-    down.modifiers = input::mod::kCtrl;
-    input::InjectedEvent up = down;
-    up.kind = "KeyReleased";
+    const input::Moment down = input::KeyPressed{input::scan::kP, "", input::mod::kCtrl};
+    const input::Moment up = input::KeyReleased{input::scan::kP, "", input::mod::kCtrl};
     batch.events = {down, up};
     // SETTLED: the Workshop tells this session when everything the injection set in motion on
     // its bus -- the desktop's handling of the chord and every delivery it caused, the repaint
@@ -675,12 +671,8 @@ int main(int argc, char** argv) {
             if (check(session.has_value(), "the Input weave opened a session")) {
                 input::InjectInput chord;
                 chord.session = session->session;
-                input::InjectedEvent press;
-                press.kind = "KeyPressed";
-                press.scancode = input::scan::kUp;
-                press.modifiers = input::mod::kAlt;
-                input::InjectedEvent release = press;
-                release.kind = "KeyReleased";
+                const input::Moment press = input::KeyPressed{input::scan::kUp, "", input::mod::kAlt};
+                const input::Moment release = input::KeyReleased{input::scan::kUp, "", input::mod::kAlt};
                 chord.events = {press, release};
                 const std::uint64_t pressed = w.ask(input::kInputRole, chord, /*settle=*/true);
                 check(w.answer<input::InputInjected>(pressed).has_value() && w.settled(pressed),
@@ -694,11 +686,8 @@ int main(int argc, char** argv) {
                 for (const std::int64_t key : {input::scan::kEscape, input::scan::kT}) {
                     input::InjectInput tap;
                     tap.session = session->session;
-                    input::InjectedEvent key_down;
-                    key_down.kind = "KeyPressed";
-                    key_down.scancode = key;
-                    input::InjectedEvent key_up = key_down;
-                    key_up.kind = "KeyReleased";
+                    const input::Moment key_down = input::KeyPressed{key, "", input::mod::kNone};
+                    const input::Moment key_up = input::KeyReleased{key, "", input::mod::kNone};
                     tap.events = {key_down, key_up};
                     const std::uint64_t tapped = w.ask(input::kInputRole, tap, /*settle=*/true);
                     (void)w.answer<input::InputInjected>(tapped);

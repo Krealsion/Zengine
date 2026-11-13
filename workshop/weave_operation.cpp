@@ -94,8 +94,10 @@ void WorkshopWeave::on(const input::AttributedInput& event, loom::Mail& mail) {
     if (!mail.authored_from_role(input::kInputRole) ||
         (event.local ? event.actor != 0 : event.actor <= 0)) return;
     attributed_producer_ = mail.sender();
-    const std::string& kind = event.event.kind;
-    const bool pointer = kind == "PointerButton" || kind == "PointerMoved" || kind == "PointerWheel";
+    const auto& is = event.event.is;
+    const bool pointer = std::holds_alternative<input::PointerButton>(is) ||
+                         std::holds_alternative<input::PointerMoved>(is) ||
+                         std::holds_alternative<input::PointerWheel>(is);
     if (event.local || !window_.shown()) {
         apply_attributed(event, mail);
         return;
@@ -197,22 +199,23 @@ void WorkshopWeave::apply_attributed(const input::AttributedInput& event, loom::
     } restore{input_actor_, applying_attributed_, input_actor_, applying_attributed_};
     input_actor_ = {true, event.local, loom::WeaveId{static_cast<std::uint64_t>(event.actor)}};
     applying_attributed_ = true;
-    const auto& e = event.event;
+    const auto& is = event.event.is;
+    const auto* button = std::get_if<input::PointerButton>(&is);
     // A DRAG CARRY ENDS AT ITS CARRIER'S NEXT GESTURE, OR THE WEAVER'S: another guest's never.
     // The wheel is none: it turns the pane under the hand, and the carry stands.
     if (!quitting_ && carried_.drag &&
         (input_actor_.local || (input_actor_.local == carried_.actor.local &&
                                 input_actor_.participant == carried_.actor.participant)) &&
-        (e.kind == "KeyPressed" || e.kind == "TextEntered" ||
-         (e.kind == "PointerButton" && e.pressed))) {
+        (std::holds_alternative<input::KeyPressed>(is) || std::holds_alternative<input::TextEntered>(is) ||
+         (button != nullptr && button->pressed))) {
         carried_ = {}; value_drag_ = {};
         say("Value drag cancelled by a new gesture", false);
     }
     // A PARTICIPANT'S POINTER IS THE WINDOW'S TO LAND: it takes the input role's moments as the
     // hand they name, and says the hand on every moment it gives. Workshop takes its keys.
-    if (e.kind == "KeyPressed") on(input::KeyPressed{e.scancode, e.name, e.modifiers}, mail);
-    else if (e.kind == "KeyReleased") on(input::KeyReleased{e.scancode, e.name, e.modifiers}, mail);
-    else if (e.kind == "TextEntered") on(input::TextEntered{e.text}, mail);
+    if (const auto* p = std::get_if<input::KeyPressed>(&is)) on(*p, mail);
+    else if (const auto* r = std::get_if<input::KeyReleased>(&is)) on(*r, mail);
+    else if (const auto* t = std::get_if<input::TextEntered>(&is)) on(*t, mail);
 }
 
 void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {

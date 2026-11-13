@@ -136,7 +136,7 @@ struct TransferStory {
         hand = actor.get();
         loom::Grant g;
         g.allow_to_role(input::InputSessionRequested::zen_name, 1, input::kInputRole);
-        g.allow_to_role(input::InjectInput::zen_name, 1, input::kInputRole);
+        g.allow_to_role(input::InjectInput::zen_name, input::InjectInput::zen_version, input::kInputRole);
         g.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
         g.allow_to_role(inv::v2::InventoryList::zen_name, 2, inv::kInventoryRole);
         if (permissions & kLocate) g.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
@@ -170,49 +170,30 @@ struct TransferStory {
         r.bus.drain_until_idle();
         hand->next = {};
     }
-    void batch(std::vector<input::InjectedEvent> events) {
+    void batch(std::vector<input::Moment> events) {
         act([&](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InjectInput{hand->session, events}); });
     }
-    input::InjectedEvent at(std::int64_t kind, std::int64_t row, std::int64_t column, const char* what,
-                            bool down = true, std::int64_t button = 1) {
+    /// A button at a pane's row and column, as the terminal medium reports it.
+    input::PointerButton at(std::int64_t kind, std::int64_t row, std::int64_t column, bool down = true,
+                            std::int64_t button = 1) {
         const auto rect = external_body_rect(r.session(), kind);
-        input::InjectedEvent e;
-        e.kind = what;
-        e.button = button;
-        e.pressed = down;
-        e.space = input::space::kCells;
-        e.x = rect.x + pane_cell_of(r.session(), kind, row, column);
-        e.y = rect.y + row +
-              external_title_rows(r.session().panes, kind, r.session().pane_titles);
-        return e;
+        return {button, down, rect.x + pane_cell_of(r.session(), kind, row, column),
+                rect.y + row + external_title_rows(r.session().panes, kind, r.session().pane_titles),
+                input::space::kCells, input::mod::kNone};
     }
     void click(std::int64_t kind, std::int64_t row, std::int64_t column, std::int64_t button = 1) {
-        batch({at(kind, row, column, "PointerButton", true, button), at(kind, row, column, "PointerButton", false, button)});
+        batch({at(kind, row, column, true, button), at(kind, row, column, false, button)});
     }
     void key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
-        input::InjectedEvent e;
-        e.kind = "KeyPressed";
-        e.scancode = scan;
-        e.modifiers = mods;
-        input::InjectedEvent up = e;
-        up.kind = "KeyReleased";
-        batch({e, up});
+        batch({moments::key_down(scan, mods), moments::key_up(scan, mods)});
     }
-    void text(const std::string& t) {
-        input::InjectedEvent e;
-        e.kind = "TextEntered";
-        e.text = t;
-        batch({e});
-    }
+    void text(const std::string& t) { batch({input::TextEntered{t}}); }
     /// One primary drag in one batch: press, a motion to the release point, the release.
     void drag(std::int64_t from, std::int64_t from_row, std::int64_t from_col, std::int64_t to, std::int64_t to_row,
               std::int64_t to_col) {
-        auto press = at(from, from_row, from_col, "PointerButton", true);
-        auto release = at(to, to_row, to_col, "PointerButton", false);
-        auto move = release;
-        move.kind = "PointerMoved";
-        move.dx = release.x - press.x;
-        move.dy = release.y - press.y;
+        auto press = at(from, from_row, from_col, true);
+        auto release = at(to, to_row, to_col, false);
+        const auto move = moments::moved(press, release);
         batch({press, move, release});
     }
 
