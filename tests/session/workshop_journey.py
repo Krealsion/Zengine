@@ -354,12 +354,20 @@ def main():
           on_disk["state"] == "running" and any("SurfaceCaptureRequested" in p
                                                 for p in on_disk["pending"]), on_disk["step"])
     release(held, "go")
-    check("J4 released with no client attached, the run finishes (its manager's record says so)",
-          until(lambda: read_record(look_dir)["state"] in ("passed", "failed", "error"), 90,
-                "the run's record to say it finished") and read_record(look_dir)["state"] ==
-          "passed", read_record(look_dir)["failure"] or read_record(look_dir)["summary"])
+    finished = until(lambda: read_record(look_dir)["state"] in ("passed", "failed", "error"), 90,
+                     "the run's record to say it finished")
+    last = read_record(look_dir)
+    on_record = check(
+        "J4 released with no client attached, the run finishes (its manager's record says so)",
+        finished and last["state"] == "passed",
+        last["failure"] or last["summary"] or "%s at step '%s', pending %s" % (
+            last["state"], last["step"], last["pending"]))
     with Session.attach(sdir) as c2:
         look = c2.run("look")
+        if not on_record:
+            # The manager's own account of its record, which the record behind could not carry.
+            print("     (the run's notes on its record, as a client is answered: %s)" % [
+                n for n in look["notes"] if "RECORD" in n], flush=True)
         arts = artifacts(look)
         stems = [picture_name(arts, x) for x in ("before", "armed", "after")]
         check("J5 a new client finds the same run, passed, every picture verified on disk",
