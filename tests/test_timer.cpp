@@ -4,10 +4,8 @@
 // The Timer suite -- the Timer package proven headless: the vocabulary pinned by content id; the
 // service through a real bus, handed its time by the host's one wait (`loom::host::Reactor`) on a
 // clock that moves only when told; the real library through the real Kernel under that same wait;
-// and the world it ticks with nobody sending a tick. Every pump is the host's loop: the bus turned,
-// then the wait -- a look while the bus holds work, else a rest until the soonest time due, which
-// moves the clock there. The bus drains between wakes, so a pump ends when the host is quiet, when
-// what it waits for came, or at the time it waits until.
+// and the world it ticks with nobody sending a tick. Every pump is the host's loop (`host_loop`),
+// and the bus drains between wakes, so a pump ends at what it waits for, at a time, or at rest.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -63,13 +61,10 @@ namespace {
 // ---- the host's loop, as every rig here turns it ----------------------------------
 
 /// THE HOST'S LOOP: the bus turned, then the host's one wait -- a look while the bus holds work,
-/// else a rest until the soonest time a trusted source is due (on a clock that moves only when
-/// told, the wait moves it there), or until `until` when one is given. It returns once `done()`
-/// holds with the bus empty, once the host is quiet -- the bus empty and nothing to wait for --
-/// or at `until`, after what is due then has been handed over. `at_once` returns as soon as
-/// `done()` holds after a turn, the bus as that turn left it (a tap that stops the bus mid-turn
-/// leaves the rest queued). The bound is a hang guard: a loop that does not come to rest fails the
-/// case.
+/// else a rest to the soonest time due (on this clock the wait moves it there), or to `until`.
+/// It returns once `done()` holds with the bus empty, once the host is quiet, or at `until` with
+/// what is due then handed over; `at_once`, as soon as `done()` holds after a turn, leaving what
+/// a tap that stopped the bus left queued. The bound is a hang guard.
 template <class Done>
 void host_loop(loom::Switchboard& bus, loom::host::Reactor& wait, const loom::host::Clock& clock,
                Done done, std::optional<std::int64_t> until = std::nullopt, bool at_once = false) {
@@ -2494,10 +2489,8 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
 // ============================================================================
 // Tier 5 — CONTINUITY end to end, on the host's clock (TIMER-03)
 // ============================================================================
-// Real libraries, the real kernel and steward, a real graceful replacement and a real letter
-// through the real gate, all through `zengine-timer-virtual` -- the shipped Timer, handed its
-// time by the host's wait on a clock that moves only when told. A ceremony spends no time: the
-// clock moves only when the wait rests to a time due, so every duration here is exact.
+// The real kernel and steward, a real graceful replacement and a real letter through the real
+// gate; on the host's clock a ceremony spends no time, so every duration here is exact.
 
 namespace {
 

@@ -591,13 +591,14 @@ int main(int argc, char** argv) {
         history_policy.recent_capacity = 100000;
         history_policy.default_retain_payload = false;
     }
-    // The beats: the last one, no recent context, no bytes -- findable, never flooding the window.
+    // The firings and the wakes: the last one, no recent context, no bytes -- findable, never
+    // flooding the window.
     for (const char* shape : {timer::TimerFired::zen_name, loom::host::Waited::zen_name}) {
         history_policy.rules.push_back(loom::RetentionRule{
             std::string(shape), /*last_n=*/1, /*in_recent=*/false, /*retain_payload=*/false});
     }
     // The drawings, and the notice that the desk moved: remembered as events, not bytes; the
-    // notice, as a beat is, outside recent context -- the newest stands for each before it.
+    // notice, as a firing is, outside recent context -- the newest stands for each before it.
     history_policy.rules.push_back(loom::RetentionRule{
         std::string(gfx::Drawn::zen_name), 1, true, false});
     history_policy.rules.push_back(loom::RetentionRule{

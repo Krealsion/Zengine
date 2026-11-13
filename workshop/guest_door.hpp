@@ -100,6 +100,7 @@ public:
 
     /// After every delivery, whatever it changed: what the crossing waits on claimed as the door's
     /// role (`settle_wait`); an ask held for the plan claims a time to look again too.
+    void after_delivery(loom::Mail& mail) { settle_wait(mail); }
 
     /// A presenter that just arrived asks; it is answered with the inventory as it stands.
     void on(const GuestConnectionsRequested&, loom::Mail& mail) {

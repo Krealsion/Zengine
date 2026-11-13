@@ -3,11 +3,9 @@
 
 // The liveness probes: what the substrate measurably does to a live Timer's time when the Timer
 // is swapped (A), reloaded (B), stimulated twice (C) or joined late (D) -- each keeping its
-// MEASURED half, which refusal and whose wake, beside the promise it witnesses: an activated Timer
-// incarnation keeps time by one claim of its role on the host's one wait, and nothing of its time
-// is in flight between its wakes (TIMER-01). Rewrite a probe to a new truth, never drop its
-// measurement. Every pump is the host's loop on a clock that moves only when told, so a lattice is
-// counted exactly and a loop that comes to rest with no wake IS a stopped-time observation.
+// MEASURED half, which refusal and whose wake, beside the promise of TIMER-01: one claim of time
+// an activated incarnation, nothing of it in flight between wakes. Rewrite a probe to a new truth,
+// never drop its measurement. Every pump is the host's loop on a clock that moves only when told.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).

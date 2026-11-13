@@ -45,7 +45,10 @@ host's Pane Manager retired, its subject rows committed through Info's door. `Se
 where it still has a consumer: the tab run's
 record (`Session::tab_click`, `doubles_a_tab_click`) keeps time as an argument, with the same
 interval and arming discipline, and that is WL-PTR-01 now. Flow's pane reads its own double
-clicks the same way (`flow_pane::doubles`), on an interval a case keeps equal to this one.
+clicks the same way (`flow_pane::doubles`), on an interval a case keeps equal to this one. The
+host no longer hands Workshop a reading at all: what Workshop still times -- Shift's taps, the
+desk reads' rate, how long a desk wait has waited -- it times by the time the host's one wait
+hands it (`loom.host.Waited`), as every source of that wait does, and a suite moves that clock.
 
 **Laws supported.** [WL-PTR-01](../../../agents/workshop/pointer.md) until input's double-click
 time; it stands on [the-double-click-time-is-inputs](../../../agents/decisions/the-double-click-time-is-inputs.md) now.

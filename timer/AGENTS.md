@@ -10,16 +10,13 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `vocabulary.hpp` | the messages, and the role `kTimerRole` (`zengine.timer`); installed |
 | `binding.hpp` | `TimedWeave`, `TimerBindings`, `TimerHandle`: a declared rhythm; installed |
 | `normalize.hpp` | `timer.normalize_delay`, the delay rule as an operator; `DelayAuthority` |
-| `timer_weave.hpp` | `TimerServiceT<Clock>`, the service over an injected clock |
-| `rest.hpp` | `Rest<Clock>`: the rest between turns a host takes while the Timer's beat is all its bus holds, read off `TimerRest`; installed |
-| `held_beat.hpp` | `HeldBeat`: a source's beat let go while a host's one wait (Loom's `loom::host::Reactor`) holds what it claims it waits on; installed |
-| `os_clock.hpp` | the OS clock and the nap the rest takes; on Windows the performance counter and a high-resolution waitable timer; installed |
-| `timer.cpp` | binds the OS clock; exports `TimerService` and the `zengine.timer` provider |
+| `timer_weave.hpp` | `TimerWeave`, the service: it claims its soonest time on the host's one wait and fires on the time it is handed |
+| `source_wait.hpp` | `SourceWait`: what a source claims of the host's one wait, with the time it must look by, and the time it was handed; installed |
+| `timer.cpp` | exports `TimerWeave` and the `zengine.timer` provider |
 | `CMakeLists.txt` | `zengine-timer-vocabulary` and the `zengine-timer` weave |
 | `docs/` | the pages below |
 
-`zengine-timer-vocabulary`: INTERFACE, alias `zengine::timer`. `zengine-timer-rest`: INTERFACE,
-alias `zengine::timer-rest`, the rest and the OS clock, linking `loom::switchboard`.
+`zengine-timer-vocabulary`: INTERFACE, alias `zengine::timer`.
 `zengine-timer`: the loadable weave, built only where the Loom exports `loom::kernel`; it links
 activation and operator.
 
@@ -31,12 +28,12 @@ routes; its compile walls are in `agents/verification/walls.md`, which the root 
 
 ## Suites
 
-- `audit_probes` — what the substrate does to a live beat chain when the Timer is swapped,
-  reloaded, driven twice or joined late (probes A-D); `tests/test_audit_probes.cpp`
-- `timer` — the contract by content-id, the role's manual, every schedule over a fake clock,
-  the activation law, the rest between turns over a host's clock, the shipped clock's grain and
-  what its nap asks of Windows, the real library on the real clock, load order, continuity over a
-  virtual clock;
+- `audit_probes` — what the substrate does to a live Timer's time when the Timer is swapped,
+  reloaded, stimulated twice or joined late (probes A-D); `tests/test_audit_probes.cpp`
+- `timer` — the contract by content-id, the role's manual, every schedule under the host's one
+  wait on a clock that moves only when told, the activation law, the claim and the wake, a gone
+  weave's timers, the host resting only with its bus empty, the real library through the real
+  kernel, load order, the window and input as sources of the wait, continuity;
   `tests/test_timer.cpp`, `tests/weavelib/timer_virtual.cpp`, `tests/weavelib/oneshot_probe.cpp`
 - `timer_activation_hook_compiles` — the control: a `TimedWeave` using `on_timed_activation`
   builds; `tests/compile_negative/activation_collision.cpp`, case 2
@@ -57,8 +54,9 @@ Outside CTest, the package witness builds `tests/package/oven.cpp` against `zeng
 ## Host side
 
 - Staging: `workshop/CMakeLists.txt` stages `zengine-timer` beside the host.
-- Resting: `workshop/workshop.cpp`, `app/main.cpp` and `examples/snake/play.cpp` turn the bus and
-  rest between turns through `timer/rest.hpp`; so does the package's `tests/package/kitchen_host.cpp`.
+- Waiting: `workshop/workshop.cpp`, `app/main.cpp` and `examples/snake/play.cpp` turn the bus and
+  rest in Loom's one wait, trusting the Timer's role; so does the package's
+  `tests/package/kitchen_host.cpp`.
 - Loading: `workshop/default-load-plan.json` loads `zengine-timer` as a provider and as the `zengine.timer` weave (`workshop/docs/load-plan.md`).
 - Grants: `workshop/workshop.cpp` grants the build runner `EnsureTimer` and `CancelTimer` to
   `kTimerRole`; `workshop/editor_switch.hpp` and `workshop/guest_door.hpp` are `TimedWeave`s.

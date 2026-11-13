@@ -129,16 +129,14 @@ kMaxNodesPerArea                graphics/vocabulary.hpp                   kMaxNo
 kMaxElementsPerArea             graphics/vocabulary.hpp                   kMaxElementsPerArea
 kMaxPathBytes                   graphics/vocabulary.hpp                   kMaxPathBytes
 kMaxPathDepth                   graphics/vocabulary.hpp                   kMaxPathDepth
-window::kPumpBeatMs             graphics/window/window.hpp                kPumpBeatMs
 
 # ---- the sanitizer lane's memory limits
 ZEN_SANITIZER_PEAK_GB           tests/sanitizer_lane.cmake                ZEN_SANITIZER_PEAK_GB
 ZEN_SANITIZER_BUILD_PEAK_GB     tests/sanitizer_lane.cmake                ZEN_SANITIZER_BUILD_PEAK_GB
 
 # ---- the Timer
-kPreparedClaimBeats             timer/vocabulary.hpp                      kPreparedClaimBeats
+kPreparedClaimWakes             timer/vocabulary.hpp                      kPreparedClaimWakes
 kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHandoffEntries
-kBeatCapMs                      timer/vocabulary.hpp                      kBeatCapMs
 
 # ---- theme: a theme's files and a stack
 # What one theme's files hold and what one resolution and one stack may spend: each file's entries,

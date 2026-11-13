@@ -214,9 +214,10 @@ headers install, which artifacts ride along) is owned by `cmake/ZengineInstall.c
 
 - Loom laws stop applying here — they all do, and substrate questions (bus semantics, grants,
   answer provenance) are answered by Loom's docs, not re-derived here.
-- `Switchboard` has a bounded drain — `drain_until_idle()` is unbounded by contract, and it
-  never returns on a process with the Timer service loaded (a live Timer seeds its next beat at
-  every beat). A host turns with `pump_pending()` and rests between turns (`timer/rest.hpp`).
+- `Switchboard` has a bounded drain — `drain_until_idle()` is unbounded by contract. A host
+  turns with `pump_pending()` and rests between turns in its one wait (Loom's
+  `loom::host::Reactor`), which hands the Timer and every source it trusts the time
+  (`timer/docs/timers.md`).
 - The delay a weaver authors is the delay that is scheduled — it is normalized
   (`timer.normalize_delay`, [agents/operators.md](agents/operators.md)), and in an
   operator-hosting process the rule is resolved through the HOST's catalog, not the Timer's

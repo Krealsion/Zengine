@@ -59,12 +59,12 @@ WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
 ## WL-NVIM-05 — Neovim is never waited on, and a Neovim that cannot serve is said in words
 
-LAW — No handler waits on Neovim: a question is answered on the beat that hears it, outstanding at its bound; a start answers later; a missing, too old, prompting or silent Neovim is said in its words.
+LAW — No handler waits on Neovim: a question is answered on the wake that hears it, outstanding at its bound; a start answers later; a missing, too old, prompting or silent Neovim is said in its words.
 
 MEANS
 - a bus ask the Editor answers from Neovim is answered when Neovim answers, and the bus delivers meanwhile;
 - a warm-up that never answers keeps the switch pending and cancellable; with no Neovim the pane says so, an open is refused in words, and the quit is permitted;
-- the beat is ordered in the Timer's own words, and a beat the Timer refuses is said on the pane.
+- the pane is a source of the host's one wait: it claims Neovim's pipes, and the time its next bound comes, and is woken then.
 
 DOES NOT MEAN
 - that a press or a cursor races its question: a press on the highlight reaches Neovim once it has said what it selected, a location's cursor once it has shown the file.
@@ -173,8 +173,8 @@ said, and a prompt refuses the switch until it is answered"
 
 ### WL-NVIM-05
 `editor/neovim/host.hpp` Host::ask_later Host::start
-`editor/neovim-editor/pane.cpp` ask ask_rpc hear when_ready ensure_running ensure_beat
-on(TimerResolution)
+`editor/neovim-editor/pane.cpp` ask ask_rpc hear when_ready ensure_running settle_wait
+on(Waited)
 `editor/neovim-editor/opening_switch.hpp` on(EditorWarmRequested) settle_warm
 `editor/neovim-editor/transfers.hpp` press_at settle_location
 `tests/test_workshop_neovim.cpp` "a Neovim that never answers a question holds no handler: the rest

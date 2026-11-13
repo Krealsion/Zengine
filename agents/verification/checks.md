@@ -112,11 +112,10 @@ stand in one generated unit per target, the one compile each tree pays.
 
 ## VM-CHECK-17 — A census pins what the tree holds, and a row marked to fall only falls
 
-METHOD — A number the tree must not grow unseen is a row of `tests/census.txt` -- a reach across the line between Workshop and Zengine, the doors one Accept list names, the hooks a host hands a weave, the lines of a class past a threshold -- red where tree and row differ either way; a row marked `falls` is held to its row at the change's base, raised there it is red, and so is a reach across the line the base does not hold.
+METHOD — A number the tree must not grow unseen is a `tests/census.txt` row, red where tree and row differ; a row marked `falls` is held to its row at the change's base, and raised there is red.
 BECAUSE — a gain held by hand is given back by the next change that does not look; pinned, it is a
-changed row in that change's diff, and a change that closes a reach or deletes a door lowers the
-row with it. The door count is the measure because doors, not a file's lines, are what grew a hub
-back after it was split; a class's lines only ask a question.
+changed row in that change's diff -- reaches across the Workshop line, a weave's doors, a host's
+hooks, a class's lines -- and doors, not lines, are what grew a hub back after it was split.
 
 ## Seen
 

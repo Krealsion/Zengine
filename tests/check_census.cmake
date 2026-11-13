@@ -1,11 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The `census` entry (VM-CHECK-17): every row of tests/census.txt held by the tree, in either
-# direction, and a row marked `falls` never raised against the base (ZEN_BASE, else the merge-base
-# with origin/main). Its rows are the line between Workshop and Zengine (agents/workshop-line.md),
-# and what a file grows: the doors a weave accepts, the hooks a host hands a weave, and the lines of
-# a class past a threshold (agents/verification/checks.md, VM-CHECK-17).
+# The `census` entry (VM-CHECK-17): every row of tests/census.txt held by the tree, either way,
+# and a row marked `falls` never raised against the base (ZEN_BASE, else the merge-base with
+# origin/main): the Workshop line (agents/workshop-line.md) and what a file grows.
 #   cmake -P tests/check_census.cmake                 (from the repository root, or -DZEN_REPO=<repo>)
 #   cmake -DZEN_CENSUS_WRITE=<file> -P tests/check_census.cmake   (the census as the tree stands)
 
@@ -91,14 +89,11 @@ function(zen_census_parse text prefix)
     set(${prefix}_PROBLEMS "${problems}" PARENT_SCOPE)
 endfunction()
 
-# What a file grows, read from its text with `//` comments stripped, as `<kind>|<name>|<count>`:
-# `doors`, the shapes of each `loom::Accept<...>` list, named by the nearest class, struct or alias
-# opening a line before it (an alias named `Accept`, `Accepts` or `type` is the list's, and names nothing),
-# a second list under one name in one file `<name>.2`, and so on; a list naming a pack (`A...`) is
-# the machinery that composes lists, and no weave's doors;
-# `hooks`, the `std::function` members of each struct or class standing at a line's
-# start, from `hooks_from` on; `lines`, the lines of each such class, from `lines_from` on, its head
-# to the first `};` that opens a line. An Accept list holding a `<` is not read, and said.
+# What a file grows, comments stripped, as `<kind>|<name>|<count>`: `doors`, each Accept list's
+# shapes under the nearest class, struct or alias before it (`<name>.2` for a second; a pack is no
+# weave's); `hooks`, a struct's `std::function` members, from `hooks_from` on; `lines`, a class's
+# lines, head to its first `};`, from `lines_from` on. A list holding a `<` is not read, and said.
+# The forms each reading takes are VM-CHECK-17's (agents/verification/checks.md).
 function(zen_census_counts text hooks_from lines_from out out_problems)
     string(REPLACE "\r" "" text "${text}")
     string(REGEX REPLACE "//[^\n]*" "" text "${text}")

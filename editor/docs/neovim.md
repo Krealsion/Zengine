@@ -278,6 +278,12 @@ The same `zengine-neovim-editor` artifact runs under `loom-host`, installed from
 (`lib/zengine/`). Neovim runs **headless and listening**, and you attach Neovim's own interface
 from a **second terminal**, so `loom-host` keeps its console.
 
+**Today the editor's asks wait there.** The editor reads Neovim's answers when the host's one wait
+says its pipes are ready or the time it claimed came, and `loom-host` waits on no role yet, so
+nothing wakes the editor under it: the steps below load and approve it, and its asks stay
+unanswered until `loom-host` can be told to wait on the editor's role. Workshop and `zengine-app`
+wait on it, and answer them.
+
 1. Name the Timer and the Neovim editor in your boot file, the Neovim editor in the Editor's role:
 
    ```json
@@ -293,22 +299,20 @@ from a **second terminal**, so `loom-host` keeps its console.
    weave build contract; `loom-host.exe` from a MinGW build finds its own with the toolchain's
    `bin` directory on `PATH`.
 2. Start `loom-host` in the directory your files are in. Both are refused until you approve them,
-   and the Neovim editor's beat needs the Timer to speak, so decide all of it at once:
+   so decide all of it at once:
 
    ```text
    loom> authority trust zengine-timer
    loom> authority trust zengine-neovim-editor
    loom> authority allow zengine-neovim-editor EnsureTimer v1 -> role zengine.timer
-   loom> authority allow zengine-timer Drive v2 -> role zengine.timer
    loom> authority allow zengine-timer TimerFired v1 -> any target
    loom> authority allow zengine-timer TimerResolution v1 -> any target
    loom> quit
    ```
 
-   Start `loom-host` again: `2 started -- boot COMPLETE`. The Timer settles its own beat when it
-   starts, which is why it starts again after the decisions rather than before them. The Neovim
-   editor answers each ask below on its beat, once Neovim has answered it, so without the Timer
-   Neovim still runs but no ask is answered.
+   Start `loom-host` again: `2 started -- boot COMPLETE`, after the decisions rather than before
+   them. The Neovim editor answers each ask below once Neovim has answered it, which it reads when
+   the host's wait wakes it -- so under `loom-host` today Neovim runs and no ask is answered.
 3. Find the Neovim editor's weave with `weaves` -- the one that accepts `NeovimStartRequested`
    (weave 6 with this boot file) -- and ask it to start Neovim on a file. The console asks for
    every field, so name `listen` too; empty chooses an address for you:

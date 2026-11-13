@@ -104,7 +104,6 @@ Dismissal v1 0x2ef46c30c9e25ec4
 DockPlace v1 0xf7c97a163eb541df
 Drawn v2 0x3107618795be3e11
 DrawnRefused v1 0x7475c98771250027
-Drive v2 0x694b4e43253f0ad4
 EditorAdoptRequested v1 0x1efd4eae17ab61eb
 EditorAdopted v1 0xa550901d6a48aadc
 EditorDocument v1 0x77f4c257bc0b8a56
@@ -605,8 +604,7 @@ TimerHandoff v1 0x975d9409baeb32e6
 TimerHandoffEntry v1 0x0dd1c73b59596c5f
 TimerReady v1 0xfd706b8cd362b054
 TimerResolution v1 0x15ac3e359e6be7cf
-TimerRest v1 0x5ca27effbb0ef6cd
-TimerState v3 0xf033d33722423255
+TimerState v4 0xcc2a2cd736b355f7
 TranscriptShown v2 0x88ee053776cd190a
 ViewAnswer v2 0xac2f57fb38c590c8
 ViewApply v1 0x5c8a6ecdfd45251e

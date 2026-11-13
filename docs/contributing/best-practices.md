@@ -407,8 +407,9 @@ Its law, pages and suites: [`ui/AGENTS.md`](../../ui/AGENTS.md).
 Its law, pages and suites: [`timer/AGENTS.md`](../../timer/AGENTS.md) and
 [`activation/AGENTS.md`](../../activation/AGENTS.md).
 
-- **A process with the Timer loaded is never idle**: its host loop turns with `pump_pending()`
-  and rests between turns as the Timer's beat allows (`timer/rest.hpp`); nothing sleeps in a handler.
+- **A host rests in its one wait**: its loop turns with `pump_pending()` and rests between turns
+  in Loom's `loom::host::Reactor`, which wakes the Timer and every source it trusts at their time
+  and hands them that time; nothing sleeps or reads a clock in a handler.
   [Do not assume](../../AGENTS.md#do-not-assume)
 - **Orders are placed again on `TimerReady`.**
   [The one rule](../../timer/docs/timers.md#the-one-rule-that-keeps-schedules-honest)

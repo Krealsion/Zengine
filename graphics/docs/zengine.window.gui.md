@@ -39,8 +39,8 @@ colour then ([colours by name](graphics.md#colours-by-name)).
 area's palette's `ground`, then the areas back to front, each clipped to its bounds -- and presents it; `more`
 holds it back. Uncovered or resized, it draws again.
 
-**Keys and the pointer.** It empties SDL's queue on its own beat, the Timer's
-`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, and sends what it read on in order.
+**Keys and the pointer.** It empties SDL's queue when the host's one wait wakes it, and sends
+what it read on in order ([`Waited`](#loomhostwaited)).
 A pointer moment lands as on a terminal ([`zengine.window.tui`](zengine.window.tui.md#about)),
 a node holding the pixels its primitives hold, within a pixel of a line.
 
@@ -55,7 +55,7 @@ window, incarnation, size or measure, or an empty area. To read what it shows, a
 
 A key, its text and its release go to each owner placed to hear that moment. An owner placed to
 hear the pointer is given each pointer moment in its area as it was, in the area's pixels
-(`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
+(`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one look go as one. A
 press holds its button for its area until its release, under one number; its arranger hears where it
 landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Every moment names its
 hand ([`AttributedInput`](#attributedinput)), a press its clicks
@@ -173,7 +173,7 @@ back.
 
 - **Takes:** nothing.
 - **Answers:** `ClipboardText` v1, to the asker alone: `readable` true and the clipboard's text,
-  read now and never on the beat, empty when it holds none; with no window to read for,
+  read now, empty when it holds none; with no window to read for,
   `readable` false, and the asker pastes what its own process last copied.
 - **Refuses:** nothing.
 - **Example:** a pane asks when a weaver pastes, and pastes the `text` answered.
@@ -185,17 +185,17 @@ judged against the displays there are now.
 
 - **Takes:** `x`, `y` and `maximized`, as `SurfacePlacement` said them.
 - **Answers:** nothing to the sender; the window moves there, whole on a display, and a maximize
-  lands on the beat after its next picture. Where it is after is the next `SurfacePlacement`, and a
+  lands at the look after its next picture. Where it is after is the next `SurfacePlacement`, and a
   size it changed is the next `WindowOffered`.
 - **Refuses:** nothing; with no display truth nothing moves.
 - **Example:** a host restoring a session offers the place the last `SurfacePlacement` said.
 
 ### `PumpSurface`
 
-`PumpSurface` v1 asks for the beat's work now.
+`PumpSurface` v1 asks for a look now, for a host that runs no wait.
 
 - **Takes:** nothing.
-- **Answers:** nothing; the window does what its beat does ([`TimerFired`](#timerfired)): it says
+- **Answers:** nothing; the window does what a wake does ([`Waited`](#loomhostwaited)): it says
   its place when it changed, measures the GUI window, empties SDL's queue and sends it on, and
   publishes a close its desktop asked for.
 - **Refuses:** nothing.
@@ -280,31 +280,13 @@ nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports
 `GraphicsReady` v1, from `zengine.graphics`, a directory started afresh: the window offers itself again
 (`WindowOffered`), and keeps its areas until the directory says otherwise.
 
-### `TimerFired`
-
-`TimerFired` v1, from `zengine.timer`, the Timer: the window's beat, `zengine.window.pump`. It says its place when
-it changed (`SurfacePlacement`), then measures the GUI window: at another size it draws its picture
-again and offers itself again (`WindowOffered`), the same incarnation.
-Then it empties SDL's queue, sends the keys, their releases, their text and the pointer on, and
-publishes a close its desktop asked for (`SurfaceCloseRequested`).
-
-### `TimerReady`
-
-`TimerReady` v1, from `zengine.timer`, the Timer: the service is there, first or again; the window orders its beat
-again.
-
-### `TimerResolution`
-
-`TimerResolution` v1, from `zengine.timer`, the Timer: what became of the window's order for its beat, kept by its
-timer binding.
-
 ### `loom.host.Waited`
 
-`loom.host.Waited` v1, from the host alone, about what the window claims it waits on after every
-delivery (`loom.host.WaitSet`): on Windows' own video driver the thread's messages, else nothing,
-and the beat stays. Held, the beat stops, running again only while a remembered maximize waits;
-let go, it runs; ready, the window does what its beat does at once. From any participant it is
-nothing.
+`loom.host.Waited` v2, from the host alone, with the time: what the window claims (on Windows'
+own video driver the thread's messages, and a time while SDL's queue or a maximize waits) is
+ready or due. It says its place when it changed, measures the window -- at another size it draws
+again and offers itself again (`WindowOffered`) -- empties SDL's queue and sends it on, and
+publishes a close asked for. From any participant it is nothing.
 
 ### `ClipboardCopy`
 
@@ -338,7 +320,7 @@ v1 when placed to hear the pointer; `AreaKeyPressed`, `AreaKeyReleased`, `AreaTe
 placed to hear each. To an arranger following an area not its own: `AreaPressed` v4,
 `AreaHoldEnded`, `AreaPointerLeft` v1; following one, `AreaSettled` v1; to any arranger,
 `AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,
-`SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
+`SurfaceCaptureChunk` v1 and `zen.Refused`. To the host's wait, its claim.
 
 ## Files
 

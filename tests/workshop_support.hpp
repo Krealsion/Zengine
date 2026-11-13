@@ -882,13 +882,11 @@ inline const Condition* condition_by_key(const std::vector<Condition>& all, cons
     return nullptr;
 }
 
-/// THE MONOTONIC READING A CASE OWNS -- what a rig wires into the windows that count the weaver's
-/// clicks, and what a rig keeping Workshop's own times runs its wait on (`HubTime`), so "how long
-/// ago was the last press" is a thing
-/// a case STATES rather than outruns. It advances on every reading, by default past the longest
-/// double-click time input takes, so every press a rig publishes is an ordinary press: two presses
-/// in a case are two deliberate aims. A case that wants a DOUBLE-click says so (`together`), and
-/// the pace is the only thing it has to say.
+/// THE MONOTONIC READING A CASE OWNS -- what the windows count the weaver's clicks by, and what
+/// a rig keeping Workshop's own times runs its wait on (`HubTime`), so "how long ago was the last
+/// press" is a thing a case STATES. It advances on every reading, by default past the longest
+/// double-click time input takes, so two presses in a case are two deliberate aims; a case that
+/// wants a DOUBLE-click says so (`together`), and the pace is the only thing it has to say.
 struct InteractionClock {
     std::int64_t now = 0;
     std::int64_t step = input::kMostDoubleClickMs + 1;

@@ -47,7 +47,7 @@ app made in Workshop runs in on its own, its console deciding what runs.
 
 | front page | what it owns |
 |---|---|
-| [timer/](../timer/README.md) | the clock, the only sleep, one beat chain per activation; the Timer laws |
+| [timer/](../timer/README.md) | timers, fired at the time the host's one wait hands over; the Timer laws |
 | [input/](../input/README.md) | the sole producer of key, text and pointer moments |
 | [graphics/](../graphics/README.md) | drawing into a window: nodes, elements, colours by name, the two windows and their palettes |
 | [ui/](../ui/README.md) | authored placement and extent, resolved against a viewport |

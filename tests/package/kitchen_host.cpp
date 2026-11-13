@@ -240,22 +240,26 @@ int main(int argc, char** argv) {
     if (!waiter->served) {
         return 1;
     }
-    // THE RECURRING-WORK WITNESS. Two facts, and neither is worth anything without the
-    // other: the host got control back many times over, AND the service that made that
-    // interesting is still going. A run where the chain had died would satisfy the first
-    // alone, and would prove only that a quiet bus can be pumped.
+    // THE HOST'S REST, WITNESSED. Two facts, and neither is worth anything without the other:
+    // the host got control back more than once -- it rested in its wait until the bake was due --
+    // AND, what the serving turn set off delivered, the bus is empty: the Timer keeps its time by
+    // its claim on the wait, and nothing is queued to keep it.
     std::printf("kitchen: the host loop kept control for %d turn(s)\n", laps);
     if (laps < 2) {
         std::printf("kitchen: THE HOST LOOP NEVER REALLY LOOPED\n");
         return 1;
     }
-    if (bus.pending() == 0) {
-        std::printf("kitchen: THE BUS WENT IDLE -- the Timer chain is not alive, so this run "
-                    "proves nothing about servicing a live one\n");
+    for (int turn = 0; turn < 64 && bus.pending() != 0; ++turn) {
+        bus.pump_pending();
+        (void)wait.after_turn(0);
+    }
+    if (bus.pending() != 0) {
+        std::printf("kitchen: THE BUS IS STILL BUSY (%zu queued) -- something keeps time on it\n",
+                    bus.pending());
         return 1;
     }
-    std::printf("kitchen: the bus is still busy (%zu queued) -- quiescence was never coming, "
-                "and the host never asked for it\n", bus.pending());
+    std::printf("kitchen: the bus is empty -- the Timer keeps time by its claim, and the host "
+                "rests in its wait\n");
     // AN ORDINARY SUCCESS LOOKS LIKE ONE. Not a preference about volume: every refusal
     // this run could produce would be a real one, so a single line here means either the
     // program is broken or the runtime is presenting a non-event as a failure. It was the

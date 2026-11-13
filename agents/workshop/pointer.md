@@ -12,7 +12,7 @@ LAW — A double-click is the window's count, which a reader reads: `doubles_a_t
 MEANS
 - the window counts each hand's presses by input's `input.double-click-ms`, said in `PointerTimingSaid`; two hands' presses never make one;
 - Flow reads the same count (`flow_pane::doubles`); Double Shift is keys, timed by that same said time (WL-KEY-19);
-- `HostContext::interaction_now` is the host's steady reading for what it still times: Shift's taps, the desk reads' rate.
+- what Workshop still times -- Shift's taps, the desk reads' rate -- it times by the time the host's one wait hands it (`loom.host.Waited`), and reads no clock.
 
 DOES NOT MEAN
 - that the time is a constant of Workshop's: it is input's role-wide setting, 200 to 2000 ms.
@@ -50,10 +50,10 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 ## Proven by
 
 ### WL-PTR-01
-`workshop/interaction_time.hpp` interaction_now_ms
 `workshop/screen.hpp` TabClickMemory Session::tab_click
 `workshop/screen_arrange.cpp` doubles_a_tab_click
-`workshop/weave.hpp` HostContext::interaction_now
+`workshop/weave.hpp` on(Waited)
+`workshop/weave_run.cpp` on(Waited)
 `graphics/window/clicks.hpp` clicks_of ClickCounter
 `flow/flow-pane/gesture.hpp` doubles
 `tests/test_workshop_screen.cpp` "what makes two presses on a tab one double-click, and what does

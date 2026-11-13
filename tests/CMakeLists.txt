@@ -371,7 +371,7 @@ zengine_test_definitions(zengine-tests
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-tui>\""
     # The world's beat, over virtual time: a pace is a claim about durations.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
-    # The host's source, for the tripwire that no privileged wind returns: a root Drive is
+    # The host's source, for the tripwire that it winds nothing and waits on the Timer's role: it
     # inert, so only reading the file can catch one (VM-WALL-11).
     "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/examples/snake/play.cpp\""
     # The world's source, for the binding tripwire: hand-written ceremony and the binding behave
