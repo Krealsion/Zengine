@@ -119,13 +119,13 @@ Red in `zengine-workshop-panes-tests`:
 
 ## search-ignores-the-role
 
-Loaded's search reads the weaves' names alone, never their roles.
+Loaded's search reads the weaves' names alone, never `roles_text`.
 
 In `introspection/loaded.hpp`:
 
 ```diff
 -    return lower(w.name).find(needle) != std::string::npos ||
--           lower(w.role).find(needle) != std::string::npos;
+-           lower(roles_text(w)).find(needle) != std::string::npos;
 +    return lower(w.name).find(needle) != std::string::npos;
 ```
 
