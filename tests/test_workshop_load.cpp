@@ -4657,6 +4657,83 @@ TEST_CASE("a waiting row STOPS the walk; the rows behind it are not touched") {
     CHECK_FALSE(rig.answers.awaiting());
 }
 
+TEST_CASE("the owner claims where the plan is as its role, and a reader reads it only by its grant") {
+    // WHAT THE DESK, THE DOORS AND THE GUEST DOOR READ, at its source: the owner in its role,
+    // claiming after the walk stops at a waiting row. Read here as a host reads it (ungated), then
+    // as two participants read it, one granted observing it and one not.
+    PendingRig rig;
+    const auto read_where = [&rig] {
+        return rig.bus.observe_role(zengine::builder::kRealizationRole, load::PlanWhere::zen_name,
+                                    load::PlanWhere::zen_version);
+    };
+    const load::Mounted mounted = load::mount(
+        rig.bus, answer_grant(rig.manager), rig.catalog, rig.operators, rig.manager,
+        [](const std::string& stem) { return stage().so(stem); }, load::Owner::Settled(),
+        [](const std::string& stem) { return stem == std::string(kUnbuilt); });
+    // NOTHING IS CLAIMED BEFORE THE PLAN BEGINS: no reading of a plan nobody began.
+    CHECK_FALSE(read_where());
+
+    mounted.owner().begin(plan_of({provides("zengine-operators-basic"), weaves(kUnbuilt, "zen.oven"),
+                                   weaves("zengine-plain-weave", "zen.plain")}));
+    rig.drain(32);
+    const loom::SenseReading read = read_where();
+    REQUIRE(read);
+    CHECK(read.by.author == mounted.id());
+    const load::PlanWhere where = loom::from_value<load::PlanWhere>(*read.value);
+    CHECK(where.state == load::kPlanWaiting);
+    CHECK(where.waiting_on == kUnbuilt);
+    CHECK(where.behind == 1);
+    // BOTH ROLES ARE STILL TO COME: the waiting row's and the one behind it.
+    CHECK(where.to_come == std::vector<std::string>{"zen.oven", "zen.plain"});
+    CHECK(where.unavailable.empty());
+    CHECK(where.gave_way.empty());
+
+    // A READER IS ITS GRANT: the one granted observing reads the claim; the one not granted is
+    // refused before the lookup, and learns nothing of whether a claim exists.
+    loom::Grant observe;
+    observe.allow_observe(load::PlanWhere::zen_name, load::PlanWhere::zen_version);
+    const loom::WeaveId granted = rig.bus.register_weave(std::make_unique<RealizedEars>(),
+                                                         std::move(observe));
+    const loom::WeaveId plain = rig.bus.register_weave(std::make_unique<RealizedEars>(),
+                                                       loom::Grant{});
+    const loom::SenseReading as_granted = rig.bus.observe_role_as(
+        granted, zengine::builder::kRealizationRole, load::PlanWhere::zen_name,
+        load::PlanWhere::zen_version);
+    REQUIRE(as_granted);
+    CHECK(loom::from_value<load::PlanWhere>(*as_granted.value).waiting_on == kUnbuilt);
+    CHECK(rig.bus
+              .observe_role_as(plain, zengine::builder::kRealizationRole,
+                               load::PlanWhere::zen_name, load::PlanWhere::zen_version)
+              .refusal == loom::SenseRefusal::NotAuthorized);
+}
+
+TEST_CASE("a plan at rest is claimed complete, with nothing to come and the choices it authors") {
+    PlanRig rig;
+    load::LoadPlan plan = plan_of({weaves("zengine-plain-weave", "test.plain")});
+    plan.choices.push_back(load::ChoiceIntent{"test.plain", "plain", "zengine-plain-weave"});
+    plan.choices.push_back(load::ChoiceIntent{"test.plain", "other", "zengine-provider-min"});
+    REQUIRE(rig.realize(std::move(plan)).ok);
+    const loom::SenseReading where = rig.bus.observe_role(
+        zengine::builder::kRealizationRole, load::PlanWhere::zen_name, load::PlanWhere::zen_version);
+    REQUIRE(where);
+    const load::PlanWhere said = loom::from_value<load::PlanWhere>(*where.value);
+    CHECK(said.state == load::kPlanComplete);
+    CHECK(said.waiting_on.empty());
+    CHECK(said.to_come.empty());
+    const loom::SenseReading held = rig.bus.observe_role(
+        zengine::builder::kRealizationRole, load::ChoicesHeld::zen_name,
+        load::ChoicesHeld::zen_version);
+    REQUIRE(held);
+    const load::ChoicesHeld choices = loom::from_value<load::ChoicesHeld>(*held.value);
+    REQUIRE(choices.choices.size() == 2);
+    // THE CHOICE THAT HOLDS ITS ROLE IS THE ONE THE PLAN LOADED; the other runs nothing, and a
+    // switch to it would load the plan's own file.
+    CHECK(choices.choices[0].name == "plain");
+    CHECK(choices.choices[0].holds);
+    CHECK_FALSE(choices.choices[1].holds);
+    CHECK(choices.choices[1].image == stage().so("zengine-provider-min"));
+}
+
 TEST_CASE("NO LATER PROVIDER MOUNTS while an earlier row is waiting") {
     // THE PROVIDER HALF OF THE SAME LAW, and it is worth its own case because a mount
     // is SYNCHRONOUS: nothing has to be delivered for it to happen, so a walk that
