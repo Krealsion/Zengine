@@ -474,11 +474,11 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         w.open(standard_and_neovim(), nve::kNeovimEditorStem);
         // THE ROOM IS ASKED ONCE, on the holder's activation, as the role.
         CHECK(directory.times(area, role) == 1);
-        // A NOTICE THE PANE SAYS, as a refused beat makes one: each reason a change of its rows.
-        const auto refuse_beat = [&w](const std::string& why) {
-            (void)w.r.bus.send(w.holder(), loom::Message(loom::to_value(zengine::timer::TimerResolution{
-                                                             "zengine.neovim-editor.beat",
-                                                             zengine::timer::kResolutionRefused, why}),
+        // A NOTICE THE PANE SAYS, as a start its profile refuses makes one: each profile naming no
+        // file a change of its rows, and the same one again no change.
+        const auto refuse_start = [&w](const std::string& profile) {
+            set_env("ZENGINE_NEOVIM_PROFILE", profile);
+            (void)w.r.bus.send(w.holder(), loom::Message(loom::to_value(nve::NeovimStartRequested{}),
                                                          loom::WeaveId{}, loom::WeaveId{}, 0));
             w.r.bus.drain_until_idle();
         };
@@ -499,20 +499,20 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         CHECK(w.read("running") == "false");
 
         // A CHANGE IS DRAWN AS WHAT CHANGED.
-        refuse_beat("first");
+        refuse_start("first");
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK_FALSE(seen.heard.back().whole);
-        CHECK(window.rows(area)[0].find("(first)") != std::string::npos);
+        CHECK(window.rows(area)[0].find("`first`") != std::string::npos);
 
         // A REFUSED CHANGE IS FOLLOWED AT ONCE BY THE WHOLE...
         seen.refuse_next = true;
         mark = seen.heard.size();
-        refuse_beat("second");
+        refuse_start("second");
         REQUIRE(seen.heard.size() == mark + 2);
         CHECK_FALSE(seen.heard[mark].whole);
         CHECK(seen.heard[mark + 1].whole);
         CHECK(seen.refusals.size() == 1);
-        CHECK(window.rows(area)[0].find("(second)") != std::string::npos);
+        CHECK(window.rows(area)[0].find("`second`") != std::string::npos);
 
         // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
         seen.refuse_next = true;
@@ -521,13 +521,13 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK(seen.heard[mark].whole);
         CHECK(seen.refusals.size() == 2);
-        refuse_beat("second"); // said again: the rows do not change
+        refuse_start("second"); // said again: the rows do not change
         CHECK(seen.heard.size() == mark + 1);
-        refuse_beat("third");
+        refuse_start("third");
         REQUIRE(seen.heard.size() == mark + 2);
         CHECK(seen.heard.back().whole);
         CHECK(seen.refusals.size() == 2);
-        CHECK(window.rows(area)[0].find("(third)") != std::string::npos);
+        CHECK(window.rows(area)[0].find("`third`") != std::string::npos);
         CHECK(seen.strangers == 0);
     }
     SwitchRig s("nvim-names");
