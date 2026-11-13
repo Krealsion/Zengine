@@ -435,6 +435,18 @@ inline PreferredExtent fit_extent(const RuntimePane* pane, const StackCapacity& 
     return offered_extent(fit_offer(*pane, room), room);
 }
 
+/// EACH SETUP ROW'S PANE, resolved once, in setup order: the orders below find a pane's row by
+/// its resolution, and resolving the rows again for every pane makes an order cubic in the desk.
+inline std::vector<std::optional<std::int64_t>> resolved_rows(const Setup& setup,
+                                                              const Panes& panes) {
+    std::vector<std::optional<std::int64_t>> out;
+    out.reserve(setup.panes.size());
+    for (const SetupPane& row : setup.panes) {
+        out.push_back(resolve_pane(row.ref, panes));
+    }
+    return out;
+}
+
 /// WHICH AUTHORED REFERENCES THIS BUILD PRESENTS, and how many it cannot -- resolution alone,
 /// changing nothing. Every resolved reference is seated: the stack is not rationed, since its
 /// column begins again at its top when a pane would pass its floor (`bounds_of`).
@@ -476,11 +488,12 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
     std::vector<Ranked> ranked;
     ranked.reserve(panes.open.size());
     std::vector<std::int64_t> unranked;
+    const std::vector<std::optional<std::int64_t>> rows = resolved_rows(setup, panes);
     for (const OpenPane& p : panes.open) {
         bool found = false;
-        for (const SetupPane& row : setup.panes) {
-            const std::optional<std::int64_t> kind = resolve_pane(row.ref, panes);
-            if (kind.has_value() && *kind == p.kind) {
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].has_value() && *rows[i] == p.kind) {
+                const SetupPane& row = setup.panes[i];
                 ranked.push_back(Ranked{row.front, p.kind, row.dock != pane_dock::kNone});
                 found = true;
                 break;
@@ -531,11 +544,11 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
         break;
     }
     // ...AND AN OPEN DOCK STAYS OVER THE ROOM, whatever the room's selection lifted.
+    const std::vector<std::optional<std::int64_t>> rows = resolved_rows(setup, panes);
     std::stable_partition(order.begin(), order.end(), [&](std::int64_t kind) {
-        for (const SetupPane& row : setup.panes) {
-            const std::optional<std::int64_t> named = resolve_pane(row.ref, panes);
-            if (named.has_value() && *named == kind) {
-                return row.dock == pane_dock::kNone;
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].has_value() && *rows[i] == kind) {
+                return setup.panes[i].dock == pane_dock::kNone;
             }
         }
         return true;
