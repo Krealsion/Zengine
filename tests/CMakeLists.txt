@@ -951,8 +951,8 @@ zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphi
 # One entry per subject (VM-POP-11), an entry holding several sources where one object cannot
 # (VM-POP-12), and tests/workshop_support.hpp what several need (VM-POP-13). They prove Workshop in
 # a window, its desk read there (rig_windows.hpp). A case that loads a product loads the library a
-# weaver runs. Only `workshop_load` loads the real Timer: in a rig that drains to idle its beat
-# never returns.
+# weaver runs. Only `workshop_load` loads the real Timer: a rig that drains to idle runs no wait,
+# and nothing else hands a Timer the time.
 set(ZENGINE_WORKSHOP_LIBS
     zengine-workshop-rig-windows
     loom::kernel loom::switchboard loom::core loom::terminal loom::host-policy

@@ -783,7 +783,7 @@ public:
     }
 
     /// What a host's wait waits on for this window: the thread's messages where SDL's window is
-    /// this thread's own; where it is not, nothing it can name, and the window keeps its beat.
+    /// this thread's own; where it is not, nothing it can name, and the window polls on its time.
     std::optional<loom::host::WaitSet> wait_set() const {
         if constexpr (requires { backend_.waits_on_messages(); }) {
             if (backend_.waits_on_messages()) {

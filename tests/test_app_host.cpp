@@ -5,8 +5,8 @@
 // plan row waiting on the console until decided in Loom's `authority` grammar, a provider among
 // them; the panel drawn in the window the app's weave arranges, typed into and pressed there, its
 // flow answering; the window's close ending the run, no other role's. The suites' pixel window
-// (`window_backends.hpp`) stands for the plan's window row and the suite turns its beat for the
-// Timer, so the plan here is the probe's without those two rows.
+// (`window_backends.hpp`) stands for the plan's window row and the suite asks it to look
+// (`PumpSurface`), so the plan here is the probe's without its window and Timer rows.
 
 #include "doctest.h"
 
@@ -17,7 +17,6 @@
 #include "window_backends.hpp"
 
 #include "operator/primitives.hpp"
-#include "timer/vocabulary.hpp"
 
 #include <zen/content_id.hpp>
 #include <zen/host/authority.hpp>
@@ -599,10 +598,9 @@ TEST_CASE("the app's window tells the app's weave and its views nothing they do 
     REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
     std::vector<std::string> refused;
     const loom::ObserverId tap = run.bus.add_observer([&](const loom::BusEvent& ev) {
-        // The suite loads no Timer and no input role, so the window's ask for its beat and for
-        // the double-click time find no taker there.
+        // The suite loads no input role, so the window's ask for the double-click time finds no
+        // taker there.
         if (ev.kind == loom::EventKind::Refused && run.window.valid() && ev.sender == run.window &&
-            ev.addressed_role != zengine::timer::kTimerRole &&
             ev.addressed_role != zengine::input::kInputRole)
             refused.push_back(ev.addressed_role + " " + ev.schema_name);
     });

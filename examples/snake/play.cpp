@@ -23,7 +23,6 @@
 #include "graphics/themes.hpp" // generated: the shipped themes, as palettes
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "timer/vocabulary.hpp"
 
 #include <zen/host/reactor.hpp>
 #include "timer/vocabulary.hpp"
