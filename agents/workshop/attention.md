@@ -147,7 +147,7 @@ ranked by truth, and says how many it is not saying"
 `workshop/screen_compose.cpp` paint
 `workshop/screen_attention.cpp` attention_conditions
 `workshop/attention.hpp` HeldConditions
-`workshop/weave.hpp` HostContext::frontier
+`realization/owner.hpp` Owner::where_claimed
 `workshop/weave_run.cpp` frontier_now
 `pane/drawing.hpp` WindowDrawing
 `graphics/vocabulary.hpp` DrawnRefused

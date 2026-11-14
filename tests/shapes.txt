@@ -67,6 +67,8 @@ CaptureContext v1 0x251e344e208da1c8
 CaptureRequest v1 0xa4b51a4d6a996fac
 CarriedInputSession v1 0x75b7c5ff213fc089
 CheckboxFace v2 0xca5bafaa89609908
+ChoiceHeld v1 0x4405e76e50daffd6
+ChoicesHeld v1 0xdc5bd29f444ae635
 ClipboardCopy v1 0x8337bbbb720ac461
 ClipboardText v1 0x3eafa2dd0dbf73ac
 ClipboardTextRequested v1 0x9d7f1ee84c7858bf
@@ -442,6 +444,8 @@ PlanNames v1 0x1ddfffbffb2b5ae8
 PlanNamesRequested v1 0xa9378174047506d0
 PlanRowRequested v1 0xe5d37bbb8ab79820
 PlanRowWritten v1 0x6ac55bca11649b23
+PlanState v1 0x4e2bc5149a3ea730
+PlanWhere v1 0xd137493c13dc8a65
 PointerButton v1 0xbe960269f29b99bd
 PointerMotionRequested v1 0x3c1db413720af1e1
 PointerMoved v1 0xa35d16a49acba4d8

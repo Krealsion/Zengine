@@ -37,7 +37,7 @@ inline constexpr const char* kNotAConsumerToken = "not-a-consumer";
 inline constexpr const char* kVersionMismatchToken = "version-mismatch";
 inline constexpr const char* kNotOpenedToken = "not-opened";
 
-/// `ArtifactParticipation::state`'s tokens: `load::RowState`, in words. A string, so the states
+/// `ArtifactParticipation::state`'s tokens: `realization::RowState`, in words. A string, so the states
 /// can grow without a new version. `pending` is reached and waiting on the weaver, nothing mounted:
 /// a barrier, so at most one row is pending and every row after it is `authored`.
 inline constexpr const char* kAuthoredToken = "authored";

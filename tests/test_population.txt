@@ -22,7 +22,7 @@ ui                                doctest           always  30
 component                         doctest           always  69
 editor                            doctest           always  20
 bus_tally                         doctest           always  2
-# Tripwires in this suite read workshop/workshop.cpp, workshop/load_execute.hpp,
+# Tripwires in this suite read workshop/workshop.cpp, realization/owner.hpp,
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
 # text (VM-WALL-11).
 operator                          doctest           always  142

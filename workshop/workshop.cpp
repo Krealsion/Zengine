@@ -11,8 +11,8 @@
 #include "host_sources.hpp"
 #include "powers_door.hpp"
 #include "sample_door.hpp"
-#include "load_execute.hpp"
-#include "load_persist.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_persist.hpp"
 #include "log_selection.hpp"
 #include "persist/path_admission.hpp"
 #include "recipe_persist.hpp"
@@ -23,7 +23,7 @@
 #include "view/host.hpp"
 #include "weave.hpp"
 #include <zen/host/grant_wiring.hpp>
-#include "bus_tally.hpp"      // where the bus spends its time, off its own stamps
+#include "tally/bus_tally.hpp"      // where the bus spends its time, off its own stamps
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
 #include "opening.hpp"        // the opening manager this host mounts
 #include "editor_switch.hpp"  // the editor switch this host mounts
@@ -96,6 +96,7 @@ namespace manual = zengine::manual;
 namespace op = zengine::op;
 namespace gfx = zengine::graphics;
 namespace timer = zengine::timer;
+namespace realization = zengine::realization;
 
 /// Mount an in-process weave into a role with the grant the host chose: `mount_granted` plus
 /// the role binding, so a grant can name whoever holds the role rather than a WeaveId.
@@ -447,13 +448,13 @@ int main(int argc, char** argv) {
     host.transition_note = transition;
 
     // The plan in force: `--load-plan`, else the project plan, else the shipped default -- one
-    // rule, `load_persist::plan_in_force`, handed the same probe as the recipes' twin rule.
+    // rule, `realization::load_persist::plan_in_force`, handed the same probe as the recipes' twin rule.
     const auto present = [](const std::string& path) {
         std::error_code ec;
         return std::filesystem::exists(std::filesystem::path(path), ec) && !ec;
     };
     const std::string plan_path =
-        load_persist::plan_in_force(args.load_plan, host.project_dir, host.dir, present);
+        realization::load_persist::plan_in_force(args.load_plan, host.project_dir, host.dir, present);
 
     // The honest line: this host isolates no library. (`--isolated` is about the weaver's files.)
     // A module is held in its box, and its own `loaded:` line says so.
@@ -502,11 +503,11 @@ int main(int argc, char** argv) {
         std::fflush(stdout);
         return 3;
     };
-    if (const std::string retired = load_persist::retired_plan(args.load_plan, present);
+    if (const std::string retired = realization::load_persist::retired_plan(args.load_plan, present);
         !retired.empty()) {
         return refuse_plan(retired);
     }
-    const load_persist::LoadedPlan read_plan = load_persist::load_file(plan_path);
+    const realization::load_persist::LoadedPlan read_plan = realization::load_persist::load_file(plan_path);
     if (!read_plan.outcome.accepted) {
         return refuse_plan(read_plan.outcome.refusal);
     }
@@ -516,11 +517,11 @@ int main(int argc, char** argv) {
     // ...AND THE WINDOW THIS LAUNCH OPENS: the plan's windows tried in order, or, with `--tui`, its
     // TUI window alone. Only the plan confers participation, so a plan offering no TUI
     // window is refused here, with its fix, before anything is mounted.
-    load::LoadPlan launched = read_plan.plan;
+    realization::LoadPlan launched = read_plan.plan;
     if (args.tui) {
         const std::string terminal =
             std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
-        if (const Written taken = load::take_role(launched, terminal); !taken.accepted) {
+        if (const Written taken = realization::take_role(launched, terminal); !taken.accepted) {
             return refuse_plan("--tui opens the TUI window, and " + plan_path +
                                " offers none (" + taken.refusal +
                                "): add zengine-window-tui under its window row's "
@@ -580,8 +581,8 @@ int main(int argc, char** argv) {
     LastWords last_words;
 
     loom::Switchboard bus;
-    // Where the bus spends its time, from its first delivery (workshop/bus_tally.hpp).
-    zengine::workshop::BusTally tally(bus);
+    // Where the bus spends its time, from its first delivery (tally/bus_tally.hpp).
+    zengine::tally::BusTally tally(bus);
 
     // ---- What this host remembers ---------------------------------------------------------------
     // First, before the Kernel and any weave, so the first record is the first fact. The recorder
@@ -640,9 +641,10 @@ int main(int argc, char** argv) {
 
     // ---- Where this process's semantic powers come from -----------------------------------------
     // Providers supply them; this host owns only which contribution is in force, and names no
-    // artifact, rule or mount order -- the plan does, and `load_execute.hpp` performs it. The
-    // catalog is a local of `main`, never a singleton, declared before the Kernel so the Kernel and
-    // its artifacts are destroyed first; the plan executor, declared after, must not outlive them.
+    // artifact, rule or mount order -- the plan does, and the realization owner performs it
+    // (`realization/owner.hpp`). The catalog is a local of `main`, never a singleton, declared
+    // before the Kernel so the Kernel and its artifacts are destroyed first; the owner's handle,
+    // declared after, takes it off the bus before them.
     host.request_stop = [&bus] { bus.stop(); };
 
     op::Catalog operators;
@@ -725,7 +727,7 @@ int main(int argc, char** argv) {
                               builder::RecipeCatalog::zen_version);
     // `OfferArtifact`, an offer and not an order: at its widest it realizes the one artifact
     // realization is stopped at; every rule and refusal is the owner's, and its path is ignored.
-    // The one dangerous grant is still `zen.LoadWeave -> manager`, held by the plan booter.
+    // The one dangerous grant is still `zen.LoadWeave -> manager`, held by the realization owner.
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
     // ...and its answer to "what did operation #n say": one bounded page, reaching no runner, file
@@ -943,9 +945,9 @@ int main(int argc, char** argv) {
     }
 
     // ---- The plan, performed --------------------------------------------------------------------
-    // The plan booter's reach -- the Manager, target-scoped -- is the dangerous grant in this
-    // process, and the host writes it: an executor that granted itself would be orchestration
-    // minting kernel reach. Mounted by hand, because the owner wires the participant, not its id.
+    // The realization owner's reach -- the Manager, target-scoped -- is the dangerous grant in
+    // this process, and the host writes it: an owner that granted itself would be orchestration
+    // minting kernel reach.
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     // ...and the Manager's other lifecycle op on the same terms: a reload in place, so a weaver
@@ -963,25 +965,19 @@ int main(int argc, char** argv) {
     // any, never a third rule to the Manager.
     operate.allow_to_any(manual::ShapeDocumentShown::zen_name,
                          manual::ShapeDocumentShown::zen_version);
-    load::BootAnswers answers;
-    auto speaker = std::make_unique<load::PlanBooter>(answers);
-    load::PlanBooter& voice = *speaker;
-    // In the realization owner's role, so its words can be followed by name (builder/vocabulary.hpp).
-    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate),
-                                                    builder::kRealizationRole);
-    voice.zen_set_self(booter);
 
     // ---- What realizes the project --------------------------------------------------------------
-    // Declared after the Kernel, the other half of the catalog's lifetime claim: it holds provider
-    // identities and an operator handoff across turns, so it must not outlive the artifacts, and
-    // it is a local rather than a weave. The host hands it the one stem-to-file rule, and keeps
-    // its own failure policy (the lambda).
+    // One participant in its role, `zengine.realization`, so its words can be followed by name
+    // (builder/vocabulary.hpp). Its handle is declared after the Kernel, the other half of the
+    // catalog's lifetime claim: the owner holds provider identities and an operator handoff across
+    // turns, so the handle takes it off the bus before the artifacts go. The host hands it the one
+    // stem-to-file rule, and keeps its own failure policy (the lambda).
     bool project_refused = false;
     staging::Host staging_host{host.dir, &current_recipes, &HostContext::so_in, 0};
-    load::PlanExecutor executor(
-        bus, operators, operator_host, voice, manager, answers,
+    const realization::Mounted mounted = realization::mount(
+        bus, std::move(operate), operators, operator_host, manager,
         [&host](const std::string& stem) { return host.so(stem); },
-        [&host, &operators, &project_refused, &last_words, &kernel](const load::Executed& done) {
+        [&host, &operators, &project_refused, &last_words, &kernel](const realization::Executed& done) {
             // Said artifact by artifact, in order: resolved truth, never written back to the plan.
             // Said when realization settles, after the medium has taken the terminal: a medium
             // that holds it would have these lines scrolled into its picture, so they are said
@@ -989,7 +985,7 @@ int main(int argc, char** argv) {
             // the terminal, last, once the medium has given it back. The Project pane shows the
             // arrangement either way.
             const bool held =
-                load::medium_holds_terminal(done, gfx::window::native_terminal_size().measured());
+                realization::medium_holds_terminal(done, gfx::window::native_terminal_size().measured());
             const bool refused = !done.refusal.empty();
             const bool say = !held || refused;
             std::string said;
@@ -998,7 +994,7 @@ int main(int argc, char** argv) {
             };
             // What a row could not load and gave way from stands too, for the run (the desk said
             // it once as it came up): the GUI window that could not open here, and why.
-            for (const load::PassedOver& gone : done.passed_over) {
+            for (const realization::PassedOver& gone : done.passed_over) {
                 if (say) {
                     line(gone.sentence());
                 }
@@ -1015,8 +1011,8 @@ int main(int argc, char** argv) {
             if (say) {
                 // Each weave with what the kernel holds it to: a library as the line above says, a
                 // module in its box.
-                for (const load::ResolvedArtifact& row : done.resolved) {
-                    line("loaded: " + load::loaded_words(row, kernel.containment(row.stem)));
+                for (const realization::ResolvedArtifact& row : done.resolved) {
+                    line("loaded: " + realization::loaded_words(row, kernel.containment(row.stem)));
                 }
             }
             // And where this run stopped, named: one row, never a count.
@@ -1094,53 +1090,17 @@ int main(int argc, char** argv) {
             std::error_code ec;
             return std::filesystem::exists(std::filesystem::path(host.so(stem)), ec) && !ec;
         });
-    // ...and what a row could not load and gave way from, said once on the desk.
-    host.passed_over = [&executor] {
-        std::vector<std::string> said;
-        for (const load::PassedOver& gone : executor.passed_over()) {
-            said.push_back(gone.sentence());
-        }
-        return said;
-    };
-
-    // ---- What the project is waiting on, answered alive -----------------------------------------
-    // The owner derives, the host wires, the weave spends: read at each ask, never copied. A
-    // reading, not a power.
-    host.frontier = [&executor] {
-        ProjectFrontier now;
-        now.artifact = executor.waiting_on();
-        now.waiting = !now.artifact.empty();
-        now.blocked = executor.behind();
-        return now;
-    };
-
-    // ---- ...and where it is, told to the guest door: a guest admitted while rows are still to come
-    // asks it, so a shape not declared yet is not taken for one this run will never know.
-    if (guest_door != nullptr) {
-        guest_door->reads_plan([&executor] {
-            // The owner's own outcome: complete, waiting on a named row, refused, or none yet.
-            const load::Executed now = executor.outcome();
-            GuestPlanSaid said;
-            said.state = now.ok                    ? kPlanComplete
-                         : !now.waiting_on.empty() ? kPlanWaiting
-                         : !now.refusal.empty()    ? kPlanRefused
-                                                   : kPlanLoading;
-            said.at_rest = said.state != kPlanLoading;
-            said.waiting_on = now.waiting_on;
-            said.unavailable = now.unavailable_stems;
-            return said;
-        });
-    }
+    realization::Owner& owner = mounted.owner();
+    // What the owner knows -- where the plan is, what it waits on, the rows that gave way, the
+    // roles still to come and which choice holds each switchable role -- it claims as its role:
+    // the desk, the guest door, the project door, the layouts' owner and the editor switch read
+    // it by their grants, never through the host.
 
     // ---- What stands behind a role's running code --------------------------------------------
     // Three owners read at the ask (`provenance.hpp`): the bus, the realization owner and the
     // catalog in force. It opens nothing, and chooses nothing when several recipes answer.
-    host.code_source = [&bus, &executor, &current_recipes](const std::string& role) {
-        return provenance::code_source_of(role, bus, executor, current_recipes);
-    };
-    // ...and whether a role is still to come: pending in the inventory, never unavailable.
-    host.role_pending = [&executor](std::string_view role) {
-        return executor.role_pending(role);
+    host.code_source = [&bus, &owner, &current_recipes](const std::string& role) {
+        return provenance::code_source_of(role, bus, owner, current_recipes);
     };
 
     // ---- The two authored files gain a writer: the weaver's own act -----------------------------
@@ -1153,8 +1113,8 @@ int main(int argc, char** argv) {
     };
     authoring::PlanAuthor plan_author{
         host.project_dir.empty() ? std::string()
-                                 : host.project_dir + "/" + load_persist::kProjectLoadPlanName,
-        read_plan.plan, &executor, &staging_host};
+                                 : host.project_dir + "/" + realization::load_persist::kProjectLoadPlanName,
+        read_plan.plan, &owner, &staging_host};
     host.append_plan_row = [&plan_author](const std::string& stem, const std::string& role,
                                           const std::string& recipe) {
         return authoring::append_plan_row(plan_author, stem, role, recipe);
@@ -1175,7 +1135,7 @@ int main(int argc, char** argv) {
     say_resolved.allow_to_any(manual::ShapeDocumentShown::zen_name,
                               manual::ShapeDocumentShown::zen_version);
     mount_in_role<ArrangementDoor>(
-        bus, std::move(say_resolved), kArrangementRole, executor, plan_path,
+        bus, std::move(say_resolved), kArrangementRole, owner, plan_path,
         [&bus](std::string_view role, const loom::Schema& shape) {
             return holder_accepts_on(bus, role, shape);
         });
@@ -1203,8 +1163,9 @@ int main(int argc, char** argv) {
 
     // ---- ...and the project door the pane weaves ask (workshop/pane_doors.hpp) -----------------
     // One role: its readings derive at the ask, and each act spends a closure already wired
-    // (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02). It captures `host.frontier`, `host.plan_names`,
-    // `host.recipe_source` and the acts' closures by value, so it is mounted after they are wired.
+    // (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02). It captures `host.plan_names`, `host.recipe_source`
+    // and the acts' closures by value, so it is mounted after they are wired; what realization
+    // waits on it reads from the owner's claim.
     loom::Grant say_project;
     say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
     say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
@@ -1214,26 +1175,25 @@ int main(int argc, char** argv) {
     say_project.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
     say_project.allow_to_any(manual::ShapeDocumentShown::zen_name,
                              manual::ShapeDocumentShown::zen_version);
+    say_project.allow_observe(realization::PlanWhere::zen_name, realization::PlanWhere::zen_version);
     mount_in_role<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
-                                 marks_path, host.frontier, host.plan_names, host.recipe_source,
+                                 marks_path, host.plan_names, host.recipe_source,
                                  host.use_recipes, host.author_recipe, host.append_plan_row);
 
     // ---- The editor switch (WL-SWITCH-03, WL-SWITCH-07) -----------------------------------------
     // One native coordinator in its own role, switching the managed pane's role between the
-    // choices the plan authors. Handed the bus, the Kernel, the role and four readings of the
-    // realization owner, it names no artifact; its grant is its conversation.
+    // choices the plan authors. Handed the bus, the Kernel, the role and the realization owner's
+    // record of where the role went, it reads the authored choices from the owner's claim and
+    // names no artifact; its grant is its conversation.
     {
         EditorSwitchHost switch_host;
         switch_host.bus = &bus;
         switch_host.kernel = &kernel;
         switch_host.role = kEditorRole;
-        switch_host.choices = [&executor] { return executor.plan().choices; };
-        switch_host.holder = [&executor] { return executor.choice_holder(kEditorRole); };
-        switch_host.image_of = [&executor](const std::string& stem) { return executor.image_of(stem); };
-        switch_host.record = [&executor](const std::string& stem, loom::WeaveId weave,
-                                         const std::string& image) {
-            const load::PlanExecutor::Recorded done =
-                executor.record_choice_holder(kEditorRole, stem, weave, image);
+        switch_host.record = [&owner](const std::string& stem, loom::WeaveId weave,
+                                      const std::string& image) {
+            const realization::Owner::Recorded done =
+                owner.record_choice_holder(kEditorRole, stem, weave, image);
             return done.accepted ? std::string() : done.refusal;
         };
         auto switcher = std::make_unique<EditorSwitchCoordinator>(std::move(switch_host));
@@ -1255,7 +1215,7 @@ int main(int argc, char** argv) {
     // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable role starts on the
     // authored choice that held it at quit, while the plan still authors it; the project's plan
     // file is never changed, and a run with no session file reads none.
-    load::LoadPlan begun = launched;
+    realization::LoadPlan begun = launched;
     if (!host.session_path.empty()) {
         const session_persist::LoadedSession last =
             session_persist::load_file(host.session_path, host.conversions);
@@ -1263,22 +1223,13 @@ int main(int argc, char** argv) {
         for (const session_persist::WorkshopChoice& c : last.choices) {
             remembered.emplace_back(c.role, c.choice);
         }
-        for (const auto& [role, name] : load::remember_choices(begun, remembered)) {
+        for (const auto& [role, name] : realization::remember_choices(begun, remembered)) {
             host.choice_note += (host.choice_note.empty() ? "" : "; ") +
                                 std::string("your last choice `") + name + "` for " + role +
                                 " is not one this plan authors, so its own loaded";
         }
     }
-    host.chosen = [&executor] {
-        std::vector<session_persist::WorkshopChoice> out;
-        for (const load::ChoiceIntent& c : executor.plan().choices) {
-            if (executor.choice_holder(c.role) == c.stem) {
-                out.push_back(session_persist::WorkshopChoice{c.role, c.name});
-            }
-        }
-        return out;
-    };
-    executor.begin(std::move(begun));
+    owner.begin(std::move(begun));
 
     // The loop: a turn, then one wait on every source the plan's roles and the guest door say
     // they wait on and the times they are due, the Timer's among them -- only looking while the bus
@@ -1287,7 +1238,7 @@ int main(int argc, char** argv) {
     // leave. A native owner's showing runs inside the host's boundary (workshop/host_pump.hpp), so
     // a throw there is Loom's Failed, told here in the owner's words.
     loom::host::Reactor wait(bus);
-    for (const std::string& role : load::plan_roles(executor.plan())) {
+    for (const std::string& role : realization::plan_roles(owner.plan())) {
         wait.trust(role);
     }
     if (guest_door != nullptr) {

@@ -23,7 +23,7 @@ plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts i
   listing), who asks the system whether the process still runs; nothing in the host reads it.
 - The Kernel asks the store at `Open`, and the plan's executor asks the same policy before each
   row, a provider's row included: a row with no standing decision, or whose file is not the build
-  decided, waits (`PlanExecutor`'s barrier), and nothing of it is opened or mounted. After each
+  decided, waits (the realization owner's barrier), and nothing of it is opened or mounted. After each
   console line the waiting row is asked again and realized on a yes.
 - A plan row, loaded from the file the plan names, speaks with the plan's posture, as Workshop's
   rows do, and says so at the start; anything else loaded gets the store's baseline and speaks only

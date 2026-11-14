@@ -145,7 +145,7 @@ WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 ### WL-CODE-01
 `workshop/provenance.hpp` code_source_of
 `workshop/weave.hpp` HostContext::CodeSource HostContext::code_source
-`workshop/load_execute.hpp` reload_refusal ResolvedArtifact
+`realization/owner.hpp` reload_refusal ResolvedArtifact
 `workshop/workshop.cpp` code_source
 `tests/test_workshop_panes_code.cpp` "the code behind a role is found by the weave holding it,
 never by a plan row's authored role"

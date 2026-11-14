@@ -10,7 +10,7 @@
 // nothing chosen. Host-side, because it reads the realization owner's rows.
 // Workshop law: agents/workshop/code.md
 
-#include "load_execute.hpp"
+#include "realization/owner.hpp"
 #include "recipes.hpp"
 #include "weave.hpp"
 
@@ -28,7 +28,7 @@ namespace zengine::workshop::provenance {
 /// completed recipe catalog.
 // WL-CODE-01 -- agents/workshop/code.md
 inline HostContext::CodeSource code_source_of(const std::string& role, loom::WeaveId holder,
-                                              const std::vector<load::ResolvedArtifact>& rows,
+                                              const std::vector<realization::ResolvedArtifact>& rows,
                                               const std::vector<builder::Recipe>& recipes) {
     HostContext::CodeSource out;
     out.role = role;
@@ -36,8 +36,8 @@ inline HostContext::CodeSource code_source_of(const std::string& role, loom::Wea
         return out;
     }
     out.weave = static_cast<std::int64_t>(holder.value);
-    const load::ResolvedArtifact* realized = nullptr;
-    for (const load::ResolvedArtifact& row : rows) {
+    const realization::ResolvedArtifact* realized = nullptr;
+    for (const realization::ResolvedArtifact& row : rows) {
         if (row.weave_loaded && row.weave == holder) {
             realized = &row;
             break;
@@ -47,7 +47,7 @@ inline HostContext::CodeSource code_source_of(const std::string& role, loom::Wea
         return out;
     }
     out.artifact = realized->stem;
-    out.reload = load::reload_refusal(*realized);
+    out.reload = realization::reload_refusal(*realized);
     for (const builder::Recipe& recipe : recipes) {
         if (!builder::makes_product(recipe, out.artifact)) {
             continue;
@@ -94,7 +94,7 @@ inline HostContext::RecipeSource recipe_source_of(const std::vector<builder::Rec
 // WL-CODE-01 -- agents/workshop/code.md
 inline HostContext::CodeSource code_source_of(const std::string& role,
                                               const loom::Switchboard& bus,
-                                              const load::PlanExecutor& realization,
+                                              const realization::Owner& realization,
                                               const CurrentRecipes& recipes) {
     return code_source_of(role, bus.role_holder(role), realization.resolved(), recipes.all());
 }

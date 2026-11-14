@@ -260,7 +260,9 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
     // settled, nothing offers the pane YET, and "not available -- build it, or relaunch" would be
     // a verdict the run has not reached. The launch is still refused (a launch loads nothing),
     // in words that say so.
-    const bool pending = host_->role_pending && host_->role_pending(ref.provider);
+    const bool pending = realization::to_come(
+        realization::latest<realization::PlanWhere>(mail).value_or(realization::PlanWhere{}),
+        ref.provider);
     const auto not_yet = [&ref](const std::string& who) {
         return who + " is not here yet -- this run is still loading `" + ref.provider +
                "`; launch it again once it has arrived";
@@ -909,7 +911,7 @@ bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref) cons
 // ---- The one inventory, said out loud ------------------------------------------------------
 
 // WL-DESK-04 -- agents/workshop/desktop.md
-PaneInventory WorkshopWeave::inventory_reading() const {
+PaneInventory WorkshopWeave::inventory_reading(const realization::PlanWhere& plan) const {
     PaneInventory said;
     for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         InventoryPane p;
@@ -927,7 +929,7 @@ PaneInventory WorkshopWeave::inventory_reading() const {
         p.available = row.kind != kNoPaneKind && provider_present(row.kind, row.ref);
         // ...AND WHETHER THE RUN STILL OWES IT, asked of the realization owner now. Absent and
         // still to come is not absent and settled: only the second is something to build.
-        p.pending = !p.available && host_->role_pending && host_->role_pending(p.role);
+        p.pending = !p.available && realization::to_come(plan, p.role);
         said.panes.push_back(std::move(p));
     }
     return said;
@@ -941,12 +943,15 @@ void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
     // THE READING NOW, TO THE ONE WHO ASKED -- the incarnation that just arrived, and no other
     // (Loom ANS-03). The publication's record of its own last utterance is not touched: other
     // presenters have heard what they heard, and the next change is said to all of them.
-    (void)mail.answer(inventory_reading());
+    (void)mail.answer(
+        inventory_reading(realization::latest<realization::PlanWhere>(mail).value_or(
+            realization::PlanWhere{})));
 }
 
 // WL-DESK-04 -- agents/workshop/desktop.md
 void WorkshopWeave::publish_inventory(loom::Mail& mail) {
-    PaneInventory said = inventory_reading();
+    PaneInventory said = inventory_reading(
+        realization::latest<realization::PlanWhere>(mail).value_or(realization::PlanWhere{}));
     // COMPARED BEFORE IT IS PUBLISHED, for `StandingConditions`' reason: a presenter told the same
     // thing twice repaints for nothing, and the inventory is derived at every gesture. A
     // presenter that has just arrived has heard nothing, so an offer clears the record.

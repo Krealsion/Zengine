@@ -26,7 +26,7 @@
 
 #include <zen/host/reactor.hpp>
 #include "timer/vocabulary.hpp"
-#include "workshop/bus_tally.hpp"
+#include "tally/bus_tally.hpp"
 
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/control.hpp>
@@ -544,7 +544,7 @@ int main(int argc, char** argv) {
     std::printf("zengine-snake - containment: %s\n", loom::Kernel::containment_note());
     std::fflush(stdout);
 
-    // Where the bus spent its time (workshop/bus_tally.hpp), said once the weaves are gone and the
+    // Where the bus spent its time (tally/bus_tally.hpp), said once the weaves are gone and the
     // window has given the terminal back: declared before the bus, so it speaks after it.
     struct SaidLast {
         std::vector<std::string> lines;
@@ -557,7 +557,7 @@ int main(int argc, char** argv) {
     } said_last;
 
     loom::Switchboard bus;
-    zengine::workshop::BusTally tally(bus);
+    zengine::tally::BusTally tally(bus);
     // The demo loads exactly the artifacts its own build just produced, so it says so rather than
     // relying on a default the Loom no longer has.
     loom::Kernel kernel(

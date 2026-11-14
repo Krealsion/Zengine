@@ -6,7 +6,7 @@
 
 // The app host (app/docs/app.md): what `zengine-app` composes over one bus, and nothing a weave
 // could hold: one operator catalog, the Kernel asking Loom's authority store in the app's folder,
-// Loom's warden adopting each load, the weaver seat, the plan's booter and executor (its barrier
+// Loom's warden adopting each load, the weaver seat, the plan's realization owner (its barrier
 // asking the store before each row), the Flow host and the view host, the place door, the close,
 // and the console's words a line at a time, so a program and a suite drive it alike.
 
@@ -19,8 +19,8 @@
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
 #include "view/host.hpp"
-#include "workshop/load_execute.hpp"
-#include "workshop/load_persist.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_persist.hpp"
 
 #include <zen/content_id.hpp>
 #include <zen/host/authority.hpp>
@@ -50,9 +50,6 @@
 #include <vector>
 
 namespace zengine::app {
-
-namespace load = zengine::workshop::load;
-namespace load_persist = zengine::workshop::load_persist;
 
 /// The most turns of the bus the seat gives the warden to answer one question.
 inline constexpr int kSeatTurns = 64;
@@ -228,7 +225,7 @@ public:
     /// store that cannot be read, or one another host holds.
     bool open(std::string* why) {
         const std::string plan_path = place_.folder + "/" + kPlanName;
-        const load_persist::LoadedPlan loaded = load_persist::load_file(plan_path);
+        const realization::load_persist::LoadedPlan loaded = realization::load_persist::load_file(plan_path);
         if (!loaded.outcome.accepted) {
             *why = "the plan " + plan_path + " is refused: " + loaded.outcome.refusal;
             return false;
@@ -276,7 +273,7 @@ public:
                 "it runs, may say anything to anyone (the plan's posture), and anything else "
                 "loaded only what the console allows\n";
         out_.flush();
-        executor_->begin(plan_);
+        owner_->owner().begin(plan_);
         say_notes();
     }
 
@@ -321,8 +318,8 @@ public:
     /// The process's exit: 0 for a run its console or its window ended, 4 for a refused plan.
     int exit_code() const noexcept { return exit_code_; }
 
-    /// What realization has made of the plan now.
-    const load::PlanExecutor& executor() const { return *executor_; }
+    /// The realization owner this host mounted: what it has made of the plan now.
+    const realization::Owner& owner() const { return owner_->owner(); }
     const op::Catalog& operators() const noexcept { return operators_; }
     const loom::host::AuthorityStore& store() const noexcept { return store_; }
     /// The view host this app runs its views in.
@@ -369,21 +366,15 @@ private:
         const loom::WeaveId control = loom::mount_control(*kernel_, bus_, std::move(adoption));
         manager_ = loom::mount_manager(control, bus_);
 
-        // The plan booter's reach, the Manager target-scoped, is the dangerous grant here, and the
-        // host writes it: a load and nothing else.
+        // The realization owner, in its role: its reach, the Manager target-scoped, is the
+        // dangerous grant here, and the host writes it: a load and nothing else.
         loom::Grant operate;
         operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager_);
-        auto booter = std::make_unique<load::PlanBooter>(answers_);
-        booter_ = booter.get();
-        const loom::WeaveId booter_id = bus_.register_weave(
-            std::move(booter), std::move(operate), zengine::builder::kRealizationRole);
-        booter_->zen_set_self(booter_id);
-
-        executor_ = std::make_unique<load::PlanExecutor>(
-            bus_, operators_, operator_host_, *booter_, manager_, answers_,
+        owner_ = std::make_unique<realization::Mounted>(realization::mount(
+            bus_, std::move(operate), operators_, operator_host_, manager_,
             [this](const std::string& stem) { return path_of(stem); },
-            [this](const load::Executed& done) { settled(done); },
-            [this](const std::string& stem) { return !decided(stem); });
+            [this](const realization::Executed& done) { settled(done); },
+            [this](const std::string& stem) { return !decided(stem); }));
 
         // The place door, and the close, which hears only the app's own window.
         loom::Grant say_place;
@@ -419,7 +410,7 @@ private:
     }
 
     bool plan_row(const loom::AdmissionRequest& request) const {
-        for (const load::ArtifactIntent& row : plan_.artifacts) {
+        for (const realization::ArtifactIntent& row : plan_.artifacts) {
             if (row.stem == request.name && request.path == path_of(row.stem)) {
                 return true;
             }
@@ -440,7 +431,7 @@ private:
         request.kind = loom::AdmissionKind::Load;
         request.name = stem;
         request.path = path_of(stem);
-        for (const load::ArtifactIntent& row : plan_.artifacts) {
+        for (const realization::ArtifactIntent& row : plan_.artifacts) {
             if (row.stem == stem && row.weave.has_value() && !row.weave->role.empty()) {
                 request.roles = {row.weave->role};
             }
@@ -455,17 +446,17 @@ private:
     /// row still refused is said again when the refusal changed: a decision the console made that
     /// the file cannot meet is not a silent wait.
     void resume() {
-        if (ended_ || executor_->state() != load::Realization::Waiting) {
+        if (ended_ || owner_->owner().state() != realization::Realization::Waiting) {
             return;
         }
-        const std::string stem = executor_->waiting_on();
+        const std::string stem = owner_->owner().waiting_on();
         if (!decided(stem)) {
             if (stem + "\n" + refusal_ != said_waiting_) {
                 waiting(stem);
             }
             return;
         }
-        const load::PlanExecutor::Asked asked = executor_->realize(stem);
+        const realization::Owner::Asked asked = owner_->owner().realize(stem);
         if (!asked.started) {
             out_ << "zengine-app - '" << stem << "' did not start: " << asked.refusal << "\n";
             out_.flush();
@@ -474,7 +465,7 @@ private:
     }
 
     /// Realization came to rest: waiting on the console, every row running, or refused.
-    void settled(const load::Executed& done) {
+    void settled(const realization::Executed& done) {
         // A row the console said yes to is said before where the walk went on to.
         report_realization(/*then_waiting=*/false);
         say_notes();
@@ -511,7 +502,7 @@ private:
     };
     std::vector<Standing> standings() const {
         std::vector<Standing> out;
-        for (const load::ArtifactIntent& row : plan_.artifacts) {
+        for (const realization::ArtifactIntent& row : plan_.artifacts) {
             Standing s{row.stem, loom::file_content_id_or_empty(path_of(row.stem))};
             const loom::host::AuthorityRule* rule = store_.find(row.stem);
             s.denied = rule != nullptr && !rule->may_run;
@@ -620,15 +611,15 @@ private:
     }
 
     void status() {
-        for (const load::ArtifactIntent& row : plan_.artifacts) {
+        for (const realization::ArtifactIntent& row : plan_.artifacts) {
             std::string now;
-            switch (executor_->state_of(row.stem)) {
-            case load::RowState::Resolved: now = "running"; break;
-            case load::RowState::Pending: now = "waiting on this console"; break;
-            case load::RowState::Loading: now = "loading"; break;
-            case load::RowState::Refused: now = "refused: " + executor_->reason_of(row.stem); break;
-            case load::RowState::Unavailable:
-                now = "unavailable: " + executor_->reason_of(row.stem);
+            switch (owner_->owner().state_of(row.stem)) {
+            case realization::RowState::Resolved: now = "running"; break;
+            case realization::RowState::Pending: now = "waiting on this console"; break;
+            case realization::RowState::Loading: now = "loading"; break;
+            case realization::RowState::Refused: now = "refused: " + owner_->owner().reason_of(row.stem); break;
+            case realization::RowState::Unavailable:
+                now = "unavailable: " + owner_->owner().reason_of(row.stem);
                 break;
             default: now = "not reached"; break;
             }
@@ -639,7 +630,7 @@ private:
     /// What became of the row the console last said yes to, said once: running, or why not, and
     /// then, if asked, the row the plan waits on again.
     void report_realization(bool then_waiting) {
-        const load::PlanExecutor::Realized r = executor_->take_realization();
+        const realization::Owner::Realized r = owner_->owner().take_realization();
         if (!r.settled) {
             return;
         }
@@ -647,8 +638,8 @@ private:
             out_ << "zengine-app - running: " << r.stem << " (" << r.detail << ")\n";
         } else {
             out_ << "zengine-app - " << r.detail << "\n";
-            if (then_waiting && executor_->state() == load::Realization::Waiting) {
-                waiting(executor_->waiting_on());
+            if (then_waiting && owner_->owner().state() == realization::Realization::Waiting) {
+                waiting(owner_->owner().waiting_on());
             }
         }
         out_.flush();
@@ -673,11 +664,11 @@ private:
     }
 
     // Declared in the order they must be destroyed last-first: the decisions outlive the Kernel
-    // that asks them, the catalog outlives the Kernel and the executor, and the hosts go first.
+    // that asks them, the catalog outlives the Kernel and the realization owner, and the hosts go first.
     loom::Switchboard& bus_;
     AppPlace place_;
     std::ostream& out_;
-    load::LoadPlan plan_;
+    realization::LoadPlan plan_;
     std::string store_path_;
     loom::host::StoreLock lock_;
     SessionFile session_; ///< removed before the lock is let go
@@ -689,9 +680,8 @@ private:
     loom::host::HostWarden* warden_ = nullptr;
     std::unique_ptr<SeatDesk> desk_;
     loom::WeaveId manager_{};
-    load::BootAnswers answers_;
-    load::PlanBooter* booter_ = nullptr;
-    std::unique_ptr<load::PlanExecutor> executor_;
+    /// Declared after the Kernel: the handle takes the owner off the bus before the Kernel goes.
+    std::unique_ptr<realization::Mounted> owner_;
     std::unique_ptr<zengine::flow_host::RuntimeHost> flow_;
     std::unique_ptr<zengine::view::Host> views_;
     std::size_t notes_said_ = 0;

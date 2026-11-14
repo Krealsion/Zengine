@@ -12,9 +12,9 @@ executed in the order it is written.
 > this role*. This file is explicit precisely so that choice is visible, reviewable and
 > diffable. It is not harmless configuration, and nothing signs, verifies or restricts it.
 
-Read beside [`workshop/load_plan.hpp`](../load_plan.hpp) (the typed plan and its
-law), [`workshop/load_persist.hpp`](../load_persist.hpp) (the one codec) and
-[`workshop/load_execute.hpp`](../load_execute.hpp) (the executor). What a provider
+Read beside [`realization/load_plan.hpp`](../../realization/load_plan.hpp) (the typed plan and its
+law), [`realization/load_persist.hpp`](../../realization/load_persist.hpp) (the one codec) and
+[`realization/owner.hpp`](../../realization/owner.hpp) (the realization owner). What a provider
 IS and what an operator host IS are [operator/docs/operator-providers.md](../../operator/docs/operator-providers.md) and
 [operator/docs/operator-host.md](../../operator/docs/operator-host.md).
 
@@ -251,12 +251,12 @@ zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
 
 ### Realizing the waiting row, later
 
-`PlanExecutor::realize(stem)` performs **the row realization is waiting on**, with the same
+`Owner::realize(stem)` performs **the row realization is waiting on**, with the same
 three steps in the same order, at a moment a weaver chose. In Workshop that is
 <!-- key builder.frontier -->`f`<!-- /key --> in the Builder pane
 ([the frontier](../../builder/docs/zengine.builder-pane.md#builderfrontier)), or
 <!-- key builder.build -->`b`<!-- /key --> with *load after build* armed; the offer reaches
-[the realization owner](zengine.realization.md#offerartifact) as `builder::OfferArtifact` and its
+[the realization owner](../../realization/docs/zengine.realization.md#offerartifact) as `builder::OfferArtifact` and its
 answer comes back as `builder::ArtifactRealized`. When the row settles, the frontier moves on by
 one and the walk resumes from exactly the next authored row.
 

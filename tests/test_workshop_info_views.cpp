@@ -2111,7 +2111,7 @@ TEST_CASE("info views: a reload in place keeps each view's draft, link and selec
 }
 
 namespace {
-/// THE KERNEL'S TWO DOORS BESIDE A REALIZED PLAN. The rig's `Booter` publishes the plan booter's
+/// THE KERNEL'S TWO DOORS BESIDE A REALIZED PLAN. The rig's `Booter` publishes the realization owner's
 /// state shape again, which a realized plan refuses; this seat's state is its own.
 struct FreshSeatState { std::int64_t n = 0; ZEN_SHAPE(FreshSeatState, 1, ZEN_FIELD(n)); };
 class FreshSeat : public loom::WeaveBase<FreshSeat, FreshSeatState,

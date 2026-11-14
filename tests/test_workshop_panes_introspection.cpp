@@ -2589,14 +2589,14 @@ TEST_CASE("the Builder pane this host used to compile is named by no presentatio
 
 TEST_CASE("the presentation holds no realization or build-runner reach") {
     // THE PRESENTATION IS AWARE OF REALIZATION AND NOT IN CHARGE OF IT: the weave holds one
-    // host-wired READING (`HostContext::frontier`), and the one route from a gesture to a realized
+    // READING (the realization owner's claim, `PlanWhere`), and the one route from a gesture to a realized
     // artifact is `BuildRequested` to the Builder role. The forbidden identifiers -- the owner's
     // type, its file, the offer only the TOOL may make, the runner's order and role -- would put
     // a presentation one edit from building on its own authority; the population is the
     // presentation's sources, walked (`presentation_sources`).
     for (const std::string& path : presentation_sources()) {
         const std::string source = file_source(path.c_str());
-        for (const char* forbidden : {"PlanExecutor", "load_execute", "OfferArtifact",
+        for (const char* forbidden : {"realization/owner.hpp", "realization::Owner", "OfferArtifact",
                                       "RunBuild", "kBuildRunnerRole"}) {
             CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
                           forbidden, "'");
@@ -2612,7 +2612,7 @@ TEST_CASE("the host mounts a door and injects no host-owned object into an artif
     // window in which a pane might first be granted room.
     const std::size_t door = host.find("mount_in_role<ArrangementDoor>");
     const std::size_t finder = host.find("mount_in_role<PowersDoor>");
-    const std::size_t begin = host.find("executor.begin(std::move(begun))");
+    const std::size_t begin = host.find("owner.begin(std::move(begun))");
     REQUIRE(door != std::string::npos);
     REQUIRE(finder != std::string::npos);
     REQUIRE(begin != std::string::npos);
@@ -2620,7 +2620,7 @@ TEST_CASE("the host mounts a door and injects no host-owned object into an artif
     CHECK(finder < begin);
     // ...AND THE HOST DOES NOT BLOCK UNTIL THE PROJECT IS REALIZED: nothing waits for every row to
     // settle.
-    CHECK(host.find("executor.run(") == std::string::npos);
+    CHECK(host.find("owner.run(") == std::string::npos);
 
     // ...AND EACH GRANT IS ITS OWN ANSWERS AND NOTHING ELSE.
     CHECK(host.find("say_resolved.allow_to_any(ResolvedArrangement::zen_name") !=

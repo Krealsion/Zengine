@@ -86,7 +86,7 @@ catalog, which is installed, and the shipped file keeps its bytes"
 `workshop/weave.hpp` HostContext::PlanAppend HostContext::append_plan_row HostContext::plan_names
 `workshop/authoring.hpp` PlanAuthor plan_names append_plan_row
 `workshop/staging.hpp` product_of
-`workshop/load_persist.hpp` kProjectLoadPlanName plan_in_force
+`realization/load_persist.hpp` kProjectLoadPlanName plan_in_force
 `workshop/workshop.cpp` plan_path
 `tests/test_workshop_panes_builder.cpp` "a weaver's authored override for a retired Workshop id
 keeps working" "`o` asks for a role in the pane's own room, and authors it" "Escape abandons the
@@ -104,7 +104,7 @@ behind another frontier and absent when nothing is built"
 --load-plan is given"
 
 ### WL-AUTH-03
-`workshop/load_execute.hpp` PlanExecutor::append PlanExecutor::Appended
+`realization/owner.hpp` Owner::append Owner::Appended
 `workshop/weave.hpp` HostContext::PlanAppend
 `workshop/authoring.hpp` append_plan_row
 `tests/test_workshop_load.cpp` "`append` in Complete performs the new row by the ordinary three

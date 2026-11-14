@@ -785,7 +785,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   `const` references into `main`: `ArrangementDoor` (`workshop/arrangement.hpp`, role
   `zengine.arrangement`) over the realization owner, and `PowersDoor`
   (`workshop/powers_door.hpp`, role `zengine.powers`) over the catalog; the loaded tool ASKS
-  and gets a value back. No `Catalog*`, `PlanExecutor*` or container crosses into a dynamic
+  and gets a value back. No `Catalog*`, `Owner*` or container crosses into a dynamic
   artifact, `ZenHostApi` did not widen, and there is no second injected capability. It is the
   same seam `zen.ListLoaded` already spends, pointed at more facts.
 - **THE ANSWER IS LOOM'S OWN, so the asker checks `mail.answers_ask()`** rather than a

@@ -151,13 +151,17 @@ TEST_CASE("an old object document is left exactly as it is: a launch names it on
 TEST_CASE("what the plan could not load and gave way from is said on the desk as it comes up, and "
           "nothing is said of it where every row loaded its own") {
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#passed-over-unsaid): the startup notes
-    // leaving out `HostContext::passed_over` -- the desk comes up in the TUI window and never
-    // says the GUI window could not open.
+    // leaving out what the realization owner claims gave way -- the desk comes up in the TUI
+    // window and never says the GUI window could not open.
     const std::string said = "`zengine-window-sdl` did not load, so `zengine-window-tui` "
                              "stands in its row -- it would not start here: zengine-window-sdl: "
                              "SDL_Init(SDL_INIT_VIDEO) failed: No available video device";
     Live t;
-    t.host.passed_over = [&said] { return std::vector<std::string>{said}; };
+    // WHAT GAVE WAY, as the realization owner claims it, by a stand-in in its role.
+    const RealizationClaims owner(t.bus);
+    zengine::realization::PlanWhere where;
+    where.gave_way = {said};
+    owner.where(where);
     // ...AND IT STANDS FOR THE RUN, as the host keeps it (`gave_way`), so a sentence said
     // after the note leaves it where a weaver reads it.
     t.host.standing_conditions.push_back(
@@ -170,7 +174,8 @@ TEST_CASE("what the plan could not load and gave way from is said on the desk as
           "zengine-window-sdl did not load; zengine-window-tui stands in its row");
 
     Live quiet;
-    quiet.host.passed_over = [] { return std::vector<std::string>{}; };
+    const RealizationClaims quiet_owner(quiet.bus);
+    quiet_owner.where(zengine::realization::PlanWhere{});
     quiet.ready();
     CHECK(quiet.notice().find("did not load") == std::string::npos);
 }
@@ -7277,9 +7282,11 @@ TEST_CASE("a quit saves which choice holds each role, and a start says a choice 
     {
         Live t;
         t.host.session_path = session;
-        t.host.chosen = [] {
-            return std::vector<session_persist::WorkshopChoice>{{"zengine.editor", "neovim"}};
-        };
+        // WHICH CHOICE HOLDS THE ROLE, as the realization owner claims it, by a stand-in.
+        const RealizationClaims owner(t.bus);
+        owner.choices(zengine::realization::ChoicesHeld{
+            {{"zengine.editor", "neovim", "zengine-neovim-editor", "", true},
+             {"zengine.editor", "editor", "zengine-editor-pane", "", false}}});
         t.ready();
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);

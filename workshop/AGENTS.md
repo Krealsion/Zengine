@@ -22,10 +22,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `layouts/` | the desk's owner, `zengine.layouts`, mounted in-process: the run of layouts and its store (`run.hpp`, `store.hpp`), the role (`owner.hpp`), its vocabulary, and the session it alone writes (`session_persist.hpp`, `session_history.hpp`); its law: layouts, tab-run, session-restore, settings, setting-locks |
 | `*_seam_vocabulary.hpp`, `pane_doors.hpp` | the seams to loaded panes and guests; the doors |
 | `*_persist.hpp` | the files: setup, keymap, preferences, recipes, load plan, and Workshop's window file |
-| `load_*.hpp`, `*-load-plan.json` | load plan and executor (`zengine-workshop-load`); the plans |
+| `arrangement.hpp`, `*-load-plan.json` | the observation door over the realization owner (`zengine-workshop-load`, which links `realization/`); the plans |
 | `guests.hpp`, `guest_door.hpp` | the guests file and the guest door: `zengine-workshop-guests` |
 | `develop.cpp`, `prepare-runtime.cmake` | the development launch: `zengine-workshop-develop` |
-| `bus_tally.hpp` | the bus tally: handler times, and input to paint |
 
 The vocabulary is header-only (`zengine-workshop-vocabulary`), its bodies compiled once into
 `zengine-workshop-logic`; `session_migration_provider.cpp` is `zengine-workshop-session-history`.
@@ -40,7 +39,6 @@ program with its files); the subjects are in the
 | register | witnessed by |
 |---|---|
 | [workshop](../agents/workshop.md) | the WL router: every register by subject |
-| [realization](../agents/realization.md) | no proofs: the one test its prose names is `tests/test_operator_provider.cpp` (`operator`) |
 | [action-causes](../agents/workshop/action-causes.md) | `workshop_panes_hand` (actions), `workshop_panes_project` (builder) |
 | [arrangement](../agents/workshop/arrangement.md) | `workshop_panes_seam` (window), `workshop_panes_hand` (input), `workshop_screen`, `workshop_host` |
 | [arrangement-snap](../agents/workshop/arrangement-snap.md) | `workshop_screen` |
@@ -88,7 +86,6 @@ program with its files); the subjects are in the
 
 ## Suites
 
-- `bus_tally` — the bus tally (`bus_tally.hpp`); `tests/test_bus_tally.cpp`
 - `workshop_desk` — the desk and its words, read by message; `tests/test_workshop_desk*.cpp`
 - `workshop_document` — editable rows, quit policy, the keymap; `tests/test_workshop_document.cpp`
 - `workshop_files` — project browser, recipes, development launch; `tests/test_workshop_files.cpp`

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_BUS_TALLY_HPP
-#define ZENGINE_WORKSHOP_BUS_TALLY_HPP
+#ifndef ZENGINE_TALLY_BUS_TALLY_HPP
+#define ZENGINE_TALLY_BUS_TALLY_HPP
 
 // Where a running bus spends its time, off Loom's own stamps: each weave's handler time
 // (`BusEvent::handler_elapsed_ns`), and each input's way to its paint -- a key, text, press or
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop {
+namespace zengine::tally {
 
 /// ONE WEAVE'S HANDLERS, as the bus timed them: named by the role it held when it was first
 /// seen, else by its weave id.
@@ -289,6 +289,6 @@ private:
     std::unordered_map<std::uint64_t, Root> pending_;
 };
 
-} // namespace zengine::workshop
+} // namespace zengine::tally
 
-#endif // ZENGINE_WORKSHOP_BUS_TALLY_HPP
+#endif // ZENGINE_TALLY_BUS_TALLY_HPP

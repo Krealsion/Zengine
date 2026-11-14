@@ -2288,11 +2288,12 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#gone-note-counts-pending): the gone note
     // counting every unavailable row, pending or not.
     PaneRig r;
-    bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
-    r.host.role_pending = [&info_to_come](std::string_view role) {
-        // ...and the shipped desk's other loaded pane, still to come for the whole case.
-        return role == "zengine.notices-pane" || (info_to_come && role == "zengine.info");
-    };
+    // THE ROLES STILL TO COME, as the realization owner claims them, by a stand-in in its role:
+    // the shipped desk's other loaded pane is still to come for the whole case.
+    const RealizationClaims owner(r.bus);
+    zengine::realization::PlanWhere where;
+    where.to_come = {"zengine.notices-pane", "zengine.info"};
+    owner.where(where);
     r.mount_workshop();
     r.ready();
     r.extent(160, 48);
@@ -2312,7 +2313,8 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     CHECK(r.last_notice().find("build it") == std::string::npos);
 
     // ...AND ONCE THE RUN HAS SETTLED WITHOUT IT, THE VERDICT IS SAID: gone, and what brings it.
-    info_to_come = false;
+    where.to_come = {"zengine.notices-pane"};
+    owner.where(where);
     manager_here(r); // a gesture: the reading is taken again, now
     CHECK(launcher_text(r).find("[gone] info") != std::string::npos);
     CHECK(launcher_text(r).find("build its provider, then launch again") != std::string::npos);

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_LOAD_PLAN_HPP
-#define ZENGINE_WORKSHOP_LOAD_PLAN_HPP
+#ifndef ZENGINE_REALIZATION_LOAD_PLAN_HPP
+#define ZENGINE_REALIZATION_LOAD_PLAN_HPP
 
 // Which artifacts participate in this project, and how: the typed load plan and its law
 // (workshop/docs/load-plan.md, agents/realization.md).
@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop::load {
+namespace zengine::realization {
 
 using zengine::persist::Written;
 
@@ -505,6 +505,6 @@ inline Written check_plan(const LoadPlan& plan) {
     return check_choices(plan);
 }
 
-} // namespace zengine::workshop::load
+} // namespace zengine::realization
 
-#endif // ZENGINE_WORKSHOP_LOAD_PLAN_HPP
+#endif // ZENGINE_REALIZATION_LOAD_PLAN_HPP

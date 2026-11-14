@@ -27,7 +27,6 @@
 #include <vector>
 
 namespace zengine::view_builder {
-namespace ws = zengine::workshop;
 namespace ink = zengine::graphics::colors;
 
 /// A rectangle of the picture in local pixels.

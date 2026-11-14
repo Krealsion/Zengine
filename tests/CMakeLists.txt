@@ -603,7 +603,7 @@ zengine_doctest_test(editor zengine-editor-tests)
 # ---- the bus tally: a host's observer of Loom's stamps, over a real bus ---------------------
 add_executable(zengine-bus-tally-tests test_bus_tally.cpp doctest_main.cpp)
 target_link_libraries(zengine-bus-tally-tests
-    PRIVATE zengine-workshop-bus-tally loom::core zengine-warnings zengine-sanitize)
+    PRIVATE zengine-tally loom::core zengine-warnings zengine-sanitize)
 target_include_directories(zengine-bus-tally-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
@@ -645,7 +645,7 @@ zengine_test_definitions(zengine-operator-tests
     # terminal, so no case can run it, and the arrangement is read off the file (VM-WALL-11).
     "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
     # ...and the executor, where mount-before-offer-before-load is written, for the same one.
-    "WORKSHOP_LOAD_EXECUTE_HPP=\"${CMAKE_SOURCE_DIR}/workshop/load_execute.hpp\""
+    "REALIZATION_OWNER_HPP=\"${CMAKE_SOURCE_DIR}/realization/owner.hpp\""
     "OPH_STRANGER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
     "OPH_STRANGER_LEGACY_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-legacy>\""
     "OPH_STRANGER_ABI_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""

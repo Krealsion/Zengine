@@ -14,6 +14,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
+#include "realization/vocabulary.hpp"
 #include "manuals/zengine.project.hpp" // the role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
@@ -58,7 +59,6 @@ class ProjectDoor
           loom::Emit<ProjectRoot, ProjectFrontierSaid, PlanNames, RecipeSourceSaid, RecipeOutcome,
                      PlanRowWritten>> {
 public:
-    using Frontier = std::function<ProjectFrontier()>;
     using Names = std::function<bool(const std::string&)>;
     using Source = std::function<HostContext::RecipeSource(const std::string&)>;
     using Use = std::function<HostContext::RecipeSwap(const std::string&)>;
@@ -66,12 +66,11 @@ public:
     using Append = std::function<HostContext::PlanAppend(
         const std::string&, const std::string&, const std::string&)>;
 
-    ProjectDoor(const std::string& project_dir, const std::string& marks_path,
-                Frontier frontier = {}, Names names = {}, Source source = {}, Use use = {},
-                Author author = {}, Append append = {})
-        : project_dir_(&project_dir), marks_path_(&marks_path), frontier_(std::move(frontier)),
-          names_(std::move(names)), source_(std::move(source)), use_(std::move(use)),
-          author_(std::move(author)), append_(std::move(append)) {}
+    ProjectDoor(const std::string& project_dir, const std::string& marks_path, Names names = {},
+                Source source = {}, Use use = {}, Author author = {}, Append append = {})
+        : project_dir_(&project_dir), marks_path_(&marks_path), names_(std::move(names)),
+          source_(std::move(source)), use_(std::move(use)), author_(std::move(author)),
+          append_(std::move(append)) {}
 
     void on(const ProjectRootRequested&, loom::Mail& mail) {
         if (!answerable(mail)) {
@@ -84,16 +83,18 @@ public:
         (void)mail.answer(ProjectRoot{*project_dir_, *marks_path_});
     }
 
-    /// What realization is stopped on, derived at the ask (`HostContext::frontier`). A host that
-    /// wired none answers the designed absence: `waiting` false, with an empty artifact.
+    /// What realization is stopped on, read at the ask from the realization owner's claim
+    /// (`PlanWhere`). With no claim to read, the designed absence: `waiting` false, with an empty
+    /// artifact.
     void on(const ProjectFrontierRequested&, loom::Mail& mail) {
         if (!answerable(mail)) {
             return;
         }
         ++state_.frontiers;
-        const ProjectFrontier now = frontier_ ? frontier_() : ProjectFrontier{};
-        (void)mail.answer(ProjectFrontierSaid{now.waiting, now.artifact,
-                                              static_cast<std::int64_t>(now.blocked)});
+        const realization::PlanWhere where =
+            realization::latest<realization::PlanWhere>(mail).value_or(realization::PlanWhere{});
+        (void)mail.answer(ProjectFrontierSaid{!where.waiting_on.empty(), where.waiting_on,
+                                              where.waiting_on.empty() ? 0 : where.behind});
     }
 
     /// DOES THE PLAN IN FORCE ALREADY NAME THIS ARTIFACT? `HostContext::plan_names`, spent
@@ -224,7 +225,6 @@ private:
 
     const std::string* project_dir_;
     const std::string* marks_path_;
-    Frontier frontier_;
     Names names_;
     Source source_;
     Use use_;

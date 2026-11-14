@@ -1,15 +1,15 @@
 # zengine.realization -- the realization owner
 
 **Manual.** The realization owner makes your project run: it performs the project's load plan, and
-it decides what becomes of a build offered to the running project. It is Workshop's plan booter,
-the weave that answers to the role `zengine.realization` (a role is the name a weave answers
-to). The Builder offers it what it built, and the Builder pane asks it to promote or revert; it says
-what came of each. Workshop mounts it; it is not a file you load.
+it decides what becomes of a build offered to the running project. It is the weave that answers
+to the role `zengine.realization` (a role is the name a weave answers to). The Builder offers it
+what it built, and the Builder pane asks it to promote or revert; it says what came of each.
+Workshop and the app host each mount one; it is not a file you load.
 
 ## About
 
 A *load plan* says which artifacts your project is made of and how each takes part
-([the load plan](load-plan.md)). The owner performs its rows in the order you wrote them: it mounts
+([the load plan](../../workshop/docs/load-plan.md)). The owner performs its rows in the order you wrote them: it mounts
 an artifact's operators, then asks the Weave Manager to load its weave into its role, one row at
 a time. It stops at the first row it cannot perform. A row whose artifact is not built yet, and
 which a recipe can build, is not a failure: realization waits there, and the rows behind it wait
@@ -23,7 +23,7 @@ by a reload; a *promotion* writes the running image into it, and a *revert* runs
 the last reload again. An offer's announced path is never used: the owner finds the file from the
 artifact's name by the host's rule, so a message cannot redirect a load.
 
-It is the one weave in Workshop that may ask the Weave Manager to load or reload a weave, and it
+It is the one weave in its host that may ask the Weave Manager to load or reload a weave, and it
 may ask that of the Manager alone.
 
 ## Use
@@ -120,10 +120,16 @@ when their load or reload settles, so other answers may come between: follow an 
 never by order. The plan's own rows, performed at launch, are said by Workshop and shown by the
 Project pane, not here.
 
+It claims, as `zengine.realization` after every change: `PlanWhere` v1, where the plan is -- its
+state (`PlanState`: `loading`, `waiting`, `complete` or `refused`), the row it waits on, the rows
+stepped over or given way from, the roles still to come -- and
+`ChoicesHeld` v1, every authored choice and whether it holds its role
+([`realization/vocabulary.hpp`](../vocabulary.hpp)), for whoever its host grants observing them.
+
 ## Files
 
-- **The load plan** it performs: [the load plan](load-plan.md), and
-  [choosing what a run is made of](load-plans.md).
+- **The load plan** it performs: [the load plan](../../workshop/docs/load-plan.md), and
+  [choosing what a run is made of](../../workshop/docs/load-plans.md).
 - **A reload's copy.** It writes no file itself: the host copies a rebuilt product beside Workshop,
   to `<stem>.reloads/<stem>-<n>`, under a name no file has yet, and the owner reloads from there.
 - **A promotion** is the host's write into the file the plan loads, beside it and then renamed; the
@@ -131,8 +137,9 @@ Project pane, not here.
 
 ## See also
 
-- [When a built artifact is loaded again](load-plans.md#when-a-built-artifact-is-loaded-again).
+- [When a built artifact is loaded again](../../workshop/docs/load-plans.md#when-a-built-artifact-is-loaded-again).
 - [`zengine.builder`](../../builder/docs/zengine.builder.md), which offers builds, and
   [`zengine.builder-pane`](../../builder/docs/zengine.builder-pane.md).
 - [`builder/vocabulary.hpp`](../../builder/vocabulary.hpp), where these shapes are declared, and
-  [`workshop/load_execute.hpp`](../load_execute.hpp), the owner.
+  [`realization/owner.hpp`](../owner.hpp), the owner, and
+  [`realization/vocabulary.hpp`](../vocabulary.hpp), what it claims.

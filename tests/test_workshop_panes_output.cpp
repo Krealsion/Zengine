@@ -110,7 +110,6 @@ struct OutputRig {
     RunnerSeat* runner = nullptr;
     loom::WeaveId runner_id{};
     std::int64_t kind = 0;
-    ProjectFrontier frontier{};
     /// Pictures Workshop refused from the pane, read off the bus's own tap.
     std::size_t refused = 0;
     loom::ObserverId tap{};
@@ -165,14 +164,14 @@ struct OutputRig {
     /// overflow route is exactly what that role presents.
     void open(std::int64_t width = 200, std::int64_t height = 56, bool with_presenter = false) {
         r.mount_workshop();
-        r.host.frontier = [this] { return frontier; };
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir,
-                                                  (dir.path() / "marks.json").generic_string(),
-                                                  r.host.frontier);
+                                                  (dir.path() / "marks.json").generic_string());
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         say.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
+        say.allow_observe(zengine::realization::PlanWhere::zen_name,
+                          zengine::realization::PlanWhere::zen_version);
         const loom::WeaveId id =
             r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
         raw->zen_set_self(id);

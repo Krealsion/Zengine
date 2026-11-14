@@ -11,7 +11,7 @@
 // and keeps the bytes it replaces, so a revert still has an image.
 // Workshop law: agents/workshop/project.md
 
-#include "load_execute.hpp"
+#include "realization/owner.hpp"
 #include "recipes.hpp"
 
 #include "builder/recipe.hpp"
@@ -83,9 +83,9 @@ inline std::filesystem::path copy_fresh(const std::filesystem::path& from,
 /// PUT THE PRODUCT OF `recipe` WHERE `stem` WILL BE OPENED FROM. The signature is the
 /// owner's `StageArtifact` seam, with the host's own facts in front.
 // WL-PROJ-16 -- agents/workshop/project.md
-inline load::PlanExecutor::Staged stage(Host& host, const std::string& stem,
+inline realization::Owner::Staged stage(Host& host, const std::string& stem,
                                         const std::string& recipe, bool reload) {
-    load::PlanExecutor::Staged out;
+    realization::Owner::Staged out;
     if (host.recipes == nullptr || host.artifact_file == nullptr) {
         out.refusal = "this host wired no catalog into its staging rule";
         return out;
@@ -170,9 +170,9 @@ inline std::string product_of(const Host& host, const std::string& stem,
 /// `PromoteImage` seam, with the host's facts in front; `kept` is where the old default
 /// went, or empty when there was none.
 // WL-PROJ-16 -- agents/workshop/project.md
-inline load::PlanExecutor::Promoted promote(Host& host, const std::string& stem,
+inline realization::Owner::Promoted promote(Host& host, const std::string& stem,
                                             const std::string& image) {
-    load::PlanExecutor::Promoted out;
+    realization::Owner::Promoted out;
     if (host.artifact_file == nullptr) {
         out.detail = "this host wired no artifact rule into its promotion rule";
         return out;

@@ -64,8 +64,10 @@
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/host_sources.hpp"
 #include "workshop/powers_door.hpp"
-#include "workshop/load_execute.hpp"
-#include "workshop/load_plan.hpp"
+#include "realization/owner.hpp"
+#include "realization/load_plan.hpp"
+#include "realization/vocabulary.hpp"
+#include "realization_claims.hpp"
 #include "workshop/provenance.hpp" // what stands behind a role's code, wired as the host wires it
 #include "workshop/recipes.hpp"
 #include "workshop/sample_door.hpp"
@@ -127,7 +129,7 @@ namespace input = zengine::input;
 namespace op = zengine::op;
 namespace gfx = zengine::graphics;
 namespace ui = zengine::ui;
-namespace load = zengine::workshop::load;
+namespace load = zengine::realization;
 /// WHAT THE WINDOW SHOWING THE DESK SHOWS, as it answers `WindowShowAsked` (rig_windows.hpp).
 using DeskShown = zengine::testing::rig_windows::Shown;
 
@@ -1112,6 +1114,9 @@ struct Live {
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
+        // ...AND WHERE THE PLAN IS, the realization owner's claim, as the host grants it.
+        grant.allow_observe(zengine::realization::PlanWhere::zen_name,
+                            zengine::realization::PlanWhere::zen_version);
         // IN THE ROLE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
         // the pane protocol is authored AS that role: mounted anonymously, its asks and room
         // grants would be refused at the bus. The three-argument `register_weave` is the Loom's
@@ -1440,8 +1445,7 @@ struct Live {
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the one projection the
     /// screen and the view both spend.
     std::vector<Condition> conditions() const {
-        return attention_conditions(w->session(),
-                                    host.frontier ? host.frontier() : ProjectFrontier{});
+        return attention_conditions(w->session(), frontier_claimed(bus));
     }
 };
 
@@ -3366,7 +3370,8 @@ public:
     std::function<void(PaneWatcher&, loom::Mail&)> next;
 };
 
-/// The rig's booter's state: a name of its own, so it loads beside a plan booter's `BootState`.
+/// The rig's booter's state: a name of its own, so it loads beside a realization owner's
+/// `BootState`.
 struct RigBootState {
     std::int64_t n = 0;
     ZEN_SHAPE(RigBootState, 1, ZEN_FIELD(n));
@@ -4236,20 +4241,19 @@ struct PaneRig {
     }
 
     /// REALIZE AN AUTHORED PLAN ON THIS RIG'S BUS, the way the host does: the host writes the
-    /// booter's grant, the owner realizes the rows, and the owner RETAINS the plan because the
-    /// projection pairs authored intent with resolved state. The turns are the caller's: `begin`
+    /// owner's grant and mounts it, the owner realizes the rows, and the owner RETAINS the plan
+    /// because the projection pairs authored intent with resolved state. The turns are the caller's: `begin`
     /// issues what it can and returns with a row in flight, and a rig with no host loop turns the
-    /// crank itself -- `PlanExecutor` never does (`test_workshop_load.cpp` owns that claim).
+    /// crank itself -- `Owner` never does (`test_workshop_load.cpp` owns that claim).
     load::Executed run_plan(load::LoadPlan plan) {
         loom::Grant operate;
         operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-        auto speaker = std::make_unique<load::PlanBooter>(plan_answers);
-        load::PlanBooter& voice = *speaker;
-        const loom::WeaveId plan_booter = bus.register_weave(std::move(speaker),
-                                                             std::move(operate));
-        voice.zen_set_self(plan_booter);
-        plan_ = std::make_unique<load::PlanExecutor>(bus, catalog, operator_host, voice, manager,
-                                                     plan_answers, &artifact_path);
+        // A SECOND PLAN ON THIS RIG REPLACES THE FIRST'S OWNER: one holds the role at a time.
+        plan_ = nullptr;
+        mounted_plan_.reset();
+        mounted_plan_ = std::make_unique<load::Mounted>(load::mount(
+            bus, std::move(operate), catalog, operator_host, manager, &artifact_path));
+        plan_ = &mounted_plan_->owner();
         plan_->begin(std::move(plan));
         for (int turn = 0; turn < 32; ++turn) {
             bus.pump_pending();
@@ -4337,8 +4341,6 @@ struct PaneRig {
         return id;
     }
 
-    load::BootAnswers plan_answers;
-
     Session& session() { return const_cast<Session&>(w->session()); }
     /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
     const SetupState& run() const { return owner->layouts().run(); }
@@ -4348,8 +4350,7 @@ struct PaneRig {
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
     /// screen and the view both spend -- never a second walk of the owners.
     std::vector<Condition> conditions() const {
-        return attention_conditions(w->session(),
-                                    host.frontier ? host.frontier() : ProjectFrontier{});
+        return attention_conditions(w->session(), frontier_claimed(bus));
     }
     /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said.
     std::string glance() const {
@@ -4360,10 +4361,12 @@ struct PaneRig {
     std::vector<loom::WeaveId> seat_ids;
     std::vector<ProviderSeat*> seats_;
     std::vector<std::pair<SettingsSeat*, loom::WeaveId>> settings_seats_;
+    /// The realization owner a case's plan runs on, once `run_plan` mounted it.
+    load::Owner* plan_ = nullptr;
     /// HELD BY POINTER SO IT IS NOT CONSTRUCTED UNTIL A CASE ASKS, and declared LAST
-    /// so it is destroyed FIRST: it retains the provider identity of every mount it
+    /// so it is destroyed FIRST: the owner retains the provider identity of every mount it
     /// made, and must not outlive the artifacts holding them.
-    std::unique_ptr<load::PlanExecutor> plan_;
+    std::unique_ptr<load::Mounted> mounted_plan_;
 };
 
 /// Every row the window shows in an external pane's body, Workshop's header row included as row
@@ -5991,12 +5994,12 @@ inline std::string file_source(const char* path) {
 inline constexpr std::size_t kPresentationSourceFloor = 62;
 
 inline std::vector<std::string> presentation_sources() {
-    // The host's side of the seam, by name -- the host, its load plan and executor, the
+    // The host's side of the seam, by name -- the host, the
     // observation door, the rules and doors it wires (`staging`, `provenance`, `pane_doors` and
     // their shapes) -- and `pane_migration.hpp`, for another reason: it is the one file that may
     // spell the reference saved files wrote for a retired browser, and the tripwire forbidding
     // every other file that spelling would otherwise forbid it too.
-    static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
+    static constexpr const char* kHostSide[] = {"workshop.cpp",
                                                 "arrangement.hpp", "arrangement_vocabulary.hpp",
                                                 "staging.hpp", "authoring.hpp", "pane_doors.hpp",
                                                 "pane_seam_vocabulary.hpp",

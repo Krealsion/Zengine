@@ -51,8 +51,8 @@ inline constexpr const char* kBuilderRole = "zengine.builder";
 /// else may.
 inline constexpr const char* kBuildRunnerRole = "zengine.build-runner";
 
-/// The role the REALIZATION OWNER'S voice holds: the participant that hears `OfferArtifact`,
-/// `PromoteArtifact` and `RevertArtifact` and says what came of each (Workshop's `PlanBooter`).
+/// The role the REALIZATION OWNER holds (`realization/owner.hpp`): the participant that hears
+/// `OfferArtifact`, `PromoteArtifact` and `RevertArtifact` and says what came of each.
 /// A role so that its words can be followed by name -- an observer names the role it
 /// follows, never a WeaveId -- and it grants nobody anything to say to it.
 inline constexpr const char* kRealizationRole = "zengine.realization";

@@ -17,6 +17,7 @@
 
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
+#include "realization/vocabulary.hpp"
 #include "timer/source_wait.hpp"
 
 #include "manuals/zengine.guests.hpp" // this role's manual, compiled in from its page
@@ -157,16 +158,17 @@ public:
         (void)mail.answer(said);
     }
 
-    /// WHERE THE PLAN IS, from the reading the host wired: at once, or with `wait` held until the
+    /// WHERE THE PLAN IS, from the realization owner's claim: at once, or with `wait` held until the
     /// plan is at rest and answered on the door's look. The rows the answer names reach a guest only
     /// when its row already shows rows' names. Held asks are bounded; past the bound, refused.
     // WL-GUEST-12 -- agents/workshop/guests.md
     void on(const GuestPlanRequested& asked, loom::Mail& mail) {
-        if (!plan_) {
-            (void)mail.answer(loom::Refused{"this host wired no reading of its load plan"});
+        if (mail.latest_from_role<realization::PlanWhere>(builder::kRealizationRole).refusal ==
+            loom::SenseRefusal::NotAuthorized) {
+            (void)mail.answer(loom::Refused{"this host grants the door no reading of its load plan"});
             return;
         }
-        const GuestPlanSaid now = plan_();
+        const GuestPlanSaid now = plan_now(mail);
         if (!asked.wait || now.at_rest) {
             (void)mail.answer(plan_for(mail.sender(), now));
             return;
@@ -207,10 +209,22 @@ public:
         (void)mail.answer(ActorScopeJudged{refusal.empty(), refusal});
     }
 
-    /// The host's reading of its realization owner, read at every ask and on every look that
-    /// holds an ask; it keeps no copy of the plan.
-    using PlanReading = std::function<GuestPlanSaid()>;
-    void reads_plan(PlanReading reading) { plan_ = std::move(reading); }
+    /// WHERE THE PLAN IS, read from the realization owner's latest claim (`PlanWhere`) at every ask
+    /// and on every look that holds one; it keeps no copy of the plan. No claim yet is a plan still
+    /// loading.
+    static GuestPlanSaid plan_now(loom::Mail& mail) {
+        GuestPlanSaid said;
+        const std::optional<realization::PlanWhere> where =
+            realization::latest<realization::PlanWhere>(mail);
+        if (!where.has_value()) {
+            return said;
+        }
+        said.state = std::string(realization::spelling(where->state));
+        said.at_rest = where->state != realization::PlanState::loading;
+        said.waiting_on = where->waiting_on;
+        said.unavailable = where->unavailable;
+        return said;
+    }
 
     /// Settles a connection the server has left deferred. This host's guests file never defers
     /// one: a row written `"admit": "ask"` is refused when the file is read (WL-GUEST-14).
@@ -448,8 +462,8 @@ private:
         gone_.clear();
         // THE PLAN AT REST ANSWERS EVERY ASK HELD FOR IT, from this delivery: a deferred answer is
         // spent by the incarnation that deferred it.
-        if (!held_.empty() && plan_) {
-            const GuestPlanSaid now = plan_();
+        if (!held_.empty()) {
+            const GuestPlanSaid now = plan_now(mail);
             if (now.at_rest) {
                 for (const HeldPlanAsk& held : held_) {
                     (void)loom::answer_deferred(held.reply, mail, plan_for(held.asker, now));
@@ -493,13 +507,13 @@ private:
     /// never as no guest's, and forgetting one would make it no guest's. One entry per session a
     /// credential admitted; no session's id is ever another's.
     std::map<std::uint64_t, std::size_t> sessions_;
-    PlanReading plan_;
     std::vector<HeldPlanAsk> held_; ///< asks for the plan at rest, at most `kGuestPlanHeld`
 };
 
 /// THE DOOR'S GRANT: its inventory, an asker's own row, where the plan is, a sender's scope
-/// judged, a refusal, what a shape it accepts does, and one word to the Input role. Nothing else.
-inline loom::Grant guest_door_grant() {
+/// judged, a refusal, what a shape it accepts does, and one word to the Input role; and, unless
+/// `reads_plan` is false, observing where the plan is, the realization owner's claim. Nothing else.
+inline loom::Grant guest_door_grant(bool reads_plan = true) {
     loom::Grant g;
     g.allow_to_any(GuestConnections::zen_name, GuestConnections::zen_version);
     g.allow_to_any(v2::GuestConnections::zen_name, v2::GuestConnections::zen_version);
@@ -512,6 +526,9 @@ inline loom::Grant guest_door_grant() {
     g.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     g.allow_to_role(input::InputSessionClosed::zen_name, input::InputSessionClosed::zen_version,
                     input::kInputRole);
+    if (reads_plan) {
+        g.allow_observe(realization::PlanWhere::zen_name, realization::PlanWhere::zen_version);
+    }
     loom::allow_poke_answers(g);
     return g;
 }

@@ -270,6 +270,7 @@ struct CodeRig {
         plan.artifacts.push_back(row(kTallyStem, kTallyRole));
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
+        claim_frontier(); // a frontier a case set before the plan ran
         r.ready();
         r.extent(200, 64);
         REQUIRE_MESSAGE(r.session().panes.runtime.find(kTallyRole, "tally") != nullptr,
@@ -299,18 +300,27 @@ struct CodeRig {
 
     /// THE READ-ONLY PROJECT ROLE, answering the frontier this rig holds -- the door the
     /// Builder pane asks what the project is waiting on.
+    /// CLAIM `frontier` AS WHERE THE PLAN IS, as the realization owner the rig's plan mounted.
+    /// Before the plan has run there is no owner yet, and the rig claims it once it has.
+    void claim_frontier() {
+        if (r.mounted_plan_ != nullptr) {
+            RealizationClaims(r.bus, r.mounted_plan_->id()).frontier(frontier);
+        }
+    }
+
     void mount_project_door() {
-        r.host.frontier = [this] { return frontier; };
         marks_path = (root / "workshop-marks.json").generic_string();
         // ...AND IT ANSWERS WHICH FILE A RECIPE NAMES by whatever rule a case wired into
         // `host.recipe_source` -- none, unless a case wires the host's own.
-        auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path, r.host.frontier,
+        auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
                                                   ProjectDoor::Names{}, r.host.recipe_source);
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         say.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
         say.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+        say.allow_observe(zengine::realization::PlanWhere::zen_name,
+                          zengine::realization::PlanWhere::zen_version);
         const loom::WeaveId id =
             r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
         raw->zen_set_self(id);
@@ -907,6 +917,7 @@ TEST_CASE("the Builder's choice from Edit Code is not a pick between producers: 
     c.hold({single_recipe("tally-a", kTallyStem, c.source),
             single_recipe("tally-b", kTallyStem, spelled(other))});
     c.frontier = ProjectFrontier{true, kTallyStem, 0};
+    c.claim_frontier();
     c.widen_builder(148); // a new room: the Builder asks the tool again and hears both
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally") != std::string::npos);
 
@@ -942,6 +953,7 @@ TEST_CASE("a pick of another recipe does not follow Edit Code's choice: the fron
     c.hold({single_recipe("tally-a", kTallyStem, c.source), target_recipe("skin", "zengine-skin"),
             single_recipe("tally-b", kTallyStem, spelled(other))});
     c.frontier = ProjectFrontier{true, kTallyStem, 0};
+    c.claim_frontier();
     c.widen_builder(148); // a new room: the Builder asks the tool again and hears all three
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (1/3)") !=
             std::string::npos);
@@ -974,6 +986,7 @@ TEST_CASE("a pick of the recipe Edit Code chose still stands: the frontier actio
     c.hold({target_recipe("skin", "zengine-skin"), single_recipe("tally-a", kTallyStem, c.source),
             single_recipe("tally-b", kTallyStem, spelled(other))});
     c.frontier = ProjectFrontier{true, kTallyStem, 0};
+    c.claim_frontier();
     c.widen_builder(148);
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (2/3)") !=
             std::string::npos);

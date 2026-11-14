@@ -1194,8 +1194,10 @@ TEST_CASE("not every true pane state deserves ambient attention") {
 
 TEST_CASE("the project frontier is a condition while it waits and nothing after") {
     Live t;
+    // WHAT THE REALIZATION OWNER CLAIMS, claimed by a stand-in in its role: the desk reads it.
+    const RealizationClaims owner(t.bus);
     ProjectFrontier live;
-    t.host.frontier = [&live] { return live; };
+    owner.frontier(live);
     t.ready();
     CHECK(t.conditions().empty());
     CHECK(t.glance().empty());
@@ -1203,6 +1205,7 @@ TEST_CASE("the project frontier is a condition while it waits and nothing after"
     live.waiting = true;
     live.artifact = "zengine-thing";
     live.blocked = 2;
+    owner.frontier(live);
     t.key(input::scan::kTab); // any gesture at all repaints; nothing here says a sentence
     {
         const std::vector<Condition> now = t.conditions();
@@ -1217,6 +1220,7 @@ TEST_CASE("the project frontier is a condition while it waits and nothing after"
     CHECK(t.glance().find("project waiting") != std::string::npos);
 
     live = ProjectFrontier{};
+    owner.frontier(live);
     t.key(input::scan::kTab);
     CHECK(condition_by_key(t.conditions(), kFrontierKey) == nullptr);
     CHECK(t.glance().empty());

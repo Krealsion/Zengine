@@ -53,7 +53,7 @@ Its cases in shared suites: `workshop_panes_project` (`tests/test_workshop_panes
   (empty in the package a stranger downloads)
 - the catalog both read: `workshop/recipes.hpp`, `workshop/recipe_persist.hpp`, shipped from
   `workshop/default-build-recipes.json.in`; `workshop/authoring.hpp` writes recipe and plan rows
-- realization: `PlanBooter` in `workshop/load_execute.hpp` holds `zengine.realization`;
+- realization: `realization::Owner` in `realization/owner.hpp` holds `zengine.realization`;
   `workshop/staging.hpp` places a built product, a reload's copy and a promotion
 - the pane: a row in `workshop/default-load-plan.json`, staged by `workshop/CMakeLists.txt`; it asks through `workshop/builder_seam_vocabulary.hpp`,
   answered by `ProjectDoor` in `workshop/pane_doors.hpp`

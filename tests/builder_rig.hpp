@@ -190,6 +190,7 @@ struct BuilderRig {
         }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
+        claim_frontier(); // a frontier a case set before the plan ran
         r.ready();
         r.extent(width, height);
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `builder` pane");
@@ -368,8 +369,16 @@ struct BuilderRig {
     /// The project role `mount_doors` seated, when it seated one.
     loom::WeaveId project_id{};
 
+    /// CLAIM `frontier` AS WHERE THE PLAN IS, as the realization owner the rig's plan mounted, so
+    /// the project door answers it: a case's frontier stands until the owner's next change.
+    /// Before the plan has run there is no owner yet, and the rig claims it once it has.
+    void claim_frontier() {
+        if (r.mounted_plan_ != nullptr) {
+            RealizationClaims(r.bus, r.mounted_plan_->id()).frontier(frontier);
+        }
+    }
+
     void mount_doors(bool with_project_door = true) {
-        r.host.frontier = [this] { return frontier; };
         r.host.plan_names = [this](const std::string& stem) {
             for (const std::string& held : plan_rows) {
                 if (held == stem) {
@@ -398,7 +407,7 @@ struct BuilderRig {
         }
 
         auto project = std::make_unique<ProjectDoor>(
-            r.host.project_dir, marks_, r.host.frontier, r.host.plan_names, r.host.recipe_source,
+            r.host.project_dir, marks_, r.host.plan_names, r.host.recipe_source,
             ProjectDoor::Use{}, ProjectDoor::Author{}, r.host.append_plan_row);
         ProjectDoor* praw = project.get();
         loom::Grant say_project;
@@ -407,6 +416,8 @@ struct BuilderRig {
         say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
         say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
         say_project.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
+        say_project.allow_observe(zengine::realization::PlanWhere::zen_name,
+                                  zengine::realization::PlanWhere::zen_version);
         const loom::WeaveId pid = r.bus.register_weave(std::move(project), std::move(say_project),
                                                        std::string(kProjectRole));
         praw->zen_set_self(pid);

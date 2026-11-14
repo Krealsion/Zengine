@@ -1,7 +1,7 @@
 # Agent law — Load plans, realization and the Builder
 
-Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `workshop/load_execute.hpp`,
-`workshop/load_plan.hpp`, `builder/`, or a host's boot path — the authored load plan, the
+Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `realization/` (the owner,
+the plan and its file, what the owner claims), `builder/`, or a host's boot path — the authored load plan, the
 realization owner, the load conversation, and how building relates to participating. Public
 reference: [`workshop/docs/load-plan.md`](../workshop/docs/load-plan.md) and
 [`builder/docs/zengine.builder.md`](../builder/docs/zengine.builder.md).
@@ -24,7 +24,7 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   ⚠ **A ROLE is deliberately NOT forbidden**: `timer::kTimerRole` is still in the host, inside
   GRANTS, and a grant naming a role is a statement about who may be spoken to. A role cannot
   become a load; only a stem can.
-- **The intra-record order is SEMANTIC LAW and lives in `load_execute.hpp`**, not in the plan
+- **The intra-record order is SEMANTIC LAW and lives in `realization/owner.hpp`**, not in the plan
   and not in the host: mount, then offer, then load. A host-backed Timer validates the rule it
   is about to spend inside its own `create()`, so a file that could say *weave, then provider*
   would author a Timer whose semantics depend on which load was in flight.
@@ -79,7 +79,7 @@ one artifact = one record, with ZERO OR MORE optional surfaces
 
 ## Realization is a living owner, not a call
 
-`load::PlanExecutor` is persistent. It performs what it can, commands one weave load, and
+`realization::Owner` is persistent. It performs what it can, commands one weave load, and
 RETURNS; the host's own loop delivers, and the answer advances it.
 
 ```text
@@ -115,7 +115,7 @@ begin(plan)                    the ordinary host loop        answered()
 - **⚠ NOTHING IN THE LOAD PATH TAKES A TURN.** The executor commands the load and RETURNS; the
   host's own loop is what delivers. The production fuse (`kLoadDrainTurns`, a 64-turn bounded
   drain per load) is GONE, not renamed, and nothing may replace it: an owner that returns to a
-  host has nothing to count. `test_operator_provider.cpp` reads `load_execute.hpp` with the
+  host has nothing to count. `test_operator_provider.cpp` reads `realization/owner.hpp` with the
   prose stripped and refuses ten scheduler verbs and nine async nouns, and reads the host
   source for plan-specific control flow in a host loop. The BEHAVIOURAL half is separate:
   ordinary traffic already queued when realization begins must NOT be delivered by the time
@@ -144,17 +144,23 @@ begin(plan)                    the ordinary host loop        answered()
   same catalog and Kernel builds a SECOND owner — which is what makes a runtime provider
   collision reachable at all, since one plan cannot name an artifact twice. `PlanRig::realize_again`
   is that, in the suite.
-- **THE PARTICIPANT IS A BRIDGE AND NOT A STATE MACHINE.** `load::PlanBooter` hears
-  `zen.Result`/`Ack`/`Refused`, settles ONLY on correlation AND bus-stamped respondent (see
-  the conversation law below), and its whole added responsibility is one line: hand the
-  settled fact to the owner. It owns no catalog, no offer, no cursor and no order -- only the
-  NUMBERS of the realization asks it hears (`RealizationAsked`: taken as N, or refused) and which
-  one's answer is owed, because the owner holds one such conversation at a time and a revert's
-  answer arrives in nobody's dispatch; every answer names its ask. It holds the role
-  `zengine.realization` so its words can be observed by name, which grants nobody anything. ⚠ It is
-  mounted BY HAND in the host rather than through `loom::mount_granted`, because the owner
-  needs the PARTICIPANT and not just its id — the pointer is wired in the owner's constructor
-  and unwired in its destructor, and ONE booter serves ONE owner.
+- **THE OWNER IS ONE PARTICIPANT, VOICE AND STATE MACHINE.** `realization::Owner` is a weave in
+  the role `zengine.realization`: it hears `zen.Result`/`Ack`/`Refused`, settles ONLY on
+  correlation AND bus-stamped respondent (see the conversation law below), and moves its own
+  walk on. Beside the walk it keeps the NUMBERS of the realization asks it hears
+  (`RealizationAsked`: taken as N, or refused) and which one's answer is owed, because it holds
+  one such conversation at a time and a revert's answer arrives in nobody's dispatch; every
+  answer names its ask. The role lets its words be observed by name, and grants nobody anything.
+  A host puts it on the bus with `realization::mount`, under the grant the host writes, and
+  keeps the handle (`Mounted`) after the Kernel: the handle takes the owner off the bus before
+  the artifacts go. ONE owner realizes ONE plan.
+- **WHAT IT KNOWS, IT CLAIMS.** Where the plan is (`PlanWhere`: its state, an enumeration
+  (`PlanState`), the row it waits on and the rows behind it, the optional rows stepped over, what
+  rows gave way from, the roles still to come) and every authored choice with the one that holds its role (`ChoicesHeld`) are
+  the role's latest claims (`realization/vocabulary.hpp`), claimed as each entry point returns.
+  The desk, the guest door, the project door, the layouts' owner and the editor switch read
+  them by their grants' observe rules, in their own deliveries, never through a host closure
+  over the owner.
 - **⚠ `answers.answered` IS PAYLOAD, AND IT IS CLEARED BY THE NEXT `ask()`.** The owner opens
   row N+1's conversation inside the very handler that settled row N's, so by the time anything
   can look, that field is already about the next load. The CURSOR is the fact; do not assert
@@ -186,7 +192,7 @@ begin(plan)                    the ordinary host loop        answered()
   any Zengine host; `open` / `settle` / `awaiting` / `forget` are the whole surface, and the
   book has never heard of `zen.Result`. What stays local is **payload semantics** —
   `answered`, `refused`, `reason`, `weave` — because which shape means success is
-  `PlanBooter`'s question and nobody else's.
+  the owner's question and nobody else's.
 - **Settlement is correlation AND bus-stamped respondent, both halves.** A correlation is a
   number the sender chooses (the first conversation of a fresh book is `1`), so it identifies
   a conversation and never authenticates a speaker; the stamped sender says WHO spoke, never
@@ -207,9 +213,9 @@ begin(plan)                    the ordinary host loop        answered()
   holds whatever answer right it held. A late answer to a forgotten load matches no record,
   settles nothing, and — because a forgotten conversation's correlation is never handed back —
   cannot settle the NEXT load either. Say `forget` only where the owner has genuinely stopped
-  caring: **the one thing that forgets here is `~PlanExecutor`** — an owner ceasing to exist
-  with a row in flight, the only honest way left to stop caring. Its destructor unwires the
-  booter FIRST (the bus outlives it), then drops the offer, then forgets the ask. It does NOT
+  caring: **the one thing that forgets here is `~Owner`** — an owner taken off the bus with a
+  row in flight, the only honest way left to stop caring. Its destructor drops the offer, then
+  forgets the ask. It does NOT
   unwind the catalog: the host's own declaration order takes the Kernel down before the
   catalog, and an owner racing that order would help nobody. Loom's own `TerminalSession` is
   the counter-example that keeps the rule honest: `await [turns]` merely PAUSES a person's
@@ -296,7 +302,7 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   away.
 - **THE SEAM IS TWO SHAPES AND ONE NEW GRANT, AND THE RELOAD MAKES IT TWO GRANTS.** The tool may say `OfferArtifact` — ONLY when
   the weaver asked for realization, because the shape carries an INTENT and a standing offer
-  nobody made is not one. `PlanBooter` hears it, asks its owner, says `RealizationAsked`, and
+  nobody made is not one. The owner hears it, takes it or refuses it, says `RealizationAsked`, and
   publishes the owner's answer as `ArtifactRealized` naming that ask. It is a COMMAND in this vocabulary's own table — an OFFER,
   not an order, because every eligibility rule and every refusal is the realization owner's.
   (Its original name claimed a fact — "the artifact is there" — that is equally true after a
@@ -348,7 +354,7 @@ row N is waiting on the weaver
   says the wrong thing. ⚠ The witness is `an absent artifact cannot REORDER an overlay past
   what it covers`; it goes red under a canary that restores mark-pending-and-continue, along
   with eleven of the other thirteen.
-- **A ROW MAY BE `pending`, AND IT IS THE HOST THAT SAYS SO.** `PlanExecutor` has ONE
+- **A ROW MAY BE `pending`, AND IT IS THE HOST THAT SAYS SO.** The owner has ONE
   predicate (`AwaitingBuild`) and learns nothing else: the host answers from two facts that
   are its own — the artifact file is absent, and some authored recipe produces that stem.
   ⚠ THIS IS NOT "SKIP WHAT IS MISSING": an artifact nothing here can build still refuses the
@@ -357,7 +363,7 @@ row N is waiting on the weaver
   a case pins that.
 - **⚠ AND STILL NOTHING LOOKS AT A DISK.** A frontier that STOPS makes *is the file there
   yet?* very tempting; it is the HOST's question, asked once per row through `AwaitingBuild`
-  and never polled. The `load_execute.hpp` tripwire refuses seven filesystem spellings beside
+  and never polled. The `realization/owner.hpp` tripwire refuses seven filesystem spellings beside
   its ten scheduler verbs and nine async nouns. Plain Build and Build & Realize stay two
   gestures; a plain build leaves the row `pending` with the file on disk until somebody asks.
 - **`Realization` HAS `Waiting`, AND `Complete` MEANS COMPLETE.** `Complete` is reachable
@@ -423,16 +429,16 @@ feature is one read-only seam plus one gesture over the existing route.
 ⚠ THE PANE IS A LOADED WEAVE (`builder/builder-pane/`), so the seam below is a message
 boundary: the pane calls no host function, it ASKS the read-only project role
 (`ProjectFrontierRequested` -> `ProjectFrontierSaid`, `workshop/builder_seam_vocabulary.hpp`),
-and `ProjectDoor` answers out of the `HostContext::frontier` reading the bullets below describe.
+and `ProjectDoor` answers out of the owner's claim the bullets below describe.
 The pane asks on the beats where the answer can have moved -- its room grant, a settled
 `BuildStatus`, and the answer to a plan row it wrote -- and holds a picture nothing can mistake
 for authority.
 
-- **THE OWNER PROJECTS ITS OWN FRONTIER.** `PlanExecutor::behind()` joined `waiting_on()` —
+- **THE OWNER PROJECTS ITS OWN FRONTIER.** `Owner::behind()` joined `waiting_on()` —
   how many authored rows are behind the waiting row, derived from the same cursor, 0 in every
-  non-waiting state. The host wires both into `HostContext::frontier`, a function returning a
-  by-value `ProjectFrontier{waiting, artifact, blocked}` (panes.hpp), derived fresh at every
-  ask and stored NOWHERE on this side. ⚠ No copy exists on the host's path — a
+  non-waiting state. Both are in the owner's claim of where the plan is (`PlanWhere`), which
+  the desk and the project door read at every ask into a by-value
+  `ProjectFrontier{waiting, artifact, blocked}` (panes.hpp), stored NOWHERE on this side. ⚠ No copy exists on the host's path — a
   `ProjectFrontier` member, session field, or answer cached between asks is the mirror this
   seam exists to refuse. The PANE holds what it was last told, which is the honest shape of a
   picture across a seam: it re-asks rather than remembering, and it drops the answer that says
@@ -450,7 +456,7 @@ for authority.
   second build path and no direct load, and a source tripwire beside the introspection suite's
   pins it: no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panes.hpp`,
   the seam vocabularies and the subject `.cpp` files beside them, walked by `presentation_sources`
-  rather than listed — spells `PlanExecutor`, `load_execute`, `OfferArtifact`, `RunBuild` or
+  rather than listed — spells `realization/owner.hpp`, `realization::Owner`, `OfferArtifact`, `RunBuild` or
   `kBuildRunnerRole`, and a second tripwire reads the pane's own image under the same names.
 - **⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THE GESTURE NEVER CHOOSES.** That
   cardinality is authored law (`builder::check_recipes` deduplicates IDENTITIES, deliberately

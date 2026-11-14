@@ -25,8 +25,15 @@ using pane::kPresenterRole;
 // ---- THE RUN: what is true now, the picture published, and the way out --------------
 
 // WL-ATTN-04 -- agents/workshop/attention.md
-ProjectFrontier WorkshopWeave::frontier_now() const {
-    return host_->frontier ? host_->frontier() : ProjectFrontier{};
+ProjectFrontier WorkshopWeave::frontier_now(loom::Mail& mail) {
+    ProjectFrontier now;
+    if (const std::optional<realization::PlanWhere> where =
+            realization::latest<realization::PlanWhere>(mail)) {
+        now.artifact = where->waiting_on;
+        now.waiting = !now.artifact.empty();
+        now.blocked = static_cast<std::size_t>(where->behind);
+    }
+    return now;
 }
 
 // WL-PTR-01 -- agents/workshop/pointer.md
@@ -142,7 +149,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // pure projection of what it is handed, and what it is handed is this repaint's
     // reading of the living realization owner — never a member, never a field of the
     // session, never yesterday's answer.
-    const ProjectFrontier frontier = frontier_now();
+    const ProjectFrontier frontier = frontier_now(mail);
     // WHAT IS TRUE, TO WHOEVER IS PRESENTING IT: one sentence per condition, in the host's own
     // order, said only when it changed. Derived at every repaint and held nowhere, so a resolved
     // condition is gone because it stopped being returned.

@@ -39,28 +39,22 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.layouts.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.powers.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.sources.md)
 
-# ---- The authored load plan: its shape, its file, its execution, and the observation door ----
+# ---- The observation door over the realization owner ------------------------------------
 #
-# A second target, so the vocabulary stays portable: a load plan spends `op::MountMode`, opens
-# images and sends `zen.LoadWeave` on a real bus. It links no kernel (the host hands in the bus
-# and the Manager's WeaveId), so it sits outside the `loom::kernel` gate below.
-
-# The observation door (`arrangement_vocabulary.hpp`, `arrangement.hpp`) is here because it reads
-# this target's two subjects; `zengine-introspection` includes its vocabulary by include path
-# (introspection/CMakeLists.txt). The builder vocabulary is named on its own line for
-# `load_execute.hpp`'s two shapes, `builder::ArtifactBuilt` and `builder::ArtifactRealized`.
+# A second target, so the vocabulary stays portable: the door (`arrangement_vocabulary.hpp`,
+# `arrangement.hpp`) reads the realization owner (`zengine-realization`, realization/). It links
+# no kernel, so it sits outside the `loom::kernel` gate below; `zengine-introspection` includes
+# its vocabulary by include path (introspection/CMakeLists.txt).
 add_library(zengine-workshop-load INTERFACE)
 target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
 # The observation door's manual, compiled into whatever mounts it.
 zengine_manual(zengine-workshop-load INTERFACE docs/zengine.arrangement.md)
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
                                                       zengine-builder-vocabulary
+                                                      zengine-realization
                                                       zengine::operator
                                                       loom::core
                                                       loom::switchboard)
-# ...and the realization owner's manual, compiled into whatever mounts the plan booter: it
-# answers a shape's section from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
-zengine_manual(zengine-workshop-load INTERFACE docs/zengine.realization.md)
 
 # ---- The logic, compiled once ----------------------------------------------------------
 #
@@ -152,13 +146,6 @@ target_link_libraries(zengine-workshop-guests
 # from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_manual(zengine-workshop-guests INTERFACE docs/zengine.guests.md)
 
-# The bus tally (`bus_tally.hpp`): where a running bus spends its time, off Loom's own stamps, by a
-# host's observer. Header-only; Workshop, `zengine-app` and the snake keep one and say it at the end.
-add_library(zengine-workshop-bus-tally INTERFACE)
-target_include_directories(zengine-workshop-bus-tally INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine::graphics
-                                                           zengine::input loom::switchboard)
-
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
@@ -178,10 +165,10 @@ target_link_libraries(zengine-workshop
             # here to save a plan row. The operator package is the host half of the catalog this host
             # owns, which starts empty and is filled by mounting providers.
             zengine::operator
-            # ...and the tally of where the bus spends its time (workshop/bus_tally.hpp).
-            zengine-workshop-bus-tally
-            # ...and the load plan: the typed plan, its codec and its executor.
-            zengine-workshop-load
+            # ...and the tally of where the bus spends its time (tally/bus_tally.hpp).
+            zengine-tally
+            # ...and the load plan: the typed plan, its codec, its owner and the door over it.
+            zengine-realization zengine-workshop-load
             # ...and the view host this host composes beside the Flow host, which it mounts.
             zengine::view zengine::flow-host
             workshop-warnings workshop-sanitize)

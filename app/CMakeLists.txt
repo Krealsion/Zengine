@@ -9,7 +9,7 @@ target_link_libraries(zengine-app-vocabulary INTERFACE zengine-maker loom::core)
 # An app's folder written from a saved view and its flow (`folder.hpp`): what the View Builder's
 # Export app writes, through the load plan's codec and the view's and the flow's own gates.
 add_library(zengine-app-folder INTERFACE)
-target_link_libraries(zengine-app-folder INTERFACE zengine-app-vocabulary zengine-workshop-load
+target_link_libraries(zengine-app-folder INTERFACE zengine-app-vocabulary zengine-realization
                                                    zengine-view zengine-flow
                                                    zengine-graphics-vocabulary)
 
@@ -28,9 +28,9 @@ target_link_libraries(zengine-app-weave PRIVATE zengine-app-vocabulary zengine-v
 
 # ---- the host, composed once for the program and the suite -----------------------------------
 # Header-only (`host.hpp`), so the `app_host` suite composes the host the program does. The plan's
-# executor is Workshop's (`zengine-workshop-load`), header-only and with no Workshop in it.
+# owner is the realization library's (`zengine-realization`), as Workshop's is.
 add_library(zengine-app-host INTERFACE)
-target_link_libraries(zengine-app-host INTERFACE zengine-app-vocabulary zengine-workshop-load
+target_link_libraries(zengine-app-host INTERFACE zengine-app-vocabulary zengine-realization
                                                  zengine-view zengine-flow zengine-flow-host
                                                  zengine-timer-vocabulary
                                                  zengine-graphics-vocabulary
@@ -39,7 +39,7 @@ target_link_libraries(zengine-app-host INTERFACE zengine-app-vocabulary zengine-
 
 add_executable(zengine-app main.cpp)
 target_link_libraries(zengine-app PRIVATE zengine-app-host
-                                          zengine-workshop-bus-tally zengine-warnings
+                                          zengine-tally zengine-warnings
                                           zengine-sanitize)
 # Where the installed package's artifacts stand from the installed program, a relative path, so
 # the package names no machine's layout. A build stages its artifacts beside the program instead.

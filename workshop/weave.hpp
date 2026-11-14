@@ -47,6 +47,7 @@
 #include "pane/parts.hpp" // the form a pane's names are admitted in
 #include "pane/causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
+#include "realization/vocabulary.hpp" // where the plan is, as its owner claims it
 #include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
 #include "theme/vocabulary.hpp" // where the themes are and what is worn, told to the theme role
@@ -119,10 +120,9 @@ inline constexpr std::size_t kMaxAreaAsks = 256;
 /// suite can build one without linking the host.
 struct HostContext {
     bool quit = false;
-    /// WHICH AUTHORED CHOICE HOLDS EACH SWITCHABLE ROLE NOW, read at quit for the session file;
-    /// and what the start said of a remembered choice the plan no longer authors, said once.
+    /// WHAT THE START SAID OF A REMEMBERED CHOICE THE PLAN NO LONGER AUTHORS, said once. Which
+    /// choice holds each switchable role is the realization owner's claim (`ChoicesHeld`).
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
-    std::function<std::vector<session_persist::WorkshopChoice>()> chosen;
     std::string choice_note;
     std::function<void()> request_stop;
     std::string dir;
@@ -136,15 +136,6 @@ struct HostContext {
     /// host mounted none.
     // WL-TERM-02 -- agents/workshop/terminal-door.md
     loom::TerminalSession* terminal = nullptr;
-
-    /// WHAT PROJECT REALIZATION IS WAITING ON, ANSWERED ALIVE.
-    // WL-ATTN-04 -- agents/workshop/attention.md
-    std::function<ProjectFrontier()> frontier;
-
-    /// Is this role still to come? Read from the realization owner's rows at the ask: pending,
-    /// never unavailable. Empty answers no.
-    // WL-DESK-04 -- agents/workshop/desktop.md
-    std::function<bool(std::string_view role)> role_pending;
 
     /// Does whoever holds `role` now accept `shape`? Read off the bus at the call
     /// (`holder_accepts_on`). It picks which published version to send and promises nothing about
@@ -307,11 +298,6 @@ struct HostContext {
     // WL-ATTN-02 -- agents/workshop/attention.md; WL-SESSION-03 -- agents/workshop/session.md
     std::string transition_note;
 
-    /// WHAT A ROW OF THE PLAN COULD NOT LOAD AND GAVE WAY FROM, a sentence each, read when the
-    /// desk comes up and said once there: a GUI window that could not open, so the TUI
-    /// window holds the desk. Empty, or none, when every row loaded its own artifact.
-    std::function<std::vector<std::string>()> passed_over;
-
     /// The one pane whose presentation this host claims and commits jointly with its document,
     /// spelled by the host; empty means none is managed.
     PaneRef managed_pane;
@@ -373,7 +359,6 @@ inline LayoutsOwnerHost layouts_owner_host(const HostContext& host) {
         readings.role_holder = host.role_holder;
         readings.incarnation_of = host.incarnation_of;
         readings.holder_accepts = host.holder_accepts;
-        readings.chosen = host.chosen;
         return readings;
     };
     out.guest_row = [&host](loom::WeaveId who) {
@@ -1068,7 +1053,7 @@ public:
     void on(const PaneInventoryRequested& asked, loom::Mail& mail);
 
     /// THE ONE INVENTORY AS A VALUE: `inventory_rows` with the three facts beside each row.
-    PaneInventory inventory_reading() const;
+    PaneInventory inventory_reading(const realization::PlanWhere& plan = {}) const;
 
     /// SAY THE EFFECTIVE KEYMAP OUT LOUD, if it changed since it was last said -- the one
     /// binding truth dispatch reads, for the presenters that show keys (WL-DESK-11).
@@ -1712,8 +1697,8 @@ private:
 
     // ---- THE RUN: what is true now, the picture published, and the way out --------------
 
-    /// THE PROJECT FRONTIER, READ ALIVE, NOW.
-    ProjectFrontier frontier_now() const;
+    /// THE PROJECT FRONTIER, READ ALIVE, NOW, from the realization owner's claim (`PlanWhere`).
+    static ProjectFrontier frontier_now(loom::Mail& mail);
 
     /// THE TIME, AS THE HOST'S ONE WAIT HANDS IT (`loom::host::Waited::now_ms`), kept only while
     /// a wait holds this weave's claim: what Shift's taps, the desk reads' rate and a desk wait's

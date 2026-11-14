@@ -6,7 +6,7 @@
 // loaded stranger can spend a host's catalog, and whether the Timer and that stranger spend ONE
 // catalog; here the powers come from somewhere else and one is replaced: the seam, cross-provider
 // compositions, the chain, residency, refusals, one store, the real Timer, custody, and the host
-// and the plan executor read as source files.
+// and the realization owner read as source files.
 
 #include "role_set.hpp"
 #include "doctest.h"
@@ -1117,8 +1117,8 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
     // construction, so the arguments wrap -- and the claim here is an order of declaration,
     // which a tripwire that also pinned a line width would stop being about.
     const std::size_t kernel = host.find("loom::Kernel kernel(");
-    const std::size_t executor = host.find("load::PlanExecutor executor(");
-    const std::size_t run = host.find("executor.begin(std::move(begun))");
+    const std::size_t executor = host.find("realization::mount(");
+    const std::size_t run = host.find("owner.begin(std::move(begun))");
     REQUIRE(catalog != std::string::npos);
     REQUIRE(surface != std::string::npos);
     REQUIRE(kernel != std::string::npos);
@@ -1127,7 +1127,7 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
 
     // THE CATALOG STARTS EMPTY, is dressed in the C table, and only then does a
     // Kernel exist -- which is both the lifetime claim (destruction runs in reverse)
-    // and the reason the executor is declared AFTER the Kernel: it retains the
+    // and the reason the owner's handle is declared AFTER the Kernel: the owner retains the
     // provider identities it mounted and must not outlive what holds them.
     CHECK(catalog < surface);
     CHECK(surface < kernel);
@@ -1157,15 +1157,15 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
     CHECK(read < run);
 }
 
-// ---- 10. the plan executor, read as a source file ----------------------------
+// ---- 10. the realization owner, read as a source file -------------------------
 // Within one artifact record the provider contribution is mounted BEFORE the weave is created,
-// and the weave load is bracketed by an offer withdrawn afterwards -- `load_execute.hpp`'s to
+// and the weave load is bracketed by an offer withdrawn afterwards -- `realization/owner.hpp`'s to
 // keep, so it is read here. A tripwire, not a proof: `tests/test_workshop_load.cpp` drives the
 // real executor over real artifacts; a source read keeps the arrangement from quietly changing.
 
-TEST_CASE("the plan executor mounts before it offers, and offers before it loads") {
-    std::ifstream in(WORKSHOP_LOAD_EXECUTE_HPP);
-    REQUIRE_MESSAGE(in.good(), "cannot read the executor at ", WORKSHOP_LOAD_EXECUTE_HPP);
+TEST_CASE("the realization owner mounts before it offers, and offers before it loads") {
+    std::ifstream in(REALIZATION_OWNER_HPP);
+    REQUIRE_MESSAGE(in.good(), "cannot read the realization owner at ", REALIZATION_OWNER_HPP);
     std::ostringstream all;
     all << in.rdbuf();
     const std::string exec = all.str();
@@ -1183,13 +1183,13 @@ TEST_CASE("the plan executor mounts before it offers, and offers before it loads
     CHECK(mount < offer);
     CHECK(offer < load);
 
-    // ...and the executor authors no semantics of its own, exactly as the host does
+    // ...and the owner authors no semantics of its own, exactly as the host does
     // not: it knows how to host what an artifact supplies and nothing about what any
     // of it means.
     for (const char* forbidden : {"normalize_delay", "math.max", "logic.select_int",
                                   "make_operator", "timer/normalize.hpp"}) {
         CHECK_MESSAGE(exec.find(forbidden) == std::string::npos,
-                      "load_execute.hpp names '", forbidden, "', which is semantic authorship");
+                      "realization/owner.hpp names '", forbidden, "', which is semantic authorship");
     }
 }
 
@@ -1200,8 +1200,8 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
     // running it. NOT ONE OF THESE WORDS, IN ANY SPELLING: a persistent owner returns to a host
     // already turning the crank and has nothing to count, so a loop under any of these names,
     // or behind a helper that spells one, turns this red.
-    std::ifstream in(WORKSHOP_LOAD_EXECUTE_HPP);
-    REQUIRE_MESSAGE(in.good(), "cannot read the executor at ", WORKSHOP_LOAD_EXECUTE_HPP);
+    std::ifstream in(REALIZATION_OWNER_HPP);
+    REQUIRE_MESSAGE(in.good(), "cannot read the realization owner at ", REALIZATION_OWNER_HPP);
     std::ostringstream all;
     all << in.rdbuf();
     const std::string exec = all.str();
@@ -1225,7 +1225,7 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
     for (const char* verb : {"pump_pending", "drain_until_idle", "dispatch_at_most", "run_until",
                              "wait_until", "advance_until", "pump_until", "std::this_thread",
                              "sleep_for", "kLoadDrainTurns"}) {
-        CHECK_MESSAGE(code.find(verb) == std::string::npos, "load_execute.hpp calls '", verb,
+        CHECK_MESSAGE(code.find(verb) == std::string::npos, "realization/owner.hpp calls '", verb,
                       "', which makes the realization owner its own scheduler");
     }
 
@@ -1234,7 +1234,7 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
     for (const char* noun : {"std::future", "std::promise", "std::async", "class Scheduler",
                              "struct Scheduler", "class Task", "struct Operation",
                              "co_await", "co_return"}) {
-        CHECK_MESSAGE(code.find(noun) == std::string::npos, "load_execute.hpp declares '", noun,
+        CHECK_MESSAGE(code.find(noun) == std::string::npos, "realization/owner.hpp declares '", noun,
                       "', which is a deleted scheduler under another name");
     }
 
@@ -1244,7 +1244,7 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
     // never polled, and a `filesystem` call here would grow realization a second build system.
     for (const char* verb : {"filesystem", "ifstream", "ofstream", "fopen", "::stat",
                              "last_write_time", "exists("}) {
-        CHECK_MESSAGE(code.find(verb) == std::string::npos, "load_execute.hpp spells '", verb,
+        CHECK_MESSAGE(code.find(verb) == std::string::npos, "realization/owner.hpp spells '", verb,
                       "', which is realization looking at a disk it does not own");
     }
 
@@ -1255,7 +1255,7 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
     for (const char* noun : {"RunBuild", "BuildRequested", "RunningRecipe", "start_recipe",
                              "BuildCommand", "builder/run.hpp", "builder/runner.hpp",
                              "builder/recipe.hpp", "builder/generate.hpp"}) {
-        CHECK_MESSAGE(code.find(noun) == std::string::npos, "load_execute.hpp names '", noun,
+        CHECK_MESSAGE(code.find(noun) == std::string::npos, "realization/owner.hpp names '", noun,
                       "', which is realization reaching into the build half");
     }
 
@@ -1263,8 +1263,8 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
     // knows nothing about realization; a `while` around the owner's state would be the
     // same wait moved one file out.
     const std::string host = host_source();
-    for (const char* verb : {"executor.run(", "while (executor", "executor.state()",
-                             "executor.position()", "executor.resolved()"}) {
+    for (const char* verb : {"owner.run(", "while (owner", "owner.state()",
+                             "owner.position()", "owner.resolved()"}) {
         CHECK_MESSAGE(host.find(verb) == std::string::npos, "workshop.cpp spells '", verb,
                       "', which is plan-specific control flow in a host loop");
     }
@@ -1272,7 +1272,7 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
 
 TEST_CASE("the host writes the booter's two lifecycle rules, and no third") {
     // THE DANGEROUS GRANT IN A ZENGINE HOST IS THE MANAGER'S TWO LIFECYCLE OPS, both
-    // target-scoped to the Manager, written by the host and held by the plan booter alone --
+    // target-scoped to the Manager, written by the host and held by the realization owner alone --
     // read off the source for the authoring tripwire's reason: a rig that minted the grant could
     // not notice the host widening it.
     const std::string host = host_source();

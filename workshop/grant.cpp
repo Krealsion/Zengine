@@ -117,6 +117,9 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     // THE EDITOR'S DOCUMENT, read to refuse a guest the words of the guests file.
     speak.allow_observe(EditorDocument::zen_name, EditorDocument::zen_version);
+    // WHERE THE PLAN IS, the realization owner's claim: what the project waits on, the rows that
+    // gave way and the roles still to come, read at the desk's every reading of them.
+    speak.allow_observe(realization::PlanWhere::zen_name, realization::PlanWhere::zen_version);
     // THE DESK IN A GRAPHICS WINDOW: where each area stands and which palette it wears, said to the
     // directory, and Workshop's own drawing, to the window that shows its area.
     speak.allow_to_role(graphics::AreaPlaced::zen_name, graphics::AreaPlaced::zen_version, graphics::kGraphicsRole);

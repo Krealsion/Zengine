@@ -194,7 +194,7 @@ TEST_CASE("no two components of this tree declare a shape of one name") {
 
 TEST_CASE("the test rig's booter loads a library after a plan has run, its state no shape of Workshop's") {
     // ⚔ MUTATION (tests/mutants/workshop_shapes.md#rig-booter-state-named-boot-state): the rig's
-    // booter state named as the plan booter's -- `BootState` v1 of another shape -- and the load
+    // booter state named as the realization owner's -- `BootState` v1 of another shape -- and the load
     // after a realized plan is refused by Loom's registry.
     PaneRig r;
     r.mount_workshop();

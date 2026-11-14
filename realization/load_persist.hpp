@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_LOAD_PERSIST_HPP
-#define ZENGINE_WORKSHOP_LOAD_PERSIST_HPP
+#ifndef ZENGINE_REALIZATION_LOAD_PERSIST_HPP
+#define ZENGINE_REALIZATION_LOAD_PERSIST_HPP
 
 // The load plan's own file: which artifacts this project runs on, the one execution-authority
 // document beside the setup.
 
-#include "load_plan.hpp"
+#include "realization/load_plan.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
 
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop::load_persist {
+namespace zengine::realization::load_persist {
 
 using zengine::persist::Written;
 
@@ -111,7 +111,7 @@ inline constexpr const char* kModeWords = "normal or overlay";
 
 // ---- The file's own shapes ---------------------------------------------------
 
-/// Provider participation as written: its own shape, not `load::ProviderIntent`, since a saved
+/// Provider participation as written: its own shape, not `ProviderIntent`, since a saved
 /// plan must not change because an implementation did.
 struct WorkshopLoadProvider {
     std::string mode;
@@ -265,10 +265,10 @@ inline const char* mode_word(op::MountMode mode) {
     return mode == op::MountMode::Overlay ? kModeOverlay : kModeNormal;
 }
 
-inline std::vector<WorkshopLoadArtifact> artifact_rows(const load::LoadPlan& plan) {
+inline std::vector<WorkshopLoadArtifact> artifact_rows(const LoadPlan& plan) {
     std::vector<WorkshopLoadArtifact> rows;
     rows.reserve(plan.artifacts.size());
-    for (const load::ArtifactIntent& a : plan.artifacts) {
+    for (const ArtifactIntent& a : plan.artifacts) {
         // AS AUTHORED. Not sorted, not reordered, not resolved against a disk, not
         // dropped for naming a file this machine does not have. The order IS the
         // plan's meaning, so a save that tidied would be a save that edited the
@@ -282,7 +282,7 @@ inline std::vector<WorkshopLoadArtifact> artifact_rows(const load::LoadPlan& pla
             row.weave.push_back(WorkshopLoadWeave{a.weave->role});
         }
         row.optional = a.optional;
-        for (const load::AlternativeIntent& alt : a.otherwise) {
+        for (const AlternativeIntent& alt : a.otherwise) {
             row.otherwise.push_back(
                 WorkshopLoadAlternative{alt.stem, {WorkshopLoadWeave{alt.weave.role}}});
         }
@@ -293,7 +293,7 @@ inline std::vector<WorkshopLoadArtifact> artifact_rows(const load::LoadPlan& pla
 
 /// THE SAME ROWS AS VERSION 3 WROTE THEM -- reachable only for a plan naming no row's
 /// alternatives, which is what `to_text` checks before it chooses that version.
-inline std::vector<v3::WorkshopLoadArtifact> artifact_rows_v3(const load::LoadPlan& plan) {
+inline std::vector<v3::WorkshopLoadArtifact> artifact_rows_v3(const LoadPlan& plan) {
     std::vector<v3::WorkshopLoadArtifact> rows;
     rows.reserve(plan.artifacts.size());
     for (const WorkshopLoadArtifact& a : artifact_rows(plan)) {
@@ -304,10 +304,10 @@ inline std::vector<v3::WorkshopLoadArtifact> artifact_rows_v3(const load::LoadPl
 
 /// THE SAME ROWS AS VERSIONS 1 AND 2 WROTE THEM -- reachable only for a plan that marks no row
 /// optional, which is what `to_text` checks before it chooses one of those versions.
-inline std::vector<v1::WorkshopLoadArtifact> artifact_rows_v1(const load::LoadPlan& plan) {
+inline std::vector<v1::WorkshopLoadArtifact> artifact_rows_v1(const LoadPlan& plan) {
     std::vector<v1::WorkshopLoadArtifact> rows;
     rows.reserve(plan.artifacts.size());
-    for (const load::ArtifactIntent& a : plan.artifacts) {
+    for (const ArtifactIntent& a : plan.artifacts) {
         v1::WorkshopLoadArtifact row;
         row.artifact = a.stem;
         if (a.provider.has_value()) {
@@ -322,8 +322,8 @@ inline std::vector<v1::WorkshopLoadArtifact> artifact_rows_v1(const load::LoadPl
 }
 
 /// Does this plan need the version that can say so?
-inline bool authors_optional(const load::LoadPlan& plan) {
-    for (const load::ArtifactIntent& a : plan.artifacts) {
+inline bool authors_optional(const LoadPlan& plan) {
+    for (const ArtifactIntent& a : plan.artifacts) {
         if (a.optional) {
             return true;
         }
@@ -332,8 +332,8 @@ inline bool authors_optional(const load::LoadPlan& plan) {
 }
 
 /// ...and does it name what any row loads in its place?
-inline bool authors_alternatives(const load::LoadPlan& plan) {
-    for (const load::ArtifactIntent& a : plan.artifacts) {
+inline bool authors_alternatives(const LoadPlan& plan) {
+    for (const ArtifactIntent& a : plan.artifacts) {
         if (!a.otherwise.empty()) {
             return true;
         }
@@ -341,12 +341,12 @@ inline bool authors_alternatives(const load::LoadPlan& plan) {
     return false;
 }
 
-inline WorkshopLoadFile to_file(const load::LoadPlan& plan) {
+inline WorkshopLoadFile to_file(const LoadPlan& plan) {
     WorkshopLoadFile out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
     out.artifacts = artifact_rows(plan);
-    for (const load::ChoiceIntent& c : plan.choices) {
+    for (const ChoiceIntent& c : plan.choices) {
         out.choices.push_back(WorkshopLoadChoice{c.role, c.name, c.stem});
     }
     return out;
@@ -354,7 +354,7 @@ inline WorkshopLoadFile to_file(const load::LoadPlan& plan) {
 
 /// THE PLAN AS VERSION 1 -- meaningful only for a plan that authors no choices, no optional rows
 /// and no row's alternatives.
-inline v1::WorkshopLoadFile to_file_v1(const load::LoadPlan& plan) {
+inline v1::WorkshopLoadFile to_file_v1(const LoadPlan& plan) {
     v1::WorkshopLoadFile out;
     out.format = kFormat;
     out.format_version = kFormatVersionV1;
@@ -363,31 +363,31 @@ inline v1::WorkshopLoadFile to_file_v1(const load::LoadPlan& plan) {
 }
 
 /// THE PLAN AS VERSION 2 -- choices, and no optional rows.
-inline v2::WorkshopLoadFile to_file_v2(const load::LoadPlan& plan) {
+inline v2::WorkshopLoadFile to_file_v2(const LoadPlan& plan) {
     v2::WorkshopLoadFile out;
     out.format = kFormat;
     out.format_version = kFormatVersionV2;
     out.artifacts = artifact_rows_v1(plan);
-    for (const load::ChoiceIntent& c : plan.choices) {
+    for (const ChoiceIntent& c : plan.choices) {
         out.choices.push_back(WorkshopLoadChoice{c.role, c.name, c.stem});
     }
     return out;
 }
 
 /// THE PLAN AS VERSION 3 -- optional rows, and no row's alternatives.
-inline v3::WorkshopLoadFile to_file_v3(const load::LoadPlan& plan) {
+inline v3::WorkshopLoadFile to_file_v3(const LoadPlan& plan) {
     v3::WorkshopLoadFile out;
     out.format = kFormat;
     out.format_version = kFormatVersionV3;
     out.artifacts = artifact_rows_v3(plan);
-    for (const load::ChoiceIntent& c : plan.choices) {
+    for (const ChoiceIntent& c : plan.choices) {
         out.choices.push_back(WorkshopLoadChoice{c.role, c.name, c.stem});
     }
     return out;
 }
 
 /// The smallest version that says a plan, as a number.
-inline std::int64_t version_for(const load::LoadPlan& plan) {
+inline std::int64_t version_for(const LoadPlan& plan) {
     if (authors_alternatives(plan)) {
         return kFormatVersion;
     }
@@ -401,7 +401,7 @@ inline std::int64_t version_for(const load::LoadPlan& plan) {
 /// rows and no row's alternatives, so every plan written before any of them existed is written
 /// again exactly as it was; version 2 while it authors choices and neither of the others; version
 /// 3 while it marks rows optional and names no row's alternatives; version 4 otherwise.
-inline std::string to_text(const load::LoadPlan& plan) {
+inline std::string to_text(const LoadPlan& plan) {
     switch (version_for(plan)) {
     case kFormatVersionV1: return loom::compat::serialize(loom::to_value(to_file_v1(plan)));
     case kFormatVersionV2: return loom::compat::serialize(loom::to_value(to_file_v2(plan)));
@@ -416,7 +416,7 @@ inline std::string to_text(const load::LoadPlan& plan) {
 /// file never leaves a host half composed.
 struct LoadedPlan {
     Written outcome;
-    load::LoadPlan plan;
+    LoadPlan plan;
 
     static LoadedPlan no(std::string why) { return LoadedPlan{Written::no(std::move(why)), {}}; }
 };
@@ -547,14 +547,14 @@ inline LoadedPlan from_text(std::string_view bytes) {
         return LoadedPlan::no(wrong_version(file.format_version));
     }
 
-    load::LoadPlan candidate;
+    LoadPlan candidate;
     candidate.artifacts.reserve(file.artifacts.size());
     for (const WorkshopLoadArtifact& row : file.artifacts) {
         const Written counted = check_surface_counts(row);
         if (!counted.accepted) {
             return LoadedPlan::no(counted.refusal);
         }
-        load::ArtifactIntent a;
+        ArtifactIntent a;
         a.stem = row.artifact;
         if (!row.provider.empty()) {
             op::MountMode mode = op::MountMode::Ordinary;
@@ -565,10 +565,10 @@ inline LoadedPlan from_text(std::string_view bytes) {
                 return LoadedPlan::no("`" + row.provider.front().mode +
                                       "` is not a provider mount mode (" + kModeWords + ")");
             }
-            a.provider = load::ProviderIntent{mode};
+            a.provider = ProviderIntent{mode};
         }
         if (!row.weave.empty()) {
-            a.weave = load::WeaveIntent{row.weave.front().role};
+            a.weave = WeaveIntent{row.weave.front().role};
         }
         a.optional = row.optional;
         for (const WorkshopLoadAlternative& alt : row.otherwise) {
@@ -578,12 +578,12 @@ inline LoadedPlan from_text(std::string_view bytes) {
                                       "`: what a row loads in its place names its weave once");
             }
             a.otherwise.push_back(
-                load::AlternativeIntent{alt.artifact, load::WeaveIntent{alt.weave.front().role}});
+                AlternativeIntent{alt.artifact, WeaveIntent{alt.weave.front().role}});
         }
         candidate.artifacts.push_back(std::move(a));
     }
     for (const WorkshopLoadChoice& c : file.choices) {
-        candidate.choices.push_back(load::ChoiceIntent{c.role, c.name, c.artifact});
+        candidate.choices.push_back(ChoiceIntent{c.role, c.name, c.artifact});
     }
     // One plan, one spelling: a file in a version larger than its plan needs is refused, or a
     // save would rewrite a file nobody edited.
@@ -600,7 +600,7 @@ inline LoadedPlan from_text(std::string_view bytes) {
         return LoadedPlan::no("a version-2 load plan authors choices; a plan with none is "
                               "written as version 1");
     }
-    const Written legal = load::check_plan(candidate);
+    const Written legal = check_plan(candidate);
     if (!legal.accepted) {
         return LoadedPlan::no(legal.refusal);
     }
@@ -615,7 +615,7 @@ inline LoadedPlan from_text(std::string_view bytes) {
 
 /// Save a plan through `persist::write_file`'s safe write. The host calls it for one act, the
 /// weaver's `load it` on the project plan; Workshop never rewrites authored intent on its own.
-inline Written save_file(const std::string& path, const load::LoadPlan& plan) {
+inline Written save_file(const std::string& path, const LoadPlan& plan) {
     return persist::write_file(path, to_text(plan));
 }
 
@@ -630,6 +630,6 @@ inline LoadedPlan load_file(const std::string& path) {
     return from_text(read.text);
 }
 
-} // namespace zengine::workshop::load_persist
+} // namespace zengine::realization::load_persist
 
-#endif // ZENGINE_WORKSHOP_LOAD_PERSIST_HPP
+#endif // ZENGINE_REALIZATION_LOAD_PERSIST_HPP

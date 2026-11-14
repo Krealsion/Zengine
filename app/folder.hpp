@@ -20,7 +20,7 @@
 #include "graphics/vocabulary.hpp"
 #include "maker/files.hpp"
 #include "view/description.hpp"
-#include "workshop/load_persist.hpp"
+#include "realization/load_persist.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/serialize.hpp>
@@ -49,11 +49,10 @@ inline constexpr std::size_t kMaxAppName = 64;
 
 /// THE PLAN AN EXPORTED APP LOADS: the operators its flow folds with, the app's own weave, the
 /// graphics directory, the GUI window and the timer, in that order.
-inline workshop::load::LoadPlan export_plan() {
-    namespace load = workshop::load;
-    const auto provider = load::ProviderIntent{op::MountMode::Ordinary};
-    const auto weave = [](const char* role) { return load::WeaveIntent{role}; };
-    load::LoadPlan plan;
+inline realization::LoadPlan export_plan() {
+    const auto provider = realization::ProviderIntent{op::MountMode::Ordinary};
+    const auto weave = [](const char* role) { return realization::WeaveIntent{role}; };
+    realization::LoadPlan plan;
     plan.artifacts = {{"zengine-operators-basic", provider, std::nullopt},
                       {"zengine-app-weave", std::nullopt, weave(kAppRole)},
                       {"zengine-graphics", std::nullopt, weave(zengine::graphics::kGraphicsRole)},
@@ -235,11 +234,11 @@ inline ExportJudged judge_export(const ExportAsked& asked) {
         return refuse(back.refusal);
     }
 
-    const workshop::load::LoadPlan plan = export_plan();
+    const realization::LoadPlan plan = export_plan();
     for (const auto& row : plan.artifacts) {
         out.stems.push_back(row.stem);
     }
-    out.plan_text = workshop::load_persist::to_text(plan);
+    out.plan_text = realization::load_persist::to_text(plan);
     out.view_bytes = view_read.bytes;
     out.flow_bytes = flow_read.bytes;
     out.launcher_cmd = launcher_cmd(out.name, asked.program);
