@@ -37,7 +37,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
 | | |
 |---|---|
 | `vocabulary.hpp` | the messages: the node, the element record, drawing, elements, the directory, a window's report |
-| `color.hpp` | a colour a draw carries: an exact value, a name from the shared pool, or a slot its pane exposes |
+| `color.hpp` | a colour a look carries, one union: none, an exact value, a name from the shared pool, or an own value its pane declares |
 | `pool.json`, `themes/` | the pool's colours and their defaults, and the three shipped themes, generated into C++ names (`graphics/colors.hpp`) and palettes (`graphics/themes.hpp`) as the package is configured |
 | `pixels.hpp` | arithmetic on pixels and cells that cannot overflow, a pixel in a medium's device unit, and the grain a hit test floors by |
 | `operands.hpp` | the node, the seven operators' operands and the looks a node wears, each one union |

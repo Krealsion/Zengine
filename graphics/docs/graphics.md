@@ -126,11 +126,19 @@ style, a paint and an ink of none -- and a group and an image wear none. The win
 looks once, each kept node naming one there, and lets go of a look no node wears. A `Sketch` says
 its looks so, and sends a drawing only the looks the nodes it puts wear.
 
-Loom counts a cell for every field a shape declares, and admits one value of at most its decode
-allowance. A node is a cell for its path, one for its look and its operands' fields: a text 8, a
-rectangle, an ellipse, a line or a group 9, a path 6 and an image 12, a look once a drawing. So a
-whole area at the window's bound (`kMaxNodesPerArea`) is one drawing of any of them, and the
-window's state, which goes whole into a reload, holds it.
+Loom counts a cell for every field a record declares and one for a union's case, with the
+case's own fields, and admits one value of at most its decode allowance: 16 cells a node, for a
+whole area at the window's bound (`kMaxNodesPerArea`). A node is a cell for its path, one for its
+look and its operands' fields: a text 8, a rectangle, an ellipse, a line or a group 9, a path 6
+and an image 12. A look is said once a drawing and costs the cases it holds: an ink 6 cells with an
+exact colour, a paint 9 with an exact fill and a pool stroke, a text's look 14 with an exact ink.
+
+So a whole area whose nodes share their looks is one drawing of any operator, and the window's
+state, which goes whole into a reload, holds one such area (not two). Where every node wears a look of its own, a text
+costs 22, a rectangle or an ellipse 18: past the allowance, an area of them is drawn as an image.
+A line or a path costs 15, one drawing, which the window shows; a window holding it does not
+reload. A drawing past the allowance is refused by Loom before the window reads it, and its drawer
+is told so as the window tells its own refusals (a drawing weave, below).
 
 The gate reads a node's operands and the looks as it reads every value: operands of another shape
 or version, or an operator the union does not hold, are refused there, the drawing with them.
@@ -153,13 +161,15 @@ and the `action` a press anywhere in it asks of the area's owner.
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
 <!-- value kCellPx -->12<!-- /value --> pixels. `graphics/pixels.hpp` is the arithmetic on both:
 sums and floors that cannot overflow, a pixel in a medium's device unit, and the grain a hit test
-floors by. Every colour a look carries is a `Color` (below).
+floors by. Every colour a look carries is a `Color` (below), each a union of the cases it may
+hold, as a text's size (`TextSize`) and style (`TextStyle`) are.
 
 ## Colours by name
 
-A colour a draw carries (`Color`, `graphics/color.hpp`) is one of three: an exact value,
-`graphics::rgb(0xRRGGBB)` or `rgba(0xRRGGBBAA)`; a name from the **pool**, the colours every pane
-may name by use; or an **own value** its pane declares for themes to set. The window turns a name into a
+A colour a look carries (`Color`, `graphics/color.hpp`) is a union, the case it holds what it
+is, with only the fields that case means: none; an exact value, `graphics::rgb(0xRRGGBB)` or
+`rgba(0xRRGGBBAA)`; a name from the **pool**, the colours every pane may name by use; or an **own
+value** its pane declares for themes to set, over an exact or a pool colour. The window turns a name into a
 colour when it paints, from the **palette** the area wears; nothing before it -- not the drawer,
 not the painter -- knows what a name looks like, so a palette changed is every area wearing it
 painted again, with nothing drawn again on the bus.
@@ -260,11 +270,12 @@ holds the roots `tiny`, `small`, `medium`, `large` and `huge`; `zengine::graphic
 name that Windows' headers make a macro is spelled in C++ with `_` after it: `sizes::small_`, still
 `small` wherever a draw or a theme names it.
 
-A text draw carries a style beside its colour, size, font and weight (`TextArgs`,
-`graphics/ops.hpp`; `graphics/text_style.hpp`), and each of the four changes its style for that one
-draw: a colour (none: the style's), a size (`TextSize`, a pool size or an own value; none: the style's), a
-font ("": the style's) and a weight (`text_weight::kRegular`, `kBold`, or `kOfStyle`: the style's).
-A text naming no style is set in `body`.
+A text's look carries a style beside its colour, size, font and weight (`TextLook`,
+`graphics/text_style.hpp`), and each of the four changes its style for that one draw: a colour
+(none: the style's), a size (`TextSize`, a union: a pool size, "" its style's, or an own value over
+points or a pool size), a font ("": the style's) and a weight (`text_weight::kRegular`, `kBold`, or
+`kOfStyle`: the style's). A style (`TextStyle`) is a union too: a pool style, or an own value over
+one. A text naming no style is set in `body`.
 
 ```cpp
 sketch.text("card/title", x, y, "Counter", graphics::styles::heading);
@@ -358,7 +369,12 @@ public:
 
 The drawing facet takes the room from the window it names, asks its room after the first message
 each life delivers it while no room has come (a loaded weave's activation, where it hears one),
-and takes a refusal and does nothing with it. At the end of every delivery, and of every poke that
+and takes the window's refusal and does nothing with it. A drawing Loom refuses before the window
+reads it -- one past what Loom decodes of one value -- reaches the drawer as the window's own
+refusal does, its words naming an image as the way for an area whose every node wears a look of
+its own: the facet hears Loom's notice for a send of its own (`zen.DispatchRefused`,
+`Canvas::refused`) and hands the drawer a `DrawnRefused`, through its handler where it declares one.
+A whole drawing so refused is not sent again until the picture changes or a room comes. At the end of every delivery, and of every poke that
 wrote the state, `With` runs the weave's own `after_delivery` (when present) and then each facet's
 `after_delivery` in declaration order, where `DrawingFacet` draws the drawer's `picture` and shows
 the beat: a drawer never calls `show`. An optional `on_room` runs when the window, its incarnation,

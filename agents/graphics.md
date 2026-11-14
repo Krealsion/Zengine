@@ -42,7 +42,11 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   keeps the single-base compile-time refusal).
 - **Every bound is judged before anything changes**, and a drawing past one is refused whole, to
   its drawer, in words (`DrawnRefused`): the nodes, records and presented elements of an area, a
-  path's bytes and depth, an operator's operands. A record said again at its own path counts as
+  path's bytes and depth, an operator's operands. A send Loom refuses before the window reads it --
+  a drawing past what Loom decodes of one value -- reaches its drawer the same way: the `Canvas`
+  that sent it reads Loom's notice (`zen.DispatchRefused`) as its `DrawnRefused`, naming an image for
+  an area whose every node wears a look of its own, and sends a whole drawing so refused again only
+  once the picture changes or a room comes (`Canvas::refused`, `DrawingFacet`, `WindowDrawing`). A record said again at its own path counts as
   itself. An element whose data does not read as its type is refused saying so, and nothing of a
   never-presented element stays.
 - A window's incarnation is a random token drawn on its first activation and carried by its state:
@@ -126,7 +130,8 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 ## Colour, pixels and operands
 
 - **A colour is an exact value, a pool name or an own value, and the window alone turns a name into a
-  colour** (`Color`, `graphics/color.hpp`; `graphics/window/palette.hpp`), when it paints, from the
+  colour** (`Color`, a union whose case is the kind of colour, as `TextSize` and `TextStyle` are
+  of a size and a style; `graphics/color.hpp`; `graphics/window/palette.hpp`), when it paints, from the
   palette the area wears: a pool name as the palette says, else the pool's default, else `text`; a
   own value as the palette says for the area's owner, else the default the drawing carries, an
   exact colour or a pool colour as the palette says. An area
@@ -156,9 +161,11 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **What a drawing's nodes share is said once**: the looks they wear (`Drawn::looks`, `Look`: a
   paint, an ink or a text's look), each node naming one by its place there or none, its operator's
   default; the window keeps an area's looks once and lets go of one no node wears, and its judge
-  refuses a look the drawing does not say or the operator does not wear. A node costs Loom a cell
-  for its path, one for its look and its operands' fields (a text 8, an image 12), so a whole area
-  at the window's bound is one drawing and its state reloads.
+  refuses a look the drawing does not say or the operator does not wear. A look is found among a
+  drawing's or an area's in one step (`LookHash`). A node costs Loom a cell for its path, one for
+  its look and its operands' fields (a text 8, an image 12), so a whole area at the window's bound
+  whose nodes share their looks is one drawing, and a window holding one such area reloads; one
+  whose every node wears a look of its own is drawn as an image.
   An element change's shape is implied by the element's type: it travels as its shape's body, and
   the receiver restores the envelope before the gate reads it (`graphics/implied.hpp`).
 - **An element's changes are a list whose order is the wire**: a change travels as its index, so

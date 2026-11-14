@@ -165,7 +165,9 @@ testing and every semantic action. No node, wire or pan behavior belongs in the 
   room starts the drawing afresh; a reloaded provider keeps no room, picture map or gesture.
 - **A drawing past what a window keeps is said, never refused.** `canvas_sketch` draws a picture
   past an area's node or record bound as that bound in words on the ground; a drawing the window
-  refuses all the same is told its drawer alone (`DrawnRefused`), which says it in its own picture.
+  refuses all the same is told its drawer alone (`DrawnRefused`), which says it in its own picture,
+  and so is one Loom refuses before the window reads it (`zen.DispatchRefused`,
+  `WindowDrawing::refused`).
 - **The pointer is the window's word.** A pane hears `AreaButtonChanged`, `AreaPointerMoved`,
   `AreaWheelTurned` and `AreaHoldEnded` in its area where its role takes them, as every shipped
   pane's does: a press's moves and release held to it under the window's number for the press,

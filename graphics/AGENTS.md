@@ -8,14 +8,14 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | path | what it is |
 |---|---|
 | `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's and the palettes (`PaletteOffered`, `PaletteChosen`), `WindowShown`; `kGraphicsRole` |
-| `color.hpp` | a colour a draw carries, `Color`: an exact value (`rgb`, `rgba`, beside the pool colour it is `like`), a pool name (`PoolColor`) or an own value (`own()`, `OwnColor`) |
+| `color.hpp` | a colour a look carries, `Color`, one union: none, an exact value (`rgb`, `rgba`, beside the pool colour it is `like`), a pool name (`PoolColor`) or an own value over either (`own()`, `OwnColor`) |
 | `own.hpp` | a pane's own values as it declares them to whoever offers palettes: `declared()`, `OwnValuesDeclared` |
 | `pool.json`, `themes/*.json` | the pool's roots (colours, fonts, sizes `tiny` to `huge`) and the styles made of them, with their defaults, and the three shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent`, `styles::heading`, `sizes::large` ...) and `graphics/themes.hpp` (`themes::night()` ...) by `cmake/ZengineNames.cmake` |
-| `text_style.hpp` | what a text is set in: a style (`TextStyle`, `PoolStyle`) and the fields one draw changes (`TextLook`: `with_color`, `with_size`, `with_font`, `with_weight`), a size (`TextSize`) and a weight |
+| `text_style.hpp` | what a text is set in: a style (`TextStyle`, one union; `PoolStyle`) and the fields one draw changes (`TextLook`: `with_color`, `with_size`, `with_font`, `with_weight`), a size (`TextSize`, one union) and a weight |
 | `pixels.hpp` | saturating pixel arithmetic: `add_cells`, `sub_px`, `mul_px`, `floor_div_px`, `px_of_cells`, `cell_of_pixel`, `device_of_px`, `px_span_contains` and the grains |
-| `operands.hpp` | the node and the seven operators' operands, one union (`Operands`), read by case (`operands`, `operator_of`) and by what they hold (`operand_bytes`); the looks a node wears, one union (`Look`: `Paint`, `Ink`, `TextLook`), read by case (`look_as`), judged (`wears`) and defaulted (`look_or_default`) |
+| `operands.hpp` | the node and the seven operators' operands, one union (`Operands`), read by case (`operands`, `operator_of`) and by what they hold (`operand_bytes`); the looks a node wears, one union (`Look`: `Paint`, `Ink`, `TextLook`), read by case (`look_as`), judged (`wears`), defaulted (`look_or_default`) and found in one step (`LookHash`) |
 | `ops.hpp`, `implied.hpp` | the colours a look carries (`colors_of`) and the pool colour a colour shows as (`pool_color_of`); an element change's body without its envelope |
-| `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed |
+| `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed, and a send Loom refused heard as the window's refusal (`Canvas::refused`) |
 | `elements.hpp`, `elements/*.hpp` | the parts an owner draws into a `Sketch`: `Button`, `Checkbox`, `List`, `Grid`, `Icon`, `Image`, `ScrollView`, `TextBox`; each its nodes and its `*Face` record, the action the owner names riding the record; and the text pieces' stateless faces over `component/`'s values (`text_face.hpp`) |
 | `drawing.hpp` | `DrawingWeave`: a drawer's authoring base, the room's handshake and the showing |
 | `painting.hpp` | `PaintTask`/`PaintResult`, a node handed its colours resolved (`PaintInk`), `ElementEvent`/`ElementOutcome`/`ElementDescribed` |
