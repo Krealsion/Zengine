@@ -65,8 +65,9 @@ the Editor pane.
 
 Each answer below counts only when it is the answer to this role's own ask, under the open's
 number and at the stage it waits on; any other is ignored. It also reads three of Loom's words
-against the bus's own record of the open: `zen.DispatchRefused` (an ask it sent was refused before
-it arrived), `zen.JointEnded` (the bus ended the open, a participant replaced or a claim moved) and
+against the bus's own record of the open: `zen.AskEnded` (an ask it sent ended with no answer:
+refused before it arrived, or its owner gone or silent), `zen.JointEnded` (the bus ended the open, a
+participant replaced or a claim moved) and
 `zen.JointApplied` (both owners' showings settled).
 
 ### `PresentationTrial`

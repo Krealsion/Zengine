@@ -43,7 +43,8 @@ struct WaiterState {
 /// refused, and whether the bake came out of the oven.
 class Waiter
     : public loom::WeaveBase<Waiter, WaiterState,
-                             loom::Accept<loom::Result, loom::Ack, loom::Refused, BakeDone>,
+                             loom::Accept<loom::Result, loom::Ack, loom::Refused, BakeDone,
+                                          loom::AskEnded>,
                              loom::Emit<loom::LoadWeave, BakeOrder>> {
 public:
     bool answered = false;
@@ -60,6 +61,8 @@ public:
         current_ = opened.id;
         return opened.correlation;
     }
+    /// The load's ask, bound to its queued attempt so Loom's word that it ended names it.
+    void sent(loom::Ticket attempt) { (void)loads_.bind_attempt(current_, attempt.seq); }
     /// IS MY LOAD CONVERSATION STILL OPEN? Never "was anything delivered this turn".
     bool awaiting() const { return loads_.awaiting(); }
 
@@ -77,6 +80,17 @@ public:
         answered = true;
         refused = true;
         reason = r.reason;
+    }
+    /// Loom's word that the load ended with no answer: refused, in Loom's words.
+    void on(const loom::AskEnded& e, loom::Mail& mail) {
+        if (!loads_.end(e, mail)) {
+            return;
+        }
+        current_ = 0;
+        answered = true;
+        refused = true;
+        reason = std::string("the Manager never answered (") + loom::stage_name(e.stage) + ", " +
+                 std::string(loom::reason_name(e.stage)) + ")";
     }
     void on(const BakeDone& d, loom::Mail&) {
         served = true;
@@ -154,12 +168,12 @@ int main(int argc, char** argv) {
 
     const auto load = [&](const std::string& stem, const std::string& role) {
         const std::uint64_t correlation = waiter->asking(manager);
-        bus.send_as(waiter_id, manager,
+        waiter->sent(bus.ask_as(waiter_id, {}, manager, {},
                     loom::Message(loom::to_value(loom::LoadWeave{
                                       stem, dir + "/" + stem + kArtifactSuffix,
                                       role.empty() ? std::vector<std::string>{}
                                                    : std::vector<std::string>{role}}),
-                                  waiter_id, waiter_id, correlation));
+                                  waiter_id, waiter_id, correlation)));
         // A load is answered, not merely started: is_loaded turns true while the Result naming
         // the weave is still queued, so this turns the dispatch crank until this waiter's own
         // answer arrives. The 64 is a hang guard, not what settles the load; do not stop on an

@@ -2242,10 +2242,9 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
             }
         }
         if (ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
-            ev.schema_name == loom::DispatchRefused::zen_name && ev.payload != nullptr &&
+            ev.schema_name == loom::AskEnded::zen_name && ev.payload != nullptr &&
             out.attempt != 0 &&
-            loom::from_value<loom::DispatchRefused>(*ev.payload).refused_attempt().seq ==
-                out.attempt) {
+            loom::from_value<loom::AskEnded>(*ev.payload).ended_attempt().seq == out.attempt) {
             ++out.notices;
         }
     });
@@ -2283,10 +2282,10 @@ public:
     }
 };
 
-/// A STRANGER: an ordinary weave granted the refusal notice's shape, as every loaded image already
+/// A STRANGER: an ordinary weave granted the ending notice's shape, as every loaded image already
 /// is. What it sends is its own speech, whatever the payload claims.
 class Stranger : public loom::WeaveBase<Stranger, SeatState, loom::Accept<SeatDo>,
-                                        loom::Emit<loom::DispatchRefused>> {
+                                        loom::Emit<loom::AskEnded>> {
 public:
     void on(const SeatDo&, loom::Mail&) { ++state_.said; }
 };
@@ -2333,8 +2332,8 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
         CHECK(f.layouts_width() == "-");
         // THE PANE SAYS WHAT HAPPENED, in the rows Workshop holds and paints, and the draft is
         // exactly what it was.
-        CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
-        CHECK(f.row_of("commit not delivered --") == 0);
+        CHECK_MESSAGE(f.admitted_leads("commit not answered --"), f.text());
+        CHECK(f.row_of("commit not answered --") == 0);
         CHECK(f.declared() == kDrafting);
         CHECK(value_of(f.property_row("Width")) == "77");
         // ...IT TAKES MORE TEXT, AND THE NEXT RETURN IS A FRESH COMMIT, NOT ONE HELD BEHIND AN
@@ -2360,7 +2359,7 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
         CHECK(refused.delivered == 0);
         CHECK(f.layouts_width() == "-");
         CHECK(f.declared() == kResting);
-        CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
+        CHECK_MESSAGE(f.admitted_leads("commit not answered --"), f.text());
         for (const std::string& one : admitted_and_painted(f)) {
             INFO("row: ", one);
             CHECK(one.find("commit already sent") == std::string::npos);
@@ -2424,21 +2423,21 @@ TEST_CASE("an Info commit a doorless role refuses at dispatch: the draft stands,
     CHECK(reason == "NotAccepted"); // queued to the doorless role, refused at dispatch
     CHECK(queued == 0);
     REQUIRE_FALSE(held_reading(f.kind).rows.empty());
-    CHECK_MESSAGE(held_reading(f.kind).rows.front().rfind("commit not delivered --", 0) == 0,
+    CHECK_MESSAGE(held_reading(f.kind).rows.front().rfind("commit not answered --", 0) == 0,
                   held_reading(f.kind).rows.front());
     // THE RECORD WAS RELEASED by Loom's notice: the next commit is attempted again rather than
     // refused as the second of two, which is what an outstanding record would have said.
     commit_id_said();
     CHECK(seam_refusals == 2);
     CHECK(queued == 0);
-    CHECK(held_reading(f.kind).rows.front().rfind("commit not delivered --", 0) == 0);
+    CHECK(held_reading(f.kind).rows.front().rfind("commit not answered --", 0) == 0);
     f.r.bus.remove_observer(tap);
 
     // THE DOOR COMES BACK: the role leaves, and the same Workshop weave holds it again.
     REQUIRE(f.r.bus.unregister_weave(role_id) != nullptr);
     f.r.put_workshop_back(std::move(workshop));
     f.regrant();
-    CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
+    CHECK_MESSAGE(f.admitted_leads("commit not answered --"), f.text());
     CHECK(f.declared() == kDrafting);
     CHECK(value_of(f.property_row("Width")) == "77");
     CHECK(f.layouts_width() == "-");
@@ -2449,9 +2448,9 @@ TEST_CASE("an Info commit a doorless role refuses at dispatch: the draft stands,
     CHECK(f.declared() == kResting);
 }
 
-TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstanding commit exactly, "
+TEST_CASE("an ending notice anyone could send, naming the Info pane's outstanding commit exactly, "
           "settles nothing") {
-    // THE PROVENANCE IS THE FACT; THE SHAPE IS SPEECH. A stranger says `zen.DispatchRefused` naming
+    // THE PROVENANCE IS THE FACT; THE SHAPE IS SPEECH. A stranger says `zen.AskEnded` naming
     // every half the pane matches -- the attempt, the correlation, the shape, its version, the
     // role -- and queues it where it reaches the pane before the owner's answer does.
     InfoRig f;
@@ -2459,7 +2458,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     auto held = std::make_unique<Stranger>();
     Stranger* stranger = held.get();
     loom::Grant grant;
-    grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
+    grant.allow_to_any(loom::AskEnded::zen_name, loom::AskEnded::zen_version);
     const loom::WeaveId stranger_id = f.r.bus.register_weave(std::move(held), std::move(grant));
     stranger->zen_set_self(stranger_id);
     const loom::WeaveId pane_id = info_id(f);
@@ -2483,7 +2482,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
         if (ev.schema_name == PaneCommitRequested::zen_name) {
             seqs.push_back(ev.seq);
             correlations.push_back(ev.correlation);
-        } else if (ev.target == pane_id && ev.schema_name == loom::DispatchRefused::zen_name &&
+        } else if (ev.target == pane_id && ev.schema_name == loom::AskEnded::zen_name &&
                    ev.sender == stranger_id) {
             ++forged_delivered;
         } else if (ev.sender == pane_id && ev.schema_name == gfx::Drawn::zen_name) {
@@ -2527,12 +2526,12 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     const loom::Ticket probe = f.r.bus.send(
         stranger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     REQUIRE(probe.valid());
-    loom::DispatchRefused forged;
+    loom::AskEnded forged;
     forged.attempt = std::to_string(probe.seq - 1);
     forged.role = kWorkshopProvider;
     forged.shape = PaneCommitRequested::zen_name;
     forged.version = PaneCommitRequested::zen_version;
-    forged.reason = "TargetUnavailable";
+    forged.stage.is = loom::AskNotDelivered::TargetUnavailable;
     const std::uint64_t forged_at = last_ask + 1;
     REQUIRE(f.r.bus
                 .send_as(stranger_id, pane_id,
@@ -2550,7 +2549,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     CHECK(seqs.back() == probe.seq - 1);
     CHECK(correlations.back() == forged_at);
     // IT SETTLED NOTHING: the commit id said meanwhile met the outstanding commit and was not sent,
-    // no row ever said the commit was not delivered, and the answer closed the draft.
+    // no row ever said the commit was not answered, and the answer closed the draft.
     const bool not_sent_said =
         std::find_if(first_rows.begin(), first_rows.end(), [](const std::string& row) {
             return row.rfind("commit not sent --", 0) == 0;
@@ -2558,7 +2557,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     CHECK(not_sent_said);
     for (const std::string& row : first_rows) {
         INFO("row 0: ", row);
-        CHECK(row.find("not delivered") == std::string::npos);
+        CHECK(row.find("not answered") == std::string::npos);
     }
     CHECK(f.layouts_width() == "78 cells");
     CHECK(f.declared() == kResting);
@@ -2592,9 +2591,9 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, ans
             reason = loom::name_of(ev.refusal.reason);
         }
         if (ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
-            ev.schema_name == loom::DispatchRefused::zen_name && ev.payload != nullptr &&
+            ev.schema_name == loom::AskEnded::zen_name && ev.payload != nullptr &&
             attempt != 0 &&
-            loom::from_value<loom::DispatchRefused>(*ev.payload).refused_attempt().seq == attempt) {
+            loom::from_value<loom::AskEnded>(*ev.payload).ended_attempt().seq == attempt) {
             ++notices;
         }
     });
@@ -2614,15 +2613,15 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, ans
     CHECK(reason == "TargetUnavailable");
     CHECK(notices == 1);
     CHECK_FALSE(f.r.session().inspected.addressed());
-    CHECK_MESSAGE(f.admitted_leads("inspect not delivered -"), f.text());
+    CHECK_MESSAGE(f.admitted_leads("inspect not answered -"), f.text());
     // THE ROLE THAT ASKED IS ANSWERED ONCE, in the same words.
     REQUIRE(hand.acted.size() == answered_before + 1);
     CHECK_FALSE(hand.acted.back().accepted);
-    CHECK(hand.acted.back().refusal.rfind("inspect not delivered -- nothing changed (", 0) == 0);
+    CHECK(hand.acted.back().refusal.rfind("inspect not answered -- it could not reach ", 0) == 0);
     // ...AND THE NEXT ASK IS AN INSPECT OF ITS OWN, answered.
     CHECK(f.ask_inspect(pane_info_ref()).accepted);
     CHECK(f.r.session().inspected.ref == pane_info_ref());
-    CHECK(f.row_of("inspect not delivered") == -1);
+    CHECK(f.row_of("inspect not answered") == -1);
 }
 
 TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this desk is refused in "

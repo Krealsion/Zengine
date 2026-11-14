@@ -57,7 +57,7 @@ first, as an `open` or a `write`. A refusal names what was not done and why: `` 
 opened -- <Workshop's reason> ``, `the recipes in force are unchanged -- ...`, `nothing was marked --
 ...` (`no mark was forgotten -- ...`), `no recipe was written -- ...`; or, before Workshop answered,
 `... -- <n> acts are already waiting on Workshop`, `... -- Workshop could not be asked`, or `... --
-Workshop could not be asked (<the bus's reason>)`.
+` and how the ask came to nothing, in Loom's words.
 
 Return has an id of its own in each step, [`files.open`](#filesopen),
 [`files.choose`](#fileschoose) and [`files.commit-field`](#filescommit-field), and a keymap file
@@ -108,8 +108,9 @@ opens like any other.
 - **Refuses:** `no row is selected -- nothing was opened`; `` `name` has bytes this Workshop cannot
   carry in a path -- it cannot be opened ``; `this run began nowhere -- there is no location to act
   in`; `` `name` cannot be reached from here ``; `` `name` was not opened -- nothing was queued to the
-  opening role ``; `` `name` was not opened -- the open could not reach zengine.opening (<the bus's
-  reason>) ``; the opening role's own words, as when no Editor is loaded or it holds unsaved edits;
+  opening role ``; `` `name` was not opened -- it could not reach zengine.opening (<Loom's reason>)
+  ``, or `` -- zengine.opening never answered (...) ``; the opening role's own words, as when no
+  Editor is loaded or it holds unsaved edits;
   and the refusals every act shares ([Use](#use)).
 - **Example:** move to `alpha.cpp`, press <!-- key files.open -->`return`<!-- /key -->.
 

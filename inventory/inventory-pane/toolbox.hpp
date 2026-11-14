@@ -37,10 +37,10 @@ public:
             stage_ = Stage::permission;
             const auto gesture = static_cast<std::int64_t>(mail.correlation());
             const bool queued = restore
-                ? pending_.send_to_role(mail.as_role(kRole), zengine::pane::pane_menu::kWorkshopRole,
+                ? pending_.ask_role(mail.as_role(kRole), zengine::pane::pane_menu::kWorkshopRole,
                       pane::PaneOperationRequested{pane, kRole, InventoryToolboxRestore::zen_name, 1,
                                                        gesture}, ++asks)
-                : pending_.send_to_role(mail.as_role(kRole), zengine::pane::pane_menu::kWorkshopRole,
+                : pending_.ask_role(mail.as_role(kRole), zengine::pane::pane_menu::kWorkshopRole,
                       pane::v2::PaneOperationRequested{pane, kRole, InventoryToolboxSave::zen_name, 1,
                                                            gesture, {pane::act_class::kWrite}, {}}, ++asks);
             if (!queued) fail("Toolbox permission request could not be queued", mail);
@@ -53,7 +53,7 @@ public:
                          std::uint64_t& asks, loom::DeferredAnswer due, const std::string& pane) {
         prepare(std::move(path), false, false, layout, std::move(due));
         stage_ = Stage::scope;
-        if (!pending_.send_to_role(mail.as_role(kRole), workshop::kGuestsRole, pane::ActorScopeRequested{
+        if (!pending_.ask_role(mail.as_role(kRole), workshop::kGuestsRole, pane::ActorScopeRequested{
                 static_cast<std::int64_t>(mail.sender().value), pane, {pane::act_class::kWrite},
                 InventoryToolboxSave::zen_name}, ++asks))
             fail("Toolbox write check could not be queued", mail);
@@ -83,7 +83,7 @@ public:
             } else {
                 layout_ = toolbox_layout(file_, layout_);
                 stage_ = Stage::restoring;
-                if (!pending_.send_to_role(mail, inventory::kInventoryRole, inventory::v2::InventoryRestore{
+                if (!pending_.ask_role(mail, inventory::kInventoryRole, inventory::v2::InventoryRestore{
                         snapshot.owner, snapshot.revision, file_.archive, replace_}, ++asks))
                     fail("Toolbox restore could not be queued", mail);
                 else notice = "Restoring the toolbox against the current collection";
@@ -100,7 +100,7 @@ public:
         pending_.forget(); count_ = answer.entries;
         bind_toolbox_owner(layout_, answer.owner); restored = std::move(layout_);
         stage_ = Stage::shortcuts;
-        if (!pending_.send_to_role(mail.as_role(kRole), workshop::kDesktopRole, workshop::PaneShortcuts{}, ++asks))
+        if (!pending_.ask_role(mail.as_role(kRole), workshop::kDesktopRole, workshop::PaneShortcuts{}, ++asks))
             fail("Entries restored with hotkeys OFF; Desktop cleanup could not be queued", mail);
         else notice = "Entries restored with hotkeys OFF; clearing previous shortcuts";
         return true;
@@ -117,16 +117,16 @@ public:
         fail((stage_ == Stage::shortcuts ? "Entries restored with hotkeys OFF; " : "") + answer.reason, mail);
         return true;
     }
-    bool hear(const loom::DispatchRefused& answer, loom::Mail& mail, std::uint64_t& asks) {
-        if (!busy() || !pending_.matches_refusal(answer, mail)) return false;
+    bool hear(const loom::AskEnded& ended, loom::Mail& mail, std::uint64_t& asks) {
+        if (!busy() || !pending_.matches_ending(ended, mail)) return false;
         // NO ONE HOLDS THE GUEST DOOR'S ROLE: there is no door, so the sender is no guest.
-        if (stage_ == Stage::scope && answer.reason == loom::name_of(loom::RefusalReason::NoSuchTarget)) {
+        if (stage_ == Stage::scope && ended.never_delivered() && loom::reason_name(ended.stage) == "NoSuchTarget") {
             pending_.forget();
             start(mail, asks);
             return true;
         }
         fail((stage_ == Stage::shortcuts ? "Entries restored with hotkeys OFF; " : "") +
-             std::string("Toolbox request refused: ") + answer.reason, mail);
+             std::string("Toolbox request ended: ") + zengine::pane::no_answer(ended), mail);
         return true;
     }
 private:
@@ -140,7 +140,7 @@ private:
             path_ = toolbox_path(path_);
             if (restore_) file_ = read_toolbox(path_);
             stage_ = Stage::snapshot;
-            if (!pending_.send_to_role(mail, inventory::kInventoryRole, inventory::v2::InventorySnapshotRequested{}, ++asks))
+            if (!pending_.ask_role(mail, inventory::kInventoryRole, inventory::v2::InventorySnapshotRequested{}, ++asks))
                 fail("Inventory snapshot could not be queued", mail);
             else notice = restore_ ? "Preparing toolbox restore" : "Taking a toolbox snapshot";
         } catch (const std::exception& e) { fail(e.what(), mail); }

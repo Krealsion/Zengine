@@ -393,17 +393,15 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   (`PresentedMenu::first_attempt`) ends the open menu, answered; one inside a withdrawn menu's
   span settles that one; anything older settles nothing -- an older menu's refusal never ends,
   alters or answers a newer one. The role's name alone could not tell them apart. **Taking a
-  menu off the screen is not answering it:** the withdrawal is still the presenter's to answer,
-  so the host keeps who asked (`WithdrawnMenu`: role, pane, subject, number, why, the attempt
-  span) until Loom has had its say. A withdrawal that queues nothing, or one Loom refuses (the
-  presenter unloaded after the menu opened), is answered by the host, unchosen, under the ask's
-  number, saying why the menu ended and what Loom said. The record is forgotten when the host's
-  own `WithdrawalFence` has come round twice behind the withdrawal -- each refusal is appended
-  when its sentence is dispatched, ahead of the second hop -- or sooner, on the presenter's own
-  `MenuClosed` or `MenuReturned` about that menu. Those two hops are also what makes the
-  give-back reach a record still kept: the withdrawal is dispatched before the first hop, and
-  what the image says back is queued while that hop is handled, ahead of the second. An image
-  that answered nothing THAT TURN is outside what this orders. A withdrawal Loom delivered and
+  menu off the screen is not answering it:** the withdrawal is an ask of the presenter's role,
+  under the menu's number, so the host keeps who asked (`WithdrawnMenu`: role, pane, subject,
+  number, why, the attempt span) until the ask is answered or ends. The presenter answers its
+  requester, then the withdrawal: `MenuClosed`, or `MenuReturned` for a menu it does not hold, on
+  which the host answers the requester. A withdrawal that queues nothing, or one Loom ends with
+  no answer (`zen.AskEnded`: the presenter unloaded after the menu opened, gone, or silent), is
+  answered by the host, unchosen, under the ask's number, saying why the menu ended and what Loom
+  said. Each ask ends once, so the record is forgotten then, and nothing is kept for ever. A
+  withdrawal Loom delivered and
   the presenter neither answered nor gave back stays that presenter's silence: no timeout, retry
   or departure notice is implied. Establishing an older menu's refusal while a
   newer menu is open took a request made under the number its press will carry, before the pane
@@ -469,10 +467,11 @@ EditorDocument v1, PanePresentation v1                    the two latest claims,
   a forged settlement, preparation or admission reaches its party and is dropped by it. The
   manager's own answers are matched by Loom's `answers_ask()` plus its correlation and stage.
 - **The requesters keep their tickets.** Files' open, the Builder's recipe-source lookup and
-  its open, its plan-names ask, its frontier action's ask, its role line's row, its build and its
-  reader's page, and the Editor's relay each keep the send ticket and clear only the ask whose exact
-  attempt Loom's `zen.DispatchRefused` names; an enqueue that queued nothing is refused at once,
-  in words (WL-OPEN-07).
+  its open, its plan-names ask, its frontier action's ask, its role line's row and its reader's
+  page, and the Editor's relay each ask through Loom's ask door, keep the ticket, and clear only
+  the ask whose exact attempt Loom's `zen.AskEnded` names; the Builder's build, which the Builder
+  does not answer, is a send whose `zen.DispatchRefused` it hears. An enqueue that queued nothing
+  is refused at once, in words (WL-OPEN-07).
 - **Not in this contract:** a document-only open, a queue of intents, a timeout, a retry, a
   rollback after publication, or a loaded manager. A host that replaces its manager mints
   its authority again (WL-OPEN-08).
@@ -586,9 +585,10 @@ in force in place of the default, and the default stands everywhere else; one ac
   answer closes, alters and marks only the draft that sent it, and closes it only while it holds
   exactly what was sent, because a write does not cover typing done after it left. Info sends one
   commit at a time and declines another aloud ([`workshop/info-body.md`](workshop/info-body.md)
-  WL-INFO-12). **A request Loom attests never arrived is not outstanding**: a send whose ticket is
-  not valid, or one `zen.DispatchRefused` names by its exact attempt, is released and said as
-  undelivered, and delivered silence still waits (WL-INFO-13). Info's commit also names the
+  WL-INFO-12). **A request Loom attests ended is not outstanding**: an ask whose ticket is not
+  valid, or one `zen.AskEnded` names by its exact attempt -- refused before it arrived, or its
+  owner gone or silent -- is released and said as unanswered, and nothing waits for ever
+  (WL-INFO-13). Info's commit also names the
   subject its draft was typed for, and the host writes it only while that subject holds
   ([`workshop/info-body.md`](workshop/info-body.md) WL-INFO-15).
 - **Not in this contract:** the contextual surface, which declares over `kActionCatalog` ids at

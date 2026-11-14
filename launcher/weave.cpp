@@ -79,7 +79,7 @@ class Launcher
           zengine::manual::ManualFacet<zengine::manual::pages::zengine_launcher::kManual>>::
           Weave<Launcher, LauncherState,
                 loom::Accept<launcher::Launch, launcher::LaunchCatalogRequested, ws::ProjectRoot,
-                             loom::Activated>,
+                             loom::Activated, loom::AskEnded>,
                 loom::Emit<launcher::Launched, launcher::LaunchCatalog,
                            ws::ProjectRootRequested>> {
 public:
@@ -87,7 +87,7 @@ public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (activation_.accept(mail, a)) {
             (void)mail.as_role(launcher::kLauncherRole)
-                .send_to_role(ws::kProjectRole, ws::ProjectRootRequested{});
+                .ask_role(ws::kProjectRole, ws::ProjectRootRequested{});
         }
     }
 
@@ -96,6 +96,14 @@ public:
         if (mail.answers_ask()) {
             project_ = said.project_dir;
             known_ = true;
+        }
+    }
+
+    /// ...or Loom's word that the ask ended with no answer: the project stays unknown, and why
+    /// is said with every answer that needs it.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (mail.ask_ended() && ended.shape == ws::ProjectRootRequested::zen_name) {
+            unknown_ = " (" + zengine::pane::no_answer(ended) + ")";
         }
     }
 
@@ -110,7 +118,8 @@ public:
             answer.note = (catalog.demos.empty() || catalog.python_needed.empty()
                                ? std::string()
                                : catalog.python_needed + "; ") +
-                          "the launcher does not know the project yet: no app is listed; ask again";
+                          "the launcher does not know the project yet" + unknown_ +
+                          ": no app is listed; ask again";
         }
         (void)mail.answer(answer);
     }
@@ -128,7 +137,7 @@ public:
             answer.reason = "only the View Builder, Files, the palette and the quick setup ask the "
                             "launcher for a start";
         } else if (!known_) {
-            answer.reason = "the launcher does not know the project yet; ask again";
+            answer.reason = "the launcher does not know the project yet" + unknown_ + "; ask again";
         } else {
             const launcher::LaunchJudged judged =
                 launcher::judge_launch(asked, project_, configured_catalog());
@@ -153,6 +162,7 @@ private:
     zengine::ActivationCursor activation_;
     std::string project_;
     bool known_ = false;
+    std::string unknown_; ///< why the project is not known, when its ask ended with no answer
 };
 
 } // namespace

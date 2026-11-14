@@ -42,7 +42,8 @@ guest without the `build` power is refused this way before anything runs. The pa
 that sentence cut at its width. The refusal is read from the notice: Workshop says the same
 sentence whole, and the [notices record](../../notices/docs/zengine.notices.md) keeps it. The
 reason is Workshop's own, `8 acts are already waiting on Workshop`, `nothing was queued to
-<role>`, or `the ask could not reach <role> (<the bus's reason>)`. Until the Builder role has
+<role>`, `it could not reach <role> (<Loom's reason>)`, or `<role> never answered (<how far the ask
+got>, <why>)`. Until the Builder role has
 said what it builds, a command says `the Builder has not said what it builds yet` and does nothing.
 
 ## Commands
@@ -133,7 +134,7 @@ The project's *plan* says what runs and as what; this adds one row to it.
   [`authoring.commit`](#authoringcommit).
 - **Refuses:** `` `tally` is already in this project's plan -- build-and-load it instead ``; `this
   project has no build recipes -- nothing to load`; `` `tally`: nothing was added to the plan -- ``
-  and the project role's reason when the ask could not reach it.
+  and how the ask came to nothing when the project role did not answer it.
 - **Example:** choose `tally`, press <!-- key builder.load -->`o`<!-- /key -->, type `example.tally`,
   press <!-- key authoring.commit -->`return`<!-- /key -->.
 
@@ -208,7 +209,8 @@ it. While it reads, no build command is reachable.
   how it ended and which lines show, `output #1 tally -- FAILED, exit 1 -- lines 1-40 of 212`, and
   each row is one line as the build wrote it, spelled in ASCII.
 - **Refuses:** `no build has started in this Workshop -- there is no output to read`; `` output #1:
-  the page was not read -- `` and the reason when the ask could not reach the Builder role.
+  the page was not read -- `` and how the ask came to nothing when the Builder role did not answer
+  it.
 - **Example:** after a build says `FAILED`, press <!-- key builder.output -->`l`<!-- /key --> and read
   up from the end for the compiler's reason.
 

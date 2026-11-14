@@ -197,8 +197,7 @@ inline void TerminalPaneWeave::ask_completion(loom::Mail& mail) {
     completion_pending_ = ++asked_;
     completing_ = true;
     (void)mail.as_role(pane::kTerminalPaneRole)
-        .send_to_role(kWorkshopRole, TerminalCompletionRequested{line_.text()},
-                      completion_pending_);
+        .ask_role(kWorkshopRole, TerminalCompletionRequested{line_.text()}, completion_pending_);
 }
 
 /// What a completion is about: the line, and where in it the weaver stands. The text, because

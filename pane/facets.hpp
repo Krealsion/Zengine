@@ -699,16 +699,19 @@ private:
 /// THE ASKS A PANE STILL WAITS ON, in one bounded table numbered from its one correlation
 /// sequence (`loom::AskBook`), each holding the pane's record of the act, `Act`. An approval asks
 /// Workshop whether a gesture's actor may do an act, at most `Approvals` at once; an ask is any
-/// other request the pane expects one answer to, or a send whose refusal it must hear. Workshop's
-/// answer goes to the weave's `on_approval`, Loom's refusal of exactly that send to its
-/// `on_refused`. Image-local: a successor asked nothing, so no earlier answer settles anything.
+/// other request the pane expects one answer to, sent through Loom's ask door, or a send of the
+/// pane's own whose refusal it must hear. Workshop's answer goes to the weave's `on_approval`;
+/// Loom's word that an ask ended unanswered, or that the send was refused, goes to its
+/// `on_refused` with the clause that says why (`no_answer`). Each ask ends once, so the table
+/// holds nothing for ever. Image-local: a successor asked nothing, so no earlier answer settles
+/// anything.
 template <const char* const& Pane, const char* const& Role, class Act,
           std::size_t Approvals = 8, std::size_t Capacity = 32>
 class AskFacet {
     static_assert(Approvals > 0 && Approvals <= Capacity, "AskFacet: the approvals fit the table");
 
 public:
-    using Accept = loom::Accept<PaneOperationAnswered, loom::DispatchRefused>;
+    using Accept = loom::Accept<PaneOperationAnswered, loom::DispatchRefused, loom::AskEnded>;
     using Emit = loom::Emit<v2::PaneOperationRequested>;
 
     /// What became of an ask: held until it is answered, refused because the table (or its share
@@ -733,8 +736,8 @@ public:
         return ask(mail, pane_menu::kWorkshopRole, asked, std::move(act), /*approval=*/true);
     }
 
-    /// SEND `request` TO THE ROLE `role`, as the pane's role, under a fresh correlation, and
-    /// hold `act` until its answer or its refusal.
+    /// ASK `request` OF THE ROLE `role`, as the pane's role, under a fresh correlation, and
+    /// hold `act` until its answer or its end.
     template <class Request>
     Asked ask(loom::Mail& mail, const char* role, const Request& request, Act act,
               bool approval = false) {
@@ -744,12 +747,13 @@ public:
             return Asked::kFull;
         }
         const loom::Ticket attempt =
-            mail.as_role(Role).send_to_role(role, request, opened.correlation);
+            mail.as_role(Role).ask_role(role, request, opened.correlation);
         return keep(opened, attempt, std::move(act), approval);
     }
 
-    /// HOLD AN ASK THE PANE SENDS ITSELF, of `shape` at `version` to `role`: `send(correlation)`
-    /// sends it and returns its ticket.
+    /// HOLD A SEND THE PANE MAKES ITSELF, of `shape` at `version` to `role`: `send(correlation)`
+    /// sends it and returns its ticket -- an ask, held to its answer or its end, or a plain send
+    /// to a role that does not answer, held until its refusal or until the pane forgets it.
     template <class Send>
     Asked ask_with(const char* role, std::string shape, std::uint32_t version, Act act,
                    Send&& send) {
@@ -837,10 +841,22 @@ public:
         self.on_approval(take(at), answer, mail);
     }
 
-    /// LOOM'S WORD THAT ONE OF THE PANE'S SENDS WAS REFUSED BEFORE ANY HANDLER RAN. Provenance
-    /// first, then the exact attempt, role and shape against the asks held, and only the matched
-    /// one is taken. A forged, stale, duplicate or unmatched notice settles nothing; delivered
-    /// silence is not a refusal, and the ask stays held.
+    /// LOOM'S WORD THAT ONE OF THE PANE'S ASKS ENDED WITH NO ANSWER: the exact attempt, address
+    /// and shape, by Loom's provenance (`AskBook::end`), and only the matched one is taken. A
+    /// forged, stale, duplicate or unmatched notice settles nothing.
+    template <class Self>
+    void on(Self& self, const loom::AskEnded& ended, loom::Mail& mail) {
+        const std::optional<loom::PendingAsk> mine = book_.end(ended, mail);
+        const auto at = mine ? find_id(mine->id) : acts_.end();
+        if (at != acts_.end()) {
+            self.on_refused(take(at), no_answer(ended), mail);
+        }
+    }
+
+    /// LOOM'S WORD THAT ONE OF THE PANE'S PLAIN SENDS WAS REFUSED BEFORE ANY HANDLER RAN.
+    /// Provenance first, then the exact attempt, role and shape against the sends held, and only
+    /// the matched one is taken. A forged, stale, duplicate or unmatched notice settles nothing;
+    /// delivered silence is not a refusal, and the send stays held.
     template <class Self>
     void on(Self& self, const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (!mail.dispatch_refused()) {
@@ -856,7 +872,7 @@ public:
         }
         const auto at = find_id(held->id);
         if (at != acts_.end()) {
-            self.on_refused(take(at), refused, mail);
+            self.on_refused(take(at), no_answer(refused), mail);
         }
     }
 

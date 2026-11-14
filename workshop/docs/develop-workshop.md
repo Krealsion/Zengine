@@ -171,7 +171,7 @@ Four changes in this tree are like that, each one a runtime made from an older b
 from a pane built with it: three are refused as a reload, and the fourth loads and shows nothing
 new:
 
-- **The desktop hears Loom's word that one of its asks never arrived** (`zen.DispatchRefused`),
+- **The desktop hears Loom's word that one of its asks ended with no answer** (`zen.AskEnded`),
   so a desktop built from this source is refused as a reload of one built before it.
 - **The inventory the Pane Manager and Info read gained a field**, and a message shared by the
   host and a pane must come from one build: an Info or a desktop from the other side of the change

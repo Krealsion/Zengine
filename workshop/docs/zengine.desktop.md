@@ -111,8 +111,8 @@ pane holding your keys.
   pane, a little of it showing on every edge. The Manual says `asking
   zengine.builder-pane for its manual` until the answer comes.
 - **Refuses:** `no pane was named: press the ? at the top right of a pane, or the manual key while a
-  pane holds your keys`; `the ask for the manual of <role> was not sent`; `the manual of <role>
-  could not be asked (<Loom's reason>)`; and the pane's own refusal, as `zengine.files offers no
+  pane holds your keys`; `the ask for the manual of <role> was not sent`; `the manual of <role> was
+  not shown -- ` and how the ask came to nothing; and the pane's own refusal, as `zengine.files offers no
   pane `x``.
 - **Example:** press the `?` on the Builder pane; the Manual shows `MANUAL --
   zengine.builder-pane/builder`.
@@ -338,8 +338,8 @@ Uses the spelling you typed for the key you chose.
   sentence, as `` `layout.next` also `ctrl+g` -- written to the keymap file ``, or `... -- isolated
   run -- no keymap file; the change stands for this run`.
 - **Refuses:** text outside plain ASCII is not typed, `not typed -- a key's spelling is plain ASCII
-  on one line`; `edit not submitted -- nothing was queued`; `edit not delivered -- nothing changed
-  (<Loom's reason>)`; Workshop's refusal, as a key two actions would share.
+  on one line`; `edit not submitted -- nothing was queued`; `edit not answered -- ` and how the ask
+  came to nothing; Workshop's refusal, as a key two actions would share.
 - **Example:** choose `Modify (type a spelling)`, type `ctrl+g`, press
   <!-- key hotkeys.commit -->`return`<!-- /key -->.
 

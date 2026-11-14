@@ -60,7 +60,8 @@ using Actions = zengine::pane::PaneActionFacet<pane::kNoticesPane, pane::kNotice
 class NoticesPaneWeave
     : public zengine::With<Rows, Actions>::Weave<
           NoticesPaneWeave, pane::NoticesPaneState,
-          loom::Accept<nt::NoticesMoved, nt::NoticesShown>, loom::Emit<nt::NoticesRequested>> {
+          loom::Accept<nt::NoticesMoved, nt::NoticesShown, loom::AskEnded>,
+          loom::Emit<nt::NoticesRequested>> {
 public:
     /// THE OFFER, and the record asked: a pane offered before anything was said shows that it is
     /// waiting, never an empty box.
@@ -117,6 +118,15 @@ public:
     void on(const nt::NoticesMoved&, loom::Mail& mail) {
         if (mail.authored_from_role(nt::kNoticesRole)) {
             ask(mail);
+        }
+    }
+
+    /// THE PAGE ASKED FOR ENDED WITH NO ANSWER: nothing is coming, so nothing waits on it -- the
+    /// steps asked meanwhile are let go, and the record's next move asks again.
+    void on(const loom::AskEnded&, loom::Mail& mail) {
+        if (mail.ask_ended() && asking_ && mail.correlation() == ask_) {
+            asking_ = false;
+            owed_ = 0;
         }
     }
 
@@ -191,7 +201,7 @@ private:
         ask_ = ++asks_;
         asking_ = true;
         (void)mail.as_role(pane::kNoticesPaneRole)
-            .send_to_role(nt::kNoticesRole, nt::NoticesRequested{state_.newest, count}, ask_);
+            .ask_role(nt::kNoticesRole, nt::NoticesRequested{state_.newest, count}, ask_);
     }
 
     /// WHAT THE PANE SHOWS: the notices of the page, the newest at the bottom, each wrapped to the

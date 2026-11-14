@@ -106,7 +106,7 @@ Runs the definition: the Flow host makes a fresh participant from it, with the d
   definition's operators.
 - **Refuses:** the draft's first problem, such as an unwired port or `incompatible type`, naming
   the place, and the Next line leads with `Run needs this first:` and the press that does it; `run
-  refused: <the host's reason>`; `run was not delivered: <the bus's reason>`; `Flow has 16
+  refused: <the host's reason>`; `run was not done: <how the ask came to nothing>`; `Flow has 16
   unanswered requests; inspect the host before retrying`.
 - **Example:** press <!-- key run -->`ctrl+r`<!-- /key -->, then [`send`](#send) an example.
 
@@ -214,7 +214,7 @@ Changes the running participant's behaviour to the draft's, keeping its state.
   state and its accepted, emitted and state shapes; a change to any of those needs
   [`restart`](#restart).
 - **Refuses:** the draft's first problem; `apply refused: <the host's reason>`, such as a changed
-  shape; `apply was not delivered: <the bus's reason>`.
+  shape; `apply was not done: <how the ask came to nothing>`.
 - **Example:** bind a port to another constant, press `Apply`, send the same example again.
 
 ### `stop`
@@ -226,7 +226,7 @@ Stops the running participant; its last state comes back as the draft's.
   `stop: observed`; the bar reads `Run` again and the discovery door is asked again
   ([`FindPowers`](../../workshop/docs/zengine.powers.md#findpowers)).
 - **Refuses:** `stop refused: <the host's reason>`, such as while a send is still being
-  delivered; `stop was not delivered: <the bus's reason>`.
+  delivered; `stop was not done: <how the ask came to nothing>`.
 - **Example:** press `Stop`.
 
 ### `restart`
@@ -542,7 +542,7 @@ Sends the open message form's value to the running participant.
   `send: <the host's word>`, which says the message was queued, not what it did. What it did is on
   the Events page ([`events`](#events)).
 - **Refuses:** `open a message or reusable value to send`; Loom's words for an incomplete value;
-  `send refused: <the host's reason>`; `send was not delivered: <the bus's reason>`.
+  `send refused: <the host's reason>`; `send was not done: <how the ask came to nothing>`.
 - **Example:** open the example `low`, press `[Send]`, then the `Events` tab.
 
 ### `drop-send`

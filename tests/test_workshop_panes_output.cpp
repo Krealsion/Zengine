@@ -425,7 +425,7 @@ TEST_CASE("a page refused at dispatch is said in the reader, which stops saying 
     o.r.bus.kill(o.tool_id);
     o.letter(input::scan::kL, "l");
     const std::string text = o.text();
-    CHECK_MESSAGE(text.find("output #1: the page was not read -- the ask could not reach "
+    CHECK_MESSAGE(text.find("output #1: the page was not read -- it could not reach "
                             "zengine.builder (TargetUnavailable)") != std::string::npos,
                   text);
     CHECK_MESSAGE(text.find("output #1 -- no page read") != std::string::npos, text);

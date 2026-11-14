@@ -1651,6 +1651,24 @@ public:
     loom::RolePublication role_publish(std::string_view as_role, loom::Message msg) override {
         return sb_.role_publish_as(self_, as_role, std::move(msg));
     }
+    // ...AND THE ASK DOOR, as Workshop's own: the withdrawal is an ask of the presenter's role.
+    loom::Ticket ask(loom::WeaveId target, loom::Message msg) override {
+        return sb_.ask_as(self_, {}, target, {}, std::move(msg));
+    }
+    loom::Ticket ask_role(std::string_view role, loom::Message msg) override {
+        return sb_.ask_as(self_, {}, loom::WeaveId{}, role, std::move(msg));
+    }
+    loom::Ticket role_ask(std::string_view as_role, loom::WeaveId target, loom::Message msg) override {
+        return sb_.ask_as(self_, as_role, target, {}, std::move(msg));
+    }
+    loom::Ticket role_ask_role(std::string_view as_role, std::string_view to_role,
+                               loom::Message msg) override {
+        if (msg.payload.schema().name() == MenuWithdrawn::zen_name) {
+            ++refused;
+            return loom::Ticket{};
+        }
+        return sb_.ask_as(self_, as_role, loom::WeaveId{}, to_role, std::move(msg));
+    }
 
     std::size_t refused = 0; ///< the withdrawals this door queued nothing for
 
@@ -1697,7 +1715,7 @@ TEST_CASE("WL-CTX-10: a withdrawal the presenter cannot receive is answered by t
         CHECK(tap.count(MenuWithdrawn::zen_name, "NoSuchTarget") == 1);
         CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
         CHECK(t.guard->answers[0].refusal ==
-              "the pane left the desk -- the presenter could not be told (NoSuchTarget)");
+              "the pane left the desk -- no presenter answered it (queued, NoSuchTarget)");
     } else {
         CHECK(tap.count(MenuWithdrawn::zen_name) == 0);
         CHECK(t.guard->answer_authors[0] == kPresenterRole);
@@ -1780,7 +1798,7 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
     CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
     CHECK(t.guard->answer_correlations[0] == number);
     CHECK(t.guard->answers[0].refusal ==
-          "a newer press -- the presenter could not be told (NoSuchTarget)");
+          "a newer press -- no presenter answered it (NoSuchTarget)");
     CHECK_FALSE(t.guard->asked.pending());
     CHECK(t.r.w->withdrawn_menus().empty());
     // ...AND THE FRESH PRESENTER PRESENTS THE NEXT MENU.
@@ -1966,7 +1984,7 @@ TEST_CASE("WL-CTX-10: a refusal notice anyone could send settles no menu, open o
     CHECK(t.r.w->withdrawn_menus().empty());
 }
 
-TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence comes round twice, and ordinary use keeps none") {
+TEST_CASE("WL-CTX-10: a withdrawn menu's record lasts until its withdrawal, an ask, is answered, and ordinary use keeps none") {
     Rigged t;
     t.guard->menu_on_press = true;
     const CellRect hello = t.hello_body();
@@ -1980,7 +1998,7 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
         queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
         (void)t.r.bus.pump_pending(); // the window lands the press
         (void)t.r.bus.pump_pending(); // the host hears where it landed and withdraws the menu
-        // KEPT WHILE LOOM MAY STILL SAY SOMETHING ABOUT IT: whose it was, and why it ended.
+        // KEPT WHILE THE WITHDRAWAL IS ASKED: whose it was, and why it ended.
         REQUIRE(t.r.w->withdrawn_menus().size() == 1);
         const WithdrawnMenu kept = t.r.w->withdrawn_menus()[0];
         CHECK(kept.menu == menu);
@@ -1990,10 +2008,7 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
         CHECK(kept.why == "a newer press");
         CHECK(kept.first_attempt != 0);
         CHECK(kept.last_attempt > kept.first_attempt);
-        // ...THROUGH THE FENCE'S FIRST TRIP ROUND, while the withdrawal is delivered...
-        (void)t.r.bus.pump_pending();
-        CHECK(t.r.w->withdrawn_menus().size() == 1);
-        // ...AND FORGOTTEN ON ITS SECOND, the presenter's answer the only one given.
+        // ...AND FORGOTTEN ON THE PRESENTER'S ANSWER TO IT, the requester's answer its own.
         t.r.bus.drain_until_idle();
         CHECK(t.r.w->withdrawn_menus().empty());
         button_cell(t.r, 3, false, hello.x + 1, hello.y + 1);

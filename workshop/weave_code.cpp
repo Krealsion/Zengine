@@ -9,6 +9,9 @@
 #include "pane/operation.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 
+#include <cstdio>
+#include <optional>
+#include <string>
 #include <utility>
 
 namespace zengine::workshop {
@@ -109,12 +112,12 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     next.code = code;
     next.recipe = recipe.id;
     next.source = recipe.source;
-    // THE MANAGED OPENING, AS A ROLE, WITH ITS TICKET KEPT (WL-OPEN-01, WL-OPEN-07): the
+    // THE MANAGED OPENING, ASKED AS A ROLE, WITH ITS TICKET KEPT (WL-OPEN-01, WL-OPEN-07): the
     // manager arranges the document and the desk together, a dirty document refuses, and
-    // Loom's later word that exactly this attempt was refused reaches `on(DispatchRefused)`.
+    // Loom's word that exactly this ask ended unanswered reaches `on(AskEnded)`.
     // Nothing is selected, focused or seated here; an accepted open seats the Editor's pane.
     next.attempt = mail.as_role(kWorkshopProvider)
-                       .send_to_role(kOpeningRole, OpenSourceRequested{next.source}, next.ask);
+                       .ask_role(kOpeningRole, OpenSourceRequested{next.source}, next.ask);
     if (!next.attempt.valid()) {
         // NOTHING WAS QUEUED, so nothing is awaited and an older ask this desk still holds is
         // left to its own answer: a spend that sent nothing supersedes nothing.
@@ -176,7 +179,7 @@ void WorkshopWeave::on(const SourceOpened& said, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-CODE-03 -- agents/workshop/code.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
     // Provenance first (the shape alone is speech), then the exact attempt: a refusal of any other
     // directed sentence is not this ask's, and is silence here.
@@ -201,6 +204,76 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
     // nothing newer. This host answers that requester itself, unchosen (WL-CTX-10).
     if (refused.role == kPresenterRole) {
         (void)end_refused_menu(attempt, refused.reason, mail);
+    }
+}
+
+// WL-CODE-03 -- agents/workshop/code.md; WL-CTX-10 -- agents/workshop/pane-menu.md
+void WorkshopWeave::on(const loom::AskEnded& ended, loom::Mail& mail) {
+    if (!mail.ask_ended()) {
+        return; // the shape alone is anybody's speech
+    }
+    const loom::Ticket attempt = ended.ended_attempt();
+    // A WITHDRAWAL NO PRESENTER ANSWERED -- none held the role, or its holder was silent or gone:
+    // this host answers that requester itself, unchosen, once (WL-CTX-10).
+    if (ended.role == kPresenterRole) {
+        (void)end_refused_menu(attempt,
+                               std::string(loom::stage_name(ended.stage)) + ", " +
+                                   std::string(loom::reason_name(ended.stage)),
+                               mail);
+        return;
+    }
+    const std::string why = pane::no_answer(ended);
+    // THE DESK'S OWN ASKS OF ITS WINDOW -- an area's reading, the key fence, a paste -- end as a
+    // refusal does: the reading refused, the keys behind the fence released, the paste dropped.
+    if (const std::optional<loom::PendingAsk> area = area_asks_.end(ended, mail)) {
+        if (!take_key_fence(area->id, nullptr, mail)) {
+            take_area_answer(mail, area->id, nullptr, why);
+        }
+        return;
+    }
+    if (const std::optional<loom::PendingAsk> paste = paste_asks_.end(ended, mail)) {
+        (void)take_pending_paste(paste->id);
+        return;
+    }
+    // ...AND OF THE LAYOUTS' OWNER, by the ask's own number: an edit is refused in those words,
+    // a setting's commit not saved, and a save at quit ends the quit as a refused one does.
+    if (ended.shape == LayoutEditRequested::zen_name) {
+        const auto owed = edits_owed_.find(mail.correlation());
+        if (owed == edits_owed_.end()) {
+            return;
+        }
+        LayoutEditAnswered refused;
+        refused.refusal = "the desk stands as it is -- " + why;
+        refused.revision = session_.setup.revision;
+        EditThen then = std::move(owed->second);
+        edits_owed_.erase(owed);
+        if (then) {
+            then(refused, mail);
+        } else {
+            say(refused.refusal, true);
+        }
+        while (edits_owed_.empty() && !settle_waiters_.empty()) {
+            auto next = std::move(settle_waiters_.front());
+            settle_waiters_.pop_front();
+            next(mail);
+        }
+        repaint(mail);
+        return;
+    }
+    if (ended.shape == RoleSettingCommitRequested::zen_name) {
+        if (const auto owed = own_said_.find(mail.correlation()); owed != own_said_.end()) {
+            say(owed->second + "; not saved -- " + why, true);
+            own_said_.erase(owed);
+            repaint(mail);
+        }
+        return;
+    }
+    if (ended.shape == SessionSaveRequested::zen_name && saving_) {
+        saving_ = false;
+        say("the session was not saved -- " + why, true);
+        std::fprintf(stderr, "zengine-workshop: the session was not saved -- %s\n", why.c_str());
+        std::fflush(stderr);
+        end_quit(mail);
         return;
     }
     if (!attempt.valid() || !code_open_.live || !code_open_.attempt.valid() ||
@@ -209,9 +282,7 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
     }
     const std::string name = code_open_.name;
     code_open_ = CodeOpen{};
-    say(name + "'s code was not opened -- the open could not reach " + kOpeningRole + " (" +
-            refused.reason + ")",
-        true);
+    say(name + "'s code was not opened -- " + pane::no_answer(ended), true);
     repaint(mail);
 }
 

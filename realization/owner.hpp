@@ -366,6 +366,19 @@ struct BootAnswers {
     /// An answer closed the conversation: said explicitly, so a duplicate finds nothing to close.
     void settled() noexcept { close(); }
 
+    /// The ask that carried the conversation, bound to its queued attempt, so Loom's word that it
+    /// ended names it.
+    bool bind(loom::Ticket attempt) noexcept { return book_.bind_attempt(current_, attempt.seq); }
+
+    /// Loom's word that the ask ended with no answer, about this conversation: closed, and true.
+    bool ended(const loom::AskEnded& ending, const loom::Mail& mail) {
+        if (!book_.end(ending, mail)) {
+            return false;
+        }
+        current_ = 0;
+        return true;
+    }
+
     /// This host stopped waiting, with no answer -- local only: the respondent is told nothing,
     /// and a late answer matches no record. Say it only when the wait will not be resumed.
     void stopped_waiting() noexcept { close(); }
@@ -418,8 +431,9 @@ class Owner
     : public zengine::With<zengine::manual::ManualFacet<
           zengine::manual::pages::zengine_realization::kManual>>::Weave<
           Owner, BootState,
-          loom::Accept<loom::Result, loom::Ack, loom::Refused, zengine::builder::OfferArtifact,
-                       zengine::builder::PromoteArtifact, zengine::builder::RevertArtifact>,
+          loom::Accept<loom::Result, loom::Ack, loom::Refused, loom::AskEnded,
+                       zengine::builder::OfferArtifact, zengine::builder::PromoteArtifact,
+                       zengine::builder::RevertArtifact>,
           loom::Emit<loom::LoadWeave, loom::ReloadWeave, zengine::builder::ArtifactRealized,
                      zengine::builder::ArtifactPromoted, zengine::builder::RealizationAsked>,
           loom::WeaveBase, loom::Claims<PlanWhere, ChoicesHeld>> {
@@ -557,23 +571,19 @@ public:
         woke(mail);
     }
 
-    void on(const loom::Ack&, loom::Mail& mail) {
-        if (!settles(mail)) {
-            return;
+    void on(const loom::Ack&, loom::Mail& mail) { if (settles(mail)) heard(false, {}, mail); }
+    void on(const loom::Refused& r, loom::Mail& mail) { if (settles(mail)) heard(true, r.reason, mail); }
+    /// Loom's word that the load or reload asked of the Manager ended with no answer: refused.
+    void on(const loom::AskEnded& e, loom::Mail& mail) {
+        if (answers_.ended(e, mail)) {
+            heard(true, std::string("the Weave Manager never answered (") + loom::stage_name(e.stage) +
+                            ", " + std::string(loom::reason_name(e.stage)) + ")", mail);
         }
-        answers_.answered = true;
-        answers_.refused = false;
-        answers_.settled();
-        woke(mail);
     }
-
-    void on(const loom::Refused& r, loom::Mail& mail) {
-        if (!settles(mail)) {
-            return;
-        }
+    void heard(bool refused, std::string reason, loom::Mail& mail) {
         answers_.answered = true;
-        answers_.refused = true;
-        answers_.reason = r.reason;
+        answers_.refused = refused;
+        answers_.reason = std::move(reason);
         answers_.settled();
         woke(mail);
     }
@@ -1179,12 +1189,12 @@ private:
             }
             const loom::WeaveId me = self_;
             const std::string& role = artifact.weave->role;
-            bus_->send_as(me, manager_,
+            (void)answers_.bind(bus_->ask_as(me, {}, manager_, {},
                           loom::Message(loom::to_value(loom::LoadWeave{artifact.stem, path,
                                                                        std::vector<std::string>(
                                                                            role.empty() ? 0U : 1U,
                                                                            role)}),
-                                        me, me, correlation));
+                                        me, me, correlation)));
             // The boundary: the command is queued and nothing has delivered it. The host's loop
             // does, and the Manager's answer wakes `answered()`; turning the bus here is the defect
             // this owner exists to avoid.
@@ -1246,9 +1256,9 @@ private:
                                     "reloaded"};
         }
         const loom::WeaveId me = self_;
-        bus_->send_as(me, manager_,
+        (void)answers_.bind(bus_->ask_as(me, {}, manager_, {},
                       loom::Message(loom::to_value(loom::ReloadWeave{stem, path}), me, me,
-                                    correlation));
+                                    correlation)));
         reloading_ = index;
         reload_path_ = path;
         reverting_ = revert;

@@ -134,8 +134,8 @@ struct MenuClosed {
 
 /// Presenter -> Workshop: this image was handed an interaction for a menu it does not hold, and
 /// returns responsibility for any answer still owed; Workshop settles the requester unchosen,
-/// quoting `why`. It says nothing about earlier answers. For a withdrawal, send it while handling
-/// that withdrawal: once the host's fence retires the record, a later give-back settles nothing.
+/// quoting `why`. It says nothing about earlier answers. For a withdrawal, it is the answer to that
+/// withdrawal's ask: once the ask has ended, a later give-back settles nothing.
 struct MenuReturned {
     std::int64_t menu = 0;
     std::string why;
@@ -143,7 +143,7 @@ struct MenuReturned {
 };
 
 /// Workshop -> presenter: the host ended menu `menu` (`why` says how). The presenter answers its
-/// requester unchosen, in these words; if Loom refuses this, Workshop answers itself.
+/// requester unchosen, in these words, then this ask; one that ends with no answer, Workshop answers.
 struct MenuWithdrawn {
     std::int64_t menu = 0;
     std::string why;
@@ -355,20 +355,22 @@ inline bool accept_menu_grant(const MenuGranted& g, loom::Mail& mail, HeldMenu& 
     return true;
 }
 
-/// THE HOST ENDED MENU `w.menu`: the held menu's requester is answered unchosen in the host's
-/// words, and nothing is held after. A withdrawal of a menu this image does not hold is given back,
-/// as an act on one is -- the weaver's act and the host's cancellation are one interaction, and an
-/// image answers both or neither -- from inside the handler, while the host still keeps the
-/// withdrawn menu's record (`MenuReturned`).
+/// THE HOST ENDED MENU `w.menu`, and asks for its end: the held menu's requester is answered
+/// unchosen in the host's words, and the host is answered `MenuClosed`, nothing held after. A
+/// withdrawal of a menu this image does not hold is given back as the answer (`MenuReturned`), as
+/// an act on one is -- the weaver's act and the host's cancellation are one interaction, and an
+/// image answers both or neither. The host answers the requester of a withdrawal no image
+/// answered.
 inline void settle_menu_withdrawn(const MenuWithdrawn& w, loom::Mail& mail, HeldMenu& held) {
     if (!mail.authored_from_role(pane_menu::kWorkshopRole) || w.menu <= 0) {
         return;
     }
     if (w.menu != held.menu) {
-        give_back_menu(mail, w.menu);
+        (void)mail.answer(MenuReturned{w.menu, "this image does not hold that menu"});
         return;
     }
     answer_menu_requester(mail, held, false, std::string(), w.why);
+    (void)mail.answer(MenuClosed{w.menu, false, 0, std::string()});
     held = HeldMenu{};
 }
 

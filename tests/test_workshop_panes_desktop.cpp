@@ -1919,7 +1919,7 @@ TEST_CASE("WL-DESK-14: an `inspect in Info` that cannot be carried out is said i
     SUBCASE("Info is not loaded") {
         Desk d;
         inspect_by_keys(d, "Beta");
-        CHECK(joined(d.rows()).find("Info could not be asked to inspect Beta") != std::string::npos);
+        CHECK(joined(d.rows()).find("Info did not inspect Beta") != std::string::npos);
         CHECK_FALSE(d.r.session().inspected.addressed());
     }
     SUBCASE("Info holds a live draft: held back for the weaver's reason, as Info's own inspect is") {

@@ -53,7 +53,7 @@ class SnakeWorld
           SnakeWorld, State,
 #if defined(SNAKE_WORLD_V2)
           loom::Accept<SnakeTick, SnakeTurn, gfx::AreaKeyPressed, loom::PrepareShutdown,
-                       loom::Bequest, loom::Refused>,
+                       loom::Bequest, loom::Refused, loom::AskEnded>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest, loom::ClaimBequest>,
 #else
@@ -169,6 +169,14 @@ public:
     /// "No bequest is held for you": a fresh game.
     void on(const loom::Refused&, loom::Mail& mail) {
         if (awaiting_claim_ && mail.correlation() == kClaimCorrelation) {
+            awaiting_claim_ = false;
+            begin_fresh(mail);
+        }
+    }
+
+    /// ...and a fresh game too when the claim ended with no answer: no manager held the role.
+    void on(const loom::AskEnded&, loom::Mail& mail) {
+        if (awaiting_claim_ && mail.ask_ended() && mail.correlation() == kClaimCorrelation) {
             awaiting_claim_ = false;
             begin_fresh(mail);
         }
@@ -361,7 +369,7 @@ private:
         }
         asked_ = true;
         awaiting_claim_ = true;
-        mail.send_to_role(loom::kManagerRole, loom::ClaimBequest{kWorldRole}, kClaimCorrelation);
+        mail.ask_role(loom::kManagerRole, loom::ClaimBequest{kWorldRole}, kClaimCorrelation);
     }
 
     /// No inheritance: a fresh game, its board said whole, since the board the window holds may be

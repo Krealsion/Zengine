@@ -464,11 +464,11 @@ void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
     }
     const PresentedMenu ended = session_.presented;
     session_.presented = PresentedMenu{};
-    // The presenter answers its requester; this host only says the menu is over. Until Loom has had
-    // its say about this sentence, who asked is kept, so a withdrawal the presenter cannot receive
-    // is answered here.
-    const loom::Ticket sent =
-        mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, MenuWithdrawn{ended.menu, why});
+    // The presenter answers its requester, then this ask, under the menu's number. Until it does
+    // or the ask ends, who asked is kept, so a withdrawal no presenter answers is answered here.
+    const loom::Ticket sent = mail.as_role(kWorkshopProvider)
+                                  .ask_role(kPresenterRole, MenuWithdrawn{ended.menu, why},
+                                            static_cast<std::uint64_t>(ended.menu));
     WithdrawnMenu withdrawn;
     withdrawn.menu = ended.menu;
     withdrawn.role = ended.role;
@@ -486,10 +486,6 @@ void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
         return;
     }
     withdrawn_.push_back(std::move(withdrawn));
-    // ...UNTIL THIS HAS COME ROUND TWICE: every refusal of the menu's sentences is queued ahead of
-    // the second hop (`WithdrawalFence`), so the record is forgotten with nothing left to hear.
-    (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(kWorkshopProvider, WithdrawalFence{ended.menu, 1});
 }
 
 // WL-CTX-10 -- agents/workshop/pane-menu.md
@@ -525,7 +521,7 @@ bool WorkshopWeave::end_refused_menu(const loom::Ticket& refused_attempt,
         }
         const WithdrawnMenu refused = withdrawn_[i];
         withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(i));
-        answer_withdrawn(refused, refused.why + " -- the presenter could not be told (" + reason + ")",
+        answer_withdrawn(refused, refused.why + " -- no presenter answered it (" + reason + ")",
                          mail);
         return true;
     }
@@ -542,24 +538,6 @@ void WorkshopWeave::forget_withdrawn(std::int64_t menu) {
             return;
         }
     }
-}
-
-// WL-CTX-10 -- agents/workshop/pane-menu.md
-void WorkshopWeave::on(const WithdrawalFence& fence, loom::Mail& mail) {
-    if (!mail.authored_from_role(kWorkshopProvider) || fence.menu <= 0 || fence.menu > menus_) {
-        return; // only this role's own fence, about a menu it granted, forgets anything
-    }
-    if (fence.hop == 1) {
-        (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(kWorkshopProvider, WithdrawalFence{fence.menu, 2});
-        return;
-    }
-    if (fence.hop != 2) {
-        return;
-    }
-    // Every refusal of the menu's sentences has been heard, and so has the presenter's own word
-    // (`MenuClosed`, `MenuReturned`): both were queued ahead of this second hop.
-    forget_withdrawn(fence.menu);
 }
 
 const std::vector<WithdrawnMenu>& WorkshopWeave::withdrawn_menus() const { return withdrawn_; }
@@ -759,10 +737,12 @@ void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     if (!about_open_menu(closed.menu, mail)) {
-        // A menu this host already took off the screen, ended by the image that held it: that word
-        // comes no later than its answer to the requester, so the record goes and a later give-back
-        // cannot answer twice.
-        if (mail.authored_from_role(kPresenterRole) && closed.menu > 0) {
+        // A menu this host already took off the screen, ended by the image that held it -- its
+        // answer to the withdrawal, or its role's word: that comes no later than its answer to the
+        // requester, so the record goes and a later give-back cannot answer twice.
+        if (closed.menu > 0 && (mail.authored_from_role(kPresenterRole) ||
+                                (mail.answers_ask() &&
+                                 mail.correlation() == static_cast<std::uint64_t>(closed.menu)))) {
             forget_withdrawn(closed.menu);
         }
         return;
@@ -839,9 +819,11 @@ void WorkshopWeave::spend_standard_row(const PresentedMenu& ended, const std::st
 
 // WL-CTX-10 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const MenuReturned& returned, loom::Mail& mail) {
-    if (!mail.authored_from_role(kPresenterRole) || returned.menu <= 0 ||
+    const bool answered = mail.answers_ask() &&
+                          mail.correlation() == static_cast<std::uint64_t>(returned.menu);
+    if (!(mail.authored_from_role(kPresenterRole) || answered) || returned.menu <= 0 ||
         returned.menu > menus_) {
-        return; // the role that presents, about a menu this host granted, and nobody else
+        return; // the role that presents, or its answer to a withdrawal, about a menu granted here
     }
     // AN INTERACTION HANDED BACK UNANSWERED. The role that presents says it cannot answer this
     // requester, and no other party can: so this host does -- for the menu still on the screen...

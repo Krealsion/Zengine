@@ -113,7 +113,7 @@ void WorkshopWeave::ask_layout(std::vector<LayoutEdit> edits, EditThen then, loo
     asked.revision = judged ? session_.setup.revision : 0;
     asked.edits = std::move(edits);
     const std::uint64_t ask = ++layout_asks_;
-    if (mail.as_role(kWorkshopProvider).send_to_role(kLayoutsRole, std::move(asked), ask).valid()) {
+    if (mail.as_role(kWorkshopProvider).ask_role(kLayoutsRole, std::move(asked), ask).valid()) {
         edits_owed_.emplace(ask, std::move(then));
         return;
     }
@@ -609,7 +609,7 @@ bool WorkshopWeave::save_last_session(loom::Mail& mail) {
                          w.refusal.c_str());
         }
     }
-    return mail.as_role(kWorkshopProvider).send_to_role(kLayoutsRole, SessionSaveRequested{}).valid();
+    return mail.as_role(kWorkshopProvider).ask_role(kLayoutsRole, SessionSaveRequested{}).valid();
 }
 
 // WL-SESSION-13 -- agents/workshop/session.md

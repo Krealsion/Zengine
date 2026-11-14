@@ -75,7 +75,7 @@ setting is locked everywhere alone, and its lock freezes the role's commit"
 
 ### WL-LOCK-02
 `workshop/weave_settings.cpp` weavers_act on(WeaversActRequested)
-`workshop/layouts/owner.cpp` on(WeaversActAnswered) on(PaneSettingLockRequested)
+`workshop/layouts/owner.cpp` on(WeaversActAnswered) on(AskEnded) on(PaneSettingLockRequested)
 `workshop/layouts/store.cpp` lock
 `tests/test_workshop_panes_settings.cpp` "only the weaver unlocks: a pane on the weaver's current
 act does, and a role's ask, a forged number and a stale act are refused"

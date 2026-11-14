@@ -156,7 +156,7 @@ void LayoutsOwner::on(const LayoutEditRequested& asked, loom::Mail& mail) {
     if (!started_) {
         started_ = true;
         restored_ = store_.restore();
-        (void)mail.as_role(kLayoutsRole).send_to_role(kWorkshopProvider, PaneInventoryRequested{});
+        (void)mail.as_role(kLayoutsRole).ask_role(kWorkshopProvider, PaneInventoryRequested{});
     }
     LayoutEditAnswered out;
     if (asked.edits.empty()) {
@@ -213,6 +213,29 @@ void LayoutsOwner::on(const PaneInventory& said, loom::Mail& mail) {
     store_.set_catalog(std::move(names));
     // A PANE NOW OFFERED IS HANDED ITS ROW.
     settle(mail);
+}
+
+// WL-LOCK-02 -- agents/workshop/setting-locks.md
+void LayoutsOwner::on(const loom::AskEnded& ended, loom::Mail& mail) {
+    read_host();
+    if (!mail.ask_ended() || ended.shape != WeaversActRequested::zen_name) {
+        return; // the inventory's ask waits on nothing: the next publication says it
+    }
+    const auto at = std::find_if(unlocks_.begin(), unlocks_.end(), [&](const PendingUnlock& p) {
+        return p.question == mail.correlation();
+    });
+    if (at == unlocks_.end()) {
+        return;
+    }
+    PendingUnlock pending = std::move(*at);
+    unlocks_.erase(at);
+    // NOBODY SAID WHOSE ACT IT WAS, so nothing is unlocked: the unlock is answered refused.
+    PaneSettingLockAnswered acted = store_.lock(
+        std::string("Workshop never said whose act this was -- ") + loom::stage_name(ended.stage) +
+            ", " + std::string(loom::reason_name(ended.stage)),
+        pending.asked, false);
+    settle(mail);
+    (void)loom::answer_deferred(pending.answer, mail, std::move(acted));
 }
 
 // WL-LOCK-02 -- agents/workshop/setting-locks.md
@@ -450,8 +473,8 @@ void LayoutsOwner::on(const PaneSettingLockRequested& asked, loom::Mail& mail) {
         pending.refused = refused;
         const loom::Ticket sent =
             mail.as_role(kLayoutsRole)
-                .send_to_role(kWorkshopProvider, WeaversActRequested{asked.gesture, role},
-                              pending.question);
+                .ask_role(kWorkshopProvider, WeaversActRequested{asked.gesture, role},
+                          pending.question);
         if (sent.valid()) {
             ++state_.questions;
             pending.answer = mail.defer_answer();

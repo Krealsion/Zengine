@@ -410,10 +410,14 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
     if (!opened) {
         return; // the book is full: this paste is dropped, the outstanding ones stand
     }
+    const loom::Ticket sent =
+        mail.ask_role(role, zengine::graphics::ClipboardTextRequested{}, opened.correlation);
+    if (!sent.valid() || !paste_asks_.bind_attempt(opened.id, sent.seq)) {
+        (void)paste_asks_.forget(opened.id);
+        return; // nothing asked, so no paste waits
+    }
     p.ask = opened.id;
     pending_pastes_.push_back(std::move(p));
-    (void)mail.send_to_role(role, zengine::graphics::ClipboardTextRequested{},
-                            opened.correlation);
 }
 
 WorkshopWeave::PendingPaste WorkshopWeave::take_pending_paste(std::uint64_t ask) {

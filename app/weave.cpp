@@ -20,6 +20,7 @@
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
+#include <zen/weave/ask_ended.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
 #include <algorithm>
@@ -67,7 +68,7 @@ class AppWeave
     : public gfx::With<gfx::DrawingFacet>::Weave<
           AppWeave, AppWeaveState,
           loom::Accept<loom::Activated, app::AppPlaceSaid, gfx::GraphicsReady, gfx::WindowOffered,
-                       flow_host::FlowAnswer, view::ViewAnswer>,
+                       flow_host::FlowAnswer, view::ViewAnswer, loom::AskEnded>,
           loom::Emit<app::AppPlaceAsked, flow_host::FlowRun, view::ViewRun, gfx::AreaPlaced,
                      gfx::PaletteOffered, gfx::PaletteChosen, gfx::WindowShaped>> {
 public:
@@ -81,7 +82,8 @@ public:
         if (!activation_.accept(mail, a)) {
             return;
         }
-        (void)mail.as_role(app::kAppRole).send_to_role(app::kAppHostRole, app::AppPlaceAsked{});
+        asked_.clear();
+        ask(mail, app::kAppHostRole, app::AppPlaceAsked{}, "where the app is was not told");
     }
 
     /// Where the app is, in the answer Loom attests to this weave's own ask of the place door: the
@@ -136,6 +138,22 @@ public:
         }
     }
 
+    /// Loom's word that one of this weave's asks ended with no answer, said on the app's line.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!mail.ask_ended()) {
+            return;
+        }
+        for (auto at = asked_.begin(); at != asked_.end(); ++at) {
+            if (at->first == ended.ended_attempt().seq) {
+                say(at->second + ": " + (ended.role.empty() ? ended.target : ended.role) +
+                    " never answered (" + loom::stage_name(ended.stage) + ", " +
+                    std::string(loom::reason_name(ended.stage)) + ")");
+                asked_.erase(at);
+                return;
+            }
+        }
+    }
+
     /// THE APP'S LINE GIVEN ITS ROOM in the app's window: the window holds this weave as an
     /// arranger now, so it is told `app.json`'s title and size, once each incarnation of it.
     void on_room(const gfx::AreaRoom& r, loom::Mail& mail) {
@@ -161,6 +179,16 @@ public:
 private:
     void say(std::string words) { state_.status = "[app] " + std::move(words); }
 
+    /// Ask `role` as the app, keeping what to say should no answer come: each ask ends once, in
+    /// its answer or Loom's word, so the record holds nothing for ever.
+    template <class T>
+    void ask(loom::Mail& mail, std::string_view role, const T& asked, std::string unanswered) {
+        const loom::Ticket t = mail.as_role(app::kAppRole).ask_role(role, asked);
+        if (t.valid()) {
+            asked_.emplace_back(t.seq, std::move(unanswered));
+        }
+    }
+
     /// Each flow, then each view, as this role: the flow first, so the view's intent has a
     /// listener when it is first said. A file that cannot be read is said and skipped.
     void run(loom::Mail& mail) {
@@ -170,8 +198,8 @@ private:
                 say(bytes.refusal);
                 continue;
             }
-            (void)mail.as_role(app::kAppRole)
-                .send_to_role(flow_host::kFlowHostRole, flow_host::FlowRun{f.session, bytes.bytes});
+            ask(mail, flow_host::kFlowHostRole, flow_host::FlowRun{f.session, bytes.bytes},
+                "the flow '" + f.session + "' did not run");
         }
         for (const app::ZengineAppView& v : file_.views) {
             const app::ReadBytes bytes = app::read_bytes(place_.folder + "/" + v.file);
@@ -188,8 +216,8 @@ private:
             const view::Description& d = described.description;
             views_.push_back(Placed{d.name, d.name + "." + view::kPane, v.x, v.y, d.width,
                                     d.height, static_cast<std::int64_t>(view::kNoticeRows)});
-            (void)mail.as_role(app::kAppRole)
-                .send_to_role(view::kViewHostRole, view::ViewRun{v.session, bytes.bytes});
+            ask(mail, view::kViewHostRole, view::ViewRun{v.session, bytes.bytes},
+                "the view '" + v.session + "' did not run");
         }
     }
 
@@ -242,6 +270,9 @@ private:
     app::ZengineAppFile file_;
     gfx::WindowOffered window_;
     std::vector<Placed> views_;
+    /// This incarnation's asks not yet ended with no answer, by attempt: one a flow, a view and
+    /// the place, so as many as app.json names.
+    std::vector<std::pair<std::uint64_t, std::string>> asked_;
 };
 
 } // namespace

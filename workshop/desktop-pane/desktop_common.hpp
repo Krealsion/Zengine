@@ -13,6 +13,7 @@
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "pane/menu.hpp"
+#include "pane/operation.hpp"
 #include "pane/seat.hpp"
 #include "pane/text.hpp"
 
@@ -96,13 +97,14 @@ inline std::int64_t take_notches(double& carried, double dy) {
     return zengine::component::take_wheel_notches(carried, dy);
 }
 
-/// DOES THIS NOTICE NAME THE ASK A RECORD IS WAITING ON -- the same queued attempt, under the
-/// same correlation, of the shape it sent, to the role it addressed? Every half, because a
-/// sequence alone is a number and the rest is what this pane asked (Info's `refused_ask`).
+/// DOES LOOM'S WORD THAT AN ASK ENDED NAME THE ASK A RECORD IS WAITING ON -- the same queued
+/// attempt, under the same correlation, of the shape it sent, to the role it addressed? Every
+/// half, because a sequence alone is a number and the rest is what this pane asked (Info's
+/// `refused_ask`).
 inline bool refused_ask(bool awaiting, loom::Ticket sent, std::uint64_t pending,
-                        const loom::DispatchRefused& refused, const loom::Mail& mail,
+                        const loom::AskEnded& refused, const loom::Mail& mail,
                         const char* shape, std::uint32_t version, const char* role) {
-    const loom::Ticket attempt = refused.refused_attempt();
+    const loom::Ticket attempt = refused.ended_attempt();
     return awaiting && sent.valid() && attempt.valid() && attempt.seq == sent.seq &&
            mail.correlation() == pending && refused.shape == shape &&
            refused.version == static_cast<std::int64_t>(version) && refused.role == role &&
@@ -115,7 +117,7 @@ inline bool refused_ask(bool awaiting, loom::Ticket sent, std::uint64_t pending,
 inline void launch(loom::Mail& mail, const std::string& role, const std::string& pane_key,
                    std::uint64_t& launches) {
     (void)mail.as_role(kDesktopRole)
-        .send_to_role(kWorkshopRole, ws::PaneLaunchRequested{role, pane_key}, ++launches);
+        .ask_role(kWorkshopRole, ws::PaneLaunchRequested{role, pane_key}, ++launches);
 }
 
 /// ...AND TO TAKE ONE OFF THE DESK, asked of the layouts' owner, which judges whether its row is
@@ -123,7 +125,7 @@ inline void launch(loom::Mail& mail, const std::string& role, const std::string&
 inline void close(loom::Mail& mail, const std::string& role, const std::string& pane_key,
                   std::uint64_t& launches) {
     (void)mail.as_role(kDesktopRole)
-        .send_to_role(pane::kLayoutsRole, ws::PaneCloseRequested{role, pane_key}, ++launches);
+        .ask_role(pane::kLayoutsRole, ws::PaneCloseRequested{role, pane_key}, ++launches);
 }
 
 /// WHERE A PRESS LANDED in one of this weave's panes: the row and column of the rows drawn there,

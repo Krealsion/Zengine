@@ -782,12 +782,15 @@ of the weave; a member the facet calls only when present is optional.
 - **`AskFacet<Pane, Role, Act, Approvals, Capacity>`: the asks a pane still waits on.** One
   bounded table (`loom::AskBook`) numbered from the pane's one correlation sequence, each entry the
   pane's own record of the act, `Act`, captured when it was asked. `approve` asks Workshop whether
-  a gesture's actor may do an act (`v2::PaneOperationRequested`); `ask` and `ask_with` send a
-  request to a role; `answered(mail, which)` takes the ask an answer settles, by Loom's answer
-  provenance and its correlation. Workshop's `PaneOperationAnswered` is the weave's
-  `on_approval(act, answer, mail)`, and Loom's `zen.DispatchRefused` for exactly one held send --
-  its attempt, role, shape and version -- is `on_refused(act, refused, mail)`; a forged, stale
-  or unmatched one settles nothing. A full table refuses the new ask (`Asked::kFull`), a send that
+  a gesture's actor may do an act (`v2::PaneOperationRequested`); `ask` asks a role through
+  Loom's ask door, and `ask_with` holds a send the pane makes itself, an ask or a plain send to a
+  role that does not answer; `answered(mail, which)` takes the ask an answer settles, by Loom's
+  answer provenance and its correlation. Workshop's `PaneOperationAnswered` is the weave's
+  `on_approval(act, answer, mail)`, and Loom's `zen.AskEnded` for exactly one held ask, or its
+  `zen.DispatchRefused` for one held send -- its attempt, role, shape and version -- is
+  `on_refused(act, why, mail)`, `why` the clause that says how it came to nothing
+  (`pane::no_answer`); a forged, stale or unmatched one settles nothing, and every ask ends once,
+  so the table holds nothing for ever. A full table refuses the new ask (`Asked::kFull`), a send that
   queued nothing is never held (`Asked::kUnqueued`), and the weave says either in its own words.
   The table is the image's alone: a reloaded pane asked nothing, so no earlier answer settles it.
 - **`PaneSettingsFacet<Pane, Role>`: the pane's row.**

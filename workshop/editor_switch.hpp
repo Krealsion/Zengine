@@ -23,6 +23,7 @@
 #include <zen/host/prepared_replacement.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/switchboard/switchboard.hpp>
+#include <zen/weave/ask_ended.hpp>
 #include <zen/terminal/vocabulary.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
@@ -120,7 +121,7 @@ using EditorSwitchBase = zengine::With<
                  EditorSwitchStatusRequested, EditorSwitchQuietStatusRequested,
                  EditorHandoffJudged, EditorWarmed,
                  EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
-                 loom::DispatchRefused>,
+                 loom::AskEnded>,
     loom::Emit<EditorSwitchAnswered, EditorSwitchProgress, EditorHandoffJudgeRequested,
                EditorWarmRequested, EditorPreparationTick, EditorHandoffRequested,
                EditorHandoffEnded, EditorAdoptRequested, EditorLiveRequested,
@@ -409,8 +410,8 @@ public:
         op_.stage = Stage::Boundary;
         progress(mail, host_.role);
         op_.awaiting = mail.as_role(kEditorSwitchRole)
-                           .send_to_role(host_.role, EditorHandoffRequested{op_.id},
-                                         correlation());
+                           .ask_role(host_.role, EditorHandoffRequested{op_.id},
+                                     correlation());
     }
 
     void on(const EditorAdopted& adopted, loom::Mail& mail) {
@@ -452,7 +453,7 @@ public:
         op_.stage = Stage::Proving;
         progress(mail, op_.destination_stem);
         op_.awaiting = mail.as_role(kEditorSwitchRole)
-                           .send_to_role(host_.role, EditorLiveRequested{op_.id}, correlation());
+                           .ask_role(host_.role, EditorLiveRequested{op_.id}, correlation());
     }
 
     // ---- the successor's answer ------------------------------------------------------------------
@@ -500,7 +501,7 @@ public:
         // while it held still belongs in the answer before it is unloaded.
         op_.stage = Stage::Retiring;
         progress(mail, op_.from_stem);
-        op_.awaiting = mail.send(op_.incumbent, EditorRetireRequested{op_.id}, correlation());
+        op_.awaiting = mail.ask(op_.incumbent, EditorRetireRequested{op_.id}, correlation());
     }
 
     void on(const EditorRetired& retired, loom::Mail& mail) {
@@ -516,18 +517,22 @@ public:
         complete_switch(mail);
     }
 
-    // ---- refusals the bus reports --------------------------------------------------------------
+    // ---- an ask the bus ends ----------------------------------------------------------------------
 
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+    /// LOOM'S WORD THAT THE ASK THIS SWITCH WAITS ON ENDED WITH NO ANSWER: refused before it
+    /// arrived, or its editor gone or silent. Each stage ends in words, and nothing waits on.
+    void on(const loom::AskEnded& refused, loom::Mail& mail) {
         see(mail);
-        if (!mail.dispatch_refused() || op_.stage == Stage::Idle || op_.stage == Stage::AwaitingConsent) {
+        if (!mail.ask_ended() || op_.stage == Stage::Idle || op_.stage == Stage::AwaitingConsent) {
             return;
         }
-        const loom::Ticket attempt = refused.refused_attempt();
+        const loom::Ticket attempt = refused.ended_attempt();
         if (!attempt.valid() || attempt.seq != op_.awaiting.seq) {
             return;
         }
-        const std::string why = "a switch message could not be delivered (" + refused.reason + ")";
+        const std::string why = std::string("a switch ask was not answered (") +
+                                loom::stage_name(refused.stage) + ", " +
+                                std::string(loom::reason_name(refused.stage)) + ")";
         if (op_.stage == Stage::Retiring) {
             complete_switch(mail); // the switch happened; only the retired editor's count is missing
             return;
@@ -629,8 +634,8 @@ private:
         op_.stage = Stage::Judging;
         progress(mail, host_.role);
         op_.awaiting = mail.as_role(kEditorSwitchRole)
-                           .send_to_role(host_.role, EditorHandoffJudgeRequested{op_.id},
-                                         correlation());
+                           .ask_role(host_.role, EditorHandoffJudgeRequested{op_.id},
+                                     correlation());
     }
 
     /// LOAD THE DESTINATION SEALED AND ASK IT TO START. A load the Kernel refuses ends the switch
@@ -681,10 +686,10 @@ private:
         if (!beat_.waiting()) {
             beat_.restart(mail);
         }
-        op_.awaiting = mail.send(op_.candidate,
-                                 EditorWarmRequested{op_.id, op_.rows, op_.columns, op_.project_dir,
-                                                     op_.project_known},
-                                 correlation());
+        op_.awaiting = mail.ask(op_.candidate,
+                                EditorWarmRequested{op_.id, op_.rows, op_.columns, op_.project_dir,
+                                                    op_.project_known},
+                                correlation());
     }
 
     /// THE BEAT, RELAYED to a sealed candidate while it starts or adopts; idle, it stops itself.

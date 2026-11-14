@@ -33,7 +33,7 @@ public:
             target_ = binding.target; shape_ = value.schema().name(); version_ = value.schema().version();
             if (target_.empty()) throw std::invalid_argument("Choose an explicit target role first");
             value_ = std::move(value); correlation_ = ++asks; authorizing_ = true;
-            ticket_ = mail.as_role(kRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole, pane::PaneOperationRequested{
+            ticket_ = mail.as_role(kRole).ask_role(zengine::pane::pane_menu::kWorkshopRole, pane::PaneOperationRequested{
                 pane, target_, shape_, version_, static_cast<std::int64_t>(gesture)}, correlation_);
             notice = "Checking authority for " + target_ + " / " + shape_;
             if (!ticket_.valid()) fail("Command permission request could not be queued");
@@ -51,13 +51,17 @@ public:
                                  : "Command could not be queued";
         return true;
     }
+    /// The command itself is a plain send, whose receiver owes no answer: its refusal is heard.
     bool hear(const loom::DispatchRefused& r, loom::Mail& mail) {
-        const auto expected_role = authorizing_ ? zengine::pane::pane_menu::kWorkshopRole : target_;
-        const auto expected_shape = authorizing_ ? pane::PaneOperationRequested::zen_name : shape_;
-        const auto expected_version = authorizing_ ? 1u : version_;
-        if (!ticket_.valid() || !mail.dispatch_refused() || r.refused_attempt().seq != ticket_.seq ||
-            r.role != expected_role || r.shape != expected_shape || r.version != expected_version || !r.target.empty()) return false;
+        if (authorizing_ || !ticket_.valid() || !mail.dispatch_refused() || r.refused_attempt().seq != ticket_.seq ||
+            r.role != target_ || r.shape != shape_ || r.version != version_ || !r.target.empty()) return false;
         fail("Command refused: " + r.reason); return true;
+    }
+    /// The permission it asks Workshop for ends with an answer or Loom's word.
+    bool hear(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!authorizing_ || !ticket_.valid() || !mail.ask_ended() || ended.ended_attempt().seq != ticket_.seq)
+            return false;
+        fail("Command not allowed: " + zengine::pane::no_answer(ended)); return true;
     }
     bool hear(const loom::Refused& r, loom::Mail& mail) {
         if (authorizing_ || !ticket_.valid() || !mail.answers_ask() || mail.correlation() != correlation_) return false;

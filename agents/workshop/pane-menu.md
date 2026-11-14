@@ -30,7 +30,7 @@ MEANS
 Both refuse labels over <!-- value kMaxPaneMenuLabelLen -->64<!-- /value --> bytes before fitting accepted labels to the available display width;
 - it says what its area takes (`MenuShown`), losing the menu in words past its room or in another area; a moment in another menu's area moves nothing;
 - a requester takes a choice only from this role, under its own ask's number, once (`Asked`); gone, not carrying it, or giving it
-back (`MenuReturned`): the host answers, open or withdrawn.
+back (`MenuReturned`): the host answers, open or withdrawn; a withdrawal is an ask, and one that ends unanswered, the host answers.
 
 DOES NOT MEAN
 - that a give-back reaches a newer menu or one answered: `MenuClosed` retired that record;
@@ -132,9 +132,10 @@ NumberedPresenter::give_back NumberedPresenter::row_of
 `workshop/desktop-pane/launcher_view.hpp` launcher_asked_
 `workshop/desktop-pane/hotkeys_view.hpp` keys_asked_
 `workshop/weave_external.cpp` on(PresenterReady) on(MenuShown) answer_withdrawn end_refused_menu
-on(WithdrawalFence) on(MenuReturned) forget_withdrawn
+withdraw_menu on(MenuReturned) forget_withdrawn
 `workshop/context.hpp` WithdrawnMenu PresentedMenu::first_attempt
-`workshop/vocabulary.hpp` WithdrawalFence
+`workshop/weave_code.cpp` on(AskEnded)
+`pane/presenter_vocabulary.hpp` settle_menu_withdrawn
 `workshop/weave.hpp` withdrawn_
 `workshop/weave_code.cpp` on(DispatchRefused)
 `workshop/weave_seam.cpp` on(PaneOffered)
@@ -148,7 +149,7 @@ withdrawn menu, though the withdrawal reaches a fresh presenter that cannot answ
 an older menu's refused withdrawal ends and answers nothing newer; the newer menu is shown and
 chooses" "WL-CTX-10: a withdrawal that queues nothing is answered at once, and nothing is kept"
 "WL-CTX-10: a refusal notice anyone could send settles no menu, open or withdrawn" "WL-CTX-10: a
-withdrawn menu's record is forgotten when its fence comes round twice, and ordinary use keeps none"
+withdrawn menu's record lasts until its withdrawal, an ask, is answered, and ordinary use keeps none"
 "WL-CTX-10: a withdrawal a fresh holder does not carry is given back, and the host settles who
 asked" "WL-CTX-10: an act reaching an image that refused the grant is given back and takes nothing"
 "WL-CTX-10: a menu its image answered is not reopened by a give-back behind it" "WL-CTX-10: a

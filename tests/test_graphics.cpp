@@ -4539,7 +4539,10 @@ TEST_CASE("the Connections pane draws in a graphics window: whole on its room, e
     REQUIRE(drawn.size() == 1);
     CHECK(drawn[0].whole);
     CHECK(put_paths(drawn[0]) == Paths{"room", "waiting"});
-    CHECK(row_says(r.shown().rows, 0, "CONNECTIONS (waiting for the guest door)"));
+    // NO DOOR IN THIS RIG: the pane's ask of it ended, and the waiting line says so.
+    CHECK(row_says(r.shown().rows, 0,
+                   "CONNECTIONS (the guest door did not answer: it could not reach "
+                   "zengine.guests (NoSuchTarget))"));
 
     ws::v3::GuestConnections said;
     said.listen = "127.0.0.1:4242";

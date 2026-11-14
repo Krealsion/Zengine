@@ -807,7 +807,7 @@ TEST_CASE("an open no opening role could take is refused at dispatch by that att
     }
 }
 
-TEST_CASE("an open that is never answered stays pending however many turns pass, and a late answer settles it") {
+TEST_CASE("an open the opening role keeps and never answers stays pending however many turns pass, and a late answer settles it") {
     CodeRig c("code-silent");
     c.hold({single_recipe("tally", kTallyStem, c.source)});
     c.open(/*with_manager=*/false);
@@ -840,6 +840,41 @@ TEST_CASE("an open that is never answered stays pending however many turns pass,
     CHECK(c.r.session().notice_is_bad);
     CHECK(c.notice().find("superseded") != std::string::npos);
     CHECK(c.watch->heard.empty());
+}
+
+TEST_CASE("an open whose opening role leaves while it keeps the answer is told its end once, in Loom's words") {
+    CodeRig c("code-gone");
+    c.hold({single_recipe("tally", kTallyStem, c.source)});
+    c.open(/*with_manager=*/false);
+    auto held = std::make_unique<HeldOpening>();
+    HeldOpening* opening = held.get();
+    loom::Grant grant;
+    grant.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
+    const loom::WeaveId opening_id =
+        c.r.bus.register_weave(std::move(held), std::move(grant), std::string(kOpeningRole));
+    opening->zen_set_self(opening_id);
+
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    REQUIRE(opening->paths.size() == 1);
+    CHECK_FALSE(c.r.session().notice_is_bad);
+    // THE RESPONDENT GOES, its kept answer with it: Loom tells Workshop, and Workshop says so.
+    REQUIRE(c.r.bus.unregister_weave(opening_id) != nullptr);
+    c.r.bus.drain_until_idle();
+    CHECK(c.r.session().notice_is_bad);
+    CHECK(c.notice().find("Tally's code was not opened -- zengine.opening never answered "
+                          "(deferred, RespondentRemoved)") != std::string::npos);
+    CHECK(c.watch->heard.empty());
+    // ONCE: a forged ending of the same shape, from anybody, moves nothing more.
+    const std::string said = c.notice();
+    loom::AskEnded forged;
+    forged.role = kOpeningRole;
+    forged.shape = OpenSourceRequested::zen_name;
+    forged.version = OpenSourceRequested::zen_version;
+    forged.stage.is = loom::AskNotDelivered::NoSuchTarget;
+    (void)c.r.bus.send_to_role(kWorkshopProvider, loom::Message(loom::to_value(forged)));
+    c.r.bus.drain_until_idle();
+    CHECK(c.notice() == said);
 }
 
 TEST_CASE("code that changed while its source was opening leaves the file open and tells the Builder nothing") {

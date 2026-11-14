@@ -56,12 +56,12 @@ MEANS
 
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
-## WL-OPEN-05 — Delivered silence stays pending, bounded and inspectable
+## WL-OPEN-05 — An answer still owed stays pending, bounded and inspectable
 
-LAW — No timeout, retry or forced recovery: an owner that never answers leaves the one flight pending, its operation, requester, stage, awaited role and attempt readable in `OpeningState` and on the desk.
+LAW — No timeout, retry or forced recovery: an owner keeping its answer leaves the one flight pending, its operation, requester, stage, awaited role and attempt readable in `OpeningState` and on the desk.
 
 MEANS
-- queue emptiness and elapsed time prove nothing; a newer request supersedes a preparation;
+- queue emptiness and elapsed time prove nothing; a newer request supersedes a preparation; an owner gone or silent ends it (WL-OPEN-07);
 - unrelated panes and the doors keep working while it stands;
 - a refusal before any operation is the latest result under its own path and requester, with op 0;
 
@@ -81,17 +81,17 @@ MEANS
 
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
-## WL-OPEN-07 — A refusal is Loom's word about an exact attempt, or the manager's immediate one
+## WL-OPEN-07 — An ask's end is Loom's word about an exact attempt, or the manager's immediate refusal
 
-LAW — Each requester keeps its ticket and clears only the ask whose exact attempt Loom's authenticated `zen.DispatchRefused` names; nothing queued is refused at once; forged and late notices settle nothing.
+LAW — Each requester asks through Loom's door and clears only the ask whose exact attempt Loom's `zen.AskEnded` names; nothing queued is refused at once; forged and late notices settle nothing.
 
 MEANS
-- no document-only fallback, and no standalone mode inferred from a refusal;
+- no document-only fallback, and no standalone mode inferred from an ending;
 - a manager with no Editor to bind refuses at once, in words: never silence;
-- an unqueued enqueue (ticket branch, source-traced), a refused attempt and a forgery differ.
+- an unqueued enqueue (ticket branch, source-traced), an ask that ended and a forgery differ, and each ending is said in Loom's stage and reason.
 
 DOES NOT MEAN
-- that handler failure or delivered silence is a dispatch refusal;
+- that an owner keeping its answer has failed: an ask its respondent still owes waits, as Loom has no clock;
 - that a shape a pane declares can go unqueued for want of a registrar (Loom ABI v9): it resolves.
 
 WHY — `agents/decisions/document-and-desk-publish-together.md`
@@ -188,9 +188,9 @@ custody, and reclaims what the operation held"
 OpeningState::last_path OpeningState::last_requester OpeningState::last_op
 `workshop/weave_opening.cpp` progress refuse_request
 `workshop/weave_managed.cpp` on(ManagedOpenProgress)
-`tests/test_workshop_panes_editor.cpp` "a silent or failed preparation stays pending and
-inspectable, a lost terminal answer undoes nothing, and no forged authority or attempt decides
-anything"
+`tests/test_workshop_panes_editor.cpp` "a preparation still owed stays pending and inspectable, a
+silent one ends in Loom's words, a lost terminal answer undoes nothing, and no forged authority or
+attempt decides anything"
 `tests/test_workshop_panes_opening.cpp` "the latest terminal result names the request it answers --
 a refusal before any operation existed names its own path and requester and no operation, and the
 other operator's records and the next valid open are untouched" "a request refused while a published
@@ -207,11 +207,13 @@ freed slot lets the next open take"
 coordination begun on the same bus before its application notice was consumed"
 
 ### WL-OPEN-07
-`pane/facets.hpp` AskFacet::on(DispatchRefused)
+`pane/facets.hpp` AskFacet::on(AskEnded)
+`pane/operation.hpp` no_answer
 `files/files.cpp` on_refused open_file
 `builder/builder-pane/pane.cpp` on_refused edit_source
-`editor/editor-pane/pane.cpp` on(DispatchRefused) Relay
-`workshop/weave_opening.cpp` on(DispatchRefused)
+`editor/editor-pane/pane.cpp` on(AskEnded) Relay
+`editor/role_seam.hpp` settle_ask_ended
+`workshop/weave_opening.cpp` on(AskEnded)
 `tests/test_workshop_panes_files.cpp` "an open refused at dispatch is said by that exact attempt,
 and a fresh attempt takes once an opening role is present" "a forged refusal naming the pane's own
 live attempt settles nothing, and the open completes"

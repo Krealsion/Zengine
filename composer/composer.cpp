@@ -125,7 +125,7 @@ class ComposerWeave final
     : public zengine::With<Rows, Manual, Actions>::Weave<
           ComposerWeave, ComposerState,
           loom::Accept<ws::PaneResetRequested, zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneCanvasDrop,
-                       zengine::pane::PaneOperationAnswered, inv::InventoryEntry, loom::DispatchRefused,
+                       zengine::pane::PaneOperationAnswered, inv::InventoryEntry, loom::DispatchRefused, loom::AskEnded,
                        PaneKey, PaneTextInput, LoadedSelected, gfx::ClipboardCopy,
                        gfx::ClipboardText, AcceptedShapes, loom::Refused>,
           loom::Emit<zengine::pane::PaneOperationRequested, zengine::pane::PaneEscapeUnspent,
@@ -257,15 +257,32 @@ public:
         if (storage_.hear(entry, mail)) storage_notice(mail);
     }
 
+    /// The submission itself is a plain send: its receiver owes no answer, so only its refusal is
+    /// heard.
     void on(const loom::DispatchRefused& refusal, loom::Mail& mail) {
-        if (storage_.hear(refusal, mail)) { storage_notice(mail); return; }
         if (!mail.dispatch_refused()) return;
-        if (send_attempt_.valid() && refusal.refused_attempt().seq == send_attempt_.seq) {
-            send_value_.reset(); send_attempt_ = {};
+        if (!send_value_ && send_attempt_.valid() && refusal.refused_attempt().seq == send_attempt_.seq) {
+            send_attempt_ = {};
             complain("Submission was not delivered: " + refusal.reason); say(mail);
-        } else if (discovery_.valid() && refusal.refused_attempt().seq == discovery_.seq) {
+        }
+    }
+
+    /// LOOM'S WORD THAT AN ASK ENDED WITH NO ANSWER: the store's, the permission the submission
+    /// waits on, the discovery, or a paste -- each ended once.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (storage_.hear(ended, mail)) { storage_notice(mail); return; }
+        if (!mail.ask_ended()) return;
+        const std::string why = zengine::pane::no_answer(ended);
+        const std::uint64_t seq = ended.ended_attempt().seq;
+        if (send_value_ && send_attempt_.valid() && seq == send_attempt_.seq) {
+            send_value_.reset(); send_attempt_ = {};
+            complain("Submission authority was not checked: " + why); say(mail);
+        } else if (discovery_.valid() && seq == discovery_.seq) {
             awaiting_ = false; discovery_ = {}; restoring_ = false;
-            complain("Discovery was not delivered: " + refusal.reason); say(mail);
+            complain("Discovery was not answered: " + why); say(mail);
+        } else if (const std::optional<loom::PendingAsk> paste = clip_asks_.end(ended, mail)) {
+            std::erase_if(pending_pastes_, [&](const PendingPaste& p) { return p.ask == paste->id; });
+            complain("The paste was not read: " + why); say(mail);
         }
     }
 
@@ -578,7 +595,7 @@ private:
         awaiting_ = true;
         ++state_.asked;
         discovery_ = mail.as_role(kComposerRole)
-            .send_to_role(composing_.role, loom::DescribeAccepted{}, pending_);
+            .ask_role(composing_.role, loom::DescribeAccepted{}, pending_);
         if (!discovery_.valid()) { awaiting_ = false; complain("Discovery could not be queued"); }
     }
 
@@ -722,9 +739,13 @@ private:
         p.generation = draft_generation_;
         p.field = composing_.cursor;
         p.epoch = d->value.draft_epoch();
+        const loom::Ticket asked = mail.as_role(kComposerRole)
+            .ask_role(clipboard, gfx::ClipboardTextRequested{}, opened.correlation);
+        if (!asked.valid() || !clip_asks_.bind_attempt(opened.id, asked.seq)) {
+            (void)clip_asks_.forget(opened.id);
+            return;
+        }
         pending_pastes_.push_back(p);
-        (void)mail.as_role(kComposerRole)
-            .send_to_role(clipboard, gfx::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- submission ---------------------------------------------------------
@@ -756,7 +777,7 @@ private:
         send_value_ = loom::assemble(made);
         send_role_ = composing_.role;
         send_correlation_ = clip_asks_.mint_correlation();
-        send_attempt_ = mail.as_role(kComposerRole).send_to_role(kWorkshopRole,
+        send_attempt_ = mail.as_role(kComposerRole).ask_role(kWorkshopRole,
             zengine::pane::PaneOperationRequested{kComposePane, send_role_, made.schema->name(),
                 made.schema->version(), static_cast<std::int64_t>(mail.correlation())}, send_correlation_);
         if (!send_attempt_.valid()) { send_value_.reset(); complain("Permission request could not be queued"); }

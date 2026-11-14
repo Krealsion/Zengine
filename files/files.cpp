@@ -184,7 +184,8 @@ struct FilesAsk {
     enum class Kind {
         kOpen, kUseRecipes, kMark, kAuthor, kStart, ///< acts waiting on Workshop's word
         kRoot, kOpening, kRecipes, kLaunch,         ///< the project, opening and launcher's asks
-        kFold                                       ///< the places' fold, asked of the layouts' owner
+        kFold,                                      ///< the places' fold, asked of the layouts' owner
+        kPaste                                      ///< the authoring line's paste, asked of the window
     };
     Kind kind = Kind::kRoot;
     std::string subject;         ///< the entry or candidate a refusal names
@@ -1002,29 +1003,26 @@ public:
         say(mail);
     }
 
-    /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
-    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07), matched by `AskFacet` to the exact ask it
-    /// ended: an act waiting on Workshop never asked, or the open never sent, is said in the
-    /// pane's row; the project's and the recipes' asks are asked again by the next act.
-    void on_refused(const FilesAsk& asked, const loom::DispatchRefused& refused,
-                    loom::Mail& mail) {
+    /// LOOM'S WORD THAT ONE OF THIS PANE'S ASKS ENDED WITH NO ANSWER (`zen.AskEnded`;
+    /// WL-OPEN-07), matched by `AskFacet` to the exact ask, `why` saying how: an act waiting on
+    /// Workshop, the open, a start or a fold is said in the pane's row; the project's and the
+    /// recipes' asks are asked again by the next act.
+    void on_refused(const FilesAsk& asked, const std::string& why, loom::Mail& mail) {
         switch (asked.kind) {
         case FilesAsk::Kind::kOpening:
-            notice_ = "`" + ws::shown_name(asked.subject) +
-                      "` was not opened -- the open could not reach " + ws::kOpeningRole + " (" +
-                      refused.reason + ")";
+            notice_ = "`" + ws::shown_name(asked.subject) + "` was not opened -- " + why;
             break;
         case FilesAsk::Kind::kLaunch:
-            notice_ = "nothing was started -- the launcher could not be asked (" + refused.reason + ")";
+            notice_ = "nothing was started -- " + why;
             break;
         case FilesAsk::Kind::kFold:
-            notice_ = places_stay() + " -- the layouts' owner could not be asked (" +
-                      refused.reason + ")";
+            notice_ = places_stay() + " -- " + why;
             break;
         case FilesAsk::Kind::kRoot:
-        case FilesAsk::Kind::kRecipes: return;
+        case FilesAsk::Kind::kRecipes:
+        case FilesAsk::Kind::kPaste: return;
         default:
-            notice_ = not_done(asked) + " -- Workshop could not be asked (" + refused.reason + ")";
+            notice_ = not_done(asked) + " -- " + why;
             break;
         }
         say(mail);
@@ -1058,15 +1056,8 @@ public:
     }
 
     void on(const gfx::ClipboardText& a, loom::Mail& mail) {
-        if (!mail.answers_ask()) {
-            return;
-        }
-        const std::optional<loom::PendingAsk> settled = clip_asks_.settle(mail.correlation(), mail.sender());
-        if (!settled || !pasting_ || settled->id != paste_ask_) {
-            return;
-        }
-        pasting_ = false;
-        if (!authoring_.open || authoring_.line.draft_epoch() != paste_epoch_) {
+        if (!asks().answered(mail, of_kind(FilesAsk::Kind::kPaste)) || !authoring_.open ||
+            authoring_.line.draft_epoch() != paste_epoch_) {
             return;
         }
         if (a.readable) {
@@ -1599,18 +1590,10 @@ private:
 
     /// A paste is asked of the window that shows the pane's area, and of nobody while none does.
     void begin_paste(loom::Mail& mail) {
-        const std::string role = room().clipboard_role();
-        const loom::AskOpened opened = clip_asks_.open_to_role(
-            role, gfx::ClipboardTextRequested::zen_name,
-            gfx::ClipboardTextRequested::zen_version);
-        if (!opened) {
-            return;
-        }
-        paste_ask_ = opened.id;
         paste_epoch_ = authoring_.line.draft_epoch();
-        pasting_ = true;
-        (void)mail.as_role(files::kFilesRole)
-            .send_to_role(role, gfx::ClipboardTextRequested{}, opened.correlation);
+        (void)asks().forget(of_kind(FilesAsk::Kind::kPaste));
+        (void)asks().ask(mail, room().clipboard_role().c_str(), gfx::ClipboardTextRequested{},
+                         asking(FilesAsk::Kind::kPaste));
     }
 
     // ---- Saying what the pane shows -----------------------------------------------------
@@ -1832,10 +1815,7 @@ private:
     } authoring_;
 
     component::Clipboard clip_;
-    loom::AskBook clip_asks_{1};
-    std::uint64_t paste_ask_ = 0;
     std::uint64_t paste_epoch_ = 0;
-    bool pasting_ = false;
 };
 
 } // namespace

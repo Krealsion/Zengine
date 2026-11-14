@@ -5,20 +5,18 @@
 #define ZENGINE_BUILDER_RUNNER_HPP
 
 // The build runner: the one weave that holds a command and starts a process, and holds the
-// processes it started, saying what it sees of them. A weave rather than a helper, so its
+// processes it started, saying what it sees of them and answering each order with its result. Its
 // authority is a grant a reader can see: report to `zengine.builder`, ask the Timer for a beat.
-// An order is an ask, and the build's result is its answer, kept while the process runs.
 // A `RunBuild` for a name outside the host's catalog is refused and nothing runs; the one
 // program it starts is the host's CMake, which no recipe, message or poke can reach, and a boxed
 // product's compiler is the host's wasi-sdk, held the same way.
 // Builder law: agents/realization.md
 
 // The participant that possesses the process capability owns the unfinished work: it starts a
-// child and returns, keeping the order's answer, looks on an ordinary beat held only while it holds
-// a process, and says only newly observed facts -- nothing upstream asks "is it done yet?". `op`
-// means something within this incarnation: the runner is mounted natively, so no successor can
-// inherit a number (a loadable one would need a surviving high-water mark). Destroying it
-// terminates and reaps every child and says nothing: Loom tells each asker its kept answer ended.
+// child and returns, keeping the order's answer, looks on a beat held only while it holds a
+// process, and says only newly observed facts. `op` means something within this incarnation: the
+// runner is mounted natively, so no successor can inherit a number. Destroying it terminates and
+// reaps every child; Loom tells each asker its kept answer ended.
 // Reference: builder/docs/zengine.build-runner.md.
 
 #include "builder/generate.hpp"

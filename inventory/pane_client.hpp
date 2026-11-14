@@ -14,7 +14,8 @@
 
 namespace zengine::inventory {
 // Shared by the inventory presentation and Info. The entry owner still performs the read or
-// conditional write. This helper binds one UI intent to its permission answer and owner answer.
+// conditional write. This helper binds one UI intent to its permission answer and owner answer,
+// both asks, each ended by its answer or by Loom's word that none will come.
 class PaneClient {
 public:
     enum class Phase { idle, authorizing, owner };
@@ -39,7 +40,7 @@ public:
         result.reset(); folder_result.reset();
         notice = "Checking this operation's authority";
         phase = Phase::authorizing;
-        const bool queued = pending_.send_to_role(mail.as_role(role), zengine::pane::pane_menu::kWorkshopRole,
+        const bool queued = pending_.ask_role(mail.as_role(role), zengine::pane::pane_menu::kWorkshopRole,
             pane::PaneOperationRequested{
             std::move(pane), kInventoryRole, RequestType::zen_name, RequestType::zen_version, static_cast<std::int64_t>(gesture)},
             permission_correlation);
@@ -53,7 +54,7 @@ public:
         pending_.forget();
         notice = "Waiting for inventory";
         std::visit([&](const auto& req) {
-            pending_.send_to_role(mail, kInventoryRole, req, owner_correlation_);
+            pending_.ask_role(mail, kInventoryRole, req, owner_correlation_);
         }, request_);
         if (!pending_.pending()) failed("The inventory request could not be queued");
         return true;
@@ -111,9 +112,13 @@ public:
         if (phase != Phase::owner || !pending_.matches_answer(mail)) return false;
         failed(answer.reason); return true;
     }
-    bool hear(const loom::DispatchRefused& answer, loom::Mail& mail) {
-        if (!busy() || !pending_.matches_refusal(answer, mail)) return false;
-        failed("Inventory operation was not delivered: " + answer.reason); return true;
+    bool hear(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!busy() || !pending_.matches_ending(ended, mail)) return false;
+        failed(ended.never_delivered()
+                   ? "Inventory operation was not delivered: " + std::string(loom::reason_name(ended.stage))
+                   : "Inventory operation was never answered: " + std::string(loom::stage_name(ended.stage)) +
+                         ", " + std::string(loom::reason_name(ended.stage)));
+        return true;
     }
     /// STOP WAITING: forget the operation in flight. Local bookkeeping, as `RoleRequest::forget`
     /// is -- the owner may still do the work, and its late answer matches nothing here.

@@ -82,7 +82,7 @@ class EditorPaneWeave
                        PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
                        ws::v3::PrepareSourceRequested,
                        ManagedOpenProgress, ManagedOpenSettled,
-                       SourceOpened, loom::DispatchRefused, ProjectRoot, graphics::ClipboardCopy,
+                       SourceOpened, loom::AskEnded, ProjectRoot, graphics::ClipboardCopy,
                        graphics::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
@@ -136,7 +136,7 @@ public:
         announce(mail);
         ask_project_root(mail);
         // THE KEYS ITS MENU SHOWS, asked of the keymap as it is in force now, once each life.
-        (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, ws::KeymapRequested{});
+        (void)mail.as_role(pane::kEditorPaneRole).ask_role(kWorkshopRole, ws::KeymapRequested{});
         // THE GRAPHICS WINDOW THAT SHOWS THE ROLE'S AREA, asked for its room once each life; a
         // room it said before this activation is drawn now.
         window_.ask_room(mail);
@@ -276,7 +276,7 @@ public:
 
     void on(const OpenSourceRequested& asked, loom::Mail& mail);
     void on(const SourceOpened& said, loom::Mail& mail);
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail);
+    void on(const loom::AskEnded& ended, loom::Mail& mail);
     void on(const ManagedOpenProgress& said, loom::Mail& mail);
     void on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail);
     Preparation prepare(std::int64_t asked_op, const std::string& asked_path, std::int64_t rows,
@@ -571,7 +571,7 @@ private:
         root_asked_ = true;
         root_pending_ = ++asked_;
         (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(ws::kProjectRole, ProjectRootRequested{}, root_pending_);
+            .ask_role(ws::kProjectRole, ProjectRootRequested{}, root_pending_);
     }
 
     // ---- The document doors --------------------------------------------------------------
@@ -734,8 +734,8 @@ private:
         paste_.revision = e_.buffer.revision();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(window_.clipboard_role(), graphics::ClipboardTextRequested{},
-                          paste_.pending);
+            .ask_role(window_.clipboard_role(), graphics::ClipboardTextRequested{},
+                      paste_.pending);
     }
 
     /// The document a snapshot carried, put back (see `revive`). `restore_selection` clamps a pair

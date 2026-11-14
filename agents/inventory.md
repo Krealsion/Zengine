@@ -15,8 +15,9 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
 - A role capture uses an `AskBook` of capacity one. The book is bookkeeping, not authentication:
   require `Mail::answers_ask()` before settling. Poke responders must be rebuilt with Loom's
   authenticated substrate-answer headers. Ordinary forged structures do nothing.
-- Dispatch refusal requires `Mail::dispatch_refused()`, the bound outgoing attempt, and the
-  authored role, shape, version and address kind. A payload with that shape alone does nothing.
+- An ask's end requires `Mail::ask_ended()`, the bound outgoing attempt, and the addressed role,
+  shape and version (`AskBook::end`): the capture is answered refused, so its requester waits on
+  nothing. A payload with that shape alone does nothing.
 - Successful capture answers `InventoryCaptured` with that operation's own stored pair. Get is
   the current shared slot, so the ELH tool compares it with the capture answer before claiming
   readback. A later writer cannot silently change which capture the tool reports.

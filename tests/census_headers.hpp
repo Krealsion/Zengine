@@ -304,7 +304,6 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::manual::ShapeDocumentShown>(), // ShapeDocumentShown v1
         shape<zengine::pane::PaneSettings>(), // PaneSettings v1
         shape<::zengine::workshop::TerminalCaptureFacts>(), // TerminalCaptureFacts v1
-        shape<::zengine::workshop::WithdrawalFence>(), // WithdrawalFence v1
         shape<::zengine::workshop::WorkshopState>(), // WorkshopState v1
         // ...and the declarations only Workshop still accepts, from a desktop built before causes.
         shape<::zengine::workshop::AppActionRow>(), // AppActionRow v1

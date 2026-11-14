@@ -149,8 +149,9 @@ Asks for the draft's text to be written into its property.
   sent`, `earlier commit refused -- <the words>`, `commit written -- it was sent before the draft
   closed` or `commit refused -- <the words>`.
 - **Refuses:** `commit not sent -- an earlier commit is still unanswered`, keeping the draft; `commit
-  not submitted -- nothing was queued or written`; `commit not delivered -- nothing was written (<the
-  bus's reason>)`. The draft and its text stand for the next press.
+  not submitted -- nothing was queued or written`; `commit not answered -- it could not reach
+  <role> (<Loom's reason>)`, or `-- <role> never answered (<how far it got>, <why>)`. The draft and
+  its text stand for the next press.
 - **Example:** on `Width` of `Layouts`, type `12`, press
   <!-- key info.commit -->`return`<!-- /key -->.
 
@@ -565,8 +566,8 @@ on an ask.
 From any role, as the Pane Manager's `inspect in Info` row asks: the default pane asks Workshop to
 make that pane the subject, shown under `PANE <its name>`, and answers with Workshop's
 `PaneSubjectActed`, or in its own words: `finish the edit first -- commit it or cancel it` while a
-draft is open; `inspect not submitted -- nothing was queued`; `inspect not delivered -- nothing
-changed (<the bus's reason>)`; `a newer inspect took its place -- nothing changed`.
+draft is open; `inspect not submitted -- nothing was queued`; `inspect not answered -- ` and how
+the ask came to nothing; `a newer inspect took its place -- nothing changed`.
 
 ## Follow
 

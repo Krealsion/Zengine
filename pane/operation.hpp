@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_PANE_OPERATION_HPP
 #define ZENGINE_PANE_OPERATION_HPP
+#include <zen/weave/ask_ended.hpp>
+#include <zen/weave/dispatch_refusal.hpp>
 #include <zen/weave/shape.hpp>
 #include <cstdint>
 #include <string>
@@ -111,5 +113,24 @@ struct PaneObservationEnded {
     std::int64_t lease = 0;
     ZEN_SHAPE(PaneObservationEnded, 1, ZEN_FIELD(pane), ZEN_FIELD(lease));
 };
+
+/// WHY A SEND OR AN ASK CAME TO NOTHING, as the clause a pane's sentence ends with: it could not
+/// reach its role (the reason Loom gives), or the role never answered it (how far the ask got,
+/// and why).
+inline std::string no_answer(const std::string& to, const std::string& reason) {
+    return "it could not reach " + to + " (" + reason + ")";
+}
+inline std::string no_answer(const loom::DispatchRefused& refused) {
+    return no_answer(refused.role.empty() ? "weave " + refused.target : refused.role,
+                     refused.reason);
+}
+inline std::string no_answer(const loom::AskEnded& ended) {
+    const std::string to = ended.role.empty() ? "weave " + ended.target : ended.role;
+    const std::string reason(loom::reason_name(ended.stage));
+    return ended.never_delivered()
+               ? no_answer(to, reason)
+               : to + " never answered (" + loom::stage_name(ended.stage) + ", " + reason + ")";
+}
+
 } // namespace zengine::pane
 #endif

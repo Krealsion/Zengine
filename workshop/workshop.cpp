@@ -696,10 +696,9 @@ int main(int argc, char** argv) {
     // ---- The Builder tool, and the one thing that may start a process ---------------------------
     // Two weaves, two roles, two grants. The runner is the only weave that starts a process: it
     // holds the catalog and a program fixed at configure time that no message can reach, reports
-    // to the Builder role, answers an order with its build's result, and may ask the Timer for a
-    // beat. The tool holds names only and asks the runner. The grants bound what these weaves may
-    // say, not what they touch: no containment. An answer goes to the exact asker, so its shapes
-    // are granted to any target, as a respondent's answers are.
+    // to the Builder role, answers an order with its result, and may ask the Timer for a beat. The
+    // tool holds names only and asks the runner. The grants bound what they say, not what they
+    // touch; an answer goes to its exact asker, so its shapes are granted to any target.
     loom::Grant run_builds;
     run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
                              builder::kBuilderRole);

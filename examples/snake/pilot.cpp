@@ -36,7 +36,8 @@ struct SnakePilotState {
 
 class SnakePilot
     : public loom::WeaveBase<SnakePilot, SnakePilotState,
-                             loom::Accept<SnakeVisual, loom::Activated, loom::Ack, loom::Refused>,
+                             loom::Accept<SnakeVisual, loom::Activated, loom::Ack, loom::Refused,
+                                          loom::AskEnded>,
                              loom::Emit<SnakeTurn, loom::PokeWrite>> {
 public:
     /// Each step the world takes, steered: one turn for the next.
@@ -56,7 +57,7 @@ public:
         }
         state_.wheel = false;
         asked_ = static_cast<std::uint64_t>(activation_.sequence());
-        mail.send_to_role(kWorldRole, loom::PokeWrite{"keys", "false"}, asked_);
+        mail.ask_role(kWorldRole, loom::PokeWrite{"keys", "false"}, asked_);
     }
 
     /// The world's answer to that write, and only that one: Loom's word that it answers the ask.
@@ -67,6 +68,12 @@ public:
     }
     void on(const loom::Refused&, loom::Mail& mail) {
         if (answers(mail)) {
+            state_.wheel = false;
+        }
+    }
+    /// ...or no answer at all: the wheel is not taken.
+    void on(const loom::AskEnded&, loom::Mail& mail) {
+        if (asked_ != 0 && mail.ask_ended() && mail.correlation() == asked_) {
             state_.wheel = false;
         }
     }

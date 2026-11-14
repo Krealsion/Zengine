@@ -809,14 +809,22 @@ class OtherSource : public loom::WeaveBase<OtherSource, OtherState, loom::Accept
 public:
     void on(const Nudge&, loom::Mail& m) { (void)m.answer(loom::Ack{}); }
 };
-/// A PARTICIPANT THAT TAKES A DESCRIBE REQUEST AND NEVER ANSWERS IT.
+/// A PARTICIPANT THAT TAKES A DESCRIBE REQUEST AND NEVER ANSWERS IT: it keeps the answer, still
+/// working, or (`keeps` false) returns with the answer neither spent nor kept.
 struct SilentState { ZEN_SHAPE(SilentState, 1); };
 class SilentSource final : public loom::Weave {
 public:
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<loom::PokeDescribe>()};
     }
-    void handle(const loom::Message&, loom::Bus&) override { ++asked; }
+    void handle(const loom::Message&, loom::Bus& bus) override {
+        ++asked;
+        if (keeps) {
+            owed.push_back(bus.make_deferred_answer());
+        }
+    }
+    bool keeps = true;
+    std::vector<loom::DeferredAnswer> owed;
     loom::Value snapshot() const override { return loom::to_value(SilentState{}); }
     loom::Value policy() const override {
         loom::Value v(loom::lifecycle_policy_schema());
@@ -1010,6 +1018,26 @@ TEST_CASE("info views: a replaced, absent, silent, unsupported or unauthorized s
         s.button(a, "Close");
         CHECK_FALSE(s.r.session().panes.has(a));
         CHECK(quiet->asked == 1);
+    }
+    SUBCASE("mute: a source that returns without answering ends the sample, said once in Loom's words") {
+        Views s(191 | 1024);
+        const auto first = mount<StructureSource>(s.r, "story.source");
+        capture(s, "story.source", "Sampled");
+        const auto [a, b] = s.two_views();
+        (void)b;
+        s.copy_into(a, "Sampled");
+        REQUIRE(s.r.bus.unregister_weave(first));
+        auto mute = std::make_unique<SilentSource>();
+        mute->keeps = false;
+        auto* quiet = mute.get();
+        loom::Grant none;
+        (void)s.r.bus.register_weave(std::move(mute), none, "story.source");
+        s.button(a, "Sample");
+        CHECK(quiet->asked == 1);
+        CHECK_MESSAGE(s.shows(a, "story.source never answered (delivered, Unanswered)"), s.shown(a));
+        CHECK_FALSE(s.shows(a, "sampling story.source since"));
+        s.button(a, "Close");
+        CHECK_FALSE(s.r.session().panes.has(a)); // nothing waits: one Close takes the view
     }
     SUBCASE("unsupported provenance") {
         Views s(191 | 1024);
@@ -2195,7 +2223,7 @@ TEST_CASE("info views: a watch whose read Loom refuses at dispatch ends at Works
     REQUIRE(s.r.w->observation_leases() == 1);
     s.doorless();
     s.doorless_changed(); // the continuation is approved; its read cannot be dispatched
-    CHECK_MESSAGE(s.shows(a, "not delivered"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "not answered"), s.shown(a));
     CHECK(s.r.w->observation_leases() == 0);
     CHECK(s.shows(a, "count: 1")); // the last good value stays
     s.doors_back();

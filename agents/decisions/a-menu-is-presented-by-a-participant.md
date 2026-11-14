@@ -42,7 +42,13 @@ subject that moved is judged by the requester when the choice arrives.
   the withdrawal's refusal found nothing to settle. A pane asking under its press's number before
   hearing the press, with the presenter killed and revived around the older withdrawal, saw that
   refusal end the NEWER menu. The host now keeps a withdrawn menu's asker and attempt span until
-  its own fence has come round twice, and a refusal settles only the menu its attempt names.
+  the withdrawal, an ask, is answered or Loom says it ended, and a refusal settles only the menu
+  its attempt names.
+- *Tried: a fence behind the withdrawal (`WithdrawalFence`)* — replaced. It ordered the bus and
+  proved no answer: who asked was forgotten once the fence came round twice, so a delivered
+  withdrawal an image ignored left its requester unanswered. With every ask told its end (Loom's
+  `zen.AskEnded`), the withdrawal is an ask, the presenter answers it, and its end retires the
+  record.
 - *Tried: one word for both endings (`MenuClosed{menu, false, 0}`)* — replaced. A presenter said
   it for an offer it refused, whose requester it had answered, and for a menu it did not hold,
   whose requester nobody had; the host closed the popup on both and could tell them apart in
@@ -56,9 +62,9 @@ subject that moved is judged by the requester when the choice arrives.
   window showed, and the presenter could not hear its own pointer.
 - *Argued: read every unchosen close as unanswered* — refused: a refused offer's requester was
   already answered by the presenter, so it would hear a second and contrary word about its ask.
-- *Argued: the presenter acknowledges each withdrawal, or the host answers every one* — refused:
-  an acknowledgement a silent presenter never sends keeps its record forever, and the host
-  answering would take the answer from the party that decides it. No timeout either.
+- *Argued: the host answers every withdrawal* — refused: it would take the answer from the party
+  that decides it. A presenter answers its withdrawal; one that answers nothing is ended by Loom,
+  not by a timeout.
 - *Argued: the requester asks the presenter, which asks the host* — refused: the presenter would
   vouch for the requester's identity to the host, and the ask would be judged a hop later.
   Loom authenticates the requester where it asks, which is the host.
@@ -73,8 +79,9 @@ subject that moved is judged by the requester when the choice arrives.
 
 **Consequences.** A Workshop without a presenter refuses a pane's menu in words and keeps every
 host route. An interaction a holder cannot carry ends somewhere: the seam has a word for it, and
-the two shipped images say it alike. It adds no completion guarantee — a delivered withdrawal an
-image simply never answers is still that presenter's silence. A presenter that says its menu
+the two shipped images say it alike. A withdrawal an image never answers ends with Loom's word,
+and the host answers that requester; a menu still open waits on its presenter, which has no
+clock. A presenter that says its menu
 takes more than its room, or stands in another area, loses the menu. The seam is installed, so a
 stranger can build a presenter as well as a requester, and the numbered example replaces the
 shipped one both from a plan row and by a live reload that keeps the open menu. A press on a

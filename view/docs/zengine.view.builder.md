@@ -108,7 +108,7 @@ its pane opens.
   ([view/vocabulary.hpp](../vocabulary.hpp)).
 - **Refuses:** `run refused: ` and the host's reason, as `this session already runs a view; apply a
   change or stop it first`, or `` `tally.panel` is already held by a running participant ``;
-  `run was not delivered: <the reason>`; `run could not be queued`; `16 asks are unanswered; wait
+  `run was not done: <how the ask came to nothing>`; `run could not be queued`; `16 asks are unanswered; wait
   for the view host`.
 - **Example:** after making the tally panel, press <!-- key view.run -->`ctrl+r`<!-- /key -->.
 
@@ -197,7 +197,7 @@ Changes the running view to the one you have.
   ([view/vocabulary.hpp](../vocabulary.hpp)).
 - **Refuses:** `apply refused: ` and the host's reason, as `no view runs in this session for this
   participant`, or Loom's words when the changed view cannot register beside the one running, which
-  goes on as it was; `apply was not delivered: <the reason>`.
+  goes on as it was; `apply was not done: <how the ask came to nothing>`.
 - **Example:** move a label, press `[Apply]`.
 
 ### `view.stop`

@@ -526,7 +526,7 @@ TEST_CASE("a build-and-load refused at dispatch is said with the role and Loom's
     const std::string bytes = b.r.bus.snapshot_bytes(b.tool_id);
     b.r.bus.kill(b.tool_id);
     b.letter(input::scan::kB, "b");
-    CHECK_MESSAGE(notice_says(b, "`snake` was not built or loaded -- the ask could not reach "
+    CHECK_MESSAGE(notice_says(b, "`snake` was not built or loaded -- it could not reach "
                                  "zengine.builder (TargetUnavailable)"),
                   b.text());
     CHECK_MESSAGE(b.text().find("waiting for it to start") == std::string::npos, b.text());
@@ -1028,13 +1028,13 @@ TEST_CASE("`o` and the frontier action asked of a project role nobody holds are 
     CHECK_MESSAGE(a.text().find("could not reach") == std::string::npos, a.text());
 
     a.letter(input::scan::kO, "o");
-    CHECK_MESSAGE(a.text().find("`snake`: nothing was added to the plan -- the ask could not reach "
+    CHECK_MESSAGE(a.text().find("`snake`: nothing was added to the plan -- it could not reach "
                                 "zengine.project (NoSuchTarget)") != std::string::npos,
                   a.text());
     CHECK_MESSAGE(a.text().find("role for") == std::string::npos, a.text());
 
     a.letter(input::scan::kF, "f");
-    CHECK_MESSAGE(a.text().find("nothing was asked for -- the ask could not reach zengine.project "
+    CHECK_MESSAGE(a.text().find("nothing was asked for -- it could not reach zengine.project "
                                 "(NoSuchTarget)") != std::string::npos,
                   a.text());
     CHECK(a.tool->asked.empty());
@@ -1058,8 +1058,8 @@ TEST_CASE("a role line's row refused at dispatch by the project role is said, an
     REQUIRE(b.project_id.valid());
     b.r.bus.kill(b.project_id);
     b.r.key(input::scan::kReturn);
-    CHECK_MESSAGE(b.text().find("`zengine-snake`: nothing was loaded and nothing was written -- the "
-                                "row could not reach zengine.project (TargetUnavailable)") !=
+    CHECK_MESSAGE(b.text().find("`zengine-snake`: nothing was loaded and nothing was written -- it "
+                                "could not reach zengine.project (TargetUnavailable)") !=
                       std::string::npos,
                   b.text());
     CHECK(b.authored.empty());
@@ -1116,9 +1116,9 @@ TEST_CASE("a lookup queued to the project role and refused at dispatch -- the ro
             refused_role = ev.addressed_role;
         }
         if (ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
-            ev.schema_name == loom::DispatchRefused::zen_name && ev.payload != nullptr) {
+            ev.schema_name == loom::AskEnded::zen_name && ev.payload != nullptr) {
             ++notices;
-            notice_attempt = loom::from_value<loom::DispatchRefused>(*ev.payload).refused_attempt().seq;
+            notice_attempt = loom::from_value<loom::AskEnded>(*ev.payload).ended_attempt().seq;
             notice_parent = ev.dispatch_parent;
             notice_from_bus = !ev.sender.valid();
         }

@@ -75,7 +75,7 @@ class ProbeWeave final
           loom::Accept<RunProbe, loom::link::Status, zengine::input::InputSessionOpened,
                        zengine::input::InputInjected, zengine::workshop::GuestConnections,
                        zengine::graphics::SurfaceCaptured, zengine::graphics::SurfaceCaptureChunk,
-                       loom::Ack, loom::Refused, loom::link::Outcome>,
+                       loom::Ack, loom::Refused, loom::link::Outcome, loom::AskEnded>,
           loom::Emit<loom::link::Ask, loom::link::StatusRequested, loom::Result>> {
 public:
     ProbeWeave() : book_(4) {}
@@ -123,8 +123,8 @@ public:
             stop(mail, "this probe's own book is full");
             return;
         }
-        (void)mail.send_to_role(loom::link::role_of(run_.link), loom::link::StatusRequested{},
-                                opened.correlation);
+        bind(opened, mail.ask_role(loom::link::role_of(run_.link), loom::link::StatusRequested{},
+                                   opened.correlation));
     }
 
     // ---- the answers, each settling one conversation on the book -----------------------------
@@ -308,6 +308,14 @@ public:
         finish(mail, false);
     }
 
+    /// LOOM'S WORD THAT AN ASK OF THIS RUN'S ENDED WITH NO ANSWER: the run fails, in Loom's words.
+    void on(const loom::AskEnded& e, loom::Mail& mail) {
+        if (answer_.valid() && book_.end(e, mail)) {
+            fail(mail, "the link never answered " + e.shape + " (" + loom::stage_name(e.stage) +
+                           ", " + std::string(loom::reason_name(e.stage)) + ")");
+        }
+    }
+
     void on(const loom::Refused& r, loom::Mail& mail) {
         const std::optional<loom::PendingAsk> asked = settled(mail);
         if (!asked.has_value()) {
@@ -415,8 +423,15 @@ private:
             fail(mail, "this probe's own book is full");
             return;
         }
-        (void)mail.send_to_role(loom::link::role_of(run_.link),
-                                loom::link::ask_role(far_role, msg, settle), opened.correlation);
+        bind(opened, mail.ask_role(loom::link::role_of(run_.link),
+                                   loom::link::ask_role(far_role, msg, settle), opened.correlation));
+    }
+
+    /// Each ask bound to its queued attempt, so Loom's word that it ended names it.
+    void bind(const loom::AskOpened& opened, loom::Ticket attempt) {
+        if (!attempt.valid() || !book_.bind_attempt(opened.id, attempt.seq)) {
+            (void)book_.forget(opened.id);
+        }
     }
 
     /// The role this run's picture is asked of: the one that described it, while fetching.

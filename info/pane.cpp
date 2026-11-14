@@ -95,7 +95,7 @@ class InfoPaneWeave
                        loom::Refused, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, ws::PaneSettingsAnswered, ws::PaneSettingCommitAnswered,
-                       loom::DispatchRefused, gfx::ClipboardCopy,
+                       loom::DispatchRefused, loom::AskEnded, gfx::ClipboardCopy,
                        gfx::ClipboardText, zengine::pane::PaneMenuAnswered,
                        zengine::pane::PaneObservationAnswered, zengine::inventory::InventoryChanged,
                        loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered>,
@@ -228,19 +228,22 @@ public:
     }
 
     void on(const ws::PaneLaunchAnswered& answer, loom::Mail& mail) {
-        if (!mail.answers_ask()) return;
+        if (mail.answers_ask()) launched(mail.correlation(), answer.refusal, mail);
+    }
+    /// A LAUNCH THIS PANE ASKED FOR, answered or ended: `refusal` empty when it was shown.
+    void launched(std::uint64_t correlation, const std::string& refusal, loom::Mail& mail) {
         for (auto& launch : launches_) {
-            if (launch.correlation == 0 || launch.correlation != mail.correlation()) continue;
+            if (launch.correlation == 0 || launch.correlation != correlation) continue;
             launch.correlation = 0;
             pane::ValueView& v = views_[launch.slot - 1];
-            if (answer.refusal.empty() || v.incarnation() != launch.incarnation) return;
+            if (refusal.empty() || v.incarnation() != launch.incarnation) return;
             if (!v.has_entry()) {
                 pane::ViewContext c{mail, asked_};
                 if (v.retire(c, {})) offer(v, mail);
-                views_[launch.from - 1].say("New view not shown: " + answer.refusal);
+                views_[launch.from - 1].say("New view not shown: " + refusal);
                 say(views_[launch.from - 1], mail);
             } else {
-                v.say("This view could not be shown: " + answer.refusal + " -- open it from the Pane Manager");
+                v.say("This view could not be shown: " + refusal + " -- open it from the Pane Manager");
             }
             return;
         }
@@ -416,24 +419,31 @@ public:
         settle(mail);
     }
 
-    /// Loom's word that an ask of this pane's never reached the door's handler
-    /// (`zen.DispatchRefused`; WL-INFO-13): an attestation, not an answer. Each value view is
-    /// offered it first; then, with Loom's provenance, the property view's two records.
+    /// A DECLARATION LOOM REFUSED -- its host gone as it crossed -- IS OWED, and said again
+    /// beside the next word the host sends (`settle`, `on(PaneInventory)`): a plain send.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        // A DECLARATION LOOM REFUSED -- its host gone as it crossed -- IS OWED, and said again
-        // beside the next word the host sends (`settle`, `on(PaneInventory)`).
         if (mail.dispatch_refused() && refused.shape == PaneActions::zen_name) {
             declarations_owed_ = true;
-            return;
         }
+    }
+
+    /// Loom's word that an ask of this pane's ended with no answer (`zen.AskEnded`; WL-INFO-13):
+    /// an attestation, not an answer. Each value view is offered it first; then, with Loom's
+    /// provenance, the property view's two records, then the pane's own asks, by the
+    /// correlation the ending carries: a launch, a paste. A close or a baseline nothing waits on
+    /// ends here with nothing to say: the next publication says it.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
         pane::ViewContext c{mail, asked_};
-        for (auto& v : views_) if (v.hear(refused, c)) { declare(v, mail); say(v, mail); return; }
-        if (!mail.dispatch_refused()) {
+        for (auto& v : views_) if (v.hear(ended, c)) { declare(v, mail); say(v, mail); return; }
+        if (!mail.ask_ended()) {
             return;
         }
-        if (properties_.refused(refused, mail)) {
+        if (properties_.refused(ended, mail)) {
             settle(mail);
+            return;
         }
+        if (paste_.awaiting && mail.correlation() == paste_.pending) paste_.awaiting = false;
+        launched(mail.correlation(), "not answered -- " + zengine::pane::no_answer(ended), mail);
     }
 
     /// A PRESS NAMES A ROW OF A VIEW'S ROOM, and the view knows what that row is because it
@@ -562,10 +572,8 @@ public:
         // which a reload of this image finds standing, because the host keeps it. Both are
         // published when they change; an image arriving while nothing changes would otherwise
         // wait for an unrelated change.
-        (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole, PaneInventoryRequested{});
-        (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole, PaneSubjectRequested{});
+        (void)mail.as_role(pane::kInfoPaneRole).ask_role(kWorkshopRole, PaneInventoryRequested{});
+        (void)mail.as_role(pane::kInfoPaneRole).ask_role(kWorkshopRole, PaneSubjectRequested{});
     }
 
 private:
@@ -703,7 +711,7 @@ private:
         launches_.push_back({correlation, slot->slot(), from.slot(), slot->incarnation()});
         if (launches_.size() > pane::kMaxInfoViews) launches_.erase(launches_.begin());
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole, ws::PaneLaunchRequested{pane::kInfoPaneRole, slot->key()}, correlation);
+            .ask_role(kWorkshopRole, ws::PaneLaunchRequested{pane::kInfoPaneRole, slot->key()}, correlation);
         declare(*slot, mail);
         say(*slot, mail);
         tell(from, (fork ? "Forked into " : "Opened ") + slot->title(), mail);
@@ -731,7 +739,7 @@ private:
         pane::ViewContext c{mail, asked_};
         if (v.retire(c, {})) offer(v, mail);
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(zengine::pane::kLayoutsRole, ws::PaneCloseRequested{pane::kInfoPaneRole, v.key()}, ++asked_);
+            .ask_role(zengine::pane::kLayoutsRole, ws::PaneCloseRequested{pane::kInfoPaneRole, v.key()}, ++asked_);
     }
 
     void open_menu(pane::ValueView& v, std::int64_t row, std::int64_t column, loom::Mail& mail) {
@@ -750,8 +758,8 @@ private:
         paste_.epoch = properties_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(canvases_.front().clipboard_role(), gfx::ClipboardTextRequested{},
-                          paste_.pending);
+            .ask_role(canvases_.front().clipboard_role(), gfx::ClipboardTextRequested{},
+                      paste_.pending);
     }
 
     // ---- Saying what the pane shows -------------------------------------------------------
