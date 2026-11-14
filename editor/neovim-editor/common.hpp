@@ -91,9 +91,38 @@ inline constexpr std::int64_t kMinUiCols = 12;
 inline constexpr std::int64_t kDefaultRows = 24;
 inline constexpr std::int64_t kDefaultCols = 80;
 
-/// How soon this weave looks at Neovim again on the host's wait's clock while it must pump on
-/// time, and how often it polls pipes the wait cannot hold.
+/// How soon this weave looks at Neovim again on the host's wait's clock while bytes wait for the
+/// pipe, and how often it polls pipes the wait cannot hold. Its bounds it claims at their times.
 inline constexpr std::int64_t kLookAgainMs = 10;
+
+/// WHEN THE PANE MUST LOOK AGAIN, as its wait's claim says it (`SourceWait::settle`): `every_ms`
+/// after the time last handed (`handed`), while `on_time`.
+struct LookAgain {
+    bool on_time = false;
+    std::int64_t every_ms = kLookAgainMs;
+};
+
+/// At once for output a read left (`now`); by its soonest bound (`due`, on the wait's clock); and
+/// `kLookAgainMs` on while bytes wait for the pipe (`writing`); pipes the wait does not hold
+/// (`held` false) polled at most that far apart. Not on time while nothing is due.
+inline LookAgain look_again(std::optional<std::int64_t> due, std::optional<std::int64_t> handed,
+                            bool now, bool writing, bool held) {
+    std::optional<std::int64_t> in;
+    if (due) {
+        in = handed ? *due - *handed : 0;
+    }
+    if (writing) {
+        in = in && *in < kLookAgainMs ? *in : kLookAgainMs;
+    }
+    if (now) {
+        in = 0;
+    }
+    LookAgain look{in.has_value(), in.value_or(kLookAgainMs)};
+    if (!held && look.every_ms > kLookAgainMs) {
+        look.every_ms = kLookAgainMs;
+    }
+    return look;
+}
 
 /// HOW LONG A QUESTION MAY TAKE: long enough for any Neovim that is not waiting, short enough that a
 /// Neovim that is stuck costs a weaver a moment rather than a Workshop.
@@ -102,6 +131,12 @@ inline constexpr int kAskMs = 2000;
 inline constexpr int kAdoptMs = 10000;
 /// ...and a start an answer waits for (an open with no Neovim running, a baseline start).
 inline constexpr int kStartWaitMs = 10000;
+
+/// When a Neovim not yet ready is due, on the wait's clock: `kStartWaitMs` after `since`, or a time
+/// already past (0) while the wait has handed none since the first waiter.
+inline std::int64_t ready_by(std::optional<std::int64_t> since) {
+    return since ? *since + kStartWaitMs : 0;
+}
 
 /// HOW MANY QUESTIONS NEOVIM MAY HOLD UNANSWERED at once before another is refused in words.
 inline constexpr std::size_t kMaxAsks = 32;

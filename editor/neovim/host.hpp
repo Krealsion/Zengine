@@ -9,8 +9,14 @@
 // facts its notifications keep current (buffer, modified, mode). A weave holds one and decides
 // what each fact means. `start` spawns, asks who it is, attaches as its UI, installs the module;
 // `pump` moves bytes, never blocking; `call` and `ask_later` are answered in a later pump, the
-// second within a bound; `ask` waits within one, only when asked; `finish` ends Neovim.
+// second within a bound; `finish` ends Neovim.
 // Workshop law: agents/workshop/neovim.md
+
+// Time: this owner reads no clock. Its bounds -- a question asked later, the startup, an exit's
+// grace -- are measured on the time `pump` is handed, a reading of its host's wait's clock: each
+// begins at the first time handed after it was set, since the time a handler last heard may be
+// long past, and `due_ms` says when the next one comes, for the wait to wake its holder then.
+// Only the end blocks, on the operating system's time (`finish`, through `child.hpp`).
 
 // Readiness, as measured: `nvim_get_api_info` and `nvim_get_mode` answer whatever Neovim is
 // doing, but `nvim_exec_lua` waits out a "Press ENTER" prompt. So a Neovim is ready when the
@@ -26,7 +32,7 @@
 
 // A request sent is never withdrawn: msgpack-RPC has no cancel, and Neovim runs a held request
 // once its wait ends, in order (measured, suite `neovim_live`). A bound ends the waiting, not the
-// request: `ask` says `Outstanding` and hands the late answer to `late`.
+// request: `ask_later` says `Outstanding` and hands the late answer to `late`.
 
 #include "editor/neovim/child.hpp"
 #include "editor/neovim/grid.hpp"
@@ -34,7 +40,6 @@
 #include "editor/neovim/msgpack.hpp"
 #include "editor/neovim/rpc.hpp"
 
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -85,7 +90,7 @@ struct ClipboardCopy {
     std::string regtype;
 };
 
-/// WHAT ONE `pump` (and every pump a `call_now` made before it) OBSERVED.
+/// WHAT ONE `pump` (and every read `start` and `answer_paste` made before it) OBSERVED.
 struct Observed {
     bool flushed = false;
     bool doc_changed = false;
@@ -146,7 +151,7 @@ public:
         }
         child_ = std::move(started.child);
         phase_ = Phase::Starting;
-        started_at_ = Clock::now();
+        startup_.set(options_.startup_ms);
         (void)call("nvim_get_api_info", rpc::params(), [this](const rpc::Response& r) {
             on_api_info(r);
         });
@@ -211,7 +216,7 @@ public:
         return true;
     }
 
-    /// WHAT BECAME OF A REQUEST WAITED FOR WITHIN A BOUND (`ask`).
+    /// WHAT BECAME OF A REQUEST ASKED WITHIN A BOUND (`ask_later`).
     enum class Asked : std::uint8_t {
         Answered,    ///< within the bound, in `got` -- Neovim's answer, or this owner's failure
                      ///< as its error when Neovim ended first (`alive()` is false then)
@@ -219,95 +224,6 @@ public:
         Outstanding, ///< sent and not answered within the bound (`why`), and NOT WITHDRAWN:
                      ///< Neovim still holds it, and `late` will hear what became of it
     };
-
-    /// One request, waited for within `ms`: events arriving meanwhile are applied as a pump would,
-    /// and the fast mode is asked beside it, so a Neovim at a prompt or mid-command is said to be
-    /// waiting (`Outstanding`, at once) rather than timed out. Then `late` runs exactly once, in a
-    /// later pump: with the answer when Neovim runs the request, or with this owner's failure if
-    /// Neovim ends first. It runs inside Host code, so it records what it heard and asks nothing.
-    Asked ask(std::string_view method, const msgpack::Value& params, int ms,
-              std::optional<rpc::Response>& got, std::string& why, Callback late = {}) {
-        // THE WAITER'S STATE OUTLIVES THIS CALL: an answer that arrives after the bound ran out is
-        // still delivered to its callback, which hands it to `late` rather than to a frame that is
-        // gone.
-        struct Waiting {
-            std::optional<rpc::Response> got;
-            std::uint64_t flushes = 0; ///< the screen's flushes when the answer arrived
-            bool mode_answered = false;
-            bool blocking = false;
-            bool left = false;
-            Callback late;
-        };
-        auto state = std::make_shared<Waiting>();
-        state->late = std::move(late);
-        if (!call(method, params, [this, state](const rpc::Response& r) {
-                if (!state->left) {
-                    state->got = r;
-                    state->flushes = grid_.flushes();
-                } else if (state->late) {
-                    state->late(r);
-                }
-            })) {
-            why = failure_.empty() ? std::string("Neovim is not running") : failure_;
-            return Asked::Unsent;
-        }
-        (void)call("nvim_get_mode", rpc::params(), [state](const rpc::Response& r) {
-            state->mode_answered = true;
-            if (const msgpack::Value* b = r.result.get("blocking"); b != nullptr) {
-                state->blocking = b->as_bool(false);
-            }
-        });
-        const auto deadline = Clock::now() + std::chrono::milliseconds(ms < 0 ? 0 : ms);
-        for (;;) {
-            carried_.merge(pump_io());
-            if (state->got.has_value()) {
-                got = std::move(state->got);
-                answered_flushes_ = state->flushes;
-                return Asked::Answered;
-            }
-            if (!alive()) {
-                // DEFENSIVE: `orphan_callbacks` answers every callback when an owner ends, so the
-                // ending is normally `got` above. It is the answer here too, and nothing later is.
-                rpc::Response ended;
-                ended.error = msgpack::Value::str(failure_.empty() ? std::string("Neovim ended") : failure_);
-                got = std::move(ended);
-                state->left = true;
-                state->late = nullptr;
-                return Asked::Answered;
-            }
-            if (state->mode_answered && state->blocking) {
-                why = "Neovim is waiting for input (a prompt, or an unfinished command)";
-                state->left = true;
-                return Asked::Outstanding;
-            }
-            const auto now = Clock::now();
-            if (now >= deadline) {
-                why = "Neovim did not answer within " + std::to_string(ms) + " ms";
-                state->left = true;
-                return Asked::Outstanding;
-            }
-            const auto left =
-                std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
-            (void)child_.wait(static_cast<int>(left < 10 ? left : 10));
-        }
-    }
-
-    /// A QUESTION, ANSWERED WITHIN `ms` OR NOT AT ALL (`why`): `ask` with nobody to hear a late
-    /// answer. Neovim still runs a request it was sent, so this suits a request whose running late
-    /// changes nothing its caller said -- a read. A request that changes something is `ask`ed with
-    /// a `late`, and its caller owns it until it is answered.
-    std::optional<rpc::Response> call_now(std::string_view method, const msgpack::Value& params,
-                                          int ms, std::string& why) {
-        std::optional<rpc::Response> got;
-        if (ask(method, params, ms, got, why) != Asked::Answered) {
-            return std::nullopt;
-        }
-        if (!alive() && !got->error.is_nil()) {
-            why = rpc::error_text(got->error);
-            return std::nullopt;
-        }
-        return got;
-    }
 
     /// WHAT A REQUEST ASKED LATER CAME TO (`ask_later`): `Answered` with `got` -- Neovim's answer,
     /// or this owner's failure as its error when Neovim ended first -- or `Outstanding` with `why`,
@@ -322,16 +238,16 @@ public:
 
     /// ONE REQUEST, NEVER WAITED FOR: sent now with the fast mode asked beside it, and `done` run
     /// exactly once inside a later pump -- with the answer, or `Outstanding` as soon as the fast
-    /// mode says Neovim waits for input, or at the first pump `ms` after the ask. Then `late` hears
-    /// what became of an outstanding request, exactly once. It runs inside Host code, so it records
-    /// what it heard and asks nothing. False, with `why`, when nothing was sent; `done` never runs.
+    /// mode says Neovim waits for input, or at the first pump handed a time `ms` past the bound's
+    /// beginning (the first time handed after this ask). Then `late` hears what became of an
+    /// outstanding request, exactly once. It runs inside Host code, so it records what it heard and
+    /// asks nothing. False, with `why`, when nothing was sent; `done` never runs.
     bool ask_later(std::string_view method, const msgpack::Value& params, int ms, Done done,
                    std::string& why, Callback late = {}) {
         auto state = std::make_shared<Later>();
         state->done = std::move(done);
         state->late = std::move(late);
-        state->ms = ms < 0 ? 0 : ms;
-        state->deadline = Clock::now() + std::chrono::milliseconds(state->ms);
+        state->bound.set(ms < 0 ? 0 : ms);
         if (!call(method, params, [this, state](const rpc::Response& r) {
                 if (!state->settled) {
                     state->settled = true;
@@ -393,13 +309,54 @@ public:
         return ok;
     }
 
-    /// MOVE BYTES AND APPLY EVERY EVENT THAT ARRIVED. Never blocks.
-    Observed pump() {
+    /// MOVE BYTES AND APPLY EVERY EVENT THAT ARRIVED, then say every bound the time has passed.
+    /// Never blocks. `now_ms` is the time the host's wait handed with the wake this pump answers;
+    /// none for a pump between wakes, which passes no bound and begins none.
+    Observed pump(std::optional<std::int64_t> now_ms) {
+        hand(now_ms);
         Observed out = std::move(carried_);
         carried_ = Observed{};
         out.merge(pump_io());
         expire_later();
         return out;
+    }
+
+    /// WHEN THIS OWNER'S NEXT BOUND COMES, on the clock it is handed: the soonest of a question's,
+    /// the startup's (and its next look for a prompt) and an exit's grace; a time already past (0)
+    /// when a bound waits for its first time, so the wait wakes its holder to hand one; none when
+    /// no bound runs. Pumped at that time, it says what passed.
+    std::optional<std::int64_t> due_ms() const {
+        std::optional<std::int64_t> soonest;
+        bool beginning = false;
+        const auto take = [&](const Bound& b) {
+            if (!b.running) {
+                return;
+            }
+            if (!b.from) {
+                beginning = true;
+                return;
+            }
+            const std::int64_t at = *b.from + b.ms;
+            soonest = soonest && *soonest < at ? *soonest : at;
+        };
+        for (const std::shared_ptr<Later>& s : later_) {
+            if (!s->settled) {
+                take(s->bound);
+            }
+        }
+        if (phase_ == Phase::Starting) {
+            take(startup_);
+            if (channel_ != 0 && !mode_asked_) {
+                take(mode_look_);
+            }
+        }
+        if (alive()) {
+            take(exit_grace_);
+        }
+        if (beginning) {
+            return std::int64_t{0};
+        }
+        return soonest;
     }
 
     /// The one bounded wait: until output may be available, Neovim has gone, or `ms` passed.
@@ -415,14 +372,11 @@ public:
         return child_.wait_set(now);
     }
 
-    /// Whether this host must be pumped on time whatever Neovim says: a question asked for later
-    /// waits out its bound, and bytes the pipe has not taken are written, only when it pumps.
-    bool on_time() const noexcept { return !later_.empty() || session_.outbound_size() > 0; }
+    /// Whether this host must be pumped again soon whatever Neovim says: bytes the pipe has not
+    /// taken are written only when it pumps. Its bounds are `due_ms`.
+    bool on_time() const noexcept { return session_.outbound_size() > 0; }
 
     const Grid& grid() const noexcept { return grid_; }
-    /// The screen's flushes when the last answer `ask` returned arrived: what Neovim drew before it
-    /// answered, and nothing it drew after, though one read brought both.
-    std::uint64_t flushes_at_answer() const noexcept { return answered_flushes_; }
     /// The first character of the mode Neovim last reported (`v`, `V`, Ctrl-V, `s`, ...), or 0.
     char visual_kind() const noexcept { return mode_.empty() ? '\0' : mode_[0]; }
     const std::string& mode() const noexcept { return mode_; }
@@ -433,19 +387,15 @@ public:
     // ---- ending -------------------------------------------------------------------------------
 
     /// ASK NEOVIM TO LEAVE, THEN FORCE. Idempotent. Every outstanding callback is run with the
-    /// ending as its error.
+    /// ending as its error. The one call that blocks: the quit is written within `kSayLastMs` and
+    /// Neovim given `grace_ms` to leave, on the operating system's time (`child.hpp`).
     Child::Ended finish(int grace_ms) {
         if (phase_ == Phase::Idle) {
             return Child::Ended{};
         }
         if (child_.holds() && !child_.exited()) {
             if (alive() && session_.notify("nvim_command", rpc::params(msgpack::Value::str("qa!")))) {
-                std::string ignored;
-                const auto deadline = Clock::now() + std::chrono::milliseconds(50);
-                while (session_.outbound_size() > 0 && Clock::now() < deadline) {
-                    (void)child_.pump(session_.outbound(), ignored, 1u << 16);
-                    (void)child_.wait(1);
-                }
+                child_.say_last(session_.outbound(), kSayLastMs);
             }
         }
         Child::Ended ended = child_.finish(grace_ms);
@@ -460,31 +410,72 @@ public:
     }
 
 private:
-    using Clock = std::chrono::steady_clock;
+    /// How long the quit is given to reach the pipe before Neovim is forced.
+    static constexpr int kSayLastMs = 50;
+    /// How often a starting Neovim is asked whether it stopped at a prompt.
+    static constexpr std::int64_t kPromptLookMs = 100;
+    /// How long an exit whose output never ends waits for it.
+    static constexpr std::int64_t kExitGraceMs = 1000;
+
+    /// ONE BOUND, on the time this owner is handed: set when it starts, it begins at the first
+    /// time handed after that (`hand`), and has passed once `ms` more has been handed.
+    struct Bound {
+        bool running = false;
+        std::optional<std::int64_t> from;
+        std::int64_t ms = 0;
+
+        void set(std::int64_t length) {
+            running = true;
+            from.reset();
+            ms = length;
+        }
+        bool passed(const std::optional<std::int64_t>& now) const {
+            return running && from && now && *now - *from >= ms;
+        }
+    };
 
     /// One request asked later: its outcome is said once, and an answer after that goes to `late`.
     struct Later {
         Done done;
         Callback late;
-        Clock::time_point deadline{};
-        int ms = 0;
+        Bound bound;
         bool settled = false;
     };
+
+    /// THE TIME THE WAIT HANDED, kept as the latest, and every bound set since begun at it.
+    void hand(const std::optional<std::int64_t>& now_ms) {
+        if (!now_ms) {
+            return;
+        }
+        if (!now_ || *now_ms > *now_) {
+            now_ = now_ms;
+        }
+        const auto begin = [this](Bound& b) {
+            if (b.running && !b.from) {
+                b.from = now_;
+            }
+        };
+        for (std::shared_ptr<Later>& s : later_) {
+            begin(s->bound);
+        }
+        begin(startup_);
+        begin(mode_look_);
+        begin(exit_grace_);
+    }
 
     /// EVERY REQUEST ASKED LATER WHOSE BOUND HAS PASSED is said outstanding; settled ones are let go.
     void expire_later() {
         if (later_.empty()) {
             return;
         }
-        const auto now = Clock::now();
         std::vector<std::shared_ptr<Later>> held = std::move(later_);
         later_.clear();
         for (std::shared_ptr<Later>& s : held) {
-            if (!s->settled && now >= s->deadline) {
+            if (!s->settled && s->bound.passed(now_)) {
                 s->settled = true;
                 Done d = std::move(s->done);
                 d(Outcome{Asked::Outstanding, std::nullopt,
-                          "Neovim did not answer within " + std::to_string(s->ms) + " ms"});
+                          "Neovim did not answer within " + std::to_string(s->bound.ms) + " ms"});
             }
             if (!s->settled) {
                 later_.push_back(std::move(s));
@@ -564,8 +555,7 @@ private:
         if (phase_ != Phase::Starting) {
             return;
         }
-        const auto now = Clock::now();
-        if (now - started_at_ > std::chrono::milliseconds(options_.startup_ms)) {
+        if (startup_.passed(now_)) {
             fail("Neovim did not become ready within " +
                  (options_.startup_ms >= 1000 && options_.startup_ms % 1000 == 0
                       ? std::to_string(options_.startup_ms / 1000) + " seconds"
@@ -573,9 +563,9 @@ private:
                  screen_words());
             return;
         }
-        if (channel_ != 0 && !mode_asked_ && now - last_mode_ask_ > std::chrono::milliseconds(100)) {
+        if (channel_ != 0 && !mode_asked_ && (!mode_look_.running || mode_look_.passed(now_))) {
             mode_asked_ = true;
-            last_mode_ask_ = now;
+            mode_look_.set(kPromptLookMs);
             (void)call("nvim_get_mode", rpc::params(), [this](const rpc::Response& r) {
                 mode_asked_ = false;
                 if (phase_ != Phase::Starting) {
@@ -663,13 +653,12 @@ private:
             if (alive() && !p.trouble.empty() && !p.exited) {
                 fail("the pipe to Neovim failed: " + p.trouble);
             }
-            if (p.exited && !p.output_ended && exited_at_ == Clock::time_point{}) {
-                exited_at_ = Clock::now();
+            if (p.exited && !p.output_ended && !exit_grace_.running) {
+                exit_grace_.set(kExitGraceMs);
             }
             // AN EXIT WHOSE OUTPUT NEVER ENDS -- something Neovim started still holds its end --
-            // is an exit all the same once a second has passed.
-            const bool gone = p.output_ended ||
-                              (p.exited && Clock::now() - exited_at_ > std::chrono::seconds(1));
+            // is an exit all the same once its grace has passed.
+            const bool gone = p.output_ended || (p.exited && exit_grace_.passed(now_));
             if (alive() && gone) {
                 // THE LAST WORDS ARE IN: stderr is drained once more, then the status is reaped.
                 std::string none;
@@ -772,7 +761,6 @@ private:
     std::map<std::uint32_t, Callback> callbacks_;
     std::vector<std::shared_ptr<Later>> later_;
     Grid grid_;
-    std::uint64_t answered_flushes_ = 0;
     Phase phase_ = Phase::Idle;
     std::string failure_;
     Version version_;
@@ -783,9 +771,10 @@ private:
     bool leaving_ = false;
     std::int64_t attached_rows_ = 0;
     std::int64_t attached_columns_ = 0;
-    Clock::time_point started_at_{};
-    Clock::time_point last_mode_ask_{};
-    Clock::time_point exited_at_{};
+    std::optional<std::int64_t> now_; ///< the latest time handed
+    Bound startup_;
+    Bound mode_look_;  ///< until a starting Neovim is asked again whether it is at a prompt
+    Bound exit_grace_;
     bool mode_asked_ = false;
     bool ready_now_ = false;
     bool failed_now_ = false;

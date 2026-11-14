@@ -28,6 +28,6 @@ until the change is said: in, refused because its target moved, or ended with Ne
 
 **Consequences.** A Neovim that never stops waiting keeps the change held and says so; Escape, an
 answer or the end of Neovim settles it. The adoption, an open's preparation and its showing are
-not held this way: `Host::ask` with a `late` is their hook.
+not held this way: `Host::ask_later`'s `late` is their hook.
 
 **Laws supported.** [WL-NVIM-13](../workshop/neovim-transfers.md).

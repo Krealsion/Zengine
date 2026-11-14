@@ -19,6 +19,8 @@
 #include "editor/neovim/projection.hpp"
 #include "editor/neovim/rpc.hpp"
 
+#include "neovim_time.hpp"
+
 #if defined(_WIN32)
 #include "builder/run.hpp"
 #endif
@@ -132,7 +134,7 @@ template <class Done>
 bool until(nv::Host& host, Done done, int ms = 10000) {
     const auto deadline = Clock::now() + std::chrono::milliseconds(ms);
     for (;;) {
-        (void)host.pump();
+        (void)host.pump(machine_ms());
         if (done()) {
             return true;
         }
@@ -730,7 +732,7 @@ TEST_CASE("the owner starts a well-behaved peer, hears its screen, and ends it b
     REQUIRE(until(host, [&host] { return host.grid().flushes() > 0; }));
     CHECK(host.grid().at(0, 0).text == "t");
     std::string why;
-    std::optional<rpc::Response> r = host.call_now("nvim_get_mode", rpc::params(), 5000, why);
+    std::optional<rpc::Response> r = call_now(host, "nvim_get_mode", rpc::params(), 5000, why);
     REQUIRE_MESSAGE(r.has_value(), why);
     CHECK(r->result.get("mode")->as_str() == "n");
     const nv::Child::Ended ended = host.finish(nv::kQuitGraceMs);
@@ -747,9 +749,13 @@ TEST_CASE("an answer says the screen as it stood when the answer came, not the o
     REQUIRE(host.ready());
     const std::uint64_t before = host.grid().flushes();
     std::string why;
-    REQUIRE_MESSAGE(host.call_now("zengine_fixture_answer_then_draw", rpc::params(), 5000, why).has_value(), why);
+    std::optional<rpc::Response> got;
+    std::uint64_t at_answer = 0;
+    REQUIRE_MESSAGE(ask_waiting(host, "zengine_fixture_answer_then_draw", rpc::params(), 5000, got, why, {},
+                                &at_answer) == nv::Host::Asked::Answered,
+                    why);
     REQUIRE(until(host, [&host, before] { return host.grid().flushes() > before; }));
-    CHECK(host.flushes_at_answer() == before);
+    CHECK(at_answer == before);
     CHECK(host.grid().at(0, 0).text == "a");
     (void)host.finish(nv::kQuitGraceMs);
 }
@@ -763,7 +769,6 @@ TEST_CASE("every way a start fails is said, in whose words, and nothing is left 
     const Case cases[] = {
         {"old", 10000, "older than this Workshop supports"},
         {"garbage", 10000, "not msgpack-RPC"},
-        {"silent", 400, "did not become ready within"},
         {"prompt", 10000, "stopped at a prompt"},
         {"crash", 10000, "exited unexpectedly (status 3)"},
         {"flood", 10000, "a message larger than"},
@@ -804,21 +809,61 @@ TEST_CASE("a peer that ignores the quit is forced after its grace, and a waiting
     CHECK_FALSE(words.empty());
 }
 
-TEST_CASE("a call to a peer that stops answering is refused within its bound, in words") {
+TEST_CASE("a start that never answers fails at its bound on the time the owner is handed, from the first time handed after it, never before") {
+    nv::Host host;
+    REQUIRE(host.start(fixture("silent", 400)));
+    // NO TIME YET: the bound waits for its first, and says it is due at once to be handed one.
+    CHECK(host.due_ms() == std::int64_t{0});
+    const std::int64_t t0 = 5000;
+    (void)host.pump(t0);
+    CHECK(host.due_ms() == t0 + 400);
+    // A PUMP BETWEEN WAKES, handed nothing, passes no bound however long it was.
+    (void)host.pump(std::nullopt);
+    (void)host.pump(t0 + 399);
+    CHECK(host.alive());
+    (void)host.pump(t0 + 400);
+    CHECK_FALSE(host.alive());
+    CHECK_MESSAGE(host.failure().find("did not become ready within 400 ms") != std::string::npos, host.failure());
+    CHECK(host.pending_calls() == 0);
+    CHECK_FALSE(host.due_ms().has_value());
+}
+
+TEST_CASE("a question a peer holds is said outstanding at the first pump its bound has passed on the time handed, its ending heard late, once") {
     nv::Host host;
     REQUIRE(host.start(fixture("ok")));
     REQUIRE(until(host, [&host] { return host.ready(); }));
+    CHECK_FALSE(host.due_ms().has_value()); // ready, and asked nothing: no bound runs
+    std::optional<nv::Host::Outcome> said;
+    int late = 0;
+    bool late_is_ending = false;
     std::string why;
-    const auto t0 = Clock::now();
-    // The fixture answers an unknown method with an error at once; a bound of zero still reads it
-    // or says it timed out -- never waits past its bound.
-    std::optional<rpc::Response> r = host.call_now("nvim_unknown", rpc::params(), 0, why);
-    CHECK(Clock::now() - t0 < std::chrono::seconds(2));
-    if (r.has_value()) {
-        CHECK_FALSE(r->error.is_nil());
-    } else {
-        CHECK(why.find("did not answer within 0 ms") != std::string::npos);
-    }
+    const bool asked = host.ask_later(
+        "zengine_fixture_hold", rpc::params(), 2000, [&said](nv::Host::Outcome o) { said = std::move(o); }, why,
+        [&late, &late_is_ending](const rpc::Response& r) {
+            ++late;
+            late_is_ending = !r.error.is_nil();
+        });
+    REQUIRE_MESSAGE(asked, why);
+    // THE BOUND BEGINS AT THE FIRST TIME HANDED AFTER THE ASK, however long ago the last was.
+    CHECK(host.due_ms() == std::int64_t{0});
+    const std::int64_t t0 = machine_ms() + 100000;
+    (void)host.pump(t0);
+    CHECK(host.due_ms() == t0 + 2000);
+    // THE PEER ANSWERS THE FAST MODE, not the question; the clock is moved, never slept on.
+    REQUIRE(until(host, [&host] { return host.pending_calls() == 1; }));
+    (void)host.pump(t0 + 1999);
+    CHECK_FALSE(said.has_value());
+    (void)host.pump(t0 + 2000);
+    REQUIRE(said.has_value());
+    CHECK(said->asked == nv::Host::Asked::Outstanding);
+    CHECK(said->why == "Neovim did not answer within 2000 ms");
+    CHECK(host.asked_later() == 0);
+    CHECK_FALSE(host.due_ms().has_value());
+    // NOT WITHDRAWN: the ending answers it, once.
+    CHECK(late == 0);
+    (void)host.finish(nv::kQuitGraceMs);
+    CHECK(late == 1);
+    CHECK(late_is_ending);
 }
 
 } // TEST_SUITE

@@ -17,6 +17,8 @@
 #include "editor/neovim/lua.hpp"
 #include "editor/neovim/projection.hpp"
 
+#include "neovim_time.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -100,7 +102,7 @@ template <class Done>
 bool until(nv::Host& host, Done done, int ms = 10000, nv::Observed* seen = nullptr) {
     const auto deadline = Clock::now() + std::chrono::milliseconds(ms);
     for (;;) {
-        nv::Observed o = host.pump();
+        nv::Observed o = host.pump(machine_ms());
         if (seen != nullptr) {
             seen->merge(std::move(o));
         }
@@ -137,7 +139,7 @@ mp::Value strs(const std::vector<std::string>& lines) {
 
 std::optional<mp::Value> lua(nv::Host& host, const char* chunk, mp::Value args, std::string& why,
                              int ms = 5000) {
-    std::optional<nv::rpc::Response> r = host.call_now(
+    std::optional<nv::rpc::Response> r = call_now(host,
         "nvim_exec_lua", nv::rpc::params(mp::Value::str(chunk), std::move(args)), ms, why);
     if (!r.has_value()) {
         return std::nullopt;
@@ -152,7 +154,7 @@ std::optional<mp::Value> lua(nv::Host& host, const char* chunk, mp::Value args, 
 bool command(nv::Host& host, const std::string& text) {
     std::string why;
     std::optional<nv::rpc::Response> r =
-        host.call_now("nvim_command", nv::rpc::params(mp::Value::str(text)), 5000, why);
+        call_now(host, "nvim_command", nv::rpc::params(mp::Value::str(text)), 5000, why);
     return r.has_value() && r->error.is_nil();
 }
 
@@ -360,7 +362,7 @@ TEST_CASE("the screen projects: a block cursor's cell, an Insert caret, Visual t
     REQUIRE_MESSAGE(adopt(host, path, text, false, why).has_value(), why);
     const auto settle = [&host](const auto& done) {
         return until(host, [&] {
-            (void)host.pump();
+            (void)host.pump(machine_ms());
             return done();
         });
     };
@@ -442,15 +444,15 @@ TEST_CASE("preparing a file hidden leaves the heard document the one Neovim show
     REQUIRE_MESSAGE(adopt(host, current, "one\nmore\n", true, why).has_value(), why);
     REQUIRE(until(host, [&host] { return host.doc().modified && host.doc().name.find("current.txt") != std::string::npos; }));
     const std::int64_t tick = host.doc().tick;
-    nv::Observed seen = host.pump();
+    nv::Observed seen = host.pump(machine_ms());
     std::optional<mp::Value> prepared =
         lua(host, nv::lua::kPrepare, nv::rpc::params(mp::Value::str(hidden), mp::Value::integer(5)), why);
     REQUIRE_MESSAGE(prepared.has_value(), why);
     REQUIRE(prepared->get("refused") == nullptr);
     CHECK(prepared->get("name")->as_str().find("hidden.txt") != std::string::npos);
     std::string mode_why;
-    REQUIRE(host.call_now("nvim_get_mode", nv::rpc::params(), 2000, mode_why).has_value());
-    seen.merge(host.pump());
+    REQUIRE(call_now(host, "nvim_get_mode", nv::rpc::params(), 2000, mode_why).has_value());
+    seen.merge(host.pump(machine_ms()));
     CHECK(host.doc().name.find("current.txt") != std::string::npos);
     CHECK(host.doc().modified);
     CHECK(host.doc().tick == tick);
@@ -475,7 +477,7 @@ TEST_CASE("a copy to + is heard, and a paste Neovim asks for is answered late an
     REQUIRE(until(host, [&asked] { return !asked.paste_requests.empty(); }, 10000, &asked));
     // THE ANSWER COMES LATER, as a window's does: nothing is waited on meanwhile.
     for (int i = 0; i < 5; ++i) {
-        (void)host.pump();
+        (void)host.pump(machine_ms());
         (void)host.wait(20);
     }
     REQUIRE(host.answer_paste(asked.paste_requests.front(), {"from the medium"}, "v"));
@@ -504,7 +506,7 @@ TEST_CASE("a file another Neovim holds is refused by its swap file, and nothing 
     CHECK(r->get("refused")->as_str() == "swap");
     CHECK(r->get("why")->as_str().find("E325") != std::string::npos);
     std::string mode_why;
-    std::optional<nv::rpc::Response> mode = second.call_now("nvim_get_mode", nv::rpc::params(), 2000, mode_why);
+    std::optional<nv::rpc::Response> mode = call_now(second, "nvim_get_mode", nv::rpc::params(), 2000, mode_why);
     REQUIRE(mode.has_value());
     CHECK_FALSE(mode->result.get("blocking")->as_bool());
 }
@@ -607,7 +609,7 @@ std::vector<std::string> buffer(nv::Host& host) {
 
 std::string mode_now(nv::Host& host) {
     std::string why;
-    const std::optional<nv::rpc::Response> m = host.call_now("nvim_get_mode", nv::rpc::params(), 5000, why);
+    const std::optional<nv::rpc::Response> m = call_now(host, "nvim_get_mode", nv::rpc::params(), 5000, why);
     REQUIRE(m.has_value());
     return m->result.get("mode")->as_str();
 }
@@ -886,12 +888,12 @@ TEST_CASE("a change asked while Neovim waits for input is outstanding, not refus
     const std::string shown = grid_row(host, 0);
     const auto blocked = [&host] {
         std::string w;
-        const std::optional<nv::rpc::Response> m = host.call_now("nvim_get_mode", nv::rpc::params(), 1000, w);
+        const std::optional<nv::rpc::Response> m = call_now(host, "nvim_get_mode", nv::rpc::params(), 1000, w);
         return m.has_value() && m->result.get("blocking")->as_bool();
     };
     const auto held_drop = [&](const mp::Value& facts, std::string& said) {
         std::optional<nv::rpc::Response> got;
-        const nv::Host::Asked asked = host.ask(
+        const nv::Host::Asked asked = ask_waiting(host,
             "nvim_exec_lua",
             nv::rpc::params(mp::Value::str(nv::lua::kDrop),
                             nv::rpc::params(mp::Value::integer(facts.get("buf")->as_int()),
@@ -956,11 +958,11 @@ TEST_CASE("a change Neovim holds when it ends is answered exactly once, with the
     REQUIRE(host.input("g"));
     REQUIRE(until(host, [&host] {
         std::string w;
-        const std::optional<nv::rpc::Response> m = host.call_now("nvim_get_mode", nv::rpc::params(), 1000, w);
+        const std::optional<nv::rpc::Response> m = call_now(host, "nvim_get_mode", nv::rpc::params(), 1000, w);
         return m.has_value() && m->result.get("blocking")->as_bool();
     }));
     std::optional<nv::rpc::Response> got;
-    const nv::Host::Asked asked = host.ask(
+    const nv::Host::Asked asked = ask_waiting(host,
         "nvim_exec_lua",
         nv::rpc::params(mp::Value::str(nv::lua::kDrop),
                         nv::rpc::params(mp::Value::integer(facts->get("buf")->as_int()),
@@ -978,7 +980,7 @@ TEST_CASE("a change Neovim holds when it ends is answered exactly once, with the
     REQUIRE(late.has_value());
     CHECK_FALSE(late->error.is_nil());
     CHECK(nv::rpc::error_text(late->error) == host.failure());
-    (void)host.pump();
+    (void)host.pump(machine_ms());
     (void)host.finish(nv::kQuitGraceMs);
     CHECK(heard == 1);
     CHECK(read_bytes(path) == "abc\n");
