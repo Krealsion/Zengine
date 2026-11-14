@@ -45,14 +45,23 @@ struct TallySuiteState {
     ZEN_SHAPE(TallySuiteState, 1, ZEN_FIELD(n));
 };
 
+/// Returns once `ms` have passed on `steady_clock`, the clock the tally and Loom's handler stamps
+/// read. A sleep alone is not that: with a 1 ms timer period, MinGW-w64's `sleep_for` wakes up to
+/// a millisecond before its time on that clock, and a case asserting the time it waited would be
+/// asserting the sleep.
+void pass_ms(int ms) {
+    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+    while (std::chrono::steady_clock::now() < until) {
+        std::this_thread::sleep_until(until);
+    }
+}
+
 /// A handler that takes `ms` of wall time on every ping.
 class Slow
     : public loom::WeaveBase<Slow, TallySuiteState, loom::Accept<TallyPing>, loom::Emit<>> {
 public:
     explicit Slow(int ms) : ms_(ms) {}
-    void on(const TallyPing&, loom::Mail&) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(ms_));
-    }
+    void on(const TallyPing&, loom::Mail&) { pass_ms(ms_); }
 
 private:
     int ms_;
@@ -168,7 +177,7 @@ TEST_CASE("a key reaches its paint when the weave it reached draws, turns after 
     (void)bus.send(pane, loom::Message(loom::to_value(key)));
     bus.drain_until_idle();
     CHECK(tally.paints().empty()); // reached, and nothing painted yet
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    pass_ms(20);
     (void)bus.send(pane, loom::Message(loom::to_value(TallyBeat{1})));
     bus.drain_until_idle();
 
