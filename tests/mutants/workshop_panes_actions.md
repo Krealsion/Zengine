@@ -106,8 +106,8 @@ In `workshop/weave_desktop.cpp`:
 
 ```diff
 -    (void)mail.answer(
--        inventory_reading(realization::latest<realization::PlanWhere>(mail).value_or(
--            realization::PlanWhere{})));
+-        inventory_reading(realization::latest<realization::PlanStatus>(mail).value_or(
+-            realization::PlanStatus{})));
 -}
 +    (void)0;
 +}

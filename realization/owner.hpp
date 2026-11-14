@@ -422,7 +422,7 @@ class Owner
                        zengine::builder::PromoteArtifact, zengine::builder::RevertArtifact>,
           loom::Emit<loom::LoadWeave, loom::ReloadWeave, zengine::builder::ArtifactRealized,
                      zengine::builder::ArtifactPromoted, zengine::builder::RealizationAsked>,
-          loom::WeaveBase, loom::Claims<PlanWhere, ChoicesHeld>> {
+          loom::WeaveBase, loom::Claims<PlanStatus, ChoicesHeld>> {
 public:
     /// How a host spells an artifact stem as a file. The host owns the rule, so one plan is legal
     /// on every platform.
@@ -1429,8 +1429,8 @@ private:
     }
 
     /// WHERE THE PLAN IS, as the role claims it.
-    PlanWhere where_claimed() const {
-        PlanWhere out;
+    PlanStatus where_claimed() const {
+        PlanStatus out;
         out.state = where_ == Realization::Complete ? PlanState::complete
                     : where_ == Realization::Waiting ? PlanState::waiting
                     : where_ == Realization::Failed  ? PlanState::refused

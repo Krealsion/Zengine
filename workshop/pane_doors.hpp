@@ -84,15 +84,15 @@ public:
     }
 
     /// What realization is stopped on, read at the ask from the realization owner's claim
-    /// (`PlanWhere`). With no claim to read, the designed absence: `waiting` false, with an empty
+    /// (`PlanStatus`). With no claim to read, the designed absence: `waiting` false, with an empty
     /// artifact.
     void on(const ProjectFrontierRequested&, loom::Mail& mail) {
         if (!answerable(mail)) {
             return;
         }
         ++state_.frontiers;
-        const realization::PlanWhere where =
-            realization::latest<realization::PlanWhere>(mail).value_or(realization::PlanWhere{});
+        const realization::PlanStatus where =
+            realization::latest<realization::PlanStatus>(mail).value_or(realization::PlanStatus{});
         (void)mail.answer(ProjectFrontierSaid{!where.waiting_on.empty(), where.waiting_on,
                                               where.waiting_on.empty() ? 0 : where.behind});
     }

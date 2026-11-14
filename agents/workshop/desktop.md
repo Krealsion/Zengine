@@ -236,7 +236,7 @@ closes, holding the keys, and no later start opens it again"
 `workshop/weave_desktop.cpp` publish_inventory inventory_reading provider_present
 realization::to_come
 `realization/owner.hpp` role_pending Owner::where_claimed
-`realization/vocabulary.hpp` PlanWhere::to_come to_come
+`realization/vocabulary.hpp` PlanStatus::to_come to_come
 `workshop/setup_reconcile.hpp` inventory_rows
 `tests/test_workshop_panes_actions.cpp` "a pane whose provider left is unavailable in the launcher
 and refused at launch, while its identity and the desk row naming it stay" "a pane the run is still

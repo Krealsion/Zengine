@@ -2291,7 +2291,7 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     // THE ROLES STILL TO COME, as the realization owner claims them, by a stand-in in its role:
     // the shipped desk's other loaded pane is still to come for the whole case.
     const RealizationClaims owner(r.bus);
-    zengine::realization::PlanWhere where;
+    zengine::realization::PlanStatus where;
     where.to_come = {"zengine.notices-pane", "zengine.info"};
     owner.where(where);
     r.mount_workshop();

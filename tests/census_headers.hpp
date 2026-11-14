@@ -178,7 +178,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::realization::BootState>(), // BootState v1
         shape<::zengine::realization::ChoiceHeld>(), // ChoiceHeld v1
         shape<::zengine::realization::ChoicesHeld>(), // ChoicesHeld v1
-        shape<::zengine::realization::PlanWhere>(), // PlanWhere v1
+        shape<::zengine::realization::PlanStatus>(), // PlanStatus v1
         shape<::zengine::realization::load_persist::WorkshopLoadAlternative>(), // WorkshopLoadAlternative v1
         shape<::zengine::realization::load_persist::v1::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v1
         shape<::zengine::realization::load_persist::v3::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v2

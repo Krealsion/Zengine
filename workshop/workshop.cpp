@@ -1175,7 +1175,7 @@ int main(int argc, char** argv) {
     say_project.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
     say_project.allow_to_any(manual::ShapeDocumentShown::zen_name,
                              manual::ShapeDocumentShown::zen_version);
-    say_project.allow_observe(realization::PlanWhere::zen_name, realization::PlanWhere::zen_version);
+    say_project.allow_observe(realization::PlanStatus::zen_name, realization::PlanStatus::zen_version);
     mount_in_role<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
                                  marks_path, host.plan_names, host.recipe_source,
                                  host.use_recipes, host.author_recipe, host.append_plan_row);
