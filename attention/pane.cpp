@@ -87,7 +87,7 @@ std::string condition_path(const std::string& key) {
 /// resolved suggestion where the host's own was the action's id, and it is the same
 /// question either way ("is this the same statement I hid?").
 std::string stamp_of(const StandingCondition& c) {
-    return c.compact + '\n' + c.detail + '\n' + c.ink.name + '\n' + c.suggestion;
+    return c.compact + '\n' + c.detail + '\n' + std::string(c.ink.name()) + '\n' + c.suggestion;
 }
 
 // =============================================================================

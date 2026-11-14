@@ -2722,7 +2722,8 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
             CHECK(mark->x == column * gfx::kCellPx);
             CHECK(mark->y == row * gfx::kCellPx);
             CHECK(mark->text.size() == 1);
-            CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*held_area(f.kind), *caret)->ink) == gfx::colors::accent);
+            CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*held_area(f.kind), *caret)->ink)
+                    == gfx::colors::accent);
         } else {
             CHECK(gfx::operands<gfx::LineArgs>(*caret) != nullptr);
             const gfx::LineArgs* bar = gfx::operands<gfx::LineArgs>(*caret);
@@ -2731,7 +2732,8 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
             CHECK(bar->x2 == column * gfx::kCellPx);
             CHECK(bar->y1 == row * gfx::kCellPx);
             CHECK(bar->y2 == row * gfx::kCellPx + gfx::kCellPx - 1);
-            CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Ink>(*held_area(f.kind), *caret)->ink) == gfx::colors::accent);
+            CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Ink>(*held_area(f.kind), *caret)->ink)
+                    == gfx::colors::accent);
         }
         CHECK(asks("caret") == "property:Width");
     };
@@ -2759,7 +2761,8 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         CHECK(words->text == "7");
         CHECK(words->x == 11 * gfx::kCellPx);
         CHECK(words->y == row * gfx::kCellPx);
-        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*held_area(f.kind), *node)->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*held_area(f.kind), *node)->ink)
+                == gfx::colors::accent);
         CHECK(asks(sel) == "property:Width");
         CHECK(marks() == 2);
     };

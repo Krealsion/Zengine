@@ -82,7 +82,7 @@ class MenuPresenter
     : public loom::WeaveBase<
           MenuPresenter, zengine::pane::HeldMenu,
           loom::Accept<loom::Activated, zengine::pane::MenuGranted, zengine::pane::MenuInput, zengine::pane::MenuWithdrawn,
-                       gfx::AreaRoom, gfx::DrawnRefused, gfx::AreaButtonChanged>,
+                       gfx::AreaRoom, gfx::DrawnRefused, loom::DispatchRefused, gfx::AreaButtonChanged>,
           loom::Emit<zengine::pane::MenuShown, zengine::pane::MenuClosed,
                      zengine::pane::MenuReturned, zengine::pane::PresenterReady,
                      zengine::pane::PaneMenuAnswered, gfx::Drawn, gfx::RoomAsked>> {
@@ -147,6 +147,9 @@ public:
 
     void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
         (void)drawing_.refused(refused, mail);
+    }
+    void on(const loom::DispatchRefused& notice, loom::Mail& mail) {
+        (void)drawing_.refused(notice, mail);
     }
 
     /// A PRESS OF THE FIRST BUTTON ON A ROW'S LINE CHOOSES THE ROW, as the act that press is: the

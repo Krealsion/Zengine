@@ -33,7 +33,8 @@ struct StandingCondition {
     /// and not an id: the pane cannot read a keymap.
     std::string suggestion;
 
-    ZEN_SHAPE(StandingCondition, 2, ZEN_FIELD(key), ZEN_FIELD(compact), ZEN_FIELD(detail),
+    /// Version 3: its colours one union (`Color`).
+    ZEN_SHAPE(StandingCondition, 3, ZEN_FIELD(key), ZEN_FIELD(compact), ZEN_FIELD(detail),
               ZEN_FIELD(ink), ZEN_FIELD(suggestion));
 };
 
@@ -42,7 +43,8 @@ struct StandingCondition {
 /// the retraction.
 struct StandingConditions {
     std::vector<StandingCondition> rows;
-    ZEN_SHAPE(StandingConditions, 2, ZEN_FIELD(rows));
+    /// Version 3: its conditions' colours one union (`Color`).
+    ZEN_SHAPE(StandingConditions, 3, ZEN_FIELD(rows));
 };
 
 /// THE GLANCE: the loudest condition said and an honest count of the rest, `(+N more)` -- the one

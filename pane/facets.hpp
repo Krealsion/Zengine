@@ -147,11 +147,13 @@ public:
     using Accept = std::conditional_t<
         HearsRest,
         loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
-                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, loom::DispatchRefused,
+                     graphics::ActionRequested,
                      graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                      graphics::AreaPointerLeft, graphics::AreaWheelTurned, PaneKeys>,
         loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
-                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, loom::DispatchRefused,
+                     graphics::ActionRequested,
                      graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                      graphics::AreaWheelTurned, PaneKeys>>;
     using Emit = loom::Emit<Offer, PaneDocumentShown, PanePassRequested, graphics::Drawn,
@@ -177,6 +179,11 @@ public:
     template <class Self>
     void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
+    }
+    /// ...and so do rows Loom refused before the window read them (`WindowDrawing::refused`).
+    template <class Self>
+    void on(Self&, const loom::DispatchRefused& notice, loom::Mail& mail) {
+        (void)window_.refused(notice, mail);
     }
 
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: for a
@@ -439,11 +446,13 @@ public:
     using Accept = std::conditional_t<
         HearsRest,
         loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
-                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, loom::DispatchRefused,
+                     graphics::ActionRequested,
                      graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                      graphics::AreaPointerLeft, graphics::AreaWheelTurned>,
         loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
-                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, loom::DispatchRefused,
+                     graphics::ActionRequested,
                      graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                      graphics::AreaWheelTurned>>;
     using Emit = loom::Emit<Offer, PaneDocumentShown, PanePassRequested, graphics::Drawn,
@@ -469,6 +478,11 @@ public:
     template <class Self>
     void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
+    }
+    /// ...and so do rows Loom refused before the window read them (`WindowDrawing::refused`).
+    template <class Self>
+    void on(Self&, const loom::DispatchRefused& notice, loom::Mail& mail) {
+        (void)window_.refused(notice, mail);
     }
 
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: the

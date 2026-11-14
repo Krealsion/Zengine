@@ -3604,7 +3604,8 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
         if (gfx::operands<gfx::RectArgs>(n.node) == nullptr) continue;
         const auto r = gfx::operands<gfx::RectArgs>(n.node);
         ring = ring || (r && r->x == bounds.x && r->y == bounds.y && r->w == bounds.w &&
-                        r->h == bounds.h && gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->fill.none() && !gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->stroke.none());
+                        r->h == bounds.h && gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->fill.none()
+                                && !gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->stroke.none());
     }
     CHECK(ring);
     // THE BAND, AT THE FOOT, in Workshop's own area: what the keys mean, under what the tool last
@@ -4479,7 +4480,8 @@ TEST_CASE("a guest's guide mark stands over the panes in Workshop's overlay in t
                 if (const auto t = gfx::operands<gfx::TextArgs>(n.node)) labels.push_back(*t);
             } else if (gfx::operands<gfx::RectArgs>(n.node) != nullptr) {
                 const auto r = gfx::operands<gfx::RectArgs>(n.node);
-                if (r && zengine::graphics::pool_color_of(gw::worn<gfx::Paint>(*window.weave().find(overlay), n.node)->fill) == gfx::colors::background) grounds.push_back(*r);
+                if (r && zengine::graphics::pool_color_of(gw::worn<gfx::Paint>(*window.weave().find(overlay),
+                        n.node)->fill) == gfx::colors::background) grounds.push_back(*r);
             }
         }
         REQUIRE_FALSE(labels.empty());

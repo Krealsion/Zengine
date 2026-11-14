@@ -764,19 +764,30 @@ public:
         send(mail);
     }
 
-    /// A DRAWING THE WINDOW REFUSED, said by the window that shows the area: true when it was.
+    /// A DRAWING THE WINDOW REFUSED, said by the window that shows the area: true when it was. A
+    /// refusal read from Loom's notice (below), handed on with that notice's mail, was taken already.
     bool refused(const graphics::DrawnRefused& refusal, loom::Mail& mail) {
+        if (mail.dispatch_refused()) {
+            return refusal.area == area();
+        }
         if (!from_window(refusal.area, mail)) {
             return false;
         }
-        canvas_.forget();
-        fresh_ = true;
-        if (!drew_whole_) {
-            send(mail);
-        } else if (!last_.nodes().empty()) {
-            refused_whole_ = true;
-        }
+        recover(mail);
         return true;
+    }
+
+    /// A DRAWING LOOM REFUSED before the window read it -- one past what Loom decodes of one
+    /// value, say -- told by Loom's notice (`graphics::Canvas::refused`): taken as the window's own
+    /// refusal, and that refusal returned, in words, for the pane to hear as the window's; none for
+    /// another notice.
+    std::optional<graphics::DrawnRefused> refused(const loom::DispatchRefused& notice,
+                                                  loom::Mail& mail) {
+        std::optional<graphics::DrawnRefused> refusal = canvas_.refused(notice, mail);
+        if (refusal) {
+            recover(mail);
+        }
+        return refusal;
     }
 
 private:
@@ -788,6 +799,16 @@ private:
         p.at = window_cell(x, y, rows, columns, text());
         p.press = mail.correlation();
         return p;
+    }
+
+    void recover(loom::Mail& mail) {
+        canvas_.forget();
+        fresh_ = true;
+        if (!drew_whole_) {
+            send(mail);
+        } else if (!last_.nodes().empty()) {
+            refused_whole_ = true;
+        }
     }
 
     void send(loom::Mail& mail) {

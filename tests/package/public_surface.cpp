@@ -412,13 +412,14 @@ void graphics_surface() {
           "a canvas keeps the room its window told, and names that window's role");
     check(!canvas.room(room), "and the same room told again changes nothing");
 
-    // A painter is handed exact colours, one for each a node's operands carry, as a window hands
+    // A painter is handed exact colours, one for each a node's look carries, as a window hands
     // them once it has turned their names into colours.
     gfx::PaintTask task;
     std::int64_t rank = 1;
     for (const gfx::Node& n : picture.nodes()) {
         std::vector<gfx::PaintInk> inks;
-        for (const gfx::Color& c : gfx::colors_of(n.op, n.args)) {
+        const gfx::Look* look = picture.look_of(n);
+        for (const gfx::Color& c : look != nullptr ? gfx::colors_of(*look) : std::vector<gfx::Color>{}) {
             inks.push_back(c.none() ? gfx::PaintInk{} : gfx::PaintInk{0xd8dee9ff, "terminal default", "o"});
         }
         task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.draw, inks, {}, {}});

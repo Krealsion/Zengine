@@ -725,7 +725,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK_FALSE(seen.heard[before].whole);
         CHECK(seen.heard[before + 1].whole);
         CHECK(seen.refusals.size() == 1);
-        CHECK_FALSE(rig.shows_part("The graphics window refused Flow's picture"));
+        CHECK_FALSE(rig.shows_part("Flow's picture was refused"));
         // ...AND A REFUSED WHOLE PICTURE IS SAID in the picture drawn next, once, and nothing
         // more is drawn until the next change.
         window.weave().refuse_next = true;
@@ -735,7 +735,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(seen.heard[before + 2].whole);
         CHECK(seen.heard.back().whole);
         CHECK(seen.refusals.size() == 2);
-        CHECK(rig.shows_part("The graphics window refused Flow's picture: the case refused this drawing"));
+        CHECK(rig.shows_part("Flow's picture was refused: the case refused this drawing"));
         rig.pump();
         CHECK(seen.heard.size() == before + 4);
         rig.click("[Graph]");

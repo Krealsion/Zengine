@@ -38,6 +38,7 @@
 #include <string>
 #include <system_error>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #if defined(_WIN32)
@@ -175,13 +176,25 @@ inline std::uint64_t picture_hash(const std::vector<pane::TextRow>& rows, const 
         }
     };
     const auto num = [&mix](std::int64_t v) { mix(&v, sizeof v); };
-    const auto color = [&mix, &num](const graphics::Color& c) {
-        num(c.from);
-        num(static_cast<std::int64_t>(c.name.size()));
-        mix(c.name.data(), c.name.size());
-        num(c.rgba);
-        num(static_cast<std::int64_t>(c.like.size()));
-        mix(c.like.data(), c.like.size());
+    const auto word = [&mix, &num](const std::string& s) {
+        num(static_cast<std::int64_t>(s.size()));
+        mix(s.data(), s.size());
+    };
+    const auto color = [&word, &num](const graphics::Color& c) {
+        num(static_cast<std::int64_t>(c.is.index()));
+        std::visit(
+            [&](const auto& k) {
+                if constexpr (requires { k.name; }) {
+                    word(k.name);
+                }
+                if constexpr (requires { k.rgba; }) {
+                    num(k.rgba);
+                }
+                if constexpr (requires { k.like; }) {
+                    word(k.like);
+                }
+            },
+            c.is);
     };
     for (const pane::TextRow& r : rows) {
         num(static_cast<std::int64_t>(r.text.size()));

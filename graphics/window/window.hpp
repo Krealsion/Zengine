@@ -1201,7 +1201,7 @@ private:
                     continue;
                 }
                 named.push_back(st.name);
-                const PaletteStyle style = resolve_style(TextStyle{style_from::kPool, st.name}, palette);
+                const PaletteStyle style = resolve_style(StylePool{st.name}, palette);
                 const std::string font = style.font.empty() ? std::string(kTextFont) : style.font;
                 const PaletteSize size = root_size(style.size, palette);
                 const TextMeasure m = measure_in(resolve_face(font, palette), size.points);

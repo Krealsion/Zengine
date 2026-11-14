@@ -345,13 +345,20 @@ inline void keep_worn_looks(WinArea& a) {
 inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
     Applied out;
     // EACH LOOK THE DRAWING SAYS, ONCE IN THE AREA: a node is kept naming the area's look.
+    // Each found in one step, the area's looks indexed once.
+    std::unordered_map<Look, std::int64_t, LookHash> place_of;
+    place_of.reserve(a.looks.size() + d.looks.size());
+    for (std::size_t i = 0; i < a.looks.size(); ++i) {
+        place_of.try_emplace(a.looks[i], static_cast<std::int64_t>(i));
+    }
     std::vector<std::int64_t> look_in_area(d.looks.size(), kNoLook);
     for (std::size_t i = 0; i < d.looks.size(); ++i) {
-        const auto found = std::find(a.looks.begin(), a.looks.end(), d.looks[i]);
-        look_in_area[i] = static_cast<std::int64_t>(found - a.looks.begin());
-        if (found == a.looks.end()) {
+        const auto [it, fresh] =
+            place_of.try_emplace(d.looks[i], static_cast<std::int64_t>(a.looks.size()));
+        if (fresh) {
             a.looks.push_back(d.looks[i]);
         }
+        look_in_area[i] = it->second;
     }
     const auto kept = [&](const Node& n) {
         Node k = n;

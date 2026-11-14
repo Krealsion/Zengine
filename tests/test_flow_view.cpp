@@ -164,7 +164,8 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         CHECK(gfx::operands<gfx::RectArgs>(window.sketch.nodes().front()) != nullptr);
         CHECK((ground->x == 0 && ground->y == 0 && ground->w == 100 * cell &&
                ground->h == 45 * cell));
-        CHECK(zengine::graphics::pool_color_of(window.sketch.worn<gfx::Paint>(window.sketch.nodes().front())->fill) == gfx::colors::background);
+        CHECK(zengine::graphics::pool_color_of(window.sketch.worn<gfx::Paint>(window.sketch.nodes().front())->fill)
+                == gfx::colors::background);
         CHECK(window.parts.count("control:ask-save") == 1);
         CHECK(window.parts.count("control:zoom-in") == 1);
         CHECK(std::none_of(window.parts.begin(), window.parts.end(),
@@ -445,7 +446,8 @@ TEST_CASE("Flow projects node places and hit regions through the room's independ
     const auto ground = gfx::operands<gfx::RectArgs>(drawn.sketch.nodes().front());
     REQUIRE(ground != nullptr);
     CHECK((ground->w == native_room.width && ground->h == native_room.height));
-    CHECK(zengine::graphics::pool_color_of(drawn.sketch.worn<gfx::Paint>(drawn.sketch.nodes().front())->fill) == gfx::colors::background);
+    CHECK(zengine::graphics::pool_color_of(drawn.sketch.worn<gfx::Paint>(drawn.sketch.nodes().front())->fill)
+            == gfx::colors::background);
     for (const auto& k : view.marks) {
         if (k.op != pane::Mark::Op::Text || k.words.empty()) continue;
         zengine::pane::CanvasText run{k.x, k.y, k.words, zengine::graphics::pool_color_of(k.fill)};
@@ -1250,13 +1252,14 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
         if (gfx::operands<gfx::PathArgs>(node) != nullptr) {
             if (const auto p = gfx::operands<gfx::PathArgs>(node)) {
                 curves += p->d.find(" C") != std::string::npos ? std::size_t{1} : std::size_t{0};
-                colours.insert(light.sketch.worn<gfx::Paint>(node)->stroke.name);
-                colours.insert(light.sketch.worn<gfx::Paint>(node)->fill.name);
+                colours.insert(std::string(light.sketch.worn<gfx::Paint>(node)->stroke.name()));
+                colours.insert(std::string(light.sketch.worn<gfx::Paint>(node)->fill.name()));
             }
         } else if (gfx::operands<gfx::EllipseArgs>(node) != nullptr) {
             ++ports;
         } else if (gfx::operands<gfx::RectArgs>(node) != nullptr) {
-            if (const auto r = gfx::operands<gfx::RectArgs>(node)) colours.insert(light.sketch.worn<gfx::Paint>(node)->fill.name);
+            if (const auto r = gfx::operands<gfx::RectArgs>(node)) colours.insert(std::string(
+                    light.sketch.worn<gfx::Paint>(node)->fill.name()));
         }
     }
     CHECK(curves >= 3); // amount and total into add, add's answer into total
@@ -1296,7 +1299,8 @@ TEST_CASE("a chosen When or Then card is edged as a chosen step is, and a card p
         const auto box = p.cards.at(name);
         for (const auto& k : p.marks)
             if (k.op == pane::Mark::Op::Rect && k.x == box.x && k.y == box.y && k.w == box.w && k.h == box.h)
-                return (k.stroke.rgba >> 8);
+                return std::visit([](const auto& c) -> std::int64_t { if constexpr (
+                        requires { c.rgba; }) return c.rgba >> 8; else return -1; }, k.stroke.is);
         return -1;
     };
     auto pic = pane::picture(m, room);

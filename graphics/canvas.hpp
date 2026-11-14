@@ -20,13 +20,17 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <deque>
 #include <map>
 #include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -172,18 +176,19 @@ public:
     std::int64_t number() const { return number_; }
 
 private:
+    /// The place of `look` among the sketch's looks, found in one step, said there first if new.
     std::int64_t intern(const Look& look) {
-        for (std::size_t i = 0; i < looks_.size(); ++i) {
-            if (looks_[i] == look) {
-                return static_cast<std::int64_t>(i);
-            }
+        const auto [it, fresh] =
+            place_of_.try_emplace(look, static_cast<std::int64_t>(looks_.size()));
+        if (fresh) {
+            looks_.push_back(look);
         }
-        looks_.push_back(look);
-        return static_cast<std::int64_t>(looks_.size() - 1);
+        return it->second;
     }
 
     std::vector<Node> drawn_;
     std::vector<Look> looks_;
+    std::unordered_map<Look, std::int64_t, LookHash> place_of_;
     std::map<std::string, std::size_t> at_;
     std::vector<ElementRecord> said_;
     std::int64_t number_ = 0;
@@ -350,10 +355,31 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
     return nearest != nullptr ? nearest->action : std::string();
 }
 
+/// THE WORDS A DRAWER IS TOLD when Loom refused `what` it sent its window (a "drawing", an
+/// "element" or an "element's change") before the window read it, for Loom's `reason`
+/// (`loom::DispatchRefused::reason`): the gate's refusal of a drawing names the way for an area
+/// whose every node wears a look of its own.
+inline std::string dispatch_refusal_words(std::string_view what, std::string_view reason) {
+    std::string words = "Loom refused the ";
+    words += what;
+    words += " before the window read it (";
+    words += reason;
+    words += ")";
+    if (what == "drawing" && reason == "GateRefused") {
+        words += ": one value holds no more cells than Loom decodes, and an area whose every node "
+                 "wears a look of its own is drawn as an image";
+    }
+    return words;
+}
+
 /// What an owner keeps for its life: the role it draws as, its area, the window that shows it
 /// and the elements that window presents, what it last sent there, and what one beat has queued.
 class Canvas {
 public:
+    /// The sends a canvas remembers, newest last, so Loom's later word that it refused one is
+    /// read as that send's refusal.
+    static constexpr std::size_t kHeardSends = 64;
+
     explicit Canvas(std::string role, std::string area = {})
         : role_(std::move(role)), area_(area.empty() ? role_ : std::move(area)) {}
 
@@ -374,6 +400,7 @@ public:
         text_ = r.measure();
         held_ = std::set<std::int64_t>(r.elements.begin(), r.elements.end());
         known_ = false;
+        held_back_ = false;
         return true;
     }
     /// Whether the window that shows the area presents the element named `ref`.
@@ -392,11 +419,41 @@ public:
     /// The next drawing goes whole.
     void forget() { known_ = false; }
 
+    /// A SEND OF THIS CANVAS'S THAT LOOM REFUSED before the window read it -- a drawing past
+    /// what Loom decodes of one value among them -- told by Loom's notice, said as the window says
+    /// its own refusal (`DrawnRefused`); none for any other mail. The next drawing goes whole; after
+    /// a refused whole drawing, not until the picture changes or a room comes.
+    std::optional<DrawnRefused> refused(const loom::DispatchRefused& notice,
+                                        const loom::Mail& mail) {
+        const std::uint64_t attempt = notice.refused_attempt().seq;
+        if (!mail.dispatch_refused() || attempt == 0) {
+            return std::nullopt;
+        }
+        const auto sent = std::find_if(sends_.begin(), sends_.end(),
+                                       [&](const Sent& s) { return s.attempt == attempt; });
+        if (sent == sends_.end()) {
+            return std::nullopt;
+        }
+        const std::string_view what = sent->what;
+        held_back_ = sent->whole;
+        sends_.erase(sent);
+        known_ = false;
+        return DrawnRefused{area_, dispatch_refusal_words(what, notice.reason)};
+    }
+
     /// Queue a picture: what changed since the last one sent, or the whole of it when the window
-    /// holds none of this canvas's drawing.
+    /// holds none of this canvas's drawing; nothing for the picture of a whole drawing Loom refused.
     void draw(const Sketch& picture) {
         if (window_.empty()) {
             return; // no window shows the area: the first drawing after its room is whole
+        }
+        if (held_back_) {
+            const Drawn same = difference(sent_, picture);
+            if (same.put.empty() && same.removed.empty() && same.said.empty() &&
+                same.unsaid.empty() && picture.number() == sent_.number()) {
+                return;
+            }
+            held_back_ = false;
         }
         Drawn d;
         if (known_) {
@@ -452,6 +509,7 @@ public:
                         throw std::logic_error("graphics: this participant does not hold the "
                                                "role '" + role_ + "' it draws as");
                     }
+                    heard(t.seq, m);
                 },
                 out[i]);
         }
@@ -459,6 +517,26 @@ public:
 
 private:
     using Out = std::variant<Drawn, ElementPut, ElementChange>;
+
+    /// A send Loom may yet refuse: its queued attempt, what it carried, and whether it was a whole
+    /// drawing.
+    struct Sent {
+        std::uint64_t attempt = 0;
+        const char* what = "";
+        bool whole = false;
+    };
+
+    void heard(std::uint64_t attempt, const Drawn& d) { remember(attempt, "drawing", d.whole); }
+    void heard(std::uint64_t attempt, const ElementPut&) { remember(attempt, "element", false); }
+    void heard(std::uint64_t attempt, const ElementChange&) {
+        remember(attempt, "element's change", false);
+    }
+    void remember(std::uint64_t attempt, const char* what, bool whole) {
+        sends_.push_back(Sent{attempt, what, whole});
+        if (sends_.size() > kHeardSends) {
+            sends_.pop_front();
+        }
+    }
 
     template <class C, class Changes, std::size_t... I>
     static constexpr std::size_t count_of(std::index_sequence<I...>) {
@@ -494,8 +572,10 @@ private:
     TextMeasure text_;
     std::set<std::int64_t> held_;
     bool known_ = false;
+    bool held_back_ = false; ///< Loom refused the whole drawing of the picture last sent
     Sketch sent_;
     std::vector<Out> queued_;
+    std::deque<Sent> sends_;
 };
 
 } // namespace zengine::graphics

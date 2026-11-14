@@ -30,6 +30,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -463,14 +464,20 @@ public:
         if (!from_window(refusal.area, mail)) {
             return false;
         }
-        canvas_.forget();
-        fresh_ = true;
-        if (!drew_whole_) {
-            send(mail);
-        } else if (!lines_.empty()) {
-            refused_whole_ = true;
-        }
+        recover(mail);
         return true;
+    }
+
+    /// A DRAWING LOOM REFUSED before the window read it, told by Loom's notice
+    /// (`graphics::Canvas::refused`): taken as the window's own refusal, and that refusal returned,
+    /// in words; none for another notice.
+    std::optional<graphics::DrawnRefused> refused(const loom::DispatchRefused& notice,
+                                                  loom::Mail& mail) {
+        std::optional<graphics::DrawnRefused> refusal = canvas_.refused(notice, mail);
+        if (refusal) {
+            recover(mail);
+        }
+        return refusal;
     }
 
     /// DRAW `lines` IN THE AREA: its ground, then each a line of the window's text from the top, a
@@ -517,6 +524,16 @@ public:
     }
 
 private:
+    void recover(loom::Mail& mail) {
+        canvas_.forget();
+        fresh_ = true;
+        if (!drew_whole_) {
+            send(mail);
+        } else if (!lines_.empty()) {
+            refused_whole_ = true;
+        }
+    }
+
     void send(loom::Mail& mail) {
         drew_whole_ = fresh_;
         fresh_ = false;

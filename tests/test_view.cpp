@@ -236,11 +236,13 @@ public:
             if (auto r = gfx::operands<gfx::RectArgs>(k.node))
                 out.push_back(std::to_string(r->x) + "," + std::to_string(r->y) + " " + std::to_string(r->w) +
                               " " + std::to_string(r->h) + " " +
-                              zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(area, k.node)->fill).name);
+                              std::string(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(area,
+                                      k.node)->fill).name()));
         for (const auto& k : area.nodes)
             if (auto t = gfx::operands<gfx::TextArgs>(k.node))
                 out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " +
-                              zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(area, k.node)->ink).name +
+                              std::string(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(area,
+                                      k.node)->ink).name()) +
                               " " + t->text);
         return out;
     }

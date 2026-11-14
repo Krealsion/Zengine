@@ -549,6 +549,10 @@ public:
     bool refused(const graphics::DrawnRefused& r, loom::Mail& mail) {
         return window_.refused(r, mail);
     }
+    /// ...and a drawing Loom refused before the window read it, as the window's own refusal.
+    bool refused(const loom::DispatchRefused& notice, loom::Mail& mail) {
+        return window_.refused(notice, mail).has_value();
+    }
 
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: the
     /// place of the part `asked.action` names in the rows last drawn there. None for another area

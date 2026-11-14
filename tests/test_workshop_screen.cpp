@@ -6330,7 +6330,6 @@ std::vector<PixelRect> window_selection_rings(const Session& s) {
         if (node.path.find("/selection/") == std::string::npos) {
             continue;
         }
-        REQUIRE(gfx::operands<gfx::RectArgs>(node) != nullptr);
         const auto r = gfx::operands<gfx::RectArgs>(node);
         REQUIRE(r != nullptr);
         out.push_back(PixelRect{r->x, r->y, r->w, r->h});

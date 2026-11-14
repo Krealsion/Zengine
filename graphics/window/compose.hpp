@@ -255,9 +255,6 @@ inline std::vector<std::pair<std::string, ClipBox>> group_clips(const WinArea& a
     std::vector<std::pair<std::string, ClipBox>> out;
     std::vector<std::vector<std::int64_t>> keys;
     for (const KeptNode& k : a.nodes) {
-        if (operands<GroupArgs>(k.node) == nullptr) {
-            continue;
-        }
         const auto own = operands<GroupArgs>(k.node);
         if (!own || own->clip_w <= 0 || own->clip_h <= 0) {
             continue;

@@ -26,7 +26,8 @@ struct GridCellFace {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     Color fill;
     std::string glyph;
-    ZEN_SHAPE(GridCellFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    /// Version 3: its colours one union (`Color`).
+    ZEN_SHAPE(GridCellFace, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(fill), ZEN_FIELD(glyph));
 };
 

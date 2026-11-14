@@ -22,10 +22,17 @@ namespace zengine::graphics {
 /// itself, an exact colour or a slot as the pool colour it is `like`, or `text` where it names
 /// none; no paint stays no paint.
 inline Color pool_color_of(const Color& c) {
-    if (c.none() || c.from == color_from::kPool) {
+    const std::string* like = nullptr;
+    if (const ColorExact* e = std::get_if<ColorExact>(&c.is)) {
+        like = &e->like;
+    } else if (const ColorOwn* o = std::get_if<ColorOwn>(&c.is)) {
+        like = &o->like;
+    } else if (const ColorOwnPool* p = std::get_if<ColorOwnPool>(&c.is)) {
+        like = &p->like;
+    } else {
         return c;
     }
-    return c.like.empty() ? Color(colors::text) : Color{color_from::kPool, c.like, 0, {}};
+    return like->empty() ? Color(colors::text) : Color(ColorPool{*like});
 }
 
 /// The colours a look carries, in the order a painter takes them: a paint's fill then stroke, an

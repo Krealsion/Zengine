@@ -99,7 +99,8 @@ gfx::PaintTask task_in(const gfx::Sketch& s, const gfx::PaletteOffered& palette)
     std::int64_t rank = 1;
     for (const gfx::Node& n : s.nodes()) {
         task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.draw,
-                                            gfx::window::inks_of(gfx::look_or_default(n.draw, s.look_of(n)), palette, ""), {},
+                                            gfx::window::inks_of(gfx::look_or_default(n.draw, s.look_of(n)), palette,
+                                                    ""), {},
                                             {}});
     }
     return task;
@@ -271,6 +272,89 @@ TEST_CASE("every operator's operands and every look a drawing says are carried t
     }
 }
 
+TEST_CASE("every case of a look's colour, size and style is carried through a drawing's bytes and the "
+          "window's store and back, and painted as its case says") {
+    // A COLOUR none, exact, exact with the pool colour it is like, a pool's, and an own value over
+    // an exact or a pool colour; A SIZE the style's, a pool's, and an own over points or a pool
+    // size; A STYLE a pool's or an own.
+    const gfx::Color colours[] = {gfx::no_color(),
+                                  gfx::rgb(0x102030),
+                                  gfx::rgb(0x405060, gfx::colors::accent),
+                                  gfx::colors::alert,
+                                  gfx::own("ring", gfx::rgb(0x708090, gfx::colors::edge)),
+                                  gfx::own("wire", gfx::colors::guide)};
+    const gfx::TextSize sizes[] = {gfx::TextSize{}, gfx::sizes::large, gfx::OwnSize{"note", 30},
+                                   gfx::own("big", gfx::sizes::huge)};
+    gfx::Sketch s;
+    for (std::size_t i = 0; i < std::size(colours); ++i) {
+        const auto y = static_cast<std::int64_t>(i);
+        s.rect("r" + std::to_string(i), 0, y, 4, 4, colours[i], colours[(i + 1) % std::size(colours)]);
+        s.line("l" + std::to_string(i), 0, y, 4, y, colours[i]);
+    }
+    for (std::size_t i = 0; i < std::size(sizes); ++i) {
+        s.text("s" + std::to_string(i), 0, 10 + static_cast<std::int64_t>(i), "w",
+               colours[i % std::size(colours)], sizes[i]);
+    }
+    s.text("pool", 0, 20, "w", gfx::styles::heading.with_color(gfx::colors::accent));
+    s.text("own", 0, 21, "w", gfx::own("title", gfx::styles::heading));
+    const gfx::Drawn d = s.whole("test.cases");
+
+    const std::string bytes = loom::serialize(loom::to_value(d));
+    const auto back = loom::claim_item<gfx::Drawn>(loom::Bytes(bytes.begin(), bytes.end()));
+    REQUIRE(back.has_value());
+    CHECK(back->looks == d.looks);
+    REQUIRE(back->put.size() == d.put.size());
+    for (std::size_t i = 0; i < d.put.size(); ++i) {
+        CAPTURE(d.put[i].path);
+        CHECK(back->put[i].look == d.put[i].look);
+        CHECK(back->put[i].draw == d.put[i].draw);
+    }
+    gfx::window::WinArea a;
+    a.area = "test.cases";
+    REQUIRE(gfx::window::judge(a, {}, *back).empty());
+    (void)gfx::window::apply(a, {}, *back);
+    for (const gfx::Node& n : s.nodes()) {
+        CAPTURE(n.path);
+        const auto kept = std::find_if(a.nodes.begin(), a.nodes.end(),
+                                       [&](const gfx::window::KeptNode& k) { return k.node.path == n.path; });
+        REQUIRE(kept != a.nodes.end());
+        REQUIRE(gfx::window::look_of(a, kept->node) != nullptr);
+        CHECK(*gfx::window::look_of(a, kept->node) == *s.look_of(n));
+    }
+
+    // PAINTED AS ITS CASE SAYS, in an area its owner set "ring", "note" and "title" for.
+    const std::string role = "test.owner";
+    gfx::PaletteOffered set = gfx::themes::night();
+    set.own.push_back(gfx::OwnValues{role,
+                                     {{"ring", 0x0a0b0cff}},
+                                     {{"note", 31}},
+                                     {{"title", "text", "huge", "alert", gfx::text_weight::kBold}}});
+    namespace gw = gfx::window;
+    CHECK(gw::resolve(colours[0], set, role).none());
+    CHECK(gw::resolve(colours[1], set, role).rgba == 0x102030ff);
+    CHECK(gw::resolve(colours[2], set, role).rgba == 0x405060ff);
+    CHECK(gw::resolve(colours[3], set, role).rgba == gw::resolve(gfx::colors::alert, set, {}).rgba);
+    CHECK(gw::resolve(colours[4], set, role).rgba == 0x0a0b0cff);
+    CHECK(gw::resolve(colours[4], set, "test.other").rgba == 0x708090ff);
+    CHECK(gw::resolve(colours[5], set, role).rgba == gw::resolve(gfx::colors::guide, set, {}).rgba);
+    const std::string body = gw::resolve_style(gfx::TextStyle{}, set).size;
+    CHECK(gw::resolve_size(sizes[0], set, role, body).points ==
+          gw::root_size(body, set).points);
+    CHECK(gw::resolve_size(sizes[1], set, role, body).points == 16);
+    CHECK(gw::resolve_size(sizes[2], set, role, body).points == 31);
+    CHECK(gw::resolve_size(sizes[2], set, "test.other", body).points == 30);
+    CHECK(gw::resolve_size(sizes[3], set, role, body).points == 20);
+    const gw::TextSet own = gw::resolve_text(*gfx::look_as<gfx::TextLook>(s.look_of(s.nodes().back())),
+                                             set, role);
+    CHECK(own.weight == gfx::text_weight::kBold);
+    CHECK(own.size.points == 20);
+    const gw::TextSet own_elsewhere =
+        gw::resolve_text(*gfx::look_as<gfx::TextLook>(s.look_of(s.nodes().back())), set, "test.other");
+    const gw::TextSet heading = gw::resolve_text(gfx::TextLook(gfx::styles::heading), set, {});
+    CHECK(own_elsewhere.size.points == heading.size.points);
+    CHECK(own_elsewhere.font == heading.font);
+}
+
 TEST_CASE("a node's look is judged: one its drawing does not say, and one its operator does not wear, "
           "are refused in words, and a group or an image wears none") {
     gfx::window::WinArea a;
@@ -333,7 +417,8 @@ TEST_CASE("a node put again keeps its rank, so the paint order holds, and a new 
     CHECK(ranks_of(a) == std::vector<std::pair<std::string, std::int64_t>>{{"a", 1}, {"b", 2}, {"c", 3}});
     // C AND A PUT AGAIN, IN THAT ORDER, AND D NEW: the two keep their ranks, d takes 4.
     gfx::Drawn d;
-    d.put = {gfx::Node{"c", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"a", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"d", gfx::kNoLook, gfx::TextArgs{}}};
+    d.put = {gfx::Node{"c", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"a", gfx::kNoLook, gfx::TextArgs{}},
+            gfx::Node{"d", gfx::kNoLook, gfx::TextArgs{}}};
     REQUIRE(gfx::window::judge(a, {}, d).empty());
     const gfx::window::Applied applied = gfx::window::apply(a, {}, d);
     CHECK(applied.changed == std::set<std::string>{"a", "c", "d"});
@@ -373,7 +458,8 @@ TEST_CASE("a group put changes every node beneath it, and a leaf put changes its
     inner.put = {gfx::Node{"g/y", gfx::kNoLook, gfx::GroupArgs{}}};
     CHECK(gfx::window::apply(a, {}, inner).changed == std::set<std::string>{"g/y", "g/y/z"});
     gfx::Drawn leaves;
-    leaves.put = {gfx::Node{"h", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"gx", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"g/x", gfx::kNoLook, gfx::TextArgs{}}};
+    leaves.put = {gfx::Node{"h", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"gx", gfx::kNoLook, gfx::TextArgs{}},
+            gfx::Node{"g/x", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::apply(a, {}, leaves).changed == std::set<std::string>{"h", "gx", "g/x"});
     // A NEW NODE IN A GROUP PUT IN THE SAME DRAWING is changed once, beside the rest of the group.
     gfx::Drawn both;
@@ -984,6 +1070,156 @@ struct Bounded {
 };
 
 } // namespace
+
+namespace {
+
+constexpr const char* kOverDrawer = "test.over";
+
+struct GraphicsTestShare {
+    ZEN_SHAPE(GraphicsTestShare, 1);
+};
+
+struct GraphicsTestOver {
+    bool own = true;
+    ZEN_SHAPE(GraphicsTestOver, 1, ZEN_FIELD(own));
+};
+
+/// A whole area at the window's bound, every node a text wearing a colour of its own, or the one
+/// colour they share: one drawing past what Loom decodes of one value, and one inside it.
+void over_picture(gfx::Sketch& s, bool own) {
+    for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; ++i) {
+        s.text("t" + std::to_string(i), static_cast<std::int64_t>(i % 40) * gfx::kCellPx,
+               static_cast<std::int64_t>(i / 40) * gfx::kCellPx, "w",
+               own ? gfx::rgb(static_cast<std::uint32_t>(i)) : gfx::Color(gfx::colors::text));
+    }
+}
+
+/// A drawer on the drawing weave drawing `over_picture` until told to share, keeping each
+/// refusal it hears.
+class OverDrawer
+    : public gfx::DrawingWeave<OverDrawer, GraphicsTestOver,
+                               loom::Accept<GraphicsTestShare, GraphicsTestBeat>> {
+public:
+    using DrawingWeave::on;
+    explicit OverDrawer(std::vector<std::string>& heard)
+        : DrawingWeave(kOverDrawer), heard_(&heard) {}
+    void on(const GraphicsTestShare&, loom::Mail&) { state_.own = false; }
+    void on(const GraphicsTestBeat&, loom::Mail&) {}
+    void on(const gfx::DrawnRefused& r, loom::Mail&) { heard_->push_back(r.reason); }
+    void picture(gfx::Sketch& s) const { over_picture(s, state_.own); }
+
+private:
+    std::vector<std::string>* heard_;
+};
+
+/// A pane's way of drawing (`pane::WindowDrawing`), drawing `over_picture` until told to share,
+/// keeping each refusal it hears.
+class OverPane : public loom::WeaveBase<OverPane, GraphicsTestOver,
+                                        loom::Accept<gfx::AreaRoom, gfx::DrawnRefused,
+                                                     loom::DispatchRefused, GraphicsTestShare>,
+                                        loom::Emit<gfx::Drawn, gfx::RoomAsked>> {
+public:
+    explicit OverPane(std::vector<std::string>& heard)
+        : window_(kOverDrawer, kOverDrawer), heard_(&heard) {}
+    void on(const gfx::AreaRoom& r, loom::Mail& m) {
+        if (window_.room(r, m)) draw(m);
+    }
+    void on(const gfx::DrawnRefused& r, loom::Mail& m) {
+        if (window_.refused(r, m)) heard_->push_back(r.reason);
+    }
+    void on(const loom::DispatchRefused& n, loom::Mail& m) {
+        if (const std::optional<gfx::DrawnRefused> r = window_.refused(n, m)) {
+            heard_->push_back(r->reason);
+        }
+    }
+    void on(const GraphicsTestShare&, loom::Mail& m) {
+        state_.own = false;
+        draw(m);
+    }
+    /// The same picture again, as a pane draws at every change of its own.
+    void draw(loom::Mail& m) {
+        gfx::Sketch s;
+        over_picture(s, state_.own);
+        window_.draw(s, m);
+    }
+    const zengine::pane::WindowDrawing& window() const { return window_; }
+
+private:
+    zengine::pane::WindowDrawing window_;
+    std::vector<std::string>* heard_;
+};
+
+template <class W>
+W* mount_over(Rig& r, std::vector<std::string>& heard) {
+    auto w = std::make_unique<W>(heard);
+    W* raw = w.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId id = r.bus.register_weave(std::move(w), std::move(g), kOverDrawer);
+    raw->zen_set_self(id);
+    r.arrange(SNAKE_SO_BOARD, kOverDrawer, kOverDrawer, "night");
+    return raw;
+}
+
+bool shows_any(Rig& r) {
+    for (const std::string& row : r.shown().rows) {
+        if (row.find_first_not_of(' ') != std::string::npos) return true;
+    }
+    return false;
+}
+
+void check_over_refusal(const std::vector<std::string>& heard) {
+    REQUIRE(heard.size() == 1);
+    CHECK_MESSAGE(heard[0].rfind("Loom refused the drawing before the window read it (GateRefused)", 0) == 0,
+                  heard[0]);
+    CHECK_MESSAGE(heard[0].find("an area whose every node wears a look of its own is drawn as an image") !=
+                      std::string::npos,
+                  heard[0]);
+}
+
+} // namespace
+
+TEST_CASE("a drawing past what Loom decodes of one value reaches its drawer refused, in words naming an "
+          "image for an area of looks of its own; it is not sent again unchanged, and a picture that "
+          "fits goes whole after it") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
+    std::vector<std::string> heard;
+    (void)mount_over<OverDrawer>(r, heard);
+    check_over_refusal(heard);
+    CHECK_FALSE(shows_any(r));
+    const std::int64_t refusals = r.shown().refusals;
+
+    // A DELIVERY THAT CHANGES NOTHING SENDS NOTHING: the refused picture is not drawn again.
+    r.to_role(kOverDrawer, GraphicsTestBeat{});
+    r.drain();
+    CHECK(heard.size() == 1);
+
+    // SHARING ONE COLOUR, the picture fits one value: it goes whole, and the window shows it.
+    r.to_role(kOverDrawer, GraphicsTestShare{});
+    r.drain();
+    CHECK(heard.size() == 1);
+    CHECK(shows_any(r));
+    CHECK(r.shown().refusals == refusals);
+}
+
+TEST_CASE("a pane's drawing past what Loom decodes of one value reaches it as the window's own refusal: "
+          "the same words, nothing sent again until the picture changes, and then whole") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
+    std::vector<std::string> heard;
+    OverPane* pane = mount_over<OverPane>(r, heard);
+    check_over_refusal(heard);
+    CHECK(pane->window().refused_whole());
+    CHECK_FALSE(shows_any(r));
+
+    r.to_role(kOverDrawer, GraphicsTestShare{});
+    r.drain();
+    CHECK(heard.size() == 1);
+    CHECK_FALSE(pane->window().refused_whole());
+    CHECK(shows_any(r));
+}
 
 TEST_CASE("the board is said once, then a tick is the beat and one change of the board, shown once") {
     Snake s;
@@ -3100,6 +3336,7 @@ TEST_CASE("zen.DescribeAccepted on a weave with facets reports the exact union o
         "GraphicsTestBeat",
         "ShapeDocumentRequested",
         "zen.DescribeAccepted",
+        "zen.DispatchRefused",
         "zen.PokeDescribe",
         "zen.PokeRead",
         "zen.PokeResetState",
@@ -4704,7 +4941,7 @@ std::vector<light::NodePrimitives> lit(const gfx::Sketch& s, const gfx::PaletteO
 /// The colour a colour's pool colour paints in `palette`.
 std::uint32_t ink_of(const gfx::PaletteOffered& palette, gfx::Color ink) {
     return static_cast<std::uint32_t>(
-        gw::pool_color(palette, gfx::pool_color_of(ink).name)->rgba);
+        gw::pool_color(palette, gfx::pool_color_of(ink).name())->rgba);
 }
 
 /// Every operator once, in one picture: a group holding the rest.
@@ -5758,7 +5995,7 @@ TEST_CASE("a version-1 slots file, which names its role office, generates its pa
     CHECK(rim.rgba == 0x5a6b7cffu);
     CHECK(std::string(rim.like) == "quiet");
     const gfx::Color drawn = rim;
-    CHECK(drawn.from == gfx::color_from::kOwn);
+    CHECK(std::holds_alternative<gfx::ColorOwn>(drawn.is));
 }
 
 TEST_CASE("an own value declared where it is used, with a pool colour, size or style for its "
@@ -5795,7 +6032,7 @@ TEST_CASE("an own value declared where it is used, with a pool colour, size or s
     CHECK(inks(day)[0].rgba == 0x0a0b0cff);
     CHECK(text_of(1, day).size.points == 30);
     CHECK(text_of(2, day).size.name == "huge");
-    CHECK(text_of(2, day).color.name == "alert");
+    CHECK(text_of(2, day).color.name() == "alert");
     CHECK(text_of(2, day).weight == gfx::text_weight::kRegular);
     // DECLARED AS IT IS DRAWN: each name, its kind and its default.
     const gfx::OwnValuesDeclared d =

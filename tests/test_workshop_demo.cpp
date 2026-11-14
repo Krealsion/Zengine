@@ -612,7 +612,8 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         REQUIRE(ground != nullptr);
         CHECK(gfx::operands<gfx::RectArgs>(a->nodes.front().node) != nullptr);
         CHECK((ground->w == a->w && ground->h == a->h));
-        CHECK(zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::Paint>(*a, a->nodes.front().node)->fill) == gfx::colors::background);
+        CHECK(zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::Paint>(*a, a->nodes.front(
+                ).node)->fill) == gfx::colors::background);
         std::set<std::int64_t> lines;
         for (const zengine::graphics::window::KeptNode& n : a->nodes) {
             if (gfx::operands<gfx::TextArgs>(n.node) == nullptr) continue;

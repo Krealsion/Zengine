@@ -20,7 +20,9 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace zengine::graphics {
 
@@ -32,50 +34,62 @@ inline constexpr std::int64_t kBold = 1;
 inline constexpr std::int64_t kOfStyle = -1;
 } // namespace text_weight
 
-/// Where a text size comes from.
-namespace size_from {
-inline constexpr std::int64_t kPool = 2; ///< the shared pool's `name`, as the area's palette says
-/// The own value `name` the area's owner declares, as the area's palette says for that owner; else
-/// its default, `points`.
-inline constexpr std::int64_t kOwn = 3;
-/// The own value `name` the area's owner declares, as the area's palette says for that owner; else
-/// its default, the pool size `like`.
-inline constexpr std::int64_t kOwnPool = 4;
-} // namespace size_from
-
-/// Where a text's style comes from.
-namespace style_from {
-inline constexpr std::int64_t kPool = 2; ///< the shared pool's `name`, as the area's palette says
-/// The own value `name` the area's owner declares, as the area's palette says for that owner; else
-/// its default, the pool style `like`.
-inline constexpr std::int64_t kOwn = 3;
-} // namespace style_from
-
 /// The pool's style a text is set in where it names none.
 inline constexpr const char* kBodyStyle = "body";
 /// The pool's font a style naming none sets its text in.
 inline constexpr const char* kTextFont = "text";
 
-/// A TEXT SIZE A DRAW CARRIES: a pool size or an own value, by name ("" its style's size), with an
-/// own value's default: its `points`, or the pool size it is `like`.
-struct TextSize {
-    std::int64_t from = size_from::kPool;
+/// A pool size `name`, as the area's palette says; "" names none, so the text's style's stands.
+struct SizePool {
+    std::string name;
+    friend bool operator==(const SizePool&, const SizePool&) = default;
+    ZEN_SHAPE(SizePool, 1, ZEN_FIELD(name));
+};
+
+/// The own size `name` the area's owner declares, as the area's palette says for that owner; else
+/// its default, `points`.
+struct SizeOwn {
     std::string name;
     std::int64_t points = 0;
-    std::string like{};
-    /// Version 2: an own size may default to a pool size.
-    ZEN_SHAPE(TextSize, 2, ZEN_FIELD(from), ZEN_FIELD(name), ZEN_FIELD(points), ZEN_FIELD(like));
+    friend bool operator==(const SizeOwn&, const SizeOwn&) = default;
+    ZEN_SHAPE(SizeOwn, 1, ZEN_FIELD(name), ZEN_FIELD(points));
+};
+
+/// The own size `name` the area's owner declares, as the area's palette says for that owner; else
+/// its default, the pool size `like`.
+struct SizeOwnPool {
+    std::string name;
+    std::string like;
+    friend bool operator==(const SizeOwnPool&, const SizeOwnPool&) = default;
+    ZEN_SHAPE(SizeOwnPool, 1, ZEN_FIELD(name), ZEN_FIELD(like));
+};
+
+/// A TEXT SIZE A DRAW CARRIES: a pool size or an own value, the case it holds saying which.
+struct TextSize {
+    using Is = std::variant<SizePool, SizeOwn, SizeOwnPool>;
+    Is is;
+    /// Version 3: one case a kind of size, each holding only the fields it means.
+    ZEN_UNION(TextSize, 3, is, "pool", "own", "own_pool");
+    friend bool operator==(const TextSize&, const TextSize&) = default;
+
+    TextSize() = default;
+    /// Each of the three is a size, as a variant holds one of its alternatives.
+    template <class S>
+        requires std::is_constructible_v<Is, S&&>
+    TextSize(S&& s) : is(std::forward<S>(s)) {}
 
     /// Whether it names no size, so its style's stands.
-    bool none() const { return from == size_from::kPool && name.empty(); }
-    friend bool operator==(const TextSize&, const TextSize&) = default;
+    bool none() const {
+        const SizePool* p = std::get_if<SizePool>(&is);
+        return p != nullptr && p->name.empty();
+    }
 };
 
 /// A SIZE FROM THE SHARED POOL, as the pool's generated header declares it
 /// (`zengine::graphics::sizes::large`): the name and nothing else.
 struct PoolSize {
     const char* name;
-    operator TextSize() const { return TextSize{size_from::kPool, name, 0, {}}; }
+    operator TextSize() const { return SizePool{name}; }
 };
 
 /// AN OWN SIZE A PANE DECLARES, as a header generated from its own values' JSON declares it: its
@@ -83,13 +97,13 @@ struct PoolSize {
 struct OwnSize {
     const char* name;
     std::int64_t points;
-    operator TextSize() const { return TextSize{size_from::kOwn, name, points, {}}; }
+    operator TextSize() const { return SizeOwn{name, points}; }
 };
 
 /// AN OWN SIZE DECLARED WHERE IT IS USED: `name`, standing at the pool size `root` where no theme
 /// sets it (`own("note", sizes::small_)`).
 inline TextSize own(const char* name, PoolSize root) {
-    return TextSize{size_from::kOwnPool, name, 0, root.name};
+    return SizeOwnPool{name, root.name};
 }
 
 /// A FONT FROM THE SHARED POOL, as the pool's generated header declares it
@@ -99,17 +113,35 @@ struct PoolFont {
     operator std::string() const { return name; }
 };
 
-/// A STYLE A DRAW CARRIES, by name ("" the pool's `body`): a pool style, or an own value with the
-/// pool style it is `like` where no theme sets it.
-struct TextStyle {
-    std::int64_t from = style_from::kPool;
+/// A pool style `name`, as the area's palette says; "" the pool's `body`.
+struct StylePool {
     std::string name;
-    std::string like{};
-    ZEN_SHAPE(TextStyle, 1, ZEN_FIELD(from), ZEN_FIELD(name), ZEN_FIELD(like));
+    friend bool operator==(const StylePool&, const StylePool&) = default;
+    ZEN_SHAPE(StylePool, 1, ZEN_FIELD(name));
+};
 
-    /// The pool style's name this one reads as: its own, or `body` where it names none.
-    std::string pool_name() const { return name.empty() ? std::string(kBodyStyle) : name; }
+/// The own style `name` the area's owner declares, as the area's palette says for that owner; else
+/// its default, the pool style `like`.
+struct StyleOwn {
+    std::string name;
+    std::string like;
+    friend bool operator==(const StyleOwn&, const StyleOwn&) = default;
+    ZEN_SHAPE(StyleOwn, 1, ZEN_FIELD(name), ZEN_FIELD(like));
+};
+
+/// A STYLE A DRAW CARRIES: a pool style or an own value, the case it holds saying which.
+struct TextStyle {
+    using Is = std::variant<StylePool, StyleOwn>;
+    Is is;
+    /// Version 2: one case a kind of style, each holding only the fields it means.
+    ZEN_UNION(TextStyle, 2, is, "pool", "own");
     friend bool operator==(const TextStyle&, const TextStyle&) = default;
+
+    TextStyle() = default;
+    /// Each of the two is a style, as a variant holds one of its alternatives.
+    template <class S>
+        requires std::is_constructible_v<Is, S&&>
+    TextStyle(S&& s) : is(std::forward<S>(s)) {}
 };
 
 /// A TEXT'S LOOK AS A DRAW NAMES IT: its style, and each field that one draw changes -- its colour
@@ -152,7 +184,7 @@ struct TextLook {
 /// changed (`styles::heading.with_color(colors::alert)`).
 struct PoolStyle {
     const char* name;
-    operator TextStyle() const { return TextStyle{style_from::kPool, name, {}}; }
+    operator TextStyle() const { return StylePool{name}; }
     operator TextLook() const { return TextLook{TextStyle(*this), {}, {}, {}, text_weight::kOfStyle}; }
     TextLook with_color(Color c) const { return TextLook(*this).with_color(std::move(c)); }
     TextLook with_size(TextSize s) const { return TextLook(*this).with_size(std::move(s)); }
@@ -164,7 +196,7 @@ struct PoolStyle {
 /// it (`own("node-title", styles::heading)`), as it stands or with a field changed.
 inline TextLook own(const char* name, PoolStyle root) {
     TextLook l = root;
-    l.style = TextStyle{style_from::kOwn, name, root.name};
+    l.style = StyleOwn{name, root.name};
     return l;
 }
 

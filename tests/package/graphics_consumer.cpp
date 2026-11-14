@@ -39,14 +39,16 @@ int main() {
     gfx::Sketch picture;
     picture.fill_rect("plate", 0, 0, 48, 24, kitchen::colors::plate);
     picture.text("label", 4, 6, "soup", gfx::colors::accent);
-    const auto plate_args = gfx::operands<gfx::RectArgs>(picture.nodes()[0]);
-    const auto label_args = gfx::operands<gfx::TextArgs>(picture.nodes()[1]);
-    check(plate_args && plate_args->fill.from == gfx::color_from::kOwn &&
-              plate_args->fill.name == "plate" && plate_args->fill.rgba == 0x336699ff &&
-              plate_args->fill.like == "background",
+    const auto plate_paint = picture.worn<gfx::Paint>(picture.nodes()[0]);
+    const auto label_look = picture.worn<gfx::TextLook>(picture.nodes()[1]);
+    const auto plate_fill =
+        plate_paint != nullptr ? std::get_if<gfx::ColorOwn>(&plate_paint->fill.is) : nullptr;
+    const auto label_ink =
+        label_look != nullptr ? std::get_if<gfx::ColorPool>(&label_look->ink.is) : nullptr;
+    check(plate_fill && plate_fill->name == "plate" && plate_fill->rgba == 0x336699ff &&
+              plate_fill->like == "background",
           "an own value of the pane's is its name, its default and the pool colour it is like");
-    check(label_args && label_args->ink.from == gfx::color_from::kPool &&
-              label_args->ink.name == "accent",
+    check(label_ink && label_ink->name == "accent",
           "a pool colour is its name, which the window turns into a colour");
 
     const gfx::PaletteOffered day = gfx::themes::day();

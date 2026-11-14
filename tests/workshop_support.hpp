@@ -4812,7 +4812,8 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         if (!run) continue;
         const std::int64_t row = gfx::floor_div_px(run->y, face.line);
         const auto at = first.find(row);
-        if (at == first.end() || run->x < at->second.first) first[row] = {run->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
+        if (at == first.end() || run->x < at->second.first) first[row] = {run->x, zengine::graphics::pool_color_of(
+                zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
     }
     for (const auto& [row, said] : first) {
         std::string text = held_row_raw(kind, row);
@@ -4831,9 +4832,11 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         const auto col = static_cast<std::size_t>((std::max)(std::int64_t{0}, run->x / face.advance));
         auto& [text, first_run] = rows[row];
         if (text.empty() && first_run.first == 0 && first_run.second.none()) {
-            first_run = {run->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
+            first_run = {run->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a,
+                    k.node)->ink)};
         } else if (run->x < first_run.first) {
-            first_run = {run->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
+            first_run = {run->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a,
+                    k.node)->ink)};
         }
         if (text.size() < col + run->text.size()) text.resize(col + run->text.size(), ' ');
         text.replace(col, run->text.size(), run->text);
@@ -4854,7 +4857,7 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         const auto from = origin.find(parent);
         const std::int64_t ox = from == origin.end() ? 0 : from->second.first;
         const std::int64_t oy = from == origin.end() ? 0 : from->second.second;
-        if (const auto g = gfx::operands<gfx::GroupArgs>(k.node); g && gfx::operands<gfx::GroupArgs>(k.node) != nullptr) {
+        if (const auto g = gfx::operands<gfx::GroupArgs>(k.node)) {
             origin[p] = {ox + g->x, oy + g->y};
             continue;
         }
@@ -4865,7 +4868,8 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         if (!t) continue;
         const std::int64_t row = gfx::floor_div_px(oy + t->y, face.line);
         const auto at = role_at.find(row);
-        if (at == role_at.end() || ox + t->x < at->second.first) role_at[row] = {ox + t->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
+        if (at == role_at.end() || ox + t->x < at->second.first) role_at[row] = {ox + t->x,
+                zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
     }
     const std::vector<std::string> said = held_read_rows(kind);
     for (const auto& [row, leftmost] : role_at) {
@@ -4904,7 +4908,8 @@ inline std::vector<HeldText> held_texts(std::int64_t kind) {
         for (const zengine::graphics::window::KeptNode& k : a->nodes) {
             if (!held_shown_node(k.node.path)) continue;
             if (const auto t = gfx::operands<gfx::TextArgs>(k.node)) {
-                out.push_back(HeldText{t->x, t->y, t->text, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)});
+                out.push_back(HeldText{t->x, t->y, t->text, zengine::graphics::pool_color_of(
+                        zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)});
             }
         }
     }
@@ -4917,7 +4922,8 @@ inline std::vector<HeldRect> held_rects(std::int64_t kind) {
         for (const zengine::graphics::window::KeptNode& k : a->nodes) {
             if (!held_shown_node(k.node.path) || gfx::operands<gfx::RectArgs>(k.node) == nullptr) continue;
             if (const auto r = gfx::operands<gfx::RectArgs>(k.node)) {
-                out.push_back(HeldRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::Paint>(*a, k.node)->fill)});
+                out.push_back(HeldRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(
+                        zengine::graphics::window::worn<gfx::Paint>(*a, k.node)->fill)});
             }
         }
     }
@@ -4959,11 +4965,13 @@ inline std::vector<HeldLitRow> held_lit_rows(std::int64_t kind) {
         if (k.node.path.rfind("ground", 0) != 0 || k.node.path == "ground") continue;
         const auto rect = gfx::operands<gfx::RectArgs>(k.node);
         if (!rect) continue;
-        HeldLitRow lit{gfx::floor_div_px(rect->y, face.line), zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::Paint>(*a, k.node)->fill), gfx::no_color()};
+        HeldLitRow lit{gfx::floor_div_px(rect->y, face.line), zengine::graphics::pool_color_of(
+                zengine::graphics::window::worn<gfx::Paint>(*a, k.node)->fill), gfx::no_color()};
         const std::string words = "lit" + k.node.path.substr(6) + ".0";
         for (const zengine::graphics::window::KeptNode& t : a->nodes) {
             if (t.node.path != words) continue;
-            if (const auto run = gfx::operands<gfx::TextArgs>(t.node)) lit.ink = zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, t.node)->ink);
+            if (const auto run = gfx::operands<gfx::TextArgs>(t.node)) lit.ink = zengine::graphics::pool_color_of(
+                    zengine::graphics::window::worn<gfx::TextLook>(*a, t.node)->ink);
         }
         out.push_back(lit);
     }

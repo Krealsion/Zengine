@@ -17,6 +17,7 @@
 
 #include <zen/weave.hpp>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -26,11 +27,12 @@ namespace zengine::graphics {
 using zengine::With;
 
 /// The facet that owns a drawer's `Canvas`, its room handshake, and its end-of-delivery show.
-/// Contributes `Accept<AreaRoom, DrawnRefused>` and `Emit<Drawn, RoomAsked>`, and runs after the
-/// weave's own `after_delivery` when composed with `With<DrawingFacet>`.
+/// Contributes `Accept<AreaRoom, DrawnRefused, loom::DispatchRefused>` and
+/// `Emit<Drawn, RoomAsked>`, and runs after the weave's own `after_delivery` when composed with
+/// `With<DrawingFacet>`.
 class DrawingFacet {
 public:
-    using Accept = loom::Accept<AreaRoom, DrawnRefused>;
+    using Accept = loom::Accept<AreaRoom, DrawnRefused, loom::DispatchRefused>;
     using Emit = loom::Emit<Drawn, RoomAsked>;
 
     explicit DrawingFacet(std::string role, std::string area = {})
@@ -58,6 +60,16 @@ public:
     /// the words declares this handler itself.
     template <class Self>
     void on(Self&, const DrawnRefused&, loom::Mail&) {}
+
+    /// A DRAWING LOOM REFUSED before the window read it (`Canvas::refused`) reaches the drawer as
+    /// the window's own refusal does, through its handler for `DrawnRefused`, and the next drawing
+    /// goes whole.
+    template <class Self>
+    void on(Self& self, const loom::DispatchRefused& notice, loom::Mail& mail) {
+        if (const std::optional<DrawnRefused> refused = canvas_.refused(notice, mail)) {
+            self.on(DrawnRefused(*refused), mail); // as Loom hands the drawer a message
+        }
+    }
 
     /// End-of-delivery step, run after the weave's own `after_delivery` when present: the
     /// drawer's picture drawn, the room asked once in each life while no window has said it,
@@ -91,7 +103,7 @@ private:
 /// does nothing.
 class ActionFacet : public DrawingFacet {
 public:
-    using Accept = loom::Accept<AreaRoom, DrawnRefused, ActionRequested>;
+    using Accept = loom::Accept<AreaRoom, DrawnRefused, loom::DispatchRefused, ActionRequested>;
     using DrawingFacet::DrawingFacet;
     using DrawingFacet::on;
 

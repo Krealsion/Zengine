@@ -18,8 +18,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -134,6 +136,34 @@ struct Look {
     template <class L>
         requires std::is_constructible_v<Is, L&&>
     Look(L&& l) : is(std::forward<L>(l)) {}
+};
+
+namespace detail {
+inline void mix_into(std::size_t& h, std::size_t v) {
+    h ^= v + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
+}
+template <class T>
+void hash_into(std::size_t& h, const T& v) {
+    if constexpr (std::is_integral_v<T>) {
+        mix_into(h, std::hash<T>{}(v));
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        mix_into(h, std::hash<std::string>{}(v));
+    } else if constexpr (requires { T::zen_union(); }) {
+        mix_into(h, (v.*T::zen_union()).index());
+        std::visit([&h](const auto& c) { hash_into(h, c); }, v.*T::zen_union());
+    } else {
+        std::apply([&](const auto&... f) { (hash_into(h, v.*f.ptr), ...); }, T::zen_fields());
+    }
+}
+} // namespace detail
+
+/// A LOOK'S HASH, over every field it declares, so a look is found among many in one step.
+struct LookHash {
+    std::size_t operator()(const Look& look) const {
+        std::size_t h = 0;
+        detail::hash_into(h, look);
+        return h;
+    }
 };
 
 /// A node that wears no look names this.

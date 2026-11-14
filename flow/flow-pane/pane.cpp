@@ -91,12 +91,11 @@ class FlowPane final
     : public zengine::With<Room, Asks, Actions, Menu>::Weave<
           FlowPane, pane::FlowPaneState,
           loom::Accept<zengine::pane::PaneKey, zengine::pane::PaneTextInput, zengine::pane::ActionsJudged,
-                       zengine::pane::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
-                       fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
-                       zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneCarryAnswered, gfx::AreaRoom,
-                       gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
-                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded,
-                       gfx::AreaPointerLeft, zengine::view::ViewWiring, gfx::OwnValuesAsked>,
+                       zengine::pane::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer, fh::FlowCatalogAnswer,
+                       fh::FlowChanged, ws::PowersFound, zengine::pane::PaneCanvasValueDrop,
+                       zengine::pane::PaneCarryAnswered, gfx::AreaRoom, gfx::DrawnRefused, loom::DispatchRefused,
+                       gfx::ActionRequested, gfx::AreaButtonChanged, gfx::AreaPointerMoved, gfx::AreaWheelTurned,
+                       gfx::AreaHoldEnded, gfx::AreaPointerLeft, zengine::view::ViewWiring, gfx::OwnValuesAsked>,
           loom::Emit<zengine::pane::PaneEscapeUnspent,
                      zengine::pane::PanePassRequested, zengine::pane::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
@@ -701,14 +700,15 @@ public:
     }
   }
   /// A REFUSED CHANGE is drawn again whole at once, against nothing the window lacks; a refused
-  /// whole picture is said in the notice and nothing goes there until the picture changes, so a
-  /// window that keeps refusing starts no loop (`ws::WindowDrawing::refused`).
+  /// whole picture, the window's or Loom's, is said in the notice and nothing goes there until the
+  /// picture changes, so a refusal kept starts no loop (`ws::WindowDrawing::refused`).
   void on(const gfx::DrawnRefused &refused, loom::Mail &mail) {
     if (!window_.refused(refused, mail) || !window_.refused_whole())
       return;
-    model_.notice = "The graphics window refused Flow's picture: " + refused.reason;
+    model_.notice = "Flow's picture was refused: " + refused.reason;
     show(mail);
   }
+  void on(const loom::DispatchRefused &n, loom::Mail &mail) { if (const auto r = window_.refused(n, mail)) on(*r, mail); }
   /// A PRESS ASKED AS A PART'S ACTION, by a window that shows Flow's area placed deaf to the
   /// pointer: what a first-button press on that place of Workshop's canvas does, a node selected and
   /// anything else performed. No drag begins and nothing is carried, since no hand holds a press

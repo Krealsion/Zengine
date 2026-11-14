@@ -88,7 +88,7 @@ class EditorPaneWeave
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        zengine::pane::PaneCanvasValueDrop, zengine::pane::PaneMenuAnswered,
                        zengine::pane::PaneOperationAnswered,
-                       zengine::pane::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
+                       zengine::pane::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused, loom::DispatchRefused,
                        graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                        graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::KeymapShown>,
           loom::Emit<PaneOffered, zengine::pane::v3::PaneActions,
@@ -168,9 +168,8 @@ public:
 
     /// A drawing the window refused (`EditorWindow::refused`): a refused change is followed by the
     /// rows whole, a refused whole drawing by nothing until they change.
-    void on(const graphics::DrawnRefused& refused, loom::Mail& mail) {
-        (void)window_.refused(refused, mail);
-    }
+    void on(const graphics::DrawnRefused& refused, loom::Mail& mail) { (void)window_.refused(refused, mail); }
+    void on(const loom::DispatchRefused& notice, loom::Mail& mail) { (void)window_.refused(notice, mail); }
 
     /// THE POINTER IN THE WINDOW, given by the window that shows the area as its role and read
     /// onto the rows drawn there (`pointer`): its press, moves and release under the window's

@@ -51,7 +51,8 @@ inline pane::CanvasPicture shown_picture(const graphics::window::WinArea& area,
             if (const auto* r = gfx::operands<gfx::RectArgs>(k->node)) {
                 const gfx::Paint* paint = gfx::look_as<gfx::Paint>(look);
                 out.rects.push_back(pane::CanvasRect{r->x, r->y, r->w, r->h,
-                                                     zengine::graphics::pool_color_of(paint != nullptr ? paint->fill : gfx::Color{})});
+                                                     zengine::graphics::pool_color_of(
+                                                             paint != nullptr ? paint->fill : gfx::Color{})});
             } else if (const auto* t = gfx::operands<gfx::TextArgs>(k->node)) {
                 const gfx::TextLook* words = gfx::look_as<gfx::TextLook>(look);
                 runs[path.substr(8)] = out.texts.size();
