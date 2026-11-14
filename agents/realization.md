@@ -154,9 +154,9 @@ begin(plan)                    the ordinary host loop        answered()
   A host puts it on the bus with `realization::mount`, under the grant the host writes, and
   keeps the handle (`Mounted`) after the Kernel: the handle takes the owner off the bus before
   the artifacts go. ONE owner realizes ONE plan.
-- **WHAT IT KNOWS, IT CLAIMS.** Where the plan is (`PlanWhere`: its state, the row it waits on
-  and the rows behind it, the optional rows stepped over, what rows gave way from, the roles
-  still to come) and every authored choice with the one that holds its role (`ChoicesHeld`) are
+- **WHAT IT KNOWS, IT CLAIMS.** Where the plan is (`PlanWhere`: its state, an enumeration
+  (`PlanState`), the row it waits on and the rows behind it, the optional rows stepped over, what
+  rows gave way from, the roles still to come) and every authored choice with the one that holds its role (`ChoicesHeld`) are
   the role's latest claims (`realization/vocabulary.hpp`), claimed as each entry point returns.
   The desk, the guest door, the project door, the layouts' owner and the editor switch read
   them by their grants' observe rules, in their own deliveries, never through a host closure

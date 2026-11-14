@@ -4680,7 +4680,7 @@ TEST_CASE("the owner claims where the plan is as its role, and a reader reads it
     REQUIRE(read);
     CHECK(read.by.author == mounted.id());
     const load::PlanWhere where = loom::from_value<load::PlanWhere>(*read.value);
-    CHECK(where.state == load::kPlanWaiting);
+    CHECK(where.state == load::PlanState::waiting);
     CHECK(where.waiting_on == kUnbuilt);
     CHECK(where.behind == 1);
     // BOTH ROLES ARE STILL TO COME: the waiting row's and the one behind it.
@@ -4717,7 +4717,7 @@ TEST_CASE("a plan at rest is claimed complete, with nothing to come and the choi
         zengine::builder::kRealizationRole, load::PlanWhere::zen_name, load::PlanWhere::zen_version);
     REQUIRE(where);
     const load::PlanWhere said = loom::from_value<load::PlanWhere>(*where.value);
-    CHECK(said.state == load::kPlanComplete);
+    CHECK(said.state == load::PlanState::complete);
     CHECK(said.waiting_on.empty());
     CHECK(said.to_come.empty());
     const loom::SenseReading held = rig.bus.observe_role(

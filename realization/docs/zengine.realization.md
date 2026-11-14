@@ -121,7 +121,8 @@ never by order. The plan's own rows, performed at launch, are said by Workshop a
 Project pane, not here.
 
 It claims, as `zengine.realization` after every change: `PlanWhere` v1, where the plan is -- its
-state, the row it waits on, the rows stepped over or given way from, the roles still to come -- and
+state (`PlanState`: `loading`, `waiting`, `complete` or `refused`), the row it waits on, the rows
+stepped over or given way from, the roles still to come -- and
 `ChoicesHeld` v1, every authored choice and whether it holds its role
 ([`realization/vocabulary.hpp`](../vocabulary.hpp)), for whoever its host grants observing them.
 

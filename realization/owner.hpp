@@ -1431,10 +1431,10 @@ private:
     /// WHERE THE PLAN IS, as the role claims it.
     PlanWhere where_claimed() const {
         PlanWhere out;
-        out.state = where_ == Realization::Complete ? kPlanComplete
-                    : where_ == Realization::Waiting ? kPlanWaiting
-                    : where_ == Realization::Failed  ? kPlanRefused
-                                                     : kPlanLoading;
+        out.state = where_ == Realization::Complete ? PlanState::complete
+                    : where_ == Realization::Waiting ? PlanState::waiting
+                    : where_ == Realization::Failed  ? PlanState::refused
+                                                     : PlanState::loading;
         out.waiting_on = waiting_on();
         out.behind = static_cast<std::int64_t>(behind());
         for (const SteppedOver& gone : stepped_over_) {

@@ -71,9 +71,9 @@ struct RealizationClaims {
     /// or at rest with nothing to wait on.
     void frontier(const zengine::workshop::ProjectFrontier& f) const {
         zengine::realization::PlanWhere w;
-        w.state = zengine::realization::kPlanComplete;
+        w.state = zengine::realization::PlanState::complete;
         if (f.waiting) {
-            w.state = zengine::realization::kPlanWaiting;
+            w.state = zengine::realization::PlanState::waiting;
             w.waiting_on = f.artifact;
             w.behind = static_cast<std::int64_t>(f.blocked);
         }

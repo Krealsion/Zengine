@@ -219,8 +219,8 @@ public:
         if (!where.has_value()) {
             return said;
         }
-        said.state = where->state;
-        said.at_rest = where->state != realization::kPlanLoading;
+        said.state = std::string(realization::spelling(where->state));
+        said.at_rest = where->state != realization::PlanState::loading;
         said.waiting_on = where->waiting_on;
         said.unavailable = where->unavailable;
         return said;

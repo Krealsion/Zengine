@@ -2543,7 +2543,7 @@ struct LatePlan {
     explicit LatePlan(loom::Switchboard& bus) : owner(bus) { claim(); }
 
     RealizationClaims owner;
-    std::string state = ws::kPlanLoading;
+    zengine::realization::PlanState state = zengine::realization::PlanState::loading;
     std::string waiting_on;
     std::vector<std::string> unavailable;
 
@@ -2639,7 +2639,7 @@ TEST_CASE("door: a guest admitted while the plan loads waits for it at rest, the
     CHECK_FALSE(plain.answered<ws::GuestPlanSaid>(1).has_value());
     // THE ROW STILL TO COME IS REALIZED, and the plan comes to rest: both held asks are answered.
     realize_late_inventory(r.bus);
-    plan.state = ws::kPlanComplete;
+    plan.state = zengine::realization::PlanState::complete;
     plan.claim();
     REQUIRE(r.beat_until([&] {
         agent.poll();
@@ -2684,7 +2684,7 @@ TEST_CASE("door: a plan waiting or refused answers held asks, naming rows only t
     REQUIRE_FALSE(agent.answered<ws::GuestPlanSaid>(1).has_value());
     REQUIRE_FALSE(plain.answered<ws::GuestPlanSaid>(1).has_value());
     // A ROW WAITING ON THE WEAVER IS AT REST: it does not keep a guest out until somebody builds.
-    plan.state = ws::kPlanWaiting;
+    plan.state = zengine::realization::PlanState::waiting;
     plan.waiting_on = "zengine-inventory";
     plan.claim();
     REQUIRE(r.beat_until([&] {
@@ -2699,7 +2699,7 @@ TEST_CASE("door: a plan waiting or refused answers held asks, naming rows only t
     CHECK(plain.answered<ws::GuestPlanSaid>(1)->state == ws::kPlanWaiting);
     CHECK(plain.answered<ws::GuestPlanSaid>(1)->waiting_on.empty());
     // ...nor does a plan that refused: asked with `wait`, it is answered at once.
-    plan.state = ws::kPlanRefused;
+    plan.state = zengine::realization::PlanState::refused;
     plan.claim();
     plan.waiting_on.clear();
     plain.ask(ws::kGuestsRole, 2, ws::GuestPlanRequested{true});
@@ -2775,7 +2775,7 @@ TEST_CASE("door: held plan asks are bounded, a gone guest's are let go, and no r
     next.poll();
     CHECK(next.said_as<ws::GuestPlanSaid>().size() == 1); // only the one that synced
     CHECK(next.said_as<loom::Refused>().empty());
-    plan.state = ws::kPlanComplete;
+    plan.state = zengine::realization::PlanState::complete;
     plan.claim();
     REQUIRE(r.beat_until([&] {
         next.poll();

@@ -22,17 +22,28 @@
 
 namespace zengine::realization {
 
-/// The words `PlanWhere::state` takes.
-inline constexpr const char* kPlanLoading = "loading";   ///< rows are still being performed
-inline constexpr const char* kPlanWaiting = "waiting";   ///< stopped at a row waiting on a build
-inline constexpr const char* kPlanComplete = "complete"; ///< every authored row settled
-inline constexpr const char* kPlanRefused = "refused";   ///< a row refused and the walk stopped
+/// WHERE THE PLAN STANDS: its rows still being performed (`loading`), stopped at a row waiting on a
+/// build (`waiting`), every authored row settled (`complete`), or a row refused and the walk
+/// stopped (`refused`).
+enum class PlanState : std::uint8_t { loading, waiting, complete, refused };
+ZEN_ENUM(PlanState, 1, loading, waiting, complete, refused);
+
+/// The word a plan state is spelled by, as its enumeration lists it.
+inline std::string_view spelling(PlanState state) {
+    const auto info = zen_enum_info(static_cast<PlanState*>(nullptr));
+    for (std::size_t i = 0; i < info.values.size(); ++i) {
+        if (info.values[i] == state) {
+            return info.spellings[i];
+        }
+    }
+    return {};
+}
 
 /// WHERE REALIZATION IS, claimed after every change to it: the plan's state, the row it waits on
 /// and how many authored rows wait behind it, the optional rows stepped over, what rows could not
 /// load and gave way from, and the roles a row will still load a weave into.
 struct PlanWhere {
-    std::string state = kPlanLoading;
+    PlanState state = PlanState::loading;
     /// The row realization waits on, by its artifact; empty when it waits on none.
     std::string waiting_on;
     /// The authored rows behind `waiting_on`, waiting on it.
