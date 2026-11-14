@@ -35,7 +35,7 @@ struct PaintInk {
 };
 
 /// A node as a painter needs it: its place in the area's paint order (its ancestors' ranks, then
-/// its own), its operator and operands' body, the colours its operands name as the window resolved
+/// its own), what it draws, the colours its operands name as the window resolved
 /// them, in the order `colors_of` gives (graphics/ops.hpp), and for a text the font, size and
 /// measure the window resolved its style, size and font to (`face`, the face's family; none, all
 /// zero, where the task's measure stands) and its weight (`text_weight::kOfStyle` where the window
@@ -44,15 +44,14 @@ struct PaintInk {
 struct PaintNode {
     std::string path;
     std::vector<std::int64_t> key;
-    std::string op;
-    loom::Bytes args;
+    Operands draw;
     std::vector<PaintInk> inks;
     TextMeasured text{};
     std::string face{};
     std::int64_t weight = text_weight::kOfStyle;
-    /// Version 4: a text says the weight its style resolved to.
-    ZEN_SHAPE(PaintNode, 4, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(op), ZEN_FIELD(args),
-              ZEN_FIELD(inks), ZEN_FIELD(text), ZEN_FIELD(face), ZEN_FIELD(weight));
+    /// Version 5: it draws by its operands, the operator the case they hold.
+    ZEN_SHAPE(PaintNode, 5, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(draw), ZEN_FIELD(inks),
+              ZEN_FIELD(text), ZEN_FIELD(face), ZEN_FIELD(weight));
 
     /// The weight a text is set at: the one the window resolved, else the operands' own.
     std::int64_t weight_of(std::int64_t operands) const {
@@ -73,7 +72,7 @@ struct PaintTask {
     PaintInk plain;
     PaintInk quiet;
     std::string outline = "+-|";
-    ZEN_SHAPE(PaintTask, 5, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
+    ZEN_SHAPE(PaintTask, 6, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
               ZEN_FIELD(text_line), ZEN_FIELD(plain), ZEN_FIELD(quiet), ZEN_FIELD(outline));
 };
 
@@ -119,7 +118,7 @@ struct ElementOutcome {
     loom::Bytes state;
     Drawn drawn;
     bool took = true;
-    ZEN_SHAPE(ElementOutcome, 2, ZEN_FIELD(state), ZEN_FIELD(drawn), ZEN_FIELD(took));
+    ZEN_SHAPE(ElementOutcome, 3, ZEN_FIELD(state), ZEN_FIELD(drawn), ZEN_FIELD(took));
 };
 
 /// What element code is: the data form it presents, and the changes it takes in index order.

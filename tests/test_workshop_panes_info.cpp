@@ -2716,17 +2716,17 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     const auto bar_at = [&](std::int64_t column) {
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
-        if (caret->op == gfx::op::kText) {
-            const std::optional<gfx::TextArgs> mark = gfx::from_body<gfx::TextArgs>(caret->args);
-            REQUIRE(mark.has_value());
+        if (gfx::operands<gfx::TextArgs>(*caret) != nullptr) {
+            const gfx::TextArgs* mark = gfx::operands<gfx::TextArgs>(*caret);
+            REQUIRE(mark != nullptr);
             CHECK(mark->x == column * gfx::kCellPx);
             CHECK(mark->y == row * gfx::kCellPx);
             CHECK(mark->text.size() == 1);
             CHECK(zengine::graphics::pool_color_of(mark->ink) == gfx::colors::accent);
         } else {
-            CHECK(caret->op == gfx::op::kLine);
-            const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
-            REQUIRE(bar.has_value());
+            CHECK(gfx::operands<gfx::LineArgs>(*caret) != nullptr);
+            const gfx::LineArgs* bar = gfx::operands<gfx::LineArgs>(*caret);
+            REQUIRE(bar != nullptr);
             CHECK(bar->x1 == column * gfx::kCellPx);
             CHECK(bar->x2 == column * gfx::kCellPx);
             CHECK(bar->y1 == row * gfx::kCellPx);
@@ -2754,8 +2754,8 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         const std::string sel = "sel" + std::to_string(row) + ".0";
         const gfx::Node* node = kept(sel);
         REQUIRE(node != nullptr);
-        const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(node->args);
-        REQUIRE(words.has_value());
+        const gfx::TextArgs* words = gfx::operands<gfx::TextArgs>(*node);
+        REQUIRE(words != nullptr);
         CHECK(words->text == "7");
         CHECK(words->x == 11 * gfx::kCellPx);
         CHECK(words->y == row * gfx::kCellPx);

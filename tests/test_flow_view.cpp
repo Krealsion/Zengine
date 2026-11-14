@@ -159,9 +159,9 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         CHECK(window.sketch.nodes().size() <= gfx::kMaxNodesPerArea);
         // THE ROOM'S GROUND FIRST, all of it, so nothing behind the area shows through.
         REQUIRE_FALSE(window.sketch.nodes().empty());
-        const auto ground = gfx::from_body<gfx::RectArgs>(window.sketch.nodes().front().args);
-        REQUIRE(ground.has_value());
-        CHECK(window.sketch.nodes().front().op == gfx::op::kRect);
+        const auto ground = gfx::operands<gfx::RectArgs>(window.sketch.nodes().front());
+        REQUIRE(ground != nullptr);
+        CHECK(gfx::operands<gfx::RectArgs>(window.sketch.nodes().front()) != nullptr);
         CHECK((ground->x == 0 && ground->y == 0 && ground->w == 100 * cell &&
                ground->h == 45 * cell));
         CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
@@ -240,7 +240,7 @@ TEST_CASE("a part carries a run of words only where the run's whole row stands i
     REQUIRE(group_of.count("hold:b") == 1);
     const auto carries = [&](const std::string& group) {
         for (const auto& n : sketched.sketch.nodes())
-            if (n.op == "text" && n.path.rfind(group + "/", 0) == 0) return true;
+            if (gfx::operands<gfx::TextArgs>(n) != nullptr && n.path.rfind(group + "/", 0) == 0) return true;
         return false;
     };
     // ⚔ MUTATION (tests/mutants/flow_view.md#place-carries-a-grazed-row): a place carries every run
@@ -272,7 +272,7 @@ TEST_CASE("Flow's slots paint as a palette sets them for Flow's role, else as th
         std::set<std::int64_t> out;
         for (const gfx::Node& n : sketched.sketch.nodes())
             for (const gfx::PaintInk& ink :
-                 gfx::window::inks_of(n.op, n.args, palette, pane::kRole))
+                 gfx::window::inks_of(n, palette, pane::kRole))
                 if (!ink.none()) out.insert(ink.rgba);
         return out;
     };
@@ -442,8 +442,8 @@ TEST_CASE("Flow projects node places and hit regions through the room's independ
     // THE ROOM'S GROUND FIRST in what a window is given, all of it.
     const auto drawn = pane::sketch_of(view, native_room);
     REQUIRE(drawn.over.empty());
-    const auto ground = gfx::from_body<gfx::RectArgs>(drawn.sketch.nodes().front().args);
-    REQUIRE(ground.has_value());
+    const auto ground = gfx::operands<gfx::RectArgs>(drawn.sketch.nodes().front());
+    REQUIRE(ground != nullptr);
     CHECK((ground->w == native_room.width && ground->h == native_room.height));
     CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
     for (const auto& k : view.marks) {
@@ -917,7 +917,7 @@ TEST_CASE("resting tells: a port its kind and what it reads, an answer or a fiel
     REQUIRE_FALSE(named.empty());
     CHECK(named.back() == "tip:box");
     CHECK(std::any_of(drawn.sketch.nodes().begin(), drawn.sketch.nodes().end(), [&](const auto& n) {
-        return n.op == "text" && !group.empty() && n.path.rfind(group + "/", 0) == 0;
+        return gfx::operands<gfx::TextArgs>(n) != nullptr && !group.empty() && n.path.rfind(group + "/", 0) == 0;
     }));
     const auto box = *drawn.picture.tip;
     CHECK_FALSE(pane::rest_at(drawn.picture, box.x + 2, box.y + 2).has_value());
@@ -1247,16 +1247,16 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     std::size_t curves = 0, ports = 0;
     std::set<std::string> colours; // by name: the pool's and Flow's slots
     for (const auto& node : light.sketch.nodes()) {
-        if (node.op == gfx::op::kPath) {
-            if (const auto p = gfx::from_body<gfx::PathArgs>(node.args)) {
+        if (gfx::operands<gfx::PathArgs>(node) != nullptr) {
+            if (const auto p = gfx::operands<gfx::PathArgs>(node)) {
                 curves += p->d.find(" C") != std::string::npos ? std::size_t{1} : std::size_t{0};
                 colours.insert(p->stroke.name);
                 colours.insert(p->fill.name);
             }
-        } else if (node.op == gfx::op::kEllipse) {
+        } else if (gfx::operands<gfx::EllipseArgs>(node) != nullptr) {
             ++ports;
-        } else if (node.op == gfx::op::kRect) {
-            if (const auto r = gfx::from_body<gfx::RectArgs>(node.args)) colours.insert(r->fill.name);
+        } else if (gfx::operands<gfx::RectArgs>(node) != nullptr) {
+            if (const auto r = gfx::operands<gfx::RectArgs>(node)) colours.insert(r->fill.name);
         }
     }
     CHECK(curves >= 3); // amount and total into add, add's answer into total
@@ -1278,8 +1278,8 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     const auto cells = pane::window_picture(m, zengine::pane::canvas_window_room(170 * cell, 60 * cell, 0, {}));
     CHECK(cells.sketch.nodes().size() <= gfx::kMaxNodesPerArea);
     for (const auto& node : cells.sketch.nodes()) {
-        CHECK(node.op != gfx::op::kPath);
-        CHECK(node.op != gfx::op::kEllipse);
+        CHECK(gfx::operands<gfx::PathArgs>(node) == nullptr);
+        CHECK(gfx::operands<gfx::EllipseArgs>(node) == nullptr);
     }
     CHECK(text_has(cells.picture, "[Run"));
     CHECK(text_has(cells.picture, "[File v]"));

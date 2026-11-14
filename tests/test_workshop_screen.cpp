@@ -6330,9 +6330,9 @@ std::vector<PixelRect> window_selection_rings(const Session& s) {
         if (node.path.find("/selection/") == std::string::npos) {
             continue;
         }
-        REQUIRE(node.op == gfx::op::kRect);
-        const auto r = gfx::from_body<gfx::RectArgs>(node.args);
-        REQUIRE(r.has_value());
+        REQUIRE(gfx::operands<gfx::RectArgs>(node) != nullptr);
+        const auto r = gfx::operands<gfx::RectArgs>(node);
+        REQUIRE(r != nullptr);
         out.push_back(PixelRect{r->x, r->y, r->w, r->h});
     }
     return out;
@@ -7117,7 +7117,7 @@ std::set<std::int64_t> painted_in(const gfx::PaletteOffered& palette, const Sess
     for (const gfx::Sketch& drawn : drawings) {
         for (const gfx::Node& n : drawn.nodes()) {
             namespace gw = zengine::graphics::window;
-            for (const gfx::PaintInk& ink : gw::inks_of(n.op, n.args, palette, kWorkshopProvider)) {
+            for (const gfx::PaintInk& ink : gw::inks_of(n, palette, kWorkshopProvider)) {
                 if (!ink.none()) out.insert(ink.rgba);
             }
         }
@@ -7181,8 +7181,8 @@ TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all 
     for (const gfx::Sketch* drawn : {&desk, &overlay}) {
         for (const gfx::Node& node : drawn->nodes()) {
             if (node.path.find("/veil/fade") == std::string::npos) continue;
-            const auto a = gfx::from_body<gfx::RectArgs>(node.args);
-            REQUIRE(a.has_value());
+            const auto a = gfx::operands<gfx::RectArgs>(node);
+            REQUIRE(a != nullptr);
             CHECK(a->fill == gfx::colors::veil);
             veils.push_back(PixelRect{a->x, a->y, a->w, a->h});
         }

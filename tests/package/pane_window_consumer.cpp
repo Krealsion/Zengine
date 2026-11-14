@@ -102,8 +102,8 @@ public:
         ++drawings;
         whole = d.whole;
         for (const gfx::Node& n : d.put) {
-            if (n.op == gfx::op::kText) {
-                if (const auto a = gfx::from_body<gfx::TextArgs>(n.args)) {
+            if (gfx::operands<gfx::TextArgs>(n) != nullptr) {
+                if (const auto a = gfx::operands<gfx::TextArgs>(n)) {
                     std::string text = a->text; // a run a part holds is drawn across its columns
                     while (!text.empty() && text.back() == ' ') text.pop_back();
                     if (!text.empty()) words.push_back(text);

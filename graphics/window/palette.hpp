@@ -288,16 +288,14 @@ inline TextSet resolve_text(const TextArgs& t, const PaletteOffered& palette,
 
 /// The colours a node's operands name, as painted in `palette` in an area `role` owns, in the
 /// order a painter takes them (`colors_of`): a text naming no colour of its own in its style's.
-inline std::vector<PaintInk> inks_of(const std::string& op, const loom::Bytes& args,
-                                     const PaletteOffered& palette, const std::string& role) {
+inline std::vector<PaintInk> inks_of(const Node& node, const PaletteOffered& palette,
+                                     const std::string& role) {
     std::vector<PaintInk> out;
-    if (op == op::kText) {
-        if (const auto t = from_body<TextArgs>(args)) {
-            out.push_back(resolve(resolve_text(*t, palette, role).color, palette, role));
-        }
+    if (const TextArgs* t = operands<TextArgs>(node)) {
+        out.push_back(resolve(resolve_text(*t, palette, role).color, palette, role));
         return out;
     }
-    for (const Color& c : colors_of(op, args)) {
+    for (const Color& c : colors_of(node)) {
         out.push_back(resolve(c, palette, role));
     }
     return out;

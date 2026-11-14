@@ -111,16 +111,14 @@ counts by `zengine::input::kDefaultDoubleClickMs`.
 
 ## A node, and an element's record beside it
 
-A node is a `path`, an operator `op` and the operator's operands `args`. The path is the owner's
+A node is a `path` and what it draws, `draw`: one operator's operands (`Operands`, a union of the
+seven operands' shapes, the case it holds its operator, `graphics/operands.hpp`). The path is the owner's
 name for the node, unique in its area, and its place: the segments before the last name the node
 it lives in, and a node is drawn in its parent's space. A node keeps its place in the paint order
 until it is removed; a new node goes after its siblings, and a group is a layer.
 
-An operand's shape is implied by its operator, so `args` is that shape's body alone: Loom's
-canonical bytes without the envelope that names the shape (`graphics/implied.hpp`). The window puts
-the operator's own envelope back before the one gate reads the operands, so operands of another
-shape or version are refused there: a drawing whose rectangle, ellipse, line, path or text does not
-read as its operands' version now is refused whole, in words naming the shape and its versions.
+The gate reads a node's operands as it reads every value: operands of another shape or version,
+or an operator the union does not hold, are refused there, the drawing with them.
 
 An `ElementRecord` says what a subtree means: its `type` and `data` (a record shape's value, whole),
 and the `action` a press anywhere in it asks of the area's owner.

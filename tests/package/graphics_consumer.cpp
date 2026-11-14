@@ -39,8 +39,8 @@ int main() {
     gfx::Sketch picture;
     picture.fill_rect("plate", 0, 0, 48, 24, kitchen::colors::plate);
     picture.text("label", 4, 6, "soup", gfx::colors::accent);
-    const auto plate_args = gfx::from_body<gfx::RectArgs>(picture.nodes()[0].args);
-    const auto label_args = gfx::from_body<gfx::TextArgs>(picture.nodes()[1].args);
+    const auto plate_args = gfx::operands<gfx::RectArgs>(picture.nodes()[0]);
+    const auto label_args = gfx::operands<gfx::TextArgs>(picture.nodes()[1]);
     check(plate_args && plate_args->fill.from == gfx::color_from::kOwn &&
               plate_args->fill.name == "plate" && plate_args->fill.rgba == 0x336699ff &&
               plate_args->fill.like == "background",
@@ -56,11 +56,9 @@ int main() {
     gfx::PaintTask task;
     task.text_advance = 8; // the face the label is set in, and hit with below
     task.text_line = 18;
-    task.nodes.push_back(gfx::PaintNode{"plate", {1}, picture.nodes()[0].op,
-                                        picture.nodes()[0].args,
+    task.nodes.push_back(gfx::PaintNode{"plate", {1}, picture.nodes()[0].draw,
                                         {gfx::PaintInk{0x336699ff, {}, {}}, gfx::PaintInk{}}, {}, {}});
-    task.nodes.push_back(gfx::PaintNode{"label", {2}, picture.nodes()[1].op,
-                                        picture.nodes()[1].args,
+    task.nodes.push_back(gfx::PaintNode{"label", {2}, picture.nodes()[1].draw,
                                         {gfx::PaintInk{0x112233ff, {}, {}}}, {}, {}});
     const gfx::PaintResult painted = gfx::light::paint_task(task);
     check(painted.nodes.size() == 2, "the painter for light paints each node");

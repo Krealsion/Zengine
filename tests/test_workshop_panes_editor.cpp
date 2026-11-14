@@ -917,9 +917,9 @@ TEST_CASE("the Editor is an ordinary arranged pane, offered by a role") {
         CHECK(rows[0].rfind("no source open", 0) == 0);
         std::size_t said = 0;
         for (const gfx::Node& n : first.put) {
-            if (n.op != gfx::op::kText) continue;
-            const std::optional<gfx::TextArgs> text = gfx::from_body<gfx::TextArgs>(n.args);
-            REQUIRE(text.has_value());
+            if (gfx::operands<gfx::TextArgs>(n) == nullptr) continue;
+            const gfx::TextArgs* text = gfx::operands<gfx::TextArgs>(n);
+            REQUIRE(text != nullptr);
             CHECK(text->text.size() <= 30);
             ++said;
         }
@@ -1969,8 +1969,8 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         const std::int64_t second = w.chrome() + 1;
         const gfx::Node* selected = kept("sel" + std::to_string(second) + ".0");
         REQUIRE(selected != nullptr);
-        const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(selected->args);
-        REQUIRE(words.has_value());
+        const gfx::TextArgs* words = gfx::operands<gfx::TextArgs>(*selected);
+        REQUIRE(words != nullptr);
         CHECK(words->text == "tw");
         CHECK(zengine::graphics::pool_color_of(words->ink) == gfx::colors::accent);
         CHECK(window.action_at(area, 0, second) == "line:2");
@@ -1989,9 +1989,9 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         // accent colour, which a bar there would hide.
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
-        CHECK(caret->op == gfx::op::kText);
-        const std::optional<gfx::TextArgs> drawn_caret = gfx::from_body<gfx::TextArgs>(caret->args);
-        REQUIRE(drawn_caret.has_value());
+        CHECK(gfx::operands<gfx::TextArgs>(*caret) != nullptr);
+        const gfx::TextArgs* drawn_caret = gfx::operands<gfx::TextArgs>(*caret);
+        REQUIRE(drawn_caret != nullptr);
         CHECK(drawn_caret->x == 0);
         CHECK(drawn_caret->y == third * gfx::kCellPx);
         CHECK(drawn_caret->text == "t");
@@ -2047,9 +2047,9 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         REQUIRE(held != nullptr);
         std::size_t texts = 0;
         for (const auto& k : held->nodes) {
-            if (k.node.op != gfx::op::kText) continue;
-            const std::optional<gfx::TextArgs> t = gfx::from_body<gfx::TextArgs>(k.node.args);
-            REQUIRE(t.has_value());
+            if (gfx::operands<gfx::TextArgs>(k.node) == nullptr) continue;
+            const gfx::TextArgs* t = gfx::operands<gfx::TextArgs>(k.node);
+            REQUIRE(t != nullptr);
             CAPTURE(k.node.path);
             CHECK(t->y < 3 * gfx::kCellPx);
             ++texts;

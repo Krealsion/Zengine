@@ -32,7 +32,7 @@ namespace zengine::graphics::window {
 struct KeptNode {
     Node node;
     std::int64_t rank = 0;
-    ZEN_SHAPE(KeptNode, 1, ZEN_FIELD(node), ZEN_FIELD(rank));
+    ZEN_SHAPE(KeptNode, 2, ZEN_FIELD(node), ZEN_FIELD(rank));
 };
 
 /// An element the window presents: where, of which type, its drawer's reference for it, the
@@ -70,7 +70,7 @@ struct WinArea {
     std::vector<Presented> presented;
     /// The owner's number for the drawing it last sent (`Drawn::number`).
     std::int64_t drawing = 0;
-    ZEN_SHAPE(WinArea, 10, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
+    ZEN_SHAPE(WinArea, 11, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
               ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
               ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text), ZEN_FIELD(palette),
@@ -237,15 +237,12 @@ inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
             return "a path is empty, longer than " + std::to_string(kMaxPathBytes) +
                    " bytes or deeper than " + std::to_string(kMaxPathDepth);
         }
-        if (n.args.size() > kMaxArgsBytes) {
+        if (operand_bytes(n.draw) > kMaxArgsBytes) {
             return "'" + n.path + "' has operands over " + std::to_string(kMaxArgsBytes) +
                    " bytes";
         }
         if (!mine(a, who, n.path)) {
             return "'" + n.path + "' is not the sender's to draw";
-        }
-        if (const std::string why = operands_refused(n.op, n.args); !why.empty()) {
-            return "'" + n.path + "': " + why;
         }
         const std::string parent = parent_of(n.path);
         if (!parent.empty() && present.count(parent) == 0) {

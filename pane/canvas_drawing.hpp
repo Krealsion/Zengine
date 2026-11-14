@@ -54,7 +54,6 @@ struct CanvasSketch {
 /// pane reads a press, the window gives no press to the one beneath.
 inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room) {
     struct Drawn {
-        const char* op;
         std::int64_t x, y, w, h;
         graphics::Color ink;
         const std::string* words;
@@ -68,20 +67,20 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
     std::vector<Drawn> drawn;
     drawn.reserve(c.rects.size() + c.labels.size() + c.texts.size());
     for (const CanvasRect& r : c.rects) {
-        drawn.push_back({graphics::op::kRect, r.x, r.y, r.w, r.h, r.ink, nullptr});
+        drawn.push_back({r.x, r.y, r.w, r.h, r.ink, nullptr});
     }
     for (const CanvasLabel& l : c.labels) {
-        drawn.push_back({graphics::op::kText, l.x, l.y, across(component::text_columns(l.text), kPaneCanvasUnit),
+        drawn.push_back({l.x, l.y, across(component::text_columns(l.text), kPaneCanvasUnit),
                          kPaneCanvasUnit, l.ink, &l.text});
     }
     for (const CanvasText& t : c.texts) {
         // AN UNPADDED RUN'S GLYPHS STAND AT ITS X/Y, its box the medium's inset around them.
         const std::int64_t back = t.padded ? 0 : metrics.inset;
-        const Drawn run{graphics::op::kText, t.x - back, t.y - back,
+        const Drawn run{t.x - back, t.y - back,
                         across(component::text_columns(t.text), metrics.advance), metrics.line + 2 * metrics.inset,
                         t.ink, &t.text, metrics.inset, &t};
         if (t.background != graphics::no_color()) {
-            drawn.push_back({graphics::op::kRect, run.x, run.y, run.w, run.h, t.background,
+            drawn.push_back({run.x, run.y, run.w, run.h, t.background,
                              nullptr});
         }
         drawn.push_back(run);

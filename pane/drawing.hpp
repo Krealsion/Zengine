@@ -52,29 +52,28 @@ struct DrawnPart {
 /// A node's operands with its place read from a drawing set in `text` onto the cell lattice: a
 /// group's offset and clip and a text's start, a character's advance a cell across and a line a
 /// cell down. Any other node is as drawn.
-inline loom::Bytes on_cells(const graphics::Node& n, const graphics::TextMeasure& text) {
+inline graphics::Operands on_cells(const graphics::Node& n, const graphics::TextMeasure& text) {
     const auto across = [&](std::int64_t v) {
         return graphics::floor_div_px(v, text.advance) * graphics::kCellPx;
     };
     const auto down = [&](std::int64_t v) {
         return graphics::floor_div_px(v, text.line) * graphics::kCellPx;
     };
-    if (n.op == graphics::op::kGroup) {
-        if (auto g = graphics::from_body<graphics::GroupArgs>(n.args)) {
-            g->x = across(g->x);
-            g->y = down(g->y);
-            g->clip_w = across(g->clip_w);
-            g->clip_h = down(g->clip_h);
-            return graphics::body_of(*g);
-        }
-    } else if (n.op == graphics::op::kText) {
-        if (auto t = graphics::from_body<graphics::TextArgs>(n.args)) {
-            t->x = across(t->x);
-            t->y = down(t->y);
-            return graphics::body_of(*t);
-        }
+    if (const auto* group = graphics::operands<graphics::GroupArgs>(n)) {
+        graphics::GroupArgs g = *group;
+        g.x = across(g.x);
+        g.y = down(g.y);
+        g.clip_w = across(g.clip_w);
+        g.clip_h = down(g.clip_h);
+        return g;
     }
-    return n.args;
+    if (const auto* text_args = graphics::operands<graphics::TextArgs>(n)) {
+        graphics::TextArgs t = *text_args;
+        t.x = across(t.x);
+        t.y = down(t.y);
+        return t;
+    }
+    return n.draw;
 }
 
 /// A DRAWING ON THE ROWS OF A ROOM `rows` BY `columns`, set in `measure`: each text node's
@@ -95,7 +94,7 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     nodes.reserve(sketch.nodes().size());
     for (const graphics::Node& n : sketch.nodes()) {
         nodes.push_back(
-            graphics::PaintNode{n.path, {}, n.op, lattice ? n.args : on_cells(n, measure), {}, {}, {}});
+            graphics::PaintNode{n.path, {}, lattice ? n.draw : on_cells(n, measure), {}, {}, {}, {}});
     }
     const std::map<std::string, graphics::term::Space> at = graphics::term::spaces(nodes);
     const graphics::PaintTask task{};
@@ -109,12 +108,12 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     std::vector<bool> roled;
     std::vector<std::vector<std::string>> glyphs; // each row's characters, a cell each
     for (const graphics::PaintNode& n : nodes) {
-        if (n.op != graphics::op::kText) {
+        if (graphics::operands<graphics::TextArgs>(n) == nullptr) {
             continue;
         }
         // Its words wherever they show, in any ink: a row takes the pool colour its text's colour
         // shows as.
-        const auto words = graphics::from_body<graphics::TextArgs>(n.args);
+        const auto words = graphics::operands<graphics::TextArgs>(n);
         graphics::PaintNode shown_node = n;
         shown_node.inks = {graphics::PaintInk{0, {}, {}}};
         std::vector<graphics::term::Cell> cells;

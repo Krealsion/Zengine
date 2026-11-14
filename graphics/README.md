@@ -40,8 +40,9 @@ an element the window presents from the owner's data (`element_export.hpp`).
 | `color.hpp` | a colour a draw carries: an exact value, a name from the shared pool, or a slot its pane exposes |
 | `pool.json`, `themes/` | the pool's colours and their defaults, and the three shipped themes, generated into C++ names (`graphics/colors.hpp`) and palettes (`graphics/themes.hpp`) as the package is configured |
 | `pixels.hpp` | arithmetic on pixels and cells that cannot overflow, a pixel in a medium's device unit, and the grain a hit test floors by |
-| `ops.hpp` | the seven operators and their operands, and the colours each carries |
-| `implied.hpp` | a value's body without its envelope, where an operator or a type implies its shape |
+| `operands.hpp` | the node and the seven operators' operands, one union |
+| `ops.hpp` | the colours a node's operands carry |
+| `implied.hpp` | a value's body without its envelope, where an element's type implies its shape |
 | `canvas.hpp` | what an owner draws with: a `Sketch`, a `Canvas`, `difference` |
 | `elements.hpp` | every part below, in one include |
 | `elements/button.hpp`, `elements/checkbox.hpp` | a `Button` and a `Checkbox`, each with an action while enabled |

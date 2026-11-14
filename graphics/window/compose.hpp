@@ -255,10 +255,10 @@ inline std::vector<std::pair<std::string, ClipBox>> group_clips(const WinArea& a
     std::vector<std::pair<std::string, ClipBox>> out;
     std::vector<std::vector<std::int64_t>> keys;
     for (const KeptNode& k : a.nodes) {
-        if (k.node.op != op::kGroup) {
+        if (operands<GroupArgs>(k.node) == nullptr) {
             continue;
         }
-        const auto own = from_body<GroupArgs>(k.node.args);
+        const auto own = operands<GroupArgs>(k.node);
         if (!own || own->clip_w <= 0 || own->clip_h <= 0) {
             continue;
         }
@@ -271,8 +271,8 @@ inline std::vector<std::pair<std::string, ClipBox>> group_clips(const WinArea& a
         }
         for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
             const auto g = at.find(*it);
-            if (g == at.end() || g->second->node.op != op::kGroup) continue;
-            const auto args = from_body<GroupArgs>(g->second->node.args);
+            if (g == at.end() || operands<GroupArgs>(g->second->node) == nullptr) continue;
+            const auto args = operands<GroupArgs>(g->second->node);
             if (!args) continue;
             dx += args->x;
             dy += args->y;
@@ -372,7 +372,7 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
     }
     std::set<std::string> texts;
     for (const KeptNode& k : a.nodes) {
-        if (k.node.op == op::kText) {
+        if (operands<TextArgs>(k.node) != nullptr) {
             texts.insert(k.node.path);
         }
     }

@@ -61,7 +61,7 @@ struct WindowState {
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    ZEN_SHAPE(WindowState, 12, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 13, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
@@ -1219,13 +1219,10 @@ private:
     }
 
     /// The font, size and measure a text node is set at in `palette` in an area `role` owns, and
-    /// its face; none for a node that is no text, or whose operands do not read.
+    /// its face; none for a node that is no text.
     void dress_text(PaintNode& node, const PaletteOffered& palette, const std::string& role) {
-        if (node.op != op::kText) {
-            return;
-        }
-        const auto args = from_body<TextArgs>(node.args);
-        if (!args) {
+        const TextArgs* args = operands<TextArgs>(node);
+        if (args == nullptr) {
             return;
         }
         const TextSet set = resolve_text(*args, palette, role);
@@ -1268,9 +1265,8 @@ private:
             if (send.count(k.node.path) != 0) {
                 PaintNode node{k.node.path,
                                key_of(at, k.node.path),
-                               k.node.op,
-                               k.node.args,
-                               inks_of(k.node.op, k.node.args, palette, a.owner),
+                               k.node.draw,
+                               inks_of(k.node, palette, a.owner),
                                {},
                                {},
                                text_weight::kOfStyle};

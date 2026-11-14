@@ -39,11 +39,11 @@ class Sketch {
 public:
     void group(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t clip_w = 0,
                std::int64_t clip_h = 0) {
-        put(name, op::kGroup, GroupArgs{x, y, clip_w, clip_h});
+        put(name, GroupArgs{x, y, clip_w, clip_h});
     }
     void rect(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
               std::int64_t h, Color fill, Color stroke = no_color()) {
-        put(name, op::kRect, RectArgs{x, y, w, h, fill, stroke});
+        put(name, RectArgs{x, y, w, h, fill, stroke});
     }
     void fill_rect(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                    std::int64_t h, Color paint) {
@@ -55,34 +55,32 @@ public:
     }
     void ellipse(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                  std::int64_t h, Color fill, Color stroke = no_color()) {
-        put(name, op::kEllipse, EllipseArgs{x, y, w, h, fill, stroke});
+        put(name, EllipseArgs{x, y, w, h, fill, stroke});
     }
     void line(const std::string& name, std::int64_t x1, std::int64_t y1, std::int64_t x2,
               std::int64_t y2, Color ink) {
-        put(name, op::kLine, LineArgs{x1, y1, x2, y2, ink});
+        put(name, LineArgs{x1, y1, x2, y2, ink});
     }
     void path(const std::string& name, const std::string& d, Color fill,
               Color stroke = no_color()) {
-        put(name, op::kPath, PathArgs{d, fill, stroke});
+        put(name, PathArgs{d, fill, stroke});
     }
     /// Words in the pool's `body` style, in `ink`, and at a size, a weight and a font of their own
     /// where given.
     void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
               Color ink, TextSize size = {}, std::int64_t weight = text_weight::kOfStyle,
               std::string font = {}) {
-        put(name, op::kText,
-            TextArgs{x, y, words, ink, {}, std::move(size), std::move(font), weight});
+        put(name, TextArgs{x, y, words, ink, {}, std::move(size), std::move(font), weight});
     }
     /// Words in a look: a style, as it stands or with a field changed
     /// (`styles::heading.with_color(colors::alert)`).
     void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
               const TextLook& look) {
-        put(name, op::kText,
-            TextArgs{x, y, words, look.ink, look.style, look.size, look.font, look.weight});
+        put(name, TextArgs{x, y, words, look.ink, look.style, look.size, look.font, look.weight});
     }
     void image(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                std::int64_t h, std::int64_t pw, std::int64_t ph, loom::Bytes rgba) {
-        put(name, op::kImage, ImageArgs{x, y, w, h, pw, ph, std::move(rgba)});
+        put(name, ImageArgs{x, y, w, h, pw, ph, std::move(rgba)});
     }
 
     /// What the subtree at `name` means, as the record shape T's value.
@@ -95,11 +93,8 @@ public:
         say(ElementRecord{name, {}, {}, action});
     }
 
-    /// Any operator, by its operands' shape: sent as their body, the operator implying the shape.
-    template <class Args>
-    void put(const std::string& name, const char* op, const Args& args) {
-        put(Node{name, op, body_of(args)});
-    }
+    /// Any operator, by its operands.
+    void put(const std::string& name, Operands draw) { put(Node{name, std::move(draw)}); }
     void put(Node node) {
         const auto it = at_.find(node.path);
         if (it != at_.end()) {
@@ -148,7 +143,7 @@ inline Drawn difference(const Sketch& before, const Sketch& after) {
     for (const Node& n : after.nodes()) {
         now.insert(n.path);
         const auto it = was.find(n.path);
-        if (it == was.end() || it->second->op != n.op || it->second->args != n.args) {
+        if (it == was.end() || !(it->second->draw == n.draw)) {
             d.put.push_back(n);
         }
     }
@@ -201,7 +196,7 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
     const Node* top = nullptr;
     std::vector<std::size_t> top_key;
     for (const Node& n : nodes) {
-        if (n.op == op::kGroup) {
+        if (operands<GroupArgs>(n) != nullptr) {
             continue;
         }
         // ITS PLACE: each group above it offsets it and may clip it; and its paint order, its
@@ -219,11 +214,7 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
                 continue;
             }
             key.push_back(r->second);
-            const Node& g = nodes[r->second];
-            if (g.op != op::kGroup) {
-                continue;
-            }
-            if (const auto args = from_body<GroupArgs>(g.args)) {
+            if (const auto* args = operands<GroupArgs>(nodes[r->second])) {
                 dx += args->x;
                 dy += args->y;
                 if (args->clip_w > 0 && args->clip_h > 0 &&
@@ -238,42 +229,34 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
         }
         const std::int64_t px = x - dx, py = y - dy;
         bool hit = false;
-        if (n.op == op::kRect || n.op == op::kEllipse) {
-            std::optional<RectArgs> box;
-            if (n.op == op::kRect) {
-                box = from_body<RectArgs>(n.args);
-            } else if (const auto e = from_body<EllipseArgs>(n.args)) {
-                box = RectArgs{e->x, e->y, e->w, e->h, e->fill, e->stroke};
+        std::optional<RectArgs> box;
+        if (const auto* r = operands<RectArgs>(n)) {
+            box = *r;
+        } else if (const auto* e = operands<EllipseArgs>(n)) {
+            box = RectArgs{e->x, e->y, e->w, e->h, e->fill, e->stroke};
+        }
+        if (box) {
+            hit = inside(px, py, box->x, box->y, box->w, box->h) &&
+                  (!box->fill.none() ||
+                   (!box->stroke.none() &&
+                    !inside(px, py, box->x + 1, box->y + 1, box->w - 2, box->h - 2)));
+        } else if (const auto* t = operands<TextArgs>(n)) {
+            std::int64_t characters = 0;
+            for (const char c : t->text) {
+                characters += (static_cast<unsigned char>(c) & 0xC0U) != 0x80U ? 1 : 0;
             }
-            if (box) {
-                hit = inside(px, py, box->x, box->y, box->w, box->h) &&
-                      (!box->fill.none() ||
-                       (!box->stroke.none() &&
-                        !inside(px, py, box->x + 1, box->y + 1, box->w - 2, box->h - 2)));
-            }
-        } else if (n.op == op::kText) {
-            if (const auto t = from_body<TextArgs>(n.args)) {
-                std::int64_t characters = 0;
-                for (const char c : t->text) {
-                    characters += (static_cast<unsigned char>(c) & 0xC0U) != 0x80U ? 1 : 0;
-                }
-                hit = inside(px, py, t->x, t->y, characters * text.advance, text.line);
-            }
-        } else if (n.op == op::kImage) {
-            if (const auto im = from_body<ImageArgs>(n.args)) {
-                hit = inside(px, py, im->x, im->y, im->w, im->h);
-            }
-        } else if (n.op == op::kLine) {
-            if (const auto l = from_body<LineArgs>(n.args)) {
-                const double lx = static_cast<double>(l->x2 - l->x1);
-                const double ly = static_cast<double>(l->y2 - l->y1);
-                const double len2 = lx * lx + ly * ly;
-                const double qx = static_cast<double>(px - l->x1);
-                const double qy = static_cast<double>(py - l->y1);
-                const double t = len2 > 0 ? std::clamp((qx * lx + qy * ly) / len2, 0.0, 1.0) : 0.0;
-                const double ex = t * lx - qx, ey = t * ly - qy;
-                hit = ex * ex + ey * ey <= 1.0;
-            }
+            hit = inside(px, py, t->x, t->y, characters * text.advance, text.line);
+        } else if (const auto* im = operands<ImageArgs>(n)) {
+            hit = inside(px, py, im->x, im->y, im->w, im->h);
+        } else if (const auto* l = operands<LineArgs>(n)) {
+            const double lx = static_cast<double>(l->x2 - l->x1);
+            const double ly = static_cast<double>(l->y2 - l->y1);
+            const double len2 = lx * lx + ly * ly;
+            const double qx = static_cast<double>(px - l->x1);
+            const double qy = static_cast<double>(py - l->y1);
+            const double at = len2 > 0 ? std::clamp((qx * lx + qy * ly) / len2, 0.0, 1.0) : 0.0;
+            const double ex = at * lx - qx, ey = at * ly - qy;
+            hit = ex * ex + ey * ey <= 1.0;
         }
         if (hit) {
             top = &n;

@@ -151,11 +151,10 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   beside the pool colour it is `like`; where only the pool's colours are shown, a colour shows as
   its pool colour (`pool_color_of`, `graphics/ops.hpp`).
 - **Pixels are bytes**: an `image` carries its own red, green, blue and alpha, four bytes a pixel.
-- **An operand's shape is implied by its operator** and an element change's by the element's type:
-  each travels as its shape's body, and the receiver restores the envelope before the gate reads
-  it (`graphics/implied.hpp`), so a body of another shape, version or content is refused there: the
-  window's judge refuses a drawing whose colour-bearing operands do not read, whole, in words naming
-  the shape and its versions (`operands_refused`).
+- **A node's operands are one union** (`Operands`, `graphics/operands.hpp`): the case it holds is
+  its operator, and the gate refuses operands of another shape or version as it refuses any value.
+  An element change's shape is implied by the element's type: it travels as its shape's body, and
+  the receiver restores the envelope before the gate reads it (`graphics/implied.hpp`).
 - **An element's changes are a list whose order is the wire**: a change travels as its index, so
   the list only grows at its end, and a change outside it does not compile where its owner sends
   it.

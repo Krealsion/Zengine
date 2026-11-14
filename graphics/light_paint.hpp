@@ -283,43 +283,27 @@ public:
     explicit Painter(const PaintTask& task, const TextMeasure& text = {})
         : task_(task), text_(text) {}
 
-    /// One node's primitives, drawn in `space`, in its colours. Operands that do not read as their
-    /// operator's paint nothing; an operator this medium does not know paints its name, quiet.
+    /// One node's primitives, drawn in `space`, in its colours.
     void paint(const PaintNode& node, const term::Space& space, NodePrimitives& out) const {
-        const std::string& op = node.op;
-        const loom::Bytes& args = node.args;
         space_ = space;
         out_ = &out;
         inks_ = &node.inks;
-        if (op == op::kRect) {
-            if (auto a = from_body<RectArgs>(args)) {
-                rect(a->x, a->y, a->w, a->h);
-            }
-        } else if (op == op::kEllipse) {
-            if (auto a = from_body<EllipseArgs>(args)) {
-                ellipse(*a);
-            }
-        } else if (op == op::kLine) {
-            if (auto a = from_body<LineArgs>(args)) {
-                line(a->x1 + space_.dx, a->y1 + space_.dy, a->x2 + space_.dx, a->y2 + space_.dy,
-                     ink_of(0));
-            }
-        } else if (op == op::kPath) {
-            if (auto a = from_body<PathArgs>(args)) {
-                path(*a);
-            }
-        } else if (op == op::kText) {
-            if (auto a = from_body<TextArgs>(args)) {
-                const bool own = node.text.advance > 0 && node.text.line > 0;
-                text(a->x, a->y, a->text, ink_of(0), own ? node.text.measure() : text_,
-                     own ? node.text.points : 0, node.weight_of(a->weight), node.face);
-            }
-        } else if (op == op::kImage) {
-            if (auto a = from_body<ImageArgs>(args)) {
-                image(*a);
-            }
-        } else if (op != op::kGroup) {
-            text(0, 0, "?" + op, task_.quiet, text_, 0, text_weight::kRegular, {});
+        const Operands::Is& draw = node.draw.is;
+        if (const auto* a = std::get_if<RectArgs>(&draw)) {
+            rect(a->x, a->y, a->w, a->h);
+        } else if (const auto* e = std::get_if<EllipseArgs>(&draw)) {
+            ellipse(*e);
+        } else if (const auto* l = std::get_if<LineArgs>(&draw)) {
+            line(l->x1 + space_.dx, l->y1 + space_.dy, l->x2 + space_.dx, l->y2 + space_.dy,
+                 ink_of(0));
+        } else if (const auto* p = std::get_if<PathArgs>(&draw)) {
+            path(*p);
+        } else if (const auto* t = std::get_if<TextArgs>(&draw)) {
+            const bool own = node.text.advance > 0 && node.text.line > 0;
+            text(t->x, t->y, t->text, ink_of(0), own ? node.text.measure() : text_,
+                 own ? node.text.points : 0, node.weight_of(t->weight), node.face);
+        } else if (const auto* i = std::get_if<ImageArgs>(&draw)) {
+            image(*i);
         }
     }
 
@@ -632,7 +616,7 @@ inline PaintResult paint_task(const PaintTask& task) {
     const auto at = term::spaces(task.nodes);
     PaintResult out;
     for (const PaintNode& n : task.nodes) {
-        if (n.op == op::kGroup) {
+        if (operands<GroupArgs>(n) != nullptr) {
             continue;
         }
         NodePrimitives prims;
