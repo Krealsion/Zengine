@@ -1290,20 +1290,20 @@ public:
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
     model_.notice = said;
   }
-  /// LOOM'S WORD THAT EXACTLY ONE OF FLOW'S ASKS WAS REFUSED BEFORE ANY HANDLER RAN, matched by
-  /// `AskFacet`: the question to the door, a write Workshop never heard, or a host request -- and
-  /// an Add waiting on that request, which will never be answered. A carry's refusal says nothing.
-  void on_refused(const FlowAsk &asked, const loom::DispatchRefused &refused, loom::Mail &mail) {
+  /// LOOM'S WORD THAT EXACTLY ONE OF FLOW'S ASKS ENDED WITH NO ANSWER, matched by `AskFacet`,
+  /// `why` saying how: the question to the door, a write Workshop never answered, or a host
+  /// request -- and an Add waiting on that request, which will never be answered. A carry's end
+  /// says nothing.
+  void on_refused(const FlowAsk &asked, const std::string &why, loom::Mail &mail) {
     switch (asked.kind) {
     case FlowAsk::Kind::kFind:
-      model_.notice = "finding powers was not delivered: " + refused.reason;
+      model_.notice = "finding powers was not done: " + why;
       break;
     case FlowAsk::Kind::kWrite:
-      model_.notice = pane::Model::writing(asked.action) +
-                      " was not done: Workshop could not be asked (" + refused.reason + ")";
+      model_.notice = pane::Model::writing(asked.action) + " was not done: " + why;
       break;
     case FlowAsk::Kind::kHost:
-      model_.notice = asked.action + " was not delivered: " + refused.reason;
+      model_.notice = asked.action + " was not done: " + why;
       if (adding_ && adding_->request == asked.request)
         adding_.reset(); // the Add waited on this request, which will never be answered
       if (asked.action == "stop")
@@ -2415,7 +2415,7 @@ private:
     const auto shape = ws::find_powers_schema();
     (void)asks().ask_with(ws::kPowersRole, shape->name(), shape->version(),
                           asking(FlowAsk::Kind::kFind), [&](std::uint64_t correlation) {
-                            return mail.bus().role_send_to_role(
+                            return mail.bus().role_ask_role(
                                 pane::kRole, ws::kPowersRole,
                                 loom::Message(std::move(question), self_, loom::WeaveId{},
                                               correlation));

@@ -78,6 +78,9 @@ inline constexpr std::int64_t kRunning = 6;
 /// project has no product) nor a failure (nothing failed). Usually a recipe whose `artifact` or
 /// `artifact_dir` does not describe what its target produces.
 inline constexpr std::int64_t kNoArtifact = 7;
+/// The order ended with no result: Loom's word that the runner will not answer -- unloaded
+/// mid-build, say -- with the stage and reason in `detail`. Whether a process ran is not known.
+inline constexpr std::int64_t kEnded = 8;
 } // namespace outcome
 
 /// Where the realization of a built artifact stands: a second axis with its own owner. "It
@@ -115,6 +118,7 @@ inline const char* name_of_outcome(std::int64_t value) {
     case outcome::kNotStarted: return "did not start";
     case outcome::kUnknownRecipe: return "unknown recipe";
     case outcome::kNoArtifact: return "NO ARTIFACT";
+    case outcome::kEnded: return "ENDED";
     default: return "unknown";
     }
 }

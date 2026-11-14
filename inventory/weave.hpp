@@ -83,7 +83,7 @@ class InventoryWeave final
                        InventorySnapshotRequested, v2::InventorySnapshotRequested,
                        InventoryRestore, v2::InventoryRestore,
                        InventoryCaptureAdd, InventoryCaptureDescribe, loom::PokeStructure,
-                       loom::DispatchRefused>,
+                       loom::AskEnded>,
           loom::Emit<InventoryState, InventoryEntry, InventoryListed, v2::InventoryListed,
                      InventoryFolderState, InventoryChanged,
                      InventorySnapshot, v2::InventorySnapshot, InventoryRestored,
@@ -433,7 +433,7 @@ public:
             finish(mail, loom::Refused{"this inventory's own book is full"});
             return;
         }
-        const auto sent = mail.send_to_role(target_role, loom::PokeDescribe{}, opened.correlation);
+        const auto sent = mail.ask_role(target_role, loom::PokeDescribe{}, opened.correlation);
         if (!sent.valid() || !book_.bind_attempt(opened.id, sent.seq)) {
             (void)book_.forget(opened.id);
             finish(mail, loom::Refused{"capture request could not be queued"});
@@ -471,20 +471,15 @@ public:
         changed(mail);
     }
 
-    // A notice is Loom's dispatch fact only with provenance AND this send's identity.
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        if (!mail.dispatch_refused() || !pending_answer_.valid()) {
+    // Loom's word that the capture's ask ended with no answer, by its provenance and this ask's
+    // identity: the capture is answered refused, so its requester waits on nothing.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!pending_answer_.valid() || !book_.end(ended, mail)) {
             return;
         }
-        const auto* asked = book_.match_attempt(refused.refused_attempt().seq);
-        if (asked == nullptr || refused.role != requested_role_ || !refused.target.empty() ||
-            refused.shape != loom::PokeDescribe::zen_name ||
-            refused.version != loom::PokeDescribe::zen_version) {
-            return;
-        }
-        (void)book_.forget(asked->id);
-        finish(mail, loom::Refused{"'" + requested_role_ +
-                                   "' could not be asked zen.PokeDescribe: " + refused.reason});
+        finish(mail, loom::Refused{"'" + requested_role_ + "' did not answer zen.PokeDescribe (" +
+                                   loom::stage_name(ended.stage) + ", " +
+                                   std::string(loom::reason_name(ended.stage)) + ")"});
     }
 
 private:

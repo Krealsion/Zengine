@@ -1048,7 +1048,7 @@ TEST_CASE("a toolbox save sent straight to the Inventory pane is refused in word
     s.hand->expect_refusal = true;
     s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxSave{path}); });
     REQUIRE(s.hand->refusals.size() == 1);
-    CHECK_MESSAGE(holds_words(s.hand->refusals[0], "Toolbox request refused: NotAccepted"), s.hand->refusals[0]);
+    CHECK_MESSAGE(holds_words(s.hand->refusals[0], "Toolbox request ended: it could not reach zengine.guests (NotAccepted)"), s.hand->refusals[0]);
     CHECK(s.hand->toolboxes.empty());
     CHECK_FALSE(std::filesystem::exists(path));
 }

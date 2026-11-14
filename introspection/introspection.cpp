@@ -93,7 +93,7 @@ class IntrospectionWeave
                        zengine::pane::PaneOperationAnswered, zengine::pane::PaneCarryAnswered, loom::Refused,
                        ws::ResolvedArrangement, ws::v2::ResolvedArrangement, ws::PowersFound,
                        ws::PowerDescribed, ws::SourceSampled, gfx::ClipboardCopy,
-                       gfx::ClipboardText>,
+                       gfx::ClipboardText, loom::AskEnded>,
           loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v3::PaneActions, zengine::pane::PanePassRequested,
                      intro::LoadedSelected, loom::ListLoaded, ws::ArrangementRequested,
                      ws::DescribePower, ws::SampleRequested, zengine::pane::PaneOperationRequested,
@@ -292,6 +292,18 @@ public:
     }
 
     void on(const zengine::pane::PaneCarryAnswered&, loom::Mail&) { powers_.carried(); }
+
+    /// LOOM'S WORD THAT AN ASK OF THIS ROLE'S ENDED WITH NO ANSWER: retired as a refusal is, by the
+    /// correlation it carries -- a pane's reading, or the Powers pane's own asks.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!mail.ask_ended()) {
+            return;
+        }
+        loaded_.retire(mail.correlation());
+        arrangement_.retire(mail.correlation());
+        powers_.retire(mail.correlation());
+        powers_.ended(mail.correlation(), ended.shape);
+    }
 
     /// An owner declining to answer, or an ask that reached nobody (a host with no arrangement or
     /// sample door is a real arrangement). The question is retired and nothing is said: a sentence

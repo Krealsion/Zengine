@@ -65,14 +65,16 @@ retain their own grants. A declaration disagreement and a denied send are differ
 
 For one role request, include `<zen/weave/role_request.hpp>` and keep a `loom::RoleRequest`
 beside your operation's domain state. It records the shape, version, destination, correlation
-and ticket from the ordinary send. Use the participant's existing correlation sequence.
+and ticket of the ask. Use the participant's existing correlation sequence. Ask through Loom's
+ask door when the destination answers, so the ask ends in its answer or in Loom's word that none
+will come (`zen.AskEnded`); a plain send is for a destination that does not answer.
 
 These are the relevant parts of a handler, with application-specific types:
 
 ```cpp
 // Members: loom::RoleRequest pending; std::uint64_t next_correlation = 0;
 if (!pending.pending()) {
-    const bool queued = pending.send_to_role(
+    const bool queued = pending.ask_role(
         mail.as_role(my_role), destination_role, request, ++next_correlation);
     // A false result means this call did not establish a new queued request.
 }
@@ -83,15 +85,16 @@ if (pending.matches_answer(mail) && valid_for_my_operation(answer)) {
     apply(answer);
 }
 
-// In on(const loom::DispatchRefused& refused, loom::Mail& mail):
-if (pending.matches_refusal(refused, mail)) {
+// In on(const loom::AskEnded& ended, loom::Mail& mail):
+if (pending.matches_ending(ended, mail)) {
     pending.forget();
-    show_refusal(refused.reason);
+    show_ending(loom::stage_name(ended.stage), loom::reason_name(ended.stage));
 }
 ```
 
-Explicitly accept `loom::DispatchRefused` to receive those notices. Matching does not consume
-the record. Application validation includes the expected stage and any object identity/revision;
+Accept `loom::AskEnded`: an ask from a weave that does not is refused at the call. A plain send's
+refusal is `loom::DispatchRefused`, matched by `matches_refusal`. Matching does not consume the
+record. Application validation includes the expected stage and any object identity/revision;
 authenticity alone does not establish that the returned value is useful. A second send on an
 occupied record refuses locally. A completed stage must be forgotten before its next request.
 

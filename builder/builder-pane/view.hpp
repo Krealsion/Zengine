@@ -436,7 +436,8 @@ inline void BuilderPaneWeave::say_builder() {
     // the `said` rows keep its last lines, and the reader keeps every line the tool kept.
     const bool unproduced = s.outcome == builder::outcome::kFailed ||
                             s.outcome == builder::outcome::kNoArtifact ||
-                            s.outcome == builder::outcome::kNotStarted;
+                            s.outcome == builder::outcome::kNotStarted ||
+                            s.outcome == builder::outcome::kEnded;
     const std::string carried =
         named_op ? " -- op #" + std::to_string(s.op) + ", " + std::to_string(s.chunks) +
                        " out" + (unproduced ? std::string(" -- read output") : std::string())
@@ -451,7 +452,8 @@ inline void BuilderPaneWeave::say_builder() {
                  : (s.outcome == builder::outcome::kFailed ||
                             s.outcome == builder::outcome::kNotStarted ||
                             s.outcome == builder::outcome::kNoArtifact ||
-                            s.outcome == builder::outcome::kUnknownRecipe
+                            s.outcome == builder::outcome::kUnknownRecipe ||
+                            s.outcome == builder::outcome::kEnded
                         ? zengine::graphics::colors::alert
                         : zengine::graphics::colors::text),
              1});

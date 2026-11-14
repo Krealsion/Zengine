@@ -76,7 +76,7 @@ void WorkshopWeave::commit_own_setting(RoleSettingCommitRequested commit, std::s
     }
     commit.revision = own_revision_;
     const std::uint64_t ask = ++layout_asks_;
-    if (mail.as_role(kWorkshopProvider).send_to_role(kLayoutsRole, std::move(commit), ask).valid()) {
+    if (mail.as_role(kWorkshopProvider).ask_role(kLayoutsRole, std::move(commit), ask).valid()) {
         own_said_[ask] = std::move(note);
         return;
     }

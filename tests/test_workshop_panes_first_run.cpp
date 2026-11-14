@@ -45,7 +45,8 @@ public:
     std::string active = fr::kStandardChoice;
     std::vector<std::string> asked; ///< `request <destination>` or `confirm <op> <consent>`
     std::function<EditorSwitchAnswered(const EditorSwitchRequested&)> on_switch;
-    bool hold = false; ///< a switch asked is answered never: it stays under way
+    bool hold = false; ///< a switch asked keeps its answer and never spends it: it stays under way
+    std::vector<loom::DeferredAnswer> held;
     int quiet = 0;     ///< the quiet status asks heard
 
     void on(const EditorSwitchQuietStatusRequested&, loom::Mail& mail) {
@@ -58,6 +59,7 @@ public:
     void on(const EditorSwitchRequested& r, loom::Mail& mail) {
         asked.push_back("request " + r.destination);
         if (hold) {
+            held.push_back(mail.defer_answer()); // kept, so the switch stays under way
             return;
         }
         EditorSwitchAnswered a;

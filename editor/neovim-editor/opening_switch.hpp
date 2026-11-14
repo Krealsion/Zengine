@@ -59,10 +59,20 @@ inline void NeovimEditorWeave::on(const SourceOpened& said, loom::Mail& mail) {
     role::settle_relay(said, mail, relays_);
 }
 
-/// The bus's word that an ask never arrived, matched by exact attempt: a relay's requester is told
-/// in words, and a pickup's or a dropped location's failure is said (`role::settle_dispatch_refused`).
-inline void NeovimEditorWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-    if (role::settle_dispatch_refused(refused, mail, relays_, pickup_, locate_, noticing())) {
+/// Loom's word that an ask ended with no answer, matched by exact attempt: a relay's requester is
+/// told in words, and a pickup's or a dropped location's failure is said (`role::settle_ask_ended`).
+/// The project's root ends by the ask's correlation, and a paste Neovim waits on is answered from
+/// the mirror, as an unsent one is.
+inline void NeovimEditorWeave::on(const loom::AskEnded& ended, loom::Mail& mail) {
+    if (mail.ask_ended() && root_pending_ != 0 && mail.correlation() == root_pending_) {
+        root_pending_ = 0;
+    }
+    if (const auto it = pastes_.find(mail.correlation()); mail.ask_ended() && it != pastes_.end()) {
+        const PasteLines paste = paste_lines(clip_);
+        (void)host_->answer_paste(it->second, paste.lines, paste.regtype);
+        pastes_.erase(it);
+    }
+    if (role::settle_ask_ended(ended, mail, relays_, pickup_, locate_, noticing())) {
         resay_ = true;
     }
 }

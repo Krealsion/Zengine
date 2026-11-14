@@ -10,18 +10,20 @@
 #include <string>
 
 #include <zen/history/logger.hpp>
+#include <zen/weave/ask_ended.hpp>
 
 #include "builder/vocabulary.hpp"
 
 namespace zengine::workshop {
 
 /// The shapes the journal keeps beyond Loom's default, each with its whole payload: a build that
-/// finished or never started, and what the project made of an offered artifact -- the one place
-/// a long refusal is kept whole. Not `BuildStatus`, republished on every chunk of a build's
+/// finished or never started, what the project made of an offered artifact -- the one place a
+/// long refusal is kept whole -- and Loom's word that an ask ended unanswered, a build whose
+/// runner never answered among them. Not `BuildStatus`, republished on every chunk of a build's
 /// output, nor `BuildOutput`, the output itself.
 inline constexpr const char* kDurableBuildShapes[] = {
     builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name,
-    builder::ArtifactRealized::zen_name};
+    builder::ArtifactRealized::zen_name, loom::AskEnded::zen_name};
 
 /// Loom's default selection, refusals kept only when the weaver asks (`--log-refusals`), and
 /// `kDurableBuildShapes` uncapped.

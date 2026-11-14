@@ -56,7 +56,7 @@ using Drawing = zengine::pane::PaneDrawingFacet<pane::kConnectionsPane, pane::kC
 
 class ConnectionsPaneWeave
     : public zengine::With<Drawing>::Weave<ConnectionsPaneWeave, pane::ConnectionsPaneState,
-                                           loom::Accept<GuestConnections>,
+                                           loom::Accept<GuestConnections, loom::AskEnded>,
                                            loom::Emit<GuestConnectionsRequested>> {
 public:
     PaneOffered offering() const {
@@ -85,12 +85,21 @@ public:
         say(mail);
     }
 
+    /// ...OR LOOM'S WORD THAT THE ASK ENDED WITH NO ANSWER: what the pane waits for says why,
+    /// until the door's next publication.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (mail.ask_ended() && !heard_) {
+            silent_ = zengine::pane::no_answer(ended);
+            say(mail);
+        }
+    }
+
 private:
     /// A presenter that just arrived asks the door once, so it need not wait for a change, and
     /// at version 3, so each row's powers, losses, role and scopes come with it.
     void ask(loom::Mail& mail) {
         (void)mail.as_role(pane::kConnectionsPaneRole)
-            .send_to_role(ws::kGuestsRole, GuestConnectionsRequested{});
+            .ask_role(ws::kGuestsRole, GuestConnectionsRequested{});
     }
 
     Drawing& room() { return this->template facet<Drawing>(); }
@@ -121,7 +130,10 @@ public:
             }
         };
         if (!heard_) {
-            line("waiting", "CONNECTIONS (waiting for the guest door)", gfx::colors::quiet);
+            line("waiting",
+                 silent_.empty() ? "CONNECTIONS (waiting for the guest door)"
+                                 : "CONNECTIONS (the guest door did not answer: " + silent_ + ")",
+                 gfx::colors::quiet);
             return;
         }
         if (known_.listen.empty()) {
@@ -247,6 +259,7 @@ private:
 
     GuestConnections known_;
     bool heard_ = false;
+    std::string silent_; ///< why the door's ask ended with no answer, until it is heard
 };
 
 } // namespace

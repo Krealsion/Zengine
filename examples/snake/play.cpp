@@ -177,8 +177,8 @@ struct ConsoleContext {
 class ConsoleWeave
     : public gfx::With<gfx::ActionFacet>::Weave<
           ConsoleWeave, ConsoleState,
-          loom::Accept<loom::Result, loom::Ack, loom::Refused, gfx::AreaKeyPressed,
-                       gfx::GraphicsReady>,
+          loom::Accept<loom::Result, loom::Ack, loom::Refused, loom::AskEnded,
+                       gfx::AreaKeyPressed, gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
                      loom::UnloadRole, loom::PokeResetState, loom::PokeWrite, gfx::AreaPlaced,
                      gfx::PaletteOffered, gfx::PaletteChosen, gfx::ElementCodeOffered>> {
@@ -199,6 +199,17 @@ public:
     }
 
     /// A directory started: the window arranged again, from what the console knows.
+    /// LOOM'S WORD THAT AN ASK ENDED WITH NO ANSWER: its moment is said, and it waits no more.
+    void on(const loom::AskEnded& e, loom::Mail& mail) {
+        const std::optional<loom::PendingAsk> ended = ctx_->asks.end(e, mail);
+        const auto it = ended ? ctx_->pending.find(ended->id) : ctx_->pending.end();
+        if (it != ctx_->pending.end()) {
+            status(it->second.label + " -- no answer (" + loom::stage_name(e.stage) + ", " +
+                   std::string(loom::reason_name(e.stage)) + ")");
+            ctx_->pending.erase(it);
+        }
+    }
+
     void on(const gfx::GraphicsReady&, loom::Mail& mail) {
         if (mail.authored_from_role(gfx::kGraphicsRole)) {
             arrange(mail);
@@ -308,7 +319,7 @@ private:
         const std::string label = "land the pilot";
         if (const loom::AskOpened opened =
                 ctx_->ask_control<loom::UnloadRole>(label, kPilotLanded)) {
-            mail.send(ctx_->control, loom::UnloadRole{kPilotRole}, opened.correlation);
+            bind(opened, mail.ask(ctx_->control, loom::UnloadRole{kPilotRole}, opened.correlation));
             status(label + " ...");
         } else {
             not_sent(label);
@@ -319,7 +330,7 @@ private:
         const std::string label = "new game (poke reset)";
         if (const loom::AskOpened opened =
                 ctx_->ask_world<loom::PokeResetState>(label, kWorldReset)) {
-            mail.send_to_role(kWorldRole, loom::PokeResetState{}, opened.correlation);
+            bind(opened, mail.ask_role(kWorldRole, loom::PokeResetState{}, opened.correlation));
             status(label + " ...");
         } else {
             not_sent(label);
@@ -330,7 +341,7 @@ private:
     void write_world(loom::Mail& mail, const std::string& label, const char* field,
                      const std::string& value) {
         if (const loom::AskOpened opened = ctx_->ask_world<loom::PokeWrite>(label, 0)) {
-            mail.send_to_role(kWorldRole, loom::PokeWrite{field, value}, opened.correlation);
+            bind(opened, mail.ask_role(kWorldRole, loom::PokeWrite{field, value}, opened.correlation));
             status(label + " ...");
         } else {
             not_sent(label);
@@ -388,7 +399,7 @@ private:
     template <class Cmd>
     void command(loom::Mail& mail, const std::string& label, int action, const Cmd& cmd) {
         if (const loom::AskOpened opened = ctx_->ask_manager<Cmd>(label, action)) {
-            mail.send(ctx_->manager, cmd, opened.correlation);
+            bind(opened, mail.ask(ctx_->manager, cmd, opened.correlation));
             status(label + " ...");
         } else {
             not_sent(label);
@@ -407,12 +418,20 @@ private:
                        (ctx_->pilot_flying ? "the pilot steers" : "wasd") + " | p pause | 4 sdl)";
     }
 
+    /// Each ask bound to its queued attempt, so Loom's word that it ended names it; one that queued
+    /// nothing is forgotten, and said.
+    void bind(const loom::AskOpened& opened, loom::Ticket attempt) {
+        if (!attempt.valid() || !ctx_->asks.bind_attempt(opened.id, attempt.seq)) {
+            (void)ctx_->asks.forget(opened.id);
+            ctx_->pending.erase(opened.id);
+        }
+    }
+
     void answered(loom::Mail& mail, const std::string& outcome, bool refused) {
         ++state_.answers;
-        // An ask of the manager settles by its correlation and the manager's stamp; an ask by
-        // role, whose respondent was unknown when asking, also needs Loom's attested answer. The
-        // manager relays its control door's answers as ordinary speech, so only the role's
-        // answer is asked for that attestation.
+        // An ask of the manager or the door settles by its correlation and the respondent's
+        // stamp; an ask by role, whose respondent was unknown when asking, also needs Loom's
+        // attested answer.
         const loom::PendingAsk* open = ctx_->asks.match(mail.correlation(), mail.sender());
         const std::optional<loom::PendingAsk> settled =
             open != nullptr && (!open->to_role() || mail.answers_ask())

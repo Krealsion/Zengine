@@ -101,7 +101,7 @@ its answer in its words, and confirms a consent only when chosen again"
 
 ### WL-FIRST-04
 `workshop/first-run/first_run.cpp` FirstRun on(PaneInventory) on(ViewWiring) on(LaunchCatalog)
-on(Launched) fact choose_story
+on(Launched) on(AskEnded) fact choose_story
 `workshop/first-run/story.hpp` steps story_text ticks_of story_lines
 `workshop/admission.hpp` first_run_role_grant
 `tests/test_workshop_panes_first_run.cpp` "WL-FIRST-04: each step is ticked by the fact its owner

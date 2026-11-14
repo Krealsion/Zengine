@@ -10,14 +10,15 @@ commit `TargetUnavailable`, the pane was told nothing, and with Workshop revived
 said `commit not sent -- an earlier commit is still unanswered`. The draft could not be
 committed again in that run.
 
-**Decision.** Each document ask keeps its ticket. A ticket that is not valid means nothing was
-queued: the record is released at once and the pane says the commit was not submitted. A valid
-one is matched later against `zen.DispatchRefused` only when `mail.dispatch_refused()` is true,
-then by attempt, correlation, shape, version and role; that record alone is released, and the
-account — not delivered, nothing written, Loom's reason — replaces only that commit's own
-sentence. No draft is closed, because nothing was written, so the next Return is a fresh commit.
-Delivered silence is not a refusal and still holds the commit outstanding. A select, a create
-or a delete is accounted the same way against its own record.
+**Decision.** Each document ask goes through Loom's ask door and keeps its ticket. A ticket that
+is not valid means nothing was queued: the record is released at once and the pane says the commit
+was not submitted. A valid one is matched later against `zen.AskEnded` only when
+`mail.ask_ended()` is true, then by attempt, correlation, shape, version and role; that record
+alone is released, and the account — not answered, and how the ask came to nothing in Loom's
+words — replaces only that commit's own sentence. No draft is closed, so the next Return is a
+fresh commit. An owner that holds its answer still holds the commit outstanding; one that returns
+without answering ends the ask. A select, a create or a delete is accounted the same way against
+its own record.
 
 **Alternatives considered.**
 - *Tried: discarding the ticket* — the refused commit held the one-outstanding gate for the rest

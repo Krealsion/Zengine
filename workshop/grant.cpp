@@ -85,7 +85,6 @@ loom::Grant workshop_grant() {
     speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
     speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
     speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
-    speak.allow_to_role(WithdrawalFence::zen_name, WithdrawalFence::zen_version, kWorkshopProvider);
     speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
     speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
     speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);

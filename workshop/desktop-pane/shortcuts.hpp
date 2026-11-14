@@ -56,7 +56,7 @@ public:
         auto due = mail.defer_answer();
         if (!due.valid()) return refuse("This registration cannot retain its answer");
         pending_.emplace(Pending{std::move(candidate), std::move(due), attempt, {}});
-        const auto sent = mail.as_role(workshop::kDesktopRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+        const auto sent = mail.as_role(workshop::kDesktopRole).ask_role(zengine::pane::pane_menu::kWorkshopRole,
             workshop::v2::AppActions{std::move(base)}, attempt);
         pending_->ticket = sent;
         if (!sent.valid()) finish(false, "Application shortcut declaration could not be queued", mail);
@@ -66,12 +66,13 @@ public:
         if (!pending_ || pending_->attempt != attempt) return false;
         finish(accepted, reason, mail); return true;
     }
-    bool refused(const loom::DispatchRefused& refusal, loom::Mail& mail) {
-        if (!pending_ || !mail.dispatch_refused() || refusal.refused_attempt().seq != pending_->ticket.seq ||
+    bool refused(const loom::AskEnded& refusal, loom::Mail& mail) {
+        if (!pending_ || !mail.ask_ended() || refusal.ended_attempt().seq != pending_->ticket.seq ||
             refusal.shape != workshop::v2::AppActions::zen_name ||
             refusal.version != workshop::v2::AppActions::zen_version ||
             refusal.role != zengine::pane::pane_menu::kWorkshopRole || !refusal.target.empty()) return false;
-        finish(false, "Shortcut declaration was not delivered: " + refusal.reason, mail); return true;
+        finish(false, "Shortcut declaration was not answered: " + zengine::pane::no_answer(refusal), mail);
+        return true;
     }
     void withdrawn(const std::string& reason, loom::Mail& mail) const {
         for (const auto& [role, owner] : owners_) {

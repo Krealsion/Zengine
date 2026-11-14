@@ -470,7 +470,7 @@ public:
         if (pickup_ == Pickup::permission && c.mail.answers_ask() && c.mail.correlation() == pickup_ask_) {
             if (!answer.allowed) { finish_pickup("Field pickup refused: " + answer.reason); return true; }
             pickup_ = Pickup::carry;
-            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).ask_role(zengine::pane::pane_menu::kWorkshopRole,
                 pane::PaneValueCarryRequested{key_, pickup_label_, pickup_bytes_, pickup_drag_}, pickup_gesture_);
             if (!pickup_ticket_.valid()) finish_pickup("Field pickup could not be queued");
             return true;
@@ -484,7 +484,7 @@ public:
                 return true;
             }
             const auto correlation = ++c.asks;
-            if (!sample_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), sample_.role, loom::PokeDescribe{}, correlation)) {
+            if (!sample_.ask.ask_role(c.mail.as_role(kInfoPaneRole), sample_.role, loom::PokeDescribe{}, correlation)) {
                 sample_.phase = Sample::Phase::idle;
                 notice_ = "Sample could not be queued to " + sample_.role;
                 return true;
@@ -525,31 +525,29 @@ public:
         return after_client(c);
     }
 
-    bool hear(const loom::DispatchRefused& refused, ViewContext& c) {
-        const auto* shape = pickup_ == Pickup::permission ? pane::PaneOperationRequested::zen_name
-                                                         : pane::PaneValueCarryRequested::zen_name;
-        if (pickup_ != Pickup::idle && c.mail.dispatch_refused() && pickup_ticket_.valid() &&
-            refused.refused_attempt().seq == pickup_ticket_.seq && refused.shape == shape &&
-            refused.version == 1 && refused.role == zengine::pane::pane_menu::kWorkshopRole && refused.target.empty()) {
-            finish_pickup("Field pickup was not delivered: " + refused.reason);
+    bool hear(const loom::AskEnded& ended, ViewContext& c) {
+        const std::string why = pane::no_answer(ended);
+        if (pickup_ != Pickup::idle && c.mail.ask_ended() && pickup_ticket_.valid() &&
+            ended.ended_attempt().seq == pickup_ticket_.seq && ended.role == zengine::pane::pane_menu::kWorkshopRole) {
+            finish_pickup("Field pickup was not answered: " + why);
             return true;
         }
-        if (heard(watch_.hear(refused, key_, c))) return true;
-        if (sample_.permission.matches_refusal(refused, c.mail)) {
+        if (heard(watch_.hear(ended, key_, c))) return true;
+        if (sample_.permission.matches_ending(ended, c.mail)) {
             sample_.permission.forget(); sample_.phase = Sample::Phase::idle;
-            notice_ = "Sample permission request was not delivered: " + refused.reason;
+            notice_ = "Sample permission request was not answered: " + why;
             return true;
         }
-        if (sample_.ask.matches_refusal(refused, c.mail)) {
+        if (sample_.ask.matches_ending(ended, c.mail)) {
             sample_.ask.forget(); sample_.phase = Sample::Phase::idle;
             sample_.unavailable = true;
-            sample_.last_attempt = clock_text() + " unavailable: " + refused.reason;
-            notice_ = "Source " + sample_.role + " is unavailable (" + refused.reason + "); showing " +
+            sample_.last_attempt = clock_text() + " unavailable: " + why;
+            notice_ = "Source " + sample_.role + " is unavailable (" + why + "); showing " +
                       (sample_.last_good.empty() ? "the stored observation" : "the sample from " + sample_.last_good) +
                       ", now stale";
             return true;
         }
-        if (!client_.hear(refused, c.mail)) return false;
+        if (!client_.hear(ended, c.mail)) return false;
         return after_client(c);
     }
 
@@ -1193,7 +1191,7 @@ private:
         sample_.role = route.first;
         sample_.original = recorded_responder();
         const auto correlation = ++c.asks;
-        if (!sample_.permission.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::pane::pane_menu::kWorkshopRole,
+        if (!sample_.permission.ask_role(c.mail.as_role(kInfoPaneRole), zengine::pane::pane_menu::kWorkshopRole,
                 pane::PaneOperationRequested{key_, sample_.role, loom::PokeDescribe::zen_name,
                     loom::PokeDescribe::zen_version, static_cast<std::int64_t>(c.mail.correlation())}, correlation)) {
             notice_ = "Sample permission request could not be queued";
@@ -1220,7 +1218,7 @@ private:
             pickup_label_ = (title_ + ": " + f->label).substr(0, pane::kMaxCarryLabelBytes);
             pickup_gesture_ = gesture; pickup_ask_ = ++c.asks; pickup_drag_ = drag;
             pickup_ = Pickup::permission;
-            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+            pickup_ticket_ = c.mail.as_role(kInfoPaneRole).ask_role(zengine::pane::pane_menu::kWorkshopRole,
                 pane::PaneOperationRequested{key_, zengine::pane::pane_menu::kWorkshopRole,
                     pane::PaneValueCarryRequested::zen_name, 1, static_cast<std::int64_t>(pickup_gesture_)}, pickup_ask_);
             if (!drag) notice_ = "Checking field acquisition authority";

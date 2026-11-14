@@ -153,9 +153,9 @@ bool WorkshopWeave::send_key_fence(loom::Mail& mail) {
     if (!opened) return false;
     const loom::Ticket sent =
         mail.as_role(kWorkshopProvider)
-            .send_to_role(role, graphics::AreaShowAsked{kWorkshopOverlayArea, fence_since_},
-                          opened.correlation);
-    if (!sent.valid()) {
+            .ask_role(role, graphics::AreaShowAsked{kWorkshopOverlayArea, fence_since_},
+                      opened.correlation);
+    if (!sent.valid() || !area_asks_.bind_attempt(opened.id, sent.seq)) {
         (void)area_asks_.forget(opened.id);
         return false;
     }

@@ -29,8 +29,9 @@ Workshop's copy; the role, its weave and its state are untouched.
 The window, the room, the setup and the canvas a pane draws on are [the pane protocol's
 reference](workshop-panes.md); where a reported pointer lands is [pointer
 spaces](pointer-spaces.md). Loom's own doors are Loom's: Workshop hears `zen.DispatchRefused` to
-learn that a drop, a press, a menu sentence or an open it sent was not delivered, and says so on
-the band.
+learn that a drop, a press or a menu sentence it sent was not delivered, and `zen.AskEnded` that
+an ask of its own -- an open, a menu's withdrawal, a reading, an edit -- ended with no answer, and
+says so on the band.
 
 ## Use
 
@@ -660,23 +661,21 @@ presenter showed a line wider than its room`.
 
 `MenuClosed`, from `zengine.presenter`: the menu is over and its requester answered, chosen at an
 act or not. A choice is kept for the pane's next continuation; a standard row chosen is
-Workshop's to spend on that pane, while that act is its hand's latest.
+Workshop's to spend on that pane, while that act is its hand's latest. Said as the answer to a
+menu's withdrawal, an ask, it says the requester was answered.
 
 ### `MenuReturned`
 
-`MenuReturned`, from `zengine.presenter`: it holds no such menu. Workshop ends the menu and answers
-its requester itself, unchosen: `the presenter could not answer it -- <why>`.
+`MenuReturned`, from `zengine.presenter`, or as its answer to a withdrawal: it holds no such menu.
+Workshop ends the menu and answers its requester itself, unchosen: `the presenter could not answer
+it -- <why>`. A withdrawal that ends with no answer is answered alike: `<why> -- no presenter
+answered it (<how far the ask got>, <why>)`.
 
 ### `PresenterReady`
 
 `PresenterReady`, from `zengine.presenter`: a holder arrived carrying menu `menu`, or 0. An open
 menu it carries stays open under it, its picture numbered afresh; one it does not is ended, its
 requester told `the presenter was replaced`.
-
-### `WithdrawalFence`
-
-`WithdrawalFence`, from `zengine.workshop` to its own role behind a menu it withdrew: when it comes round,
-the withdrawn menu's record is forgotten, every refusal of its sentences delivered before it.
 
 ### `SurfacePlacement`
 

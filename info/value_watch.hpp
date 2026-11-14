@@ -69,7 +69,7 @@ public:
         watch_.reference = entry;
         watch_.subject = entry.owner + ":" + entry.entry;
         const auto correlation = ++c.asks;
-        const bool queued = watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::pane::pane_menu::kWorkshopRole,
+        const bool queued = watch_.ask.ask_role(c.mail.as_role(kInfoPaneRole), zengine::pane::pane_menu::kWorkshopRole,
             pane::PaneObservationRequested{pane, inventory::kInventoryRole, inventory::InventoryRead::zen_name,
                 inventory::InventoryRead::zen_version, static_cast<std::int64_t>(c.mail.correlation()), watch_.subject},
             correlation);
@@ -86,7 +86,7 @@ public:
     }
     /// END THE WATCH, AT WORKSHOP TOO. A known lease is ended now; a request Workshop has not yet
     /// answered moves to `ending_`, so a lease it grants later is ended on arrival and restarts
-    /// nothing. Forgetting the read here is what keeps a late answer off whatever comes next.
+    /// nothing, and an ask that ends with no answer granted nothing. Forgetting the read here is what keeps a late answer off whatever comes next.
     /// `tell` is false only where Workshop has already forgotten the lease (it refused). Says
     /// `reason` when there was a watch to end.
     std::string stop(const std::string& pane, ViewContext& c, std::string reason, bool tell = true) {
@@ -136,7 +136,7 @@ public:
         }
         // THE CONTINUATION IS APPROVED: one read, under this view's own number.
         const auto correlation = ++c.asks;
-        if (!watch_.read.send_to_role(c.mail.as_role(kInfoPaneRole), inventory::kInventoryRole,
+        if (!watch_.read.ask_role(c.mail.as_role(kInfoPaneRole), inventory::kInventoryRole,
                                       inventory::InventoryRead{watch_.reference}, correlation)) {
             if (auto said = stop(pane, c, "Watch ended: the read could not be queued", true); !said.empty())
                 heard.notice = std::move(said);
@@ -170,16 +170,17 @@ public:
         return true;
     }
 
-    /// A WATCH REQUEST WAS NOT DELIVERED.
-    Heard hear(const loom::DispatchRefused& refused, const std::string& pane, ViewContext& c) {
-        if (ending_.matches_refusal(refused, c.mail)) { ending_.forget(); return {true, {}}; } // it granted nothing
-        if (!watch_.ask.matches_refusal(refused, c.mail) && !watch_.read.matches_refusal(refused, c.mail)) return {};
-        // AN UNDELIVERED CONTINUATION OR READ: the lease Workshop approved is still in its book,
-        // so it is ended there too. A request refused before it arrived holds no lease.
+    /// A WATCH REQUEST ENDED WITH NO ANSWER, by Loom's word.
+    Heard hear(const loom::AskEnded& ended, const std::string& pane, ViewContext& c) {
+        if (ending_.matches_ending(ended, c.mail)) { ending_.forget(); return {true, {}}; } // it granted nothing
+        if (!watch_.ask.matches_ending(ended, c.mail) && !watch_.read.matches_ending(ended, c.mail)) return {};
+        // AN UNANSWERED CONTINUATION OR READ: the lease Workshop approved is still in its book,
+        // so it is ended there too. A request that ended before an answer holds no lease.
+        const std::string why = pane::no_answer(ended);
         if (watch_.state == Watch::State::requesting) watch_.ask.forget();
         watch_.read.forget();
-        watch_.last_failure = clock_text() + " not delivered: " + refused.reason;
-        return {true, stop(pane, c, "Watch ended: its request was not delivered (" + refused.reason + ")")};
+        watch_.last_failure = clock_text() + " not answered: " + why;
+        return {true, stop(pane, c, "Watch ended: its request was not answered (" + why + ")")};
     }
 
     // Evidence doors for loaded tests: read-only views of what this watch holds.

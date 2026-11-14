@@ -329,7 +329,14 @@ public:
     std::vector<std::string> ids;
 };
 
-/// Everything the runner said, held by whoever holds the Builder role.
+/// A case's knock on a holder of the Builder role: ask the runner for this recipe's build.
+struct OrderBuild {
+    std::string recipe;
+    ZEN_SHAPE(OrderBuild, 1, ZEN_FIELD(recipe));
+};
+
+/// Everything the runner said, held by whoever holds the Builder role, and the asker of every
+/// build it is told to order -- an order is an ask, answered to the exact weave that asked.
 ///
 /// It exists so a case can watch the RUNNER on its own, without a tool folding
 /// four observations into one picture first -- which is exactly what a case about
@@ -341,9 +348,17 @@ struct ForemanState {
 
 class Foreman : public loom::WeaveBase<Foreman, ForemanState,
                                        loom::Accept<BuildStarted, BuildOutput, BuildFinished,
-                                                    BuildNotStarted>,
-                                       loom::Emit<>> {
+                                                    BuildNotStarted, OrderBuild, loom::AskEnded>,
+                                       loom::Emit<RunBuild>> {
 public:
+    void on(const OrderBuild& o, loom::Mail& mail) {
+        asks.push_back(mail.ask_role(kBuildRunnerRole, RunBuild{o.recipe}, asks.size() + 1));
+    }
+    void on(const loom::AskEnded& e, loom::Mail& mail) {
+        if (mail.ask_ended()) {
+            endings.push_back(e);
+        }
+    }
     void on(const BuildStarted& s, loom::Mail&) {
         ++state_.seen;
         started.push_back(s);
@@ -352,12 +367,14 @@ public:
         ++state_.seen;
         output.push_back(o);
     }
-    void on(const BuildFinished& f, loom::Mail&) {
+    void on(const BuildFinished& f, loom::Mail& mail) {
         ++state_.seen;
+        answered += mail.answers_ask() ? 1 : 0;
         finished.push_back(f);
     }
-    void on(const BuildNotStarted& n, loom::Mail&) {
+    void on(const BuildNotStarted& n, loom::Mail& mail) {
         ++state_.seen;
+        answered += mail.answers_ask() ? 1 : 0;
         never.push_back(n);
     }
 
@@ -378,6 +395,9 @@ public:
     std::vector<BuildOutput> output;
     std::vector<BuildFinished> finished;
     std::vector<BuildNotStarted> never;
+    std::vector<loom::Ticket> asks;       ///< each order asked, in order
+    std::vector<loom::AskEnded> endings;  ///< Loom's word for each that ended unanswered
+    std::int64_t answered = 0;            ///< endings that came as Loom's answers
 };
 
 /// A READER OF WHAT ONE OPERATION SAID, asking the Builder role by the operation's number as a
@@ -426,10 +446,14 @@ struct Ledger {
 
 class Undertaker : public loom::WeaveBase<Undertaker, ForemanState,
                                           loom::Accept<BuildStarted, BuildOutput, BuildFinished,
-                                                       BuildNotStarted>,
-                                          loom::Emit<>> {
+                                                       BuildNotStarted, OrderBuild, loom::AskEnded>,
+                                          loom::Emit<RunBuild>> {
 public:
     explicit Undertaker(Ledger* into) : into_(into) {}
+    void on(const OrderBuild& o, loom::Mail& mail) {
+        (void)mail.ask_role(kBuildRunnerRole, RunBuild{o.recipe}, 1);
+    }
+    void on(const loom::AskEnded&, loom::Mail& mail) { into_->endings += mail.ask_ended() ? 1 : 0; }
     void on(const BuildStarted&, loom::Mail&) { ++into_->started; }
     void on(const BuildOutput&, loom::Mail&) {}
     void on(const BuildFinished&, loom::Mail&) { ++into_->endings; }
@@ -537,20 +561,28 @@ loom::WeaveId mount_plain(loom::Switchboard& bus, loom::Grant grant, Weave** out
 }
 
 /// THE RUNNER'S WHOLE REACH, written once so the suite and the host say the same
-/// thing: four observations to the Builder role, two sentences to the Timer, and
-/// its page's answer to whoever asks what a shape it accepts does. Nothing else.
+/// thing: two observations to the Builder role, an order's two answers to whoever asked, two
+/// sentences to the Timer, and its page's answer to whoever asks what a shape it accepts does.
+/// Nothing else.
 loom::Grant runner_grant() {
     loom::Grant g;
     g.allow_to_role(BuildStarted::zen_name, BuildStarted::zen_version, kBuilderRole);
     g.allow_to_role(BuildOutput::zen_name, BuildOutput::zen_version, kBuilderRole);
-    g.allow_to_role(BuildFinished::zen_name, BuildFinished::zen_version, kBuilderRole);
-    g.allow_to_role(BuildNotStarted::zen_name, BuildNotStarted::zen_version, kBuilderRole);
+    g.allow_to_any(BuildFinished::zen_name, BuildFinished::zen_version);
+    g.allow_to_any(BuildNotStarted::zen_name, BuildNotStarted::zen_version);
     g.allow_to_role(timer::EnsureTimer::zen_name, timer::EnsureTimer::zen_version,
                     timer::kTimerRole);
     g.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
                     timer::kTimerRole);
     g.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
                    zengine::manual::ShapeDocumentShown::zen_version);
+    return g;
+}
+
+/// What a holder of the Builder role in this suite may say: an order to the runner.
+loom::Grant foreman_grant() {
+    loom::Grant g;
+    g.allow_to_role(RunBuild::zen_name, RunBuild::zen_version, kBuildRunnerRole);
     return g;
 }
 
@@ -582,17 +614,18 @@ struct Bench {
     Foreman* foreman = nullptr;
     TimerClerk* clerk = nullptr;
     loom::WeaveId runner_id{};
+    loom::WeaveId foreman_id{};
 
     explicit Bench(std::vector<Recipe> recipes) : catalog(std::move(recipes)) {
         runner_id = mount_role<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
                                                    catalog, std::string(kCMake));
-        mount_role<Foreman>(bus, loom::Grant{}, kBuilderRole, &foreman);
+        foreman_id = mount_role<Foreman>(bus, foreman_grant(), kBuilderRole, &foreman);
         mount_role<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
     }
 
-    /// Order a build the way the tool does.
+    /// Order a build the way the tool does: an ask from the Builder's role.
     void order(const std::string& recipe) {
-        (void)bus.send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{recipe})));
+        (void)bus.send(foreman_id, loom::Message(loom::to_value(OrderBuild{recipe})));
         bus.drain_until_idle();
     }
 
@@ -1982,13 +2015,13 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
     // -- which stops this line being written the dangling way.
     const std::vector<Recipe> catalog{cmake_recipe("forever", "fixture-forever")};
     auto bus = std::make_unique<loom::Switchboard>();
-    mount_role<Undertaker>(*bus, loom::Grant{}, kBuilderRole,
-                             static_cast<Undertaker**>(nullptr), &ledger);
+    const loom::WeaveId undertaker = mount_role<Undertaker>(
+        *bus, foreman_grant(), kBuilderRole, static_cast<Undertaker**>(nullptr), &ledger);
     BuildRunnerWeave* runner = nullptr;
     mount_role<BuildRunnerWeave>(*bus, runner_grant(), kBuildRunnerRole, &runner, catalog,
                                    std::string(kCMake));
 
-    (void)bus->send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{"forever"})));
+    (void)bus->send(undertaker, loom::Message(loom::to_value(OrderBuild{"forever"})));
     bus->drain_until_idle();
     REQUIRE(runner->live() == 1);
     REQUIRE(ledger.started == 1);
@@ -2007,6 +2040,87 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
     // cancellation -- the operation stopped existing, and the only honest number
     // for facts published about that is zero.
     CHECK(ledger.endings == 0);
+}
+
+TEST_CASE("an order is an ask: the build's result is the runner's answer to it, and what it says "
+          "before is ordinary speech") {
+    Bench bench({cmake_recipe("quick", "fixture-quick"), cmake_recipe("slow", "fixture-slow2")});
+    bench.order("quick");
+    bench.order("nope");
+    // A REFUSAL IS THE ANSWER: nothing ran, and the asker was told so under its own ask.
+    REQUIRE(bench.foreman->never.size() == 1);
+    CHECK(bench.foreman->never[0].op == 0);
+    CHECK(bench.foreman->answered == 1);
+    bench.beat_until_idle();
+    REQUIRE(bench.foreman->finished.size() == 1);
+    CHECK(bench.foreman->answered == 2); // the result came as Loom's answer...
+    CHECK(bench.foreman->started.size() == 1); // ...after the start, said as a remark
+    CHECK(bench.foreman->endings.empty()); // and no order ended unanswered
+
+    // A ROOT'S ORDER HAS NOBODY TO OWE ITS RESULT TO, so nothing runs for it.
+    (void)bench.bus.send_to_role(kBuildRunnerRole,
+                                 loom::Message(loom::to_value(RunBuild{"slow"})));
+    bench.bus.drain_until_idle();
+    CHECK(bench.runner->ran() == 1);
+    CHECK(bench.runner->live() == 0);
+    CHECK(bench.runner->refused() == 2);
+}
+
+TEST_CASE("a build whose runner leaves mid-build is told its end once, in Loom's words: ENDED") {
+    Live live({cmake_recipe("forever", "fixture-forever")});
+    live.tell_tool(BuildRequested{"forever"});
+    REQUIRE(live.tool->known().outcome == outcome::kRunning);
+    REQUIRE(live.runner->live() == 1);
+    std::string reason;
+    SUBCASE("unloaded") {
+        std::unique_ptr<loom::Weave> gone = live.bus.unregister_weave(live.runner_id);
+        REQUIRE(gone != nullptr);
+        live.runner = nullptr;
+        gone.reset(); // its process ends with it
+        reason = "RespondentRemoved";
+    }
+    SUBCASE("killed") {
+        live.bus.kill(live.runner_id);
+        reason = "RespondentDied";
+    }
+    live.bus.drain_until_idle();
+    CHECK(live.tool->known().outcome == outcome::kEnded);
+    CHECK(live.tool->known().detail == "the build runner never answered: deferred, " + reason);
+    CHECK(std::string(name_of_outcome(live.tool->known().outcome)) == "ENDED");
+
+    // ONCE: the shape alone is anybody's speech, and a second word about the order moves nothing.
+    loom::AskEnded forged;
+    forged.role = kBuildRunnerRole;
+    forged.shape = RunBuild::zen_name;
+    forged.version = RunBuild::zen_version;
+    forged.stage.is = loom::AskNotDelivered::NoSuchTarget;
+    (void)live.bus.send(live.tool_id, loom::Message(loom::to_value(forged)));
+    live.bus.drain_until_idle();
+    CHECK(live.tool->known().outcome == outcome::kEnded);
+    CHECK(live.tool->known().detail.find(reason) != std::string::npos);
+}
+
+TEST_CASE("an order no runner holds the role for is told it never arrived, and nothing waits") {
+    Live live({cmake_recipe("greet", "fixture-quick")});
+    REQUIRE(live.bus.unregister_weave(live.runner_id) != nullptr);
+    live.runner = nullptr;
+    live.tell_tool(BuildRequested{"greet"});
+    CHECK(live.tool->known().outcome == outcome::kNotStarted);
+    CHECK(live.tool->known().detail == "the build runner never answered: queued, NoSuchTarget");
+    // ...and the next ask is taken, since nothing is left asked.
+    live.tell_tool(BuildRequested{"greet"});
+    CHECK(live.tool->known().builds == 2);
+}
+
+TEST_CASE("an answer only the runner could give settles the order: a remark of the same shape "
+          "moves nothing") {
+    Live live({cmake_recipe("forever", "fixture-forever")});
+    live.tell_tool(BuildRequested{"forever"});
+    REQUIRE(live.tool->known().outcome == outcome::kRunning);
+    const std::int64_t op = live.tool->known().op;
+    live.tell_tool(BuildFinished{op, "forever", 0}); // a root's say-so, not the runner's answer
+    live.tell_tool(BuildNotStarted{op, "forever", "", "said by nobody"});
+    CHECK(live.tool->known().outcome == outcome::kRunning);
 }
 
 namespace {
@@ -2265,17 +2379,18 @@ public:
     std::int64_t heard() const { return state_.heard; }
 };
 
-TEST_CASE("Workshop's durable log keeps Loom's defaults and three build facts whole, and nothing a "
-          "build says as it runs") {
+TEST_CASE("Workshop's durable log keeps Loom's defaults, three build facts and an ask's end "
+          "whole, and nothing a build says as it runs") {
     // THE POLICY AS A VALUE: Loom's default untouched, refusals only when asked, and the three
-    // build facts after it, each uncapped -- and never `BuildStatus` or `BuildOutput`.
+    // build facts and Loom's word for an ask's end after it, each uncapped -- and never
+    // `BuildStatus` or `BuildOutput`.
     const loom::LoggerSelection base = loom::default_selection();
     for (const bool asked : {false, true}) {
         const loom::LoggerSelection s = zengine::workshop::durable_log_selection(asked);
         CHECK(s.log_refusals == asked);
         CHECK(s.log_handler_failures == base.log_handler_failures);
         CHECK(s.log_lifecycle == base.log_lifecycle);
-        REQUIRE(s.shapes.size() == base.shapes.size() + 3);
+        REQUIRE(s.shapes.size() == base.shapes.size() + 4);
         std::vector<std::string> added;
         for (std::size_t i = 0; i < s.shapes.size(); ++i) {
             if (i < base.shapes.size()) {
@@ -2287,7 +2402,8 @@ TEST_CASE("Workshop's durable log keeps Loom's defaults and three build facts wh
             added.push_back(s.shapes[i].shape);
         }
         CHECK(added == std::vector<std::string>{BuildFinished::zen_name, BuildNotStarted::zen_name,
-                                                ArtifactRealized::zen_name});
+                                                ArtifactRealized::zen_name,
+                                                loom::AskEnded::zen_name});
         CHECK(s.rule_for(BuildStatus::zen_name) == nullptr);
         CHECK(s.rule_for(BuildOutput::zen_name) == nullptr);
     }

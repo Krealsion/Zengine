@@ -93,8 +93,13 @@ public:
     bool busy = false;
     void on(const bld::PromoteArtifact& said, loom::Mail&) { promotes.push_back(said.artifact); }
     void on(const bld::RevertArtifact& said, loom::Mail&) { reverts.push_back(said.artifact); }
-    /// A READER'S PAGE, HEARD AND NOT ANSWERED: the page waits on a tool that holds no output.
-    void on(const bld::BuildOutputRequested&, loom::Mail&) { ++pages_asked; }
+    /// A READER'S PAGE, HEARD AND NOT YET ANSWERED: its answer kept, so the page waits on a tool
+    /// that holds no output, as on a Builder still reading.
+    void on(const bld::BuildOutputRequested&, loom::Mail& mail) {
+        ++pages_asked;
+        pages_owed.push_back(mail.defer_answer());
+    }
+    std::vector<loom::DeferredAnswer> pages_owed;
     std::int64_t pages_asked = 0;
 
     /// SAY WHAT YOU ARE, unasked -- how the real tool republishes after a build settles.

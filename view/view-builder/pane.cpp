@@ -574,20 +574,20 @@ public:
                                   : "Not started: " + answer.reason;
         show(mail);
     }
-    /// LOOM'S WORD THAT EXACTLY ONE OF THE BUILDER'S ASKS WAS REFUSED BEFORE ANY HANDLER RAN,
-    /// matched by `AskFacet`: a save Workshop never heard, or a request of the view host. The
-    /// project's and a carry's refusals say nothing.
-    void on_refused(const ViewBuilderAsk& asked, const loom::DispatchRefused& refused, loom::Mail& mail) {
+    /// LOOM'S WORD THAT EXACTLY ONE OF THE BUILDER'S ASKS ENDED WITH NO ANSWER, matched by
+    /// `AskFacet`, `why` saying how: a save Workshop never answered, a start, or a request of the
+    /// view host. The project's and a carry's ends say nothing.
+    void on_refused(const ViewBuilderAsk& asked, const std::string& why, loom::Mail& mail) {
         if (asked.kind == ViewBuilderAsk::Kind::kSave)
-            model_.notice = "Not saved: Workshop could not be asked to allow it (" + refused.reason + ")";
+            model_.notice = "Not saved: " + why;
         else if (asked.kind == ViewBuilderAsk::Kind::kExport)
-            model_.notice = "Not exported: Workshop could not be asked to allow it (" + refused.reason + ")";
+            model_.notice = "Not exported: " + why;
         else if (asked.kind == ViewBuilderAsk::Kind::kStart)
-            model_.notice = "Not started: Workshop could not be asked to allow it (" + refused.reason + ")";
+            model_.notice = "Not started: " + why;
         else if (asked.kind == ViewBuilderAsk::Kind::kLaunch)
-            model_.notice = "Not started: the launcher could not be asked (" + refused.reason + ")";
+            model_.notice = "Not started: " + why;
         else if (asked.kind == ViewBuilderAsk::Kind::kHost)
-            model_.notice = asked.action + " was not delivered: " + refused.reason;
+            model_.notice = asked.action + " was not done: " + why;
         else
             return;
         show(mail);

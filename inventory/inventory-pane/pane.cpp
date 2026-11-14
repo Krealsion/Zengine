@@ -50,7 +50,7 @@ class InventoryPane : public zengine::With<Role>::Weave<InventoryPane, Inventory
         inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryChanged,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
-        loom::Ack, loom::Refused, loom::DispatchRefused>,
+        loom::Ack, loom::Refused, loom::DispatchRefused, loom::AskEnded>,
     loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v4::PaneActions,
         zengine::pane::PaneMenuRequested, zengine::pane::PaneEscapeUnspent,
         zengine::pane::PanePassRequested, zengine::pane::PaneKeyboardRequested, zengine::pane::PaneOperationRequested,
@@ -412,17 +412,20 @@ public:
         else if(client_.hear(a,m)) { notice_=client_.notice; settle_pickup(); }
         draw(m);
     }
-    void on(const loom::DispatchRefused& a, loom::Mail& m) {
-        if(!m.dispatch_refused()) return;
-        const auto matches=[&](loom::Ticket t,const char* role,const std::string& shape,std::uint32_t version=1) {
-            return t.valid() && a.refused_attempt().seq==t.seq && a.role==role && a.shape==shape && a.version==version && a.target.empty();
-        };
+    /// A command's own send refused: the one plain send this pane hears.
+    void on(const loom::DispatchRefused& a, loom::Mail& m) { if(command_.hear(a,m)) { notice_=command_.notice; draw(m); } }
+    /// AN ASK OF THIS PANE'S ENDED WITH NO ANSWER, by its exact attempt: what waited on it is said.
+    void on(const loom::AskEnded& a, loom::Mail& m) {
+        if(!m.ask_ended()) return;
+        const auto matches=[&](loom::Ticket t) { return t.valid() && a.ended_attempt().seq==t.seq; };
+        const std::string why=zengine::pane::no_answer(a);
         if(toolbox_.hear(a,m,asks_)) notice_=toolbox_.notice;
-        else if(matches(list_,inv::kInventoryRole,inv::v2::InventoryList::zen_name,2)) { list_={}; notice_="Inventory list unavailable: "+a.reason; }
-        else if(matches(carry_,zengine::pane::pane_menu::kWorkshopRole,carry_shape_,carry_version_)) { carry_={}; notice_="Pickup refused: "+a.reason; }
-        else if(read_ && matches(read_->ticket,inv::kInventoryRole,inv::InventoryRead::zen_name)) { read_.reset(); notice_="Entry read refused: "+a.reason; }
-        else if(edit_ && matches(edit_->ticket,zengine::pane::pane_menu::kWorkshopRole,zengine::pane::PaneOperationRequested::zen_name)) { edit_.reset(); notice_="View change refused: "+a.reason; }
-        else if(registration_ && matches(registration_->ticket,ws::kDesktopRole,ws::PaneShortcuts::zen_name)) finish_registration(false,a.reason,m);
+        else if(matches(list_)) { list_={}; notice_="Inventory list unavailable: "+why; }
+        else if(matches(carry_)) { carry_={}; notice_="Pickup refused: "+why; }
+        else if(read_ && matches(read_->ticket)) { read_.reset(); notice_="Entry read refused: "+why; }
+        else if(edit_ && matches(edit_->ticket)) { edit_.reset(); notice_="View change refused: "+why; }
+        else if(registration_ && matches(registration_->ticket)) finish_registration(false,why,m);
+        else if(matches(launch_)) { launch_={}; launch_ask_=0; notice_="View created but not opened: "+why; }
         else if(command_.hear(a,m)) notice_=command_.notice;
         else if(client_.hear(a,m)) { notice_=client_.notice; settle_pickup(); }
         draw(m);
@@ -479,7 +482,7 @@ public:
                 auto named=target_; named.revision=e.revision;
                 const auto encoded=inv::encode_pair(loom::to_value(e.reference),{loom::to_value(named)});
                 carry_shape_=zengine::pane::PaneCarryRequested::zen_name;
-                carry_=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                carry_=m.as_role(own_role).ask_role(zengine::pane::pane_menu::kWorkshopRole,
                     zengine::pane::PaneCarryRequested{current_,label,loom::Bytes(encoded.begin(),encoded.end())},
                     client_.gesture);
             } else if(mode_==Mode::drag) {
@@ -489,11 +492,11 @@ public:
                 auto target=target_; target.revision=e.revision;
                 transfers_[token]={target,current_,layout_revision_,*from};
                 carry_shape_=zengine::pane::v2::PaneValueCarryRequested::zen_name; carry_version_=2;
-                carry_=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                carry_=m.as_role(own_role).ask_role(zengine::pane::pane_menu::kWorkshopRole,
                     zengine::pane::v2::PaneValueCarryRequested{current_,label,e.pair,true,token},client_.gesture);
             } else {
                 carry_shape_=zengine::pane::PaneValueCarryRequested::zen_name;
-                carry_=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+                carry_=m.as_role(own_role).ask_role(zengine::pane::pane_menu::kWorkshopRole,
                     zengine::pane::PaneValueCarryRequested{current_,label,e.pair,false},client_.gesture);
             }
             notice_=carry_.valid()?"Entry acquired; finish the gesture to place it":"Pickup could not be queued";
@@ -766,7 +769,7 @@ private:
         if(mode==Mode::run && !binding) {notice_="Configure an explicit command target first"; draw(m); return;}
         if(mode==Mode::duplicate && binding && state_.layout.bindings.size()>=slots::kMaxConfiguredHotkeys) {notice_="No room to retain the duplicate's hotkey"; draw(m); return;}
         const auto correlation=++asks_;
-        auto ticket=m.send_to_role(inv::kInventoryRole,inv::InventoryRead{target_.reference},correlation);
+        auto ticket=m.ask_role(inv::kInventoryRole,inv::InventoryRead{target_.reference},correlation);
         if(!ticket.valid()) {notice_="Entry read could not be queued"; draw(m); return;}
         read_=Read{target_,current_,mode,m.correlation(),correlation,ticket,binding?std::optional(*binding):std::nullopt,
                    {target_.reference.owner,listing_.member_of(target_.reference)}};
@@ -785,7 +788,7 @@ private:
     }
     void authorize(const slots::InventoryViewEdit& op,loom::Mail& m) {
         const auto correlation=++asks_;
-        auto ticket=m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,
+        auto ticket=m.as_role(own_role).ask_role(zengine::pane::pane_menu::kWorkshopRole,
                                                      zengine::pane::PaneOperationRequested{
             current_,own_role,slots::InventoryViewEdit::zen_name,1,static_cast<std::int64_t>(m.correlation())},correlation);
         if(ticket.valid()) {edit_=Edit{op,correlation,ticket}; notice_="Checking authority for this view change";}
@@ -818,7 +821,7 @@ private:
         }
         declare_all(m,&candidate);
         const auto correlation=++asks_;
-        const auto ticket=m.as_role(own_role).send_to_role(ws::kDesktopRole,ws::PaneShortcuts{slots::shortcuts(candidate)},correlation);
+        const auto ticket=m.as_role(own_role).ask_role(ws::kDesktopRole,ws::PaneShortcuts{slots::shortcuts(candidate)},correlation);
         registration_=Registration{std::move(candidate),std::move(due),correlation,ticket,std::move(launch)};
         notice_="Waiting for Desktop to admit the active shortcuts";
         if(!ticket.valid()) finish_registration(false,"Desktop registration could not be queued",m);
@@ -835,7 +838,7 @@ private:
     }
     void open(const std::string& id,loom::Mail& m) {
         if(id.empty()) return;
-        launch_ask_=++asks_; m.as_role(own_role).send_to_role(zengine::pane::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{own_role,id},launch_ask_);
+        launch_ask_=++asks_; launch_=m.as_role(own_role).ask_role(zengine::pane::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{own_role,id},launch_ask_);
     }
 public:
     /// EVERY PANE OFFERED AND DECLARED, the listing asked for and the hotkeys proposed: at each
@@ -911,7 +914,7 @@ private:
     }
     void refresh(loom::Mail& m) {
         if(list_.valid()) {refresh_again_=true; return;}
-        list_ask_=++asks_; list_=m.send_to_role(inv::kInventoryRole,inv::v2::InventoryList{},list_ask_);
+        list_ask_=++asks_; list_=m.ask_role(inv::kInventoryRole,inv::v2::InventoryList{},list_ask_);
         if(!list_.valid()) notice_="Inventory list request could not be queued";
     }
     /// Main Inventory's folder view. A collection without folders shows none of it.
@@ -1026,6 +1029,7 @@ private:
     std::optional<Registration> registration_;
     loom::Ticket carry_,list_;
     std::uint64_t asks_=0,list_ask_=0,launch_ask_=0,layout_revision_=0;
+    loom::Ticket launch_; ///< the launch asked of Workshop, until its answer or its end
     std::string current_=pane,drop_into_=pane,carry_shape_,notice_,duplicate_label_,organizing_,removed_,nonce_=nonce();
     std::string pressed_folder_; // the folder row the last press selected, until any other input
     std::string toolbox_path_="inventory.toolbox";

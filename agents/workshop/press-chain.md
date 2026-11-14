@@ -172,7 +172,7 @@ omitted tab has no span and cannot be pressed" "no press outside the painted run
 `tests/test_workshop_desk.cpp` "a press Workshop holds in its own area of the window ends when the
 window says it ended the hold, and not before: an area Workshop places while it holds is the
 window's to judge"
-`workshop/weave_code.cpp` on(DispatchRefused)
+`workshop/weave_code.cpp` on(DispatchRefused) on(AskEnded)
 `workshop/weave_pointer.cpp` pointer_button
 `workshop/weave_session.cpp` apply_setup
 `workshop/weave_arrange.cpp` enter_arrange_pane

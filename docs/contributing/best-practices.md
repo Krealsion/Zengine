@@ -272,7 +272,7 @@ Its law, pages and suites: [`info/AGENTS.md`](../../info/AGENTS.md).
 - **Only an inspector's own ask names its subject**; selection, keys and Escape never move it.
   [WL-INFO-14](../../agents/workshop/info-body.md#wl-info-14--the-subject-is-a-pane-info-names-and-nothing-else-moves-it)
 - **An ask Loom says never arrived is released.**
-  [WL-INFO-13](../../agents/workshop/info-body.md#wl-info-13--an-ask-loom-says-never-arrived-is-released-and-silence-still-waits)
+  [WL-INFO-13](../../agents/workshop/info-body.md#wl-info-13--an-ask-loom-says-ended-is-released-and-nothing-waits-for-ever)
 - **A slow source in a test defers its answer**; it never forges a correlation.
   [Delay a reply](testing-workshop-panes.md#delay-a-reply-without-changing-what-a-reply-means)
 

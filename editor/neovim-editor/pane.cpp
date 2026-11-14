@@ -135,7 +135,7 @@ using NeovimEditorBase = zengine::With<zengine::pane::PaneManualFacet<
     loom::Accept<loom::Activated, PaneCatalogRequested, PaneKey, PaneTextInput, PaneActionRequested, PaneQuitRequested,
                  OpenSourceRequested, ws::v3::PrepareSourceRequested,
                  ManagedOpenProgress, ManagedOpenSettled,
-                 SourceOpened, loom::DispatchRefused, ProjectRoot, graphics::ClipboardCopy,
+                 SourceOpened, loom::AskEnded, ProjectRoot, graphics::ClipboardCopy,
                  graphics::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                  EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                  EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
@@ -511,7 +511,7 @@ public:
 
     void on(const OpenSourceRequested& asked, loom::Mail& mail);
     void on(const SourceOpened& said, loom::Mail& mail);
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail);
+    void on(const loom::AskEnded& ended, loom::Mail& mail);
     void on(const ManagedOpenProgress&, loom::Mail&);
     void on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail);
     void prepare(std::int64_t op, const std::string& asked_path, std::int64_t rows,
@@ -871,9 +871,9 @@ private:
         for (const std::uint32_t id : seen.paste_requests) {
             const std::uint64_t correlation = ++asked_;
             const loom::Ticket asked = mail.as_role(nve::kEditorRole)
-                                           .send_to_role(window_.clipboard_role(),
-                                                         graphics::ClipboardTextRequested{},
-                                                         correlation);
+                                           .ask_role(window_.clipboard_role(),
+                                                     graphics::ClipboardTextRequested{},
+                                                     correlation);
             if (asked.valid()) {
                 pastes_.emplace(correlation, id);
             } else {
@@ -989,7 +989,7 @@ private:
     void ask_project_root(loom::Mail& mail) {
         root_asked_ = true;
         root_pending_ = ++asked_;
-        (void)mail.as_role(nve::kEditorRole).send_to_role(ws::kProjectRole, ProjectRootRequested{}, root_pending_);
+        (void)mail.as_role(nve::kEditorRole).ask_role(ws::kProjectRole, ProjectRootRequested{}, root_pending_);
     }
 
     void notice(std::string text, bool bad) {

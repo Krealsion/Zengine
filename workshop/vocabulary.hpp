@@ -16,15 +16,6 @@ struct WorkshopState {
     ZEN_SHAPE(WorkshopState, 1);
 };
 
-/// The host's fence behind a menu it withdrew, authored as its role. Its second hop comes round
-/// behind every refusal the menu's earlier sentences produced, so the record of who is owed an
-/// answer is forgotten only then. It orders the bus; it proves no answer.
-struct WithdrawalFence {
-    std::int64_t menu = 0; ///< the withdrawn menu's number
-    std::int64_t hop = 0;  ///< 1 on its way round the first time, 2 the second
-    ZEN_SHAPE(WithdrawalFence, 1, ZEN_FIELD(menu), ZEN_FIELD(hop));
-};
-
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_VOCABULARY_HPP

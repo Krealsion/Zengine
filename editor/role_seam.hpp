@@ -205,8 +205,8 @@ inline void relay_open_source(const ws::OpenSourceRequested& asked, loom::Mail& 
     }
     const std::uint64_t correlation = ++asked_seq;
     const loom::Ticket attempt =
-        mail.as_role(role).send_to_role(ws::kOpeningRole, ws::OpenSourceRequested{asked.path},
-                                          correlation);
+        mail.as_role(role).ask_role(ws::kOpeningRole, ws::OpenSourceRequested{asked.path},
+                                      correlation);
     if (!attempt.valid()) {
         (void)mail.answer(ws::SourceOpened{
             false, "nothing was queued: the Editor could not ask the opening role to show " +
@@ -239,28 +239,25 @@ inline void settle_relay(const ws::SourceOpened& said, loom::Mail& mail,
     }
 }
 
-/// THE BUS'S WORD THAT AN ASK NEVER ARRIVED, matched by its exact attempt: a relay's requester is
-/// told the opening role could not be reached; a pickup's or a dropped location's failure is
-/// said through `notice(text, bad)` and its record released. Delivered silence stays pending.
-/// True when the pane has a notice to say.
+/// LOOM'S WORD THAT AN ASK ENDED WITH NO ANSWER, matched by its exact attempt: a relay's
+/// requester is told the opening role never answered; a pickup's or a dropped location's failure
+/// is said through `notice(text, bad)` and its record released. Each ask ends once, so nothing
+/// stays pending. True when the pane has a notice to say.
 template <class SnapshotT, class NoticeFn>
-bool settle_dispatch_refused(const loom::DispatchRefused& refused, loom::Mail& mail,
-                             std::vector<Relay>& relays, Pickup& pickup,
-                             LocateOf<SnapshotT>& locate, NoticeFn&& notice) {
-    if (!mail.dispatch_refused()) {
+bool settle_ask_ended(const loom::AskEnded& ended, loom::Mail& mail, std::vector<Relay>& relays,
+                      Pickup& pickup, LocateOf<SnapshotT>& locate, NoticeFn&& notice) {
+    if (!mail.ask_ended()) {
         return false;
     }
-    const loom::Ticket attempt = refused.refused_attempt();
+    const loom::Ticket attempt = ended.ended_attempt();
     if (!attempt.valid()) {
         return false;
     }
+    const std::string why = zengine::pane::no_answer(ended);
     for (auto it = relays.begin(); it != relays.end(); ++it) {
         if (it->attempt.seq == attempt.seq) {
-            (void)loom::answer_deferred(
-                it->answer, mail,
-                ws::SourceOpened{false, std::string(ws::kOpeningRole) + " could not be reached (" +
-                                            refused.reason + ") -- " + it->path +
-                                            " was not opened"});
+            (void)loom::answer_deferred(it->answer, mail,
+                                        ws::SourceOpened{false, it->path + " was not opened -- " + why});
             relays.erase(it);
             return false;
         }
@@ -268,15 +265,14 @@ bool settle_dispatch_refused(const loom::DispatchRefused& refused, loom::Mail& m
     if (pickup.stage != Pickup::Stage::Idle && pickup.ticket.valid() &&
         attempt.seq == pickup.ticket.seq) {
         pickup = Pickup{};
-        notice("nothing was carried -- Workshop could not be asked (" + refused.reason + ")", true);
+        notice("nothing was carried -- " + why, true);
         return true;
     }
     if (locate.stage != LocateOf<SnapshotT>::Stage::Idle && locate.ticket.valid() &&
         attempt.seq == locate.ticket.seq) {
         const std::string path = locate.loc.path;
         locate = LocateOf<SnapshotT>{};
-        notice("nothing was opened -- " + path + " could not be asked for (" + refused.reason + ")",
-               true);
+        notice("nothing was opened -- " + path + ": " + why, true);
         return true;
     }
     return false;
@@ -307,7 +303,7 @@ void begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture, const 
     pickup.bytes.assign(pair.bytes.begin(), pair.bytes.end());
     pickup.label = label.substr(0, pane::kMaxCarryLabelBytes);
     pickup.what = std::move(what);
-    pickup.ticket = mail.as_role(role).send_to_role(
+    pickup.ticket = mail.as_role(role).ask_role(
         kWorkshopRole,
         pane::PaneOperationRequested{pane, kWorkshopRole, pane::PaneValueCarryRequested::zen_name,
                                    pane::PaneValueCarryRequested::zen_version,
@@ -344,7 +340,7 @@ void ask_location(const st::Material& m, loom::Mail& mail, const char* role, con
     locate.loc.path = zengine::persist::resolved_against(std::string(), m.location.path);
     locate.ctx = m.location_context;
     locate.ask = ++asked_seq;
-    locate.ticket = mail.as_role(role).send_to_role(
+    locate.ticket = mail.as_role(role).ask_role(
         kWorkshopRole,
         pane::PaneOperationRequested{pane, ws::kOpeningRole, ws::OpenSourceRequested::zen_name,
                                    ws::OpenSourceRequested::zen_version,
@@ -376,7 +372,7 @@ bool answer_operation(const pane::PaneOperationAnswered& answer, loom::Mail& mai
             return true;
         }
         pickup.stage = Pickup::Stage::Carry;
-        pickup.ticket = mail.as_role(role).send_to_role(
+        pickup.ticket = mail.as_role(role).ask_role(
             kWorkshopRole, pane::PaneValueCarryRequested{pane, pickup.label, pickup.bytes, pickup.drag},
             pickup.gesture);
         if (!pickup.ticket.valid()) {
@@ -397,7 +393,7 @@ bool answer_operation(const pane::PaneOperationAnswered& answer, loom::Mail& mai
         locate.stage = LocateOf<SnapshotT>::Stage::Opening;
         stamp(locate);
         locate.ask = ++asked_seq;
-        locate.ticket = mail.as_role(role).send_to_role(
+        locate.ticket = mail.as_role(role).ask_role(
             ws::kOpeningRole, ws::OpenSourceRequested{locate.loc.path}, locate.ask);
         if (!locate.ticket.valid()) {
             const std::string path = locate.loc.path;

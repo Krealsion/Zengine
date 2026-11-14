@@ -479,9 +479,9 @@ std::uint64_t WorkshopWeave::ask_area(loom::Mail& mail, const std::string& area)
                                    ? taken->second.shown.version
                                    : 0;
     const loom::Ticket sent = mail.as_role(kWorkshopProvider)
-                                  .send_to_role(role, graphics::AreaShowAsked{area, since},
-                                                opened.correlation);
-    if (!sent.valid()) {
+                                  .ask_role(role, graphics::AreaShowAsked{area, since},
+                                            opened.correlation);
+    if (!sent.valid() || !area_asks_.bind_attempt(opened.id, sent.seq)) {
         (void)area_asks_.forget(opened.id);
         return 0;
     }

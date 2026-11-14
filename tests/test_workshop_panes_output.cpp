@@ -52,9 +52,9 @@ const std::string kDiagnostic =
     "pane.cpp(416): error C2065: 'oops': undeclared identifier\r\n"
     "ninja: build stopped: subcommand failed.\n";
 
-/// THE RUNNER'S SEAT: it takes the tool's orders and, when a case says so, says a build's
-/// observations to the Builder role as the runner does -- the start, the bytes in pieces, the
-/// ending.
+/// THE RUNNER'S SEAT: it takes the tool's orders, keeping each one's answer, and, when a case
+/// says so, says a build's observations to the Builder role as the runner does -- the start, the
+/// bytes in pieces -- and answers the order with its ending.
 struct RunnerSeatState {
     std::int64_t orders = 0;
     ZEN_SHAPE(RunnerSeatState, 1, ZEN_FIELD(orders));
@@ -67,9 +67,11 @@ class RunnerSeat : public loom::WeaveBase<RunnerSeat, RunnerSeatState,
 public:
     std::vector<std::string> orders;
     std::function<void(loom::Mail&)> next;
-    void on(const bld::RunBuild& order, loom::Mail&) {
+    loom::DeferredAnswer owed; ///< the last order's answer
+    void on(const bld::RunBuild& order, loom::Mail& mail) {
         ++state_.orders;
         orders.push_back(order.recipe);
+        owed = mail.defer_answer();
     }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -150,10 +152,10 @@ struct OutputRig {
         loom::Grant say;
         for (const auto& shape :
              {std::pair{bld::BuildStarted::zen_name, bld::BuildStarted::zen_version},
-              std::pair{bld::BuildOutput::zen_name, bld::BuildOutput::zen_version},
-              std::pair{bld::BuildFinished::zen_name, bld::BuildFinished::zen_version}}) {
+              std::pair{bld::BuildOutput::zen_name, bld::BuildOutput::zen_version}}) {
             say.allow_to_role(shape.first, shape.second, bld::kBuilderRole);
         }
+        say.allow_to_any(bld::BuildFinished::zen_name, bld::BuildFinished::zen_version);
         runner_id = r.bus.register_weave(std::move(seat), std::move(say),
                                          std::string(bld::kBuildRunnerRole));
         runner->zen_set_self(runner_id);
@@ -243,14 +245,14 @@ struct OutputRig {
     /// bytes, and exited with `status`.
     void runner_says(std::int64_t op, const std::string& recipe, const std::string& bytes,
                      std::int64_t status, std::size_t piece = 700) {
-        runner->next = [op, recipe, bytes, status, piece](loom::Mail& mail) {
+        runner->next = [seat = runner, op, recipe, bytes, status, piece](loom::Mail& mail) {
             (void)mail.send_to_role(bld::kBuilderRole,
                                     bld::BuildStarted{op, recipe, "cmake --build /zen/build"});
             for (std::size_t at = 0; at < bytes.size(); at += piece) {
                 (void)mail.send_to_role(bld::kBuilderRole,
                                         bld::BuildOutput{op, recipe, bytes.substr(at, piece)});
             }
-            (void)mail.send_to_role(bld::kBuilderRole, bld::BuildFinished{op, recipe, status});
+            (void)loom::answer_deferred(seat->owed, mail, bld::BuildFinished{op, recipe, status});
         };
         (void)r.bus.send(runner_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
@@ -423,7 +425,7 @@ TEST_CASE("a page refused at dispatch is said in the reader, which stops saying 
     o.r.bus.kill(o.tool_id);
     o.letter(input::scan::kL, "l");
     const std::string text = o.text();
-    CHECK_MESSAGE(text.find("output #1: the page was not read -- the ask could not reach "
+    CHECK_MESSAGE(text.find("output #1: the page was not read -- it could not reach "
                             "zengine.builder (TargetUnavailable)") != std::string::npos,
                   text);
     CHECK_MESSAGE(text.find("output #1 -- no page read") != std::string::npos, text);

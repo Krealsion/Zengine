@@ -104,8 +104,8 @@ struct PresentedMenu {
 };
 
 /// A menu the host took off the screen whose requester may still be owed an answer: kept until
-/// Loom has had its say about the menu's sentences, and answered by this host, unchosen, once, if
-/// one of them was refused. Forgotten when its fence (`WithdrawalFence`) has come round twice.
+/// the withdrawal, an ask of the presenter's role, is answered or ends, and answered by this host,
+/// unchosen, once, when no presenter could answer it.
 // WL-CTX-10 -- agents/workshop/pane-menu.md
 struct WithdrawnMenu {
     std::int64_t menu = 0;           ///< the grant's number

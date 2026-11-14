@@ -45,8 +45,8 @@ running project.
   to the running project; `artifact`, which of the recipe's products, by its stem (`tally`, or
   `tally.wasm` for its boxed one), empty for the recipe's first.
 - **Answers:** publishes `BuildAsked`, `taken` with the number the ask became, or a `refusal`; then
-  `BuildStatus` as the build moves: `asked`, `running`, then `succeeded`, `FAILED`, `NO ARTIFACT` or
-  `did not start`. A success's detail is `built tally`, or `already up to date: tally`. With
+  `BuildStatus` as the build moves: `asked`, `running`, then `succeeded`, `FAILED`, `NO ARTIFACT`,
+  `did not start` or `ENDED`. A success's detail is `built tally`, or `already up to date: tally`. With
   `realize`, a success is offered to the project (`OfferArtifact`) and `realization` reads
   `offered`; the owner's answer then sets `realized` or `REFUSED`, with its words: the row the
   project waits on is loaded, a running one is reloaded in place, and an artifact its plan does not
@@ -57,7 +57,8 @@ running project.
   no recipe called `oven` (it holds 3) `` or `` recipe `tally` makes `tally`, not `tally.wasm` ``,
   published with the outcome `unknown recipe` when no build runs; `a build was already asked for
   and has not started yet`; `a build is already running: operation #4`. A build that cannot start
-  ends `did not start`, its reason in `BuildStatus.detail`.
+  ends `did not start`, its reason in `BuildStatus.detail`. A runner unloaded mid-build ends it
+  `ENDED`: `the build runner never answered: deferred, RespondentRemoved`.
 - **Example:** from a weave the project loads, holding its role,
   `mail.as_role("example.tally").send_to_role("zengine.builder", zengine::builder::BuildRequested{"tally", true});`,
   as the pane's [`builder.build`](zengine.builder-pane.md#builderbuild) does.
@@ -113,13 +114,15 @@ the rest.
 
 ### `BuildFinished`
 
-`BuildFinished` v2, from `zengine.build-runner`, the runner: the build's process ended, with its exit status, after its
-output ended.
+`BuildFinished` v2, from `zengine.build-runner`, the runner, the answer to the Builder's order: the build's process ended,
+with its exit status, after its output ended.
 
 ### `BuildNotStarted`
 
-`BuildNotStarted` v2, from `zengine.build-runner`, the runner: no process ran, and why (no CMake, no build tree, no source
-file).
+`BuildNotStarted` v2, from `zengine.build-runner`, the runner, the answer to the Builder's order: no process ran, and why
+(no CMake, no build tree, no source file). Either counts only as Loom's answer to the order the
+Builder waits on; Loom's `zen.AskEnded` about that order ends the build `ENDED`, or `did not start`
+when it never arrived.
 
 ### `ArtifactRealized`
 

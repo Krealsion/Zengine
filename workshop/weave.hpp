@@ -509,9 +509,9 @@ class WorkshopWeave
                                           zengine::pane::MenuClosed,
                                           zengine::pane::MenuReturned,
                                           zengine::pane::PresenterReady,
-                                          // ...and the host's own fence behind a menu it
-                                          // withdrew, whose requester may still be owed
-                                          zengine::workshop::WithdrawalFence,
+                                          // ...and Loom's word that an ask of this desk's
+                                          // ended with no answer
+                                          loom::AskEnded,
                                           // a graphics window showing Workshop's own area, and
                                           // the directory its areas are placed with
                                           zengine::graphics::GraphicsReady,
@@ -588,7 +588,6 @@ class WorkshopWeave
                                         zengine::pane::MenuGranted,
                                         zengine::pane::MenuInput,
                                         zengine::pane::MenuWithdrawn,
-                                        zengine::workshop::WithdrawalFence,
                                         zengine::graphics::AreaPlaced,
                                         zengine::graphics::PaletteChosen,
                                         zengine::theme::ThemesPlaced,
@@ -888,9 +887,12 @@ public:
     /// re-resolved before the Builder is told anything.
     void on(const SourceOpened& said, loom::Mail& mail);
 
-    /// LOOM'S WORD THAT ONE OF THIS DESK'S SENDS WAS REFUSED BEFORE ANY HANDLER RAN. Only the
-    /// Edit Code ask's exact attempt settles anything; every other refused send is silence.
+    /// LOOM'S WORD THAT ONE OF THIS DESK'S PLAIN SENDS WAS REFUSED BEFORE ANY HANDLER RAN: a drop,
+    /// or a menu's grant or act the presenter's role could not take.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail);
+    /// LOOM'S WORD THAT ONE OF THIS DESK'S ASKS ENDED WITH NO ANSWER: the Edit Code open, or a
+    /// withdrawal no presenter answered, whose requester this host then answers.
+    void on(const loom::AskEnded& ended, loom::Mail& mail);
 
     /// A button-1 PRESS WHILE THE SURFACE IS OPEN.
     void context_press(const PointedAt& at, std::int64_t space, std::int64_t x,
@@ -1219,9 +1221,6 @@ public:
     /// A HOLDER OF THE PRESENTER'S ROLE ARRIVED: it carries the open menu (a handoff across a
     /// reload), or it does not and the menu ends, answered by this host.
     void on(const PresenterReady& ready, loom::Mail& mail);
-    /// THE HOST'S OWN FENCE BEHIND A WITHDRAWAL, COMING ROUND: the first hop sends it round once
-    /// more; the second forgets the withdrawn menu's record, with no refusal of it left to hear.
-    void on(const WithdrawalFence& fence, loom::Mail& mail);
     /// WOULD THE PANE SEAT, AND WITH WHAT ROOM FOR ITS AREA? Judged on a copy; nothing moves.
     void on(const PresentationTrialRequested& asked, loom::Mail& mail);
     /// ADMIT THE TRIAL'S SEAT AND OFFER THE PRESENTATION for the exact operation.
@@ -1646,9 +1645,10 @@ private:
     /// through the host's own seam, a group by opening the host's menu at that group. An id that
     /// names none of the catalog's pane rows spends nothing.
     void spend_standard_row(const PresentedMenu& ended, const std::string& id, loom::Mail& mail);
-    /// END THE PRESENTED MENU BECAUSE CUSTODY MOVED, telling the presenter why; the presenter
-    /// answers its requester. Who asked is kept until Loom has had its say (`withdrawn_`); a
-    /// withdrawal that queues nothing is answered here at once. Nothing when no menu is open.
+    /// END THE PRESENTED MENU BECAUSE CUSTODY MOVED, asking the presenter to end it; the presenter
+    /// answers its requester, then this ask. Who asked is kept until the ask is answered or ends
+    /// (`withdrawn_`); a withdrawal that queues nothing is answered here at once. Nothing when no
+    /// menu is open.
     void withdraw_menu(const std::string& why, loom::Mail& mail);
     /// END THE PRESENTED MENU WHEN NO PRESENTER CAN ANSWER IT -- it left, or the holder that
     /// replaced it does not carry the menu -- and answer the requester unchosen, as this role.
@@ -1657,7 +1657,7 @@ private:
     /// presenter could not be told. The menu is already off the screen, so nothing is repainted.
     void answer_withdrawn(const WithdrawnMenu& menu, const std::string& why, loom::Mail& mail);
     /// STOP KEEPING WHO ASKED FOR A WITHDRAWN MENU, if this host still is: nothing more is owed
-    /// about it. The fence's second hop and the presenter's own `MenuClosed` both end here.
+    /// about it. The presenter's `MenuClosed`, its answer to the withdrawal, ends here.
     void forget_withdrawn(std::int64_t menu);
     /// SETTLE THE MENU WHOSE SENTENCE LOOM REFUSED, by the attempt Loom names -- the open menu if
     /// the attempt is its own, a withdrawn one whose attempts span it, else nothing: an older
@@ -2010,7 +2010,7 @@ private:
     /// THE MINT FOR A PRESENTED MENU'S NUMBER: from one, one per grant, never reused.
     std::int64_t menus_ = 0;
     /// Menus off the screen whose requesters may still be owed an answer, oldest first, each kept
-    /// until Loom refuses one of its sentences or its fence comes round twice.
+    /// until its withdrawal, an ask, is answered or ends, or Loom refuses one of its sentences.
     std::vector<WithdrawnMenu> withdrawn_;
     /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button PRESS, the wheel -- numbered, so a
     /// pane's word about one of them can be asked whether it is still about its hand's latest

@@ -139,8 +139,8 @@ public:
         }
         settings_ask_ = ++c.asks;
         (void)c.mail.as_role(kInfoPaneRole)
-            .send_to_role(pane::kLayoutsRole,
-                          workshop::PaneSettingsRequested{host_.role, host_.pane}, settings_ask_);
+            .ask_role(pane::kLayoutsRole,
+                      workshop::PaneSettingsRequested{host_.role, host_.pane}, settings_ask_);
     }
 
     /// WHAT THE SETTINGS' OWNER MADE OF A COMMIT OF ONE OF THEM, read as the host's answers are:
@@ -204,12 +204,12 @@ public:
         }
     }
 
-    /// Loom's word that an ask of this view's never reached the door's handler
-    /// (`zen.DispatchRefused`; WL-INFO-13): an attestation, not an answer. The exact queued
-    /// attempt, its correlation and what it asked are matched against the one record that can
-    /// still be waiting (`refused_ask`); an ask received and never answered stays awaited. Says
-    /// whether the notice named one of this view's asks; the weave has judged its provenance.
-    bool refused(const loom::DispatchRefused& refused, loom::Mail& mail) {
+    /// Loom's word that an ask of this view's ended with no answer (`zen.AskEnded`;
+    /// WL-INFO-13): an attestation, not an answer. The exact queued attempt, its correlation and
+    /// what it asked are matched against the one record that can still be waiting
+    /// (`refused_ask`), so no ask stays awaited for ever. Says whether the notice named one of
+    /// this view's asks; the weave has judged its provenance.
+    bool refused(const loom::AskEnded& refused, loom::Mail& mail) {
         if (refused_ask(committing_, refused, mail, workshop::PaneCommitRequested::zen_name,
                         workshop::PaneCommitRequested::zen_version) ||
             refused_ask(committing_, refused, mail, workshop::PaneSettingCommitRequested::zen_name,
@@ -223,7 +223,7 @@ public:
                         workshop::InspectPaneRequested::zen_version)) {
             const std::string act = acting_.act;
             acting_ = Asked{};
-            notice_ = act + kActUndelivered + " (" + refused.reason + ")";
+            notice_ = act + kActUndelivered + " -- " + pane::no_answer(refused);
             settle_relay(workshop::PaneSubjectActed{false, notice_}, mail);
             due_.say = true;
             return true;
@@ -453,10 +453,10 @@ private:
     /// written or changed, the record is released, and the draft and its text stand for the next
     /// Return.
     static constexpr const char* kCommitNotQueued = "commit not submitted -- nothing was queued or written";
-    static constexpr const char* kCommitUndelivered = "commit not delivered -- nothing was written";
-    static constexpr const char* kEarlierUndelivered = "earlier commit not delivered -- nothing was written";
+    static constexpr const char* kCommitUndelivered = "commit not answered";
+    static constexpr const char* kEarlierUndelivered = "earlier commit not answered";
     static constexpr const char* kActNotQueued = " not submitted -- nothing was queued";
-    static constexpr const char* kActUndelivered = " not delivered -- nothing changed";
+    static constexpr const char* kActUndelivered = " not answered";
     static constexpr const char* kInspectReplaced = "a newer inspect took its place -- nothing changed";
 
     /// WHAT AN INSPECT IS CALLED in the two sentences above.
@@ -601,7 +601,7 @@ private:
         asking.pending = correlation;
         asking.act = kInspectAct;
         asking.attempt = c.mail.as_role(kInfoPaneRole)
-                             .send_to_role(kWorkshopRole,
+                             .ask_role(kWorkshopRole,
                                            workshop::InspectPaneRequested{role, pane_key},
                                            correlation);
         if (!asking.attempt.valid()) {
@@ -616,9 +616,9 @@ private:
     /// DOES THIS NOTICE NAME THE ASK `record` IS WAITING ON -- the same queued attempt, under the
     /// same correlation, of the shape it sent, to the role it addressed? Every half, because a
     /// sequence alone is a number and the rest is what this view asked.
-    static bool refused_ask(const Asked& record, const loom::DispatchRefused& refused,
+    static bool refused_ask(const Asked& record, const loom::AskEnded& refused,
                             const loom::Mail& mail, const char* shape, std::uint32_t version) {
-        const loom::Ticket attempt = refused.refused_attempt();
+        const loom::Ticket attempt = refused.ended_attempt();
         return record.awaiting && record.attempt.valid() && attempt.valid() &&
                attempt.seq == record.attempt.seq && mail.correlation() == record.pending &&
                refused.shape == shape && refused.version == static_cast<std::int64_t>(version) &&
@@ -688,7 +688,7 @@ private:
         sending.draft = draft_.line.draft_epoch();
         sending.text = request.text;
         sending.attempt = c.mail.as_role(kInfoPaneRole)
-                              .send_to_role(kWorkshopRole, std::move(request), correlation);
+                              .ask_role(kWorkshopRole, std::move(request), correlation);
         if (!sending.attempt.valid()) {
             committing_ = SentCommit{};
             notice_ = kCommitNotQueued;
@@ -724,7 +724,7 @@ private:
         sending.awaiting = true;
         sending.pending = correlation;
         sending.attempt = c.mail.as_role(kInfoPaneRole)
-                              .send_to_role(pane::kLayoutsRole, *typed.commit, correlation);
+                              .ask_role(pane::kLayoutsRole, *typed.commit, correlation);
         if (!sending.attempt.valid()) {
             committing_ = SentCommit{};
             notice_ = kCommitNotQueued;
@@ -738,13 +738,13 @@ private:
     /// one that sent it keeps its text and its history, and Return sends what it holds. The account
     /// is said where an answer's would be (`answered_commit`): over this commit's own sentence, or
     /// over an empty row while its own draft is open; a sentence a later act said stands.
-    void undelivered_commit(const SentCommit& was, const loom::DispatchRefused& refused) {
+    void undelivered_commit(const SentCommit& was, const loom::AskEnded& refused) {
         const bool own = !was.promise.empty() && notice_ == was.promise;
         const bool same_draft = draft_.open && draft_.line.draft_epoch() == was.draft;
         if (!own && !(same_draft && notice_.empty())) {
             return;
         }
-        const std::string why = " (" + refused.reason + ")";
+        const std::string why = " -- " + pane::no_answer(refused);
         notice_ = (draft_.open && !same_draft ? std::string(kEarlierUndelivered)
                                               : std::string(kCommitUndelivered)) +
                   why;

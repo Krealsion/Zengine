@@ -148,9 +148,9 @@ public:
 
 /// Stand-ins for a broken Editor (test instrumentation). Each holds `zengine.editor` in place of
 /// the real image, offers the pane and claims an empty document identity -- the least a
-/// participant must do to be asked -- and then fails to prepare: silently, by throwing, or by
-/// not accepting the ask at all. They prove what the manager and the desk do when a real
-/// participant does not do its part.
+/// participant must do to be asked -- and then fails to prepare: still preparing (its answer kept),
+/// silently, by throwing, or by not accepting the ask at all. They prove what the manager and the
+/// desk do when a real participant does not do its part.
 class BrokenEditor
     : public loom::WeaveBase<BrokenEditor, SeenState,
                              loom::Accept<PaneCatalogRequested, zengine::workshop::v3::PrepareSourceRequested,
@@ -158,6 +158,8 @@ class BrokenEditor
                              loom::Emit<PaneOffered>, loom::Claims<EditorDocument>> {
 public:
     bool throws = false;
+    bool keeps = false; ///< the answer kept, never spent: an Editor still preparing
+    std::vector<loom::DeferredAnswer> owed;
     int asked = 0;
     int settled = 0;
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
@@ -165,8 +167,11 @@ public:
             .send_to_role(kWorkshopProvider,
                           PaneOffered{pane::kEditorPane, "Editor", "a stand-in that cannot prepare"});
     }
-    void on(const zengine::workshop::v3::PrepareSourceRequested&, loom::Mail&) {
+    void on(const zengine::workshop::v3::PrepareSourceRequested&, loom::Mail& mail) {
         ++asked;
+        if (keeps) {
+            owed.push_back(mail.defer_answer());
+        }
         if (throws) {
             throw std::runtime_error("the stand-in's preparation failed abnormally");
         }
@@ -176,7 +181,7 @@ public:
 };
 
 /// ...and one that does not even accept the ask: the bus refuses the manager's attempt at
-/// dispatch, and says so to the manager alone (an authenticated `zen.DispatchRefused`).
+/// dispatch, and says so to the manager alone (an authenticated `zen.AskEnded`, `queued`).
 class DeafEditor : public loom::WeaveBase<DeafEditor, SeenState,
                                           loom::Accept<PaneCatalogRequested, SeatDo>,
                                           loom::Emit<PaneOffered>, loom::Claims<EditorDocument>> {
@@ -4243,11 +4248,12 @@ TEST_CASE("a real reload or removal of the Editor at queued intervals of an open
     }
 }
 
-TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost terminal answer "
-          "undoes nothing, and no forged authority or attempt decides anything") {
-    SUBCASE("a silent Editor leaves the open pending -- bounded, attributable, superseded by the next request -- and nothing else is blocked") {
+TEST_CASE("a preparation still owed stays pending and inspectable, a silent one ends in Loom's words, a "
+          "lost terminal answer undoes nothing, and no forged authority or attempt decides anything") {
+    SUBCASE("an Editor still preparing leaves the open pending -- bounded, attributable, superseded by the next request -- and nothing else is blocked") {
         EditorRig e("edit-silent-prep");
         e.open_with_stand_in(/*throws=*/false, /*deaf=*/false);
+        e.broken->keeps = true;
         put_bytes(e.root / "b.cpp", "two\n");
         put_bytes(e.root / "c.cpp", "three\n");
         const std::string b_path = spelled(e.root / "b.cpp");
@@ -4288,7 +4294,26 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
         CHECK(e.read_opening("committed") == "0");
         CHECK(e.broken->settled == 1); // the superseded one was ended for its owner too
     }
-    SUBCASE("a preparation that fails abnormally leaves the open pending the same way, and the failure is Loom's to surface") {
+    SUBCASE("an Editor that returns from the ask without answering ends the open, once, in Loom's words") {
+        EditorRig e("edit-mute-prep");
+        e.open_with_stand_in(/*throws=*/false, /*deaf=*/false);
+        put_bytes(e.root / "b.cpp", "two\n");
+        const std::string b_path = spelled(e.root / "b.cpp");
+        const std::size_t before = e.asker->opens.size();
+        e.enqueue_open(b_path);
+        e.settle();
+        CHECK(e.broken->asked == 1);
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_FALSE(e.asker->opens.back().accepted);
+        CHECK_MESSAGE(e.asker->opens.back().refusal.find("never answered (delivered, Unanswered)") !=
+                          std::string::npos,
+                      e.asker->opens.back().refusal);
+        CHECK(e.read_opening("stage") == "idle");
+        CHECK(e.r.bus.joint_pending() == 0);
+        e.settle();
+        CHECK(e.asker->opens.size() == before + 1); // once
+    }
+    SUBCASE("a preparation that fails abnormally surfaces at the host's loop, and the open ends in Loom's words") {
         EditorRig e("edit-failing-prep");
         e.open_with_stand_in(/*throws=*/true, /*deaf=*/false);
         put_bytes(e.root / "b.cpp", "two\n");
@@ -4309,10 +4334,13 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
         }
         CHECK(threw);
         CHECK(e.broken->asked == 1);
-        CHECK(e.asker->opens.size() == before);
-        CHECK(e.read_opening("stage") == "prepare");
-        CHECK(e.read_opening("awaiting") == kEditorRole);
-        CHECK(e.r.bus.joint_pending() == 1);
+        // THE ASK ENDED WITH ITS HANDLER: Loom says so before the throw reaches the host, and the
+        // open ends, its requester told -- nothing committed.
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK(e.asker->opens.back().refusal.find("never answered (delivered, HandlerFailed)") !=
+              std::string::npos);
+        CHECK(e.read_opening("stage") == "idle");
+        CHECK(e.r.bus.joint_pending() == 0);
         CHECK(e.read_opening("committed") == "0");
     }
     SUBCASE("an Editor that does not accept the ask is refused at dispatch, and the refusal is attributed to the attempt") {
@@ -4326,7 +4354,7 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
         CHECK_FALSE(said.accepted);
-        CHECK(said.refusal.find("could not be") != std::string::npos);
+        CHECK(said.refusal.find("could not reach") != std::string::npos);
         MESSAGE("attribution: ", said.refusal);
         CHECK(e.read_opening("stage") == "idle");
         CHECK(e.read_opening("last_outcome") == "refused");
@@ -4576,7 +4604,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         const std::string notice = e.r.session().notice;
         const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
         CHECK_FALSE(said.accepted);
-        CHECK(said.refusal.find("could not be reached") != std::string::npos);
+        CHECK(said.refusal.find("could not reach") != std::string::npos);
         CHECK(said.refusal.find("NoSuchTarget") != std::string::npos);
         CHECK(e.asker->opens_authentic.back());
         CHECK(e.no_source()); // nothing was installed in the presentation's absence
@@ -4635,7 +4663,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         CHECK(opening->opens.back().refusal.find("nothing was relayed") != std::string::npos);
         CHECK(e.read("path").empty());
     }
-    SUBCASE("the manager is removed while a relay is outstanding: no answer is invented, and a new manager serves the next ask") {
+    SUBCASE("the manager is removed while a relay is outstanding: the requester is told its end in Loom's words, and a new manager serves the next ask") {
         EditorRig e("edit-old-door-manager-gone");
         e.open();
         put_bytes(e.root / "a.cpp", "one\n");
@@ -4649,9 +4677,12 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         REQUIRE(e.r.bus.unregister_weave(e.r.opening_id) != nullptr);
         e.r.opening = nullptr;
         e.settle();
-        // SILENCE, TRUTHFULLY: the party that owed the relay's answer is gone, its right went
-        // with it, and the Editor fabricates nothing for the requester.
-        CHECK(e.asker->opens.size() == before);
+        // THE PARTY THAT OWED THE RELAY'S ANSWER IS GONE, its right with it: Loom tells the
+        // Editor, which tells the requester that, and nothing more.
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK_FALSE(e.asker->opens.back().accepted);
+        CHECK(e.asker->opens.back().refusal.find("never answered (deferred, RespondentRemoved)") !=
+              std::string::npos);
         CHECK(e.read("path") == a_path);
         CHECK(e.doc_row(0) == "one");
         // A NEW MANAGER, AND THE NEXT ASK AT THE OLD DOOR TAKES.
@@ -5045,7 +5076,7 @@ TEST_CASE("the real desk, shown a presentation it holds no trial for, answers th
     put_bytes(e.root / "a.cpp", "one\n");
     const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
     CHECK_FALSE(said.accepted); // no manager is mounted in this rig: refused in words, not silence
-    CHECK(said.refusal.find("could not be reached") != std::string::npos);
+    CHECK(said.refusal.find("could not reach") != std::string::npos);
 }
 
 TEST_CASE("the real manager's outcome survives an unrelated coordination begun on the same bus "

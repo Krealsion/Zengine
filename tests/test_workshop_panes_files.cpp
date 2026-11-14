@@ -4102,7 +4102,7 @@ TEST_CASE("a right press on a folder in the project's apps/ offers to start that
     f.r.key(input::scan::kDown);
     f.r.key(input::scan::kReturn);
     CHECK_FALSE(menu_shown(f.r.session()));
-    CHECK(f.first().find("nothing was started -- the launcher could not be asked") != std::string::npos);
+    CHECK(f.first().find("nothing was started -- it could not reach zengine.launcher") != std::string::npos);
 
     // WITH THE LAUNCHER, the start is said with what follows as this platform starts an app.
     auto stub = std::make_unique<FilesLauncherStub>();

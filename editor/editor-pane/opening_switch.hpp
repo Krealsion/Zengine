@@ -57,12 +57,19 @@ inline void EditorPaneWeave::on(const SourceOpened& said, loom::Mail& mail) {
     role::settle_relay(said, mail, relays_);
 }
 
-/// The bus's word that an ask was refused before any handler ran -- no opening role held, its
-/// holder does not accept, or it holds behind a claim it could not apply -- matched by exact
-/// attempt: a relay's requester is told in words, and a pickup's or a dropped location's failure
-/// is said (`role::settle_dispatch_refused`).
-inline void EditorPaneWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-    if (role::settle_dispatch_refused(refused, mail, relays_, pickup_, locate_, noticing())) {
+/// Loom's word that an ask ended with no answer -- no opening role held, its holder gone or
+/// silent -- matched by exact attempt: a relay's requester is told in words, and a pickup's or a
+/// dropped location's failure is said (`role::settle_ask_ended`). The project's root, the
+/// keymap and a paste end by the ask's correlation: nothing waits on them after, and a quit no
+/// longer waits on a paste that ended.
+inline void EditorPaneWeave::on(const loom::AskEnded& ended, loom::Mail& mail) {
+    if (mail.ask_ended() && root_pending_ != 0 && mail.correlation() == root_pending_) {
+        root_pending_ = 0;
+    }
+    if (mail.ask_ended() && paste_.awaiting && mail.correlation() == paste_.pending) {
+        paste_ = Paste{};
+    }
+    if (role::settle_ask_ended(ended, mail, relays_, pickup_, locate_, noticing())) {
         say(mail);
     }
 }

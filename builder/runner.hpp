@@ -5,7 +5,7 @@
 #define ZENGINE_BUILDER_RUNNER_HPP
 
 // The build runner: the one weave that holds a command and starts a process, and holds the
-// processes it started, saying what it sees of them. A weave rather than a helper, so its
+// processes it started, saying what it sees of them and answering each order with its result. Its
 // authority is a grant a reader can see: report to `zengine.builder`, ask the Timer for a beat.
 // A `RunBuild` for a name outside the host's catalog is refused and nothing runs; the one
 // program it starts is the host's CMake, which no recipe, message or poke can reach, and a boxed
@@ -13,11 +13,11 @@
 // Builder law: agents/realization.md
 
 // The participant that possesses the process capability owns the unfinished work: it starts a
-// child and returns, looks on an ordinary beat held only while it holds a process, and says only
-// newly observed facts -- nothing upstream asks "is it done yet?". `op` means something within
-// this incarnation: the runner is mounted natively, so no successor can inherit a number (a
-// loadable one would need a surviving high-water mark). Destroying it terminates and reaps every
-// child and publishes nothing. Reference: builder/docs/zengine.build-runner.md.
+// child and returns, keeping the order's answer, looks on a beat held only while it holds a
+// process, and says only newly observed facts. `op` means something within this incarnation: the
+// runner is mounted natively, so no successor can inherit a number. Destroying it terminates and
+// reaps every child; Loom tells each asker its kept answer ended.
+// Reference: builder/docs/zengine.build-runner.md.
 
 #include "builder/generate.hpp"
 #include "builder/recipe.hpp"
@@ -128,10 +128,8 @@ public:
             ++state_.refused;
             // A refusal names no operation (`op` 0): none was created, and one shape answers
             // "did a process run for my ask?" either way.
-            (void)mail.send_to_role(kBuilderRole,
-                                    BuildNotStarted{0, order.recipe, std::string(),
-                                                    "no recipe here is called `" + order.recipe +
-                                                        "`"});
+            (void)mail.answer(BuildNotStarted{0, order.recipe, std::string(),
+                                              "no recipe here is called `" + order.recipe + "`"});
             return;
         }
         // The recipe's product becomes a command here (and a single-source recipe's project is
@@ -139,20 +137,33 @@ public:
         const PreparedBuild prepared = prepare(*recipe, order.artifact, cmake_, wasi_sdk_);
         if (!prepared.ok) {
             ++state_.refused;
-            (void)mail.send_to_role(
-                kBuilderRole,
-                BuildNotStarted{0, recipe->id, std::string(), prepared.trouble});
+            (void)mail.answer(BuildNotStarted{0, recipe->id, std::string(), prepared.trouble});
+            return;
+        }
+        // THE RESULT IS OWED BEFORE ANYTHING RUNS: kept here, under Loom's bound, so a process
+        // never runs whose end nobody can be told.
+        if (held_.size() >= loom::Switchboard::kMaxDeferredPerWeave) {
+            ++state_.refused;
+            (void)mail.answer(BuildNotStarted{0, recipe->id, std::string(),
+                                              "the build runner already owes " +
+                                                  std::to_string(held_.size()) + " builds"});
+            return;
+        }
+        loom::DeferredAnswer owed = mail.defer_answer();
+        if (!owed.valid()) {
+            ++state_.refused; // a root's order: no asker to owe the result to
             return;
         }
         ++state_.ran;
         RecipeStart begun = start_recipe(prepared.command);
         if (!begun.started) {
-            (void)mail.send_to_role(
-                kBuilderRole,
+            (void)loom::answer_deferred(
+                owed, mail,
                 BuildNotStarted{0, recipe->id, prepared.command.as_line(), begun.trouble});
             return;
         }
         Held held;
+        held.answer = std::move(owed);
         held.op = ++next_op_;
         held.recipe = recipe->id;
         held.command = prepared.command.as_line();
@@ -195,6 +206,7 @@ private:
         std::string command; ///< what is actually running, as one line
         std::string pending; ///< drained bytes that are not yet a complete line
         RunningRecipe process;
+        loom::DeferredAnswer answer; ///< the order's answer, owed until the process ends
     };
 
     void on_look_beat(const zengine::timer::TimerFired&, loom::Mail& mail) { look_at_held(mail); }
@@ -219,15 +231,15 @@ private:
                 ++i;
                 continue;
             }
+            // THE ANSWER THE ORDER WAS OWED. A never-ran child ended because it never began: on
+            // POSIX this is the only moment that can be known (builder/run.hpp).
             if (seen.never_ran) {
-                // It ended because it never began: on POSIX this is the only moment that can
-                // be known (builder/run.hpp), under the number it was already announced with.
-                (void)mail.send_to_role(
-                    kBuilderRole, BuildNotStarted{held.op, held.recipe, held.command,
-                                                  seen.trouble});
+                (void)loom::answer_deferred(
+                    held.answer, mail,
+                    BuildNotStarted{held.op, held.recipe, held.command, seen.trouble});
             } else {
-                (void)mail.send_to_role(kBuilderRole,
-                                        BuildFinished{held.op, held.recipe, seen.status});
+                (void)loom::answer_deferred(held.answer, mail,
+                                            BuildFinished{held.op, held.recipe, seen.status});
             }
             held_.erase(held_.begin() + static_cast<std::ptrdiff_t>(i));
         }

@@ -546,12 +546,16 @@ fate only as far as it asks
 ([limitations](../workshop/docs/limitations.md#a-sender-sees-its-own-sends-fate-only-if-it-asks)):
 
 - the ticket a send returns says whether the attempt was *queued*, not whether it was delivered;
+- a weave that asks through Loom's ask door (`mail.ask`, `mail.ask_role`) must accept
+  `zen.AskEnded`, and is told, once, when the ask ends with no answer -- refused before the
+  target's handler ran, or its respondent gone or silent
+  ([Loom's reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#asks-and-how-each-one-ends));
 - a weave that explicitly accepts `zen.DispatchRefused`, and believes a notice only when
-  `mail.dispatch_refused()` is true, is told when one of its directed or role-addressed sends was
-  refused before the target's handler ran; a publication is never reported this way
+  `mail.dispatch_refused()` is true, is told when one of its plain directed or role-addressed
+  sends was refused before the target's handler ran; a publication is never reported this way
   ([Loom's reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#sender-visible-dispatch-refusal));
-- a message that was delivered and never answered tells its sender nothing: silence carries no
-  completion guarantee.
+- a plain send that was delivered and never answered tells its sender nothing, and neither does a
+  respondent alive and still holding the answer an ask is owed: Loom has no clock.
 
 The refusal is always visible to a *host*-installed observer, so that is the place to look
 first. Install one:

@@ -62,7 +62,7 @@ class OpeningManager
     : public zengine::With<manual::ManualFacet<manual::pages::zengine_opening::kManual>>::Weave<
           OpeningManager, OpeningState,
           loom::Accept<OpenSourceRequested, v3::PresentationTrial, v3::SourcePrepared,
-                       PresentationAdmitted, loom::DispatchRefused, loom::JointEnded,
+                       PresentationAdmitted, loom::AskEnded, loom::JointEnded,
                        loom::JointApplied>,
           loom::Emit<PresentationTrialRequested, v3::PrepareSourceRequested,
                      v3::PresentationAdmitRequested, ManagedOpenSettled, ManagedOpenProgress,
@@ -79,7 +79,7 @@ public:
     void on(const v3::PresentationTrial& said, loom::Mail& mail);
     void on(const v3::SourcePrepared& said, loom::Mail& mail);
     void on(const PresentationAdmitted& said, loom::Mail& mail);
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail);
+    void on(const loom::AskEnded& ended, loom::Mail& mail);
     void on(const loom::JointEnded& ended, loom::Mail& mail);
     void on(const loom::JointApplied& applied, loom::Mail& mail);
 

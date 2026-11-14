@@ -74,7 +74,8 @@ public:
     /// THE PANE'S AREA ITSELF, where a graphics window that shows it finds the pane.
     pane::PaneCanvasSeat& room() noexcept { return room_; }
 
-    /// The owner declined, or the ask reached nobody: the question is retired and nothing is said.
+    /// The owner declined, or the ask ended with no answer: the question is retired and nothing
+    /// is said.
     void retire(std::uint64_t correlation) {
         if (awaiting_ && correlation == pending_) {
             awaiting_ = false;
@@ -100,7 +101,7 @@ protected:
     template <class Question>
     void ask(Voice voice, const char* owner, const Question& question) {
         const std::uint64_t correlation = pose(voice);
-        (void)voice.mail.as_role(kIntrospectionRole).send_to_role(owner, question, correlation);
+        (void)voice.mail.as_role(kIntrospectionRole).ask_role(owner, question, correlation);
     }
 
     /// Is this the answer the pane waits on? `answers_ask()` first, which cannot be forged, then
@@ -736,8 +737,8 @@ public:
         carry_.bytes.assign(bytes.begin(), bytes.end());
         carry_.ask = voice.next();
         (void)voice.mail.as_role(kIntrospectionRole)
-            .send_to_role(kWorkshopRole,
-                          pane::PaneOperationRequested{
+            .ask_role(kWorkshopRole,
+                      pane::PaneOperationRequested{
                               kPowersPane, kWorkshopRole,
                               pane::PaneValueCarryRequested::zen_name, 1,
                               static_cast<std::int64_t>(carry_.gesture)},
@@ -762,14 +763,31 @@ public:
             return;
         }
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(kWorkshopRole,
-                          pane::PaneValueCarryRequested{kPowersPane, carry_.identity,
-                                                            carry_.bytes, true},
-                          carry_.gesture);
+            .ask_role(kWorkshopRole,
+                      pane::PaneValueCarryRequested{kPowersPane, carry_.identity, carry_.bytes,
+                                                    true},
+                      carry_.gesture);
     }
 
     /// Carried or refused, the press is spent.
     void carried() { carry_ = Carry{}; }
+
+    /// AN ASK OF THIS PANE'S OWN ENDED WITH NO ANSWER, by the correlation and shape it carried:
+    /// a description, a sample, a carry or a paste waits no more, and nothing is said.
+    void ended(std::uint64_t c, const std::string& shape) {
+        for (Outstanding* o : {&describing_, &sampling_}) {
+            o->awaiting = o->awaiting && o->pending != c;
+        }
+        if (c != 0 && (carry_.ask == c || (shape == pane::PaneValueCarryRequested::zen_name &&
+                                           carry_.gesture == c))) {
+            carry_ = Carry{};
+        }
+        const loom::PendingAsk* paste = pasting_ ? clip_asks_.find(paste_ask_) : nullptr;
+        if (paste != nullptr && paste->correlation == c) {
+            (void)clip_asks_.forget(paste_ask_);
+            pasting_ = false;
+        }
+    }
 
     /// WHAT POWERS CALLS ITS PARTS: a power's row by its identity, `power:<identity>`, and each
     /// control by the action it performs, `control:<id>`.
@@ -838,8 +856,8 @@ private:
         sampling_.awaiting = true;
         sampling_.identity = identity;
         (void)voice.mail.as_role(kIntrospectionRole)
-            .send_to_role(workshop::kSampleRole, workshop::SampleRequested{std::move(identity)},
-                          sampling_.pending);
+            .ask_role(workshop::kSampleRole, workshop::SampleRequested{std::move(identity)},
+                      sampling_.pending);
         return true;
     }
 
@@ -848,7 +866,7 @@ private:
     /// at its own schema, its fields optional, so it leaves as that value.
     void ask_powers(Voice voice) {
         const std::uint64_t correlation = pose(voice);
-        (void)voice.mail.bus().role_send_to_role(
+        (void)voice.mail.bus().role_ask_role(
             kIntrospectionRole, workshop::kPowersRole,
             loom::Message(workshop::find_powers_value(powers_question(ui_)), voice.self,
                           loom::WeaveId{}, correlation));
@@ -865,8 +883,8 @@ private:
         describing_.awaiting = true;
         describing_.identity = identity;
         (void)voice.mail.as_role(kIntrospectionRole)
-            .send_to_role(workshop::kPowersRole, workshop::DescribePower{identity},
-                          describing_.pending);
+            .ask_role(workshop::kPowersRole, workshop::DescribePower{identity},
+                      describing_.pending);
     }
 
     /// Ask what the platform clipboard holds, of the window that shows the pane's area, for a paste
@@ -883,7 +901,7 @@ private:
         paste_epoch_ = ui_.query.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(role, graphics::ClipboardTextRequested{}, opened.correlation);
+            .ask_role(role, graphics::ClipboardTextRequested{}, opened.correlation);
     }
 
     /// ONE OUTSTANDING QUESTION OF ITS OWN, and the identity it asked about: a sample or a

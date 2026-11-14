@@ -111,17 +111,17 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
-## WL-INFO-13 — An ask Loom says never arrived is released, and silence still waits
+## WL-INFO-13 — An ask Loom says ended is released, and nothing waits for ever
 
-LAW — Info keeps each ask's ticket: nothing queued, or Loom's own `zen.DispatchRefused` naming that attempt, releases that record and says so, closing no draft; a forged notice settles nothing.
+LAW — Info asks through Loom's door, keeping each ticket: nothing queued, or Loom's own `zen.AskEnded` naming that attempt, releases that record and says so, closing no draft; a forged notice settles nothing.
 
 MEANS
 - the draft and its text stand, and the next Return is a fresh commit, not a second one;
 - a notice counts only with Loom's provenance, then the attempt, correlation, shape and role;
-- "nothing queued" is the kept ticket branch, source-traced.
+- "nothing queued" is the kept ticket branch, source-traced; an owner gone or silent ends the ask too.
 
 DOES NOT MEAN
-- that a delivered, unanswered ask is released: no timeout, retry, cancellation or polling.
+- that an ask its owner still holds is released: no timeout, retry, cancellation or polling.
 
 WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 
@@ -253,11 +253,11 @@ normally"
 ### WL-INFO-13
 `info/property_view.hpp` refused refused_ask undelivered_commit ask_inspect ask_commit
 Asked::attempt kCommitNotQueued kCommitUndelivered
-`info/pane.cpp` on(DispatchRefused)
+`info/pane.cpp` on(AskEnded)
 `tests/test_workshop_panes_info.cpp` "an Info commit Loom refuses at dispatch is released: the draft
 and its text stand, the next Return is written, and a cancel's promise is replaced" "an Info commit
 a doorless role refuses at dispatch: the draft stands, the next commit tries again, and it is
-written once the door is back" "a refusal notice anyone could send, naming the Info pane's
+written once the door is back" "an ending notice anyone could send, naming the Info pane's
 outstanding commit exactly, settles nothing" "an Info inspect Loom refuses at dispatch releases its
 own record, answers the role that asked, and the next ask inspects"
 

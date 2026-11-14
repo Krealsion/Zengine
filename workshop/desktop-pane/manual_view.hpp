@@ -93,8 +93,8 @@ public:
                 const std::uint64_t asked = ++manual_asks_;
                 const loom::Ticket sent =
                     mail.as_role(kDesktopRole)
-                        .send_to_role(role, pane::PaneDocumentRequested{pane_key, std::string()},
-                                      asked);
+                        .ask_role(role, pane::PaneDocumentRequested{pane_key, std::string()},
+                                  asked);
                 if (sent.valid()) {
                     manual_.asked = asked;
                     manual_.sent = sent;
@@ -127,9 +127,9 @@ public:
         say_manual(keys_heard, keymap, mail);
     }
 
-    /// ...AND A MANUAL ASKED OF A ROLE THAT COULD NOT BE REACHED: said, not waited on. True
-    /// when the refusal named that ask.
-    bool ask_refused(const loom::DispatchRefused& refused, bool keys_heard,
+    /// ...AND A MANUAL ASKED OF A ROLE THAT NEVER ANSWERED: said, not waited on. True when the
+    /// ending named that ask.
+    bool ask_refused(const loom::AskEnded& refused, bool keys_heard,
                      const ws::KeymapShown& keymap, loom::Mail& mail) {
         if (!refused_ask(manual_.asked != 0, manual_.sent, manual_.asked, refused, mail,
                          pane::PaneDocumentRequested::zen_name,
@@ -138,7 +138,7 @@ public:
         }
         manual_.asked = 0;
         manual_.word =
-            "the manual of " + manual_.role + " could not be asked (" + refused.reason + ")";
+            "the manual of " + manual_.role + " was not shown -- " + zengine::pane::no_answer(refused);
         say_manual(keys_heard, keymap, mail);
         return true;
     }

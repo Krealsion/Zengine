@@ -151,7 +151,7 @@ inline std::string product_words(const zengine::builder::RecipeSummary& row) {
 /// plan's names, a plan row, a recipe's source, its opening, a build sent, and the reader's page.
 enum class Act {
     kBuild, kLoadBuilt, kPromote, kRevert, kFrontier, kRow, kOpen,
-    kPaint, kFrontierAsk, kNames, kPlanRow, kSource, kOpening, kBuildSent, kPage
+    kPaint, kFrontierAsk, kNames, kPlanRow, kSource, kOpening, kBuildSent, kPage, kPaste
 };
 
 /// ONE ASK, AND THE ACT OR ANSWER IT WAITS ON, captured when it was asked: the answer does what
@@ -661,54 +661,41 @@ public:
         carry_out(a, mail);
     }
 
-    /// The bus's word that one of this pane's attempts was refused before any handler ran
-    /// (WL-OPEN-07), matched by `AskFacet` to the exact ask it ended -- `e`'s lookup, `o`'s plan
-    /// names and the frontier action's ask at the project role, `e`'s open, the role line's
+    /// Loom's word that one of this pane's asks ended with no answer, or that the build's send
+    /// was refused (WL-OPEN-07), matched by `AskFacet` to the exact one -- `e`'s lookup, `o`'s
+    /// plan names and the frontier action's ask at the project role, `e`'s open, the role line's
     /// row, the build, the reader's page and each ask for Workshop's word on a gesture -- which
-    /// is named. A paint ask's refusal is no act's and says nothing; delivered silence is not a
-    /// refusal.
-    void on_refused(const BuilderAsk& a, const loom::DispatchRefused& refused, loom::Mail& mail) {
-        const std::string why = " (" + refused.reason + ")";
+    /// is named, `why` saying how it came to nothing. A paint ask's end is no act's and says
+    /// nothing.
+    void on_refused(const BuilderAsk& a, const std::string& why, loom::Mail& mail) {
         switch (a.act) {
-        case Act::kPaint: return;
+        case Act::kPaint: case Act::kPaste: return;
         case Act::kSource:
-            notice_ = "`" + a.subject +
-                      "`: the source could not be looked up -- it could not reach " +
-                      ws::kProjectRole + why;
+            notice_ = "`" + a.subject + "`: the source could not be looked up -- " + why;
             break;
         case Act::kOpening:
-            notice_ = "`" + a.subject +
-                      "`: the source was not opened -- the open could not reach " +
-                      ws::kOpeningRole + why;
+            notice_ = "`" + a.subject + "`: the source was not opened -- " + why;
             break;
         case Act::kNames:
-            notice_ = "`" + a.subject +
-                      "`: nothing was added to the plan -- the ask could not reach " +
-                      ws::kProjectRole + why;
+            notice_ = "`" + a.subject + "`: nothing was added to the plan -- " + why;
             break;
         case Act::kFrontierAsk:
-            notice_ = std::string("nothing was asked for -- the ask could not reach ") +
-                      ws::kProjectRole + why;
+            notice_ = "nothing was asked for -- " + why;
             break;
         case Act::kPlanRow:
-            notice_ = "`" + a.stem +
-                      "`: nothing was loaded and nothing was written -- the row could not reach " +
-                      ws::kProjectRole + why;
+            notice_ = "`" + a.stem + "`: nothing was loaded and nothing was written -- " + why;
             break;
         case Act::kBuildSent:
-            notice_ = not_built(a.subject, awaiting_realization_) + " -- the ask could not reach " +
-                      builder::kBuilderRole + why;
+            notice_ = not_built(a.subject, awaiting_realization_) + " -- " + why;
             awaiting_ = false;
             awaiting_realization_ = false;
             break;
         case Act::kPage:
-            notice_ = "output #" + std::to_string(output_.op) +
-                      ": the page was not read -- the ask could not reach " + builder::kBuilderRole +
-                      why;
+            notice_ = "output #" + std::to_string(output_.op) + ": the page was not read -- " + why;
             break;
         default:
-            // AN ASK WORKSHOP NEVER HEARD IS AN ACT NOT DONE: nothing of it happens, said in words.
-            say_undone(a, std::string("the ask could not reach ") + kWorkshopRole + why, mail);
+            // AN ASK WORKSHOP NEVER ANSWERED IS AN ACT NOT DONE: nothing of it happens, in words.
+            say_undone(a, why, mail);
             return;
         }
         say(mail);
@@ -946,16 +933,8 @@ public:
     }
 
     void on(const gfx::ClipboardText& a, loom::Mail& mail) {
-        if (!mail.answers_ask()) {
-            return;
-        }
-        const std::optional<loom::PendingAsk> settled =
-            clip_asks_.settle(mail.correlation(), mail.sender());
-        if (!settled || !pasting_ || settled->id != paste_ask_) {
-            return;
-        }
-        pasting_ = false;
-        if (!role_.open || role_.line.draft_epoch() != paste_epoch_) {
+        if (!asks().answered(mail, of_kind(Act::kPaste)) || !role_.open ||
+            role_.line.draft_epoch() != paste_epoch_) {
             return;
         }
         if (a.readable) {
@@ -1585,18 +1564,10 @@ private:
 
     /// A paste is asked of the window that shows the pane's area, and of nobody while none does.
     void begin_paste(loom::Mail& mail) {
-        const std::string role = room().clipboard_role();
-        const loom::AskOpened opened = clip_asks_.open_to_role(
-            role, gfx::ClipboardTextRequested::zen_name,
-            gfx::ClipboardTextRequested::zen_version);
-        if (!opened) {
-            return;
-        }
-        paste_ask_ = opened.id;
         paste_epoch_ = role_.line.draft_epoch();
-        pasting_ = true;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(role, gfx::ClipboardTextRequested{}, opened.correlation);
+        (void)asks().forget(of_kind(Act::kPaste));
+        (void)asks().ask(mail, room().clipboard_role().c_str(), gfx::ClipboardTextRequested{},
+                         asking(Act::kPaste));
     }
 
     // ---- The output reader (WL-OUT-04), defined in `output_reader.hpp` ----------------------
@@ -1854,10 +1825,7 @@ private:
     } output_;
 
     component::Clipboard clip_;
-    loom::AskBook clip_asks_{1};
-    std::uint64_t paste_ask_ = 0;
-    std::uint64_t paste_epoch_ = 0;
-    bool pasting_ = false;
+    std::uint64_t paste_epoch_ = 0; ///< the role line's draft a paste was asked for
 };
 
 } // namespace

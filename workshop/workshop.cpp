@@ -696,17 +696,18 @@ int main(int argc, char** argv) {
     // ---- The Builder tool, and the one thing that may start a process ---------------------------
     // Two weaves, two roles, two grants. The runner is the only weave that starts a process: it
     // holds the catalog and a program fixed at configure time that no message can reach, reports
-    // to the Builder role, and may ask the Timer for a beat. The tool holds names only and orders
-    // the runner. The grants bound what these weaves may say, not what they touch: no containment.
+    // to the Builder role, answers an order with its result, and may ask the Timer for a beat. The
+    // tool holds names only and asks the runner. The grants bound what they say, not what they
+    // touch; an answer goes to its exact asker, so its shapes are granted to any target.
     loom::Grant run_builds;
     run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
                              builder::kBuilderRole);
     run_builds.allow_to_role(builder::BuildOutput::zen_name, builder::BuildOutput::zen_version,
                              builder::kBuilderRole);
-    run_builds.allow_to_role(builder::BuildFinished::zen_name,
-                             builder::BuildFinished::zen_version, builder::kBuilderRole);
-    run_builds.allow_to_role(builder::BuildNotStarted::zen_name,
-                             builder::BuildNotStarted::zen_version, builder::kBuilderRole);
+    run_builds.allow_to_any(builder::BuildFinished::zen_name,
+                            builder::BuildFinished::zen_version);
+    run_builds.allow_to_any(builder::BuildNotStarted::zen_name,
+                            builder::BuildNotStarted::zen_version);
     run_builds.allow_to_role(timer::EnsureTimer::zen_name, timer::EnsureTimer::zen_version,
                              timer::kTimerRole);
     run_builds.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,

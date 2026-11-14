@@ -104,7 +104,8 @@ it was written for. Nothing is sent to the target.
   inventory entry`.
 - **Refuses:** `Complete the command before storing it`; Workshop's reason, as `the input actor has
   no authority for this operation`; `The permission request could not be queued`; `The inventory
-  request could not be queued`; `Inventory operation was not delivered: ` and Loom's reason;
+  request could not be queued`; `Inventory operation was not delivered: ` and Loom's reason, or
+  `Inventory operation was never answered: ` and how far the ask got;
   Inventory's own refusal; `Inventory answered about a different entry`. With no form open, nothing
   happens.
 - **Example:** with every required field filled, press
@@ -269,7 +270,8 @@ The role a message is addressed to, `to @zengine.timer`. With nothing selected t
 
 How many messages the target accepts, `accepted messages -- 11`; until it answers, `asked what it
 accepts -- no answer observed yet`. An ask that fails says so in the notice: `Discovery could not be
-queued`, `Discovery was not delivered: ` and Loom's reason, `the discovery request was refused`, or
+queued`, `Discovery was not answered: ` and how it came to nothing, `the discovery request was
+refused`, or
 `could not read the answer -- ` and why.
 
 ### `message`

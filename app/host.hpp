@@ -66,13 +66,14 @@ struct AppSeatState {
     ZEN_SHAPE(AppSeatState, 1, ZEN_FIELD(answers));
 };
 
-/// THE WEAVER SEAT, the one participant the warden obeys. A question it sends from inside its
-/// own delivery is a participant's send, gated and stamped with its id, and an answer counts only
-/// when Loom attributes it to that question (`loom::AskBook`).
+/// THE WEAVER SEAT, the one participant the warden obeys. A question it asks from inside its
+/// own delivery is a participant's ask, gated and stamped with its id, and an answer counts only
+/// when Loom attributes it to that question (`loom::AskBook`); Loom's word that it ended
+/// unanswered ends the wait at once.
 class Seat final
     : public loom::WeaveBase<Seat, AppSeatState,
                              loom::Accept<AppSeatTurn, loom::Result, loom::Refused,
-                                          loom::AuthorityDescription>> {
+                                          loom::AuthorityDescription, loom::AskEnded>> {
 public:
     void set_self(loom::WeaveId id) { me_ = id; }
 
@@ -81,15 +82,20 @@ public:
     loom::host::WardenAnswer ask(loom::Switchboard& bus, loom::WeaveId warden,
                                  const Question& question) {
         reply_.reset();
+        ended_.clear();
         errand_ = [this, warden, question](loom::Mail& mail) {
             const loom::AskOpened opened =
                 book_.open(warden, Question::zen_name, Question::zen_version);
             if (opened.ok) {
-                (void)mail.send(warden, question, opened.correlation);
+                const loom::Ticket t = mail.ask(warden, question, opened.correlation);
+                if (!t.valid() || !book_.bind_attempt(opened.id, t.seq)) {
+                    (void)book_.forget(opened.id);
+                    ended_ = "the warden could not be asked";
+                }
             }
         };
         bus.send(me_, loom::Message(loom::to_value(AppSeatTurn{})));
-        for (int turn = 0; turn < kSeatTurns && !reply_; ++turn) {
+        for (int turn = 0; turn < kSeatTurns && !reply_ && ended_.empty(); ++turn) {
             if (bus.pump_pending() == 0 && bus.pending() == 0) {
                 break;
             }
@@ -98,8 +104,9 @@ public:
         loom::host::WardenAnswer a;
         a.reply = reply_;
         if (!a.reply) {
-            a.trouble = "the warden did not answer within " + std::to_string(kSeatTurns) +
-                        " turns of the bus";
+            a.trouble = !ended_.empty() ? ended_
+                                        : "the warden did not answer within " +
+                                              std::to_string(kSeatTurns) + " turns of the bus";
         }
         return a;
     }
@@ -112,6 +119,12 @@ public:
     void on(const loom::Result& r, loom::Mail& mail) { keep(r, mail); }
     void on(const loom::Refused& r, loom::Mail& mail) { keep(r, mail); }
     void on(const loom::AuthorityDescription& d, loom::Mail& mail) { keep(d, mail); }
+    void on(const loom::AskEnded& e, loom::Mail& mail) {
+        if (book_.end(e, mail)) {
+            ended_ = std::string("the warden never answered (") + loom::stage_name(e.stage) +
+                     ", " + std::string(loom::reason_name(e.stage)) + ")";
+        }
+    }
 
 private:
     template <class Answer>
@@ -125,6 +138,7 @@ private:
     loom::AskBook book_{4};
     std::function<void(loom::Mail&)> errand_;
     std::optional<loom::Value> reply_;
+    std::string ended_; ///< why the question ended with no answer, once it has
     loom::WeaveId me_{};
 };
 

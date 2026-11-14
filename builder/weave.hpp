@@ -7,8 +7,9 @@
 // The Builder tool: an ordinary weave that knows which recipes this project has and the
 // artifact each produces, follows the build of one, and publishes where it stands
 // (`BuildStatus`). It holds no process, command, build tree, source path, timer or realization
-// authority: it orders the runner, folds the runner's observations into one current picture,
-// and judges the artifact. One build at a time is this tool's policy, not the runner's limit.
+// authority: it asks the runner for a build, folds the runner's observations and its answer into
+// one current picture, and judges the artifact. One build at a time is this tool's policy, not
+// the runner's limit.
 // Builder law: agents/realization.md
 
 #include "activation/activation.hpp"
@@ -19,6 +20,7 @@
 #include "manuals/zengine.builder.hpp" // this role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
+#include <zen/weave/role_request.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -250,7 +252,7 @@ using BuilderBase =
         BuilderWeave, BuilderState,
         loom::Accept<BuildRequested, StatusRequested, BuildStatusRequested, BuildStarted,
                      BuildOutput, BuildFinished, BuildNotStarted, ArtifactRealized,
-                     ArtifactPromoted, BuildOutputRequested>,
+                     ArtifactPromoted, BuildOutputRequested, loom::AskEnded>,
         loom::Emit<RunBuild, BuildStatus, BuildAsked, RecipeCatalog, OfferArtifact,
                    BuildOutputSaid>>;
 
@@ -353,7 +355,13 @@ public:
         // Said before the order, so the record reads in the order the facts became true.
         heard(ask, true, mail);
         say(mail);
-        (void)mail.send_to_role(kBuildRunnerRole, RunBuild{state_.recipe, state_.artifact});
+        // THE ORDER IS AN ASK: its answer is the build's result, and Loom tells this tool its
+        // end when none will come. A record still held is an earlier order's, ended already.
+        run_.forget();
+        if (!run_.ask_role(mail, kBuildRunnerRole, RunBuild{state_.recipe, state_.artifact},
+                           ++asked_)) {
+            ended("the build runner could not be asked: nothing was queued", mail);
+        }
     }
 
     /// A process began.
@@ -416,9 +424,10 @@ public:
     /// It exited: only now is there an artifact question. The exit status is consulted first and
     /// the file second, so a file left by an earlier success is never this build's product.
     void on(const BuildFinished& done, loom::Mail& mail) {
-        if (!mine(done.recipe) || !about_current(done.op)) {
+        if (!answers_order(mail) || !mine(done.recipe) || !about_current(done.op)) {
             return;
         }
+        run_.forget();
         state_.status = done.status;
         const std::string said = tail_lines(remembered_, kDetailLines);
         if (done.status != 0) {
@@ -474,12 +483,14 @@ public:
         (void)mail.publish(OfferArtifact{state_.op, state_.recipe, state_.artifact, path_});
     }
 
-    /// Nothing ran, and this is why. It may name the operation (a child that never became its
-    /// program) or none (op 0, before any was announced); `about_current` accepts both.
+    /// Nothing ran, and this is why: the order's answer. It may name the operation (a child that
+    /// never became its program) or none (op 0, before any was announced); `about_current`
+    /// accepts both.
     void on(const BuildNotStarted& never, loom::Mail& mail) {
-        if (!mine(never.recipe) || !about_current(never.op)) {
+        if (!answers_order(mail) || !mine(never.recipe) || !about_current(never.op)) {
             return;
         }
+        run_.forget();
         state_.outcome = outcome::kNotStarted;
         state_.status = 0;
         if (!never.command.empty()) {
@@ -492,6 +503,19 @@ public:
             state_.realized_detail = "no build ran, so nothing was offered to the project";
         }
         say(mail);
+    }
+
+    /// LOOM'S WORD THAT THE ORDER ENDED UNANSWERED: the runner was gone, refused it, or let its
+    /// kept answer go -- unloaded mid-build, say. The build is over, and its stage and reason are
+    /// what this tool says; an ending about another order moves nothing.
+    void on(const loom::AskEnded& end, loom::Mail& mail) {
+        if (!run_.matches_ending(end, mail)) {
+            return;
+        }
+        run_.forget();
+        ended("the build runner never answered: " + std::string(loom::stage_name(end.stage)) +
+                  ", " + std::string(loom::reason_name(end.stage)),
+              mail, end.never_delivered());
     }
 
     /// The project answered: folded in and republished, changing nothing about the build.
@@ -574,6 +598,16 @@ private:
         return count;
     }
 
+    /// Is this the runner's answer to the order this tool is waiting on? Anything else said in
+    /// its shape is somebody else's word: counted, not folded in.
+    bool answers_order(const loom::Mail& mail) {
+        if (run_.matches_answer(mail)) {
+            return true;
+        }
+        ++state_.stray;
+        return false;
+    }
+
     /// Is this about the recipe this tool is following? Another recipe's fact is counted
     /// (`stray`), so "this never happens" is checkable, and is never folded in.
     bool mine(const std::string& recipe) {
@@ -630,6 +664,23 @@ private:
                                       taken ? std::string() : state_.detail});
     }
 
+    /// THE ORDER ENDED WITH NO RESULT, in `why`: nothing ran when it never reached the runner,
+    /// else the build's end is not known.
+    void ended(std::string why, loom::Mail& mail, bool never_delivered = true) {
+        if (!still_going(state_.outcome)) {
+            return;
+        }
+        state_.outcome = never_delivered ? outcome::kNotStarted : outcome::kEnded;
+        state_.detail = std::move(why);
+        end_record(state_.op);
+        if (state_.realize) {
+            state_.realization = realization::kRefused;
+            state_.realized_detail = "the build ended with no result, so nothing was offered to "
+                                     "the project";
+        }
+        say(mail);
+    }
+
     BuildStatus status() const {
         return BuildStatus{state_.recipe,      state_.artifact,        state_.outcome,
                            state_.status,      state_.command,         state_.detail,
@@ -669,6 +720,11 @@ private:
     /// at a time, and a poke-writable copy would be a second answer to "what did it say".
     // WL-OUT-02 -- agents/workshop/build-output.md
     std::vector<KeptOutput> kept_;
+
+    /// The order this tool is waiting on, and its correlations, one sequence. Image-local: an
+    /// order is answered to the incarnation that asked.
+    loom::RoleRequest run_;
+    std::uint64_t asked_ = 0;
 };
 
 } // namespace zengine::builder

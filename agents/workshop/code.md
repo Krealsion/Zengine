@@ -38,12 +38,12 @@ WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## WL-CODE-03 — The open's answer settles the one held ask, and the Builder hears unchanged code
 
-LAW — Only the held ask's own answer or Loom's refusal of its attempt settles Edit Code's open; an accepted answer re-asks the host, publishing `PaneSourceOpened` once only if the code is unchanged.
+LAW — Only the held ask's own answer or Loom's word that its attempt ended settles Edit Code's open; an accepted answer re-asks the host, publishing `PaneSourceOpened` once only if the code is unchanged.
 
 MEANS
 - a refused or superseded answer is said in the owner's words, and nothing is published;
 - code that changed while opening leaves the file open, tells the Builder nothing, and says so;
-- silence stays pending: no turn count, timeout or retry decides it; a newer spend replaces it.
+- an answer the opening role keeps stays pending, no timeout or retry deciding it, until a newer spend; the role gone or silent ends it (`zen.AskEnded`), said once.
 
 DOES NOT MEAN
 - that `PaneSourceOpened` is an order: it builds, arms, reloads and promotes nothing.
@@ -167,13 +167,14 @@ nothing" "Edit Code opens a CMake target recipe's editing entry through the open
 Builder follows that recipe"
 
 ### WL-CODE-03
-`workshop/weave_code.cpp` on(SourceOpened) on(DispatchRefused) same_code
+`workshop/weave_code.cpp` on(SourceOpened) on(AskEnded) same_code
 `workshop/weave.hpp` WorkshopWeave::CodeOpen WorkshopWeave::code_open_
 `workshop/open_seam_vocabulary.hpp` PaneSourceOpened
 `tests/test_workshop_panes_code.cpp` "a dirty Editor refuses the pane's source, the refusal is said,
 and the Builder is not moved" "an open no opening role could take is refused at dispatch by that
-attempt, and forged answers settle nothing" "an open that is never answered stays pending however
-many turns pass, and a late answer settles it" "code that changed while its source was opening
+attempt, and forged answers settle nothing" "an open the opening role keeps and never answers stays
+pending however many turns pass, and a late answer settles it" "an open whose opening role leaves
+while it keeps the answer is told its end once, in Loom's words" "code that changed while its source was opening
 leaves the file open and tells the Builder nothing"
 
 ### WL-CODE-04

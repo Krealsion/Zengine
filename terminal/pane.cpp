@@ -108,7 +108,7 @@ class TerminalPaneWeave
     : public zengine::With<Rows, Actions, Menu, Settings>::Weave<
           TerminalPaneWeave, pane::TerminalPaneState,
           loom::Accept<ws::TerminalValueAnswered, zengine::pane::PaneCarryAnswered,
-                       loom::DispatchRefused, PaneKey, PaneTextInput, TranscriptShown,
+                       loom::AskEnded, PaneKey, PaneTextInput, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, gfx::ClipboardCopy,
                        gfx::ClipboardText>,
           loom::Emit<zengine::pane::v2::PaneSettingsDeclared, zengine::pane::v4::PaneActions, PaneEscapeUnspent,
@@ -312,7 +312,7 @@ public:
         }
         capture_gesture_ = mail.correlation();
         capture_drag_ = drag;
-        const bool queued = capture_.send_to_role(mail.as_role(pane::kTerminalPaneRole), kWorkshopRole,
+        const bool queued = capture_.ask_role(mail.as_role(pane::kTerminalPaneRole), kWorkshopRole,
             ws::TerminalValueRequested{pane::kTerminalPane, subject.first, subject.second,
                                        static_cast<std::int64_t>(capture_gesture_)}, ++asked_);
         notice_ = queued ? "Picking up transcript value" : "Transcript pickup could not be queued";
@@ -322,7 +322,7 @@ public:
         if (!capture_.is<ws::TerminalValueRequested>() || !capture_.matches_answer(mail)) return;
         capture_.forget();
         if (!answer.available) { notice_ = answer.reason; say(mail); return; }
-        const bool queued = capture_.send_to_role(mail.as_role(pane::kTerminalPaneRole), kWorkshopRole,
+        const bool queued = capture_.ask_role(mail.as_role(pane::kTerminalPaneRole), kWorkshopRole,
             zengine::pane::PaneValueCarryRequested{pane::kTerminalPane, answer.label, answer.pair, capture_drag_},
             capture_gesture_);
         notice_ = queued ? "Placing transcript copy" : "Transcript copy could not be queued";
@@ -334,10 +334,24 @@ public:
         notice_ = answer.carried ? std::string() : answer.reason;
         say(mail);
     }
-    void on(const loom::DispatchRefused& answer, loom::Mail& mail) {
-        if (!capture_.matches_refusal(answer, mail)) return;
-        capture_.forget();
-        notice_ = "Transcript pickup refused: " + answer.reason;
+    /// LOOM'S WORD THAT AN ASK OF THIS PANE'S ENDED WITH NO ANSWER: a pickup, the line's act, a
+    /// list or a paste waits no more, and what waited is said.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!mail.ask_ended()) return;
+        const std::string why = zengine::pane::no_answer(ended);
+        if (capture_.matches_ending(ended, mail)) {
+            capture_.forget();
+            notice_ = "Transcript pickup refused: " + why;
+        } else if (acting_ && mail.correlation() == act_pending_) {
+            acting_ = false;
+            notice_ = "the line was not acted on -- " + why;
+        } else if (completing_ && mail.correlation() == completion_pending_) {
+            completing_ = false;
+        } else if (paste_.awaiting && mail.correlation() == paste_.pending) {
+            paste_.awaiting = false;
+        } else {
+            return;
+        }
         say(mail);
     }
 
@@ -581,8 +595,8 @@ private:
         act_pending_ = ++asked_;
         acting_ = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(kWorkshopRole, TerminalActRequested{ws::kTerminalSubmitAct, line},
-                          act_pending_);
+            .ask_role(kWorkshopRole, TerminalActRequested{ws::kTerminalSubmitAct, line},
+                      act_pending_);
         say(mail);
     }
 
@@ -594,8 +608,7 @@ private:
         paste_.epoch = line_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(room().clipboard_role(), gfx::ClipboardTextRequested{},
-                          paste_.pending);
+            .ask_role(room().clipboard_role(), gfx::ClipboardTextRequested{}, paste_.pending);
     }
 
     // ---- The line: the one place it is kept, and whether a command is composed --------------

@@ -84,7 +84,7 @@ class FirstRun
                        ws::PaneInventory, ws::RoleSettingCommitAnswered, ws::PaneLaunchAnswered,
                        ws::PaneCloseAnswered, zengine::pane::PaneOperationAnswered, ws::EditorSwitchAnswered,
                        launcher::LaunchCatalog, launcher::Launched, view::ViewWiring,
-                       loom::DispatchRefused, gfx::AreaRoom, gfx::DrawnRefused,
+                       loom::AskEnded, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
           loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v3::PaneActions, ws::RoleSettingsDeclared,
                      ws::RoleSettingsRequested, ws::RoleSettingCommitRequested,
@@ -104,9 +104,8 @@ public:
         offer(mail);
         declare(mail);
         settings_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole,
-                                                 ws::RoleSettingsRequested{kRole},
-                                                 settings_ask_);
+        (void)mail.as_role(kRole).ask_role(zengine::pane::kLayoutsRole,
+                                             ws::RoleSettingsRequested{kRole}, settings_ask_);
         ask_status(mail);
         ask_facts(mail);
         for (const zengine::pane::WindowDrawing* w : {&window_, &story_window_}) {
@@ -142,7 +141,7 @@ public:
         // keeps the keys.
         state_.launched = true;
         fresh_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{}, fresh_ask_);
+        (void)mail.as_role(kRole).ask_role(kWorkshop, ws::PaneInventoryRequested{}, fresh_ask_);
     }
     void on(const ws::RoleSettings& kept, loom::Mail& mail) {
         if (mail.authored_from_role(zengine::pane::kLayoutsRole)) {
@@ -190,8 +189,8 @@ public:
             return; // not shown by itself this run; the Pane Manager still lists it
         }
         launch_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneLaunchRequested{kRole, kPane},
-                                                 launch_ask_);
+        (void)mail.as_role(kRole).ask_role(kWorkshop, ws::PaneLaunchRequested{kRole, kPane},
+                                             launch_ask_);
     }
 
     /// WHAT A RUNNING VIEW'S WIRING HAS DONE, said by the view as its own role: an intent
@@ -264,19 +263,47 @@ public:
         }
     }
 
-    /// LOOM'S WORD THAT THE LISTING COULD NOT BE ASKED: no launcher answers in this Workshop.
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        if (!mail.dispatch_refused() || refused.role != launcher::kLauncherRole) {
+    /// LOOM'S WORD THAT ONE OF THIS WEAVE'S ASKS ENDED WITH NO ANSWER, by the ask's own number:
+    /// what waited on it is said and waits no more -- the listing, a start, a launch, a write, the
+    /// switch -- and a quiet ask (the settings, the inventory, the status) is simply not waited on.
+    // WL-FIRST-04 -- agents/workshop/first-run.md
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        const std::uint64_t c = mail.correlation();
+        if (!mail.ask_ended() || c == 0) {
             return;
         }
-        if (refused.shape == launcher::LaunchCatalogRequested::zen_name) {
+        const std::string why = zengine::pane::no_answer(ended);
+        if (c == listing_ask_) {
             listing_ask_ = 0;
             moment_.setups.clear();
-            moment_.setups_note = "no launcher answers in this Workshop (" + refused.reason + ")";
-        } else if (refused.shape == launcher::Launch::zen_name) {
-            start_ask_ = 0;
-            moment_.notice = "nothing was started -- the launcher could not be asked (" +
-                             refused.reason + ")";
+            moment_.setups_note = "no launcher answers in this Workshop (" + why + ")";
+        } else if (c == start_ask_ || c == approval_ask_) {
+            (c == start_ask_ ? start_ask_ : approval_ask_) = 0;
+            starting_.clear();
+            moment_.notice = "nothing was started -- " + why;
+        } else if (c == launch_ask_) {
+            launch_ask_ = 0;
+            moment_.notice = "not shown -- " + why;
+        } else if (c == story_launch_ask_ || c == show_me_ask_) {
+            (c == show_me_ask_ ? show_me_ask_ : story_launch_ask_) = 0;
+            story_says("not shown -- " + why);
+            show_story(mail);
+        } else if (c == commit_ask_) {
+            committed(ws::RoleSettingCommitAnswered{false, why, 0, std::string()}, mail);
+            return;
+        } else if (c == switch_ask_ && moment_.switching) {
+            switch_ask_ = 0;
+            moment_.switching = false;
+            moment_.consent_asked = false;
+            consent_.clear();
+            moment_.switch_said = "the switch did not answer: " + why;
+        } else if (c == status_ask_ || c == settings_ask_ || c == fresh_ask_ || c == inventory_ask_) {
+            for (std::uint64_t* quiet : {&status_ask_, &settings_ask_, &fresh_ask_, &inventory_ask_}) {
+                *quiet = *quiet == c ? 0 : *quiet;
+            }
+            return;
+        } else {
+            return;
         }
         show(mail);
     }
@@ -310,9 +337,12 @@ public:
     /// holds the weaver at this pane; a story's write that did not land is said in its pane.
     // WL-FIRST-05 -- agents/workshop/first-run.md
     void on(const ws::RoleSettingCommitAnswered& acted, loom::Mail& mail) {
-        if (commit_ask_ == 0 || !answers(mail, commit_ask_)) {
-            return;
+        if (commit_ask_ != 0 && answers(mail, commit_ask_)) {
+            committed(acted, mail);
         }
+    }
+    /// THE WRITE ENDED: answered, or ended with no answer (`acted` then refused in Loom's words).
+    void committed(const ws::RoleSettingCommitAnswered& acted, loom::Mail& mail) {
         commit_ask_ = 0;
         if (acted.accepted) {
             revision_ = acted.revision;
@@ -325,8 +355,8 @@ public:
             } else {
                 moment_.notice = "not kept: " + acted.refusal;
             }
-            (void)mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole,
-                                                     ws::PaneCloseRequested{kRole, kPane}, ++asks_);
+            (void)mail.as_role(kRole).ask_role(zengine::pane::kLayoutsRole,
+                                                 ws::PaneCloseRequested{kRole, kPane}, ++asks_);
             show(mail);
             if (!fr::story_done(ticks_)) {
                 state_.story_shown = true;
@@ -359,8 +389,8 @@ public:
         }
         start_ask_ = ++asks_;
         if (!mail.as_role(kRole)
-                 .send_to_role(launcher::kLauncherRole,
-                               launcher::Launch{launcher::kKindDemo, starting_}, start_ask_)
+                 .ask_role(launcher::kLauncherRole,
+                           launcher::Launch{launcher::kKindDemo, starting_}, start_ask_)
                  .valid()) {
             start_ask_ = 0;
             moment_.notice = "nothing was started -- the launcher could not be asked";
@@ -525,16 +555,16 @@ private:
     /// THE SWITCH'S STATUS, ASKED QUIETLY: the box shows the answer, so nothing is said of it.
     void ask_status(loom::Mail& mail) {
         status_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(ws::kEditorSwitchRole,
-                                                 ws::EditorSwitchQuietStatusRequested{}, status_ask_);
+        (void)mail.as_role(kRole).ask_role(ws::kEditorSwitchRole,
+                                             ws::EditorSwitchQuietStatusRequested{}, status_ask_);
     }
 
     /// WHAT CAN TICK A STEP, asked of each owner: the inventory, every running view's wiring, the
     /// launcher's listing.
     void ask_facts(loom::Mail& mail) {
         inventory_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{},
-                                                 inventory_ask_);
+        (void)mail.as_role(kRole).ask_role(kWorkshop, ws::PaneInventoryRequested{},
+                                             inventory_ask_);
         (void)mail.as_role(kRole).publish(view::ViewWiringRequested{});
         ask_listing(mail);
     }
@@ -544,8 +574,8 @@ private:
         }
         listing_ask_ = ++asks_;
         if (!mail.as_role(kRole)
-                 .send_to_role(launcher::kLauncherRole, launcher::LaunchCatalogRequested{},
-                               listing_ask_)
+                 .ask_role(launcher::kLauncherRole, launcher::LaunchCatalogRequested{},
+                           listing_ask_)
                  .valid()) {
             listing_ask_ = 0;
             moment_.setups.clear();
@@ -611,7 +641,7 @@ private:
         commit.text = now;
         writing_ = now;
         commit_ask_ = ++asks_;
-        if (!mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole, commit, commit_ask_).valid()) {
+        if (!mail.as_role(kRole).ask_role(zengine::pane::kLayoutsRole, commit, commit_ask_).valid()) {
             commit_ask_ = 0;
             story_says("the layouts' owner could not be asked to keep the ticks");
             return;
@@ -622,10 +652,10 @@ private:
     void launch_story(loom::Mail& mail, bool keys) {
         story_launch_ask_ = ++asks_;
         if (keys) {
-            (void)mail.as_role(kRole).send_to_role(
+            (void)mail.as_role(kRole).ask_role(
                 kWorkshop, ws::PaneLaunchRequested{kRole, kStory}, story_launch_ask_);
         } else {
-            (void)mail.as_role(kRole).send_to_role(
+            (void)mail.as_role(kRole).ask_role(
                 kWorkshop, ws::PaneLaunchRequested{kRole, kStory, false}, story_launch_ask_);
         }
     }
@@ -669,7 +699,7 @@ private:
         commit.key = fr::kAnsweredKey;
         commit.flag = true;
         const std::uint64_t asked = ++asks_;
-        if (!mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole, commit, asked).valid()) {
+        if (!mail.as_role(kRole).ask_role(zengine::pane::kLayoutsRole, commit, asked).valid()) {
             moment_.notice = "the layouts' owner could not be asked to keep the answer";
             show(mail);
             return;
@@ -695,7 +725,7 @@ private:
         asked.gesture = static_cast<std::int64_t>(gesture);
         asked.classes = {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite};
         approval_ask_ = ++asks_;
-        if (!mail.as_role(kRole).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
+        if (!mail.as_role(kRole).ask_role(kWorkshop, asked, approval_ask_).valid()) {
             approval_ask_ = 0;
             moment_.notice = "nothing was started -- Workshop could not be asked";
             show(mail);
@@ -715,7 +745,7 @@ private:
         if (story_.cursor % 2 == 1) {
             show_me_step_ = step;
             show_me_ask_ = ++asks_;
-            (void)mail.as_role(kRole).send_to_role(
+            (void)mail.as_role(kRole).ask_role(
                 kWorkshop,
                 ws::PaneLaunchRequested{fr::steps()[step].role, fr::steps()[step].pane},
                 show_me_ask_);
@@ -779,7 +809,7 @@ private:
     template <class Ask>
     bool send_switch(loom::Mail& mail, const Ask& ask) {
         const std::uint64_t asked = ++asks_;
-        if (!mail.as_role(kRole).send_to_role(ws::kEditorSwitchRole, ask, asked).valid()) {
+        if (!mail.as_role(kRole).ask_role(ws::kEditorSwitchRole, ask, asked).valid()) {
             moment_.notice = "the editor switch could not be asked";
             return false;
         }

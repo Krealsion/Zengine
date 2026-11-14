@@ -147,17 +147,17 @@ public:
         say(state, pane_rows_decl, app, mail);
     }
 
-    /// ...AND AN INSPECT INFO NEVER HEARD -- not loaded, or not taking the ask: said. True when
-    /// the refusal named that ask.
-    bool inspect_refused(const loom::DispatchRefused& refused, const DesktopState& state,
+    /// ...AND AN INSPECT INFO NEVER ANSWERED -- not loaded, not taking the ask, or gone: said.
+    /// True when the ending named that ask.
+    bool inspect_refused(const loom::AskEnded& refused, const DesktopState& state,
                          const Declared& pane_rows_decl, const Declared& app, loom::Mail& mail) {
         if (!refused_ask(inspecting_.asked != 0, inspecting_.sent, inspecting_.asked, refused,
                          mail, ws::InspectPaneRequested::zen_name,
                          ws::InspectPaneRequested::zen_version, kInfoRole)) {
             return false;
         }
-        notice_ = "Info could not be asked to inspect " + inspecting_.name + " (" +
-                  refused.reason + ")";
+        notice_ = "Info did not inspect " + inspecting_.name + " -- " +
+                  zengine::pane::no_answer(refused);
         inspecting_ = Inspecting{};
         say(state, pane_rows_decl, app, mail);
         return true;
@@ -620,7 +620,7 @@ private:
             const std::uint64_t asked = ++inspect_asks_;
             const loom::Ticket sent =
                 mail.as_role(kDesktopRole)
-                    .send_to_role(kInfoRole, ws::InspectPaneRequested{p->role, p->pane}, asked);
+                    .ask_role(kInfoRole, ws::InspectPaneRequested{p->role, p->pane}, asked);
             inspecting_ = Inspecting{};
             if (sent.valid()) {
                 inspecting_ = Inspecting{asked, sent, p->name};

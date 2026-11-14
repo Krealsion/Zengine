@@ -72,7 +72,7 @@ class Palette
                        zengine::pane::PaneTextInput, zengine::pane::PaneActionRequested, ws::KeymapShown,
                        ws::PaneInventory, ws::CommandRunAnswered, ws::LayoutSettingsAnswered,
                        zengine::pane::PaneOperationAnswered, zengine::launcher::LaunchCatalog,
-                       zengine::launcher::Launched, gfx::AreaRoom, gfx::DrawnRefused,
+                       zengine::launcher::Launched, loom::AskEnded, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
           loom::Emit<zengine::pane::v2::PaneOffered, zengine::pane::v3::PaneActions, ws::KeymapRequested,
                      ws::PaneInventoryRequested, ws::CommandRunRequested,
@@ -222,7 +222,7 @@ public:
         }
         launch_ask_ = ++asks_;
         if (!mail.as_role(kRole)
-                 .send_to_role(zengine::launcher::kLauncherRole, starting_, launch_ask_)
+                 .ask_role(zengine::launcher::kLauncherRole, starting_, launch_ask_)
                  .valid()) {
             launch_ask_ = 0;
             in_flight_ = false;
@@ -249,6 +249,28 @@ public:
             notice_ = "nothing was started -- " + said.reason;
         }
         running_.clear();
+        show(mail);
+    }
+
+    /// LOOM'S WORD THAT A RUN OR A START IN FLIGHT ENDED WITH NO ANSWER: said, and the next entry
+    /// may run. A list asked for (the keymap, the panes, the settings, the listing) is not waited on.
+    void on(const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!mail.ask_ended()) {
+            return;
+        }
+        const std::uint64_t c = mail.correlation();
+        const bool run = ended.shape == ws::CommandRunRequested::zen_name && in_flight_ && c == asked_;
+        const bool start = !run && c != 0 && (c == approval_ask_ || c == launch_ask_);
+        if (!run && !start) {
+            return;
+        }
+        if (start) {
+            (c == approval_ask_ ? approval_ask_ : launch_ask_) = 0;
+        }
+        in_flight_ = false;
+        running_.clear();
+        notice_ = std::string(run ? "it did not run -- " : "nothing was started -- ") +
+                  zengine::pane::no_answer(ended);
         show(mail);
     }
 
@@ -376,15 +398,15 @@ private:
     }
 
     void ask_lists(loom::Mail& mail) {
-        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::KeymapRequested{});
-        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{});
+        (void)mail.as_role(kRole).ask_role(kWorkshop, ws::KeymapRequested{});
+        (void)mail.as_role(kRole).ask_role(kWorkshop, ws::PaneInventoryRequested{});
         layouts_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(zengine::pane::kLayoutsRole, ws::LayoutSettingsRequested{},
-                                                 layouts_ask_);
+        (void)mail.as_role(kRole).ask_role(zengine::pane::kLayoutsRole, ws::LayoutSettingsRequested{},
+                                             layouts_ask_);
         listing_ask_ = ++asks_;
-        (void)mail.as_role(kRole).send_to_role(zengine::launcher::kLauncherRole,
-                                                 zengine::launcher::LaunchCatalogRequested{},
-                                                 listing_ask_);
+        (void)mail.as_role(kRole).ask_role(zengine::launcher::kLauncherRole,
+                                             zengine::launcher::LaunchCatalogRequested{},
+                                             listing_ask_);
     }
 
     /// Whether `mail` answers the ask that went out under `asked`, this weave's own number.
@@ -406,7 +428,7 @@ private:
         asked.gesture = static_cast<std::int64_t>(mail.correlation());
         asked.classes = {zengine::pane::act_class::kBuild, zengine::pane::act_class::kWrite};
         approval_ask_ = ++asks_;
-        if (!mail.as_role(kRole).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
+        if (!mail.as_role(kRole).ask_role(kWorkshop, asked, approval_ask_).valid()) {
             approval_ask_ = 0;
             notice_ = "nothing was started -- Workshop could not be asked";
             show(mail);
@@ -429,7 +451,7 @@ private:
             return;
         }
         const loom::Ticket sent =
-            mail.as_role(kRole).send_to_role(kWorkshop, asked, mail.correlation());
+            mail.as_role(kRole).ask_role(kWorkshop, asked, mail.correlation());
         if (!sent.valid()) {
             notice_ = "Workshop could not be asked to run it";
             show(mail);

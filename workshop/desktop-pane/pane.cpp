@@ -129,7 +129,7 @@ class DesktopWeave
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
                        PaneCloseAnswered, PaneToggleAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
-                       PaneMenuAnswered, loom::DispatchRefused, gfx::ClipboardCopy,
+                       PaneMenuAnswered, loom::AskEnded, gfx::ClipboardCopy,
                        gfx::ClipboardText, zengine::pane::PaneDocumentShown, PaneSubjectActed>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, AppActions,
@@ -174,16 +174,15 @@ public:
             AppActions app;
             app.rows = app_rows(); shortcuts_.append(app.rows);
             app_.attempt = ++attempts_;
-            (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, app, app_.attempt);
+            (void)mail.as_role(pane::kDesktopRole).ask_role(kWorkshopRole, app, app_.attempt);
         }
         mail.as_role(pane::kDesktopRole).publish(ws::PaneShortcutsRequested{});
         // ...AND THE INVENTORY AS IT IS NOW. The publication is said when it changes; a new
         // image arriving while nothing changes would otherwise wait for an unrelated change.
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, PaneInventoryRequested{});
+        (void)mail.as_role(pane::kDesktopRole).ask_role(kWorkshopRole, PaneInventoryRequested{});
         // ...AND THE KEYMAP IN FORCE, for the same reason: what the Hotkeys pane prints is what
         // the host resolved, never this image's own defaults.
-        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
+        (void)mail.as_role(pane::kDesktopRole).ask_role(kWorkshopRole, KeymapRequested{});
     }
 
     /// THE SETTINGS THIS LAYOUT KEEPS FOR HOTKEYS, as the layouts' owner handed them and its
@@ -288,9 +287,9 @@ public:
             // takes it off, and the host judges "shown or hidden" against the desk as it is
             // rather than against this weave's last reading of it (WL-DESK-13).
             (void)mail.as_role(pane::kDesktopRole)
-                .send_to_role(kWorkshopRole,
-                              PaneToggleRequested{pane::kDesktopRole, pane::kLauncherPane},
-                              ++launches_);
+                .ask_role(kWorkshopRole,
+                          PaneToggleRequested{pane::kDesktopRole, pane::kLauncherPane},
+                          ++launches_);
             return;
         }
         if (asked.id == pane::kActionHotkeys) {
@@ -300,8 +299,8 @@ public:
         if (asked.id == pane::kActionPalette || asked.id == pane::kActionPaletteShift) {
             // Shown over the pane holding the keys, or hidden: the host judges which.
             (void)mail.as_role(pane::kDesktopRole)
-                .send_to_role(kWorkshopRole, PaneToggleRequested{ws::kPaletteRole, ws::kPalettePane},
-                              ++launches_);
+                .ask_role(kWorkshopRole, PaneToggleRequested{ws::kPaletteRole, ws::kPalettePane},
+                          ++launches_);
             return;
         }
         if (asked.id == pane::kActionManual) {
@@ -372,22 +371,40 @@ public:
         hotkeys_.pasted(a, keys_rows_, mail);
     }
 
-    /// Loom's word that an ask of this image's never reached its door's handler: an attestation,
-    /// not an answer. Provenance first, then the exact queued attempt, its correlation, what it
-    /// asked and where, matched against the one record still waiting (`refused_ask`): the
-    /// Hotkeys pane's paste and edit, the Pane Manager's inspect, the Manual's ask, in turn.
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+    /// Loom's word that an ask of this image's ended with no answer: an attestation, not an
+    /// answer. Provenance first, then the exact queued attempt, its correlation, what it asked
+    /// and where, matched against the one record still waiting (`refused_ask`): the Hotkeys
+    /// pane's paste and edit, the Pane Manager's inspect, the Manual's ask, in turn; then the
+    /// latest launch, close or toggle, and a declaration never judged, by the ending's
+    /// correlation and shape. A baseline ask (the inventory, the keymap) waits on nothing.
+    void on(const loom::AskEnded& refused, loom::Mail& mail) {
         if (shortcuts_.refused(refused, mail)) return;
-        if (!mail.dispatch_refused()) {
+        if (!mail.ask_ended()) {
             return;
         }
-        if (hotkeys_.ask_refused(refused, keys_rows_, mail)) {
+        if (hotkeys_.ask_refused(refused, keys_rows_, mail) ||
+            launcher_.inspect_refused(refused, state_, pane_rows_, app_, mail) ||
+            manual_.ask_refused(refused, hotkeys_.keys_heard(), hotkeys_.keymap(), mail)) {
             return;
         }
-        if (launcher_.inspect_refused(refused, state_, pane_rows_, app_, mail)) {
+        const std::string why = zengine::pane::no_answer(refused);
+        if (refused.shape == PaneLaunchRequested::zen_name ||
+            refused.shape == PaneCloseRequested::zen_name ||
+            refused.shape == PaneToggleRequested::zen_name) {
+            if (mail.correlation() == launches_) {
+                launcher_.launch_answered("not answered -- " + why, state_, pane_rows_, app_, mail);
+            }
             return;
         }
-        (void)manual_.ask_refused(refused, hotkeys_.keys_heard(), hotkeys_.keymap(), mail);
+        for (Declared* d : {&pane_rows_, &keys_rows_, &manual_rows_, &app_}) {
+            if ((refused.shape == PaneActions::zen_name || refused.shape == AppActions::zen_name) &&
+                d->attempt == mail.correlation()) {
+                d->word = "keys not judged: " + why;
+                say(mail);
+                say_keys(mail);
+                return;
+            }
+        }
     }
 
     /// WHAT PANES THERE ARE, SAID BY THE HOST -- published when it changes, or answered to this
@@ -634,7 +651,7 @@ private:
         actions.rows = pane::LauncherView::pane_rows();
         pane_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, actions, pane_rows_.attempt);
+            .ask_role(kWorkshopRole, actions, pane_rows_.attempt);
     }
 
     /// THE HOTKEYS PANE'S MODE AND ITS ROWS IN EACH, as the pane says them.
@@ -655,7 +672,7 @@ private:
             [](const std::string& m) { return keys_rows(m); });
         keys_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, keys, keys_rows_.attempt);
+            .ask_role(kWorkshopRole, keys, keys_rows_.attempt);
     }
 
     /// THE HOTKEYS PANE'S OWN ASK TO BE DECLARED AGAIN, handed to it with each act that can
@@ -671,7 +688,7 @@ private:
         rows.rows = pane::ManualView::manual_rows();
         manual_rows_.attempt = ++attempts_;
         (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, rows, manual_rows_.attempt);
+            .ask_role(kWorkshopRole, rows, manual_rows_.attempt);
     }
 
     // ---- State not in the shape ----------------------------------------------------------

@@ -4,6 +4,7 @@
 // The opening manager's bodies (`opening.hpp`).
 
 #include "opening.hpp"
+#include "pane/operation.hpp"
 
 namespace zengine::workshop {
 
@@ -77,7 +78,7 @@ bool OpeningManager::ask(loom::Mail& mail, const std::string& role, const Shape&
                          const char* stage) {
     flight_.stage = stage;
     flight_.awaiting = role;
-    flight_.attempt = mail.as_role(kOpeningRole).send_to_role(role, shape, flight_.op);
+    flight_.attempt = mail.as_role(kOpeningRole).ask_role(role, shape, flight_.op);
     state_.stage = stage;
     state_.awaiting = role;
     state_.attempt = static_cast<std::int64_t>(flight_.attempt.seq);
@@ -162,7 +163,7 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         // NOTHING WAS QUEUED: this weave could not author the ask (it does not hold the
         // opening role it speaks as). Not silence, and not a standalone mode: a refusal,
         // now, in words. (An unheld desk role is a DISPATCH refusal, heard later through
-        // `zen.DispatchRefused`; `begin_joint` already refused it as NoClaim before this.)
+        // `zen.AskEnded`; `begin_joint` already refused it as NoClaim before this.)
         (void)mail.cancel_joint(authority_, flight_.op);
         settle(false, false, "the desk could not be asked to show " + asked.path, mail);
         return;
@@ -322,21 +323,17 @@ void OpeningManager::on(const loom::JointApplied& said, loom::Mail& mail) {
     }
 }
 
-void OpeningManager::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-    // LOOM'S LATER ATTESTATION that an addressed attempt of THIS weave was refused before
-    // any handler ran. The shape alone is ordinary speech; the provenance is the fact, and
-    // the attempt must be the one this flight is waiting on. (A held owner's refusal of the
-    // `apply` word is met here too -- with no attempt awaited it is ignored, because the
-    // bus's `zen.JointApplied` is the word that decides that stage.)
-    if (!mail.dispatch_refused() || !flight_.live || !flight_.attempt.valid() ||
-        refused.refused_attempt().seq != flight_.attempt.seq) {
+void OpeningManager::on(const loom::AskEnded& ended, loom::Mail& mail) {
+    // LOOM'S ATTESTATION that an ask of THIS weave ended with no answer: refused before any
+    // handler ran, or its owner gone or silent. The shape alone is ordinary speech; the
+    // provenance is the fact, and the attempt must be the one this flight is waiting on. (The
+    // `apply` word is no ask: the bus's `zen.JointApplied` is the word that decides that stage.)
+    if (!mail.ask_ended() || !flight_.live || !flight_.attempt.valid() ||
+        ended.ended_attempt().seq != flight_.attempt.seq) {
         return;
     }
     (void)mail.cancel_joint(authority_, flight_.op);
-    settle(false, false,
-           flight_.awaiting + " could not be reached (" + refused.reason + ") -- " + flight_.path +
-               " was not opened",
-           mail);
+    settle(false, false, flight_.path + " was not opened -- " + pane::no_answer(ended), mail);
 }
 
 void OpeningManager::on(const loom::JointEnded& ended, loom::Mail& mail) {

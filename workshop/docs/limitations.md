@@ -63,11 +63,13 @@ layer does not cover it.
 
 A send that goes nowhere — no holder for the role, a grant that does not permit it, a shape
 this process has never declared — produces no error your handler can read unless your weave
-asks for one. A weave that explicitly accepts Loom's `zen.DispatchRefused` is told when one of
-its directed or role-addressed sends was refused before its target ran, and a send that could
-not be queued at all returns a ticket that is not valid; the Files, Builder, Editor and Info
-panes use both. A publication is never reported that way, and a delivered message that is never
-answered tells its sender nothing. The refusal is always visible to a **host-installed
+asks for one. A weave that asks through Loom's ask door (`mail.ask`, `ask_role`) must accept
+`zen.AskEnded`, and is told when its ask ends with no answer -- refused before its target ran,
+or its respondent gone or silent; one that explicitly accepts `zen.DispatchRefused` is told when
+one of its plain directed or role-addressed sends was refused before its target ran; and a send
+that could not be queued at all returns a ticket that is not valid. Every pane in this tree asks
+so. A publication is never reported that way, and a delivered plain send that is never answered
+tells its sender nothing. The refusal is always visible to a **host-installed
 observer**. This is a recorded Loom seam, not a Zengine choice; the practical consequence is
 that "it loads and nothing happens" is still the failure a newcomer hits first, and diagnosing
 it needs a tap. See [getting started](../../docs/getting-started.md#when-it-does-not-work).

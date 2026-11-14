@@ -245,10 +245,10 @@ public:
         say_keys(keys_rows_decl, mail);
     }
 
-    /// LOOM'S WORD THAT ONE OF THIS PANE'S ASKS NEVER REACHED ITS DOOR, matched against the one
-    /// record still waiting (`refused_ask`): a refused paste lands nothing; a refused edit changed
-    /// nothing, and the table says so. True when the refusal named either.
-    bool ask_refused(const loom::DispatchRefused& refused, const Declared& keys_rows_decl,
+    /// LOOM'S WORD THAT ONE OF THIS PANE'S ASKS ENDED WITH NO ANSWER, matched against the one
+    /// record still waiting (`refused_ask`): an ended paste lands nothing; an ended edit is said,
+    /// and the table waits on nothing. True when the ending named either.
+    bool ask_refused(const loom::AskEnded& refused, const Declared& keys_rows_decl,
                      loom::Mail& mail) {
         if (refused_ask(paste_.awaiting, paste_.attempt, paste_.pending, refused, mail,
                         graphics::ClipboardTextRequested::zen_name,
@@ -256,13 +256,13 @@ public:
             paste_.awaiting = false;
             return true;
         }
-        // ...AND AN EDIT THAT NEVER ARRIVED: released and said, so the table is not left waiting
-        // for a verdict on a request the host never handled.
+        // ...AND AN EDIT NEVER ANSWERED: released and said, so the table is not left waiting
+        // for a verdict on a request the host never judged.
         if (refused_ask(edit_.awaiting, edit_.attempt, edit_.pending, refused, mail,
                         ws::KeymapEditRequested::zen_name, ws::KeymapEditRequested::zen_version,
                         kWorkshopRole)) {
             edit_ = Edit{};
-            keys_notice_ = "edit not delivered -- nothing changed (" + refused.reason + ")";
+            keys_notice_ = "edit not answered -- " + zengine::pane::no_answer(refused);
             say_keys(keys_rows_decl, mail);
             return true;
         }
@@ -735,8 +735,8 @@ private:
         paste_.epoch = line.draft_epoch();
         paste_.role = keys_canvas_.clipboard_role();
         paste_.attempt = mail.as_role(kDesktopRole)
-                             .send_to_role(paste_.role, graphics::ClipboardTextRequested{},
-                                           paste_.pending);
+                             .ask_role(paste_.role, graphics::ClipboardTextRequested{},
+                                       paste_.pending);
         paste_.awaiting = paste_.attempt.valid();
     }
 
@@ -972,9 +972,9 @@ private:
         asking.pending = ++asks_;
         asking.attempt =
             mail.as_role(kDesktopRole)
-                .send_to_role(kWorkshopRole,
-                              ws::KeymapEditRequested{id, op, scancode, modifiers, text},
-                              asking.pending);
+                .ask_role(kWorkshopRole,
+                          ws::KeymapEditRequested{id, op, scancode, modifiers, text},
+                          asking.pending);
         if (!asking.attempt.valid()) {
             keys_notice_ = "edit not submitted -- nothing was queued";
             return;

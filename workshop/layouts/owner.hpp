@@ -24,6 +24,7 @@
 #include "manuals/zengine.layouts.hpp" // the role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
+#include <zen/weave/ask_ended.hpp>
 
 #include <cstdint>
 #include <functional>
@@ -70,7 +71,7 @@ class LayoutsOwner
                        PaneSettingCommitRequested, RoleSettingsRequested,
                        RoleSettingCommitRequested, PaneSettingPinRequested,
                        PaneSettingLockRequested, LayoutSettingsRequested, SettingsWriteRequested,
-                       PaneInventory, WeaversActAnswered, PaneCloseRequested,
+                       PaneInventory, WeaversActAnswered, loom::AskEnded, PaneCloseRequested,
                        // ...and as a pane built on an earlier vocabulary says them
                        v1::PaneCloseRequested, OfficeSettingsDeclared, OfficeSettingsRequested,
                        OfficeSettingCommitRequested>,
@@ -89,6 +90,9 @@ public:
     void on(const SessionSaveRequested& asked, loom::Mail& mail);
     void on(const PaneInventory& said, loom::Mail& mail);
     void on(const WeaversActAnswered& answered, loom::Mail& mail);
+    /// LOOM'S WORD THAT AN ASK OF THIS OWNER'S ENDED WITH NO ANSWER: an unlock's question to the
+    /// presenter is answered refused, so its asker waits on nothing; the inventory's is not waited on.
+    void on(const loom::AskEnded& ended, loom::Mail& mail);
 
     // ---- A desk put live from a caller's text ----------------------------------------------
     void on(const SetupApplyRequested& asked, loom::Mail& mail);
