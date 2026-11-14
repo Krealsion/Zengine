@@ -7,9 +7,11 @@ name: Package
 # `vX.Y.N`, X.Y being that commit's own release series (CMakeLists.txt, ZENGINE_SERIES), and
 # Zengine and Loom are both built as that one number; a commit of another series than main's tip,
 # or built against a Loom of another series (its CMakeLists.txt, LOOM_SERIES), is packaged by no
-# night, and a tip whose CI push run finished without passing turns a night's or a dispatch's run
-# red, named. A dispatch publishes only when asked; a pull request touching it runs it on its own
-# head, a dry run that judges no main and holds the judge of main's tip to its fixed cases.
+# night, nor, by a run that publishes, a commit whose workflows are not main's tip's, which the
+# workflow's token may not tag; and a tip whose CI push run finished without passing turns a
+# night's or a dispatch's run red, named. A dispatch publishes only when asked; a pull request
+# touching it runs it on its own head, a dry run that judges no main and holds the judge of main's
+# tip to its fixed cases.
 on:
   schedule:
     - cron: '41 3 * * *'
@@ -73,6 +75,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
           REPO: ${{ github.repository }}
+          PUBLISH: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         run: |
           set -euo pipefail
           LOOM_URL=https://github.com/Krealsion/Loom.git
@@ -144,6 +147,15 @@ jobs:
           echo "series $series; last tag: ${last:+v$series.$last at $tagged}${last:-none}; this package: $series.$next"
           if [ "$EVENT" != pull_request ] && [ -n "$tagged" ] && git merge-base --is-ancestor "$commit" "$tagged"; then
             echo "main has not moved since v$series.$last: nothing is packaged tonight"
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # A TAG THE WORKFLOW'S TOKEN MAY MAKE. GitHub refuses the token a tag on a commit whose
+          # `.github/workflows/` is no branch tip's (the token never holds `workflows`), and
+          # publishing makes the tag, so a run that publishes packages a commit with main's tip's
+          # workflows; until one passes CI, nothing is published.
+          if [ "$PUBLISH" = true ] && ! git diff --quiet "$commit" HEAD -- .github/workflows; then
+            echo "::warning::the commit to package, $commit, carries other workflows than main's tip, $(git rev-parse HEAD), and the workflow's token may not tag it: nothing is published until a commit with the tip's workflows passes CI"
             echo "moved=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi

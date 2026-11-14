@@ -150,14 +150,18 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
   version is always the commit's it is built from. A commit of another series than `main`'s tip
   -- a series moved and not yet passed -- is packaged by no night, nor one whose Loom commit's
   `LOOM_SERIES` is another than its own -- a series moved in one repository and not yet in the
-  other; the night ends green and says why. `decide` reads that run's `loom-commit` artifact,
-  which `ci.yml`'s `resolve-loom` keeps, and builds at that Loom commit. When nothing moved, the
-  night ends green and says so. A pull request touching how the package is made runs the same
-  jobs on its own head, at Loom's branch of the pull request's branch name where Loom has one (a
-  change made in both repositories at once), else at Loom `main`, as a dry run, all but the
-  judging of `main`'s tip, which is a night's and a dispatch's; in its place the dry run holds
-  that judge (`tests/package/tip/judge.py`) to its fixed cases (`cases.py` beside it), each answer
-  kept there and none read from GitHub, and a wrong verdict is red.
+  other; the night ends green and says why. Nor does a run that publishes package a commit whose
+  `.github/workflows/` differs from `main`'s tip's: GitHub refuses the workflow's token a tag on a
+  commit whose workflows are no branch tip's, so after a change to a workflow nothing is published
+  until a commit carrying it passes, and the night ends green with a warning saying so. `decide`
+  reads that run's `loom-commit` artifact, which `ci.yml`'s `resolve-loom` keeps, and builds at
+  that Loom commit. When nothing moved, the night ends green and says so. A pull request touching
+  how the package is made runs the same jobs on its own head, at Loom's branch of the pull
+  request's branch name where Loom has one (a change made in both repositories at once), else at
+  Loom `main`, as a dry run, all but the judging of `main`'s tip, which is a night's and a
+  dispatch's; in its place the dry run holds that judge (`tests/package/tip/judge.py`) to its fixed
+  cases (`cases.py` beside it), each answer kept there and none read from GitHub, and a wrong
+  verdict is red.
 - **Built** cold and Release, Loom and Zengine both as the next tag's release number:
   - Linux in Ubuntu 22.04 pinned by digest, its packages from Ubuntu's archive on one named day,
     and SDL with its X11 and Wayland drivers (`cmake/ZengineSdl.cmake` keeps SDL's guard under the
