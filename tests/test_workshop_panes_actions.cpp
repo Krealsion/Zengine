@@ -2704,19 +2704,33 @@ std::string hotkeys_pane_text(PaneRig& r) {
     return text;
 }
 
-/// EVERY SECTION OF THE HOTKEYS PANE OPENED, as a weaver opens them while it holds the keys: from
-/// its top, Right on each shut header, Down to the next line, until the cursor stands on the last.
+/// EVERY SECTION OF THE HOTKEYS PANE OPENED, as a weaver opens them while it holds the keys, a
+/// section a step and from the bottom: every section shut, End to the last header, then Right to
+/// open it and Up to the header above, every section above the cursor still shut.
 void open_every_section(PaneRig& r) {
-    r.key(input::scan::kHome);
-    for (int step = 0; step < 600; ++step) {
-        const std::string before = hotkeys_pane_text(r);
-        r.key(input::scan::kRight);
-        r.key(input::scan::kDown);
-        if (hotkeys_pane_text(r) == before) {
-            break;
+    r.key(input::scan::kLeft, input::mod::kShift);
+    // A HEADER'S LINE, every one shown while all are shut: the cursor's mark or its room, then `+`.
+    std::size_t sections = 0;
+    const std::string shut = hotkeys_pane_text(r);
+    for (std::size_t at = 0; at < shut.size();) {
+        const std::size_t end = std::min(shut.find('\n', at), shut.size());
+        const std::string line = shut.substr(at, end - at);
+        if (line.rfind("> + ", 0) == 0 || line.rfind("  + ", 0) == 0) {
+            ++sections;
         }
+        at = end + 1;
+    }
+    REQUIRE(sections > 0);
+    r.key(input::scan::kEnd);
+    for (std::size_t i = 0; i < sections; ++i) {
+        r.key(input::scan::kRight);
+        r.key(input::scan::kUp);
     }
     r.key(input::scan::kHome);
+    // ...THE TOP ONE TOO: a header left shut was one the pane did not show.
+    const std::string open = hotkeys_pane_text(r);
+    CAPTURE(open);
+    REQUIRE(("\n" + open).find("\n> - ") != std::string::npos);
 }
 
 /// ...AND ANOTHER PARTY'S WORDS AS THE DESKTOP SPELLS THEM IN A ROW: a control byte a space, and
