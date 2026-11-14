@@ -301,7 +301,7 @@ public:
         } else if (const auto* t = std::get_if<TextArgs>(&draw)) {
             const bool own = node.text.advance > 0 && node.text.line > 0;
             text(t->x, t->y, t->text, ink_of(0), own ? node.text.measure() : text_,
-                 own ? node.text.points : 0, node.weight_of(t->weight), node.face);
+                 own ? node.text.points : 0, node.weight_set(), node.face);
         } else if (const auto* i = std::get_if<ImageArgs>(&draw)) {
             image(*i);
         }

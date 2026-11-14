@@ -44,8 +44,9 @@ inline void place_rows(graphics::Sketch& into, const std::string& name, std::int
         if (!ground && node.path == "room") {
             continue;
         }
+        const graphics::Look* look = drawn.sketch.look_of(node);
         node.path = name + "/" + node.path;
-        into.put(std::move(node));
+        into.put(std::move(node), look);
     }
     for (graphics::ElementRecord record : drawn.sketch.records()) {
         record.path = name + "/" + record.path;

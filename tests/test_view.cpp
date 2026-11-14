@@ -235,10 +235,12 @@ public:
         for (const auto& k : area.nodes)
             if (auto r = gfx::operands<gfx::RectArgs>(k.node))
                 out.push_back(std::to_string(r->x) + "," + std::to_string(r->y) + " " + std::to_string(r->w) +
-                              " " + std::to_string(r->h) + " " + zengine::graphics::pool_color_of(r->fill).name);
+                              " " + std::to_string(r->h) + " " +
+                              zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(area, k.node)->fill).name);
         for (const auto& k : area.nodes)
             if (auto t = gfx::operands<gfx::TextArgs>(k.node))
-                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + zengine::graphics::pool_color_of(t->ink).name +
+                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " +
+                              zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(area, k.node)->ink).name +
                               " " + t->text);
         return out;
     }
@@ -347,15 +349,14 @@ struct Rig {
         });
         kept = zengine::pane::CanvasPicture{};
         for (const auto* k : order) {
-            if (gfx::operands<gfx::RectArgs>(k->node) != nullptr) {
-                if (const auto r = gfx::operands<gfx::RectArgs>(k->node))
-                    kept.rects.push_back(zengine::pane::CanvasRect{r->x, r->y, r->w, r->h,
-                                                                   zengine::graphics::pool_color_of(r->fill)});
-            } else if (gfx::operands<gfx::TextArgs>(k->node) != nullptr) {
-                if (const auto t = gfx::operands<gfx::TextArgs>(k->node))
-                    kept.texts.push_back(zengine::pane::CanvasText{t->x - inset, t->y - inset,
-                                                                   t->text,
-                                                                   zengine::graphics::pool_color_of(t->ink)});
+            if (const auto* r = gfx::operands<gfx::RectArgs>(k->node)) {
+                kept.rects.push_back(zengine::pane::CanvasRect{
+                    r->x, r->y, r->w, r->h,
+                    zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(*a, k->node)->fill)});
+            } else if (const auto* t = gfx::operands<gfx::TextArgs>(k->node)) {
+                kept.texts.push_back(zengine::pane::CanvasText{
+                    t->x - inset, t->y - inset, t->text,
+                    zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*a, k->node)->ink)});
             }
         }
         return &kept;
@@ -1027,7 +1028,8 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
             CHECK(bar->x2 == bar->x1);
             CHECK(bar->y1 == words->y);
             CHECK(bar->y2 == words->y + gfx::kCellPx - 1);
-            CHECK(zengine::graphics::pool_color_of(bar->ink) == zengine::graphics::colors::accent);
+            CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Ink>(w.window->area, *caret)->ink) ==
+                  zengine::graphics::colors::accent);
             CHECK(w.window->action("caret").empty());
             CHECK(w.window->refused.empty());
         };

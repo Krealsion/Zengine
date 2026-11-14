@@ -7117,7 +7117,7 @@ std::set<std::int64_t> painted_in(const gfx::PaletteOffered& palette, const Sess
     for (const gfx::Sketch& drawn : drawings) {
         for (const gfx::Node& n : drawn.nodes()) {
             namespace gw = zengine::graphics::window;
-            for (const gfx::PaintInk& ink : gw::inks_of(n, palette, kWorkshopProvider)) {
+            for (const gfx::PaintInk& ink : gw::inks_of(drawn.look_of(n), palette, kWorkshopProvider)) {
                 if (!ink.none()) out.insert(ink.rgba);
             }
         }
@@ -7183,7 +7183,7 @@ TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all 
             if (node.path.find("/veil/fade") == std::string::npos) continue;
             const auto a = gfx::operands<gfx::RectArgs>(node);
             REQUIRE(a != nullptr);
-            CHECK(a->fill == gfx::colors::veil);
+            CHECK(drawn->worn<gfx::Paint>(node)->fill == gfx::colors::veil);
             veils.push_back(PixelRect{a->x, a->y, a->w, a->h});
         }
     }

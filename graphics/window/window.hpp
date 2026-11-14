@@ -1220,12 +1220,13 @@ private:
 
     /// The font, size and measure a text node is set at in `palette` in an area `role` owns, and
     /// its face; none for a node that is no text.
-    void dress_text(PaintNode& node, const PaletteOffered& palette, const std::string& role) {
-        const TextArgs* args = operands<TextArgs>(node);
-        if (args == nullptr) {
+    void dress_text(PaintNode& node, const Look* look, const PaletteOffered& palette,
+                    const std::string& role) {
+        const TextLook* t = look_as<TextLook>(look);
+        if (t == nullptr || operands<TextArgs>(node) == nullptr) {
             return;
         }
-        const TextSet set = resolve_text(*args, palette, role);
+        const TextSet set = resolve_text(*t, palette, role);
         node.face = resolve_face(set.font, palette);
         node.weight = set.weight;
         const TextMeasure m = measure_in(node.face, set.size.points);
@@ -1263,14 +1264,15 @@ private:
         dress(task, palette, a.owner);
         for (const KeptNode& k : a.nodes) {
             if (send.count(k.node.path) != 0) {
+                const Look* look = look_of(a, k.node);
                 PaintNode node{k.node.path,
                                key_of(at, k.node.path),
                                k.node.draw,
-                               inks_of(k.node, palette, a.owner),
+                               inks_of(look, palette, a.owner),
                                {},
                                {},
                                text_weight::kOfStyle};
-                dress_text(node, palette, a.owner);
+                dress_text(node, look, palette, a.owner);
                 task.nodes.push_back(std::move(node));
             }
         }

@@ -35,12 +35,11 @@ struct PaintInk {
 };
 
 /// A node as a painter needs it: its place in the area's paint order (its ancestors' ranks, then
-/// its own), what it draws, the colours its operands name as the window resolved
-/// them, in the order `colors_of` gives (graphics/ops.hpp), and for a text the font, size and
-/// measure the window resolved its style, size and font to (`face`, the face's family; none, all
-/// zero, where the task's measure stands) and its weight (`text_weight::kOfStyle` where the window
-/// resolved none: the operands' own). A painter reads its colours from `inks` alone, and a text's
-/// measure from `text` where it holds one.
+/// its own), what it draws, the colours its look names as the window resolved them, in the order
+/// `colors_of` gives (graphics/ops.hpp), and for a text the font, size and measure the window
+/// resolved its look to (`face`, the face's family; none, all zero, where the task's measure
+/// stands) and its weight (`text_weight::kOfStyle` where the window resolved none). A painter reads
+/// its colours from `inks` alone, and a text's measure from `text` where it holds one.
 struct PaintNode {
     std::string path;
     std::vector<std::int64_t> key;
@@ -53,9 +52,9 @@ struct PaintNode {
     ZEN_SHAPE(PaintNode, 5, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(draw), ZEN_FIELD(inks),
               ZEN_FIELD(text), ZEN_FIELD(face), ZEN_FIELD(weight));
 
-    /// The weight a text is set at: the one the window resolved, else the operands' own.
-    std::int64_t weight_of(std::int64_t operands) const {
-        return weight != text_weight::kOfStyle ? weight : operands;
+    /// The weight a text is set at: the one the window resolved, else regular.
+    std::int64_t weight_set() const {
+        return weight != text_weight::kOfStyle ? weight : text_weight::kRegular;
     }
 };
 

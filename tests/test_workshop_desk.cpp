@@ -3137,7 +3137,7 @@ std::set<std::pair<std::int64_t, std::int64_t>> painted_cells(const gw::WinArea&
     const auto at = gw::index_of(a);
     for (const gw::KeptNode& k : a.nodes) {
         task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.draw,
-                                            gw::inks_of(k.node, palette, a.owner),
+                                            gw::inks_of(gw::look_of(a, k.node), palette, a.owner),
                                             {}, {}});
     }
     std::set<std::pair<std::int64_t, std::int64_t>> out;
@@ -3604,7 +3604,7 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
         if (gfx::operands<gfx::RectArgs>(n.node) == nullptr) continue;
         const auto r = gfx::operands<gfx::RectArgs>(n.node);
         ring = ring || (r && r->x == bounds.x && r->y == bounds.y && r->w == bounds.w &&
-                        r->h == bounds.h && r->fill.none() && !r->stroke.none());
+                        r->h == bounds.h && gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->fill.none() && !gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->stroke.none());
     }
     CHECK(ring);
     // THE BAND, AT THE FOOT, in Workshop's own area: what the keys mean, under what the tool last
@@ -4479,7 +4479,7 @@ TEST_CASE("a guest's guide mark stands over the panes in Workshop's overlay in t
                 if (const auto t = gfx::operands<gfx::TextArgs>(n.node)) labels.push_back(*t);
             } else if (gfx::operands<gfx::RectArgs>(n.node) != nullptr) {
                 const auto r = gfx::operands<gfx::RectArgs>(n.node);
-                if (r && zengine::graphics::pool_color_of(r->fill) == gfx::colors::background) grounds.push_back(*r);
+                if (r && zengine::graphics::pool_color_of(gw::worn<gfx::Paint>(*window.weave().find(overlay), n.node)->fill) == gfx::colors::background) grounds.push_back(*r);
             }
         }
         REQUIRE_FALSE(labels.empty());
@@ -4747,8 +4747,7 @@ struct PointerDesk {
         const std::string at = area;
         does([&drawing, role, at](loom::Mail& m) {
             (void)m.as_role(kWindowSeatRole)
-                .send_to_role(role, gfx::Drawn{at, true, drawing.sketch.nodes(), {},
-                                                 drawing.sketch.records(), {}, false});
+                .send_to_role(role, drawing.sketch.whole(at));
         });
     }
     void does(std::function<void(loom::Mail&)> what) {

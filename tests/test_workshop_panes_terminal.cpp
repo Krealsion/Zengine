@@ -531,7 +531,7 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
         CHECK(gfx::operands<gfx::RectArgs>(a->nodes.front().node) != nullptr);
         CHECK(ground->w == a->w);
         CHECK(ground->h == a->h);
-        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(*a, a->nodes.front().node)->fill) == gfx::colors::background);
         // EACH ROW A LINE OF THE FACE DOWN, each character an advance across.
         bool line_row = false;
         for (const gw::KeptNode& k : a->nodes) {
@@ -978,7 +978,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(bar->x2 == typed.column * gfx::kCellPx);
         CHECK(bar->y1 == typed.row * gfx::kCellPx);
         CHECK(bar->y2 == typed.row * gfx::kCellPx + gfx::kCellPx - 1);
-        CHECK(zengine::graphics::pool_color_of(bar->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Ink>(*window.weave().find(area), *caret)->ink) == gfx::colors::accent);
         CHECK(window.action_at(area, typed.column, typed.row) == "line");
         // ...AND SO DOES THE SELECTION: the selected columns again in the accent colour, asking for
         // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
@@ -993,7 +993,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(words->text == "hello");
         CHECK(words->x == all.sel_begin_col * gfx::kCellPx);
         CHECK(words->y == t.input_row() * gfx::kCellPx);
-        CHECK(zengine::graphics::pool_color_of(words->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*window.weave().find(area), *selected)->ink) == gfx::colors::accent);
         CHECK(kept("sel" + std::to_string(t.input_row()) + ".1") == nullptr);
         for (std::int64_t c = all.sel_begin_col; c < all.sel_end_col; ++c) {
             CAPTURE(c);

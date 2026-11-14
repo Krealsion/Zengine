@@ -270,7 +270,7 @@ public:
         });
         gfx::Sketch sketch;
         for (const gw::KeptNode* k : order) {
-            sketch.put(k->node);
+            sketch.put(k->node, gw::look_of(*a, k->node));
         }
         for (const gfx::ElementRecord& r : a->records) {
             sketch.say(r);
@@ -662,7 +662,7 @@ private:
         for (const gw::KeptNode& k : a.nodes) {
             task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path),
                                                 k.node.draw,
-                                                gw::inks_of(k.node, palette,
+                                                gw::inks_of(gw::look_of(a, k.node), palette,
                                                             a.owner),
                                                 {}, {}});
         }

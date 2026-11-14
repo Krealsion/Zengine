@@ -134,7 +134,8 @@ struct PartFace {
 };
 
 /// What one drawer changed in one area, applied together. `whole` first removes everything the
-/// drawer may draw there. A node put again changes in its place; a new one goes after its
+/// drawer may draw there. `looks` says once what the nodes it puts wear, each node naming one by its
+/// place there (`Node::look`). A node put again changes in its place; a new one goes after its
 /// siblings; removing a node removes its subtree and its records. `more` says more of the same
 /// beat's drawing follows from this drawer, so the window shows once, after the last. `number` is
 /// the drawer's own for what its drawing means, 0 for none: the window says it with each press
@@ -142,14 +143,16 @@ struct PartFace {
 struct Drawn {
     std::string area;
     bool whole = false;
+    std::vector<Look> looks;
     std::vector<Node> put;
     std::vector<std::string> removed;
     std::vector<ElementRecord> said;
     std::vector<std::string> unsaid;
     bool more = false;
     std::int64_t number = 0;
-    ZEN_SHAPE(Drawn, 3, ZEN_FIELD(area), ZEN_FIELD(whole), ZEN_FIELD(put), ZEN_FIELD(removed),
-              ZEN_FIELD(said), ZEN_FIELD(unsaid), ZEN_FIELD(more), ZEN_FIELD(number));
+    ZEN_SHAPE(Drawn, 3, ZEN_FIELD(area), ZEN_FIELD(whole), ZEN_FIELD(looks), ZEN_FIELD(put),
+              ZEN_FIELD(removed), ZEN_FIELD(said), ZEN_FIELD(unsaid), ZEN_FIELD(more),
+              ZEN_FIELD(number));
 };
 
 /// Window -> the drawer of a drawing or an element it refused: why, in words. What the window

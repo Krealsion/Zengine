@@ -1972,7 +1972,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         const gfx::TextArgs* words = gfx::operands<gfx::TextArgs>(*selected);
         REQUIRE(words != nullptr);
         CHECK(words->text == "tw");
-        CHECK(zengine::graphics::pool_color_of(words->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*seen.find(area), *selected)->ink) == gfx::colors::accent);
         CHECK(window.action_at(area, 0, second) == "line:2");
         CHECK(window.rows(area)[static_cast<std::size_t>(second)] == "two");
 
@@ -1995,7 +1995,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         CHECK(drawn_caret->x == 0);
         CHECK(drawn_caret->y == third * gfx::kCellPx);
         CHECK(drawn_caret->text == "t");
-        CHECK(zengine::graphics::pool_color_of(drawn_caret->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*seen.find(area), *caret)->ink) == gfx::colors::accent);
         CHECK(kept("sel" + std::to_string(second) + ".0") == nullptr);
         CHECK(window.action_at(area, 0, third) == "line:3");
         // ...AND IT LEAVES NO SWEEP ARMED: the pointer moving after it selects nothing from where

@@ -270,7 +270,7 @@ struct TextSet {
     std::int64_t weight = text_weight::kRegular;
 };
 
-inline TextSet resolve_text(const TextArgs& t, const PaletteOffered& palette,
+inline TextSet resolve_text(const TextLook& t, const PaletteOffered& palette,
                             const std::string& role) {
     const PaletteStyle style = resolve_style(t.style, palette, role);
     TextSet set;
@@ -286,16 +286,20 @@ inline TextSet resolve_text(const TextArgs& t, const PaletteOffered& palette,
     return set;
 }
 
-/// The colours a node's operands name, as painted in `palette` in an area `role` owns, in the
-/// order a painter takes them (`colors_of`): a text naming no colour of its own in its style's.
-inline std::vector<PaintInk> inks_of(const Node& node, const PaletteOffered& palette,
+/// The colours a node's look names, as painted in `palette` in an area `role` owns, in the order
+/// a painter takes them (`colors_of`): a text naming no colour of its own in its style's; none for
+/// a node that wears no look.
+inline std::vector<PaintInk> inks_of(const Look* look, const PaletteOffered& palette,
                                      const std::string& role) {
     std::vector<PaintInk> out;
-    if (const TextArgs* t = operands<TextArgs>(node)) {
+    if (look == nullptr) {
+        return out;
+    }
+    if (const TextLook* t = std::get_if<TextLook>(&look->is)) {
         out.push_back(resolve(resolve_text(*t, palette, role).color, palette, role));
         return out;
     }
-    for (const Color& c : colors_of(node)) {
+    for (const Color& c : colors_of(*look)) {
         out.push_back(resolve(c, palette, role));
     }
     return out;

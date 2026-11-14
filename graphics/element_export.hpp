@@ -127,9 +127,7 @@ int act(const std::uint8_t* event, std::size_t event_len, ZenByteSink outcome,
             out.drawn = difference(before, after);
         } else {
             // Started, or started over: the whole element, in place of whatever it drew before.
-            out.drawn.whole = true;
-            out.drawn.put = after.nodes();
-            out.drawn.said = after.records();
+            out.drawn = after.whole({});
         }
         out.state = loom::bequeath_item(state);
         const loom::Bytes b = loom::bequeath_item(out);

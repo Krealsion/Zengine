@@ -99,7 +99,7 @@ gfx::PaintTask task_in(const gfx::Sketch& s, const gfx::PaletteOffered& palette)
     std::int64_t rank = 1;
     for (const gfx::Node& n : s.nodes()) {
         task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.draw,
-                                            gfx::window::inks_of(n, palette, ""), {},
+                                            gfx::window::inks_of(gfx::look_or_default(n.draw, s.look_of(n)), palette, ""), {},
                                             {}});
     }
     return task;
@@ -148,14 +148,14 @@ gfx::PaletteOffered plain_palette() {
 // ============================================================================
 
 TEST_CASE("an operand's shape is implied by its operator: a body alone, read back by the gate") {
-    const gfx::RectArgs r{1, 2, 3, 4, gfx::colors::accent, gfx::no_color()};
+    const gfx::RectArgs r{1, 2, 3, 4};
     const loom::Bytes body = gfx::body_of(r);
     const loom::Bytes whole = loom::bequeath_item(r);
     CHECK(body.size() < whole.size()); // the envelope is left off
     const auto back = gfx::from_body<gfx::RectArgs>(body);
     REQUIRE(back.has_value());
     CHECK(back->w == 3);
-    CHECK(zengine::graphics::pool_color_of(back->fill) == gfx::colors::accent);
+    CHECK(back->h == 4);
     // Another shape's body is not this one's: the gate refuses it.
     CHECK_FALSE(gfx::from_body<gfx::TextArgs>(gfx::body_of(gfx::LineArgs{})).has_value());
 }
@@ -200,7 +200,7 @@ gfx::window::WinArea store_holding(const gfx::Sketch& whole) {
     a.h = 768;
     gfx::Drawn first;
     first.whole = true;
-    first.put = whole.nodes();
+    whole.put_worn(first, whole.nodes());
     REQUIRE(gfx::window::judge(a, {}, first).empty());
     (void)gfx::window::apply(a, {}, first);
     return a;
@@ -217,6 +217,113 @@ std::vector<std::pair<std::string, std::int64_t>> ranks_of(const gfx::window::Wi
 
 } // namespace
 
+TEST_CASE("every operator's operands and every look a drawing says are carried through its bytes and "
+          "the window's store and back whole, each look said once") {
+    gfx::Sketch s;
+    s.group("g", 1, 2, 30, 40);
+    s.rect("g/r", 1, 2, 3, 4, gfx::colors::accent, gfx::colors::edge);
+    s.rect("g/r2", 5, 6, 7, 8, gfx::colors::accent, gfx::colors::edge); // the same paint: one look
+    s.ellipse("g/e", 5, 6, 7, 8, gfx::colors::text);
+    s.line("g/l", 1, 2, 3, 4, gfx::colors::alert);
+    s.path("g/p", "M 0 0 L 4 4 Z", gfx::no_color(), gfx::colors::text);
+    s.text("g/t", 9, 10, "words", gfx::styles::heading.with_color(gfx::colors::accent));
+    s.image("g/i", 1, 1, 2, 2, 1, 1, loom::Bytes{1, 2, 3, 4});
+    const gfx::Drawn d = s.whole("test.round");
+    CHECK(d.looks.size() == 5); // two paints, an ink, a path's paint and a text's look
+    for (const gfx::Node& n : d.put) {
+        CAPTURE(n.path);
+        const bool wears_none = gfx::operands<gfx::GroupArgs>(n) != nullptr ||
+                                gfx::operands<gfx::ImageArgs>(n) != nullptr;
+        CHECK((n.look == gfx::kNoLook) == wears_none);
+    }
+
+    // THROUGH ITS BYTES, read back through the gate: the same nodes, wearing the same looks.
+    const std::string bytes = loom::serialize(loom::to_value(d));
+    const auto back = loom::claim_item<gfx::Drawn>(loom::Bytes(bytes.begin(), bytes.end()));
+    REQUIRE(back.has_value());
+    CHECK(back->looks == d.looks);
+    REQUIRE(back->put.size() == d.put.size());
+    for (std::size_t i = 0; i < d.put.size(); ++i) {
+        CAPTURE(d.put[i].path);
+        CHECK(back->put[i].path == d.put[i].path);
+        CHECK(back->put[i].look == d.put[i].look);
+        CHECK(back->put[i].draw == d.put[i].draw);
+    }
+
+    // ...AND INTO THE WINDOW'S STORE: each node kept wearing the look it was drawn in.
+    gfx::window::WinArea a;
+    a.area = "test.round";
+    REQUIRE(gfx::window::judge(a, {}, *back).empty());
+    (void)gfx::window::apply(a, {}, *back);
+    CHECK(a.looks.size() == 5);
+    for (const gfx::Node& n : s.nodes()) {
+        CAPTURE(n.path);
+        const auto kept = std::find_if(a.nodes.begin(), a.nodes.end(),
+                                       [&](const gfx::window::KeptNode& k) { return k.node.path == n.path; });
+        REQUIRE(kept != a.nodes.end());
+        CHECK(kept->node.draw == n.draw);
+        const gfx::Look* drawn_in = s.look_of(n);
+        const gfx::Look* kept_in = gfx::window::look_of(a, kept->node);
+        REQUIRE((drawn_in == nullptr) == (kept_in == nullptr));
+        if (drawn_in != nullptr) {
+            CHECK(*kept_in == *drawn_in);
+        }
+    }
+}
+
+TEST_CASE("a node's look is judged: one its drawing does not say, and one its operator does not wear, "
+          "are refused in words, and a group or an image wears none") {
+    gfx::window::WinArea a;
+    a.area = "test.looks";
+    gfx::Drawn d;
+    d.area = a.area;
+    d.looks = {gfx::Look{gfx::Ink{gfx::colors::text}}};
+    d.put = {gfx::Node{"t", 1, gfx::TextArgs{0, 0, "w"}}};
+    CHECK(gfx::window::judge(a, {}, d) == "'t' wears look 1, which its drawing does not say");
+    d.put = {gfx::Node{"t", 0, gfx::TextArgs{0, 0, "w"}}};
+    CHECK(gfx::window::judge(a, {}, d) == "'t', a text, wears a look of ink, which a text does not");
+    d.put = {gfx::Node{"i", 0, gfx::ImageArgs{}}};
+    CHECK(gfx::window::judge(a, {}, d) ==
+          "'i', an image, wears a look of ink, which an image does not");
+    d.put = {gfx::Node{"l", 0, gfx::LineArgs{0, 0, 4, 4}}};
+    CHECK(gfx::window::judge(a, {}, d).empty());
+    // A NODE THAT NAMES NONE wears its operator's default: a text in the pool's body style.
+    d.put = {gfx::Node{"t", gfx::kNoLook, gfx::TextArgs{0, 0, "w"}}};
+    REQUIRE(gfx::window::judge(a, {}, d).empty());
+    (void)gfx::window::apply(a, {}, d);
+    const gfx::TextLook* plain = gfx::window::worn<gfx::TextLook>(a, a.nodes.front().node);
+    REQUIRE(plain != nullptr);
+    CHECK(*plain == gfx::TextLook{});
+}
+
+TEST_CASE("an area keeps each look its nodes wear once, across drawings, and lets go of one no node "
+          "wears any more") {
+    gfx::Sketch first;
+    first.text("a", 0, 0, "a", gfx::colors::text);
+    first.text("b", 0, 12, "b", gfx::colors::accent);
+    gfx::window::WinArea a;
+    a.area = "test.kept";
+    (void)gfx::window::apply(a, {}, first.whole(a.area));
+    REQUIRE(a.looks.size() == 2);
+    // A SECOND DRAWING SAYING A LOOK THE AREA HOLDS: kept once, both nodes naming it.
+    gfx::Sketch more;
+    more.text("c", 0, 24, "c", gfx::colors::text);
+    gfx::Drawn d = more.whole(a.area);
+    d.whole = false;
+    (void)gfx::window::apply(a, {}, d);
+    CHECK(a.looks.size() == 2);
+    CHECK(gfx::window::worn<gfx::TextLook>(a, a.nodes[2].node)->ink == gfx::colors::text);
+    // THE LAST NODE IN ACCENT REMOVED: its look goes with it, and the rest still read theirs.
+    gfx::Drawn gone;
+    gone.area = a.area;
+    gone.removed = {"b"};
+    (void)gfx::window::apply(a, {}, gone);
+    CHECK(a.looks.size() == 1);
+    for (const gfx::window::KeptNode& k : a.nodes) {
+        CHECK(gfx::window::worn<gfx::TextLook>(a, k.node)->ink == gfx::colors::text);
+    }
+}
+
 TEST_CASE("a node put again keeps its rank, so the paint order holds, and a new node takes the next") {
     gfx::Sketch s;
     s.text("a", 0, 0, "a", gfx::Color{});
@@ -226,7 +333,7 @@ TEST_CASE("a node put again keeps its rank, so the paint order holds, and a new 
     CHECK(ranks_of(a) == std::vector<std::pair<std::string, std::int64_t>>{{"a", 1}, {"b", 2}, {"c", 3}});
     // C AND A PUT AGAIN, IN THAT ORDER, AND D NEW: the two keep their ranks, d takes 4.
     gfx::Drawn d;
-    d.put = {gfx::Node{"c", gfx::TextArgs{}}, gfx::Node{"a", gfx::TextArgs{}}, gfx::Node{"d", gfx::TextArgs{}}};
+    d.put = {gfx::Node{"c", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"a", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"d", gfx::kNoLook, gfx::TextArgs{}}};
     REQUIRE(gfx::window::judge(a, {}, d).empty());
     const gfx::window::Applied applied = gfx::window::apply(a, {}, d);
     CHECK(applied.changed == std::set<std::string>{"a", "c", "d"});
@@ -240,7 +347,7 @@ TEST_CASE("a node put again keeps its rank, so the paint order holds, and a new 
     CHECK(gfx::window::key_of(at, "a") < gfx::window::key_of(at, "c"));
     // A PATH PUT TWICE IN ONE DRAWING IS ONE NODE, holding the later.
     gfx::Drawn twice;
-    twice.put = {gfx::Node{"e", gfx::TextArgs{}}, gfx::Node{"e", gfx::RectArgs{}}};
+    twice.put = {gfx::Node{"e", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"e", gfx::kNoLook, gfx::RectArgs{}}};
     (void)gfx::window::apply(a, {}, twice);
     CHECK(std::count_if(a.nodes.begin(), a.nodes.end(),
                         [](const gfx::window::KeptNode& k) { return k.node.path == "e"; }) == 1);
@@ -259,18 +366,18 @@ TEST_CASE("a group put changes every node beneath it, and a leaf put changes its
     s.text("h", 0, 1, "h", gfx::Color{});
     gfx::window::WinArea a = store_holding(s);
     gfx::Drawn group;
-    group.put = {gfx::Node{"g", gfx::GroupArgs{}}};
+    group.put = {gfx::Node{"g", gfx::kNoLook, gfx::GroupArgs{}}};
     CHECK(gfx::window::apply(a, {}, group).changed ==
           std::set<std::string>{"g", "g/x", "g/y", "g/y/z"});
     gfx::Drawn inner;
-    inner.put = {gfx::Node{"g/y", gfx::GroupArgs{}}};
+    inner.put = {gfx::Node{"g/y", gfx::kNoLook, gfx::GroupArgs{}}};
     CHECK(gfx::window::apply(a, {}, inner).changed == std::set<std::string>{"g/y", "g/y/z"});
     gfx::Drawn leaves;
-    leaves.put = {gfx::Node{"h", gfx::TextArgs{}}, gfx::Node{"gx", gfx::TextArgs{}}, gfx::Node{"g/x", gfx::TextArgs{}}};
+    leaves.put = {gfx::Node{"h", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"gx", gfx::kNoLook, gfx::TextArgs{}}, gfx::Node{"g/x", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::apply(a, {}, leaves).changed == std::set<std::string>{"h", "gx", "g/x"});
     // A NEW NODE IN A GROUP PUT IN THE SAME DRAWING is changed once, beside the rest of the group.
     gfx::Drawn both;
-    both.put = {gfx::Node{"g/y", gfx::GroupArgs{}}, gfx::Node{"g/y/w", gfx::TextArgs{}}};
+    both.put = {gfx::Node{"g/y", gfx::kNoLook, gfx::GroupArgs{}}, gfx::Node{"g/y/w", gfx::kNoLook, gfx::TextArgs{}}};
     REQUIRE(gfx::window::judge(a, {}, both).empty());
     CHECK(gfx::window::apply(a, {}, both).changed ==
           std::set<std::string>{"g/y", "g/y/z", "g/y/w"});
@@ -305,7 +412,7 @@ TEST_CASE("a removal takes a node's subtree and the records in it, and says each
     // removed path is new: the next rank.
     gfx::Drawn whole;
     whole.whole = true;
-    whole.put = {gfx::Node{"g", gfx::GroupArgs{}}};
+    whole.put = {gfx::Node{"g", gfx::kNoLook, gfx::GroupArgs{}}};
     REQUIRE(gfx::window::judge(a, {}, whole).empty());
     const gfx::window::Applied replaced = gfx::window::apply(a, {}, whole);
     CHECK(ranks_of(a) == std::vector<std::pair<std::string, std::int64_t>>{{"g", 6}});
@@ -324,13 +431,13 @@ TEST_CASE("a whole drawing by the owner replaces its own nodes and keeps an elem
     element.element = true;
     element.scope = "field";
     gfx::Drawn inside;
-    inside.put = {gfx::Node{"field/text", gfx::TextArgs{}}};
+    inside.put = {gfx::Node{"field/text", gfx::kNoLook, gfx::TextArgs{}}};
     REQUIRE(gfx::window::judge(a, element, inside).empty());
     (void)gfx::window::apply(a, element, inside);
     // THE OWNER DRAWS WHOLE: its label goes, its new node comes, the element's nodes stay.
     gfx::Drawn whole;
     whole.whole = true;
-    whole.put = {gfx::Node{"title", gfx::TextArgs{}}};
+    whole.put = {gfx::Node{"title", gfx::kNoLook, gfx::TextArgs{}}};
     REQUIRE(gfx::window::judge(a, {}, whole).empty());
     const gfx::window::Applied applied = gfx::window::apply(a, {}, whole);
     CHECK(ranks_of(a) ==
@@ -385,7 +492,7 @@ TEST_CASE("the judge takes a removed path's whole subtree out of what the area w
         gfx::Drawn d;
         d.removed = std::move(removed);
         for (const std::string& p : put) {
-            d.put.push_back(gfx::Node{p, gfx::TextArgs{}});
+            d.put.push_back(gfx::Node{p, gfx::kNoLook, gfx::TextArgs{}});
         }
         return gfx::window::judge(a, {}, d);
     };
@@ -426,10 +533,10 @@ TEST_CASE("an area at its most nodes takes a removal and as many new nodes as it
         half.removed.push_back("node" + std::to_string(i));
     }
     for (std::size_t i = 0; i < gfx::kMaxNodesPerArea / 2; ++i) {
-        half.put.push_back(gfx::Node{"new" + std::to_string(i), gfx::TextArgs{}});
+        half.put.push_back(gfx::Node{"new" + std::to_string(i), gfx::kNoLook, gfx::TextArgs{}});
     }
     CHECK(gfx::window::judge(a, {}, half).empty());
-    half.put.push_back(gfx::Node{"one-more", gfx::TextArgs{}});
+    half.put.push_back(gfx::Node{"one-more", gfx::kNoLook, gfx::TextArgs{}});
     CHECK(gfx::window::judge(a, {}, half) == bound);
     // ONE GROUP HOLDING THE REST, REMOVED: the whole area freed by one path.
     gfx::Sketch grouped;
@@ -442,10 +549,10 @@ TEST_CASE("an area at its most nodes takes a removal and as many new nodes as it
     gfx::Drawn all;
     all.removed = {"g"};
     for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; ++i) {
-        all.put.push_back(gfx::Node{"new" + std::to_string(i), gfx::TextArgs{}});
+        all.put.push_back(gfx::Node{"new" + std::to_string(i), gfx::kNoLook, gfx::TextArgs{}});
     }
     CHECK(gfx::window::judge(b, {}, all).empty());
-    all.put.push_back(gfx::Node{"one-more", gfx::TextArgs{}});
+    all.put.push_back(gfx::Node{"one-more", gfx::kNoLook, gfx::TextArgs{}});
     CHECK(gfx::window::judge(b, {}, all) == bound);
 }
 
@@ -469,16 +576,16 @@ TEST_CASE("a removal outside the sender's own is refused, naming the first such 
     CHECK(gfx::window::judge(a, element, inside) == "'label' is not the sender's to remove");
     // ...AND A REFUSED REMOVAL IS REFUSED BEFORE ANY PUT IS JUDGED.
     owner.removed = {"field"};
-    owner.put = {gfx::Node{"", gfx::TextArgs{}}};
+    owner.put = {gfx::Node{"", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::judge(a, {}, owner) == "'field' is not the sender's to remove");
     // EACH ITS OWN: admitted, the element's subtree held for a node the element puts in it.
     owner.removed = {"label"};
-    owner.put = {gfx::Node{"title", gfx::TextArgs{}}};
+    owner.put = {gfx::Node{"title", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::judge(a, {}, owner).empty());
     inside.removed = {"field/text"};
-    inside.put = {gfx::Node{"field/other", gfx::TextArgs{}}};
+    inside.put = {gfx::Node{"field/other", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::judge(a, element, inside).empty());
-    inside.put = {gfx::Node{"field/text/under", gfx::TextArgs{}}};
+    inside.put = {gfx::Node{"field/text/under", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::judge(a, element, inside) ==
           "'field/text/under' is drawn in 'field/text', which is not drawn");
 }
@@ -492,10 +599,10 @@ TEST_CASE("a whole drawing that also removes judges its puts against what the dr
     gfx::Drawn whole;
     whole.whole = true;
     whole.removed = {"label"};
-    whole.put = {gfx::Node{"label/x", gfx::TextArgs{}}};
+    whole.put = {gfx::Node{"label/x", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::judge(a, {}, whole) == "'label/x' is drawn in 'label', which is not drawn");
-    whole.put = {gfx::Node{"label", gfx::GroupArgs{}}, gfx::Node{"label/x", gfx::TextArgs{}},
-                 gfx::Node{"field/x", gfx::TextArgs{}}};
+    whole.put = {gfx::Node{"label", gfx::kNoLook, gfx::GroupArgs{}}, gfx::Node{"label/x", gfx::kNoLook, gfx::TextArgs{}},
+                 gfx::Node{"field/x", gfx::kNoLook, gfx::TextArgs{}}};
     CHECK(gfx::window::judge(a, {}, whole) == "'field/x' is not the sender's to draw");
     whole.put.pop_back();
     CHECK(gfx::window::judge(a, {}, whole).empty());
@@ -1457,7 +1564,7 @@ public:
         }
         (void)mail.as_role(role_).send_to_role(
             std::string(gfx::kWindowRolePrefix) + r.window,
-            gfx::Drawn{r.area, true, s.nodes(), {}, s.records(), {}, false});
+            s.whole(r.area));
     }
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
         if (!from_a_window(mail)) return;
@@ -1621,8 +1728,7 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     gfx::Sketch s;
     s.text("words", 0, 0, "other words", gfx::colors::text);
     REQUIRE(t.r.bus.role_send_to_role_as(owner, "test.settling", window_role(),
-        loom::Message(loom::to_value(gfx::Drawn{"test.settling", true, s.nodes(), {}, s.records(),
-                                                {}, false, 0}))).valid());
+        loom::Message(loom::to_value(s.whole("test.settling")))).valid());
     t.r.drain();
     REQUIRE(t.presses.settled.size() == told + 1);
     CHECK(t.presses.settled.back().version > first.version);
@@ -1634,8 +1740,7 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     gfx::Sketch q;
     q.text("words", 0, 0, "quiet again", gfx::colors::text);
     REQUIRE(t.r.bus.role_send_to_role_as(quiet_owner, "test.quiet", window_role(),
-        loom::Message(loom::to_value(gfx::Drawn{"test.quiet", true, q.nodes(), {}, q.records(),
-                                                {}, false, 0}))).valid());
+        loom::Message(loom::to_value(q.whole("test.quiet")))).valid());
     t.r.drain();
     CHECK(t.r.screen().find("quiet again") != std::string::npos);
     for (const gfx::AreaSettled& said : t.presses.settled) CHECK(said.area != "test.quiet");
@@ -1678,8 +1783,7 @@ TEST_CASE("a button's moment says what the window drew under the hand when it la
         if (!action.empty()) s.action("words", action);
         s.number(number);
         REQUIRE(t.r.bus.role_send_to_role_as(owner, "test.hearing", window_role(),
-            loom::Message(loom::to_value(gfx::Drawn{"test.hearing", true, s.nodes(), {},
-                                                    s.records(), {}, false, number}))).valid());
+            loom::Message(loom::to_value(s.whole("test.hearing")))).valid());
         t.r.drain();
     };
     draw("press me", "act", 5);
@@ -2320,7 +2424,7 @@ struct Resized : TypedWindow {
         gfx::Drawn d;
         d.area = kOwner;
         d.whole = true;
-        d.put = s.nodes();
+        s.put_worn(d, s.nodes());
         r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                      loom::Message(loom::to_value(d)));
         r.drain();
@@ -2524,7 +2628,7 @@ TEST_CASE("the TUI window copies by OSC 52, reads no clipboard, has no placement
         gfx::Drawn d;
         d.area = kOwner;
         d.whole = true;
-        d.put = sk.nodes();
+        sk.put_worn(d, sk.nodes());
         d.more = more;
         r.bus.role_send_to_role_as(t.owner, kOwner, window_role(),
                                      loom::Message(loom::to_value(d)));
@@ -2684,7 +2788,7 @@ TEST_CASE("an area at its element bound still takes a change, and a record said 
     gfx::Drawn d;
     d.area = kOwner;
     for (std::size_t i = 0; i < gfx::kMaxElementsPerArea; ++i) {
-        d.put.push_back(gfx::Node{"r" + std::to_string(i), gfx::GroupArgs{}});
+        d.put.push_back(gfx::Node{"r" + std::to_string(i), gfx::kNoLook, gfx::GroupArgs{}});
         d.said.push_back(gfx::ElementRecord{"r" + std::to_string(i), {}, {}, "act"});
     }
     b.say(d);
@@ -2709,7 +2813,7 @@ TEST_CASE("a bound reached is refused to its drawer, in words") {
     gfx::Drawn d;
     d.area = kOwner;
     for (std::size_t i = 0; i <= gfx::kMaxElementsPerArea; ++i) {
-        d.put.push_back(gfx::Node{"r" + std::to_string(i), gfx::GroupArgs{}});
+        d.put.push_back(gfx::Node{"r" + std::to_string(i), gfx::kNoLook, gfx::GroupArgs{}});
         d.said.push_back(gfx::ElementRecord{"r" + std::to_string(i), {}, {}, "act"});
     }
     b.say(d);
@@ -3594,7 +3698,7 @@ TEST_CASE("an icon draws its named outline scaled into its square, a name its ta
     const auto shape = gfx::operands<gfx::PathArgs>(node_at(s, "ok/shape"));
     REQUIRE(shape != nullptr);
     CHECK(shape->d == gfx::Icon::path_data(gfx::Icon::outline("check"), 2 * kCell));
-    CHECK(zengine::graphics::pool_color_of(shape->fill) == gfx::colors::alert);
+    CHECK(zengine::graphics::pool_color_of(s.worn<gfx::Paint>(node_at(s, "ok/shape"))->fill) == gfx::colors::alert);
     const auto f = face_at<gfx::IconFace>(s, "ok");
     CHECK(f.name == "check");
     CHECK(f.x == kCell);
@@ -3891,7 +3995,7 @@ struct Parts : TypedWindow {
             d = gfx::difference(last_, s);
         } else {
             d.whole = true;
-            d.put = s.nodes();
+            s.put_worn(d, s.nodes());
             d.said = s.records();
         }
         d.area = kParts;
@@ -5057,7 +5161,19 @@ private:
 
 /// The whole of a sketch, as one drawing of an area.
 gfx::Drawn whole(const std::string& area, const gfx::Sketch& s) {
-    return gfx::Drawn{area, true, s.nodes(), {}, s.records(), {}, false};
+    return s.whole(area);
+}
+
+/// A sketch's nodes put into `area`, the looks they wear said once, `removed` taken out first, its
+/// beat's drawing to follow where `more`; no record said.
+gfx::Drawn part(const std::string& area, const gfx::Sketch& s, std::vector<std::string> removed,
+                bool more) {
+    gfx::Drawn d = s.whole(area);
+    d.whole = false;
+    d.said.clear();
+    d.removed = std::move(removed);
+    d.more = more;
+    return d;
 }
 
 /// The GUI window over the suite's backend, beside the directory, its palettes offered: mounted in
@@ -5184,7 +5300,7 @@ TEST_CASE("the GUI window paints every operator for light, holds a drawing sayin
     CHECK(t.light.frames.size() == before); // held back: more of the beat follows
     gfx::Sketch tail;
     tail.text("tail", 0, 0, "tail", gfx::colors::text);
-    t.say("test.lit", gfx::Drawn{"test.lit", false, tail.nodes(), {}, {}, {}, false});
+    t.say("test.lit", part("test.lit", tail, {}, false));
     REQUIRE(t.light.frames.size() == before + 1); // the beat, shown once
     CHECK(o.refused.empty());
 
@@ -5206,7 +5322,7 @@ TEST_CASE("the GUI window paints every operator for light, holds a drawing sayin
     CHECK(s.showings == static_cast<std::int64_t>(t.light.frames.size()));
     CHECK(s.device_bytes > 0);
 
-    t.say("test.lit", gfx::Drawn{"test.nowhere", false, {}, {}, {}, {}, false});
+    t.say("test.lit", gfx::Drawn{"test.nowhere", false, {}, {}, {}, {}, {}, false});
     REQUIRE(o.refused.size() == 1);
     CHECK(o.refused[0] == "window 'gui' shows no area 'test.nowhere'");
 }
@@ -5656,10 +5772,10 @@ TEST_CASE("an own value declared where it is used, with a pool colour, size or s
     s.text("note", 0, 0, "n", gfx::colors::text, note);
     s.text("title", 0, 0, "t", title);
     const auto inks = [&](const gfx::PaletteOffered& p) {
-        return gfx::window::inks_of(s.nodes()[0], p, "test.owner");
+        return gfx::window::inks_of(s.look_of(s.nodes()[0]), p, "test.owner");
     };
     const auto text_of = [&](std::size_t i, const gfx::PaletteOffered& p) {
-        return gfx::window::resolve_text(*gfx::operands<gfx::TextArgs>(s.nodes()[i]), p,
+        return gfx::window::resolve_text(*s.worn<gfx::TextLook>(s.nodes()[i]), p,
                                          "test.owner");
     };
     // ITS DEFAULT: the pool colour, size and style it names, as the palette says for them.
@@ -6005,7 +6121,7 @@ TEST_CASE("the GUI window has its backend read back the last picture it presente
     // Held back: its text changed and a node removed, with more of the beat to follow.
     gfx::Sketch two;
     two.text("t", 0, 0, "two", gfx::colors::text);
-    t.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {"gone"}, {}, {}, true});
+    t.say("test.lit", part("test.lit", two, {"gone"}, true));
     REQUIRE(t.light.frames.size() == frames);
 
     // What is read back is the picture presented, whole: its text, and the node gone since.
@@ -6016,7 +6132,7 @@ TEST_CASE("the GUI window has its backend read back the last picture it presente
     CHECK(*first == LightLog::picture_of(presented.ground));
 
     // Presented, the picture read back is the one shown now.
-    t.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {}, {}, {}, false});
+    t.say("test.lit", part("test.lit", two, {}, false));
     REQUIRE(t.light.frames.size() == frames + 1);
     REQUIRE(t.instance->capture().has_value());
     CHECK(t.light.captured.back() == t.light.frames.back());
@@ -6052,9 +6168,9 @@ TEST_CASE("the GUI window has its backend read back the last picture it presente
         const std::uint64_t later = ask.ask(gfx::SurfaceCaptureRequested{shown});
         b.pump(); // a beat that presents nothing passes no frame
         CHECK(!ask.captured(later).has_value());
-        b.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {}, {}, {}, true});
+        b.say("test.lit", part("test.lit", two, {}, true));
         CHECK(!ask.captured(later).has_value());
-        b.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {"gone"}, {}, {}, false});
+        b.say("test.lit", part("test.lit", two, {"gone"}, false));
         const std::optional<gfx::SurfaceCaptured> due = ask.captured(later);
         REQUIRE(due.has_value());
         CHECK(due->ok);
@@ -6289,7 +6405,7 @@ public:
         }
         (void)mail.as_role(role_).send_to_role(
             std::string(gfx::kWindowRolePrefix) + r.window,
-            gfx::Drawn{r.area, true, sketch_->nodes(), {}, sketch_->records(), {}, false});
+            sketch_->whole(r.area));
     }
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
         if (from_a_window(mail)) buttons_->push_back(b);
@@ -6517,7 +6633,7 @@ TEST_CASE("an area's arranger reads what the TUI window shows of it: its text by
                                                     2 * c, c, 4 * c, c, 3, false, false, false});
     gfx::Sketch mine;
     mine.text("lid", 0, 0, "YYYY", ink);
-    d.as_reader(d.role(), gfx::Drawn{lid, true, mine.nodes(), {}, mine.records(), {}, false});
+    d.as_reader(d.role(), mine.whole(lid));
     const std::optional<gfx::AreaShown> drawn = d.read(lid);
     REQUIRE(drawn.has_value());
     REQUIRE(drawn->words.size() == 1);
@@ -7558,7 +7674,7 @@ TEST_CASE("a text box's two faces: [text___] in a row of cells, or its text alon
     CHECK(outline->x == 5);
     CHECK(outline->w == 80);
     CHECK(outline->h == 20);
-    CHECK(zengine::graphics::pool_color_of(outline->stroke) == gfx::colors::edge);
+    CHECK(zengine::graphics::pool_color_of(s.worn<gfx::Paint>(*edge)->stroke) == gfx::colors::edge);
     const auto words = gfx::operands<gfx::TextArgs>(*node_named(s, "box.text"));
     REQUIRE(words != nullptr);
     CHECK(words->text == "abc");

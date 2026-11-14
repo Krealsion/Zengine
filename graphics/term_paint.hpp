@@ -253,7 +253,7 @@ public:
         } else if (const auto* p = std::get_if<PathArgs>(&draw)) {
             path(*p);
         } else if (const auto* t = std::get_if<TextArgs>(&draw)) {
-            bold_ = node.weight_of(t->weight) == text_weight::kBold;
+            bold_ = node.weight_set() == text_weight::kBold;
             text(t->x, t->y, t->text, 0);
             bold_ = false;
         } else if (const auto* i = std::get_if<ImageArgs>(&draw)) {

@@ -121,6 +121,9 @@ struct TextLook {
     TextSize size;
     std::string font;
     std::int64_t weight = text_weight::kOfStyle;
+    ZEN_SHAPE(TextLook, 1, ZEN_FIELD(style), ZEN_FIELD(ink), ZEN_FIELD(size), ZEN_FIELD(font),
+              ZEN_FIELD(weight));
+    friend bool operator==(const TextLook&, const TextLook&) = default;
 
     TextLook with_color(Color c) const {
         TextLook l = *this;

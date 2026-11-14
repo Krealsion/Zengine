@@ -388,7 +388,7 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
         zengine::graphics::Drawn all;
         all.area = "bounds";
         all.whole = true;
-        all.put = big.sketch.nodes();
+        big.sketch.put_worn(all, big.sketch.nodes());
         all.said = big.sketch.records();
         zengine::graphics::window::WinArea fits;
         fits.area = "bounds";

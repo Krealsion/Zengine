@@ -107,13 +107,14 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     std::map<std::string, Run> shown;
     std::vector<bool> roled;
     std::vector<std::vector<std::string>> glyphs; // each row's characters, a cell each
-    for (const graphics::PaintNode& n : nodes) {
+    for (std::size_t i = 0; i < nodes.size(); ++i) {
+        const graphics::PaintNode& n = nodes[i];
         if (graphics::operands<graphics::TextArgs>(n) == nullptr) {
             continue;
         }
-        // Its words wherever they show, in any ink: a row takes the pool colour its text's colour
-        // shows as.
-        const auto words = graphics::operands<graphics::TextArgs>(n);
+        // Its words wherever they show, in any ink: a row takes the pool colour its text's look's
+        // ink shows as.
+        const graphics::TextLook* words = sketch.worn<graphics::TextLook>(sketch.nodes()[i]);
         graphics::PaintNode shown_node = n;
         shown_node.inks = {graphics::PaintInk{0, {}, {}}};
         std::vector<graphics::term::Cell> cells;

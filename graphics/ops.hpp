@@ -4,8 +4,8 @@
 #ifndef ZENGINE_GRAPHICS_OPS_HPP
 #define ZENGINE_GRAPHICS_OPS_HPP
 
-// What a painter reads of a node's operands (graphics/operands.hpp): the colours they carry, and
-// the pool colour a colour shows as where only the pool's are shown.
+// What a painter reads of a node's look (graphics/operands.hpp): the colours it carries, and the
+// pool colour a colour shows as where only the pool's are shown.
 
 #include "graphics/color.hpp"
 #include "graphics/colors.hpp" // generated from graphics/pool.json
@@ -28,22 +28,19 @@ inline Color pool_color_of(const Color& c) {
     return c.like.empty() ? Color(colors::text) : Color{color_from::kPool, c.like, 0, {}};
 }
 
-/// The colours a node's operands carry, in the order a painter takes them: a rectangle's, an
-/// ellipse's and a path's fill then stroke, a line's and a text's ink; none for a group or an image.
-inline std::vector<Color> colors_of(const Node& n) {
+/// The colours a look carries, in the order a painter takes them: a paint's fill then stroke, an
+/// ink's ink, a text's ink.
+inline std::vector<Color> colors_of(const Look& look) {
     return std::visit(
-        [](const auto& a) -> std::vector<Color> {
-            using A = std::decay_t<decltype(a)>;
-            if constexpr (std::is_same_v<A, RectArgs> || std::is_same_v<A, EllipseArgs> ||
-                          std::is_same_v<A, PathArgs>) {
-                return {a.fill, a.stroke};
-            } else if constexpr (std::is_same_v<A, LineArgs> || std::is_same_v<A, TextArgs>) {
-                return {a.ink};
+        [](const auto& l) -> std::vector<Color> {
+            using L = std::decay_t<decltype(l)>;
+            if constexpr (std::is_same_v<L, Paint>) {
+                return {l.fill, l.stroke};
             } else {
-                return {};
+                return {l.ink};
             }
         },
-        n.draw.is);
+        look.is);
 }
 
 } // namespace zengine::graphics

@@ -47,17 +47,18 @@ inline pane::CanvasPicture shown_picture(const graphics::window::WinArea& area,
     for (const gw::KeptNode* k : order) {
         const std::string& path = k->node.path;
         if (path.rfind("picture/", 0) == 0) {
-            if (gfx::operands<gfx::RectArgs>(k->node) != nullptr) {
-                if (const auto r = gfx::operands<gfx::RectArgs>(k->node)) {
-                    out.rects.push_back(pane::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(r->fill)});
-                }
-            } else if (gfx::operands<gfx::TextArgs>(k->node) != nullptr) {
-                if (const auto t = gfx::operands<gfx::TextArgs>(k->node)) {
-                    runs[path.substr(8)] = out.texts.size();
-                    glyphs_x[out.texts.size()] = t->x;
-                    out.texts.push_back(
-                        pane::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::pool_color_of(t->ink)});
-                }
+            const gfx::Look* look = gw::look_of(area, k->node);
+            if (const auto* r = gfx::operands<gfx::RectArgs>(k->node)) {
+                const gfx::Paint* paint = gfx::look_as<gfx::Paint>(look);
+                out.rects.push_back(pane::CanvasRect{r->x, r->y, r->w, r->h,
+                                                     zengine::graphics::pool_color_of(paint != nullptr ? paint->fill : gfx::Color{})});
+            } else if (const auto* t = gfx::operands<gfx::TextArgs>(k->node)) {
+                const gfx::TextLook* words = gfx::look_as<gfx::TextLook>(look);
+                runs[path.substr(8)] = out.texts.size();
+                glyphs_x[out.texts.size()] = t->x;
+                out.texts.push_back(pane::CanvasText{
+                    t->x - inset, t->y - inset, t->text,
+                    zengine::graphics::pool_color_of(words != nullptr ? words->ink : gfx::Color{})});
             }
         } else if (path.rfind("parts/", 0) == 0 && path.find('/', 6) == std::string::npos &&
                    gfx::operands<gfx::GroupArgs>(k->node) != nullptr) {
