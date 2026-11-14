@@ -79,7 +79,7 @@ struct TallyState {
 class Tally : public loom::WeaveBase<
                   Tally, TallyState,
                   loom::Accept<loom::Activated, zengine::pane::PaneCatalogRequested, gfx::AreaRoom,
-                               gfx::DrawnRefused, gfx::AreaButtonChanged, gfx::ActionRequested,
+                               gfx::DrawnRefused, loom::DispatchRefused, gfx::AreaButtonChanged, gfx::ActionRequested,
                                zengine::pane::PaneActionRequested>,
                   loom::Emit<zengine::pane::PaneOffered, zengine::pane::PaneActions, gfx::Drawn, gfx::RoomAsked>> {
 public:
@@ -107,6 +107,9 @@ public:
     // A drawing the window refused leaves what it shows as it was.
     void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
+    }
+    void on(const loom::DispatchRefused& notice, loom::Mail& mail) {
+        (void)window_.refused(notice, mail);
     }
 
     // A PRESS ON THE BUTTON, given by the window that shows the area: the first button pressed

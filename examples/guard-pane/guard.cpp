@@ -78,7 +78,7 @@ struct GuardState {
 class Guard : public loom::WeaveBase<
                   Guard, GuardState,
                   loom::Accept<loom::Activated, zengine::pane::PaneCatalogRequested, gfx::AreaRoom,
-                               gfx::DrawnRefused, gfx::AreaButtonChanged, gfx::AreaHoldEnded>,
+                               gfx::DrawnRefused, loom::DispatchRefused, gfx::AreaButtonChanged, gfx::AreaHoldEnded>,
                   loom::Emit<zengine::pane::PaneOffered, gfx::Drawn, gfx::RoomAsked>> {
 public:
     void on(const loom::Activated& activated, loom::Mail& mail) {
@@ -103,6 +103,9 @@ public:
     // A drawing the window refused leaves what it shows as it was.
     void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
+    }
+    void on(const loom::DispatchRefused& notice, loom::Mail& mail) {
+        (void)window_.refused(notice, mail);
     }
 
     // THE SECOND BUTTON, CONSUMED: a right press raises the guard, its release lowers it, and a

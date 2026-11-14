@@ -29,7 +29,8 @@ struct ListRowFace {
     Color ink;
     bool selected = false;
     bool hovered = false;
-    ZEN_SHAPE(ListRowFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    /// Version 3: its colours one union (`Color`).
+    ZEN_SHAPE(ListRowFace, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(text), ZEN_FIELD(fill), ZEN_FIELD(ink), ZEN_FIELD(selected),
               ZEN_FIELD(hovered));
 };

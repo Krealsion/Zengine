@@ -20,29 +20,32 @@ namespace zengine::graphics {
 
 /// An own colour as its pane declares it.
 inline OwnDeclared declared(const Color& c) {
-    OwnDeclared d{c.name, own_kind::kColor, {}, 0, 0};
-    if (c.from == color_from::kOwnPool) {
-        d.default_name = c.like;
-    } else {
-        d.rgba = c.rgba;
+    if (const ColorOwnPool* o = std::get_if<ColorOwnPool>(&c.is)) {
+        return OwnDeclared{o->name, own_kind::kColor, o->like, 0, 0};
     }
-    return d;
+    if (const ColorOwn* o = std::get_if<ColorOwn>(&c.is)) {
+        return OwnDeclared{o->name, own_kind::kColor, {}, o->rgba, 0};
+    }
+    return OwnDeclared{{}, own_kind::kColor, {}, 0, 0};
 }
 
 /// An own size as its pane declares it.
 inline OwnDeclared declared(const TextSize& s) {
-    OwnDeclared d{s.name, own_kind::kSize, {}, 0, 0};
-    if (s.from == size_from::kOwnPool) {
-        d.default_name = s.like;
-    } else {
-        d.points = s.points;
+    if (const SizeOwnPool* o = std::get_if<SizeOwnPool>(&s.is)) {
+        return OwnDeclared{o->name, own_kind::kSize, o->like, 0, 0};
     }
-    return d;
+    if (const SizeOwn* o = std::get_if<SizeOwn>(&s.is)) {
+        return OwnDeclared{o->name, own_kind::kSize, {}, 0, o->points};
+    }
+    return OwnDeclared{{}, own_kind::kSize, {}, 0, 0};
 }
 
 /// An own style as its pane declares it.
 inline OwnDeclared declared(const TextLook& l) {
-    return OwnDeclared{l.style.name, own_kind::kStyle, l.style.like, 0, 0};
+    if (const StyleOwn* o = std::get_if<StyleOwn>(&l.style.is)) {
+        return OwnDeclared{o->name, own_kind::kStyle, o->like, 0, 0};
+    }
+    return OwnDeclared{{}, own_kind::kStyle, {}, 0, 0};
 }
 
 /// EVERY OWN VALUE A PANE DECLARES, as it says them to whoever offers palettes.

@@ -23,7 +23,8 @@ struct IconFace {
     std::int64_t x = 0, y = 0, size = 0;
     std::string name;
     Color ink;
-    ZEN_SHAPE(IconFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(size), ZEN_FIELD(name),
+    /// Version 3: its colours one union (`Color`).
+    ZEN_SHAPE(IconFace, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(size), ZEN_FIELD(name),
               ZEN_FIELD(ink));
 };
 

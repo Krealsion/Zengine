@@ -217,8 +217,8 @@ public:
     /// The words the text node at `path` draws, or none.
     std::optional<std::string> words(const std::string& path) const {
         for (const auto& k : area.nodes)
-            if (k.node.path == path && k.node.op == gfx::op::kText)
-                if (auto args = gfx::from_body<gfx::TextArgs>(k.node.args)) return args->text;
+            if (k.node.path == path && gfx::operands<gfx::TextArgs>(k.node) != nullptr)
+                if (auto args = gfx::operands<gfx::TextArgs>(k.node)) return args->text;
         return std::nullopt;
     }
     bool holds(const std::string& path) const {
@@ -233,12 +233,16 @@ public:
     std::vector<std::string> drawing() const {
         std::vector<std::string> out;
         for (const auto& k : area.nodes)
-            if (auto r = k.node.op == gfx::op::kRect ? gfx::from_body<gfx::RectArgs>(k.node.args) : std::nullopt)
+            if (auto r = gfx::operands<gfx::RectArgs>(k.node))
                 out.push_back(std::to_string(r->x) + "," + std::to_string(r->y) + " " + std::to_string(r->w) +
-                              " " + std::to_string(r->h) + " " + zengine::graphics::pool_color_of(r->fill).name);
+                              " " + std::to_string(r->h) + " " +
+                              std::string(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(area,
+                                      k.node)->fill).name()));
         for (const auto& k : area.nodes)
-            if (auto t = k.node.op == gfx::op::kText ? gfx::from_body<gfx::TextArgs>(k.node.args) : std::nullopt)
-                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + zengine::graphics::pool_color_of(t->ink).name +
+            if (auto t = gfx::operands<gfx::TextArgs>(k.node))
+                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " +
+                              std::string(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(area,
+                                      k.node)->ink).name()) +
                               " " + t->text);
         return out;
     }
@@ -347,15 +351,14 @@ struct Rig {
         });
         kept = zengine::pane::CanvasPicture{};
         for (const auto* k : order) {
-            if (k->node.op == gfx::op::kRect) {
-                if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args))
-                    kept.rects.push_back(zengine::pane::CanvasRect{r->x, r->y, r->w, r->h,
-                                                                   zengine::graphics::pool_color_of(r->fill)});
-            } else if (k->node.op == gfx::op::kText) {
-                if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args))
-                    kept.texts.push_back(zengine::pane::CanvasText{t->x - inset, t->y - inset,
-                                                                   t->text,
-                                                                   zengine::graphics::pool_color_of(t->ink)});
+            if (const auto* r = gfx::operands<gfx::RectArgs>(k->node)) {
+                kept.rects.push_back(zengine::pane::CanvasRect{
+                    r->x, r->y, r->w, r->h,
+                    zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(*a, k->node)->fill)});
+            } else if (const auto* t = gfx::operands<gfx::TextArgs>(k->node)) {
+                kept.texts.push_back(zengine::pane::CanvasText{
+                    t->x - inset, t->y - inset, t->text,
+                    zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*a, k->node)->ink)});
             }
         }
         return &kept;
@@ -898,7 +901,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         const auto label = std::find_if(alone.nodes().begin(), alone.nodes().end(),
                                         [](const auto& n) { return n.path == "text:count"; });
         REQUIRE(label != alone.nodes().end());
-        CHECK(gfx::from_body<gfx::TextArgs>(label->args)->text == "Count: 7");
+        CHECK(gfx::operands<gfx::TextArgs>(*label)->text == "Count: 7");
 
         // A BUTTON THAT SAYS AN INTENT runs the presenter's code first, then says its intent, asked
         // by its id as a keyed action is or pressed on the canvas.
@@ -1018,16 +1021,17 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
             const gfx::Node* caret = kept("caret");
             REQUIRE(text != nullptr);
             REQUIRE(caret != nullptr);
-            CHECK(caret->op == gfx::op::kLine);
-            const auto words = gfx::from_body<gfx::TextArgs>(text->args);
-            const auto bar = gfx::from_body<gfx::LineArgs>(caret->args);
-            REQUIRE(words.has_value());
-            REQUIRE(bar.has_value());
+            CHECK(gfx::operands<gfx::LineArgs>(*caret) != nullptr);
+            const auto words = gfx::operands<gfx::TextArgs>(*text);
+            const auto bar = gfx::operands<gfx::LineArgs>(*caret);
+            REQUIRE(words != nullptr);
+            REQUIRE(bar != nullptr);
             CHECK(bar->x1 == words->x + column * gfx::kCellPx);
             CHECK(bar->x2 == bar->x1);
             CHECK(bar->y1 == words->y);
             CHECK(bar->y2 == words->y + gfx::kCellPx - 1);
-            CHECK(zengine::graphics::pool_color_of(bar->ink) == zengine::graphics::colors::accent);
+            CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Ink>(w.window->area, *caret)->ink) ==
+                  zengine::graphics::colors::accent);
             CHECK(w.window->action("caret").empty());
             CHECK(w.window->refused.empty());
         };

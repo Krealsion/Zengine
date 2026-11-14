@@ -30,7 +30,7 @@ struct Condition {
     /// WHAT A DISMISSAL IS MEASURED AGAINST -- the condition's content, as one opaque token.
     // WL-ATTN-08 -- agents/workshop/attention.md
     std::string stamp() const {
-        return compact + '\n' + detail + '\n' + ink.name + '\n' + action;
+        return compact + '\n' + detail + '\n' + std::string(ink.name()) + '\n' + action;
     }
 };
 

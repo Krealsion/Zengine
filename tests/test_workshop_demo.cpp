@@ -251,7 +251,7 @@ TEST_CASE("a row's fold mark is its own character in a room of cells, and where 
     const RowsDrawing cells =
         rows_drawing(rows, parts, RowsRoom{20 * gfx::kCellPx, 3 * gfx::kCellPx, {}, true}, 20);
     for (const gfx::Node& n : cells.sketch.nodes()) {
-        CHECK(n.op != gfx::op::kPath);
+        CHECK(gfx::operands<gfx::PathArgs>(n) == nullptr);
     }
     zengine::component::RowMap<DrawnPart> lattice;
     const std::vector<TextRow> said = drawn_rows(cells.sketch, 3, 20, lattice);
@@ -267,19 +267,19 @@ TEST_CASE("a row's fold mark is its own character in a room of cells, and where 
     const auto outline = [&](const std::string& path, const char* name, gfx::Color ink) {
         const gfx::Node* shape = node(typed, path);
         REQUIRE_MESSAGE(shape != nullptr, "no outline ", path);
-        CHECK(shape->op == gfx::op::kPath);
-        const auto args = gfx::from_body<gfx::PathArgs>(shape->args);
-        REQUIRE(args.has_value());
+        CHECK(gfx::operands<gfx::PathArgs>(*shape) != nullptr);
+        const auto args = gfx::operands<gfx::PathArgs>(*shape);
+        REQUIRE(args != nullptr);
         CHECK(args->d == gfx::Icon::path_data(gfx::Icon::outline(name), size));
-        CHECK(zengine::graphics::pool_color_of(args->fill) == ink);
+        CHECK(zengine::graphics::pool_color_of(typed.sketch.worn<gfx::Paint>(*shape)->fill) == ink);
     };
     outline("row0.mark/shape", "right", gfx::colors::text);
     outline("row1.mark/shape", "down", gfx::colors::accent);
     CHECK(node(typed, "row2.mark/shape") == nullptr); // no mark: a `+` in its words is a word
     const gfx::Node* group = node(typed, "row1.mark");
     REQUIRE(group != nullptr);
-    const auto at = gfx::from_body<gfx::GroupArgs>(group->args);
-    REQUIRE(at.has_value());
+    const auto at = gfx::operands<gfx::GroupArgs>(*group);
+    REQUIRE(at != nullptr);
     CHECK(at->x == 2 * face.advance);
     CHECK(at->y == face.line + (face.line - size) / 2);
     zengine::component::RowMap<DrawnPart> map;
@@ -350,15 +350,15 @@ TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in
     const RowsDrawing typed = rows_drawing(rows, parts, room, room.columns(), {}, 0, areas);
     const gfx::Node* outline = node(typed, "row0.box");
     REQUIRE(outline != nullptr);
-    const auto rect = gfx::from_body<gfx::RectArgs>(outline->args);
-    REQUIRE(rect.has_value());
+    const auto rect = gfx::operands<gfx::RectArgs>(*outline);
+    REQUIRE(rect != nullptr);
     CHECK(rect->x == 5 * face.advance);
     CHECK(rect->w == 6 * face.advance);
-    CHECK(zengine::graphics::pool_color_of(rect->stroke) == gfx::colors::edge);
+    CHECK(zengine::graphics::pool_color_of(typed.sketch.worn<gfx::Paint>(*outline)->stroke) == gfx::colors::edge);
     std::string words;
     for (const gfx::Node& n : typed.sketch.nodes()) {
-        if (n.path.rfind("row0.", 0) == 0 && n.op == gfx::op::kText) {
-            words += gfx::from_body<gfx::TextArgs>(n.args)->text;
+        if (n.path.rfind("row0.", 0) == 0 && gfx::operands<gfx::TextArgs>(n) != nullptr) {
+            words += gfx::operands<gfx::TextArgs>(n)->text;
         }
     }
     CHECK(words.find('[') == std::string::npos);
@@ -366,8 +366,8 @@ TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in
     CHECK(words.find("find  ab") != std::string::npos);
     REQUIRE(node(typed, "area0.text") != nullptr);
     CHECK(node(typed, "row1.0") == nullptr);
-    const auto first = gfx::from_body<gfx::TextArgs>(node(typed, "area0.text/l0")->args);
-    REQUIRE(first.has_value());
+    const auto first = gfx::operands<gfx::TextArgs>(*node(typed, "area0.text/l0"));
+    REQUIRE(first != nullptr);
     CHECK(first->text == "one");
     CHECK(typed.places.count("read") == 1);
     CHECK(typed.places.at("read").row == 1);
@@ -388,20 +388,20 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         // THE ROOM'S GROUND, ALL OF IT, before anything else: no row leaves a blank behind it.
         REQUIRE_FALSE(drawing.sketch.nodes().empty());
         const gfx::Node& first = drawing.sketch.nodes().front();
-        REQUIRE(first.op == gfx::op::kRect);
-        const auto ground = gfx::from_body<gfx::RectArgs>(first.args);
-        REQUIRE(ground.has_value());
+        REQUIRE(gfx::operands<gfx::RectArgs>(first) != nullptr);
+        const auto ground = gfx::operands<gfx::RectArgs>(first);
+        REQUIRE(ground != nullptr);
         CHECK(ground->x == 0);
         CHECK(ground->y == 0);
         CHECK(ground->w == room.width);
         CHECK(ground->h == room.height);
-        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
+        CHECK(zengine::graphics::pool_color_of(drawing.sketch.worn<gfx::Paint>(first)->fill) == gfx::colors::background);
         // EACH RUN where the face sets it: its column an advance across, its row a line down.
         bool plain = false, control = false;
         for (const gfx::Node& n : drawing.sketch.nodes()) {
-            if (n.op != gfx::op::kText) continue;
-            const auto t = gfx::from_body<gfx::TextArgs>(n.args);
-            REQUIRE(t.has_value());
+            if (gfx::operands<gfx::TextArgs>(n) == nullptr) continue;
+            const auto t = gfx::operands<gfx::TextArgs>(n);
+            REQUIRE(t != nullptr);
             plain = plain || (t->text == "plain" && t->x == 0 && t->y == face.line);
             control = control || (t->text == "[x]" && t->x == 10 * face.advance && t->y == 0);
         }
@@ -494,10 +494,10 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         const auto words = [&](const RowsDrawing& d, const std::string& path) {
             const gfx::Node* n = node(d, path);
             REQUIRE(n != nullptr);
-            CHECK(n->op == gfx::op::kText);
-            const std::optional<gfx::TextArgs> text = gfx::from_body<gfx::TextArgs>(n->args);
-            REQUIRE(text.has_value());
-            CHECK(zengine::graphics::pool_color_of(text->ink) == gfx::colors::accent);
+            CHECK(gfx::operands<gfx::TextArgs>(*n) != nullptr);
+            const gfx::TextArgs* text = gfx::operands<gfx::TextArgs>(*n);
+            REQUIRE(text != nullptr);
+            CHECK(zengine::graphics::pool_color_of(d.sketch.worn<gfx::TextLook>(*n)->ink) == gfx::colors::accent);
             return *text;
         };
         const RowsDrawing plain = rows_drawing(rows, parts, cell_room(10, 3), 10);
@@ -530,14 +530,14 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         CHECK(node(marked, "sel2.0") == nullptr);
         const gfx::Node* bar = node(marked, "caret");
         REQUIRE(bar != nullptr);
-        REQUIRE(bar->op == gfx::op::kLine);
-        const std::optional<gfx::LineArgs> line = gfx::from_body<gfx::LineArgs>(bar->args);
-        REQUIRE(line.has_value());
+        REQUIRE(gfx::operands<gfx::LineArgs>(*bar) != nullptr);
+        const gfx::LineArgs* line = gfx::operands<gfx::LineArgs>(*bar);
+        REQUIRE(line != nullptr);
         CHECK(line->x1 == 9 * gfx::kCellPx);
         CHECK(line->x2 == 9 * gfx::kCellPx);
         CHECK(line->y1 == gfx::kCellPx);
         CHECK(line->y2 == 2 * gfx::kCellPx - 1);
-        CHECK(zengine::graphics::pool_color_of(line->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(marked.sketch.worn<gfx::Ink>(*bar)->ink) == gfx::colors::accent);
         CHECK(asks(marked, "caret").empty());
         // THE MARKS STAND IN FRONT: drawn after every row.
         CHECK(marked.sketch.nodes().back().path == "caret");
@@ -608,16 +608,17 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         REQUIRE(a != nullptr);
         // THE ROOM'S GROUND FIRST, the whole of it.
         REQUIRE_FALSE(a->nodes.empty());
-        const auto ground = gfx::from_body<gfx::RectArgs>(a->nodes.front().node.args);
-        REQUIRE(ground.has_value());
-        CHECK(a->nodes.front().node.op == gfx::op::kRect);
+        const auto ground = gfx::operands<gfx::RectArgs>(a->nodes.front().node);
+        REQUIRE(ground != nullptr);
+        CHECK(gfx::operands<gfx::RectArgs>(a->nodes.front().node) != nullptr);
         CHECK((ground->w == a->w && ground->h == a->h));
-        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
+        CHECK(zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::Paint>(*a, a->nodes.front(
+                ).node)->fill) == gfx::colors::background);
         std::set<std::int64_t> lines;
         for (const zengine::graphics::window::KeptNode& n : a->nodes) {
-            if (n.node.op != gfx::op::kText) continue;
-            const auto t = gfx::from_body<gfx::TextArgs>(n.node.args);
-            REQUIRE(t.has_value());
+            if (gfx::operands<gfx::TextArgs>(n.node) == nullptr) continue;
+            const auto t = gfx::operands<gfx::TextArgs>(n.node);
+            REQUIRE(t != nullptr);
             lines.insert(t->y);
         }
         CHECK(lines == std::set<std::int64_t>{0, face.line, 2 * face.line});

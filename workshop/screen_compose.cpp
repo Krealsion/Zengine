@@ -461,8 +461,9 @@ graphics::Sketch rooted(const graphics::Sketch& built, const std::string& stem) 
     };
     graphics::Sketch out;
     for (graphics::Node n : built.nodes()) {
+        const graphics::Look* look = built.look_of(n);
         n.path = renamed(n.path);
-        out.put(std::move(n));
+        out.put(std::move(n), look);
     }
     for (graphics::ElementRecord r : built.records()) {
         r.path = renamed(r.path);

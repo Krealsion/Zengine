@@ -76,7 +76,7 @@ struct TerminalTap {
                 for (const zengine::graphics::window::KeptNode& k :
                      area == nullptr ? std::vector<zengine::graphics::window::KeptNode>{}
                                      : area->nodes) {
-                    if (const auto t = gfx::from_body<gfx::TextArgs>(k.node.args)) {
+                    if (const auto t = gfx::operands<gfx::TextArgs>(k.node)) {
                         legend = legend || t->text.find(kLegendText) != std::string::npos;
                     }
                 }

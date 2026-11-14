@@ -20,30 +20,34 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <deque>
 #include <map>
 #include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
 
 namespace zengine::graphics {
 
-/// One picture's drawing calls, collected: nodes in the order drawn, the element records beside
-/// them, and the names removed.
+/// One picture's drawing calls, collected: nodes in the order drawn, each look they wear once, the
+/// element records beside them, and the names removed.
 class Sketch {
 public:
     void group(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t clip_w = 0,
                std::int64_t clip_h = 0) {
-        put(name, op::kGroup, GroupArgs{x, y, clip_w, clip_h});
+        put(name, GroupArgs{x, y, clip_w, clip_h});
     }
     void rect(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
               std::int64_t h, Color fill, Color stroke = no_color()) {
-        put(name, op::kRect, RectArgs{x, y, w, h, fill, stroke});
+        put(name, RectArgs{x, y, w, h}, Paint{std::move(fill), std::move(stroke)});
     }
     void fill_rect(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                    std::int64_t h, Color paint) {
@@ -55,34 +59,33 @@ public:
     }
     void ellipse(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                  std::int64_t h, Color fill, Color stroke = no_color()) {
-        put(name, op::kEllipse, EllipseArgs{x, y, w, h, fill, stroke});
+        put(name, EllipseArgs{x, y, w, h}, Paint{std::move(fill), std::move(stroke)});
     }
     void line(const std::string& name, std::int64_t x1, std::int64_t y1, std::int64_t x2,
               std::int64_t y2, Color ink) {
-        put(name, op::kLine, LineArgs{x1, y1, x2, y2, ink});
+        put(name, LineArgs{x1, y1, x2, y2}, Ink{std::move(ink)});
     }
     void path(const std::string& name, const std::string& d, Color fill,
               Color stroke = no_color()) {
-        put(name, op::kPath, PathArgs{d, fill, stroke});
+        put(name, PathArgs{d}, Paint{std::move(fill), std::move(stroke)});
     }
     /// Words in the pool's `body` style, in `ink`, and at a size, a weight and a font of their own
     /// where given.
     void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
               Color ink, TextSize size = {}, std::int64_t weight = text_weight::kOfStyle,
               std::string font = {}) {
-        put(name, op::kText,
-            TextArgs{x, y, words, ink, {}, std::move(size), std::move(font), weight});
+        put(name, TextArgs{x, y, words},
+            TextLook{{}, std::move(ink), std::move(size), std::move(font), weight});
     }
     /// Words in a look: a style, as it stands or with a field changed
     /// (`styles::heading.with_color(colors::alert)`).
     void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
               const TextLook& look) {
-        put(name, op::kText,
-            TextArgs{x, y, words, look.ink, look.style, look.size, look.font, look.weight});
+        put(name, TextArgs{x, y, words}, look);
     }
     void image(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                std::int64_t h, std::int64_t pw, std::int64_t ph, loom::Bytes rgba) {
-        put(name, op::kImage, ImageArgs{x, y, w, h, pw, ph, std::move(rgba)});
+        put(name, ImageArgs{x, y, w, h, pw, ph, std::move(rgba)});
     }
 
     /// What the subtree at `name` means, as the record shape T's value.
@@ -95,12 +98,13 @@ public:
         say(ElementRecord{name, {}, {}, action});
     }
 
-    /// Any operator, by its operands' shape: sent as their body, the operator implying the shape.
-    template <class Args>
-    void put(const std::string& name, const char* op, const Args& args) {
-        put(Node{name, op, body_of(args)});
+    /// Any operator, by its operands, wearing `look` (none for a group or an image).
+    void put(const std::string& name, Operands draw, std::optional<Look> look = std::nullopt) {
+        put(Node{name, kNoLook, std::move(draw)}, look ? &*look : nullptr);
     }
-    void put(Node node) {
+    /// A node as another sketch holds it, wearing that sketch's look for it (`look_of`).
+    void put(Node node, const Look* look) {
+        node.look = look == nullptr ? kNoLook : intern(*look);
         const auto it = at_.find(node.path);
         if (it != at_.end()) {
             drawn_[it->second] = std::move(node);
@@ -119,8 +123,52 @@ public:
         said_.push_back(std::move(record));
     }
 
+    /// The nodes in the order drawn, each naming its look among `looks()`.
     const std::vector<Node>& nodes() const { return drawn_; }
+    const std::vector<Look>& looks() const { return looks_; }
+    /// The look a node of this sketch names, or null where it names none.
+    const Look* look_of(const Node& n) const {
+        return n.look >= 0 && static_cast<std::size_t>(n.look) < looks_.size()
+                   ? &looks_[static_cast<std::size_t>(n.look)]
+                   : nullptr;
+    }
+    /// The look a node of this sketch wears, read as `L` (`Paint`, `Ink` or `TextLook`); null
+    /// where it wears another or none.
+    template <class L>
+    const L* worn(const Node& n) const {
+        return look_as<L>(look_or_default(n.draw, look_of(n)));
+    }
     const std::vector<ElementRecord>& records() const { return said_; }
+
+    /// THE WHOLE PICTURE AS ONE DRAWING of `area`: every node, the looks they wear said once, every
+    /// record, and its number.
+    Drawn whole(const std::string& area) const {
+        Drawn d;
+        d.area = area;
+        d.whole = true;
+        d.number = number_;
+        put_worn(d, drawn_);
+        d.said = said_;
+        return d;
+    }
+
+    /// Puts `nodes` of this sketch into `d`, the looks they wear said once in `d.looks`.
+    void put_worn(Drawn& d, const std::vector<Node>& nodes) const {
+        std::map<std::int64_t, std::int64_t> said;
+        for (const Node& n : nodes) {
+            Node out = n;
+            out.look = kNoLook;
+            if (const Look* look = look_of(n)) {
+                const auto [it, fresh] =
+                    said.try_emplace(n.look, static_cast<std::int64_t>(d.looks.size()));
+                if (fresh) {
+                    d.looks.push_back(*look);
+                }
+                out.look = it->second;
+            }
+            d.put.push_back(std::move(out));
+        }
+    }
 
     /// THE DRAWER'S NUMBER FOR WHAT THIS PICTURE MEANS (`Drawn::number`): one it keeps while a
     /// press on the picture would mean what it meant, 0 for none.
@@ -128,15 +176,37 @@ public:
     std::int64_t number() const { return number_; }
 
 private:
+    /// The place of `look` among the sketch's looks, found in one step, said there first if new.
+    std::int64_t intern(const Look& look) {
+        const auto [it, fresh] =
+            place_of_.try_emplace(look, static_cast<std::int64_t>(looks_.size()));
+        if (fresh) {
+            looks_.push_back(look);
+        }
+        return it->second;
+    }
+
     std::vector<Node> drawn_;
+    std::vector<Look> looks_;
+    std::unordered_map<Look, std::int64_t, LookHash> place_of_;
     std::map<std::string, std::size_t> at_;
     std::vector<ElementRecord> said_;
     std::int64_t number_ = 0;
 };
 
+/// Whether two sketches' nodes draw the same: the same operands, wearing the same look.
+inline bool same_node(const Sketch& a, const Node& x, const Sketch& b, const Node& y) {
+    if (!(x.draw == y.draw)) {
+        return false;
+    }
+    const Look* lx = a.look_of(x);
+    const Look* ly = b.look_of(y);
+    return lx == nullptr ? ly == nullptr : ly != nullptr && *lx == *ly;
+}
+
 /// What changed from one sketch of a thing to the next: nodes new or changed put, in the order
-/// drawn; the highest node of each subtree gone removed; records new or changed said; records gone
-/// unsaid where their node stays; and the later sketch's number.
+/// drawn, the looks they wear said once; the highest node of each subtree gone removed; records new
+/// or changed said; records gone unsaid where their node stays; and the later sketch's number.
 inline Drawn difference(const Sketch& before, const Sketch& after) {
     Drawn d;
     d.number = after.number();
@@ -145,13 +215,15 @@ inline Drawn difference(const Sketch& before, const Sketch& after) {
         was[n.path] = &n;
     }
     std::set<std::string> now;
+    std::vector<Node> changed;
     for (const Node& n : after.nodes()) {
         now.insert(n.path);
         const auto it = was.find(n.path);
-        if (it == was.end() || it->second->op != n.op || it->second->args != n.args) {
-            d.put.push_back(n);
+        if (it == was.end() || !same_node(before, *it->second, after, n)) {
+            changed.push_back(n);
         }
     }
+    after.put_worn(d, changed);
     for (const Node& n : before.nodes()) {
         if (now.count(n.path) != 0) {
             continue;
@@ -201,7 +273,7 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
     const Node* top = nullptr;
     std::vector<std::size_t> top_key;
     for (const Node& n : nodes) {
-        if (n.op == op::kGroup) {
+        if (operands<GroupArgs>(n) != nullptr) {
             continue;
         }
         // ITS PLACE: each group above it offsets it and may clip it; and its paint order, its
@@ -219,11 +291,7 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
                 continue;
             }
             key.push_back(r->second);
-            const Node& g = nodes[r->second];
-            if (g.op != op::kGroup) {
-                continue;
-            }
-            if (const auto args = from_body<GroupArgs>(g.args)) {
+            if (const auto* args = operands<GroupArgs>(nodes[r->second])) {
                 dx += args->x;
                 dy += args->y;
                 if (args->clip_w > 0 && args->clip_h > 0 &&
@@ -238,42 +306,36 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
         }
         const std::int64_t px = x - dx, py = y - dy;
         bool hit = false;
-        if (n.op == op::kRect || n.op == op::kEllipse) {
-            std::optional<RectArgs> box;
-            if (n.op == op::kRect) {
-                box = from_body<RectArgs>(n.args);
-            } else if (const auto e = from_body<EllipseArgs>(n.args)) {
-                box = RectArgs{e->x, e->y, e->w, e->h, e->fill, e->stroke};
+        std::optional<RectArgs> box;
+        if (const auto* r = operands<RectArgs>(n)) {
+            box = *r;
+        } else if (const auto* e = operands<EllipseArgs>(n)) {
+            box = RectArgs{e->x, e->y, e->w, e->h};
+        }
+        const Look* look = picture.look_of(n);
+        const Paint* paint = look != nullptr ? std::get_if<Paint>(&look->is) : nullptr;
+        if (box) {
+            hit = paint != nullptr && inside(px, py, box->x, box->y, box->w, box->h) &&
+                  (!paint->fill.none() ||
+                   (!paint->stroke.none() &&
+                    !inside(px, py, box->x + 1, box->y + 1, box->w - 2, box->h - 2)));
+        } else if (const auto* t = operands<TextArgs>(n)) {
+            std::int64_t characters = 0;
+            for (const char c : t->text) {
+                characters += (static_cast<unsigned char>(c) & 0xC0U) != 0x80U ? 1 : 0;
             }
-            if (box) {
-                hit = inside(px, py, box->x, box->y, box->w, box->h) &&
-                      (!box->fill.none() ||
-                       (!box->stroke.none() &&
-                        !inside(px, py, box->x + 1, box->y + 1, box->w - 2, box->h - 2)));
-            }
-        } else if (n.op == op::kText) {
-            if (const auto t = from_body<TextArgs>(n.args)) {
-                std::int64_t characters = 0;
-                for (const char c : t->text) {
-                    characters += (static_cast<unsigned char>(c) & 0xC0U) != 0x80U ? 1 : 0;
-                }
-                hit = inside(px, py, t->x, t->y, characters * text.advance, text.line);
-            }
-        } else if (n.op == op::kImage) {
-            if (const auto im = from_body<ImageArgs>(n.args)) {
-                hit = inside(px, py, im->x, im->y, im->w, im->h);
-            }
-        } else if (n.op == op::kLine) {
-            if (const auto l = from_body<LineArgs>(n.args)) {
-                const double lx = static_cast<double>(l->x2 - l->x1);
-                const double ly = static_cast<double>(l->y2 - l->y1);
-                const double len2 = lx * lx + ly * ly;
-                const double qx = static_cast<double>(px - l->x1);
-                const double qy = static_cast<double>(py - l->y1);
-                const double t = len2 > 0 ? std::clamp((qx * lx + qy * ly) / len2, 0.0, 1.0) : 0.0;
-                const double ex = t * lx - qx, ey = t * ly - qy;
-                hit = ex * ex + ey * ey <= 1.0;
-            }
+            hit = inside(px, py, t->x, t->y, characters * text.advance, text.line);
+        } else if (const auto* im = operands<ImageArgs>(n)) {
+            hit = inside(px, py, im->x, im->y, im->w, im->h);
+        } else if (const auto* l = operands<LineArgs>(n)) {
+            const double lx = static_cast<double>(l->x2 - l->x1);
+            const double ly = static_cast<double>(l->y2 - l->y1);
+            const double len2 = lx * lx + ly * ly;
+            const double qx = static_cast<double>(px - l->x1);
+            const double qy = static_cast<double>(py - l->y1);
+            const double at = len2 > 0 ? std::clamp((qx * lx + qy * ly) / len2, 0.0, 1.0) : 0.0;
+            const double ex = at * lx - qx, ey = at * ly - qy;
+            hit = ex * ex + ey * ey <= 1.0;
         }
         if (hit) {
             top = &n;
@@ -293,10 +355,31 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
     return nearest != nullptr ? nearest->action : std::string();
 }
 
+/// THE WORDS A DRAWER IS TOLD when Loom refused `what` it sent its window (a "drawing", an
+/// "element" or an "element's change") before the window read it, for Loom's `reason`
+/// (`loom::DispatchRefused::reason`): the gate's refusal of a drawing names the way for an area
+/// whose every node wears a look of its own.
+inline std::string dispatch_refusal_words(std::string_view what, std::string_view reason) {
+    std::string words = "Loom refused the ";
+    words += what;
+    words += " before the window read it (";
+    words += reason;
+    words += ")";
+    if (what == "drawing" && reason == "GateRefused") {
+        words += ": one value holds no more cells than Loom decodes, and an area whose every node "
+                 "wears a look of its own is drawn as an image";
+    }
+    return words;
+}
+
 /// What an owner keeps for its life: the role it draws as, its area, the window that shows it
 /// and the elements that window presents, what it last sent there, and what one beat has queued.
 class Canvas {
 public:
+    /// The sends a canvas remembers, newest last, so Loom's later word that it refused one is
+    /// read as that send's refusal.
+    static constexpr std::size_t kHeardSends = 64;
+
     explicit Canvas(std::string role, std::string area = {})
         : role_(std::move(role)), area_(area.empty() ? role_ : std::move(area)) {}
 
@@ -317,6 +400,7 @@ public:
         text_ = r.measure();
         held_ = std::set<std::int64_t>(r.elements.begin(), r.elements.end());
         known_ = false;
+        held_back_ = false;
         return true;
     }
     /// Whether the window that shows the area presents the element named `ref`.
@@ -335,20 +419,47 @@ public:
     /// The next drawing goes whole.
     void forget() { known_ = false; }
 
+    /// A SEND OF THIS CANVAS'S THAT LOOM REFUSED before the window read it -- a drawing past
+    /// what Loom decodes of one value among them -- told by Loom's notice, said as the window says
+    /// its own refusal (`DrawnRefused`); none for any other mail. The next drawing goes whole; after
+    /// a refused whole drawing, not until the picture changes or a room comes.
+    std::optional<DrawnRefused> refused(const loom::DispatchRefused& notice,
+                                        const loom::Mail& mail) {
+        const std::uint64_t attempt = notice.refused_attempt().seq;
+        if (!mail.dispatch_refused() || attempt == 0) {
+            return std::nullopt;
+        }
+        const auto sent = std::find_if(sends_.begin(), sends_.end(),
+                                       [&](const Sent& s) { return s.attempt == attempt; });
+        if (sent == sends_.end()) {
+            return std::nullopt;
+        }
+        const std::string_view what = sent->what;
+        held_back_ = sent->whole;
+        sends_.erase(sent);
+        known_ = false;
+        return DrawnRefused{area_, dispatch_refusal_words(what, notice.reason)};
+    }
+
     /// Queue a picture: what changed since the last one sent, or the whole of it when the window
-    /// holds none of this canvas's drawing.
+    /// holds none of this canvas's drawing; nothing for the picture of a whole drawing Loom refused.
     void draw(const Sketch& picture) {
         if (window_.empty()) {
             return; // no window shows the area: the first drawing after its room is whole
+        }
+        if (held_back_) {
+            const Drawn same = difference(sent_, picture);
+            if (same.put.empty() && same.removed.empty() && same.said.empty() &&
+                same.unsaid.empty() && picture.number() == sent_.number()) {
+                return;
+            }
+            held_back_ = false;
         }
         Drawn d;
         if (known_) {
             d = difference(sent_, picture);
         } else {
-            d.whole = true;
-            d.put = picture.nodes();
-            d.said = picture.records();
-            d.number = picture.number();
+            d = picture.whole(area_);
             known_ = true;
         }
         const bool renumbered = picture.number() != sent_.number();
@@ -398,6 +509,7 @@ public:
                         throw std::logic_error("graphics: this participant does not hold the "
                                                "role '" + role_ + "' it draws as");
                     }
+                    heard(t.seq, m);
                 },
                 out[i]);
         }
@@ -405,6 +517,26 @@ public:
 
 private:
     using Out = std::variant<Drawn, ElementPut, ElementChange>;
+
+    /// A send Loom may yet refuse: its queued attempt, what it carried, and whether it was a whole
+    /// drawing.
+    struct Sent {
+        std::uint64_t attempt = 0;
+        const char* what = "";
+        bool whole = false;
+    };
+
+    void heard(std::uint64_t attempt, const Drawn& d) { remember(attempt, "drawing", d.whole); }
+    void heard(std::uint64_t attempt, const ElementPut&) { remember(attempt, "element", false); }
+    void heard(std::uint64_t attempt, const ElementChange&) {
+        remember(attempt, "element's change", false);
+    }
+    void remember(std::uint64_t attempt, const char* what, bool whole) {
+        sends_.push_back(Sent{attempt, what, whole});
+        if (sends_.size() > kHeardSends) {
+            sends_.pop_front();
+        }
+    }
 
     template <class C, class Changes, std::size_t... I>
     static constexpr std::size_t count_of(std::index_sequence<I...>) {
@@ -440,8 +572,10 @@ private:
     TextMeasure text_;
     std::set<std::int64_t> held_;
     bool known_ = false;
+    bool held_back_ = false; ///< Loom refused the whole drawing of the picture last sent
     Sketch sent_;
     std::vector<Out> queued_;
+    std::deque<Sent> sends_;
 };
 
 } // namespace zengine::graphics

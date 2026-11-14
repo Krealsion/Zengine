@@ -40,7 +40,10 @@ the workshop package* -- argued against: Loom's limit is 32 tools a package; the
 package of its own.
 
 **Consequences.** An agent reads the whole desk in one ask, or a few, and writes it for its model as
-text; a reading names the stamps it stands on. Old `capture` rows read more than they did. One
+text; a reading names the stamps it stands on. A picture at a window's bounds whose nodes share
+their looks arrives as one drawing: a node costs Loom a cell for its path, one for the look it names
+(said once a drawing) and its operands' fields, 8 a text and 12 an image; one whose every node wears
+a look of its own is drawn as an image. Old `capture` rows read more than they did. One
 version of each reading stands now, and a pane drawing in an area of its own is read from the window
 ([a pane is read from the window that shows it](a-pane-is-read-from-the-window-that-shows-it.md)).
 

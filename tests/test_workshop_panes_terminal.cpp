@@ -526,18 +526,19 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
         CHECK(a->h == 10 * face.line);
         // THE ROOM'S GROUND FIRST, the whole of it, so nothing behind the area shows through.
         REQUIRE_FALSE(a->nodes.empty());
-        const auto ground = gfx::from_body<gfx::RectArgs>(a->nodes.front().node.args);
-        REQUIRE(ground.has_value());
-        CHECK(a->nodes.front().node.op == gfx::op::kRect);
+        const auto ground = gfx::operands<gfx::RectArgs>(a->nodes.front().node);
+        REQUIRE(ground != nullptr);
+        CHECK(gfx::operands<gfx::RectArgs>(a->nodes.front().node) != nullptr);
         CHECK(ground->w == a->w);
         CHECK(ground->h == a->h);
-        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Paint>(*a, a->nodes.front().node)->fill)
+                == gfx::colors::background);
         // EACH ROW A LINE OF THE FACE DOWN, each character an advance across.
         bool line_row = false;
         for (const gw::KeptNode& k : a->nodes) {
-            if (k.node.op != gfx::op::kText) continue;
-            const auto t = gfx::from_body<gfx::TextArgs>(k.node.args);
-            REQUIRE(t.has_value());
+            if (gfx::operands<gfx::TextArgs>(k.node) == nullptr) continue;
+            const auto t = gfx::operands<gfx::TextArgs>(k.node);
+            REQUIRE(t != nullptr);
             CHECK(t->y % face.line == 0);
             CHECK(t->x % face.advance == 0);
             line_row = line_row || (t->y == 9 * face.line && t->text.rfind(">", 0) == 0);
@@ -971,14 +972,15 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
         // After the text the caret stands on a blank, a bar at its left in the accent colour.
-        CHECK(caret->op == gfx::op::kLine);
-        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
-        REQUIRE(bar.has_value());
+        CHECK(gfx::operands<gfx::LineArgs>(*caret) != nullptr);
+        const gfx::LineArgs* bar = gfx::operands<gfx::LineArgs>(*caret);
+        REQUIRE(bar != nullptr);
         CHECK(bar->x1 == typed.column * gfx::kCellPx);
         CHECK(bar->x2 == typed.column * gfx::kCellPx);
         CHECK(bar->y1 == typed.row * gfx::kCellPx);
         CHECK(bar->y2 == typed.row * gfx::kCellPx + gfx::kCellPx - 1);
-        CHECK(zengine::graphics::pool_color_of(bar->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::Ink>(*window.weave().find(area), *caret)->ink)
+                == gfx::colors::accent);
         CHECK(window.action_at(area, typed.column, typed.row) == "line");
         // ...AND SO DOES THE SELECTION: the selected columns again in the accent colour, asking for
         // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
@@ -988,12 +990,13 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         const std::string sel = "sel" + std::to_string(t.input_row()) + ".0";
         const gfx::Node* selected = kept(sel);
         REQUIRE(selected != nullptr);
-        const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(selected->args);
-        REQUIRE(words.has_value());
+        const gfx::TextArgs* words = gfx::operands<gfx::TextArgs>(*selected);
+        REQUIRE(words != nullptr);
         CHECK(words->text == "hello");
         CHECK(words->x == all.sel_begin_col * gfx::kCellPx);
         CHECK(words->y == t.input_row() * gfx::kCellPx);
-        CHECK(zengine::graphics::pool_color_of(words->ink) == gfx::colors::accent);
+        CHECK(zengine::graphics::pool_color_of(gfx::window::worn<gfx::TextLook>(*window.weave().find(area),
+                *selected)->ink) == gfx::colors::accent);
         CHECK(kept("sel" + std::to_string(t.input_row()) + ".1") == nullptr);
         for (std::int64_t c = all.sel_begin_col; c < all.sel_end_col; ++c) {
             CAPTURE(c);
@@ -1105,8 +1108,8 @@ TEST_CASE("the line reads plain in a room of cells and stands in its outline whe
     bool outlined = false;
     for (const gfx::window::KeptNode& k : a->nodes) {
         if (k.node.path == "row" + std::to_string(line) + ".box") {
-            const auto edge = gfx::from_body<gfx::RectArgs>(k.node.args);
-            REQUIRE(edge.has_value());
+            const auto edge = gfx::operands<gfx::RectArgs>(k.node);
+            REQUIRE(edge != nullptr);
             CHECK(edge->x == kLineBoxColumn * face.advance);
             outlined = true;
         }

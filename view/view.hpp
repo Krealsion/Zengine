@@ -572,7 +572,7 @@ public:
         last.texts_by.resize(last.content.texts.size());
         const auto drawn = sketch(description_, last, room);
         return std::pair{window_.window_role(),
-                         graphics::Drawn{window_.area(), true, drawn.nodes(), {}, drawn.records(), {}, false}};
+                         drawn.whole(window_.area())};
     }
 
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {

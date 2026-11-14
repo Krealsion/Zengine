@@ -122,23 +122,25 @@ inline PaintInk pool_ink(std::string_view name, const PaletteOffered& palette) {
 /// A COLOUR A DRAW NAMES, AS PAINTED in `palette` in an area `role` owns: an own value as the
 /// palette sets it for that role, else as its default -- its exact colour, or its pool colour.
 inline PaintInk resolve(const Color& c, const PaletteOffered& palette, const std::string& role) {
-    switch (c.from) {
-    case color_from::kExact:
-        return own_ink(c.rgba, c.like, palette);
-    case color_from::kPool:
-        return pool_ink(c.name, palette);
-    case color_from::kOwn:
-    case color_from::kOwnPool:
-        if (const OwnValues* o = own_values(palette, role)) {
-            if (const PaletteColor* p = find_color(o->colors, c.name)) {
-                return ink_of(*p, palette);
-            }
-        }
-        return c.from == color_from::kOwn ? own_ink(c.rgba, c.like, palette)
-                                          : pool_ink(c.like, palette);
-    default:
-        return PaintInk{};
+    const auto set_for_role = [&](const std::string& name) -> const PaletteColor* {
+        const OwnValues* o = own_values(palette, role);
+        return o != nullptr ? find_color(o->colors, name) : nullptr;
+    };
+    if (const ColorExact* e = std::get_if<ColorExact>(&c.is)) {
+        return own_ink(e->rgba, e->like, palette);
     }
+    if (const ColorPool* p = std::get_if<ColorPool>(&c.is)) {
+        return pool_ink(p->name, palette);
+    }
+    if (const ColorOwn* o = std::get_if<ColorOwn>(&c.is)) {
+        const PaletteColor* set = set_for_role(o->name);
+        return set != nullptr ? ink_of(*set, palette) : own_ink(o->rgba, o->like, palette);
+    }
+    if (const ColorOwnPool* o = std::get_if<ColorOwnPool>(&c.is)) {
+        const PaletteColor* set = set_for_role(o->name);
+        return set != nullptr ? ink_of(*set, palette) : pool_ink(o->like, palette);
+    }
+    return PaintInk{};
 }
 
 // ---- A text's size and font -----------------------------------------------------------------
@@ -179,17 +181,19 @@ inline constexpr std::int64_t kFallbackPoints = 13;
 /// else as the pool's own default, else `body`'s; each of its fields a root's name.
 inline PaletteStyle resolve_style(const TextStyle& style, const PaletteOffered& palette,
                                   const std::string& role = {}) {
-    if (style.from == style_from::kOwn) {
+    if (const StyleOwn* own = std::get_if<StyleOwn>(&style.is)) {
         if (const OwnValues* o = own_values(palette, role)) {
             for (const PaletteStyle& s : o->styles) {
-                if (s.name == style.name) {
+                if (s.name == own->name) {
                     return s;
                 }
             }
         }
-        return resolve_style(TextStyle{style_from::kPool, style.like, {}}, palette);
+        return resolve_style(StylePool{own->like}, palette);
     }
-    if (const PaletteStyle* s = pool_style(palette, style.pool_name())) {
+    const std::string& name = std::get<StylePool>(style.is).name;
+    if (const PaletteStyle* s = pool_style(palette, name.empty() ? std::string_view(kBodyStyle)
+                                                                  : std::string_view(name))) {
         return *s;
     }
     if (const PaletteStyle* s = pool_style(palette, kBodyStyle)) {
@@ -218,24 +222,33 @@ inline std::int64_t body_points(const PaletteOffered& palette) {
 /// none, the style's. Its name is the pool's, or the own value's.
 inline PaletteSize resolve_size(const TextSize& size, const PaletteOffered& palette,
                                 const std::string& role, const std::string& style_size) {
-    if (size.from == size_from::kOwn || size.from == size_from::kOwnPool) {
+    const auto set_for_role = [&](const std::string& name) -> const PaletteSize* {
         if (const OwnValues* o = own_values(palette, role)) {
             for (const PaletteSize& z : o->sizes) {
-                if (z.name == size.name && z.points > 0) {
-                    return z;
+                if (z.name == name && z.points > 0) {
+                    return &z;
                 }
             }
         }
-        if (size.from == size_from::kOwn && size.points > 0) {
-            return PaletteSize{size.name, size.points};
+        return nullptr;
+    };
+    if (const SizeOwn* own = std::get_if<SizeOwn>(&size.is)) {
+        if (const PaletteSize* z = set_for_role(own->name)) {
+            return *z;
         }
-        if (size.from == size_from::kOwnPool && !size.like.empty()) {
-            return PaletteSize{size.name, root_size(size.like, palette).points};
-        }
-        return root_size(style_size, palette);
+        return own->points > 0 ? PaletteSize{own->name, own->points}
+                               : root_size(style_size, palette);
     }
-    if (!size.name.empty()) {
-        if (const PaletteSize* s = pool_size(palette, size.name); s != nullptr && s->points > 0) {
+    if (const SizeOwnPool* own = std::get_if<SizeOwnPool>(&size.is)) {
+        if (const PaletteSize* z = set_for_role(own->name)) {
+            return *z;
+        }
+        return !own->like.empty() ? PaletteSize{own->name, root_size(own->like, palette).points}
+                                  : root_size(style_size, palette);
+    }
+    const std::string& name = std::get<SizePool>(size.is).name;
+    if (!name.empty()) {
+        if (const PaletteSize* s = pool_size(palette, name); s != nullptr && s->points > 0) {
             return *s;
         }
     }
@@ -270,34 +283,33 @@ struct TextSet {
     std::int64_t weight = text_weight::kRegular;
 };
 
-inline TextSet resolve_text(const TextArgs& t, const PaletteOffered& palette,
+inline TextSet resolve_text(const TextLook& t, const PaletteOffered& palette,
                             const std::string& role) {
     const PaletteStyle style = resolve_style(t.style, palette, role);
     TextSet set;
     set.font = !t.font.empty() ? t.font : (!style.font.empty() ? style.font : kTextFont);
     set.size = resolve_size(t.size, palette, role, style.size);
     set.color = !t.ink.none() ? t.ink
-                              : Color{color_from::kPool,
-                                      style.color.empty() ? std::string(colors::text.name)
-                                                          : style.color,
-                                      0,
-                                      {}};
+                              : Color(ColorPool{style.color.empty() ? std::string(colors::text.name)
+                                                                     : style.color});
     set.weight = t.weight != text_weight::kOfStyle ? t.weight : style.weight;
     return set;
 }
 
-/// The colours a node's operands name, as painted in `palette` in an area `role` owns, in the
-/// order a painter takes them (`colors_of`): a text naming no colour of its own in its style's.
-inline std::vector<PaintInk> inks_of(const std::string& op, const loom::Bytes& args,
-                                     const PaletteOffered& palette, const std::string& role) {
+/// The colours a node's look names, as painted in `palette` in an area `role` owns, in the order
+/// a painter takes them (`colors_of`): a text naming no colour of its own in its style's; none for
+/// a node that wears no look.
+inline std::vector<PaintInk> inks_of(const Look* look, const PaletteOffered& palette,
+                                     const std::string& role) {
     std::vector<PaintInk> out;
-    if (op == op::kText) {
-        if (const auto t = from_body<TextArgs>(args)) {
-            out.push_back(resolve(resolve_text(*t, palette, role).color, palette, role));
-        }
+    if (look == nullptr) {
         return out;
     }
-    for (const Color& c : colors_of(op, args)) {
+    if (const TextLook* t = std::get_if<TextLook>(&look->is)) {
+        out.push_back(resolve(resolve_text(*t, palette, role).color, palette, role));
+        return out;
+    }
+    for (const Color& c : colors_of(*look)) {
         out.push_back(resolve(c, palette, role));
     }
     return out;

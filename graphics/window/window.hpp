@@ -61,7 +61,7 @@ struct WindowState {
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    ZEN_SHAPE(WindowState, 12, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 13, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
@@ -1201,7 +1201,7 @@ private:
                     continue;
                 }
                 named.push_back(st.name);
-                const PaletteStyle style = resolve_style(TextStyle{style_from::kPool, st.name}, palette);
+                const PaletteStyle style = resolve_style(StylePool{st.name}, palette);
                 const std::string font = style.font.empty() ? std::string(kTextFont) : style.font;
                 const PaletteSize size = root_size(style.size, palette);
                 const TextMeasure m = measure_in(resolve_face(font, palette), size.points);
@@ -1219,16 +1219,14 @@ private:
     }
 
     /// The font, size and measure a text node is set at in `palette` in an area `role` owns, and
-    /// its face; none for a node that is no text, or whose operands do not read.
-    void dress_text(PaintNode& node, const PaletteOffered& palette, const std::string& role) {
-        if (node.op != op::kText) {
+    /// its face; none for a node that is no text.
+    void dress_text(PaintNode& node, const Look* look, const PaletteOffered& palette,
+                    const std::string& role) {
+        const TextLook* t = look_as<TextLook>(look);
+        if (t == nullptr || operands<TextArgs>(node) == nullptr) {
             return;
         }
-        const auto args = from_body<TextArgs>(node.args);
-        if (!args) {
-            return;
-        }
-        const TextSet set = resolve_text(*args, palette, role);
+        const TextSet set = resolve_text(*t, palette, role);
         node.face = resolve_face(set.font, palette);
         node.weight = set.weight;
         const TextMeasure m = measure_in(node.face, set.size.points);
@@ -1266,15 +1264,15 @@ private:
         dress(task, palette, a.owner);
         for (const KeptNode& k : a.nodes) {
             if (send.count(k.node.path) != 0) {
+                const Look* look = look_of(a, k.node);
                 PaintNode node{k.node.path,
                                key_of(at, k.node.path),
-                               k.node.op,
-                               k.node.args,
-                               inks_of(k.node.op, k.node.args, palette, a.owner),
+                               k.node.draw,
+                               inks_of(look, palette, a.owner),
                                {},
                                {},
                                text_weight::kOfStyle};
-                dress_text(node, palette, a.owner);
+                dress_text(node, look, palette, a.owner);
                 task.nodes.push_back(std::move(node));
             }
         }

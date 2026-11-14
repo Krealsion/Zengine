@@ -899,8 +899,8 @@ TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, 
             const gfx::Drawn drawn = loom::from_value<gfx::Drawn>(*e.payload);
             std::string text;
             for (const gfx::Node& n : drawn.put) {
-                if (n.op != gfx::op::kText) continue;
-                if (const auto run = gfx::from_body<gfx::TextArgs>(n.args)) text += run->text + "\n";
+                if (gfx::operands<gfx::TextArgs>(n) == nullptr) continue;
+                if (const auto run = gfx::operands<gfx::TextArgs>(n)) text += run->text + "\n";
             }
             after.push_back(text);
         }

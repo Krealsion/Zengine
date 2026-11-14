@@ -52,29 +52,28 @@ struct DrawnPart {
 /// A node's operands with its place read from a drawing set in `text` onto the cell lattice: a
 /// group's offset and clip and a text's start, a character's advance a cell across and a line a
 /// cell down. Any other node is as drawn.
-inline loom::Bytes on_cells(const graphics::Node& n, const graphics::TextMeasure& text) {
+inline graphics::Operands on_cells(const graphics::Node& n, const graphics::TextMeasure& text) {
     const auto across = [&](std::int64_t v) {
         return graphics::floor_div_px(v, text.advance) * graphics::kCellPx;
     };
     const auto down = [&](std::int64_t v) {
         return graphics::floor_div_px(v, text.line) * graphics::kCellPx;
     };
-    if (n.op == graphics::op::kGroup) {
-        if (auto g = graphics::from_body<graphics::GroupArgs>(n.args)) {
-            g->x = across(g->x);
-            g->y = down(g->y);
-            g->clip_w = across(g->clip_w);
-            g->clip_h = down(g->clip_h);
-            return graphics::body_of(*g);
-        }
-    } else if (n.op == graphics::op::kText) {
-        if (auto t = graphics::from_body<graphics::TextArgs>(n.args)) {
-            t->x = across(t->x);
-            t->y = down(t->y);
-            return graphics::body_of(*t);
-        }
+    if (const auto* group = graphics::operands<graphics::GroupArgs>(n)) {
+        graphics::GroupArgs g = *group;
+        g.x = across(g.x);
+        g.y = down(g.y);
+        g.clip_w = across(g.clip_w);
+        g.clip_h = down(g.clip_h);
+        return g;
     }
-    return n.args;
+    if (const auto* text_args = graphics::operands<graphics::TextArgs>(n)) {
+        graphics::TextArgs t = *text_args;
+        t.x = across(t.x);
+        t.y = down(t.y);
+        return t;
+    }
+    return n.draw;
 }
 
 /// A DRAWING ON THE ROWS OF A ROOM `rows` BY `columns`, set in `measure`: each text node's
@@ -95,7 +94,7 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     nodes.reserve(sketch.nodes().size());
     for (const graphics::Node& n : sketch.nodes()) {
         nodes.push_back(
-            graphics::PaintNode{n.path, {}, n.op, lattice ? n.args : on_cells(n, measure), {}, {}, {}});
+            graphics::PaintNode{n.path, {}, lattice ? n.draw : on_cells(n, measure), {}, {}, {}, {}});
     }
     const std::map<std::string, graphics::term::Space> at = graphics::term::spaces(nodes);
     const graphics::PaintTask task{};
@@ -108,13 +107,14 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     std::map<std::string, Run> shown;
     std::vector<bool> roled;
     std::vector<std::vector<std::string>> glyphs; // each row's characters, a cell each
-    for (const graphics::PaintNode& n : nodes) {
-        if (n.op != graphics::op::kText) {
+    for (std::size_t i = 0; i < nodes.size(); ++i) {
+        const graphics::PaintNode& n = nodes[i];
+        if (graphics::operands<graphics::TextArgs>(n) == nullptr) {
             continue;
         }
-        // Its words wherever they show, in any ink: a row takes the pool colour its text's colour
-        // shows as.
-        const auto words = graphics::from_body<graphics::TextArgs>(n.args);
+        // Its words wherever they show, in any ink: a row takes the pool colour its text's look's
+        // ink shows as.
+        const graphics::TextLook* words = sketch.worn<graphics::TextLook>(sketch.nodes()[i]);
         graphics::PaintNode shown_node = n;
         shown_node.inks = {graphics::PaintInk{0, {}, {}}};
         std::vector<graphics::term::Cell> cells;
@@ -764,19 +764,30 @@ public:
         send(mail);
     }
 
-    /// A DRAWING THE WINDOW REFUSED, said by the window that shows the area: true when it was.
+    /// A DRAWING THE WINDOW REFUSED, said by the window that shows the area: true when it was. A
+    /// refusal read from Loom's notice (below), handed on with that notice's mail, was taken already.
     bool refused(const graphics::DrawnRefused& refusal, loom::Mail& mail) {
+        if (mail.dispatch_refused()) {
+            return refusal.area == area();
+        }
         if (!from_window(refusal.area, mail)) {
             return false;
         }
-        canvas_.forget();
-        fresh_ = true;
-        if (!drew_whole_) {
-            send(mail);
-        } else if (!last_.nodes().empty()) {
-            refused_whole_ = true;
-        }
+        recover(mail);
         return true;
+    }
+
+    /// A DRAWING LOOM REFUSED before the window read it -- one past what Loom decodes of one
+    /// value, say -- told by Loom's notice (`graphics::Canvas::refused`): taken as the window's own
+    /// refusal, and that refusal returned, in words, for the pane to hear as the window's; none for
+    /// another notice.
+    std::optional<graphics::DrawnRefused> refused(const loom::DispatchRefused& notice,
+                                                  loom::Mail& mail) {
+        std::optional<graphics::DrawnRefused> refusal = canvas_.refused(notice, mail);
+        if (refusal) {
+            recover(mail);
+        }
+        return refusal;
     }
 
 private:
@@ -788,6 +799,16 @@ private:
         p.at = window_cell(x, y, rows, columns, text());
         p.press = mail.correlation();
         return p;
+    }
+
+    void recover(loom::Mail& mail) {
+        canvas_.forget();
+        fresh_ = true;
+        if (!drew_whole_) {
+            send(mail);
+        } else if (!last_.nodes().empty()) {
+            refused_whole_ = true;
+        }
     }
 
     void send(loom::Mail& mail) {

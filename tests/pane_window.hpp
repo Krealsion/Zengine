@@ -270,7 +270,7 @@ public:
         });
         gfx::Sketch sketch;
         for (const gw::KeptNode* k : order) {
-            sketch.put(k->node);
+            sketch.put(k->node, gw::look_of(*a, k->node));
         }
         for (const gfx::ElementRecord& r : a->records) {
             sketch.say(r);
@@ -297,15 +297,15 @@ public:
         bool selected = false;
         for (const gw::KeptNode& k : a->nodes) {
             if (k.node.path == "caret") {
-                if (const auto bar = gfx::from_body<gfx::LineArgs>(k.node.args)) {
+                if (const auto bar = gfx::operands<gfx::LineArgs>(k.node)) {
                     out.row = gfx::floor_div_px(bar->y1, face_.line);
                     out.column = gfx::floor_div_px(bar->x1, face_.advance);
-                } else if (const auto mark = gfx::from_body<gfx::TextArgs>(k.node.args)) {
+                } else if (const auto mark = gfx::operands<gfx::TextArgs>(k.node)) {
                     out.row = gfx::floor_div_px(mark->y, face_.line);
                     out.column = gfx::floor_div_px(mark->x, face_.advance);
                 }
             } else if (k.node.path.rfind("sel", 0) == 0) {
-                if (const auto run = gfx::from_body<gfx::TextArgs>(k.node.args)) {
+                if (const auto run = gfx::operands<gfx::TextArgs>(k.node)) {
                     const std::int64_t row = gfx::floor_div_px(run->y, face_.line);
                     const std::int64_t column = gfx::floor_div_px(run->x, face_.advance);
                     const std::int64_t end = column + static_cast<std::int64_t>(run->text.size());
@@ -615,7 +615,7 @@ private:
         out.w = a.w / face_.advance * gfx::kCellPx;
         out.h = a.h / face_.line * gfx::kCellPx;
         for (gw::KeptNode& k : out.nodes) {
-            k.node.args = pane::on_cells(k.node, face_);
+            k.node.draw = pane::on_cells(k.node, face_);
         }
         return out;
     }
@@ -661,8 +661,8 @@ private:
         gw::dress(task, palette, a.owner);
         for (const gw::KeptNode& k : a.nodes) {
             task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path),
-                                                k.node.op, k.node.args,
-                                                gw::inks_of(k.node.op, k.node.args, palette,
+                                                k.node.draw,
+                                                gw::inks_of(gw::look_of(a, k.node), palette,
                                                             a.owner),
                                                 {}, {}});
         }

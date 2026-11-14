@@ -93,9 +93,9 @@ back.
   '<parent>', which is not drawn`; `a path is empty, longer than <bytes> bytes or deeper than
   <depth>`; `'<path>' has operands over <bytes> bytes`; `area '<area>' would hold more than <bound>
   nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
-  sender's to say`; `'<path>': its <operator> operands do not read as <shape> version <n>, the one
-  this window reads (version 1 named its colours by role, and is not read)` (for text, version 2
-  too), for a rectangle, an ellipse, a line, a path or text whose operands are not this vocabulary's.
+  sender's to say`; `a drawing says more than <bound> looks`; `'<path>' wears look <n>, which its
+  drawing does not say`; `'<path>', a <operator>, wears a look of <paint|ink|text>, which a
+  <operator> does not`.
 - **Example:** a drawing weave sends the nodes its picture changed in a beat with `more`, then its
   element's change without it, so the beat is shown once.
 

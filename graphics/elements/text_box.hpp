@@ -33,7 +33,8 @@ struct TextBoxFace {
     Color fill;
     Color ink;
     Color border;
-    ZEN_SHAPE(TextBoxFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    /// Version 3: its colours one union (`Color`).
+    ZEN_SHAPE(TextBoxFace, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(text), ZEN_FIELD(placeholder), ZEN_FIELD(cursor), ZEN_FIELD(focused),
               ZEN_FIELD(enabled), ZEN_FIELD(fill), ZEN_FIELD(ink), ZEN_FIELD(border));
 };

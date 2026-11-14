@@ -47,21 +47,23 @@ inline pane::CanvasPicture shown_picture(const graphics::window::WinArea& area,
     for (const gw::KeptNode* k : order) {
         const std::string& path = k->node.path;
         if (path.rfind("picture/", 0) == 0) {
-            if (k->node.op == gfx::op::kRect) {
-                if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args)) {
-                    out.rects.push_back(pane::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(r->fill)});
-                }
-            } else if (k->node.op == gfx::op::kText) {
-                if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args)) {
-                    runs[path.substr(8)] = out.texts.size();
-                    glyphs_x[out.texts.size()] = t->x;
-                    out.texts.push_back(
-                        pane::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::pool_color_of(t->ink)});
-                }
+            const gfx::Look* look = gw::look_of(area, k->node);
+            if (const auto* r = gfx::operands<gfx::RectArgs>(k->node)) {
+                const gfx::Paint* paint = gfx::look_as<gfx::Paint>(look);
+                out.rects.push_back(pane::CanvasRect{r->x, r->y, r->w, r->h,
+                                                     zengine::graphics::pool_color_of(
+                                                             paint != nullptr ? paint->fill : gfx::Color{})});
+            } else if (const auto* t = gfx::operands<gfx::TextArgs>(k->node)) {
+                const gfx::TextLook* words = gfx::look_as<gfx::TextLook>(look);
+                runs[path.substr(8)] = out.texts.size();
+                glyphs_x[out.texts.size()] = t->x;
+                out.texts.push_back(pane::CanvasText{
+                    t->x - inset, t->y - inset, t->text,
+                    zengine::graphics::pool_color_of(words != nullptr ? words->ink : gfx::Color{})});
             }
         } else if (path.rfind("parts/", 0) == 0 && path.find('/', 6) == std::string::npos &&
-                   k->node.op == gfx::op::kGroup) {
-            const auto g = gfx::from_body<gfx::GroupArgs>(k->node.args);
+                   gfx::operands<gfx::GroupArgs>(k->node) != nullptr) {
+            const auto g = gfx::operands<gfx::GroupArgs>(k->node);
             const gfx::ElementRecord* r = record_of(path);
             if (!g || r == nullptr || r->action.empty()) continue;
             out.parts.push_back(pane::CanvasPart{r->action, g->x, g->y, g->clip_w, g->clip_h,
@@ -74,9 +76,9 @@ inline pane::CanvasPicture shown_picture(const graphics::window::WinArea& area,
             pane::CanvasText& t = out.texts[run->second];
             std::int64_t x = 0;
             std::size_t width = 0;
-            if (const auto bar = gfx::from_body<gfx::LineArgs>(k->node.args)) {
+            if (const auto bar = gfx::operands<gfx::LineArgs>(k->node)) {
                 x = bar->x1;
-            } else if (const auto words = gfx::from_body<gfx::TextArgs>(k->node.args)) {
+            } else if (const auto words = gfx::operands<gfx::TextArgs>(k->node)) {
                 x = words->x;
                 width = words->text.size();
             } else {

@@ -515,7 +515,7 @@ std::vector<pane::TextRow> picture(const TdState& s) {
 // ---- The pane ---------------------------------------------------------------------------------
 class Game : public TimedWeave<Game, TdState,
                                loom::Accept<pane::PaneCatalogRequested, gfx::AreaRoom,
-                                            gfx::DrawnRefused, pane::PaneActionRequested,
+                                            gfx::DrawnRefused, loom::DispatchRefused, pane::PaneActionRequested,
                                             gfx::AreaButtonChanged, TdCommand>,
                                loom::Emit<pane::v2::PaneOffered, pane::PaneActions, gfx::Drawn,
                                           gfx::RoomAsked, TdSeen, TdOccurred>> {
@@ -552,6 +552,9 @@ public:
 
     void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
+    }
+    void on(const loom::DispatchRefused& notice, loom::Mail& mail) {
+        (void)window_.refused(notice, mail);
     }
 
     void on(const pane::PaneActionRequested& asked, loom::Mail& mail) {

@@ -31,7 +31,8 @@ struct ScrollBarFace {
     std::int64_t thumb_size = 0;
     Color track_fill;
     Color thumb_fill;
-    ZEN_SHAPE(ScrollBarFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    /// Version 3: its colours one union (`Color`).
+    ZEN_SHAPE(ScrollBarFace, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(content_size), ZEN_FIELD(viewport_size), ZEN_FIELD(scroll_offset),
               ZEN_FIELD(thumb_offset), ZEN_FIELD(thumb_size), ZEN_FIELD(track_fill),
               ZEN_FIELD(thumb_fill));

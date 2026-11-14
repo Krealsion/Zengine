@@ -238,42 +238,26 @@ public:
         }
     }
 
-    /// One node's cells, drawn in `space`, in its colours. Operands that do not read as their
-    /// operator's paint nothing; an operator this medium does not know paints its name, quiet.
+    /// One node's cells, drawn in `space`, in its colours.
     void paint(const PaintNode& node, const Space& space, std::vector<Cell>& cells) const {
-        const std::string& op = node.op;
-        const loom::Bytes& args = node.args;
         space_ = space;
         out_ = &cells;
         inks_ = &node.inks;
-        if (op == op::kRect) {
-            if (auto a = from_body<RectArgs>(args)) {
-                rect(a->x, a->y, a->w, a->h);
-            }
-        } else if (op == op::kEllipse) {
-            if (auto a = from_body<EllipseArgs>(args)) {
-                ellipse(*a);
-            }
-        } else if (op == op::kLine) {
-            if (auto a = from_body<LineArgs>(args)) {
-                line(a->x1, a->y1, a->x2, a->y2, 0);
-            }
-        } else if (op == op::kPath) {
-            if (auto a = from_body<PathArgs>(args)) {
-                path(*a);
-            }
-        } else if (op == op::kText) {
-            if (auto a = from_body<TextArgs>(args)) {
-                bold_ = node.weight_of(a->weight) == text_weight::kBold;
-                text(a->x, a->y, a->text, 0);
-                bold_ = false;
-            }
-        } else if (op == op::kImage) {
-            if (auto a = from_body<ImageArgs>(args)) {
-                image(*a);
-            }
-        } else if (op != op::kGroup) {
-            text(0, 0, "?" + op, ink::kQuiet);
+        const Operands::Is& draw = node.draw.is;
+        if (const auto* a = std::get_if<RectArgs>(&draw)) {
+            rect(a->x, a->y, a->w, a->h);
+        } else if (const auto* e = std::get_if<EllipseArgs>(&draw)) {
+            ellipse(*e);
+        } else if (const auto* l = std::get_if<LineArgs>(&draw)) {
+            line(l->x1, l->y1, l->x2, l->y2, 0);
+        } else if (const auto* p = std::get_if<PathArgs>(&draw)) {
+            path(*p);
+        } else if (const auto* t = std::get_if<TextArgs>(&draw)) {
+            bold_ = node.weight_set() == text_weight::kBold;
+            text(t->x, t->y, t->text, 0);
+            bold_ = false;
+        } else if (const auto* i = std::get_if<ImageArgs>(&draw)) {
+            image(*i);
         }
     }
 
@@ -570,11 +554,8 @@ inline std::map<std::string, Space> spaces(const std::vector<PaintNode>& nodes) 
         Space s;
         for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
             const auto g = at.find(*it);
-            if (g == at.end() || g->second->op != op::kGroup) {
-                continue;
-            }
-            const auto args = from_body<GroupArgs>(g->second->args);
-            if (!args) {
+            const GroupArgs* args = g == at.end() ? nullptr : operands<GroupArgs>(*g->second);
+            if (args == nullptr) {
                 continue;
             }
             s.dx += args->x;
@@ -603,7 +584,7 @@ inline PaintResult paint_task(const PaintTask& task) {
     const auto at = spaces(task.nodes);
     PaintResult out;
     for (const PaintNode& n : task.nodes) {
-        if (n.op == op::kGroup) {
+        if (operands<GroupArgs>(n) != nullptr) {
             continue;
         }
         std::vector<Cell> cells;

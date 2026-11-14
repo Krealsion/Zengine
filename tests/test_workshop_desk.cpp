@@ -3136,9 +3136,8 @@ std::set<std::pair<std::int64_t, std::int64_t>> painted_cells(const gw::WinArea&
     gw::dress(task, palette, a.owner);
     const auto at = gw::index_of(a);
     for (const gw::KeptNode& k : a.nodes) {
-        task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.op,
-                                            k.node.args,
-                                            gw::inks_of(k.node.op, k.node.args, palette, a.owner),
+        task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.draw,
+                                            gw::inks_of(gw::look_of(a, k.node), palette, a.owner),
                                             {}, {}});
     }
     std::set<std::pair<std::int64_t, std::int64_t>> out;
@@ -3602,10 +3601,11 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
     CHECK(title.substr(title.size() - 3) == kChromeMarks);
     bool ring = false;
     for (const gw::KeptNode& n : window.weave().find(frame)->nodes) {
-        if (n.node.op != gfx::op::kRect) continue;
-        const auto r = gfx::from_body<gfx::RectArgs>(n.node.args);
+        if (gfx::operands<gfx::RectArgs>(n.node) == nullptr) continue;
+        const auto r = gfx::operands<gfx::RectArgs>(n.node);
         ring = ring || (r && r->x == bounds.x && r->y == bounds.y && r->w == bounds.w &&
-                        r->h == bounds.h && r->fill.none() && !r->stroke.none());
+                        r->h == bounds.h && gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->fill.none()
+                                && !gw::worn<gfx::Paint>(*window.weave().find(frame), n.node)->stroke.none());
     }
     CHECK(ring);
     // THE BAND, AT THE FOOT, in Workshop's own area: what the keys mean, under what the tool last
@@ -3776,7 +3776,7 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
     }));
     const auto& nodes = window.weave().find(layouts_frame)->nodes;
     CHECK(std::any_of(nodes.begin(), nodes.end(), [](const gw::KeptNode& n) {
-        return n.node.op == gfx::op::kLine;
+        return gfx::operands<gfx::LineArgs>(n.node) != nullptr;
     }));
     d.r.key(input::scan::kEscape);
     CHECK_FALSE(s.setup.naming.open);
@@ -4476,11 +4476,12 @@ TEST_CASE("a guest's guide mark stands over the panes in Workshop's overlay in t
         std::vector<gfx::TextArgs> labels;
         std::vector<gfx::RectArgs> grounds;
         for (const gw::KeptNode& n : window.weave().find(overlay)->nodes) {
-            if (n.node.op == gfx::op::kText) {
-                if (const auto t = gfx::from_body<gfx::TextArgs>(n.node.args)) labels.push_back(*t);
-            } else if (n.node.op == gfx::op::kRect) {
-                const auto r = gfx::from_body<gfx::RectArgs>(n.node.args);
-                if (r && zengine::graphics::pool_color_of(r->fill) == gfx::colors::background) grounds.push_back(*r);
+            if (gfx::operands<gfx::TextArgs>(n.node) != nullptr) {
+                if (const auto t = gfx::operands<gfx::TextArgs>(n.node)) labels.push_back(*t);
+            } else if (gfx::operands<gfx::RectArgs>(n.node) != nullptr) {
+                const auto r = gfx::operands<gfx::RectArgs>(n.node);
+                if (r && zengine::graphics::pool_color_of(gw::worn<gfx::Paint>(*window.weave().find(overlay),
+                        n.node)->fill) == gfx::colors::background) grounds.push_back(*r);
             }
         }
         REQUIRE_FALSE(labels.empty());
@@ -4748,8 +4749,7 @@ struct PointerDesk {
         const std::string at = area;
         does([&drawing, role, at](loom::Mail& m) {
             (void)m.as_role(kWindowSeatRole)
-                .send_to_role(role, gfx::Drawn{at, true, drawing.sketch.nodes(), {},
-                                                 drawing.sketch.records(), {}, false});
+                .send_to_role(role, drawing.sketch.whole(at));
         });
     }
     void does(std::function<void(loom::Mail&)> what) {

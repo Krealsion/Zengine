@@ -32,7 +32,7 @@ namespace zengine::graphics::window {
 struct KeptNode {
     Node node;
     std::int64_t rank = 0;
-    ZEN_SHAPE(KeptNode, 1, ZEN_FIELD(node), ZEN_FIELD(rank));
+    ZEN_SHAPE(KeptNode, 2, ZEN_FIELD(node), ZEN_FIELD(rank));
 };
 
 /// An element the window presents: where, of which type, its drawer's reference for it, the
@@ -49,7 +49,8 @@ struct Presented {
 
 /// One area as its window keeps it: where the directory placed it, who draws in it and who placed
 /// it, which of its key moments and whose hands reach it, whether the wheel stops there and its
-/// arranger follows it, which palette it wears, and what was drawn there.
+/// arranger follows it, which palette it wears, and what was drawn there: each look its nodes wear
+/// once, and the nodes, each naming its look there.
 struct WinArea {
     std::string area;
     std::string owner;
@@ -65,18 +66,34 @@ struct WinArea {
     bool text = false;
     std::string palette;
     std::int64_t next_rank = 1;
+    std::vector<Look> looks;
     std::vector<KeptNode> nodes;
     std::vector<ElementRecord> records;
     std::vector<Presented> presented;
     /// The owner's number for the drawing it last sent (`Drawn::number`).
     std::int64_t drawing = 0;
-    ZEN_SHAPE(WinArea, 10, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
+    ZEN_SHAPE(WinArea, 11, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
               ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
               ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text), ZEN_FIELD(palette),
-              ZEN_FIELD(next_rank), ZEN_FIELD(nodes), ZEN_FIELD(records), ZEN_FIELD(presented),
-              ZEN_FIELD(drawing));
+              ZEN_FIELD(next_rank), ZEN_FIELD(looks), ZEN_FIELD(nodes), ZEN_FIELD(records),
+              ZEN_FIELD(presented), ZEN_FIELD(drawing));
 };
+
+/// The look a kept node wears, among its area's, or its operator's default where it names none
+/// (`look_or_default`); null for a group or an image.
+inline const Look* look_of(const WinArea& a, const Node& n) {
+    return look_or_default(n.draw, n.look >= 0 && static_cast<std::size_t>(n.look) < a.looks.size()
+                                       ? &a.looks[static_cast<std::size_t>(n.look)]
+                                       : nullptr);
+}
+
+/// The look a kept node wears, read as `L` (`Paint`, `Ink` or `TextLook`); null where it wears
+/// another or none.
+template <class L>
+const L* worn(const WinArea& a, const Node& n) {
+    return look_as<L>(look_of(a, n));
+}
 
 /// Who is drawing: the owner (everything but what the window presents), or an element's code
 /// (its own subtree, `scope`).
@@ -230,6 +247,9 @@ inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
         const std::set<std::string, std::less<>> removed(d.removed.begin(), d.removed.end());
         std::erase_if(present, [&](const std::string& p) { return under_any(p, removed); });
     }
+    if (d.looks.size() > kMaxNodesPerArea) {
+        return "a drawing says more than " + std::to_string(kMaxNodesPerArea) + " looks";
+    }
     for (const Node& n : d.put) {
         if (n.path.empty() || n.path.size() > kMaxPathBytes ||
             static_cast<std::size_t>(std::count(n.path.begin(), n.path.end(), '/')) >=
@@ -237,15 +257,25 @@ inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
             return "a path is empty, longer than " + std::to_string(kMaxPathBytes) +
                    " bytes or deeper than " + std::to_string(kMaxPathDepth);
         }
-        if (n.args.size() > kMaxArgsBytes) {
+        if (operand_bytes(n.draw) > kMaxArgsBytes) {
             return "'" + n.path + "' has operands over " + std::to_string(kMaxArgsBytes) +
                    " bytes";
         }
         if (!mine(a, who, n.path)) {
             return "'" + n.path + "' is not the sender's to draw";
         }
-        if (const std::string why = operands_refused(n.op, n.args); !why.empty()) {
-            return "'" + n.path + "': " + why;
+        if (n.look != kNoLook &&
+            (n.look < 0 || static_cast<std::size_t>(n.look) >= d.looks.size())) {
+            return "'" + n.path + "' wears look " + std::to_string(n.look) +
+                   ", which its drawing does not say";
+        }
+        const Look* look = n.look == kNoLook ? nullptr : &d.looks[static_cast<std::size_t>(n.look)];
+        if (!wears(n.draw, look)) {
+            const std::string op(operator_of(n));
+            const std::string an = op.find_first_of("aeiou") == 0 ? "an " : "a ";
+            return "'" + n.path + "', " + an + op + ", wears a look of " +
+                   std::string(Look::zen_case_names[look->is.index()]) + ", which " + an + op +
+                   " does not";
         }
         const std::string parent = parent_of(n.path);
         if (!parent.empty() && present.count(parent) == 0) {
@@ -289,8 +319,52 @@ struct Applied {
     std::vector<std::string> gone;
 };
 
+/// Drops from an area the looks no node wears, each node naming its look where it now stands.
+inline void keep_worn_looks(WinArea& a) {
+    std::vector<std::int64_t> to(a.looks.size(), kNoLook);
+    for (const KeptNode& k : a.nodes) {
+        if (k.node.look >= 0 && static_cast<std::size_t>(k.node.look) < to.size()) {
+            to[static_cast<std::size_t>(k.node.look)] = 0;
+        }
+    }
+    std::vector<Look> kept;
+    for (std::size_t i = 0; i < a.looks.size(); ++i) {
+        if (to[i] != kNoLook) {
+            to[i] = static_cast<std::int64_t>(kept.size());
+            kept.push_back(std::move(a.looks[i]));
+        }
+    }
+    a.looks = std::move(kept);
+    for (KeptNode& k : a.nodes) {
+        if (k.node.look >= 0) {
+            k.node.look = to[static_cast<std::size_t>(k.node.look)];
+        }
+    }
+}
+
 inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
     Applied out;
+    // EACH LOOK THE DRAWING SAYS, ONCE IN THE AREA: a node is kept naming the area's look.
+    // Each found in one step, the area's looks indexed once.
+    std::unordered_map<Look, std::int64_t, LookHash> place_of;
+    place_of.reserve(a.looks.size() + d.looks.size());
+    for (std::size_t i = 0; i < a.looks.size(); ++i) {
+        place_of.try_emplace(a.looks[i], static_cast<std::int64_t>(i));
+    }
+    std::vector<std::int64_t> look_in_area(d.looks.size(), kNoLook);
+    for (std::size_t i = 0; i < d.looks.size(); ++i) {
+        const auto [it, fresh] =
+            place_of.try_emplace(d.looks[i], static_cast<std::int64_t>(a.looks.size()));
+        if (fresh) {
+            a.looks.push_back(d.looks[i]);
+        }
+        look_in_area[i] = it->second;
+    }
+    const auto kept = [&](const Node& n) {
+        Node k = n;
+        k.look = n.look == kNoLook ? kNoLook : look_in_area[static_cast<std::size_t>(n.look)];
+        return k;
+    };
     std::set<std::string> before;
     for (const KeptNode& k : a.nodes) {
         before.insert(k.node.path);
@@ -318,7 +392,7 @@ inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
         for (KeptNode& k : a.nodes) {
             const auto it = last.find(k.node.path);
             if (it != last.end()) {
-                k.node = d.put[it->second];
+                k.node = kept(d.put[it->second]);
                 held[it->second] = true;
             }
         }
@@ -327,7 +401,7 @@ inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
         const std::size_t later = last.at(n.path);
         if (!held[later]) {
             held[later] = true;
-            a.nodes.push_back(KeptNode{d.put[later], a.next_rank++});
+            a.nodes.push_back(KeptNode{kept(d.put[later]), a.next_rank++});
         }
     }
     for (const ElementRecord& r : d.said) {
@@ -342,6 +416,7 @@ inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
     for (const std::string& u : d.unsaid) {
         std::erase_if(a.records, [&](const ElementRecord& r) { return r.path == u; });
     }
+    keep_worn_looks(a);
     const auto at = index_of(a);
     std::erase_if(a.records, [&](const ElementRecord& r) { return at.count(r.path) == 0; });
     // EVERY NODE BENEATH A PUT GROUP CHANGED TOO, its space moved: each node asks of its own
