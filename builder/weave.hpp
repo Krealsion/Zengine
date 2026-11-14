@@ -8,7 +8,8 @@
 // artifact each produces, follows the build of one, and publishes where it stands
 // (`BuildStatus`). It holds no process, command, build tree, source path, timer or realization
 // authority: it asks the runner for a build, folds the runner's observations and its answer into
-// one current picture, and judges the artifact. One build at a time is this tool's policy, not the runner's limit.
+// one current picture, and judges the artifact. One build at a time is this tool's policy, not
+// the runner's limit.
 // Builder law: agents/realization.md
 
 #include "activation/activation.hpp"
