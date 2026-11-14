@@ -27,8 +27,8 @@ using pane::kPresenterRole;
 // WL-ATTN-04 -- agents/workshop/attention.md
 ProjectFrontier WorkshopWeave::frontier_now(loom::Mail& mail) {
     ProjectFrontier now;
-    if (const std::optional<realization::PlanWhere> where =
-            realization::latest<realization::PlanWhere>(mail)) {
+    if (const std::optional<realization::PlanStatus> where =
+            realization::latest<realization::PlanStatus>(mail)) {
         now.artifact = where->waiting_on;
         now.waiting = !now.artifact.empty();
         now.blocked = static_cast<std::size_t>(where->behind);

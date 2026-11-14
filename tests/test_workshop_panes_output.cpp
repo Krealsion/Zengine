@@ -170,8 +170,8 @@ struct OutputRig {
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         say.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
-        say.allow_observe(zengine::realization::PlanWhere::zen_name,
-                          zengine::realization::PlanWhere::zen_version);
+        say.allow_observe(zengine::realization::PlanStatus::zen_name,
+                          zengine::realization::PlanStatus::zen_version);
         const loom::WeaveId id =
             r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
         raw->zen_set_self(id);

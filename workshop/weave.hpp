@@ -1053,7 +1053,7 @@ public:
     void on(const PaneInventoryRequested& asked, loom::Mail& mail);
 
     /// THE ONE INVENTORY AS A VALUE: `inventory_rows` with the three facts beside each row.
-    PaneInventory inventory_reading(const realization::PlanWhere& plan = {}) const;
+    PaneInventory inventory_reading(const realization::PlanStatus& plan = {}) const;
 
     /// SAY THE EFFECTIVE KEYMAP OUT LOUD, if it changed since it was last said -- the one
     /// binding truth dispatch reads, for the presenters that show keys (WL-DESK-11).
@@ -1697,7 +1697,7 @@ private:
 
     // ---- THE RUN: what is true now, the picture published, and the way out --------------
 
-    /// THE PROJECT FRONTIER, READ ALIVE, NOW, from the realization owner's claim (`PlanWhere`).
+    /// THE PROJECT FRONTIER, READ ALIVE, NOW, from the realization owner's claim (`PlanStatus`).
     static ProjectFrontier frontier_now(loom::Mail& mail);
 
     /// THE TIME, AS THE HOST'S ONE WAIT HANDS IT (`loom::host::Waited::now_ms`), kept only while

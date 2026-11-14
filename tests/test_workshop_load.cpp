@@ -4663,8 +4663,8 @@ TEST_CASE("the owner claims where the plan is as its role, and a reader reads it
     // as two participants read it, one granted observing it and one not.
     PendingRig rig;
     const auto read_where = [&rig] {
-        return rig.bus.observe_role(zengine::builder::kRealizationRole, load::PlanWhere::zen_name,
-                                    load::PlanWhere::zen_version);
+        return rig.bus.observe_role(zengine::builder::kRealizationRole, load::PlanStatus::zen_name,
+                                    load::PlanStatus::zen_version);
     };
     const load::Mounted mounted = load::mount(
         rig.bus, answer_grant(rig.manager), rig.catalog, rig.operators, rig.manager,
@@ -4679,7 +4679,7 @@ TEST_CASE("the owner claims where the plan is as its role, and a reader reads it
     const loom::SenseReading read = read_where();
     REQUIRE(read);
     CHECK(read.by.author == mounted.id());
-    const load::PlanWhere where = loom::from_value<load::PlanWhere>(*read.value);
+    const load::PlanStatus where = loom::from_value<load::PlanStatus>(*read.value);
     CHECK(where.state == load::PlanState::waiting);
     CHECK(where.waiting_on == kUnbuilt);
     CHECK(where.behind == 1);
@@ -4691,19 +4691,19 @@ TEST_CASE("the owner claims where the plan is as its role, and a reader reads it
     // A READER IS ITS GRANT: the one granted observing reads the claim; the one not granted is
     // refused before the lookup, and learns nothing of whether a claim exists.
     loom::Grant observe;
-    observe.allow_observe(load::PlanWhere::zen_name, load::PlanWhere::zen_version);
+    observe.allow_observe(load::PlanStatus::zen_name, load::PlanStatus::zen_version);
     const loom::WeaveId granted = rig.bus.register_weave(std::make_unique<RealizedEars>(),
                                                          std::move(observe));
     const loom::WeaveId plain = rig.bus.register_weave(std::make_unique<RealizedEars>(),
                                                        loom::Grant{});
     const loom::SenseReading as_granted = rig.bus.observe_role_as(
-        granted, zengine::builder::kRealizationRole, load::PlanWhere::zen_name,
-        load::PlanWhere::zen_version);
+        granted, zengine::builder::kRealizationRole, load::PlanStatus::zen_name,
+        load::PlanStatus::zen_version);
     REQUIRE(as_granted);
-    CHECK(loom::from_value<load::PlanWhere>(*as_granted.value).waiting_on == kUnbuilt);
+    CHECK(loom::from_value<load::PlanStatus>(*as_granted.value).waiting_on == kUnbuilt);
     CHECK(rig.bus
               .observe_role_as(plain, zengine::builder::kRealizationRole,
-                               load::PlanWhere::zen_name, load::PlanWhere::zen_version)
+                               load::PlanStatus::zen_name, load::PlanStatus::zen_version)
               .refusal == loom::SenseRefusal::NotAuthorized);
 }
 
@@ -4714,9 +4714,9 @@ TEST_CASE("a plan at rest is claimed complete, with nothing to come and the choi
     plan.choices.push_back(load::ChoiceIntent{"test.plain", "other", "zengine-provider-min"});
     REQUIRE(rig.realize(std::move(plan)).ok);
     const loom::SenseReading where = rig.bus.observe_role(
-        zengine::builder::kRealizationRole, load::PlanWhere::zen_name, load::PlanWhere::zen_version);
+        zengine::builder::kRealizationRole, load::PlanStatus::zen_name, load::PlanStatus::zen_version);
     REQUIRE(where);
-    const load::PlanWhere said = loom::from_value<load::PlanWhere>(*where.value);
+    const load::PlanStatus said = loom::from_value<load::PlanStatus>(*where.value);
     CHECK(said.state == load::PlanState::complete);
     CHECK(said.waiting_on.empty());
     CHECK(said.to_come.empty());

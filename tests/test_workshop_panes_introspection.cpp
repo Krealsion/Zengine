@@ -2589,7 +2589,7 @@ TEST_CASE("the Builder pane this host used to compile is named by no presentatio
 
 TEST_CASE("the presentation holds no realization or build-runner reach") {
     // THE PRESENTATION IS AWARE OF REALIZATION AND NOT IN CHARGE OF IT: the weave holds one
-    // READING (the realization owner's claim, `PlanWhere`), and the one route from a gesture to a realized
+    // READING (the realization owner's claim, `PlanStatus`), and the one route from a gesture to a realized
     // artifact is `BuildRequested` to the Builder role. The forbidden identifiers -- the owner's
     // type, its file, the offer only the TOOL may make, the runner's order and role -- would put
     // a presentation one edit from building on its own authority; the population is the

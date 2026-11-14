@@ -130,8 +130,8 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
     // ...AND WHAT THE PLAN COULD NOT LOAD AND GAVE WAY FROM, said once: the GUI window that could
     // not open here, so the desk is in the TUI window, and why.
     std::string gave_way;
-    if (const std::optional<realization::PlanWhere> where =
-            realization::latest<realization::PlanWhere>(mail)) {
+    if (const std::optional<realization::PlanStatus> where =
+            realization::latest<realization::PlanStatus>(mail)) {
         for (const std::string& gone : where->gave_way) {
             gave_way += (gave_way.empty() ? "" : "; ") + gone;
         }

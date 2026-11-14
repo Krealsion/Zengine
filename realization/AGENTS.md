@@ -10,7 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `load_plan.hpp` | the typed load plan and its law: `LoadPlan`, `ArtifactIntent`, `ChoiceIntent`, `check_plan`, `plan_roles`, `remember_choices` |
 | `load_persist.hpp` | the plan's file, its one codec: `to_text`, `from_text`, `load_file`, `save_file`, `plan_in_force` |
 | `owner.hpp` | the realization owner, one weave in `zengine.realization`: `Owner`, `mount`, `Mounted`, and what a row came to (`ResolvedArtifact`, `Executed`, `PassedOver`) |
-| `vocabulary.hpp` | what the owner claims as its role: `PlanWhere`, `ChoicesHeld`, and `latest`, a reader's read of one |
+| `vocabulary.hpp` | what the owner claims as its role: `PlanStatus`, `ChoicesHeld`, and `latest`, a reader's read of one |
 | `docs/zengine.realization.md` | the owner's manual, compiled into whatever mounts it |
 | `CMakeLists.txt` | `zengine-realization`: INTERFACE, installed and exported as `zengine::realization` |
 

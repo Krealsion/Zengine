@@ -416,8 +416,8 @@ struct BuilderRig {
         say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
         say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
         say_project.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
-        say_project.allow_observe(zengine::realization::PlanWhere::zen_name,
-                                  zengine::realization::PlanWhere::zen_version);
+        say_project.allow_observe(zengine::realization::PlanStatus::zen_name,
+                                  zengine::realization::PlanStatus::zen_version);
         const loom::WeaveId pid = r.bus.register_weave(std::move(project), std::move(say_project),
                                                        std::string(kProjectRole));
         praw->zen_set_self(pid);

@@ -2548,7 +2548,7 @@ struct LatePlan {
     std::vector<std::string> unavailable;
 
     void claim() const {
-        zengine::realization::PlanWhere where;
+        zengine::realization::PlanStatus where;
         where.state = state;
         where.waiting_on = waiting_on;
         where.unavailable = unavailable;
