@@ -316,8 +316,9 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
 - **WORKSHOP'S JOURNAL KEEPS A BUILD'S ENDINGS AND NOTHING IT SAYS AS IT RUNS.** One value,
   `durable_log_selection` in `workshop/log_selection.hpp`, is what the host's durable log keeps:
   Loom's `default_selection()` untouched, refusals only under `--log-refusals`, and
-  `kDurableBuildShapes` -- `BuildFinished`, `BuildNotStarted` and `ArtifactRealized` -- uncapped,
-  with their whole payloads. Never `BuildStatus`, republished on every chunk, nor `BuildOutput`.
+  `kDurableBuildShapes` -- `BuildFinished`, `BuildNotStarted`, `ArtifactRealized` and Loom's
+  `zen.AskEnded`, so a build its runner never answered is kept too -- uncapped, with their whole
+  payloads. Never `BuildStatus`, republished on every chunk, nor `BuildOutput`.
   So `ArtifactRealized` is where a realize refusal that a row and a notice both cut is read whole.
   The Builder's suite drives a Logger with that value, and checks the host builds its journal
   from it.

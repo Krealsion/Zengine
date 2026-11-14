@@ -453,10 +453,10 @@ int main(int argc, char** argv) {
                              builder::kBuilderRole);
     run_builds.allow_to_role(builder::BuildOutput::zen_name, builder::BuildOutput::zen_version,
                              builder::kBuilderRole);
-    run_builds.allow_to_role(builder::BuildFinished::zen_name,
-                             builder::BuildFinished::zen_version, builder::kBuilderRole);
-    run_builds.allow_to_role(builder::BuildNotStarted::zen_name,
-                             builder::BuildNotStarted::zen_version, builder::kBuilderRole);
+    run_builds.allow_to_any(builder::BuildFinished::zen_name,
+                            builder::BuildFinished::zen_version);
+    run_builds.allow_to_any(builder::BuildNotStarted::zen_name,
+                            builder::BuildNotStarted::zen_version);
     run_builds.allow_to_role(timer::EnsureTimer::zen_name, timer::EnsureTimer::zen_version,
                              timer::kTimerRole);
     run_builds.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
