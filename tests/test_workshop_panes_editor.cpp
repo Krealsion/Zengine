@@ -4313,7 +4313,7 @@ TEST_CASE("a preparation still owed stays pending and inspectable, a silent one 
         e.settle();
         CHECK(e.asker->opens.size() == before + 1); // once
     }
-    SUBCASE("a preparation that fails abnormally surfaces at the host's loop, and the bus stays consistent") {
+    SUBCASE("a preparation that fails abnormally surfaces at the host's loop, and the open ends in Loom's words") {
         EditorRig e("edit-failing-prep");
         e.open_with_stand_in(/*throws=*/true, /*deaf=*/false);
         put_bytes(e.root / "b.cpp", "two\n");
@@ -4334,10 +4334,13 @@ TEST_CASE("a preparation still owed stays pending and inspectable, a silent one 
         }
         CHECK(threw);
         CHECK(e.broken->asked == 1);
-        CHECK(e.asker->opens.size() == before);
-        CHECK(e.read_opening("stage") == "prepare");
-        CHECK(e.read_opening("awaiting") == kEditorRole);
-        CHECK(e.r.bus.joint_pending() == 1);
+        // THE ASK ENDED WITH ITS HANDLER: Loom says so before the throw reaches the host, and the
+        // open ends, its requester told -- nothing committed.
+        REQUIRE(e.asker->opens.size() == before + 1);
+        CHECK(e.asker->opens.back().refusal.find("never answered (delivered, HandlerFailed)") !=
+              std::string::npos);
+        CHECK(e.read_opening("stage") == "idle");
+        CHECK(e.r.bus.joint_pending() == 0);
         CHECK(e.read_opening("committed") == "0");
     }
     SUBCASE("an Editor that does not accept the ask is refused at dispatch, and the refusal is attributed to the attempt") {

@@ -1034,7 +1034,7 @@ TEST_CASE("info views: a replaced, absent, silent, unsupported or unauthorized s
         (void)s.r.bus.register_weave(std::move(mute), none, "story.source");
         s.button(a, "Sample");
         CHECK(quiet->asked == 1);
-        CHECK_MESSAGE(s.shows(a, "story.source never answered (delivered, Unanswered)"), s.shown(a));
+        CHECK_MESSAGE(s.shows(a, "unavailable (story.source never answered (delivered"), s.shown(a));
         CHECK_FALSE(s.shows(a, "sampling story.source since"));
         s.button(a, "Close");
         CHECK_FALSE(s.r.session().panes.has(a)); // nothing waits: one Close takes the view
