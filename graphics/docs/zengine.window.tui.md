@@ -90,7 +90,9 @@ reading the terminal.
   '<parent>', which is not drawn`; `a path is empty, longer than <bytes> bytes or deeper than
   <depth>`; `'<path>' has operands over <bytes> bytes`; `area '<area>' would hold more than <bound>
   nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
-  sender's to say`.
+  sender's to say`; `a drawing says more than <bound> looks`; `'<path>' wears look <n>, which its
+  drawing does not say`; `'<path>', a <operator>, wears a look of <paint|ink|text>, which a
+  <operator> does not`.
 - **Example:** the snake's world, a drawing weave, sends the nodes its picture changed in a tick
   with `more`, then its board's change without it, so the tick is shown once.
 

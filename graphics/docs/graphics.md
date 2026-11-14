@@ -111,14 +111,29 @@ counts by `zengine::input::kDefaultDoubleClickMs`.
 
 ## A node, and an element's record beside it
 
-A node is a `path` and what it draws, `draw`: one operator's operands (`Operands`, a union of the
-seven operands' shapes, the case it holds its operator, `graphics/operands.hpp`). The path is the owner's
-name for the node, unique in its area, and its place: the segments before the last name the node
-it lives in, and a node is drawn in its parent's space. A node keeps its place in the paint order
-until it is removed; a new node goes after its siblings, and a group is a layer.
+A node is a `path`, the `look` it wears and what it draws, `draw`: one operator's operands
+(`Operands`, a union of the seven operands' shapes, the case it holds its operator,
+`graphics/operands.hpp`). The path is the owner's name for the node, unique in its area, and its
+place: the segments before the last name the node it lives in, and a node is drawn in its parent's
+space. A node keeps its place in the paint order until it is removed; a new node goes after its
+siblings, and a group is a layer.
 
-The gate reads a node's operands as it reads every value: operands of another shape or version,
-or an operator the union does not hold, are refused there, the drawing with them.
+**What nodes share is said once.** A drawing says the looks its nodes wear (`Drawn::looks`), each
+once, before its nodes, and a node names one by its place there: a rectangle's, an ellipse's or a
+path's paint (fill and stroke), a line's ink, or a text's look (`TextLook`: style, ink, size, font
+and weight). A node that names none wears its operator's default -- a text in the pool's `body`
+style, a paint and an ink of none -- and a group and an image wear none. The window keeps an area's
+looks once, each kept node naming one there, and lets go of a look no node wears. A `Sketch` says
+its looks so, and sends a drawing only the looks the nodes it puts wear.
+
+Loom counts a cell for every field a shape declares, and admits one value of at most its decode
+allowance. A node is a cell for its path, one for its look and its operands' fields: a text 8, a
+rectangle, an ellipse, a line or a group 9, a path 6 and an image 12, a look once a drawing. So a
+whole area at the window's bound (`kMaxNodesPerArea`) is one drawing of any of them, and the
+window's state, which goes whole into a reload, holds it.
+
+The gate reads a node's operands and the looks as it reads every value: operands of another shape
+or version, or an operator the union does not hold, are refused there, the drawing with them.
 
 An `ElementRecord` says what a subtree means: its `type` and `data` (a record shape's value, whole),
 and the `action` a press anywhere in it asks of the area's owner.
@@ -128,18 +143,17 @@ and the `action` a press anywhere in it asks of the area's owner.
 | operator | operands | in a terminal | in light |
 |---|---|---|---|
 | `group` | an offset, an optional clip | its children's space; paints nothing | the same |
-| `rect` | a box, a fill and an outline | the cells it covers; `+ - |` edges | a filled rectangle; edges a pixel wide |
-| `ellipse` | a box, a fill and an outline | the cells whose centre falls inside | a span a pixel row; its outline in lines |
-| `line` | two points and an ink | a walk of cells in `- | / \` | a line |
-| `path` | SVG path data (`M L H V C Q Z`), a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
-| `text` | a point, words, an ink, a size, a font and a weight | a character a cell, a wide one in two and a combining mark in the cell before it; bold where it shows bold; one size; `?` where its encoding carries no character past ASCII | every character, at its columns of its size's advance; bold where asked; a character a clip would cut left out whole, a line a clip crosses cut by its pixels |
+| `rect` | a box; its paint, a fill and an outline | the cells it covers; `+ - |` edges | a filled rectangle; edges a pixel wide |
+| `ellipse` | a box; its paint, a fill and an outline | the cells whose centre falls inside | a span a pixel row; its outline in lines |
+| `line` | two points; its ink | a walk of cells in `- | / \` | a line |
+| `path` | SVG path data (`M L H V C Q Z`); its paint, a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
+| `text` | a point and words; its look, a style, an ink, a size, a font and a weight | a character a cell, a wide one in two and a combining mark in the cell before it; bold where it shows bold; one size; `?` where its encoding carries no character past ASCII | every character, at its columns of its size's advance; bold where asked; a character a clip would cut left out whole, a line a clip crosses cut by its pixels |
 | `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
 <!-- value kCellPx -->12<!-- /value --> pixels. `graphics/pixels.hpp` is the arithmetic on both:
 sums and floors that cannot overflow, a pixel in a medium's device unit, and the grain a hit test
-floors by. Every colour an operand carries is a `Color` (below). An operator the window does not
-know is painted as its name, in `quiet`, never silently dropped.
+floors by. Every colour a look carries is a `Color` (below).
 
 ## Colours by name
 

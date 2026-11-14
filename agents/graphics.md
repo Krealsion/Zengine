@@ -153,6 +153,12 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **Pixels are bytes**: an `image` carries its own red, green, blue and alpha, four bytes a pixel.
 - **A node's operands are one union** (`Operands`, `graphics/operands.hpp`): the case it holds is
   its operator, and the gate refuses operands of another shape or version as it refuses any value.
+- **What a drawing's nodes share is said once**: the looks they wear (`Drawn::looks`, `Look`: a
+  paint, an ink or a text's look), each node naming one by its place there or none, its operator's
+  default; the window keeps an area's looks once and lets go of one no node wears, and its judge
+  refuses a look the drawing does not say or the operator does not wear. A node costs Loom a cell
+  for its path, one for its look and its operands' fields (a text 8, an image 12), so a whole area
+  at the window's bound is one drawing and its state reloads.
   An element change's shape is implied by the element's type: it travels as its shape's body, and
   the receiver restores the envelope before the gate reads it (`graphics/implied.hpp`).
 - **An element's changes are a list whose order is the wire**: a change travels as its index, so
