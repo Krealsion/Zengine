@@ -8412,7 +8412,8 @@ TEST_CASE("tiles and sprites are a sheet's frames in a terminal: a frame's chara
 }
 
 TEST_CASE("a node's colour past the hundred and twenty-seventh is the one it names in a terminal, "
-          "and points no more than half a cell across are dots of a Braille character") {
+          "and points no more than half a cell across are dots of a Braille character, a `.` where "
+          "its encoding carries no UTF-8") {
     OpsTui t;
     gfx::Sketch s;
     gfx::PointBatch big(gfx::kCellPx);
@@ -8434,6 +8435,10 @@ TEST_CASE("a node's colour past the hundred and twenty-seventh is the one it nam
     CHECK(t.term.written.find("\x1b[22;34m" + rows[1].substr(3, 1)) !=
           std::string::npos); // in blue, not the default
     CHECK(rows[2].substr(0, 3) == "\xE2\xA0\x83"); // U+2803: the two left dots of the top
+    // ...and where the terminal's encoding carries no UTF-8, a dot, and a cell of none a blank
+    CHECK(gfx::window::shown_glyph("\xE2\xA0\x83", false) == ".");
+    CHECK(gfx::window::shown_glyph("\xE2\xA0\x80", false) == " ");
+    CHECK(gfx::window::shown_glyph("\xE2\x82\xAC", false) == "?"); // any other: as before
 }
 
 TEST_CASE("a drawing whose sheets, tiles, sprites or points do not hold together is refused whole, "
