@@ -102,6 +102,11 @@ doors examples/snake/play.cpp ConsoleWeave 6
 doors examples/snake/score.cpp ScoreWeave 1
 doors examples/snake/world.cpp SnakeWorld 7
 doors examples/snake/world.cpp SnakeWorld.2 4
+doors examples/tile-defense/bench.cpp BenchDoor 1
+doors examples/tile-defense/bench.cpp BenchEars 3
+doors examples/tile-defense/game.hpp TileDefense 4
+doors examples/tile-defense/play.cpp Door 4
+doors examples/tile-defense/stage.cpp TileDefenseStage 4
 doors examples/tally-pane/tally.cpp Tally 8
 doors examples/tower-defense/td.cpp Game 7
 doors examples/workshop-probe/probe.hpp ProbeWeave 11

@@ -24,6 +24,7 @@
 #include "manual/vocabulary.hpp"
 #include "examples/snake/board.hpp"
 #include "examples/snake/play_state.hpp"
+#include "examples/tile-defense/host_shapes.hpp"
 #include "graphics/elements.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
@@ -310,6 +311,11 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::AppActions>(), // AppActions v1
         shape<::zengine::composer::ComposerCommandContext>(), // ComposerCommandContext v1
         shape<::zengine::snake::ConsoleState>(), // ConsoleState v1
+        // The tile defense's host and bench: their doors' and ears' states, the bench's order.
+        shape<::zengine::tile_defense::TileDoorState>(), // TileDoorState v1
+        shape<::zengine::tile_defense::BenchActivate>(), // BenchActivate v1
+        shape<::zengine::tile_defense::BenchDoorState>(), // BenchDoorState v1
+        shape<::zengine::tile_defense::BenchEarsState>(), // BenchEarsState v1
         // What crosses the window's two seams, and the operands of the seven operators: bytes in
         // process, in no weave's manifest.
         shape<::zengine::graphics::PaintNode>(), // PaintNode v1

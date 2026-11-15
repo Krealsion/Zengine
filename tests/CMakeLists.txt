@@ -1873,6 +1873,35 @@ if(TARGET zengine-window-sdl)
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
 endif()
 
+# The tile defense played headless through both windows' painting: its game and its stage loaded
+# by the kernel, the directory beside them, a window in process over the suite's terminal, its
+# pixel backend, and -- where the build has SDL -- SDL's own under its dummy driver.
+if(TARGET tile-defense)
+    add_executable(zengine-tile-defense-tests test_tile_defense.cpp doctest_main.cpp)
+    target_link_libraries(zengine-tile-defense-tests
+        PRIVATE loom::kernel loom::switchboard loom::core zengine-graphics-vocabulary
+                zengine-input-vocabulary zengine-timer-vocabulary zengine-activation
+                zengine-warnings zengine-sanitize)
+    target_include_directories(zengine-tile-defense-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+    zengine_test_definitions(zengine-tile-defense-tests
+        "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
+        "TILE_DEFENSE_SO=\"$<TARGET_FILE:tile-defense>\""
+        "TILE_DEFENSE_STAGE_SO=\"$<TARGET_FILE:tile-defense-stage>\"")
+    zengine_manual(zengine-tile-defense-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.tui.md)
+    zengine_manual(zengine-tile-defense-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.gui.md)
+    zengine_doctest_test(tile_defense zengine-tile-defense-tests)
+    add_dependencies(zengine-tile-defense-tests tile-defense tile-defense-stage zengine-graphics)
+    if(TARGET zengine-window-sdl)
+        zengine_test_definitions(zengine-tile-defense-tests GRAPHICS_HAS_SDL=1)
+        target_link_libraries(zengine-tile-defense-tests PRIVATE ${ZENGINE_SDL_LIB}
+                                                                 ${ZENGINE_SDL_TEXT_LIB}
+                                                                 zengine-window-font)
+        set_tests_properties(tile_defense PROPERTIES
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy;ZENGINE_SDL_NOT_FOCUSABLE=1")
+    endif()
+endif()
+
 # ---- the source-tree checks ------------------------------------------------------------
 # The entries that read the source tree rather than a build, each stating its contract in its own
 # header.

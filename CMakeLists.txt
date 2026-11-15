@@ -447,6 +447,7 @@ add_subdirectory(terminal)
 add_subdirectory(editor/editor-pane)
 add_subdirectory(editor/neovim-editor)
 add_subdirectory(examples/snake)
+add_subdirectory(examples/tile-defense)
 add_subdirectory(workshop)
 # The host an app made in Workshop runs in on its own, after Workshop for the plan's executor and
 # the artifacts it stages, and the hand-written app it runs.

@@ -46,6 +46,9 @@ ArtifactPromoted v2 0xcd195946b477f817
 ArtifactRealized v3 0x4eb86e150248805f
 AttentionPaneState v1 0xf0a5ee0b4711aff9
 AttributedInput v2 0x828144ef5c7534ec
+BenchActivate v1 0xb7725d68334712a7
+BenchDoorState v1 0xcc55c586186fd5b5
+BenchEarsState v1 0x456889479c669549
 BootState v1 0x5f04b7184e717a33
 BuildAsked v1 0x2215f7302e39841e
 BuildFinished v2 0x3c7310d9d01acf1f
@@ -620,6 +623,17 @@ ThemesPlacedRequested v1 0x1c07a7eb6d53f046
 ThemesRequested v1 0x136acafb4fd0bcc3
 ThemesShown v2 0xf46126d404db2b36
 ThemesWorn v1 0xaf0ab3f751963490
+TileBurst v1 0xadab7d8b0a3dcdb5
+TileDoorState v1 0x88c6a009811e2333
+TileQuit v1 0xd08c40c15f4f7849
+TileShot v1 0x36027e8da7de1e01
+TileSpark v1 0x7a6a94bf1716ffbe
+TileStageState v1 0x7502100782576d5f
+TileTick v1 0xb7c90b8f2a1a17c7
+TileTower v1 0x30ee0f9b1dbf9fca
+TileWalker v1 0x4397edf806fbaa8d
+TileWorld v1 0x8fa0fa1389362c20
+TilesArgs v1 0x5d819a680f164051
 TimerCandidateDeclined v1 0x834074dbde7f94a3
 TimerCandidatePrepared v1 0x724841040511a4aa
 TimerFired v1 0xaeac2a8c7ccbe19a

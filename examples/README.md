@@ -14,12 +14,15 @@ your own weave would.
   and swap them while it runs
 - [Tower Defense, made from inside Workshop](tower-defense/README.md): play the game, build it
   into your own project, and replay how it was made
+- [Tile defense](tile-defense/README.md): a tower defense drawn in tiles, sprites and points, one
+  game's code shown in a GUI window and in the terminal
 
 ## What is in this folder
 
 | | |
 |---|---|
 | [`snake/`](snake/README.md) | a snake game whose world, window, score and pilot are separate weaves |
+| [`tile-defense/`](tile-defense/README.md) | a tower defense drawn in both windows from one game's code, and its bench |
 | [`tally-app/`](tally-app/README.md) | an app's folder written by hand -- the tally panel and its flow -- that `zengine-app` runs with no Workshop |
 | [`tally-pane/`](tally-pane/tally.cpp) | a Workshop pane with one count that survives a reload of its code ([walkthrough](../builder/docs/edit-a-running-pane.md)) |
 | [`guard-pane/`](guard-pane/guard.cpp) | a Workshop pane that blocks while the right mouse button is held on it ([walkthrough](../workshop/docs/panes.md#the-second-button--the-panes-first)) |
