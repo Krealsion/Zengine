@@ -184,6 +184,7 @@ struct Seen {
     bool arrow = false, fireball = false, spark = false, burst = false;
 };
 
+#if defined(GRAPHICS_HAS_SDL)
 /// A pixel of a 24-bit bottom-up BMP, as 0xRRGGBB; none outside it.
 std::optional<std::uint32_t> bmp_pixel(const std::string& bmp, std::int64_t x, std::int64_t y) {
     if (bmp.size() < 54) {
@@ -208,6 +209,7 @@ std::optional<std::uint32_t> bmp_pixel(const std::string& bmp, std::int64_t x, s
            static_cast<std::uint32_t>(static_cast<unsigned char>(bmp[at + 1])) << 8 |
            static_cast<std::uint32_t>(static_cast<unsigned char>(bmp[at]));
 }
+#endif
 
 /// A light node of the last frame by its path in the game's area; null where it shows none.
 const light::NodePrimitives* node_of(const LightLog& log, const std::string& path) {
