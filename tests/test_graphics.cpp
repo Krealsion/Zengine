@@ -24,6 +24,9 @@
 #include "timer/binding.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/drawing.hpp"
+#include "graphics/points.hpp"
+#include "graphics/sprites.hpp"
+#include "graphics/tiles.hpp"
 #include "graphics/elements.hpp"
 #include "graphics/implied.hpp"
 #include "graphics/light_paint.hpp"
@@ -8296,3 +8299,239 @@ TEST_CASE("the GUI window measures each of the pool's sizes and styles in the ro
     CHECK(bold_ink > plain_ink);
 }
 #endif // GRAPHICS_HAS_SDL
+
+// ---- sheets, tiles, sprites and points ---------------------------------------------------------
+
+namespace {
+
+namespace wb = zengine::testing::window_backends;
+
+/// An owner of an area of the TUI window over the suite's terminal, for the operators' cases: it
+/// hears its rooms and its refusals.
+struct OpsHeard {
+    int rooms = 0;
+    std::vector<std::string> refused;
+};
+class OpsOwner : public loom::WeaveBase<OpsOwner, GraphicsTestOwner,
+                                        loom::Accept<gfx::AreaRoom, gfx::DrawnRefused>,
+                                        loom::Emit<gfx::Drawn>> {
+public:
+    explicit OpsOwner(OpsHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++heard_->rooms; }
+    void on(const gfx::DrawnRefused& r, loom::Mail&) { heard_->refused.push_back(r.reason); }
+
+private:
+    OpsHeard* heard_;
+};
+
+/// The TUI window over the suite's terminal, mounted in process beside the directory, and one owner
+/// placed in it: twenty cells by three.
+struct OpsTui {
+    Rig r;
+    wb::TermLog term;
+    OpsHeard heard;
+    loom::WeaveId owner;
+    OpsTui() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        auto w = std::make_unique<wb::FakeTuiWindow>(wb::FakeTerminal{&term});
+        auto* raw = w.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        const loom::WeaveId window = r.bus.register_weave(std::move(w), std::move(g), window_role());
+        raw->zen_set_self(window);
+        const loom::WeaveId door = zengine::testing::mount_door(r.bus);
+        zengine::testing::order_activation(r.bus, door, window, 1);
+        auto made = std::make_unique<OpsOwner>(heard);
+        auto* o = made.get();
+        loom::Grant og = loom::emit_default_grant(*o);
+        owner = r.bus.register_weave(std::move(made), std::move(og), "test.ops");
+        o->zen_set_self(owner);
+        r.to_role(gfx::kGraphicsRole, gfx::themes::night());
+        r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{"test.ops", "night"});
+        r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{"test.ops", gfx::kTuiWindow, "test.ops", 0, 0,
+                                                      20 * gfx::kCellPx, 3 * gfx::kCellPx, 0, false});
+        r.drain();
+    }
+    void draw(const gfx::Drawn& d) {
+        r.bus.role_send_to_role_as(owner, "test.ops", window_role(),
+                                     loom::Message(loom::to_value(d)));
+        r.drain();
+    }
+};
+
+/// A sheet of two 1-pixel frames: `g` red on green, and a frame with no character, on blue.
+gfx::SheetArgs two_frames(const std::string& first = "g") {
+    gfx::SheetArgs s;
+    s.pw = 2;
+    s.ph = 1;
+    s.rgba = loom::Bytes(8, 255);
+    s.frames = {gfx::Frame{0, 0, 1, 1, first, gfx::rgb(0xcd0000), gfx::rgb(0x00cd00)},
+                gfx::Frame{1, 0, 1, 1, "", gfx::no_color(), gfx::rgb(0x0000ee)}};
+    return s;
+}
+
+/// Tiles of `cols` frames in a row, each frame's place counted from 1.
+gfx::TilesArgs row_of(const std::vector<std::int64_t>& places) {
+    gfx::TileGrid grid(static_cast<std::int64_t>(places.size()), 1);
+    for (std::size_t i = 0; i < places.size(); ++i) {
+        grid.set(static_cast<std::int64_t>(i), 0, gfx::FrameId{places[i]});
+    }
+    return grid.args("sheet", gfx::TileSpace{0, 0, gfx::kCellPx});
+}
+
+} // namespace
+
+TEST_CASE("tiles and sprites are a sheet's frames in a terminal: a frame's character in its ink on "
+          "its ground, a frame of no character its ground alone behind what lies beneath, and the "
+          "nodes that draw from a sheet painted again when it changes") {
+    OpsTui t;
+    gfx::Sketch s;
+    s.sheet("sheet", two_frames());
+    s.tiles("map", row_of({1, 1, 1}));
+    gfx::SpriteBatch over;
+    over.add(gfx::Box{gfx::kCellPx, 0, gfx::kCellPx, gfx::kCellPx}, gfx::FrameId{2});
+    s.sprites("over", over.args("sheet"));
+    t.draw(s.whole("test.ops"));
+    REQUIRE(t.heard.refused.empty());
+    CHECK(t.r.shown().rows[0] == "ggg"); // the middle one's frame shows no character of its own
+    CHECK(t.term.written.find("\x1b[42m") != std::string::npos); // the frame's green ground
+    CHECK(t.term.written.find("\x1b[44m") != std::string::npos); // the blue one behind the middle g
+    CHECK(t.term.written.find("\x1b[22;31m") != std::string::npos); // and its red ink
+
+    // ONLY THE SHEET CHANGED: the tiles drawn from it are painted again, with nothing else said.
+    gfx::Sketch again;
+    again.sheet("sheet", two_frames("h"));
+    again.tiles("map", row_of({1, 1, 1}));
+    again.sprites("over", over.args("sheet"));
+    gfx::Drawn changed = gfx::difference(s, again);
+    changed.area = "test.ops"; // as the canvas names its area
+    REQUIRE(changed.put.size() == 1);
+    CHECK(changed.put[0].path == "sheet");
+    t.draw(changed);
+    REQUIRE(t.heard.refused.empty());
+    CHECK(t.r.shown().rows[0] == "hhh");
+}
+
+TEST_CASE("a node's colour past the hundred and twenty-seventh is the one it names in a terminal, "
+          "and points no more than half a cell across are dots of a Braille character") {
+    OpsTui t;
+    gfx::Sketch s;
+    gfx::PointBatch big(gfx::kCellPx);
+    for (std::uint32_t i = 0; i < 199; ++i) {
+        (void)big.add(0, gfx::kCellPx, gfx::rgb(0xcd0000 + i)); // reds, each its own
+    }
+    (void)big.add(3 * gfx::kCellPx, gfx::kCellPx, gfx::rgb(0x0000ee)); // its 200th colour, blue
+    s.points("big", big.args());
+    gfx::PointBatch dots(1);
+    (void)dots.add(0, 2 * gfx::kCellPx, gfx::rgb(0xffffff));
+    (void)dots.add(1, 2 * gfx::kCellPx + 3, gfx::rgb(0xffffff));
+    s.points("dots", dots.args());
+    t.draw(s.whole("test.ops"));
+    REQUIRE(t.heard.refused.empty());
+    const std::vector<std::string> rows = t.r.shown().rows;
+    REQUIRE(rows.size() >= 3);
+    CHECK(rows[1].substr(0, 1) != " ");
+    CHECK(rows[1].substr(3, 1) == rows[1].substr(0, 1)); // its colour's fill character
+    CHECK(t.term.written.find("\x1b[22;34m" + rows[1].substr(3, 1)) !=
+          std::string::npos); // in blue, not the default
+    CHECK(rows[2].substr(0, 3) == "\xE2\xA0\x83"); // U+2803: the two left dots of the top
+}
+
+TEST_CASE("a drawing whose sheets, tiles, sprites or points do not hold together is refused whole, "
+          "in words naming the node and what is wrong") {
+    gfx::window::WinArea a;
+    a.area = "test.ops";
+    const auto judged = [&a](const gfx::Sketch& s) {
+        return gfx::window::judge(a, gfx::window::Drawer{}, s.whole("test.ops"));
+    };
+    gfx::Sketch no_sheet;
+    no_sheet.tiles("map", row_of({1}));
+    CHECK(judged(no_sheet) == "'map' draws from the sheet 'sheet', which is not drawn");
+
+    gfx::Sketch not_sheet;
+    not_sheet.rect("sheet", 0, 0, 1, 1, gfx::colors::text);
+    not_sheet.tiles("map", row_of({1}));
+    CHECK(judged(not_sheet) ==
+          "'map' draws from 'sheet', which is drawn as rect, not as a sheet");
+
+    gfx::Sketch short_tiles;
+    short_tiles.sheet("sheet", two_frames());
+    gfx::TilesArgs cut = row_of({1, 1});
+    cut.cells.pop_back();
+    short_tiles.tiles("map", cut);
+    CHECK(judged(short_tiles) == "'map', tiles, holds 3 bytes for 2 by 1 tiles, two bytes a tile");
+
+    gfx::Sketch odd_sprites;
+    odd_sprites.sheet("sheet", two_frames());
+    odd_sprites.sprites("s", gfx::SpritesArgs{0, 0, "sheet", loom::Bytes(7, 0)});
+    CHECK(judged(odd_sprites) == "'s', sprites, holds 7 bytes, which are not whole sprites of 10");
+
+    gfx::Sketch outside;
+    gfx::SheetArgs wide = two_frames();
+    wide.frames[0].w = 3;
+    outside.sheet("sheet", wide);
+    CHECK(judged(outside) == "'sheet', a sheet: its frame 1 lies outside its pixels");
+
+    gfx::Sketch whole;
+    whole.sheet("sheet", two_frames());
+    whole.tiles("map", row_of({1}));
+    REQUIRE(judged(whole).empty());
+    (void)gfx::window::apply(a, gfx::window::Drawer{}, whole.whole("test.ops"));
+    gfx::Drawn gone;
+    gone.area = "test.ops";
+    gone.removed = {"sheet"};
+    CHECK(gfx::window::judge(a, gfx::window::Drawer{}, gone) ==
+          "'map' draws from the sheet 'sheet', which is not drawn");
+}
+
+namespace {
+
+struct GraphicsTestOrphan {
+    std::int64_t beats = 0;
+    ZEN_SHAPE(GraphicsTestOrphan, 1, ZEN_FIELD(beats));
+};
+
+/// A drawer whose picture draws a node in a group it never draws, beside a title.
+class OrphanDrawer
+    : public gfx::DrawingWeave<OrphanDrawer, GraphicsTestOrphan, loom::Accept<GraphicsTestBeat>> {
+public:
+    using DrawingWeave::on;
+    explicit OrphanDrawer(std::vector<std::string>& heard)
+        : DrawingWeave("test.orphan"), heard_(&heard) {}
+    void on(const GraphicsTestBeat&, loom::Mail&) { ++state_.beats; }
+    void on(const gfx::DrawnRefused& r, loom::Mail&) { heard_->push_back(r.reason); }
+    void picture(gfx::Sketch& s) const {
+        s.text("title", 0, 0, "title", gfx::colors::text);
+        s.text("menu/b0", 0, gfx::kCellPx, "orphan", gfx::colors::text);
+        s.text("menu/b0/mark", 0, 0, "x", gfx::colors::text);
+    }
+
+private:
+    std::vector<std::string>* heard_;
+};
+
+} // namespace
+
+TEST_CASE("a drawing weave leaves out a node its picture draws in a parent it does not draw, with "
+          "what is drawn in it, and tells its drawer once in words naming the parent; the rest is "
+          "shown") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
+    std::vector<std::string> heard;
+    auto w = std::make_unique<OrphanDrawer>(heard);
+    auto* raw = w.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId id = r.bus.register_weave(std::move(w), std::move(g), "test.orphan");
+    raw->zen_set_self(id);
+    r.arrange(SNAKE_SO_BOARD, "test.orphan", "test.orphan", "night");
+    r.to_role("test.orphan", GraphicsTestBeat{});
+    r.drain();
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0] == "'menu/b0' is drawn in 'menu', which the picture does not draw before it: "
+                      "it is left out, with what is drawn in it");
+    CHECK(r.screen().rfind("title\n", 0) == 0);
+    CHECK(r.shown().refusals == 0); // the window refused nothing: nothing it could not take came
+    r.to_role("test.orphan", GraphicsTestBeat{});
+    r.drain();
+    CHECK(heard.size() == 1); // told once, until what it is told changes
+}

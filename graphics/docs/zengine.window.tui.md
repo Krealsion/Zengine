@@ -73,7 +73,7 @@ reading the terminal.
 
 ### `Drawn`
 
-`Drawn` v2 is what one drawer changed in one area, applied together.
+`Drawn` v4 is what one drawer changed in one area, applied together.
 
 - **Takes:** `area`; `whole`, true to remove first everything the drawer may draw there; `put`, the
   nodes (a node put again changes in its place, a new one goes after its siblings); `removed`, paths
@@ -83,7 +83,8 @@ reading the terminal.
 - **Answers:** nothing; the window paints what changed and, unless `more`, shows it: text a
   character a cell, a wide one over two, one size, bold through its ink; as itself where the
   terminal's encoding carries UTF-8 (a console's code page, else `LC_ALL`, `LC_CTYPE` or `LANG`),
-  else `?` a character ([text](graphics.md#text-styles-sizes-fonts-weight)).
+  else `?` a character ([text](graphics.md#text-styles-sizes-fonts-weight)); frames, grounds and
+  points as [the operators](graphics.md#the-operators) say.
 - **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'terminal' shows no area
   '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
   draw` (or `to remove`), where an element the window presents lies; `'<path>' is drawn in
@@ -92,7 +93,8 @@ reading the terminal.
   nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
   sender's to say`; `a drawing says more than <bound> looks`; `'<path>' wears look <n>, which its
   drawing does not say`; `'<path>', a <operator>, wears a look of <paint|ink|text>, which a
-  <operator> does not`.
+  <operator> does not`; and a sheet's, tiles', sprites' or points' own
+  ([words](graphics.md#sheets-tiles-sprites-and-points)).
 - **Example:** the snake's world, a drawing weave, sends the nodes its picture changed in a tick
   with `more`, then its board's change without it, so the tick is shown once.
 
@@ -132,10 +134,10 @@ reading the terminal.
 `WindowShowAsked` v1 asks the window what it shows, and what it has spent.
 
 - **Takes:** nothing.
-- **Answers:** `WindowShown` v1, to the asker alone: the window's name and incarnation; its rows as
+- **Answers:** `WindowShown` v2, to the asker alone: the window's name and incarnation; its rows as
   text, trailing spaces left off; how many areas, nodes and presented elements it keeps; and since
   it started, its showings (writes to the terminal) and their bytes, the calls of its painter and
-  of its element code, its refusals, and the last one's words.
+  of its element code, its refusals, and the last one's words; its textures, none in a terminal.
 - **Refuses:** nothing.
 - **Example:** a suite asks it after each tick, and compares `rows` with what the game drew.
 

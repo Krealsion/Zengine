@@ -4,14 +4,15 @@
 #ifndef ZENGINE_GRAPHICS_OPS_HPP
 #define ZENGINE_GRAPHICS_OPS_HPP
 
-// What a painter reads of a node's look (graphics/operands.hpp): the colours it carries, and the
-// pool colour a colour shows as where only the pool's are shown.
+// What a painter reads of a node's look and operands (graphics/operands.hpp): the colours they
+// carry, and the pool colour a colour shows as where only the pool's are shown.
 
 #include "graphics/color.hpp"
 #include "graphics/colors.hpp" // generated from graphics/pool.json
 #include "graphics/operands.hpp"
 #include "graphics/vocabulary.hpp"
 
+#include <cstdint>
 #include <type_traits>
 #include <variant>
 #include <vector>
@@ -49,6 +50,28 @@ inline std::vector<Color> colors_of(const Look& look) {
         },
         look.is);
 }
+
+/// THE COLOURS AN OPERATOR'S OPERANDS CARRY, in the order a painter takes them: a sheet's frames'
+/// each ink then ground, frame by frame; points' colours in their order; none for the rest, whose
+/// colours are their look's.
+inline std::vector<Color> colors_of(const Operands& draw) {
+    std::vector<Color> out;
+    if (const auto* s = std::get_if<SheetArgs>(&draw.is)) {
+        out.reserve(s->frames.size() * 2);
+        for (const Frame& f : s->frames) {
+            out.push_back(f.ink);
+            out.push_back(f.ground);
+        }
+    } else if (const auto* p = std::get_if<PointsArgs>(&draw.is)) {
+        out = p->colors;
+    }
+    return out;
+}
+
+/// Where a sheet's frame's ink and ground stand among the colours its operands carry
+/// (`colors_of(const Operands&)`), the frame counted from 1.
+inline std::int64_t frame_ink_at(std::int64_t frame) { return (frame - 1) * 2; }
+inline std::int64_t frame_ground_at(std::int64_t frame) { return (frame - 1) * 2 + 1; }
 
 } // namespace zengine::graphics
 

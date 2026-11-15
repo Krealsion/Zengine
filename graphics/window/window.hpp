@@ -61,7 +61,8 @@ struct WindowState {
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    ZEN_SHAPE(WindowState, 13, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    /// Version 14: its areas' nodes draw by eleven operators.
+    ZEN_SHAPE(WindowState, 14, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
@@ -351,6 +352,7 @@ public:
         }
         s.showings = medium_.showings();
         s.device_bytes = medium_.device_bytes();
+        s.textures = medium_.textures_made();
         s.painter_calls = painter_calls_;
         s.element_calls = codes_.calls;
         s.refusals = this->state_.refusals;
@@ -1118,7 +1120,7 @@ private:
             return false;
         }
         for (const KeptNode& k : a.nodes) {
-            if (touches(a, who, d, k.node.path)) {
+            if (touches(a, who, d, k.node.path) || touches(a, who, d, read_from(k.node))) {
                 medium_.cover(a, k.node.path);
             }
         }
@@ -1234,26 +1236,12 @@ private:
             TextMeasured{set.font, set.size.name, {}, set.size.points, m.advance, m.line};
     }
 
-    /// Some of an area's nodes painted by its medium, each sent with every ancestor present (a
-    /// node is drawn in their space) and every colour it names resolved in the area's palette.
+    /// Some of an area's nodes painted by its medium, handed as `to_paint` says, every colour each
+    /// names resolved in the area's palette (`colours_of`).
     void paint(const WinArea& a, const std::set<std::string>& paths) {
-        if (paths.empty()) {
-            return;
-        }
         const auto at = index_of(a);
-        std::set<std::string> send;
-        for (const std::string& p : paths) {
-            if (at.count(p) == 0) {
-                continue;
-            }
-            send.insert(p);
-            for (std::string q = parent_of(p); !q.empty(); q = parent_of(q)) {
-                if (at.count(q) != 0) {
-                    send.insert(q);
-                }
-            }
-        }
-        if (send.empty()) {
+        const ToPaint handed = to_paint(at, paths);
+        if (handed.send.empty()) {
             return;
         }
         PaintTask task;
@@ -1263,15 +1251,16 @@ private:
         task.text_line = text.line;
         dress(task, palette, a.owner);
         for (const KeptNode& k : a.nodes) {
-            if (send.count(k.node.path) != 0) {
+            if (handed.send.count(k.node.path) != 0) {
                 const Look* look = look_of(a, k.node);
                 PaintNode node{k.node.path,
                                key_of(at, k.node.path),
                                k.node.draw,
-                               inks_of(look, palette, a.owner),
+                               inks_of(colours_of(at, k.node), look, palette, a.owner),
                                {},
                                {},
-                               text_weight::kOfStyle};
+                               text_weight::kOfStyle,
+                               paths.count(k.node.path) == 0 && handed.read.count(k.node.path) != 0};
                 dress_text(node, look, palette, a.owner);
                 task.nodes.push_back(std::move(node));
             }

@@ -5,8 +5,9 @@
 #define ZENGINE_GRAPHICS_LIGHT_PAINT_HPP
 
 // Painting nodes for a medium of light: every operator, in the area's own pixels, into the
-// primitives a renderer draws -- filled rectangles (quads), lines, runs of text and images -- each
-// in the exact colour the window resolved for its node (`PaintNode::inks`). A node paints in its
+// primitives a renderer draws -- filled rectangles (quads), lines, runs of text, images, a sheet's
+// pixels and the rectangles of them a node shows (blits) -- each in the exact colour the window
+// resolved for its node (`PaintNode::inks`). A node paints in its
 // parent groups' space and clip. A node's primitives come back packed in its `NodePaint`'s `cells`
 // (`pack_node`), behind a tag that tells them from a character painter's runs. It knows no colour
 // and keeps nothing between calls.
@@ -32,7 +33,7 @@
 namespace zengine::graphics::light {
 
 /// The tag that opens a node painted for light: 'L', 'G', 'T' and this layout's version.
-inline constexpr std::array<std::uint8_t, 4> kTag = {'L', 'G', 'T', 3};
+inline constexpr std::array<std::uint8_t, 4> kTag = {'L', 'G', 'T', 4};
 
 /// A filled rectangle; a line; a run of text from the top left of its line, less the pixel rows a
 /// clip cut from its top and its foot, its characters a column `advance` pixels wide each by the
@@ -64,6 +65,19 @@ struct ImageBlit {
     loom::Bytes rgba;
     bool operator==(const ImageBlit&) const = default;
 };
+/// A sheet's pixels, `pw` x `ph` (red, green, blue, alpha), shown nowhere of their own: what the
+/// blits of the nodes that draw from the sheet show rectangles of.
+struct SheetPixels {
+    std::int32_t pw = 0, ph = 0;
+    loom::Bytes rgba;
+    bool operator==(const SheetPixels&) const = default;
+};
+/// A rectangle of a sheet's pixels (sx, sy, sw, sh) shown in (x, y, w, h).
+struct Blit {
+    std::int32_t x = 0, y = 0, w = 0, h = 0;
+    std::int32_t sx = 0, sy = 0, sw = 0, sh = 0;
+    bool operator==(const Blit&) const = default;
+};
 
 /// ONE CHARACTER OF A RUN WHERE IT STANDS: its left edge in the run's pixels, its glyph -- its UTF-8
 /// and the characters of no column after it -- and the columns it takes.
@@ -91,16 +105,21 @@ inline std::vector<RunCharacter> characters_of(const std::string& text, std::int
     return out;
 }
 
-/// One node as painted for light, in its area's pixels: drawn quads first, then lines, text and
-/// images.
+/// One node as painted for light, in its area's pixels: drawn quads first, then lines, text,
+/// images and blits -- rectangles of the pixels of the sheet at `sheet` in the node's area. A
+/// sheet's own node holds its pixels (`sheets`) and draws nothing.
 struct NodePrimitives {
     std::vector<Quad> quads;
     std::vector<Line> lines;
     std::vector<TextRun> texts;
     std::vector<ImageBlit> images;
+    std::vector<SheetPixels> sheets;
+    std::string sheet;
+    std::vector<Blit> blits;
     bool operator==(const NodePrimitives&) const = default;
     bool empty() const {
-        return quads.empty() && lines.empty() && texts.empty() && images.empty();
+        return quads.empty() && lines.empty() && texts.empty() && images.empty() &&
+               sheets.empty() && blits.empty();
     }
 };
 
@@ -157,17 +176,23 @@ inline bool is_light(const loom::Bytes& b) {
     return b.size() >= kTag.size() && std::equal(kTag.begin(), kTag.end(), b.begin());
 }
 
-/// A node's primitives packed, little end first: the tag; the counts of quads, lines, texts and
-/// images (four uint32); each quad as x, y, w, h (four int32) and its RGBA (uint32), 20 bytes; each
-/// line as x1, y1, x2, y2 and its RGBA, 20 bytes; each text as x, y, its RGBA, its cut top and
-/// foot, its advance, line, points and weight, its face's length and bytes, its length and its
-/// bytes; each image as x, y, w, h, pw, ph, the length of its pixels and `pw * ph * 4` bytes.
+/// A node's primitives packed, little end first: the tag; the counts of quads, lines, texts,
+/// images, sheets and blits (six uint32); the sheet's path, its length and its bytes; each quad as
+/// x, y, w, h (four int32) and its RGBA (uint32), 20 bytes; each line as x1, y1, x2, y2 and its
+/// RGBA, 20 bytes; each text as x, y, its RGBA, its cut top and foot, its advance, line, points and
+/// weight, its face's length and bytes, its length and its bytes; each image as x, y, w, h, pw,
+/// ph, the length of its pixels and `pw * ph * 4` bytes; each sheet as pw, ph, the length of its
+/// pixels and its bytes; each blit as x, y, w, h, sx, sy, sw, sh (eight int32), 32 bytes.
 inline loom::Bytes pack_node(const NodePrimitives& n) {
     loom::Bytes b(kTag.begin(), kTag.end());
     detail::put32(b, static_cast<std::uint32_t>(n.quads.size()));
     detail::put32(b, static_cast<std::uint32_t>(n.lines.size()));
     detail::put32(b, static_cast<std::uint32_t>(n.texts.size()));
     detail::put32(b, static_cast<std::uint32_t>(n.images.size()));
+    detail::put32(b, static_cast<std::uint32_t>(n.sheets.size()));
+    detail::put32(b, static_cast<std::uint32_t>(n.blits.size()));
+    detail::put32(b, static_cast<std::uint32_t>(n.sheet.size()));
+    b.insert(b.end(), n.sheet.begin(), n.sheet.end());
     for (const Quad& q : n.quads) {
         for (const std::int32_t v : {q.x, q.y, q.w, q.h}) {
             detail::put32(b, static_cast<std::uint32_t>(v));
@@ -201,27 +226,44 @@ inline loom::Bytes pack_node(const NodePrimitives& n) {
         detail::put32(b, static_cast<std::uint32_t>(im.rgba.size()));
         b.insert(b.end(), im.rgba.begin(), im.rgba.end());
     }
+    for (const SheetPixels& sh : n.sheets) {
+        detail::put32(b, static_cast<std::uint32_t>(sh.pw));
+        detail::put32(b, static_cast<std::uint32_t>(sh.ph));
+        detail::put32(b, static_cast<std::uint32_t>(sh.rgba.size()));
+        b.insert(b.end(), sh.rgba.begin(), sh.rgba.end());
+    }
+    for (const Blit& bl : n.blits) {
+        for (const std::int32_t v : {bl.x, bl.y, bl.w, bl.h, bl.sx, bl.sy, bl.sw, bl.sh}) {
+            detail::put32(b, static_cast<std::uint32_t>(v));
+        }
+    }
     return b;
 }
 
 /// A node's primitives read back: nothing when the bytes are not a node painted for light, end
-/// early, run past their counts, or hold an image whose pixels are not `pw * ph * 4` bytes.
+/// early, run past their counts, or hold an image or a sheet whose pixels are not `pw * ph * 4`
+/// bytes.
 inline std::optional<NodePrimitives> unpack_node(const loom::Bytes& b) {
     if (!is_light(b)) {
         return std::nullopt;
     }
     detail::Reader r(b);
     const std::uint8_t* skip = nullptr;
-    std::uint32_t quads = 0, lines = 0, texts = 0, images = 0;
+    std::uint32_t quads = 0, lines = 0, texts = 0, images = 0, sheets = 0, blits = 0;
+    std::uint32_t sheet_len = 0;
+    const std::uint8_t* sheet = nullptr;
     if (!r.bytes(kTag.size(), skip) || !r.u32(quads) || !r.u32(lines) || !r.u32(texts) ||
-        !r.u32(images)) {
+        !r.u32(images) || !r.u32(sheets) || !r.u32(blits) || !r.u32(sheet_len) ||
+        !r.bytes(sheet_len, sheet)) {
         return std::nullopt;
     }
-    if (static_cast<std::uint64_t>(quads) * 20 + static_cast<std::uint64_t>(lines) * 20 >
+    if (static_cast<std::uint64_t>(quads) * 20 + static_cast<std::uint64_t>(lines) * 20 +
+            static_cast<std::uint64_t>(blits) * 32 >
         r.left()) {
         return std::nullopt;
     }
     NodePrimitives n;
+    n.sheet.assign(reinterpret_cast<const char*>(sheet), sheet_len);
     n.quads.reserve(quads);
     for (std::uint32_t i = 0; i < quads; ++i) {
         Quad q;
@@ -266,6 +308,27 @@ inline std::optional<NodePrimitives> unpack_node(const loom::Bytes& b) {
         im.rgba.assign(at, at + len);
         n.images.push_back(std::move(im));
     }
+    for (std::uint32_t i = 0; i < sheets; ++i) {
+        SheetPixels sh;
+        std::uint32_t len = 0;
+        const std::uint8_t* at = nullptr;
+        if (!r.i32(sh.pw) || !r.i32(sh.ph) || !r.u32(len) || sh.pw < 0 || sh.ph < 0 ||
+            static_cast<std::uint64_t>(sh.pw) * static_cast<std::uint64_t>(sh.ph) * 4 != len ||
+            !r.bytes(len, at)) {
+            return std::nullopt;
+        }
+        sh.rgba.assign(at, at + len);
+        n.sheets.push_back(std::move(sh));
+    }
+    n.blits.reserve(blits);
+    for (std::uint32_t i = 0; i < blits; ++i) {
+        Blit bl;
+        if (!r.i32(bl.x) || !r.i32(bl.y) || !r.i32(bl.w) || !r.i32(bl.h) || !r.i32(bl.sx) ||
+            !r.i32(bl.sy) || !r.i32(bl.sw) || !r.i32(bl.sh)) {
+            return std::nullopt;
+        }
+        n.blits.push_back(bl);
+    }
     if (r.left() != 0) {
         return std::nullopt;
     }
@@ -281,7 +344,13 @@ class Painter {
 public:
     /// A painter for `task`, setting text as `text` says: the window's face, measured.
     explicit Painter(const PaintTask& task, const TextMeasure& text = {})
-        : task_(task), text_(text) {}
+        : task_(task), text_(text) {
+        for (const PaintNode& n : task_.nodes) {
+            if (const auto* sheet = operands<SheetArgs>(n)) {
+                sheets_[n.path] = sheet;
+            }
+        }
+    }
 
     /// One node's primitives, drawn in `space`, in its colours.
     void paint(const PaintNode& node, const term::Space& space, NodePrimitives& out) const {
@@ -304,10 +373,125 @@ public:
                  own ? node.text.points : 0, node.weight_set(), node.face);
         } else if (const auto* i = std::get_if<ImageArgs>(&draw)) {
             image(*i);
+        } else if (const auto* s = std::get_if<SheetArgs>(&draw)) {
+            out.sheets.push_back(SheetPixels{static_cast<std::int32_t>(s->pw),
+                                             static_cast<std::int32_t>(s->ph), s->rgba});
+        } else if (const auto* tl = std::get_if<TilesArgs>(&draw)) {
+            tiles(*tl);
+        } else if (const auto* sp = std::get_if<SpritesArgs>(&draw)) {
+            sprites(*sp);
+        } else if (const auto* pt = std::get_if<PointsArgs>(&draw)) {
+            points(*pt);
         }
     }
 
 private:
+    /// The sheet the task hands at `path`; null where it hands none there.
+    const SheetArgs* sheet_of(const std::string& path) const {
+        const auto it = sheets_.find(path);
+        return it == sheets_.end() ? nullptr : it->second;
+    }
+
+    /// A frame of a sheet, the `place`th, shown in the box (x, y, w, h) of the area: a blit of its
+    /// pixels, cut to the clip as a quad is and its rectangle of pixels with it; or, a frame with no
+    /// pixels, its ground filling the box and its character in its ink at the box's middle.
+    void frame_in(const Frame& f, std::int64_t place, std::int64_t x, std::int64_t y,
+                  std::int64_t w, std::int64_t h) const {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        if (f.w <= 0 || f.h <= 0) {
+            const PaintInk& ground = ink_of(static_cast<std::size_t>(frame_ground_at(place)));
+            if (!ground.none()) {
+                quad(x, y, w, h, colour(ground));
+            }
+            const PaintInk& ink = ink_of(static_cast<std::size_t>(frame_ink_at(place)));
+            if (!f.glyph.empty() && !ink.none()) {
+                const std::string glyph = f.glyph.substr(0, component::character_end(f.glyph, 0));
+                const term::Space keep = space_;
+                space_.dx = 0;
+                space_.dy = 0;
+                text(x + (w - text_.advance) / 2, y + (h - text_.line) / 2, glyph, ink, text_, 0,
+                     text_weight::kRegular, std::string());
+                space_ = keep;
+            }
+            return;
+        }
+        std::int64_t vx0 = x, vy0 = y, vx1 = x + w, vy1 = y + h;
+        if (space_.clipped) {
+            vx0 = std::max(vx0, space_.cx0);
+            vy0 = std::max(vy0, space_.cy0);
+            vx1 = std::min(vx1, space_.cx1);
+            vy1 = std::min(vy1, space_.cy1);
+        }
+        if (vx1 <= vx0 || vy1 <= vy0) {
+            return;
+        }
+        const std::int64_t sx0 = f.x + (vx0 - x) * f.w / w;
+        const std::int64_t sy0 = f.y + (vy0 - y) * f.h / h;
+        const std::int64_t sx1 = f.x + ((vx1 - x) * f.w + w - 1) / w;
+        const std::int64_t sy1 = f.y + ((vy1 - y) * f.h + h - 1) / h;
+        out_->blits.push_back(Blit{static_cast<std::int32_t>(vx0), static_cast<std::int32_t>(vy0),
+                                   static_cast<std::int32_t>(vx1 - vx0),
+                                   static_cast<std::int32_t>(vy1 - vy0),
+                                   static_cast<std::int32_t>(sx0), static_cast<std::int32_t>(sy0),
+                                   static_cast<std::int32_t>(std::max<std::int64_t>(1, sx1 - sx0)),
+                                   static_cast<std::int32_t>(std::max<std::int64_t>(1, sy1 - sy0))});
+    }
+
+    /// Tiles: each tile its frame, in its box.
+    void tiles(const TilesArgs& a) const {
+        const SheetArgs* sheet = sheet_of(a.sheet);
+        if (sheet == nullptr || a.cols <= 0 || a.rows <= 0 || a.tile_w <= 0 || a.tile_h <= 0 ||
+            a.cells.size() < static_cast<std::size_t>(a.cols * a.rows) * kTileBytes) {
+            return;
+        }
+        out_->sheet = a.sheet;
+        const std::int64_t ox = a.x + space_.dx, oy = a.y + space_.dy;
+        for (std::int64_t ty = 0; ty < a.rows; ++ty) {
+            for (std::int64_t tx = 0; tx < a.cols; ++tx) {
+                const std::int64_t place =
+                    read_u16(a.cells, static_cast<std::size_t>(ty * a.cols + tx) * kTileBytes);
+                if (const Frame* f = frame_at(sheet->frames, place)) {
+                    frame_in(*f, place, ox + tx * a.tile_w, oy + ty * a.tile_h, a.tile_w,
+                             a.tile_h);
+                }
+            }
+        }
+    }
+
+    /// Sprites: each its frame, in its box.
+    void sprites(const SpritesArgs& a) const {
+        const SheetArgs* sheet = sheet_of(a.sheet);
+        if (sheet == nullptr) {
+            return;
+        }
+        out_->sheet = a.sheet;
+        const std::int64_t ox = a.x + space_.dx, oy = a.y + space_.dy;
+        for (std::size_t i = 0; i < a.sprites.size() / kSpriteBytes; ++i) {
+            const SpriteAt sp = sprite_at(a.sprites, i);
+            if (const Frame* f = frame_at(sheet->frames, sp.frame)) {
+                frame_in(*f, sp.frame, ox + sp.x, oy + sp.y, sp.w, sp.h);
+            }
+        }
+    }
+
+    /// Points: each a filled square of its colour, opaque.
+    void points(const PointsArgs& a) const {
+        if (a.size <= 0) {
+            return;
+        }
+        const std::int64_t ox = a.x + space_.dx, oy = a.y + space_.dy;
+        for (std::size_t i = 0; i < a.points.size() / kPointBytes; ++i) {
+            const PointAt p = point_at(a.points, i);
+            const PaintInk& c = ink_of(static_cast<std::size_t>(p.color - 1));
+            if (p.color <= 0 || c.none()) {
+                continue;
+            }
+            quad(ox + p.x, oy + p.y, a.size, a.size, colour(c) | 0xffu);
+        }
+    }
+
     /// The node's colour `i`: its fill, its stroke, or its ink; no paint where it names none.
     const PaintInk& ink_of(std::size_t i) const {
         static const PaintInk kNoPaint{};
@@ -598,6 +782,7 @@ private:
 
     const PaintTask& task_;
     TextMeasure text_;
+    std::map<std::string, const SheetArgs*> sheets_; ///< the sheets the task hands, by path
     mutable term::Space space_;
     mutable NodePrimitives* out_ = nullptr;
     mutable const std::vector<PaintInk>* inks_ = nullptr;
@@ -609,14 +794,14 @@ inline TextMeasure measure_of(const PaintTask& task) {
                        task.text_line > 0 ? task.text_line : kCellPx};
 }
 
-/// A whole task painted for light: each node but a group, its primitives packed in its cells, its
-/// text set by the task's measure.
+/// A whole task painted for light: each node but a group and one handed only to be read, its
+/// primitives packed in its cells, its text set by the task's measure.
 inline PaintResult paint_task(const PaintTask& task) {
     const Painter painter(task, measure_of(task));
     const auto at = term::spaces(task.nodes);
     PaintResult out;
     for (const PaintNode& n : task.nodes) {
-        if (operands<GroupArgs>(n) != nullptr) {
+        if (n.read_only || operands<GroupArgs>(n) != nullptr) {
             continue;
         }
         NodePrimitives prims;
@@ -628,7 +813,7 @@ inline PaintResult paint_task(const PaintTask& task) {
 
 /// Whether a point of the area, in its pixels, lands on what a node painted: inside a quad, a
 /// run of text's box (its own advance a column, a line of it tall, or `text`'s where it carries
-/// none) or an image's, or within a pixel of a line.
+/// none), an image's or a blit's, or within a pixel of a line.
 inline bool hits_node(const NodePrimitives& n, std::int64_t x, std::int64_t y,
                       const TextMeasure& text) {
     const auto inside = [&](std::int64_t bx, std::int64_t by, std::int64_t bw, std::int64_t bh) {
@@ -649,6 +834,11 @@ inline bool hits_node(const NodePrimitives& n, std::int64_t x, std::int64_t y,
     }
     for (const ImageBlit& im : n.images) {
         if (inside(im.x, im.y, im.w, im.h)) {
+            return true;
+        }
+    }
+    for (const Blit& bl : n.blits) {
+        if (inside(bl.x, bl.y, bl.w, bl.h)) {
             return true;
         }
     }

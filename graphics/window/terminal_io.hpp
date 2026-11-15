@@ -193,6 +193,18 @@ inline std::string sgr_for(std::string_view cells, std::int64_t rgba, bool bold 
     return "\x1b[" + std::string(bold || word_bold ? "1;" : "22;") + codes + "m";
 }
 
+/// What a terminal is written to show a colour BEHIND a cell's character: the ground of the ink its
+/// `cells` word names (`terminal default`, its default ground), else of the nearest of the sixteen
+/// to the colour itself; a word's `bold` says nothing of a ground.
+inline std::string sgr_ground_for(std::string_view cells, std::int64_t rgba) {
+    std::string codes = sgr_codes_of_word(cells);
+    if (codes.size() > 2 && codes.compare(codes.size() - 2, 2, ";1") == 0) {
+        codes.resize(codes.size() - 2);
+    }
+    const int ink = codes.empty() ? nearest_terminal_ink(rgba) : std::stoi(codes);
+    return "\x1b[" + std::to_string(ink + 10) + "m";
+}
+
 /// The terminal modes a painter claims, as bytes a suite can read. Pointer reporting is asked
 /// for on the output stream, the painter's, so it lives and dies with the alternate screen and
 /// Input need not be told: it parses an SGR report whenever one arrives (on POSIX, no pointer

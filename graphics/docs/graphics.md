@@ -112,17 +112,17 @@ counts by `zengine::input::kDefaultDoubleClickMs`.
 ## A node, and an element's record beside it
 
 A node is a `path`, the `look` it wears and what it draws, `draw`: one operator's operands
-(`Operands`, a union of the seven operands' shapes, the case it holds its operator,
+(`Operands`, a union of the eleven operands' shapes, the case it holds its operator,
 `graphics/operands.hpp`). The path is the owner's name for the node, unique in its area, and its
 place: the segments before the last name the node it lives in, and a node is drawn in its parent's
-space. A node keeps its place in the paint order until it is removed; a new node goes after its
-siblings, and a group is a layer.
+space. Its place in the paint order is [below](#paint-order-and-layers).
 
 **What nodes share is said once.** A drawing says the looks its nodes wear (`Drawn::looks`), each
 once, before its nodes, and a node names one by its place there: a rectangle's, an ellipse's or a
 path's paint (fill and stroke), a line's ink, or a text's look (`TextLook`: style, ink, size, font
 and weight). A node that names none wears its operator's default -- a text in the pool's `body`
-style, a paint and an ink of none -- and a group and an image wear none. The window keeps an area's
+style, a paint and an ink of none -- and a group, an image, a sheet, tiles, sprites and points
+wear none: a sheet's frames and points carry their own colours. The window keeps an area's
 looks once, each kept node naming one there, and lets go of a look no node wears. A `Sketch` says
 its looks so, and sends a drawing only the looks the nodes it puts wear.
 
@@ -157,12 +157,36 @@ and the `action` a press anywhere in it asks of the area's owner.
 | `path` | SVG path data (`M L H V C Q Z`); its paint, a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
 | `text` | a point and words; its look, a style, an ink, a size, a font and a weight | a character a cell, a wide one in two and a combining mark in the cell before it; bold where it shows bold; one size; `?` where its encoding carries no character past ASCII | every character, at its columns of its size's advance; bold where asked; a character a clip would cut left out whole, a line a clip crosses cut by its pixels |
 | `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
+| `sheet` | pixels, and the frames cut from them: each a rectangle of them, a character, its ink and its ground | nothing of its own: its frames' characters, for the tiles and sprites that name it | nothing of its own: its pixels, made a texture once and kept while they stand unchanged |
+| `tiles` | a grid of tiles, each a frame of the sheet it names, or none | each tile its frame's character, in its ink on its ground, in the cells its box floors to | each tile its frame's pixels, in its box |
+| `sprites` | boxes, each a frame of the sheet it names, later ones over earlier ones | each its frame's character in the cells its box rounds to, so one a cell across stands in one cell wherever it moves | each its frame's pixels, in its box |
+| `points` | squares of one size, each a colour of the node's own | a point no more than half a cell across a dot of its cell's Braille character, else the cells its square floors to | a filled square |
+
+A frame with no pixels is its character in either window: in light, its ground filling its box and
+its character, in its ink, at the box's middle. A frame whose character or ink is none shows only
+its ground in a terminal, behind the character beneath it, and one whose ground is none shows what
+lies behind it there.
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
 <!-- value kCellPx -->12<!-- /value --> pixels. `graphics/pixels.hpp` is the arithmetic on both:
 sums and floors that cannot overflow, a pixel in a medium's device unit, and the grain a hit test
 floors by. Every colour a look carries is a `Color` (below), each a union of the cases it may
 hold, as a text's size (`TextSize`) and style (`TextStyle`) are.
+
+## Paint order and layers
+
+A node is painted over every node before it in its area's paint order: its ancestors' places, then
+its own among its siblings. A node keeps its place until it is removed; a node new to the area goes
+after its siblings, wherever its drawer's picture puts it, and a whole drawing lays every node of
+its drawer again in the picture's order. So the layers a game counts on are groups drawn first, in
+the order they stack: a node new in a later frame of the game, drawn inside the `walkers` group,
+paints over the map and under the words above it, because the groups keep their places.
+`graphics/group.hpp` is the helper (below). A node that holds many things -- tiles, sprites,
+points -- is one node, its things painted in the order it holds them.
+
+In a terminal each cell shows the character of the top node there that shows one, on the ground of
+the top node there that shows a ground, else the terminal's own; a showing that wrote a ground ends
+on the terminal's own, so none is left on the terminal past it.
 
 ## Colours by name
 
@@ -329,6 +353,85 @@ unpainted shows what stands behind it. `room` answers whether the window, its in
 changed or the area is empty, and `holds` whether the window presents an element, so an owner says
 again only what the window does not hold.
 
+## Sheets, tiles, sprites and points
+
+A game draws with four operators that each hold many things in one node. A **sheet** holds pixels
+and the **frames** cut from them; each frame is a rectangle of the pixels for a window that shows
+pixels, and a character with its ink and its ground for a window of characters, said once. Tiles
+and sprites name a sheet by its path in the same area and a frame by its place among the sheet's
+(`FrameId`, from 1), so a map's tiles are pictures in the GUI window and characters in the terminal,
+from one description, and a walker is its frame's character there, not a smudge. A direction is a
+frame of its own (an arrow's eight), so nothing rotates. A node that draws from a sheet is painted
+again when its sheet is, and the GUI window makes a sheet's texture once and keeps it while its
+pixels stand unchanged: a group moved, a camera panned or a frame chosen anew makes none
+(`WindowShown::textures` counts those it made).
+
+**Places in tiles.** A world whose places are tiles takes a tile's side from the window that shows
+it (`graphics/tiles.hpp`, `tile_px`): a side it wants, floored to whole units of what the window
+shows -- 16 pixels in the GUI window, one cell in a terminal -- so every tile is the same whole
+number of cells there and the board lines up. `TileSpace` is the world's corner and that side: a
+place in tiles as pixels (`box`, `px_x`, `px_y`), and the tile a press lands in (`tile_at`). The
+window that shows it is never asked what it is: its room says its unit (`cell_px`) and how it sets
+words (`text()`), and the game lays out by those.
+
+```cpp
+#include "graphics/group.hpp"
+#include "graphics/points.hpp"
+#include "graphics/sheet.hpp"
+#include "graphics/sprites.hpp"
+#include "graphics/tiles.hpp"
+
+// once: the sheet made in code, a frame a 16-pixel slot
+graphics::Sheet sheet(16, 16, 8, 4);
+const graphics::FrameId grass = sheet.frame(paint_grass, " ", green, dark_green);
+const graphics::FrameId walker = sheet.frame(paint_walker, "r", red);
+
+// each picture: the sheet, then the layers, each one node
+void picture(graphics::Sketch& drawing) const {
+    const graphics::TileSpace world{0, 0, graphics::tile_px(16, canvas().cell_px())};
+    drawing.sheet("sheet", sheet.args());
+    const graphics::Group board(drawing, "board");
+    board.tiles("map", map.args("sheet", world));   // a graphics::TileGrid of frames
+    graphics::SpriteBatch walkers;
+    for (const Walker& w : state_.walkers) {
+        walkers.add(world.box(w.col, w.row), walker);
+    }
+    board.sprites("walkers", walkers.args("sheet"));
+    graphics::PointBatch sparks(std::max<std::int64_t>(1, world.tile / 8));
+    for (const Spark& s : state_.sparks) {
+        sparks.add(world.px_x(s.x), world.px_y(s.y), s.color);
+    }
+    board.points("sparks", sparks.args());
+}
+```
+
+A sheet's pixels and its frames' characters together stay within one node's bytes
+(`kMaxArgsBytes`); a sheet keeps at most `kMaxSheetFrames` frames, a frame's character at most
+`kMaxFrameGlyphBytes` bytes, and points at most `kMaxPointColors` colours. A drawing whose tiles or
+sprites name a sheet the area would not hold, or whose bytes are not whole tiles, sprites or points,
+is refused whole, in words to its drawer: `'<path>', a sheet, holds <n> bytes of pixels for <w> by
+<h>, four bytes a pixel, each side at most <bound>`; `'<path>', a sheet, cuts more than <bound>
+frames`; `'<path>', a sheet: its frame <n> lies outside its pixels` (or `'s character is longer
+than <bound> bytes`); `'<path>', tiles, holds <n> bytes for <cols> by <rows> tiles, two bytes a
+tile`; `'<path>', sprites, holds <n> bytes, which are not whole sprites of 10`; `'<path>', points,
+holds <n> bytes in <n> colours at a size of <n>: ...`; `'<path>' names its sheet by an empty path
+or one longer than <bytes> bytes`; `'<path>' draws from the sheet '<sheet>', which is not drawn`
+(or `draws from '<sheet>', which is drawn as <operator>, not as a sheet`). The tile defense
+([`examples/tile-defense/`](../../examples/tile-defense/README.md)) is the worked game.
+
+## Helpers
+
+Each in its own header, each only calling the `Sketch` it is given:
+
+| header | what it is |
+|---|---|
+| `graphics/box.hpp` | `Box`: a place and a size by name, in place of four numbers at every call |
+| `graphics/group.hpp` | `Group`: a group drawn when it is made, and the drawing calls for what is inside it by each node's own name |
+| `graphics/sheet.hpp` | `Sheet`: a sheet made in code, slot by slot, and the frames cut from it (`FrameId`) |
+| `graphics/tiles.hpp` | `tile_px`, `TileSpace` and `TileGrid`: a tile's side in a window, places in tiles, and a grid of tiles |
+| `graphics/sprites.hpp` | `SpriteBatch`: sprites gathered for one node |
+| `graphics/points.hpp` | `PointBatch`: points gathered for one node, their colours said once |
+
 ## Drawing the text pieces
 
 `graphics/elements/text_face.hpp` holds the text pieces' looks, a face each medium's, drawn from the
@@ -368,23 +471,26 @@ public:
 ```
 
 The drawing facet takes the room from the window it names, asks its room after the first message
-each life delivers it while no room has come (a loaded weave's activation, where it hears one),
-and takes the window's refusal and does nothing with it. A drawing Loom refuses before the window
-reads it -- one past what Loom decodes of one value -- reaches the drawer as the window's own
-refusal does, its words naming an image as the way for an area whose every node wears a look of
-its own: the facet hears Loom's notice for a send of its own (`zen.DispatchRefused`,
-`Canvas::refused`) and hands the drawer a `DrawnRefused`, through its handler where it declares one.
-A whole drawing so refused is not sent again until the picture changes or a room comes. At the end of every delivery, and of every poke that
-wrote the state, `With` runs the weave's own `after_delivery` (when present) and then each facet's
-`after_delivery` in declaration order, where `DrawingFacet` draws the drawer's `picture` and shows
-the beat: a drawer never calls `show`. An optional `on_room` runs when the window, its incarnation,
-or its size changed, where an element the window does not hold is said again (`canvas().holds`).
-A drawer that presents elements emits `ElementPut` and `ElementChange` itself and accepts the
-presses it wants. A drawer whose parts name actions composes `graphics::ActionFacet` in place of
-`DrawingFacet`: the same facet, also taking `ActionRequested`, which is the drawer's
-`on_action(action, mail)` only when the window that shows the drawer's area asks it, as that
-window's role, about that area; a drawer without actions keeps `DrawingFacet` and accepts no
-`ActionRequested`:
+each life delivers it while no room has come (a loaded weave's activation, where it hears one), and
+takes the window's refusal and does nothing with it. A drawing Loom refuses before the window reads
+it -- one past what Loom decodes of one value -- reaches the drawer as the window's own refusal
+does, its words naming an image as the way for an area whose every node wears a look of its own: the
+facet hears Loom's notice for a send of its own (`zen.DispatchRefused`, `Canvas::refused`) and hands
+the drawer a `DrawnRefused`, through its handler where it declares one. A whole drawing so refused
+is not sent again until the picture changes or a room comes. At the end of every delivery, and of
+every poke that wrote the state, `With` runs the weave's own `after_delivery` (when present) and
+then each facet's `after_delivery` in declaration order, where `DrawingFacet` draws the drawer's
+`picture` and shows the beat: a drawer never calls `show`. A node the picture draws in a parent it
+does not draw before it is left out of the picture, with what is drawn in it, and the drawer is told
+why through its handler for `DrawnRefused`, in words naming the node and its parent, once until what
+it is told changes; the rest of the picture is drawn, where a window would refuse the whole for that
+one node. An optional `on_room` runs when the window, its incarnation, or its size changed, where an
+element the window does not hold is said again (`canvas().holds`). A drawer that presents elements
+emits `ElementPut` and `ElementChange` itself and accepts the presses it wants. A drawer whose parts
+name actions composes `graphics::ActionFacet` in place of `DrawingFacet`: the same facet, also
+taking `ActionRequested`, which is the drawer's `on_action(action, mail)` only when the window that
+shows the drawer's area asks it, as that window's role, about that area; a drawer without actions
+keeps `DrawingFacet` and accepts no `ActionRequested`:
 
 ```cpp
 class NewGame

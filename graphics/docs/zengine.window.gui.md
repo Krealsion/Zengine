@@ -79,14 +79,15 @@ back.
 
 ### `Drawn`
 
-`Drawn` v2 is what one drawer changed in one area, applied together.
+`Drawn` v4 is what one drawer changed in one area, applied together.
 
 - **Takes:** `area`; `whole`, true to remove first everything the drawer may draw there; `put`, the
   nodes (a node put again changes in its place, a new one goes after its siblings); `removed`, paths
   whose subtrees go; `said` and `unsaid`, element records; `more`, true when more of the same beat
   follows from this drawer; `number`, the drawer's own for what its drawing means, which the window
   says with each press that lands there.
-- **Answers:** nothing; the window paints what changed and, unless `more`, shows it.
+- **Answers:** nothing; the window paints what changed and, unless `more`, shows it: a sheet's
+  pixels made a texture once and kept while they stand unchanged, its frames blitted from it.
 - **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'gui' shows no area
   '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
   draw` (or `to remove`), where an element the window presents lies; `'<path>' is drawn in
@@ -95,7 +96,8 @@ back.
   nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
   sender's to say`; `a drawing says more than <bound> looks`; `'<path>' wears look <n>, which its
   drawing does not say`; `'<path>', a <operator>, wears a look of <paint|ink|text>, which a
-  <operator> does not`.
+  <operator> does not`; and a sheet's, tiles', sprites' or points' own
+  ([words](graphics.md#sheets-tiles-sprites-and-points)).
 - **Example:** a drawing weave sends the nodes its picture changed in a beat with `more`, then its
   element's change without it, so the beat is shown once.
 
@@ -134,12 +136,13 @@ back.
 `WindowShowAsked` v1 asks the window what it shows, and what it has spent.
 
 - **Takes:** nothing.
-- **Answers:** `WindowShown` v1, to the asker alone: the window's name, `gui`, and incarnation; its
+- **Answers:** `WindowShown` v2, to the asker alone: the window's name, `gui`, and incarnation; its
   rows as text, the window read as a grid of cells of `kCellPx` pixels, each run of text a character
   at its columns from the cell it starts in, front areas over those behind, trailing spaces left off; how
   many areas, nodes and presented elements it keeps; and since it started, its showings (pictures
   presented) and the bytes of the primitives they drew, the calls of its painter and of its element
-  code, its refusals, and the last one's words.
+  code, its refusals, and the last one's words; and the textures it made, one each time an image's
+  or a sheet's pixels were new to its node.
 - **Refuses:** nothing.
 - **Example:** a suite asks it after a drawing, and finds the drawing's words in `rows`.
 

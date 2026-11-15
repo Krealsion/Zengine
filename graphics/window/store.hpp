@@ -32,7 +32,8 @@ namespace zengine::graphics::window {
 struct KeptNode {
     Node node;
     std::int64_t rank = 0;
-    ZEN_SHAPE(KeptNode, 2, ZEN_FIELD(node), ZEN_FIELD(rank));
+    /// Version 3: its node draws by eleven operators.
+    ZEN_SHAPE(KeptNode, 3, ZEN_FIELD(node), ZEN_FIELD(rank));
 };
 
 /// An element the window presents: where, of which type, its drawer's reference for it, the
@@ -72,7 +73,8 @@ struct WinArea {
     std::vector<Presented> presented;
     /// The owner's number for the drawing it last sent (`Drawn::number`).
     std::int64_t drawing = 0;
-    ZEN_SHAPE(WinArea, 11, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
+    /// Version 12: its nodes draw by eleven operators.
+    ZEN_SHAPE(WinArea, 12, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
               ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
               ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text), ZEN_FIELD(palette),
@@ -228,6 +230,148 @@ inline bool under_any(const std::string& path, const std::set<std::string, std::
     return false;
 }
 
+/// What one node's operands hold, judged on their own: "" when whole, else why not -- a sheet
+/// whose pixels are not `pw * ph * 4` bytes or wider or taller than `kMaxSheetSide`, cutting more
+/// than `kMaxSheetFrames` frames, or with a frame outside its pixels or a character longer than
+/// `kMaxFrameGlyphBytes`; tiles whose cells are not two bytes a tile; sprites or points whose bytes
+/// are not whole sprites or points; points of no size or past `kMaxPointColors` colours; a sheet
+/// named by an empty or overlong path.
+inline std::string judge_operands(const Node& n) {
+    const std::string at = "'" + n.path + "'";
+    if (const auto* s = operands<SheetArgs>(n)) {
+        if (s->pw < 0 || s->ph < 0 || s->pw > kMaxSheetSide || s->ph > kMaxSheetSide ||
+            s->rgba.size() != static_cast<std::size_t>(s->pw * s->ph * 4)) {
+            return at + ", a sheet, holds " + std::to_string(s->rgba.size()) +
+                   " bytes of pixels for " + std::to_string(s->pw) + " by " +
+                   std::to_string(s->ph) + ", four bytes a pixel, each side at most " +
+                   std::to_string(kMaxSheetSide);
+        }
+        if (s->frames.size() > kMaxSheetFrames) {
+            return at + ", a sheet, cuts more than " + std::to_string(kMaxSheetFrames) + " frames";
+        }
+        for (std::size_t i = 0; i < s->frames.size(); ++i) {
+            const Frame& f = s->frames[i];
+            const bool inside = f.x >= 0 && f.y >= 0 && f.w >= 0 && f.h >= 0 &&
+                                f.x <= s->pw - f.w && f.y <= s->ph - f.h;
+            if (!inside) {
+                return at + ", a sheet: its frame " + std::to_string(i + 1) +
+                       " lies outside its pixels";
+            }
+            if (f.glyph.size() > kMaxFrameGlyphBytes) {
+                return at + ", a sheet: its frame " + std::to_string(i + 1) +
+                       "'s character is longer than " + std::to_string(kMaxFrameGlyphBytes) +
+                       " bytes";
+            }
+        }
+    } else if (const auto* t = operands<TilesArgs>(n)) {
+        const bool counted =
+            t->cols >= 0 && t->rows >= 0 && t->tile_w >= 0 && t->tile_h >= 0 &&
+            (t->cols == 0 ||
+             static_cast<std::size_t>(t->rows) <= kMaxArgsBytes / static_cast<std::size_t>(t->cols));
+        if (!counted ||
+            t->cells.size() != static_cast<std::size_t>(t->cols * t->rows) * kTileBytes) {
+            return at + ", tiles, holds " + std::to_string(t->cells.size()) + " bytes for " +
+                   std::to_string(t->cols) + " by " + std::to_string(t->rows) +
+                   " tiles, two bytes a tile";
+        }
+    } else if (const auto* sp = operands<SpritesArgs>(n)) {
+        if (sp->sprites.size() % kSpriteBytes != 0) {
+            return at + ", sprites, holds " + std::to_string(sp->sprites.size()) +
+                   " bytes, which are not whole sprites of " + std::to_string(kSpriteBytes);
+        }
+    } else if (const auto* p = operands<PointsArgs>(n)) {
+        if (p->size <= 0 || p->colors.size() > kMaxPointColors ||
+            p->points.size() % kPointBytes != 0) {
+            return at + ", points, holds " + std::to_string(p->points.size()) + " bytes in " +
+                   std::to_string(p->colors.size()) + " colours at a size of " +
+                   std::to_string(p->size) + ": whole points of " + std::to_string(kPointBytes) +
+                   " bytes, at most " + std::to_string(kMaxPointColors) +
+                   " colours, a size of 1 or more";
+        }
+    }
+    if (const std::string* sheet = sheet_named(n.draw)) {
+        if (sheet->empty() || sheet->size() > kMaxPathBytes) {
+            return at + " names its sheet by an empty path or one longer than " +
+                   std::to_string(kMaxPathBytes) + " bytes";
+        }
+    }
+    return {};
+}
+
+/// Whether every node an area would hold after `d` that draws from a sheet names a sheet the area
+/// would hold: "" when each does, else why not.
+inline std::string judge_sheets(const WinArea& a, const Drawn& d,
+                                const std::set<std::string>& present) {
+    std::map<std::string, const Operands*> now;
+    for (const KeptNode& k : a.nodes) {
+        if (present.count(k.node.path) != 0) {
+            now[k.node.path] = &k.node.draw;
+        }
+    }
+    for (const Node& n : d.put) {
+        now[n.path] = &n.draw;
+    }
+    for (const auto& [path, draw] : now) {
+        const std::string* sheet = sheet_named(*draw);
+        if (sheet == nullptr) {
+            continue;
+        }
+        const auto it = now.find(*sheet);
+        if (it == now.end()) {
+            return "'" + path + "' draws from the sheet '" + *sheet + "', which is not drawn";
+        }
+        if (!std::holds_alternative<SheetArgs>(it->second->is)) {
+            return "'" + path + "' draws from '" + *sheet + "', which is drawn as " +
+                   std::string(Operands::zen_case_names[it->second->is.index()]) +
+                   ", not as a sheet";
+        }
+    }
+    return {};
+}
+
+/// The path a node reads besides its own: the sheet it draws from, else its own path.
+inline const std::string& read_from(const Node& n) {
+    const std::string* sheet = sheet_named(n.draw);
+    return sheet != nullptr ? *sheet : n.path;
+}
+
+/// The operands a kept node's colours are read from: the sheet it draws from, where the area holds
+/// it, else its own.
+inline const Operands& colours_of(const std::map<std::string, const KeptNode*>& at, const Node& n) {
+    const auto from = at.find(read_from(n));
+    return from != at.end() ? from->second->node.draw : n.draw;
+}
+
+/// THE NODES A PAINTER IS HANDED to paint `paths` of an area (`at`, its nodes by path): each with
+/// every ancestor the area holds, a node drawn in their space (`send`), and the sheet it draws
+/// from, to be read and painted nothing where it is not among `paths` (`read`).
+struct ToPaint {
+    std::set<std::string> send;
+    std::set<std::string> read;
+};
+inline ToPaint to_paint(const std::map<std::string, const KeptNode*>& at,
+                        const std::set<std::string>& paths) {
+    ToPaint out;
+    for (const std::string& p : paths) {
+        const auto k = at.find(p);
+        if (k == at.end()) {
+            continue;
+        }
+        out.send.insert(p);
+        for (std::string q = parent_of(p); !q.empty(); q = parent_of(q)) {
+            if (at.count(q) != 0) {
+                out.send.insert(q);
+            }
+        }
+        const std::string& sheet = read_from(k->second->node);
+        if (sheet != p && at.count(sheet) != 0) {
+            out.read.insert(sheet);
+            out.send.insert(sheet);
+        }
+    }
+    return out;
+}
+
 /// Every bound and rule, judged before anything changes: "" when admitted, else why not. A record
 /// said again at its path counts as itself, so an area at its bound still takes a change.
 inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
@@ -281,11 +425,18 @@ inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
         if (!parent.empty() && present.count(parent) == 0) {
             return "'" + n.path + "' is drawn in '" + parent + "', which is not drawn";
         }
+        if (std::string why = judge_operands(n); !why.empty()) {
+            return why;
+        }
         present.insert(n.path);
     }
     if (present.size() > kMaxNodesPerArea) {
         return "area '" + a.area + "' would hold more than " + std::to_string(kMaxNodesPerArea) +
                " nodes";
+    }
+    // EVERY NODE THAT DRAWS FROM A SHEET NAMES ONE THE AREA WOULD HOLD, kept or put now.
+    if (std::string why = judge_sheets(a, d, present); !why.empty()) {
+        return why;
     }
     std::set<std::string> records;
     for (const ElementRecord& r : a.records) {
@@ -424,6 +575,13 @@ inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
     const std::set<std::string, std::less<>> put(out.changed.begin(), out.changed.end());
     for (const KeptNode& k : a.nodes) {
         if (under_any(k.node.path, put)) {
+            out.changed.insert(k.node.path);
+        }
+    }
+    // ...AND EVERY NODE THAT DRAWS FROM A SHEET PUT NOW, which it reads.
+    for (const KeptNode& k : a.nodes) {
+        const std::string* sheet = sheet_named(k.node.draw);
+        if (sheet != nullptr && out.changed.count(*sheet) != 0) {
             out.changed.insert(k.node.path);
         }
     }

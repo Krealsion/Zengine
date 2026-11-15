@@ -6,10 +6,12 @@
 
 // Painting nodes for a medium of characters: every operator, natively or by its fallback, into the
 // area's cells (`kCellPx` pixels a cell, each edge floored to its cell), each cell in one of the
-// colours the window resolved for its node (`PaintNode::inks`) and a shape filled with that
-// colour's character. Text stands a character a cell by the columns the text core gives it
-// (`component::character_columns`): a wide character in two cells, a combining mark in the cell of
-// the character before it. It knows no colour and keeps nothing between calls.
+// colours the window resolved for its node (`PaintNode::inks`), perhaps on another behind it, and a
+// shape filled with that colour's character. A sheet's frame stands as its character; a point no
+// more than half a cell across as a dot of a Braille character, eight to a cell. Text stands a
+// character a cell by the columns the text core gives it (`component::character_columns`): a wide
+// character in two cells, a combining mark in the cell of the character before it. It knows no
+// colour and keeps nothing between calls.
 // Reference: graphics/docs/graphics.md, "The operators".
 
 #include "component/text.hpp"
@@ -33,45 +35,57 @@ namespace zengine::graphics::term {
 /// Which of its node's colours a painted cell wears: its operands' (`PaintNode::inks`, from 0), or
 /// the task's own.
 namespace ink {
+inline constexpr std::int64_t kNone = -1;  ///< no colour: a cell's ground where it shows none
 inline constexpr std::int64_t kPlain = -2; ///< `PaintTask::plain`
 inline constexpr std::int64_t kQuiet = -3; ///< `PaintTask::quiet`
 } // namespace ink
 
-/// One cell: where, its character, and its colour -- as painted, which of its node's colours
-/// (`ink::`); as a TUI window keeps it, the colour that window numbered. Its character is one
-/// character's UTF-8 with the characters of no column after it; the second cell of a wide character
-/// holds none ("") and shows the right half of the one before it.
+/// One cell: where, its character, its colour and the colour behind it (`ground`, `ink::kNone`
+/// where it shows what lies behind) -- as painted, which of its node's colours (`ink::`); as a TUI
+/// window keeps them, the colours that window numbered. A cell whose colour is `ink::kNone` shows
+/// no character of its own: only its ground, behind the character beneath it. Its character is one character's UTF-8 with
+/// the characters of no column after it; the second cell of a wide character holds none ("") and
+/// shows the right half of the one before it.
 struct Cell {
     std::int64_t col = 0, row = 0;
     std::string glyph = " ";
     std::int64_t ink = ink::kPlain;
     bool bold = false;
+    std::int64_t ground = ink::kNone;
 };
 
 /// The character a cell shows for a control character or bytes that spell none, and where a
 /// terminal's encoding carries no character past ASCII.
 inline constexpr const char* kUnshownGlyph = "?";
 
-/// Cells packed as runs: each run a row's neighbouring cells of one colour and weight -- its column
-/// and row as two bytes each, low byte first, the colour (a signed byte), the weight (1 bold, else
-/// 0), the count (1 to 255), then that many glyphs, each its length in bytes (one byte, at most 255)
-/// and its bytes.
+/// The bytes that open a run of packed cells.
+inline constexpr std::size_t kRunHeadBytes = 10;
+
+/// Cells packed as runs: each run a row's neighbouring cells of one colour, ground and weight -- its
+/// column and row, its colour and its ground, two bytes each, low byte first, the colours signed --
+/// then the weight (1 bold, else 0), the count (1 to 255), and that many glyphs, each its length in
+/// bytes (one byte, at most 255) and its bytes. A colour is any of a node's, its place among them
+/// up to 32,767.
 inline loom::Bytes pack(const std::vector<Cell>& cells) {
     loom::Bytes out;
+    const auto two = [&out](std::int64_t v) {
+        out.push_back(static_cast<std::uint8_t>(v & 0xff));
+        out.push_back(static_cast<std::uint8_t>((v >> 8) & 0xff));
+    };
     std::size_t i = 0;
     while (i < cells.size()) {
         std::size_t n = 1;
         while (i + n < cells.size() && n < 255 && cells[i + n].row == cells[i].row &&
                cells[i + n].col == cells[i].col + static_cast<std::int64_t>(n) &&
-               cells[i + n].ink == cells[i].ink && cells[i + n].bold == cells[i].bold) {
+               cells[i + n].ink == cells[i].ink && cells[i + n].bold == cells[i].bold &&
+               cells[i + n].ground == cells[i].ground) {
             ++n;
         }
         const Cell& c = cells[i];
-        out.push_back(static_cast<std::uint8_t>(c.col & 0xff));
-        out.push_back(static_cast<std::uint8_t>((c.col >> 8) & 0xff));
-        out.push_back(static_cast<std::uint8_t>(c.row & 0xff));
-        out.push_back(static_cast<std::uint8_t>((c.row >> 8) & 0xff));
-        out.push_back(static_cast<std::uint8_t>(c.ink & 0xff));
+        two(c.col);
+        two(c.row);
+        two(c.ink);
+        two(c.ground);
         out.push_back(static_cast<std::uint8_t>(c.bold ? 1 : 0));
         out.push_back(static_cast<std::uint8_t>(n));
         for (std::size_t k = 0; k < n; ++k) {
@@ -88,13 +102,14 @@ inline loom::Bytes pack(const std::vector<Cell>& cells) {
 inline std::vector<Cell> unpack(const loom::Bytes& bytes) {
     std::vector<Cell> out;
     std::size_t i = 0;
-    while (i + 7 <= bytes.size()) {
-        const std::int64_t col = static_cast<std::int64_t>(bytes[i] | (bytes[i + 1] << 8));
-        const std::int64_t row = static_cast<std::int64_t>(bytes[i + 2] | (bytes[i + 3] << 8));
-        const std::int64_t ink = static_cast<std::int64_t>(static_cast<std::int8_t>(bytes[i + 4]));
-        const bool bold = bytes[i + 5] != 0;
-        const std::size_t n = bytes[i + 6];
-        i += 7;
+    while (i + kRunHeadBytes <= bytes.size()) {
+        const std::int64_t col = read_u16(bytes, i);
+        const std::int64_t row = read_u16(bytes, i + 2);
+        const std::int64_t ink = read_i16(bytes, i + 4);
+        const std::int64_t ground = read_i16(bytes, i + 6);
+        const bool bold = bytes[i + 8] != 0;
+        const std::size_t n = bytes[i + 9];
+        i += kRunHeadBytes;
         for (std::size_t k = 0; k < n && i < bytes.size(); ++k) {
             const std::size_t len = bytes[i++];
             if (bytes.size() - i < len) {
@@ -103,7 +118,7 @@ inline std::vector<Cell> unpack(const loom::Bytes& bytes) {
             out.push_back(Cell{col + static_cast<std::int64_t>(k), row,
                                std::string(bytes.begin() + static_cast<std::ptrdiff_t>(i),
                                            bytes.begin() + static_cast<std::ptrdiff_t>(i + len)),
-                               ink, bold});
+                               ink, bold, ground});
             i += len;
         }
     }
@@ -236,6 +251,11 @@ public:
             across_ = task_.outline[1];
             down_ = task_.outline[2];
         }
+        for (const PaintNode& n : task_.nodes) {
+            if (const auto* sheet = operands<SheetArgs>(n)) {
+                sheets_[n.path] = sheet;
+            }
+        }
     }
 
     /// One node's cells, drawn in `space`, in its colours.
@@ -258,6 +278,12 @@ public:
             bold_ = false;
         } else if (const auto* i = std::get_if<ImageArgs>(&draw)) {
             image(*i);
+        } else if (const auto* tl = std::get_if<TilesArgs>(&draw)) {
+            tiles(*tl);
+        } else if (const auto* sp = std::get_if<SpritesArgs>(&draw)) {
+            sprites(*sp);
+        } else if (const auto* pt = std::get_if<PointsArgs>(&draw)) {
+            points(*pt);
         }
     }
 
@@ -295,9 +321,10 @@ private:
         return col >= 0 && row >= 0;
     }
 
-    void put(std::int64_t col, std::int64_t row, std::string glyph, std::int64_t i) const {
+    void put(std::int64_t col, std::int64_t row, std::string glyph, std::int64_t i,
+             std::int64_t ground = ink::kNone) const {
         if (paints(col, row)) {
-            out_->push_back(Cell{col, row, std::move(glyph), i, bold_});
+            out_->push_back(Cell{col, row, std::move(glyph), i, bold_, ground});
         }
     }
     void put(std::int64_t col, std::int64_t row, char glyph, std::int64_t i) const {
@@ -531,7 +558,138 @@ private:
         }
     }
 
+    /// The sheet the task hands at `path`; null where it hands none there.
+    const SheetArgs* sheet_of(const std::string& path) const {
+        const auto it = sheets_.find(path);
+        return it == sheets_.end() ? nullptr : it->second;
+    }
+
+    /// A frame of a sheet, the `place`th, in each cell of [c0, c1) x [r0, r1): its character in its
+    /// ink on its ground. A frame whose ink or character is none shows only its ground, behind the
+    /// character beneath it; one whose ground is none shows what lies behind it.
+    void frame_cells(const Frame& f, std::int64_t place, std::int64_t c0, std::int64_t c1,
+                     std::int64_t r0, std::int64_t r1) const {
+        const std::int64_t ink_at = frame_ink_at(place);
+        const std::int64_t ground_at = frame_ground_at(place);
+        const bool lettered = !f.glyph.empty() && !none(ink_at);
+        const std::int64_t ground = none(ground_at) ? ink::kNone : ground_at;
+        if (!lettered && ground == ink::kNone) {
+            return;
+        }
+        const std::string glyph =
+            lettered ? f.glyph.substr(0, component::character_end(f.glyph, 0)) : std::string(" ");
+        for (std::int64_t r = r0; r < r1; ++r) {
+            for (std::int64_t c = c0; c < c1; ++c) {
+                put(c, r, glyph, lettered ? ink_at : ink::kNone, ground);
+            }
+        }
+    }
+
+    /// Tiles: each tile in the cells its box floors to, at least one, as its frame stands.
+    void tiles(const TilesArgs& a) const {
+        const SheetArgs* sheet = sheet_of(a.sheet);
+        if (sheet == nullptr || a.cols <= 0 || a.rows <= 0 || a.tile_w <= 0 || a.tile_h <= 0 ||
+            a.cells.size() < static_cast<std::size_t>(a.cols * a.rows) * kTileBytes) {
+            return;
+        }
+        const std::int64_t ox = a.x + space_.dx, oy = a.y + space_.dy;
+        for (std::int64_t ty = 0; ty < a.rows; ++ty) {
+            for (std::int64_t tx = 0; tx < a.cols; ++tx) {
+                const std::int64_t place =
+                    read_u16(a.cells, static_cast<std::size_t>(ty * a.cols + tx) * kTileBytes);
+                const Frame* f = frame_at(sheet->frames, place);
+                if (f == nullptr) {
+                    continue;
+                }
+                const std::int64_t px = ox + tx * a.tile_w, py = oy + ty * a.tile_h;
+                const std::int64_t c0 = floor_cell(px), r0 = floor_cell(py);
+                frame_cells(*f, place, c0, std::max(c0 + 1, floor_cell(px + a.tile_w)), r0,
+                            std::max(r0 + 1, floor_cell(py + a.tile_h)));
+            }
+        }
+    }
+
+    /// Sprites: each in the cells its box rounds to, at least one, so a sprite a cell across stands
+    /// in one cell wherever it moves and crosses to the next at its middle.
+    void sprites(const SpritesArgs& a) const {
+        const SheetArgs* sheet = sheet_of(a.sheet);
+        if (sheet == nullptr) {
+            return;
+        }
+        const std::int64_t half = kCellPx / 2;
+        for (std::size_t i = 0; i < a.sprites.size() / kSpriteBytes; ++i) {
+            const SpriteAt s = sprite_at(a.sprites, i);
+            const Frame* f = frame_at(sheet->frames, s.frame);
+            if (f == nullptr || s.w <= 0 || s.h <= 0) {
+                continue;
+            }
+            const std::int64_t c0 = floor_cell(a.x + space_.dx + s.x + half);
+            const std::int64_t r0 = floor_cell(a.y + space_.dy + s.y + half);
+            const std::int64_t cols = std::max<std::int64_t>(1, (s.w + half) / kCellPx);
+            const std::int64_t rows = std::max<std::int64_t>(1, (s.h + half) / kCellPx);
+            frame_cells(*f, s.frame, c0, c0 + cols, r0, r0 + rows);
+        }
+    }
+
+    /// Points: where a point is no more than half a cell across, a dot of its cell's Braille
+    /// character (from `U+2800`, two dots across and four down), the cell in the colour of the last
+    /// point in it; else the cells its square floors to, filled with its colour's character.
+    void points(const PointsArgs& a) const {
+        if (a.size <= 0) {
+            return;
+        }
+        const std::int64_t ox = a.x + space_.dx, oy = a.y + space_.dy;
+        const std::size_t count = a.points.size() / kPointBytes;
+        if (a.size <= kCellPx / 2) {
+            static constexpr std::uint8_t kDots[2][4] = {{0x01, 0x02, 0x04, 0x40},
+                                                         {0x08, 0x10, 0x20, 0x80}};
+            std::map<std::pair<std::int64_t, std::int64_t>, std::pair<std::uint8_t, std::int64_t>>
+                dots;
+            for (std::size_t i = 0; i < count; ++i) {
+                const PointAt p = point_at(a.points, i);
+                const std::int64_t colour = p.color - 1;
+                if (p.color <= 0 || none(colour) || sheer(colour)) {
+                    continue;
+                }
+                const std::int64_t px = ox + p.x, py = oy + p.y;
+                const std::int64_t c = floor_cell(px), r = floor_cell(py);
+                const auto across = static_cast<std::size_t>(
+                    std::clamp<std::int64_t>((px - c * kCellPx) * 2 / kCellPx, 0, 1));
+                const auto down = static_cast<std::size_t>(
+                    std::clamp<std::int64_t>((py - r * kCellPx) * 4 / kCellPx, 0, 3));
+                auto& cell = dots[{r, c}];
+                cell.first = static_cast<std::uint8_t>(cell.first | kDots[across][down]);
+                cell.second = colour;
+            }
+            for (const auto& [rc, dot] : dots) {
+                const std::uint32_t cp = 0x2800u + dot.first;
+                const char u8[3] = {static_cast<char>(0xE0u | ((cp >> 12) & 0x0Fu)),
+                                    static_cast<char>(0x80u | ((cp >> 6) & 0x3Fu)),
+                                    static_cast<char>(0x80u | (cp & 0x3Fu))};
+                put(rc.second, rc.first, std::string(u8, 3), dot.second);
+            }
+            return;
+        }
+        for (std::size_t i = 0; i < count; ++i) {
+            const PointAt p = point_at(a.points, i);
+            const std::int64_t colour = p.color - 1;
+            if (p.color <= 0 || none(colour) || sheer(colour)) {
+                continue;
+            }
+            const std::int64_t px = ox + p.x, py = oy + p.y;
+            const std::int64_t c0 = floor_cell(px), r0 = floor_cell(py);
+            const std::int64_t c1 = std::max(c0 + 1, floor_cell(px + a.size));
+            const std::int64_t r1 = std::max(r0 + 1, floor_cell(py + a.size));
+            for (std::int64_t r = r0; r < r1; ++r) {
+                for (std::int64_t c = c0; c < c1; ++c) {
+                    put(c, r, glyph_of(colour), colour);
+                }
+            }
+        }
+    }
+
     const PaintTask& task_;
+    std::map<std::string, const SheetArgs*> sheets_; ///< the sheets the task hands, by path
     char corner_ = '+', across_ = '-', down_ = '|';
     mutable bool bold_ = false; ///< whether the text being painted is bold
     mutable Space space_;
@@ -578,13 +736,15 @@ inline std::map<std::string, Space> spaces(const std::vector<PaintNode>& nodes) 
     return out;
 }
 
-/// A whole task painted: each node but a group, with its cells.
+/// A whole task painted: each node with its cells, but a group, a sheet and a node handed only to
+/// be read, which paint none.
 inline PaintResult paint_task(const PaintTask& task) {
     const Painter painter(task);
     const auto at = spaces(task.nodes);
     PaintResult out;
     for (const PaintNode& n : task.nodes) {
-        if (operands<GroupArgs>(n) != nullptr) {
+        if (n.read_only || operands<GroupArgs>(n) != nullptr ||
+            operands<SheetArgs>(n) != nullptr) {
             continue;
         }
         std::vector<Cell> cells;

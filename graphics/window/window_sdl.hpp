@@ -627,6 +627,10 @@ public:
                     span(im.x, im.y, im.w, im.h);
                     if (mine) grid(im.x, im.y, im.w, im.h);
                 }
+                for (const light::Blit& bl : p.blits) {
+                    span(bl.x, bl.y, bl.w, bl.h);
+                    if (mine) grid(bl.x, bl.y, bl.w, bl.h);
+                }
                 for (const light::Line& l : p.lines) {
                     span((std::min)(l.x1, l.x2), (std::min)(l.y1, l.y2),
                          (std::max)(l.x1, l.x2) - (std::min)(l.x1, l.x2) + 1,
@@ -859,6 +863,14 @@ public:
 
     std::int64_t showings() const { return showings_; }
     std::int64_t device_bytes() const { return device_bytes_; }
+    /// The textures its backend made, where its backend counts them; none where it does not.
+    std::int64_t textures_made() const {
+        if constexpr (requires { backend_.textures_made(); }) {
+            return backend_.textures_made();
+        } else {
+            return 0;
+        }
+    }
 
 private:
     struct Kept {
@@ -929,6 +941,10 @@ private:
         for (const light::ImageBlit& im : p.images) {
             n += 28 + static_cast<std::int64_t>(im.rgba.size());
         }
+        for (const light::SheetPixels& sh : p.sheets) {
+            n += 12 + static_cast<std::int64_t>(sh.rgba.size());
+        }
+        n += static_cast<std::int64_t>(p.blits.size()) * 32 + static_cast<std::int64_t>(p.sheet.size());
         return n;
     }
 

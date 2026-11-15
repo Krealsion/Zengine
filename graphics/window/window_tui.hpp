@@ -38,8 +38,9 @@ inline constexpr std::int64_t kUnmeasuredRows = 24;
 inline constexpr std::int64_t kUnmeasuredReach = 1000;
 
 /// What a cell's character shows as on a terminal: itself where the terminal's encoding carries
-/// UTF-8 (`utf8`), else printable ASCII as itself, any other character `?` and the second cell of a
-/// wide character a blank, so every column still holds one.
+/// UTF-8 (`utf8`), else printable ASCII as itself, a Braille character (`U+2800` on, a point's
+/// dots) as `.` or, holding no dot, a blank, any other character `?` and the second cell of a wide
+/// character a blank, so every column still holds one.
 inline std::string shown_glyph(const std::string& glyph, bool utf8) {
     if (utf8) {
         return glyph;
@@ -48,24 +49,37 @@ inline std::string shown_glyph(const std::string& glyph, bool utf8) {
         return " ";
     }
     const auto b = static_cast<unsigned char>(glyph.front());
+    if (glyph.size() == 3 && b == 0xE2u && (static_cast<unsigned char>(glyph[1]) & 0xFCu) == 0xA0u) {
+        return glyph == "\xE2\xA0\x80" ? std::string(" ") : std::string(".");
+    }
     return glyph.size() == 1 && b >= 0x20u && b < 0x7Fu ? glyph : std::string(term::kUnshownGlyph);
 }
 
-/// The bytes that show cells on a terminal: for each run, a cursor move (left out where the cursor
-/// already stands), its ink where it changes (`inks`, by the number each cell holds; one it does
-/// not hold is the terminal's default), and the characters as its encoding shows them
-/// (`shown_glyph`). Where it carries UTF-8 a wide character's second cell writes nothing: the
-/// character before it covers it.
+/// The bytes that show cells on a terminal: for each run, a cursor move where the cursor is not
+/// already, its ink where it changes (`inks` by the cell's number, else the terminal's default),
+/// its ground where handed `grounds` (the terminal's own first and last, `kDefaultGround`), and the
+/// characters as its encoding shows them (`shown_glyph`); a wide character's second cell writes
+/// nothing where UTF-8 is carried.
 inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<std::string>& inks,
-                        bool utf8 = true) {
+                        bool utf8 = true, const std::vector<std::string>* grounds = nullptr) {
     std::string out;
-    std::int64_t at_col = -1, at_row = -1, ink = -1;
+    std::int64_t at_col = -1, at_row = -1, ink = -1, ground_now = kDefaultGround;
     for (const term::Cell& c : cells) {
         if (utf8 && c.glyph.empty()) {
             continue;
         }
         if (c.col != at_col || c.row != at_row) {
             out += "\x1b[" + std::to_string(c.row + 1) + ";" + std::to_string(c.col + 1) + "H";
+        }
+        if (grounds != nullptr) {
+            const std::int64_t ground =
+                c.ground >= 0 && static_cast<std::size_t>(c.ground) < grounds->size()
+                    ? c.ground
+                    : kDefaultGround;
+            if (ground != ground_now) {
+                ground_now = ground;
+                out += (*grounds)[static_cast<std::size_t>(ground)];
+            }
         }
         if (c.ink != ink) {
             ink = c.ink;
@@ -77,6 +91,9 @@ inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<
         const auto cols = static_cast<std::int64_t>(component::text_columns(shown));
         at_col = c.col + (cols > 1 ? cols : 1);
         at_row = c.row;
+    }
+    if (grounds != nullptr && ground_now != kDefaultGround && !grounds->empty()) {
+        out += grounds->front();
     }
     return out;
 }
@@ -168,7 +185,7 @@ public:
 
     /// The nodes at `paths` painted into cells in the colours the window resolved, cut to the area,
     /// kept, and their cells marked to show, each cell's colour numbered by the ink it is written
-    /// in.
+    /// in, and its ground, where it shows one, by the ground it is written on.
     void paint(const WinArea& a, const PaintTask& task, const std::set<std::string>& paths,
                std::string&) {
         const PaintResult painted = term::paint_task(task);
@@ -187,15 +204,25 @@ public:
             }
             PaintedNode kept;
             kept.key = n->second->key;
-            // each of the node's colours and weights, once
+            // each of the node's colours and weights, and each of its grounds, once
             std::map<std::pair<std::int64_t, bool>, std::int64_t> numbered;
+            std::map<std::int64_t, std::int64_t> grounded;
             for (term::Cell c : term::unpack(np.cells)) {
                 if (c.col >= 0 && c.row >= 0 && c.col < pl.cols && c.row < pl.rows) {
-                    const auto [at, fresh] = numbered.try_emplace({c.ink, c.bold}, 0);
-                    if (fresh) {
-                        at->second = number(ink_of(c.ink, *n->second, task), c.bold);
+                    if (c.ink != term::ink::kNone) {
+                        const auto [at, fresh] = numbered.try_emplace({c.ink, c.bold}, 0);
+                        if (fresh) {
+                            at->second = number(ink_of(c.ink, *n->second, task), c.bold);
+                        }
+                        c.ink = at->second;
                     }
-                    c.ink = at->second;
+                    if (c.ground != term::ink::kNone) {
+                        const auto [g, new_ground] = grounded.try_emplace(c.ground, 0);
+                        if (new_ground) {
+                            g->second = number_ground(ink_of(c.ground, *n->second, task));
+                        }
+                        c.ground = g->second;
+                    }
                     kept.cells.push_back(c);
                 }
             }
@@ -213,7 +240,7 @@ public:
         }
         const std::vector<term::Cell> cells = compose(areas, cache_, dirty_);
         dirty_.clear();
-        const std::string bytes = ansi(cells, inks_, utf8());
+        const std::string bytes = ansi(cells, inks_, utf8(), &grounds_);
         terminal_.write(bytes);
         keep_shown(cells);
         ++showings_;
@@ -324,6 +351,8 @@ public:
 
     std::int64_t showings() const { return showings_; }
     std::int64_t device_bytes() const { return device_bytes_; }
+    /// A terminal makes no texture.
+    static constexpr std::int64_t textures_made() { return 0; }
 
 private:
     /// With no terminal to measure, the window as large as its areas reach and no smaller than
@@ -381,6 +410,18 @@ private:
         return static_cast<std::int64_t>(inks_.size()) - 1;
     }
 
+    /// The number of the ground the terminal is written to show a colour behind a character on,
+    /// each numbered once, as an ink is.
+    std::int64_t number_ground(const PaintInk& ink) {
+        const std::string sgr = sgr_ground_for(ink.cells, ink.rgba);
+        const auto it = std::find(grounds_.begin(), grounds_.end(), sgr);
+        if (it != grounds_.end()) {
+            return static_cast<std::int64_t>(it - grounds_.begin());
+        }
+        grounds_.push_back(sgr);
+        return static_cast<std::int64_t>(grounds_.size()) - 1;
+    }
+
     /// The window's size in cells: its terminal's, or as far as its areas reach where it has none.
     TerminalSize measure() const {
         const TerminalSize size = terminal_.size();
@@ -394,6 +435,9 @@ private:
     std::vector<std::vector<std::string>> shown_rows_;
     /// The inks the window writes its terminal in, by number: the terminal's default first (kDefaultInk).
     std::vector<std::string> inks_{sgr_for(kTerminalDefault, 0)};
+    /// The grounds it writes behind characters, by number: the terminal's default first
+    /// (kDefaultGround).
+    std::vector<std::string> grounds_{sgr_ground_for(kTerminalDefault, 0)};
     std::int64_t cols_ = kUnmeasuredCols;
     std::int64_t rows_ = kUnmeasuredRows;
     std::int64_t reach_cols_ = kUnmeasuredCols; ///< how far its areas reach, with no terminal
