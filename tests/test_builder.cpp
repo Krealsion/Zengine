@@ -161,23 +161,30 @@ struct Drained {
 /// `look()` that never reports an ending fails a case instead of hanging a lane.
 constexpr std::chrono::seconds kDrainPatience{30};
 
-Drained drain(RunningRecipe& process,
+/// One look counted into what a drain has read. A look takes what it reads (builder/run.hpp), so
+/// a case that looks before it drains hands that look here, or its bytes are lost.
+void take(Drained& out, const RunLook& seen) {
+    ++out.looks;
+    if (!seen.fresh.empty()) {
+        ++out.looks_that_spoke;
+        out.said += seen.fresh;
+    }
+    if (seen.ended) {
+        out.ended = true;
+        out.status = seen.status;
+        out.never_ran = seen.never_ran;
+        out.trouble = seen.trouble;
+    }
+}
+
+/// Looks until the child ends, going on from `out`: what earlier looks read.
+Drained drain(RunningRecipe& process, Drained out = {},
               std::chrono::milliseconds patience = kDrainPatience) {
-    Drained out;
     const auto deadline = std::chrono::steady_clock::now() + patience;
-    while (std::chrono::steady_clock::now() < deadline) {
-        const RunLook seen = process.look();
-        ++out.looks;
-        if (!seen.fresh.empty()) {
-            ++out.looks_that_spoke;
-            out.said += seen.fresh;
-        }
-        if (seen.ended) {
-            out.ended = true;
-            out.status = seen.status;
-            out.never_ran = seen.never_ran;
-            out.trouble = seen.trouble;
-            return out;
+    while (!out.ended && std::chrono::steady_clock::now() < deadline) {
+        take(out, process.look());
+        if (out.ended) {
+            break;
         }
         // A LOOK THAT FOUND NOTHING WAS A LOOK TOO EARLY: hand the core back
         // rather than ask again in the same instant. The look itself stays
@@ -821,7 +828,11 @@ TEST_CASE("a started recipe is HELD: start returns, and the child is still alive
     CHECK_FALSE(first.ended);
     CHECK(begun.process.holds());
 
-    const Drained all = drain(begun.process);
+    // THE FIRST LOOK'S BYTES ARE KEPT: the drain goes on from them, so the child's first line is
+    // read whether it came before that look or after it.
+    Drained looked;
+    take(looked, first);
+    const Drained all = drain(begun.process, looked);
     CHECK(all.ended);
     CHECK(all.status == 0);
     CHECK(all.said.find("step 1 of 4") != std::string::npos);
