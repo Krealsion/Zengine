@@ -32,17 +32,17 @@ struct RealizationStandInState {
 /// doors that read the owner's claims read a case's facts by their own grants, as in a host.
 class RealizationStandIn
     : public loom::WeaveBase<RealizationStandIn, RealizationStandInState, loom::Accept<>, loom::Emit<>,
-                             loom::Claims<zengine::realization::PlanWhere,
+                             loom::Claims<zengine::realization::PlanStatus,
                                           zengine::realization::ChoicesHeld>> {};
 
 /// WHAT THE REALIZATION OWNER CLAIMS THE PROJECT WAITS ON, read off the bus as a host reads it.
 inline zengine::workshop::ProjectFrontier frontier_claimed(const loom::Switchboard& bus) {
     zengine::workshop::ProjectFrontier now;
     const loom::SenseReading read = bus.observe_role(
-        zengine::builder::kRealizationRole, zengine::realization::PlanWhere::zen_name,
-        zengine::realization::PlanWhere::zen_version);
+        zengine::builder::kRealizationRole, zengine::realization::PlanStatus::zen_name,
+        zengine::realization::PlanStatus::zen_version);
     if (read && read.value.has_value()) {
-        const auto where = loom::from_value<zengine::realization::PlanWhere>(*read.value);
+        const auto where = loom::from_value<zengine::realization::PlanStatus>(*read.value);
         now.artifact = where.waiting_on;
         now.waiting = !now.artifact.empty();
         now.blocked = static_cast<std::size_t>(where.behind);
@@ -63,14 +63,14 @@ struct RealizationClaims {
     RealizationClaims(loom::Switchboard& on, loom::WeaveId holder) : bus(&on), id(holder) {}
 
     /// Claim where the plan is.
-    void where(const zengine::realization::PlanWhere& w) const {
+    void where(const zengine::realization::PlanStatus& w) const {
         REQUIRE(bus->role_claim_as(id, zengine::builder::kRealizationRole, loom::to_value(w))
                     .accepted);
     }
     /// Claim where the plan is as a frontier says it: waiting on `artifact` with `blocked` behind,
     /// or at rest with nothing to wait on.
     void frontier(const zengine::workshop::ProjectFrontier& f) const {
-        zengine::realization::PlanWhere w;
+        zengine::realization::PlanStatus w;
         w.state = zengine::realization::PlanState::complete;
         if (f.waiting) {
             w.state = zengine::realization::PlanState::waiting;

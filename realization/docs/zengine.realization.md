@@ -120,7 +120,7 @@ when their load or reload settles, so other answers may come between: follow an 
 never by order. The plan's own rows, performed at launch, are said by Workshop and shown by the
 Project pane, not here.
 
-It claims, as `zengine.realization` after every change: `PlanWhere` v1, where the plan is -- its
+It claims, as `zengine.realization` after every change: `PlanStatus` v1, where the plan is -- its
 state (`PlanState`: `loading`, `waiting`, `complete` or `refused`), the row it waits on, the rows
 stepped over or given way from, the roles still to come -- and
 `ChoicesHeld` v1, every authored choice and whether it holds its role

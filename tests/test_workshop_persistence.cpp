@@ -159,7 +159,7 @@ TEST_CASE("what the plan could not load and gave way from is said on the desk as
     Live t;
     // WHAT GAVE WAY, as the realization owner claims it, by a stand-in in its role.
     const RealizationClaims owner(t.bus);
-    zengine::realization::PlanWhere where;
+    zengine::realization::PlanStatus where;
     where.gave_way = {said};
     owner.where(where);
     // ...AND IT STANDS FOR THE RUN, as the host keeps it (`gave_way`), so a sentence said
@@ -175,7 +175,7 @@ TEST_CASE("what the plan could not load and gave way from is said on the desk as
 
     Live quiet;
     const RealizationClaims quiet_owner(quiet.bus);
-    quiet_owner.where(zengine::realization::PlanWhere{});
+    quiet_owner.where(zengine::realization::PlanStatus{});
     quiet.ready();
     CHECK(quiet.notice().find("did not load") == std::string::npos);
 }

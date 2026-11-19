@@ -163,7 +163,7 @@ public:
     /// when its row already shows rows' names. Held asks are bounded; past the bound, refused.
     // WL-GUEST-12 -- agents/workshop/guests.md
     void on(const GuestPlanRequested& asked, loom::Mail& mail) {
-        if (mail.latest_from_role<realization::PlanWhere>(builder::kRealizationRole).refusal ==
+        if (mail.latest_from_role<realization::PlanStatus>(builder::kRealizationRole).refusal ==
             loom::SenseRefusal::NotAuthorized) {
             (void)mail.answer(loom::Refused{"this host grants the door no reading of its load plan"});
             return;
@@ -209,13 +209,13 @@ public:
         (void)mail.answer(ActorScopeJudged{refusal.empty(), refusal});
     }
 
-    /// WHERE THE PLAN IS, read from the realization owner's latest claim (`PlanWhere`) at every ask
+    /// WHERE THE PLAN IS, read from the realization owner's latest claim (`PlanStatus`) at every ask
     /// and on every look that holds one; it keeps no copy of the plan. No claim yet is a plan still
     /// loading.
     static GuestPlanSaid plan_now(loom::Mail& mail) {
         GuestPlanSaid said;
-        const std::optional<realization::PlanWhere> where =
-            realization::latest<realization::PlanWhere>(mail);
+        const std::optional<realization::PlanStatus> where =
+            realization::latest<realization::PlanStatus>(mail);
         if (!where.has_value()) {
             return said;
         }
@@ -527,7 +527,7 @@ inline loom::Grant guest_door_grant(bool reads_plan = true) {
     g.allow_to_role(input::InputSessionClosed::zen_name, input::InputSessionClosed::zen_version,
                     input::kInputRole);
     if (reads_plan) {
-        g.allow_observe(realization::PlanWhere::zen_name, realization::PlanWhere::zen_version);
+        g.allow_observe(realization::PlanStatus::zen_name, realization::PlanStatus::zen_version);
     }
     loom::allow_poke_answers(g);
     return g;

@@ -42,7 +42,7 @@ inline std::string_view spelling(PlanState state) {
 /// WHERE REALIZATION IS, claimed after every change to it: the plan's state, the row it waits on
 /// and how many authored rows wait behind it, the optional rows stepped over, what rows could not
 /// load and gave way from, and the roles a row will still load a weave into.
-struct PlanWhere {
+struct PlanStatus {
     PlanState state = PlanState::loading;
     /// The row realization waits on, by its artifact; empty when it waits on none.
     std::string waiting_on;
@@ -55,7 +55,7 @@ struct PlanWhere {
     /// The roles a plan row loading a weave into them has not settled: still to come, never
     /// unavailable.
     std::vector<std::string> to_come;
-    ZEN_SHAPE(PlanWhere, 1, ZEN_FIELD(state), ZEN_FIELD(waiting_on), ZEN_FIELD(behind),
+    ZEN_SHAPE(PlanStatus, 1, ZEN_FIELD(state), ZEN_FIELD(waiting_on), ZEN_FIELD(behind),
               ZEN_FIELD(unavailable), ZEN_FIELD(gave_way), ZEN_FIELD(to_come));
 };
 
@@ -91,7 +91,7 @@ std::optional<Claim> latest(loom::Mail& mail) {
 }
 
 /// Is `role` still to come in this claim -- a row loading a weave into it not yet settled?
-inline bool to_come(const PlanWhere& where, std::string_view role) {
+inline bool to_come(const PlanStatus& where, std::string_view role) {
     for (const std::string& r : where.to_come) {
         if (r == role) {
             return true;

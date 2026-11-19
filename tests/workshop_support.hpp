@@ -1115,8 +1115,8 @@ struct Live {
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
         // ...AND WHERE THE PLAN IS, the realization owner's claim, as the host grants it.
-        grant.allow_observe(zengine::realization::PlanWhere::zen_name,
-                            zengine::realization::PlanWhere::zen_version);
+        grant.allow_observe(zengine::realization::PlanStatus::zen_name,
+                            zengine::realization::PlanStatus::zen_version);
         // IN THE ROLE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
         // the pane protocol is authored AS that role: mounted anonymously, its asks and room
         // grants would be refused at the bus. The three-argument `register_weave` is the Loom's
