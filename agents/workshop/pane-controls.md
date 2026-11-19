@@ -7,6 +7,8 @@ Router: [`../workshop.md`](../workshop.md). The menu those controls open is
 [`pane-menu.md`](pane-menu.md); the panes that draw them are [`files.md`](files.md) and
 [`project.md`](project.md).
 
+Retired: WL-HAND-02
+
 ## WL-HAND-01 — A control is a face, a place and an operation, and availability is drawn
 
 LAW — `pack_controls` lays labelled faces into the width and rows a pane spends: `[label]` where it believes the operation applies, `(label)` where it does not, both placed, the rest counted.
@@ -18,17 +20,6 @@ MEANS
 
 DOES NOT MEAN
 - that a drawn face is permission: the operation asks its own question again at the spend.
-
-WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
-
-## WL-HAND-02 — The strip's rows come out of the body's budget, before the body is laid out
-
-LAW — A pane asks how many rows its strip needs and subtracts them before composing, so a listing or a fact view is given what is left; a marker or a fact is dropped, never the strip.
-
-MEANS
-- the strip grows with the room and stops: a third of it for a list pane, and at most three rows;
-- a marker is said only where the window RESERVED a row for it (`ListWindow::markers`);
-- a room too small for one strip row leaves the right press, which opens the same rows.
 
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
@@ -98,22 +89,6 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 performs that operation" "in a room too short for every control the strip says how many are in the
 menu, and the menu keeps them"
 
-### WL-HAND-02
-`component/list_window.hpp` ListWindow::markers cursor_window earlier_marker more_marker
-`component/control_strip.hpp` kMaxStripRows strip_budget strip_rows_for
-`pane/facets.hpp` PaneRowsFacet::strip_rows PaneRowsFacet::push_window
-`files/browser_view.hpp` body_budget say_entries
-`builder/builder-pane/view.hpp` publish
-`builder/builder-pane/output_reader.hpp` output_body_rows
-`tests/test_component.cpp` "ListWindow: a side's marker is said only where the window reserved that
-side a row of its own" "ControlStrip: a strip spends about a third of the room up to its cap, and a
-pane's own rows pack as their faces"
-`tests/test_workshop_panes_files.cpp` "in a room too short for every control the strip says how many
-are in the menu, and the menu keeps them" "scrolled into a long listing, Files says on a row of each
-side how many entries the window left out"
-`tests/test_workshop_panes_output.cpp` "WL-OUT-04: a build's own words are opened, stepped, panned
-and closed by hand"
-
 ### WL-HAND-03
 `component/row_map.hpp` RowMap::begin RowMap::settle RowMap::picture
 `pane/facets.hpp` PaneRowsFacet
@@ -162,5 +137,5 @@ finding's own reproduction)
 choosing" "every control each Builder mode draws has a row in that mode's own menu" "a reader
 waiting on its first page still offers its whole list in a narrow room" "`edit source` in the recipe
 list opens the row the list is standing on, and leaves the choice alone"
-`tests/test_workshop_panes_output.cpp` "WL-OUT-04: in a room too small for its strip the reader's
+`tests/test_workshop_panes_output.cpp` "in a room too small for its strip the reader's
 whole list is in its own menu, and every row of it acts"

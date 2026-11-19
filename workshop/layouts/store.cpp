@@ -525,7 +525,6 @@ std::vector<RowSettingUnused> LayoutStore::unused_of(const PaneRef& ref) const {
     return h != nullptr ? h->unused : std::vector<RowSettingUnused>{};
 }
 
-// WL-SETTING-05 -- agents/workshop/settings.md
 std::string LayoutStore::handed_fact(const PaneRef& ref) {
     if (ref.provider == kWorkshopProvider) {
         return "stored; not handed: Workshop's own pane takes no settings";
@@ -1714,7 +1713,6 @@ std::string LayoutStore::layout_note(const SetupState& s) const {
 namespace {
 
 /// The panes of `desk` the presenter cannot present now, as a clause: empty for none.
-// WL-PANE-10 -- agents/workshop/panes-and-windows.md
 template <class Presentable>
 std::string unresolved_clause(const Setup& desk, const Presentable& presentable) {
     std::vector<PaneRef> waiting;
@@ -2159,7 +2157,7 @@ PaneCloseAnswered LayoutStore::close(const PaneRef& ref) {
 
 // ---- The last session -------------------------------------------------------------------------
 
-// WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
+// WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
 RestoredRun LayoutStore::restore() {
     RestoredRun out;

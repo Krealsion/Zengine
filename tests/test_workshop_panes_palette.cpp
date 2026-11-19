@@ -554,7 +554,7 @@ TEST_CASE("double-shift is a key of Workshop's own: spelled, read back, shown as
     CHECK_FALSE(parse_gesture("shift").accepted);
 }
 
-TEST_CASE("WL-KEY-19: two Shift taps of one hand open the palette; a held Shift, a key between, a "
+TEST_CASE("two Shift taps of one hand open the palette; a held Shift, a key between, a "
           "slow pair and another hand's tap do not") {
     PaneRig r;
     ProviderSeat* tools = nullptr;

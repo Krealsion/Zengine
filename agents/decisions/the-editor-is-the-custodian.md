@@ -118,5 +118,4 @@ the quit answer, the project-root ask, the paste ask, the copy — keep no recor
 fate, and none of them is answered here beyond what Loom already reports.
 
 **Laws supported.** [WL-EDIT-01](../workshop/editor.md), [WL-EDIT-03](../workshop/editor.md),
-[WL-EDIT-12](../workshop/editor.md), [WL-EDIT-14](../workshop/editor.md),
-[WL-EDIT-15](../workshop/editor.md), [WL-EDIT-16](../workshop/editor.md).
+[WL-EDIT-14](../workshop/editor.md), [WL-EDIT-15](../workshop/editor.md).

@@ -1131,7 +1131,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     // THE CONTEXTUAL SURFACE, OVER IT. A right press on the pane opens the pane's own menu at the
     // press -- `remove` among its rows, the recovery a weaver reaches for -- and what a weaver
     // reads in the menu is the menu's own rows, not one row of the provider's. The chrome (title
-    // row) opens the pane's host menu; the body is empty by default (WL-CTX-08).
+    // row) opens the pane's host menu; the body is empty by default.
     r.right_press_cell(body.x + 1, body.y);
     REQUIRE(r.session().context.open);
     std::string menu;

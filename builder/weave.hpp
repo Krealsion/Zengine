@@ -51,7 +51,6 @@ struct KeptLine {
 /// the last until `kKeptTailBytes`, and a line falling out of the tail counted in `omitted`, so
 /// line numbers stay the operation's own. A line is taken when its break arrives, or at the
 /// end; a trailing CR is the break's.
-// WL-OUT-02 -- agents/workshop/build-output.md
 struct KeptOutput {
     std::int64_t op = 0;
     std::string recipe;
@@ -133,7 +132,6 @@ private:
 /// bytes (at least one line when there is one). A page that would cross the lines no longer
 /// kept stops before them, and a page asked for inside them begins after them. `from` 0 is
 /// the page that ends at the last line said so far -- a reader following a running build.
-// WL-OUT-02 -- agents/workshop/build-output.md
 inline BuildOutputSaid page_of(const KeptOutput& kept, std::int64_t from, std::int64_t lines) {
     BuildOutputSaid out;
     out.op = kept.op;
@@ -407,7 +405,6 @@ public:
 
     /// A page of one operation's output, by its number; read-only. An operation not kept is
     /// answered `kept` false, never with another operation's lines.
-    // WL-OUT-02 -- agents/workshop/build-output.md
     void on(const BuildOutputRequested& asked, loom::Mail& mail) {
         BuildOutputSaid out;
         if (const KeptOutput* record = kept(asked.op)) {
@@ -718,7 +715,6 @@ private:
     /// WHAT EACH OF THE LAST `kKeptOperations` OPERATIONS SAID, oldest first. A plain member
     /// and not state, for `remembered_`'s reason: it is answered by asking, one bounded page
     /// at a time, and a poke-writable copy would be a second answer to "what did it say".
-    // WL-OUT-02 -- agents/workshop/build-output.md
     std::vector<KeptOutput> kept_;
 
     /// The order this tool is waiting on, and its correlations, one sequence. Image-local: an

@@ -43,5 +43,5 @@ only while the code is unchanged, it publishes a reading the Builder pane follow
 builds against the installed package. A later owner of the join replaces
 `HostContext::code_source`, never its spenders; Editor and Files learn no build topology.
 
-**Laws supported.** [WL-CODE-01](../workshop/code.md), [WL-CODE-02](../workshop/code.md),
-[WL-CODE-03](../workshop/code.md), [WL-CODE-04](../workshop/code.md).
+**Laws supported.** [WL-CODE-01](../workshop/code.md), [WL-CODE-03](../workshop/code.md),
+[WL-CODE-04](../workshop/code.md).

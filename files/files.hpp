@@ -148,7 +148,6 @@ inline bool row_before(const FileRow& a, const FileRow& b) {
 }
 
 /// ONE DIRECTORY'S LISTING, AS A SNAPSHOT.
-// WL-FILES-14 -- agents/workshop/files.md
 struct Listing {
     /// Did an enumeration happen and produce these rows? False with a `refusal` is the
     /// ordinary absence -- no project, a directory that went away, a directory this
@@ -177,7 +176,6 @@ bool narrow_paths_are_utf8();
 /// and no rows, never a partial listing. An entry that cannot be classified is still shown, as
 /// a file: dropping it would lie about what is there, and a file's activation is refused by the
 /// editor's door in its own words.
-// WL-FILES-14 -- agents/workshop/files.md
 inline Listing enumerate_directory(const std::string& dir,
                                    std::size_t most = kMaxListedEntries) {
     most = most < kMaxListedEntries ? most : kMaxListedEntries;
@@ -303,7 +301,7 @@ inline std::string authoring_refused_words(const std::string& reason,
 }
 
 /// A CHOSEN CATALOG THE OWNER TOOK -- which file and how much it holds, THEN where it is. The
-/// refusal's own order, for the same reason: a path back-loads its meaning (WL-PROJ-10), so said
+/// refusal's own order, for the same reason: a path back-loads its meaning, so said
 /// whole and first, a long directory took the file's name and the count with it when the row was
 /// cut -- `build recipes: C:/.../game/bu...` names no catalog at all. The directory takes the tail.
 inline std::string catalog_taken_words(const std::string& path, std::int64_t recipes) {

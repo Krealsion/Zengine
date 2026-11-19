@@ -6,7 +6,7 @@ keystroke becomes an action at all is the keymap's law, in [`keyboard.md`](keybo
 the desktop's panes are told, and how the launcher holds its place, is
 [`desktop-presenting.md`](desktop-presenting.md).
 
-Retired: WL-DESK-05.
+Retired: WL-DESK-05, WL-DESK-19, WL-DESK-20
 
 ## WL-DESK-01 — The application's defaults are a weave, and the host keeps four things
 
@@ -153,34 +153,6 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-DESK-19 — The weaver places a pane: a first open is centred, a hidden pane comes back where it was
-
-LAW — A pane new to a layout opens at the room's centre, or the hand where `workshop.open-at` says `mouse`, and is placed when its open brings the keys; a hidden one comes back where it was.
-
-MEANS
-- placing takes the hand at the pane's title and top edge, which move it, and its other edges, which size it; a key or a press in its body is the pane's, and the first ends the placing, said;
-- where it was is its hidden row's place and size, kept in its layout across runs, and a seat that shows it is answered `returned`;
-- the palette opens centred every time and is never arranged; a seat without the keys arranges nothing.
-
-DOES NOT MEAN
-- that Workshop seats a pane in a guess at free room: the weaver places it;
-- that a removed pane's place is kept: `manage.remove` takes the row, and the next open is a first open.
-
-WHY — `agents/decisions/the-weaver-places-a-pane.md`
-
-## WL-DESK-20 — A manual opens over the pane it describes
-
-LAW — The Manual the desktop asks Workshop to show stands over the pane whose manual was last asked, `kManualMarginPx` of it showing on every edge, whether it opens or is on the desk already.
-
-MEANS
-- the window is written as the launch seats or finds the Manual, over where it was left, and the Manual is not placed by hand;
-- a pane too small to show the margin round a Manual leaves the Manual where it would have stood.
-
-DOES NOT MEAN
-- that the desktop says where: Workshop knows the subject from the act it asked the desktop for.
-
-WHY — `agents/decisions/the-weaver-places-a-pane.md`
-
 ## Do not assume
 
 - That the desktop can take a gesture from a pane — a pane stands in for an above-the-modes
@@ -188,8 +160,7 @@ WHY — `agents/decisions/the-weaver-places-a-pane.md`
 - That `Ctrl+t` is the host's again — the id is `desktop.terminal`, in the weave's namespace;
   an override authored for the retired `workshop.terminal` is read as it, and the load says so.
 - That the host keeps only those four: for the desk read and its notice it also keeps the desk
-  number, each picture's fingerprint beside its number, and the last notice it published
-  (WL-READ-04, WL-READ-06, WL-READ-07).
+  number, each picture's fingerprint beside its number, and the last notice it published.
 
 ## Proven by
 
@@ -227,7 +198,7 @@ was unspent" "an answer to an Escape that is over cannot borrow the next Escape'
 and refused at launch, while its identity and the desk row naming it stay" "a pane the run is still
 loading is pending, not unavailable: the launcher marks it `[load]`, names nothing to build, and a
 launch says it is not here yet"
-`tests/test_workshop_panes_first_run.cpp` "WL-FIRST-05: Start here opens when the quick setup
+`tests/test_workshop_panes_first_run.cpp` "Start here opens when the quick setup
 closes, holding the keys, and no later start opens it again"
 
 ### WL-DESK-04
@@ -310,30 +281,6 @@ unloads nothing: a launch finds its unsaved source exactly as it was"
 host -- open and in sight becomes closed, covered is brought forward, closed becomes open and
 focused, whatever the desktop last heard" "WL-DESK-13: Ctrl+P puts away a covered Pane Manager the
 weaver comes straight from, and brings it forward once they have moved on from it"
-
-### WL-DESK-19
-`workshop/setup.hpp` open_row holds_pane
-`workshop/layouts/store.cpp` LayoutStore::edit_one
-`workshop/layouts/vocabulary.hpp` LayoutEditAnswered
-`workshop/weave_session.cpp` seat_then
-`workshop/weave_arrange.cpp` placing_press leave_placing
-`workshop/prefs_persist.hpp` kOpenAtKey kOpenAtCenter kOpenAtMouse
-`workshop/screen.hpp` Session::open_at_mouse PaneArrange::opened
-`tests/test_workshop_screen.cpp` "WL-DESK-19: a pane the layout never had opens at the room's centre,
-placed by its title and edges while its keys and body stay its own; shown again after a hide it comes
-back where it was left" "WL-DESK-19: a press in the body of a pane being placed is the pane's, and
-ends the placing" "WL-DESK-19: where workshop.open-at says mouse, a pane the layout never had opens at
-the hand"
-`tests/test_workshop_persistence.cpp` "a hidden pane keeps its row and comes back where it was after a
-save and a load"
-
-### WL-DESK-20
-`workshop/weave_desktop.cpp` WorkshopWeave::manual_window launch_asked launch_pane request_app_action
-`workshop/weave.hpp` WorkshopWeave::manual_over_
-`workshop/screen.hpp` kManualMarginPx
-`workshop/weave_session.cpp` seat_then
-`tests/test_workshop_panes_desktop.cpp` "WL-DESK-20: the Manual opens over the pane whose manual was
-asked, a margin of it showing on every edge, and moves over the next one asked"
 
 ### WL-DESK-18
 `workshop/command_vocabulary.hpp` CommandRunRequested CommandRunAnswered

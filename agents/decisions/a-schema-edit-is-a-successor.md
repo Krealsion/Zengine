@@ -66,6 +66,5 @@ edit is a new build identity; the grant is not re-floored here.
 
 **Laws supported.** [MW-DEF-07](../maker/definition.md), [MW-DEF-08](../maker/definition.md),
 [MW-SUCC-01](../maker/succession.md), [MW-SUCC-02](../maker/succession.md),
-[MW-SUCC-03](../maker/succession.md), [MW-SUCC-04](../maker/succession.md),
-[MW-SUCC-05](../maker/succession.md), [MW-SUCC-06](../maker/succession.md),
+[MW-SUCC-04](../maker/succession.md), [MW-SUCC-05](../maker/succession.md),
 [MW-WEAVE-09](../maker/weave.md), [MW-WEAVE-10](../maker/weave.md).

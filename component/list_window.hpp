@@ -55,7 +55,7 @@ inline ListWindow nothing_shown(std::size_t total, std::size_t at) noexcept {
 
 } // namespace detail
 
-/// A CURSOR-ANCHORED, LEAST-MOTION WINDOW (WL-DESK-10): the largest window that keeps `cursor`
+/// A CURSOR-ANCHORED, LEAST-MOTION WINDOW: the largest window that keeps `cursor`
 /// visible inside `budget` rows with one marker row reserved per cut side, and among equally
 /// large ones the one whose first row is nearest `hint` (last time's first row), so a list
 /// scrolls by the least it can rather than jumping.

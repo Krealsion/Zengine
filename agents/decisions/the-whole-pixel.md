@@ -53,5 +53,5 @@ resetting its place is how it returns. Canvas panes that ask for the old shapes 
 them, four sub-units to a pixel. A terminal reads the same desk in cells, marked `~` where a pixel
 is not a whole cell.
 
-**Laws supported.** [WL-GEO-05](../workshop/geometry.md), [WL-GEO-06](../workshop/geometry.md),
-[WL-GEO-07](../workshop/geometry.md), [WL-PANE-11](../workshop/panes-and-windows.md).
+**Laws supported.** [WL-GEO-07](../workshop/geometry.md),
+[WL-PANE-11](../workshop/panes-and-windows.md).

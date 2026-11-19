@@ -6,6 +6,8 @@ by the Editor and the desk. One law per heading; cite by ID. Router:
 the seam is the protocol's law in [`../panes.md`](../panes.md); the substrate's law is Loom's
 joint-publication reference page, never restated here.
 
+Retired: WL-OPEN-09, WL-OPEN-10
+
 ## WL-OPEN-01 — One manager owns the open operation, and nothing else
 
 LAW — The native `OpeningManager` owns one open intent, its exact participants, stage, attempts, supersession and outcome; the Editor owns the document, Workshop the presentation, Loom the publication.
@@ -52,7 +54,7 @@ LAW — A newer request cancels a Preparing flight and tells its requester it wa
 
 MEANS
 - there is no queue of intents and no retry: the refused requester asks again;
-- a change of the pane's rows, the setup's panes, places, sizes or ranks, or the owner before the commitment aborts it at the bus; a canvas moved alone is refused at the admission (WL-EDIT-13).
+- a change of the pane's rows, the setup's panes, places, sizes or ranks, or the owner before the commitment aborts it at the bus; a canvas moved alone is refused at the admission.
 
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
@@ -105,35 +107,6 @@ MEANS
 - manager hot reload is not supported; the obligation is stated for a host that ever does.
 
 WHY — `agents/decisions/document-and-desk-publish-together.md`
-
-## WL-OPEN-09 — A native showing failure is captured where it is thrown, not at the pump
-
-LAW — A native owner applies a published claim inside `contain_showing`: a throw there is Failed, its words in the host's book; the host's turn (`serve_turn`) tells the book and propagates every exception.
-
-MEANS
-- the words come from the code around the owner's application, never a bus event or a held owner;
-- the book is told on every exit of the turn, also while an exception leaves it unchanged, and a suite's drain (`serve_until_idle`) tells it the same way;
-- Declined is returned, never thrown; a native owner throwing outside the boundary propagates.
-
-DOES NOT MEAN
-- that a failure becomes recoverable: the owner stays held until it is reloaded or removed;
-- that a loaded owner's words reach the book: its showing answers across its ABI as a status.
-
-WHY — `agents/decisions/document-and-desk-publish-together.md`
-
-## WL-OPEN-10 — The opening carries no picture: the holder draws it in its area
-
-LAW — The trial reserves the seat and says the room its area will have (`OpeningRoom`); the Editor prepares the candidate for that room, and draws it in its own area in the delivery that commits its claim.
-
-MEANS
-- the room is the area's as Workshop will place it, in pixels and the window's measure;
-- the window never shows A after the commitment: the Editor's drawing of B is the commitment's;
-- `SourcePrepared` says only that the candidate is ready, and the admission carries no rows.
-
-DOES NOT MEAN — that Workshop draws for the pane, or shows a picture of it: the window shows what
-the Editor draws in its area.
-
-WHY — `agents/decisions/the-opening-carries-a-picture.md`
 
 ## Do not assume
 
@@ -232,24 +205,3 @@ by a kept answer right"
 `tests/test_workshop_panes_opening.cpp` "the manager's authority names its exact incarnation -- a
 swapped manager's retained capability is refused in words, and the host authorizes the successor by
 minting again"
-
-### WL-OPEN-09
-`workshop/host_pump.hpp` contain_showing ShowingFailures ServedTurn
-`workshop/host_pump.cpp` serve_until_idle serve_turn
-`workshop/weave.hpp` HostContext::showings
-`workshop/weave_managed.cpp` on_claim_published
-`tests/test_workshop_panes_opening.cpp` "a native owner's failed showing is told in the words its
-own boundary captured, and every exception that reaches the host's turn propagates as it came"
-
-### WL-OPEN-10
-`workshop/open_seam_vocabulary.hpp` OpeningRoom v3::PresentationTrial v3::PrepareSourceRequested
-v3::SourcePrepared v3::PresentationAdmitRequested
-`workshop/weave_managed.cpp` on(PresentationTrialRequested) on(v3::PresentationAdmitRequested)
-show_presentation after_delivery
-`editor/editor-pane/opening_switch.hpp` on(v3::PrepareSourceRequested) prepare activate
-`tests/test_workshop_panes_opening.cpp` "an open through the managed door shows the opened
-document, drawn by its holder at the commitment in the room the trial reserved, and a press there
-reaches the holder" "a canvas room that moves while the document is prepared refuses its admission,
-though its rows and columns stand"
-`tests/test_workshop_panes_editor.cpp` "a managed open has one commitment -- the published claims,
-the pane's reads, its snapshot and the desk agree at it, and A is current before it"

@@ -6,34 +6,7 @@ heading; cite by ID. Router: [`../workshop.md`](../workshop.md). The build conve
 [`../realization.md`](../realization.md); the Builder's other rows are [`project.md`](project.md);
 the pane a build's source is reached from is [`code.md`](code.md).
 
-## WL-OUT-01 — The runner says every byte a build writes, in order
-
-LAW — Each look's ready bytes leave the runner whole and in order, in as many `BuildOutput` messages of at most `kMaxOutputChars` as they need; nothing is joined, cut or counted away.
-
-MEANS
-- a message ends at a line break where one fits; a longer line continues in the next one;
-- a look is still bounded by `kMaxLookBytes`: what it leaves stays in the pipe for the next look;
-- a status's `detail` is the last lines that say something, joined with ` | `; blanks spend none.
-
-DOES NOT MEAN
-- that the bus keeps a build's output: the tool keeps it, bounded (WL-OUT-02);
-- that the bytes are a compiler's: they are the build's, as any tool it runs re-encoded them.
-
-WHY — `agents/decisions/a-build-keeps-its-own-words.md`
-
-## WL-OUT-02 — The tool keeps what its last operations said, and answers a page by operation
-
-LAW — `BuilderWeave` keeps both ends of each of its last `kKeptOperations` operations' lines, the middle counted, and answers `BuildOutputRequested` with one bounded page of that operation or `kept` false.
-
-MEANS
-- a kept line is its bytes, a CR the break's; a line past `kMaxKeptLineBytes` is cut and counted;
-- a page never crosses the lines not kept: asked inside them it begins after; `from` 0 ends last;
-- an operation let go is `kept` false with the numbers kept, and never another operation's lines.
-
-DOES NOT MEAN
-- that output is a log: it is written to no file, kept across no restart and searched by nothing.
-
-WHY — `agents/decisions/a-build-keeps-its-own-words.md`
+Retired: WL-OUT-01, WL-OUT-02, WL-OUT-04
 
 ## WL-OUT-03 — A pane shows the words it carries as written, and counts what it does not show
 
@@ -49,47 +22,16 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-build-keeps-its-own-words.md`
 
-## WL-OUT-04 — The Builder's reader is bound to one operation until it is closed
-
-LAW — `read output` binds a mode to the operation the tool's picture names: a header saying how it ended, which lines and what was not shown, cut or not kept, then one row per line, cut and panned.
-
-MEANS
-- a newer build, a status about another operation or a new choice moves nothing it shows;
-- `[` and `]` step to the older or newer operation kept; Escape gives back the build rows;
-- a reloaded Builder pane is not reading, and the tool answers again when the reader reopens.
-
-DOES NOT MEAN
-- that a refused realization is a failed build: the reader says the build succeeded;
-- that the reader builds, opens a file or moves a caret: it reads.
-
-WHY — `agents/decisions/a-build-keeps-its-own-words.md`
-
 ## Do not assume
 
 - That a build's words are complete once kept: both ends are, and the middle of a long build is
-  counted, not kept (WL-OUT-02).
+  counted, not kept.
 - That a row is the bytes the compiler wrote: it leaves out its escape sequences and shows its
   control characters as spaces, and the header says how many it did not show (WL-OUT-03).
 - That a compiler's non-ASCII words arrive as it wrote them on every platform: on Windows Ninja
-  re-encodes the output it passes on, and the kept bytes are what reached the pipe (WL-OUT-01).
+  re-encodes the output it passes on, and the kept bytes are what reached the pipe.
 
 ## Proven by
-
-### WL-OUT-01
-`builder/runner.hpp` output_piece BuildRunnerWeave::look_at_held
-`builder/vocabulary.hpp` kMaxOutputChars BuildOutput tail_lines
-`tests/test_builder.cpp` "the runner says every byte a build writes, in order, in pieces no bigger
-than a message" "the tail a pane is shown keeps whole lines, and keeps them APART"
-
-### WL-OUT-02
-`builder/weave.hpp` KeptOutput page_of on(BuildOutputRequested) BuilderWeave::kept_
-`builder/vocabulary.hpp` BuildOutputRequested BuildOutputSaid kKeptOperations kKeptHeadBytes
-kKeptTailBytes kMaxKeptLineBytes kMaxOutputPageLines kMaxOutputPageBytes
-`workshop/workshop.cpp` BuildOutputSaid
-`tests/test_builder.cpp` "a failed build's own lines are kept by its operation, and a page reads
-them as the build wrote them" "a kept record holds both ends of a long output, numbers the gap, and
-never pages across it" "the tool keeps the last few operations' output, and an operation it let go
-is said, not replaced"
 
 ### WL-OUT-03
 `pane/text.hpp` printable
@@ -99,13 +41,3 @@ is said, not replaced"
 `tests/test_workshop_panes_output.cpp` "a compiler's non-ASCII words in a build's last lines leave
 the Builder's picture standing" "read output shows a failed build's own lines on rows Workshop
 takes, as written, the control characters it did not show said"
-
-### WL-OUT-04
-`builder/builder-pane/output_reader.hpp` open_output say_output read_output scroll ask_page
-`builder/builder-pane/vocabulary.hpp` kActionOutput kActionOutputClose
-`tests/test_workshop_panes_output.cpp` "read output shows a failed build's own lines on rows
-Workshop takes, as written, the control characters it did not show said" "the reader stays bound to its build: a newer build
-and a new status do not move it, and it steps between the builds kept" "a build the tool no longer
-keeps is said, and no other build's lines are shown under its number" "a build that worked and a
-realization that was refused read as two answers, and the reader says the build succeeded" "a page
-refused at dispatch is said in the reader, which stops saying it is asking"

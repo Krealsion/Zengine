@@ -14,14 +14,12 @@ using zengine::property::TextForm;
 
 // ---- The dynamic panes, painted -------------------------------------------------------
 
-// WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
-// WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
 void paint_pane_frame(ScreenPlane& layer, const PixelRect& b,
                        graphics::Color ink) {
     layer.rects.push_back(wire_rect_of(b, ink));
 }
 
-// WL-CHROME-05 -- agents/workshop/chrome.md; WL-RGN-01 -- agents/workshop/regions.md
+// WL-CHROME-05 -- agents/workshop/chrome.md
 ProsePlace prose_place(const PixelRect& b, const Screen& sc) {
     ProsePlace p;
     const PaneInside inside = pane_inside(b, sc);
@@ -37,7 +35,6 @@ ProsePlace prose_place(const PixelRect& b, const Screen& sc) {
     return p;
 }
 
-// WL-RGN-01 -- agents/workshop/regions.md
 ScreenRegion prose_region(const ProsePlace& place) {
     ScreenRegion region;
     const ScreenRect wire = wire_rect_of(place.inside, graphics::colors::text);
@@ -60,7 +57,6 @@ const char* pane_state_word(std::int64_t state) {
     }
 }
 
-// WL-PANE-10 -- agents/workshop/panes-and-windows.md
 const char* pane_state_remedy(std::int64_t state) {
     switch (state) {
     case pane_state::kClosed: return "show it from the Pane Manager";
@@ -71,7 +67,7 @@ const char* pane_state_remedy(std::int64_t state) {
     }
 }
 
-// WL-PANE-10 -- agents/workshop/panes-and-windows.md; WL-FRONT-05 -- agents/workshop/planes.md
+// WL-FRONT-05 -- agents/workshop/planes.md
 bool pane_is_covered(const Panes& panes, const Setup& setup, const Screen& sc,
                      std::int64_t kind, const PixelRect& mine) {
     if (mine.w <= 0 || mine.h <= 0) {
@@ -169,7 +165,6 @@ const char* geometry_unit(std::int64_t cell_px) {
     return cell_px > 0 ? "px" : "cells";
 }
 
-// WL-GEO-09, WL-GEO-10 -- agents/workshop/geometry.md
 GeometrySpelling geometry_spelling(std::int64_t px, std::int64_t cell_px) {
     return GeometrySpelling{std::to_string(graphics::device_of_px(px, cell_px)),
                             graphics::px_exact_in_device(px, cell_px)};
@@ -230,7 +225,6 @@ std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px) {
     return text;
 }
 
-// WL-GEO-12 -- agents/workshop/geometry.md
 std::string pane_move_text(const std::string& name, const PixelRect& before, const PixelRect& after,
                            std::int64_t cell_px) {
     bool projected = false;
@@ -249,7 +243,6 @@ std::string pane_move_text(const std::string& name, const PixelRect& before, con
     return text;
 }
 
-// WL-GEO-09, WL-GEO-12 -- agents/workshop/geometry.md
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     if (row == nullptr) {
         return "--";
@@ -302,7 +295,6 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     return text;
 }
 
-// WL-GEO-12 -- agents/workshop/geometry.md
 bool pane_window_reads_words(const SetupPane* row) {
     if (row == nullptr) {
         return false;
@@ -334,7 +326,6 @@ std::string pane_fit_note(const Session& s, const PaneRef& ref) {
 
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------
 
-// WL-CTX-03 -- agents/workshop/contextual.md
 PixelRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
                           std::int64_t x, std::int64_t y, const Screen& sc) {
     const RegionPixels inner =

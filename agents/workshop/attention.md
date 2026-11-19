@@ -3,6 +3,8 @@
 Register `WL-ATTN`: a thing that happened and a thing that is true are two surfaces. One law per
 heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
+Retired: WL-ATTN-02, WL-ATTN-05, WL-ATTN-06, WL-ATTN-09, WL-ATTN-12
+
 ## WL-ATTN-01 — An utterance and a condition are two surfaces
 
 LAW — An utterance is a sentence about a moment that passed, kept in the notices record (WL-NOTE-02); a condition is a fact that is true when it is read, held under a key or derived from a live owner.
@@ -10,12 +12,6 @@ LAW — An utterance is a sentence about a moment that passed, kept in the notic
 MEANS
 - an utterance is never retracted: the record lets the oldest go past its bound, and nothing else ends one;
 - a condition disappears because it resolved, never because something else was said.
-
-WHY — `agents/decisions/a-condition-has-a-lifetime.md`
-
-## WL-ATTN-02 — `Session::notice` is the last utterance and nothing else
-
-LAW — The standing truths (a refused keymap or prefs file, a shadowed legacy file, a pane's refused update, a waiting frontier) left the notice; `speak_startup_notes` joins only the event halves.
 
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
@@ -42,24 +38,6 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-05 — One pane state earns ambient attention and four do not
-
-LAW — `off-room` is a condition; `closed` is the weaver's choice, `unresolved` is already counted on the Layouts row, `covered` has something visible, and `open` is nothing.
-
-WHY — `agents/decisions/a-condition-has-a-lifetime.md`
-
-## WL-ATTN-06 — The glance is the Attention pane's first row
-
-LAW — The loudest condition the host says is true, with an honest `(+N more)`, leads the Attention pane in that condition's role.
-
-MEANS
-- a weaver who hides a row still reads it in the glance, because it is still true;
-- a pane one row tall is the glance alone; nothing true is said in words, never an empty box.
-
-DOES NOT MEAN
-
-WHY — `agents/decisions/a-condition-has-a-lifetime.md`
-
 ## WL-ATTN-07 — Ranking is `ranks_before`: loudness, then key
 
 LAW — `attention_rank` is the one place this application claims one role is more urgent than another: total, with an unknown role last.
@@ -74,12 +52,6 @@ MEANS
 - never persisted; it crosses a same-shape reload in the pane's state and reaches no file;
 - dismiss is not resolve: the host still holds the condition, derives it and says it;
 - so a list whose every current condition is hidden says they are hidden, never the all-clear.
-
-WHY — `agents/decisions/a-condition-has-a-lifetime.md`
-
-## WL-ATTN-09 — The Attention view is a pane, keyed only once pressed into
-
-LAW — The view is a pane, so it takes the keyboard under `KeyContext::kPane` when pressed into; the mode, its four rows and the global chord are gone, and three ids are the pane's own.
 
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
@@ -103,19 +75,6 @@ MEANS
 
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-12 — What is true right now crosses as a publication, and only when it changes
-
-LAW — The host says every current condition as `StandingConditions`, `to_any`, ranked, with the action resolved into words; it compares against its own last utterance and stays silent when they are equal.
-
-MEANS
-- silence is what makes it terminate: content ends in a repaint, so saying it always would loop;
-- what the host remembers is its own last utterance, never a second copy of the truth.
-
-DOES NOT MEAN
-- that a condition is addressed to anybody: which weave presents it is a load plan's answer.
-
-WHY — `agents/decisions/a-condition-has-a-lifetime.md`
-
 ## Proven by
 
 ### WL-ATTN-01
@@ -127,14 +86,6 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 `tests/test_workshop_host.cpp` "event sentences stay events, and a condition needs no sentence" "a
 held condition stands until its owner retracts it" "an unavailable tool is named by its artifact on
 the host's own condition row, which no tool paints"
-
-### WL-ATTN-02
-`workshop/weave_handlers.cpp` speak_startup_notes take_host_conditions
-`workshop/weave_document.cpp` say
-`workshop/weave.hpp` HostContext::transition_note
-`tests/test_workshop_host.cpp` "event sentences stay events, and a condition needs no sentence"
-`tests/test_workshop_persistence.cpp` "a refused prefs file is spoken, stands, and is never
-overwritten"
 
 ### WL-ATTN-03
 `workshop/screen_attention.cpp` attention_conditions
@@ -154,20 +105,6 @@ ranked by truth, and says how many it is not saying"
 `tests/test_workshop_host.cpp` "a derived condition enters and leaves attention with its subject"
 "the project frontier is a condition while it waits and nothing after"
 
-### WL-ATTN-05
-`workshop/screen_attention.cpp` attention_conditions
-`workshop/screen_pane_state.cpp` pane_state_of
-`tests/test_workshop_host.cpp` "not every true pane state deserves ambient attention"
-
-### WL-ATTN-06
-`workshop/attention_seam_vocabulary.hpp` attention_glance
-`attention/pane.cpp` say_view
-`workshop/weave_run.cpp` WorkshopWeave::repaint
-`tests/test_workshop_host.cpp` "what is true is said to whoever presents it, healthy or not" "the glance is ranked by truth, and says how many it is not
-saying"
-`tests/test_workshop_panes_attention.cpp` "the Attention pane leads with the glance: the loudest
-condition that is true and how many more, hidden ones counted"
-
 ### WL-ATTN-07
 `workshop/attention.hpp` ranks_before attention_rank
 `tests/test_workshop_host.cpp` "the glance is ranked by truth, and says how many it is not saying"
@@ -182,10 +119,6 @@ the condition it was about" "an Attention pane whose every current condition is 
 hidden and still true, through a spent notice and a new room, and says nothing needs attention only
 when nothing is true"
 
-### WL-ATTN-09
-`tests/test_workshop_panes_attention.cpp` "the pane declares the three ids a weaver's keymap file
-already names" "the Attention pane's keys act only after the weaver has pressed into it"
-
 ### WL-ATTN-10
 `workshop/attention.hpp` Condition::action
 `workshop/keymap.hpp` ActionRow
@@ -199,12 +132,3 @@ a name"
 `workshop/attention.hpp` HeldConditions
 `tests/test_workshop_host.cpp` "the condition path carries no timer, no callback and no history"
 "showing a condition writes no history"
-
-### WL-ATTN-12
-`workshop/attention_seam_vocabulary.hpp` StandingCondition StandingCondition::suggestion
-StandingConditions
-`workshop/screen_attention.cpp` standing_conditions same_conditions
-`workshop/weave_run.cpp` WorkshopWeave::say_conditions
-`workshop/weave.hpp` WorkshopWeave::said_conditions_ WorkshopWeave::conditions_said_
-`tests/test_workshop_host.cpp` "what is true is said across the seam, in the host's own order and
-words" "nothing new is nothing said, which is what stops the seam looping"

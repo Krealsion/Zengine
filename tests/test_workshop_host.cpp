@@ -549,7 +549,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
             CHECK(l.text.size() == static_cast<std::size_t>(inside.w));
             // ...and the slot reaches past the room's middle at this extent, which is what a
             // room that is the whole surface buys the stack
-            // (agents/decisions/the-room-is-the-screen.md). It is still inside the room.
+            // (docs/history/decisions/the-room-is-the-screen.md). It is still inside the room.
             CHECK(stack.x + stack.w <= cells_of(sc).room_w);
         }
     }
@@ -1305,7 +1305,7 @@ TEST_CASE("showing a condition writes no history") {
     CHECK(journal.counters().diagnostics == 0);
     CHECK(journal.counters().appended == 0);
 
-    // AND EXACTLY ONE SHAPE, WHICH IS THE SEAM'S (WL-ATTN-11, WL-ATTN-12). The internal
+    // AND EXACTLY ONE SHAPE, WHICH IS THE SEAM'S (WL-ATTN-11). The internal
     // `Condition` is a value on the session with no wire form; a Recorder can see the SENTENCE
     // the host says about what is true, because saying it is the point -- and the claim is
     // that the seam's shape is the ONLY one, so nothing has quietly gained a second wire form.
@@ -1385,7 +1385,7 @@ TEST_CASE("the glance is ranked by truth, and says how many it is not saying") {
 }
 
 TEST_CASE("what is true is said across the seam, in the host's own order and words") {
-    // THE HOST-TO-PANE SENTENCE (WL-ATTN-12). The pane showing these rows derives none of them
+    // THE HOST-TO-PANE SENTENCE. The pane showing these rows derives none of them
     // and could not: they are this host's reading of its own state, said ranked, `to_any`,
     // with the action resolved into words, since resolving needs the effective keymap.
     // ⚔ MUTATION (tests/mutants/workshop_host.md#repaint-says-no-conditions), MEASURED: drop
@@ -2263,7 +2263,7 @@ TEST_CASE("a new layout is blank and duplicates no Workshop-global state") {
     // external instances are one truth each, and a desk is not a door to either.
     CHECK(t.session().panes.runtime.entries.size() == runtime_before);
     // ...WHILE A PRESENTATION'S OWN COPY LEAVES WITH THE PRESENTATION: the stand-in's view is
-    // forgotten by the close that withdrew it (WL-LAYOUT-07), which is the opposite of a
+    // forgotten by the close that withdrew it, which is the opposite of a
     // Workshop-global fact and is why it is counted here rather than assumed.
     CHECK(t.session().panes.external.size() == external_before - 1);
     // AND THE LAYOUT IT WAS MADE FROM IS UNTOUCHED, waiting where it was.

@@ -5,17 +5,7 @@ built-in retired: its list is the desktop's Pane Manager (WL-DESK-04, WL-DESK-12
 subject is an inspector's (WL-INFO-14). One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
-Retired: WL-PED-01, WL-PED-02, WL-PED-03, WL-PED-07, WL-PED-08.
-
-## WL-PED-04 — A pane subject's rows read fresh, and nothing writes on paint
-
-LAW — A pane subject's rows say identity, AUTHORED, RESOLVED, then any SETTINGS, each read when it is read; nothing writes on paint, and a section heading is the one widening of the row vocabulary.
-
-MEANS
-- rows close over the session and the subject, named anew when the pane, desk, layout or settings move;
-- `RESOLVED` rows call `bounds_of` and `pane_state_of` at the moment they are read.
-
-WHY — `agents/decisions/a-subject-is-not-a-selection.md`
+Retired: WL-PED-01, WL-PED-02, WL-PED-03, WL-PED-07, WL-PED-08, WL-PED-04
 
 ## WL-PED-05 — Every write is an existing door
 
@@ -47,15 +37,6 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
   a row or `0` in the arrangement, the default desk and `--isolated`.
 
 ## Proven by
-
-### WL-PED-04
-`workshop/screen_pane_subject.cpp` pane_subject_rows
-`workshop/weave_inspection.cpp` refresh_inspected
-`property/property.hpp` Row::section
-`tests/test_workshop_host.cpp` "the subject's rows say identity, then AUTHORED, then RESOLVED"
-"looking never authors"
-`tests/test_workshop_panes_settings.cpp` "a pane's settings are rows of its subject, named by their
-keys, after RESOLVED"
 
 ### WL-PED-05
 `workshop/screen_pane_subject.cpp` write_pane_axis pane_window_base pane_axis_text typed_share

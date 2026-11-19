@@ -4,7 +4,7 @@ Register `WL-TEXT`: the editable line as a window onto its text, and editing as 
 that belongs to no consumer. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
-Retired: WL-TEXT-14.
+Retired: WL-TEXT-14, WL-TEXT-03, WL-TEXT-04, WL-TEXT-05, WL-TEXT-06, WL-TEXT-07, WL-TEXT-10, WL-TEXT-12, WL-TEXT-13
 
 ## WL-TEXT-01 — Editing text is a component, and it belongs to no consumer
 
@@ -18,56 +18,6 @@ WHY — `agents/decisions/editing-text-is-a-component.md`
 ## WL-TEXT-02 — A consumer owns the capacity, the clipboard's custody and what the text means
 
 LAW — The capacity is an argument; where the prose begins, the `Clipboard` and its custody beyond the process, and what the text means are the consumer's; Return, Escape and Tab are never the component's.
-
-WHY — `agents/decisions/editing-text-is-a-component.md`
-
-## WL-TEXT-03 — The editable line is a window onto its text
-
-LAW — Always, `0 ≤ first_visible ≤ caret ≤ size()` with `first_visible` on a character boundary; after `keep_caret_visible(N)`, `caret - first_visible ≤ N` and `first_visible ≤ max(0, size() - N)`.
-
-MEANS
-- the window moves as little as it must and never recentres; only the caret moves it;
-- no blank room on the right while text is hidden on the left;
-- no hidden-content marker, no scrollbar, no wheel or drag scrolling, no scroll command.
-
-WHY — `agents/decisions/the-line-is-a-window.md`
-
-## WL-TEXT-04 — A consumer's capacity is never guessed
-
-LAW — The capacity is never guessed: it is the room the consumer resolved, what it cuts by and what a press is answered against; the window is reconciled once per repaint.
-
-MEANS
-- a resize needs no path of its own, because a new extent causes a repaint;
-- a migrated line resolves its own capacity out of the room the pane was granted.
-
-**The Terminal's instance of this left the host** — `terminal_input_place` and the
-reconcile above the participant check were its one measurer, and the pane owns both now.
-
-WHY — `agents/decisions/the-line-is-a-window.md`
-
-## WL-TEXT-05 — The left edge snaps forwards, the right cut falls between whole characters
-
-LAW — The left edge snaps forwards to a character boundary, the right cut falls between whole characters as every fitted row's does, and one column is kept for the caret, on both media.
-
-MEANS
-- snapping backwards would carry the right edge back and push the caret off its row;
-- a caret is between characters, so the one after a full row needs somewhere to be.
-
-WHY — `agents/decisions/the-line-is-a-window.md`
-
-## WL-TEXT-06 — `consume()` is the routing bool at the component boundary
-
-LAW — True is the box's own vocabulary and false is not mine; declining is the default arm, never knowledge of an application chord, and the declared vocabulary is exactly what consume answers true to.
-
-MEANS
-- a consumed gesture need not change anything — a copy with nothing selected is consumed;
-- a chord carrying Alt or Super is never the box's.
-
-WHY — `agents/decisions/editing-text-is-a-component.md`
-
-## WL-TEXT-07 — The history is the draft's and dies with it
-
-LAW — A fresh draft wipes the history and bumps the draft epoch; same-kind keystrokes coalesce, paste, cut and a replacement are one entry each, the depth is bounded, and no app-wide undo grows from this.
 
 WHY — `agents/decisions/editing-text-is-a-component.md`
 
@@ -93,39 +43,11 @@ payload: one structural undo entry, and `pasteable_line` before it. `type` is a 
 
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
-## WL-TEXT-10 — A medium that cannot be read falls back to the mirror
-
-LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the medium's role stays open, bounded by the book, and inserts nothing.
-
-MEANS
-- the medium's role is the graphics window that shows the area, else the one that offered itself (`medium_role`).
-
-WHY — `agents/decisions/a-paste-is-a-conversation.md`
-
 ## WL-TEXT-11 — `zengine-component` links nothing
 
 LAW — A text box has no wire form and nothing hosts it: the component library links nothing, and its key identities are spelled locally and pinned against the input wire's spellings in the input suite.
 
 WHY — `agents/decisions/editing-text-is-a-component.md`
-
-## WL-TEXT-12 — A word has one definition and three compositions
-
-LAW — A word has one definition — the maximal non-space run — and three uses: word before and word after add the separator walk a keyboard means; word at is both scans meeting, a pointer's meaning.
-
-MEANS
-- a position with separators on both sides is in no word, and nothing invents the nearest one;
-- `select_word_at` is `place`'s other answer to one press: anchor at the start, caret at the end.
-
-WHY — `agents/decisions/editing-text-is-a-component.md`
-
-## WL-TEXT-13 — The one-measurer family takes the box
-
-LAW — The caret measurers take the box itself, the visible selection is the only span arithmetic, and the selection measurers add exactly the prose offset the caret measurers add: one measurer family.
-
-MEANS
-- `pasteable_line` flattens foreign bytes into one line, since a row is one line of columns.
-
-WHY — `agents/decisions/the-line-is-a-window.md`
 
 ## Proven by
 
@@ -141,43 +63,6 @@ characters" "the real Composer's fields speak the vocabulary across the seam"
 `workshop/weave_session.cpp` naming_key
 `tests/test_component.cpp` "component: the capacity is an argument, so one box serves two different
 widths" "component: consume owns exactly the editing vocabulary and declines the rest"
-
-### WL-TEXT-03
-`component/text_box.hpp` TextBox::first_visible TextBox::keep_caret_visible
-character_boundary_at_or_after
-`workshop/weave_document.cpp` refresh_setup_name
-`workshop/screen_layouts.cpp` setup_name_columns
-`tests/test_component.cpp` "the window is state, and every operation leaves the caret inside it"
-"the window never begins inside a character" "component: the window moves as little as it must, and
-never recentres" "component: no blank room on the right while text is hidden on the left"
-
-### WL-TEXT-04
-`workshop/weave_run.cpp` repaint
-`workshop/weave_document.cpp` refresh_setup_name
-`tests/test_workshop_panes_terminal.cpp` "a press on the input row places the caret where the weaver
-aimed"
-`tests/test_component.cpp` "the window is state, and every operation leaves the caret inside it"
-
-### WL-TEXT-05
-`component/text.hpp` character_boundary_at_or_after
-`workshop/screen_bindings.cpp` detail::fit
-`workshop/screen_layouts.cpp` setup_name_columns
-`tests/test_component.cpp` "component: the window never begins inside a character, at any capacity"
-"the window never begins inside a character"
-
-### WL-TEXT-06
-`component/text_box.hpp` TextBox::consume kEditingVocabulary
-`component/text.hpp` key mod
-`workshop/weave_session.cpp` naming_key
-`tests/test_component.cpp` "component: consume owns exactly the editing vocabulary and declines the
-rest" "component: a consumed gesture that changes nothing is still consumed" "the editing
-vocabulary's declaration rows and consume() agree, both ways"
-
-### WL-TEXT-07
-`component/text_box.hpp` TextBox::set TextBox::clear TextBox::draft_epoch TextBox::kUndoDepth
-`tests/test_component.cpp` "component: set and clear open a fresh draft with no inherited history"
-"component: contiguous typing coalesces into one undo entry" "component: the history is bounded and
-forgets its far past first" "component: undo restores text, caret and selection; redo replays it"
 
 ### WL-TEXT-08
 `workshop/screen.hpp` Session::clipboard
@@ -208,32 +93,7 @@ the line it landed in" "what the clipboard holds is normalized to fit a line, or
 `tests/test_workshop_panes_info.cpp` "a clipboard answer asked for by an Info draft that has closed
 lands in no later draft, and one asked for by the draft still standing lands in it"
 
-### WL-TEXT-10
-`workshop/weave.hpp` WorkshopWeave::paste_asks_
-`workshop/weave_pointer.cpp` answers_ask on(ClipboardText)
-`workshop/weave_seam.cpp` begin_clipboard_paste
-`graphics/vocabulary.hpp` ClipboardText::readable
-`tests/test_workshop_document.cpp` "in the TUI window, which reads no clipboard, paste inserts
-nothing and breaks nothing"
-`tests/test_graphics.cpp` "the TUI window copies by OSC 52, reads no clipboard, has no placement to
-say or take, and reads back the cells it last showed, at the size it showed them, none before"
-`workshop/weave.hpp` WorkshopWeave::medium_role
-
 ### WL-TEXT-11
 `component/CMakeLists.txt` zengine-component
 `component/text.hpp` key mod
 `tests/test_input.cpp` "the component's key spellings ARE the wire's"
-
-### WL-TEXT-12
-`component/text.hpp` word_run_begin word_run_end word_before word_after WordSpan
-`component/text_box.hpp` TextBox::word_at TextBox::select_word_at
-`tests/test_component.cpp` "one run definition, and the keyboard's two answers are composed from it"
-"the word at a position, including at both of its edges" "select_word_at opens the selection across
-the word a press landed in" "pointer and keyboard agree about which bytes are one word"
-
-### WL-TEXT-13
-`workshop/screen_layouts.cpp` paint_layouts
-`component/text_box.hpp` TextBox TextBox::visible_selection
-`component/text.hpp` pasteable_line
-`tests/test_component.cpp` "component: the visible selection is the span both media may spend"
-"component: paste flattens foreign bytes into one line"

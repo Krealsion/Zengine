@@ -406,7 +406,7 @@ endif()
 zen_expect("${broke}" "compile or link FAILED"
            "the driver did not tell a compile failure from a configure failure")
 # THE COMPILER'S REASON REACHES THE WEAVER THROUGH WHAT THE BUILD SAID, KEPT BY ITS OPERATION --
-# the page the Builder's reader shows (WL-OUT-02), which the witness asks for once the build has
+# the page the Builder's reader shows, which the witness asks for once the build has
 # ended -- and not through a status's last lines, which the driver's own footer spends.
 string(REGEX MATCH "witness: said: [^\n]*this_symbol_does_not_exist_anywhere" zen_reason
        "${broke}")

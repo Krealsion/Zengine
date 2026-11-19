@@ -18,7 +18,7 @@ In `workshop/first-run/first_run.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-FIRST-04: each step is ticked by the fact its owner says -- the inventory, a running view's
+- each step is ticked by the fact its owner says -- the inventory, a running view's
   wiring, the launcher's listing and its start -- and kept; a view's wiring said by a role no
   running view holds ticks nothing
 
@@ -37,7 +37,7 @@ In `workshop/first-run/first_run.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-FIRST-04: a step ticked while Start here stands behind another pane brings it in front, the
+- a step ticked while Start here stands behind another pane brings it in front, the
   keys left where they are
 
 ## later-start-opens-the-story
@@ -56,7 +56,7 @@ In `workshop/first-run/first_run.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and no later start
+- Start here opens when the quick setup closes, holding the keys, and no later start
   opens it again
 
 ## hand-tick-kept-over-the-fact
@@ -78,7 +78,7 @@ In `workshop/first-run/first_run.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-FIRST-04: a box ticked by the weaver's hand says so and is undone by it, its owner's fact makes
+- a box ticked by the weaver's hand says so and is undone by it, its owner's fact makes
   it the owner's, and Show me opens the step's pane and says its next move
 
 ## start-before-approval
@@ -96,7 +96,7 @@ In `workshop/first-run/first_run.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-FIRST-02: the quick setup lists the setups the launcher lists, and a Start asks Workshop for
+- the quick setup lists the setups the launcher lists, and a Start asks Workshop for
   the hand that pressed, then the launcher, saying what it answered
 
 ## lines-left-as-written
@@ -118,5 +118,5 @@ In `workshop/first-run/setup.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-FIRST-02: every line of the quick setup and of Start here is read whole at the pane's own size,
+- every line of the quick setup and of Start here is read whole at the pane's own size,
   a line wider than the pane going on in the rows beneath it

@@ -5,6 +5,8 @@ pane's declaration and the hand-off of its row's settings, the row read and writ
 role's role-wide settings, Workshop's settings file, and a pane's pin list -- every door and
 every hand-off the layouts' owner's, `zengine.layouts`. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
+Retired: WL-SETTING-05, WL-SETTING-13
+
 ## WL-SETTING-01 — A setting is a key and one value of three kinds
 
 LAW — A setting is a key and exactly one value, a flag, a number or a text, each in its own field; one holding no value or two is refused by its key wherever it is read, and nothing converts it.
@@ -23,7 +25,7 @@ LAW — A setup row keeps its pane's settings in key order, once each, at most `
 MEANS
 - form alone: an unresolved reference keeps its settings byte for byte, whatever they mean;
 - the desk's bound keeps a session at every bound inside Loom's decode budget (`kMaxDecodedCells`);
-- a `workshop.` key is a newer Workshop's; the theme laid over the layout's for the pane's area is kept beside the row, never among its settings (WL-SETTING-13).
+- a `workshop.` key is a newer Workshop's; the theme laid over the layout's for the pane's area is kept beside the row, never among its settings.
 
 DOES NOT MEAN
 - that a refused file is half read: it is refused whole, and `r` leaves the file and the desk.
@@ -56,23 +58,9 @@ MEANS
 
 DOES NOT MEAN
 - that a room and a row arrive in an order: they come from two senders, so a pane takes a row from the layouts' owner alone (`PaneSettingsFacet`) and draws once it holds one;
-- that a managed opening's shown picture has them: it was prepared before the seat (WL-OPEN-10).
+- that a managed opening's shown picture has them: it was prepared before the seat.
 
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
-
-## WL-SETTING-05 — A setting is edited as a row of its pane's inspector, against what it takes
-
-LAW — Info shows a row per declared setting and kept key, read of the layouts' owner; a value its setting does not take is refused naming what it takes, its default is stored as absence, and `-` clears it.
-
-MEANS
-- a text is stored as typed, spaces and all; a row reads a value as typed, and one its setting does not take beside the default in effect;
-- a kept key takes only `-`; the rows are read again when the row's revision moves, and a commit names the revision read;
-- the band and the row's reading say the value was stored and handed, or why it was not, as the layouts' owner says it.
-
-DOES NOT MEAN
-- that the desk acts on a value: it judges and keeps it, and what it means is the pane's.
-
-WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 
 ## WL-SETTING-06 — A hide keeps a row's settings; a removal names them
 
@@ -164,19 +152,6 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 
-## WL-SETTING-13 — Each graphics area wears its layout's themes, its row's laid over them
-
-LAW — Each graphics area wears the palette named for the live layout's themes, a pane's area and frame its row's theme laid over them; a choice is said when it moved, before the place.
-
-MEANS
-- both are written by the layouts' owner's batch (`LayoutThemesWrite`, `RowThemeWrite`), each name judged;
-- a layout wearing none wears the pool's own look; the theme role is told every stack worn, and Workshop offers no palette.
-
-DOES NOT MEAN
-- that the pane hears its theme: a row's theme is kept beside its settings, never handed to it.
-
-WHY — `agents/decisions/a-colour-is-a-name-the-window-paints.md`
-
 ## Proven by
 
 ### WL-SETTING-01
@@ -240,19 +215,6 @@ and none hands one"
 `tests/test_workshop_panes_opening.cpp` "a pane a managed opening seats is handed its row by the
 layouts' owner" "a managed opening's owed rooms go out when the next delivery repaints nothing, and
 its row is handed"
-
-### WL-SETTING-05
-`workshop/setup.hpp` author_pane_setting
-`pane/settings.hpp` row_setting_absence
-`workshop/layouts/store.cpp` handed_fact
-`info/settings_rows.hpp` value_text rows_of Typed
-`info/property_view.hpp` merge
-`tests/test_workshop_panes_settings.cpp` "a pane's settings are rows of its subject, named by their
-keys, after RESOLVED" "a value a setting does not take is refused at the edit, naming what it takes"
-"a setting typed at its default is stored as its absence, and `-` clears one" "a settings write says
-it was stored and handed, or why it was not handed" "a text setting is stored as it is typed, spaces
-included, and `-` clears it" "a kept setting takes only `-`, and the rows are named anew when it
-goes" "the row Info reads moves with what it is built from: a declaration, and a new holder"
 
 ### WL-SETTING-06
 `workshop/setup_reconcile.hpp` discarded_settings discarded_locks settings_said
@@ -357,15 +319,3 @@ Workshop-wide list, and a reading of the row says the list" "a pin act is refuse
 nothing written: a key not declared, one pinned already, one not pinned, an act not known, past the
 bound" "per-layout pins keep each layout's own list, a layout with none reading the Workshop-wide
 one"
-
-### WL-SETTING-13
-`workshop/weave_run.cpp` arrange_graphics wear_themes
-`workshop/weave.hpp` WorkshopWeave::palettes_chosen_ WorkshopWeave::themes_worn_
-`workshop/setup.hpp` SetupPane::theme Setup::themes layout_themes_problem theme_name_problem
-`workshop/settings_seam_vocabulary.hpp` LayoutThemesWrite RowThemeWrite
-`theme/stack_name.hpp` stack_palette stack_over
-`tests/test_workshop_desk.cpp` "each graphics area wears the palette named for the live
-layout's themes, a pane's row's theme laid over them for its area and its frame alone, and a
-palette is said only when an area's moved"
-`tests/test_workshop_panes_settings.cpp` "a row keeps no `workshop.` key among its settings: its theme stands beside them, a commit
-of `workshop.skin` is refused, and a version-7 setup's is read as the row's theme"

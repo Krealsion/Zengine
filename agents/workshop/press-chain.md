@@ -3,6 +3,8 @@
 Register `WL-PRESS`: what a routing bool means, where the body is resolved, and the pointer
 order. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
+Retired: WL-PRESS-02, WL-PRESS-03, WL-PRESS-05
+
 ## WL-PRESS-01 — A press-chain bool means CONSUMED
 
 LAW — The handlers under `if (b.pressed)` answer one routing question — true: consumed, stop; false: not mine, carry on — and a consumed press need not change anything at all.
@@ -19,26 +21,6 @@ MEANS
 
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
-## WL-PRESS-02 — A bool that is not the chain's is not unified with it
-
-LAW — `layouts_press`'s bool is "this was a tab" and is not unified with the chain's CONSUMED: one shape, two questions, told apart by name.
-
-MEANS
-- ⭐ the deliberate `false` this law was written over is gone with `objects_press`;
-- so is `terminal_press`'s "a repaint is owed", which left with the overlay.
-
-WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
-
-## WL-PRESS-03 — A pane's own inverse answers WHERE and nothing about meaning
-
-LAW — A resolved owner's inverse is asked once per press, beside the canvas point, and answers where it landed in that pane's body — never what it means; a decline changes nothing, so holding it is sound.
-
-MEANS
-- ⭐ this law was `info_body_at`'s, then `pane_editor_at`'s; every inverse left is a pane's;
-- an external pane's is asked before the press writes the keyboard, which moves a hidden title.
-
-WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
-
 ## WL-PRESS-04 — Nothing asks a geometry question above occupancy
 
 LAW — The order is arrangement, the open contextual surface, then pane occupancy over `effective_pane_order`, then the resolved pane's own inverse, then the bare room.
@@ -47,12 +29,6 @@ MEANS
 - a new pane-internal gesture belongs in the resolved-owner arm, never above the walk;
 - a pane in front of another takes the press, whichever of them owns a control at that cell;
 - in a graphics window the chain answers Workshop's own area (`on(AreaButtonChanged)`): a pane's area is its own, a moment over it never relayed (`placed_in_window`).
-
-WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
-
-## WL-PRESS-05 — `band_tab_at` is the Layouts pane's local inverse
-
-LAW — The tab inverse is spent only once occupancy has named the Layouts pane, and its spans come from the run's own composition against the pane's body, so no unpainted tab is ever answered.
 
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
@@ -101,20 +77,6 @@ press whole"
 `tests/test_workshop_screen.cpp` "a press that lands on a pane begins nothing, so a hand that leaves
 it drags nothing"
 
-### WL-PRESS-02
-`workshop/weave_pointer.cpp` layouts_press
-`tests/test_workshop_panes_input.cpp` "management chrome gets first refusal, and a mode takes the
-press whole"
-
-### WL-PRESS-03
-`workshop/screen.hpp` ProseAt
-`workshop/screen_external.cpp` external_press_at
-`workshop/weave_pointer.cpp` pointer_button
-`tests/test_workshop_panes_input.cpp` "a press in the body names the row under the header, in both
-media"
-`tests/test_workshop_panes_files.cpp` "with pane titles hidden, a first press on the row painted
-gamma selects gamma once every delivery it caused has settled, and a later press opens gamma"
-
 ### WL-PRESS-04
 `workshop/weave_pointer.cpp` pointer_button
 `workshop/screen_chrome.cpp` occupied_at
@@ -146,7 +108,7 @@ landed -- the area, the part named there and its drawer's number for the drawing
 through its owner's next drawing keeps its number for its moves and its release, wherever it lands"
 "a pane on the drawing facet is pressed over a drawn button's whole face, its edge included, and a
 press the window landed on another part than it shows there is refused"
-`tests/test_workshop_panes_desktop.cpp` "WL-DESK-14: a press queued behind a change of the list is
+`tests/test_workshop_panes_desktop.cpp` "a press queued behind a change of the list is
 refused, never resolved against the moved rows"
 `tests/test_workshop_panes_input.cpp` "a Loaded press the window landed before the wheel moved its
 rows selects nothing"
@@ -154,14 +116,6 @@ rows selects nothing"
 moved is refused in words and spends nothing, and one landed on the same entry redrawn takes"
 `tests/test_workshop_inventory_info.cpp` "a value released on Flow before its carry is answered
 carries the window's word from its release, though Flow repainted meanwhile"
-
-### WL-PRESS-05
-`workshop/screen_chrome.cpp` occupied_at
-`workshop/screen_layouts.cpp` band_tab_at band_status layouts_body
-`workshop/panes.hpp` kLayouts
-`workshop/weave_pointer.cpp` layouts_press
-`tests/test_workshop_screen.cpp` "a press answers a painted tab and nothing else on the band" "an
-omitted tab has no span and cannot be pressed" "no press outside the painted run reaches a layout"
 
 ### WL-PRESS-06
 `pane/vocabulary.hpp` PanePassRequested

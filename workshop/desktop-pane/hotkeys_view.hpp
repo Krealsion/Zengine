@@ -184,7 +184,7 @@ public:
     // ---- The keymap in force ------------------------------------------------------------------
 
     /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth. The table is read
-    /// from it; this pane keeps no gesture of its own to print (WL-DESK-11).
+    /// from it; this pane keeps no gesture of its own to print.
     void keymap_said(const ws::KeymapShown& said, const Declared& keys_rows_decl,
                      loom::Mail& mail) {
         keymap_ = said;

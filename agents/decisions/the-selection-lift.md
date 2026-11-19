@@ -34,5 +34,4 @@ desk's pointer walk cannot disagree, because there is nothing to disagree about.
 Arrange leaves the selection exactly where it was. Nothing that means "in front right now" may
 call `presentation_order`.
 
-**Laws supported.** [WL-FRONT-04](../workshop/planes.md), [WL-FRONT-05](../workshop/planes.md),
-[WL-FRONT-06](../workshop/planes.md), [WL-FRONT-07](../workshop/planes.md).
+**Laws supported.** [WL-FRONT-04](../workshop/planes.md), [WL-FRONT-05](../workshop/planes.md).

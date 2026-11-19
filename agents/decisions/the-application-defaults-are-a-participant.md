@@ -68,23 +68,18 @@ subject, which was the arc's other half.
 **Since.** Both retired in the continuation. Info gained a pane subject (WL-INFO-14, WL-INFO-15);
 the object canvas and its document went, and an old document is named once and left (WL-DOC-22);
 the picker went with the host's own Pane Manager, whose duties the desktop's Pane Manager
-presents — launching, closing (WL-DESK-12) and making a pane (WL-MAKER-11) — while its Hotkeys
-pane presents the effective keymap (WL-DESK-11).
+presents — launching, closing (WL-DESK-12) and making a pane — while its Hotkeys
+pane presents the effective keymap.
 
 **And the absence of a choice is state.** The launcher's cursor held a pane's identity, but a
 choice whose row left the list was kept only by the image that saw it leave: the keys were
 cleared, a successor read them as never chosen, and gave the marker — Return and `x` with it —
 to the pane in that place (the review's probe at `5fbc3f7`). The keys now stay, in `DesktopState`
 version 2 with its shape unchanged, so a same-shape reload is still accepted; both keys empty
-means only a cursor never given a pane (WL-DESK-10).
+means only a cursor never given a pane.
 
-**Laws supported.** [WL-DESK-09](../workshop/desktop-presenting.md),
-[WL-DESK-10](../workshop/desktop-presenting.md), [WL-DESK-14](../workshop/desktop-presenting.md),
-[WL-DESK-11](../workshop/desktop-presenting.md), [WL-DESK-01](../workshop/desktop.md),
-[WL-DESK-02](../workshop/desktop.md), [WL-DESK-03](../workshop/desktop.md),
-[WL-DESK-04](../workshop/desktop.md), [WL-DESK-07](../workshop/desktop.md),
-[WL-DESK-08](../workshop/desktop.md), [WL-DESK-12](../workshop/desktop.md),
-[WL-DESK-18](../workshop/desktop.md),
-[WL-DESK-13](../workshop/desktop.md), [WL-FIRST-01](../workshop/first-run.md),
-[WL-FIRST-02](../workshop/first-run.md), [WL-FIRST-04](../workshop/first-run.md),
-[WL-FIRST-05](../workshop/first-run.md).
+**Laws supported.** [WL-DESK-01](../workshop/desktop.md), [WL-DESK-02](../workshop/desktop.md),
+[WL-DESK-03](../workshop/desktop.md), [WL-DESK-04](../workshop/desktop.md),
+[WL-DESK-07](../workshop/desktop.md), [WL-DESK-08](../workshop/desktop.md),
+[WL-DESK-12](../workshop/desktop.md), [WL-DESK-13](../workshop/desktop.md),
+[WL-DESK-18](../workshop/desktop.md).

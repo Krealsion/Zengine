@@ -44,7 +44,6 @@ struct Step {
     const char* by;     ///< whose fact ticks it, as the line says it
 };
 
-// WL-FIRST-04 -- agents/workshop/first-run.md
 inline const std::array<Step, kSteps>& steps() {
     static const std::array<Step, kSteps> all{{
         {"Make a view", "lay out a panel in the View Builder and run it", zengine::view_builder::kRole,
@@ -145,7 +144,6 @@ struct StoryLine {
 /// THE LINES OF "START HERE", top to bottom: a heading, then for each step its box and what it
 /// asks, whose fact ticks it, and its Show me; a line when the story is done; the notice last.
 /// Each is read whole in `columns` (`wrapped`).
-// WL-FIRST-04 -- agents/workshop/first-run.md
 inline std::vector<StoryLine> story_lines(const StoryMoment& m, std::int64_t columns = 0) {
     std::vector<StoryLine> out;
     const auto mark = [&](std::int64_t i) { return std::string(m.cursor == i ? "> " : "  "); };

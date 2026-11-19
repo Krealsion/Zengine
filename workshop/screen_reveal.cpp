@@ -8,10 +8,6 @@
 
 namespace zengine::workshop {
 
-// WL-ARR-09 -- agents/workshop/arrangement.md
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
-// WL-FRONT-01 -- agents/workshop/planes.md
 void paint_pane_affordances(ScreenPlane& layer, const Session& s,
                             const Screen& sc) {
     if (!s.arrange.open) {
@@ -68,7 +64,6 @@ void paint_pane_affordances(ScreenPlane& layer, const Session& s,
     }
 }
 
-// WL-ARR-18 -- agents/workshop/arrangement.md
 std::string arranging_caption_subject(const Session& s) {
     if (s.arrange.desk) {
         return "all panes";
@@ -77,7 +72,6 @@ std::string arranging_caption_subject(const Session& s) {
     return kind.has_value() ? kind_name(s.panes, *kind) : ref_text(s.arrange.pane);
 }
 
-// WL-ARR-18 -- agents/workshop/arrangement.md
 PixelRect arranging_caption_rect(const Session& s, const Screen& sc) {
     if (!s.arrange.open) {
         return PixelRect{};
@@ -113,7 +107,6 @@ PixelRect arranging_caption_rect(const Session& s, const Screen& sc) {
     return top;
 }
 
-// WL-ARR-18 -- agents/workshop/arrangement.md
 void paint_arranging_caption(ScreenPlane& layer, const Session& s, const Screen& sc) {
     if (!s.arrange.open) {
         return;

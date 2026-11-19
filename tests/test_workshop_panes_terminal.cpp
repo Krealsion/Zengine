@@ -1567,7 +1567,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     t.clear_line();
     t.type("hold");
 
-    // AND A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR (WL-TEXT-10) -- the terminal
+    // AND A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR -- the terminal
     // medium's own standing truth, which is what keeps copy-here paste-there working there.
     t.r.key(input::scan::kA, input::mod::kCtrl);
     t.r.key(input::scan::kC, input::mod::kCtrl);

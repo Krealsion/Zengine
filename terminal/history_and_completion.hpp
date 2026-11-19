@@ -5,9 +5,9 @@
 #define ZENGINE_TERMINAL_HISTORY_AND_COMPLETION_HPP
 
 // The Terminal pane's two helps to the line: the participant's commands walked as history, and a
-// recalled line locked in (WL-TERM-12, WL-TERM-13); and the one read, what could be said next,
+// recalled line locked in; and the one read, what could be said next,
 // taken only by the intent that asked, with the list's own cursor (WL-TERM-11), whose candidate
-// Enter takes once the weaver moved it (WL-TERM-21). The members are
+// Enter takes once the weaver moved it. The members are
 // `TerminalPaneWeave`'s, declared in `pane.cpp`, which includes this file after the class; it
 // compiles in no other place.
 // Workshop law: agents/workshop/terminal-pane.md, agents/workshop/terminal.md

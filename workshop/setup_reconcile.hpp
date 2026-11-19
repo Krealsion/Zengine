@@ -379,7 +379,6 @@ struct Reconciled {
 /// THE ROOM THE OVERLAY COLUMN HAS ON THIS SCREEN, and the measures a pane in it is sized by:
 /// how many panes of the fallback height one pass down the column holds, the room's extent, and
 /// the medium's text and chrome.
-// WL-PANE-03 -- agents/workshop/panes-and-windows.md
 struct StackCapacity {
     std::size_t slots = 0;
     std::int64_t height = 0, width = 0;
@@ -450,7 +449,7 @@ inline std::vector<std::optional<std::int64_t>> resolved_rows(const Setup& setup
 /// WHICH AUTHORED REFERENCES THIS BUILD PRESENTS, and how many it cannot -- resolution alone,
 /// changing nothing. Every resolved reference is seated: the stack is not rationed, since its
 /// column begins again at its top when a pane would pass its floor (`bounds_of`).
-// WL-PANE-03, WL-PANE-07 -- agents/workshop/panes-and-windows.md
+// WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Seating {
     std::vector<std::int64_t> wanted; ///< resolved, in setup order
     std::vector<bool> shut;           ///< ...and whether each one's row is shut
@@ -478,7 +477,7 @@ inline Seating seat_panes(const Setup& setup, const Panes& panes) {
 
 /// THE AUTHORED PANE ORDER, BACK TO FRONT -- the one place `front` is read. An open docked pane
 /// stands over the room, so it is in front of every pane the room holds.
-// WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md; WL-GEO-14 -- agents/workshop/geometry.md
+// WL-FRONT-05 -- agents/workshop/planes.md; WL-GEO-14 -- agents/workshop/geometry.md
 inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Panes& panes) {
     struct Ranked {
         std::int64_t front;
@@ -526,7 +525,7 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
 
 /// WHAT PANE IS EFFECTIVELY IN FRONT RIGHT NOW -- the authored order with the selected
 /// pane lifted to the end of it.
-// WL-FRONT-01, WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md
+// WL-FRONT-05 -- agents/workshop/planes.md
 inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
                                                       const Panes& panes) {
     std::vector<std::int64_t> order = presentation_order(setup, panes);

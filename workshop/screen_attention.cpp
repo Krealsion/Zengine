@@ -22,7 +22,7 @@ static std::string pane_setting_unused_key(const PaneRef& ref, const std::string
     return "pane.setting-unused." + ref_text(ref) + "." + key;
 }
 
-// WL-ATTN-03, WL-ATTN-04, WL-ATTN-05 -- agents/workshop/attention.md
+// WL-ATTN-03, WL-ATTN-04 -- agents/workshop/attention.md
 std::vector<Condition> attention_conditions(const Session& s,
                                             const ProjectFrontier& frontier) {
     std::vector<Condition> out = s.conditions.rows;
@@ -68,7 +68,6 @@ std::vector<Condition> attention_conditions(const Session& s,
     return out;
 }
 
-// WL-ATTN-12 -- agents/workshop/attention.md
 std::vector<StandingCondition> standing_conditions(const Session& s,
                                                    const ProjectFrontier& frontier) {
     std::vector<StandingCondition> out;
@@ -96,7 +95,6 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
     return out;
 }
 
-// WL-ATTN-12 -- agents/workshop/attention.md
 bool same_conditions(const std::vector<StandingCondition>& a,
                      const std::vector<StandingCondition>& b) {
     if (a.size() != b.size()) {
@@ -114,7 +112,6 @@ bool same_conditions(const std::vector<StandingCondition>& a,
 
 // ---- WHAT CAN I DO WITH THIS, PRESENTED --------------------------------------------------
 
-// WL-CTX-03, WL-CTX-04 -- agents/workshop/contextual.md
 std::string context_entry_text(const ContextEntry& entry) {
     if (entry.is_group) {
         return std::string(entry.group) + kSubmenuMark;
@@ -131,7 +128,6 @@ std::int64_t context_label_columns(const std::vector<ContextEntry>& rows) {
     return widest;
 }
 
-// WL-CTX-06 -- agents/workshop/contextual.md; WL-TAB-12 -- agents/workshop/tab-run.md
 std::string context_annotation(const Session& s, const ContextEntry& entry) {
     if (entry.is_group || entry.row == nullptr) {
         return std::string(); // folders are not actions
@@ -189,7 +185,6 @@ std::string context_row_text(const Session& s, const ContextEntry& entry,
     return detail::pad(text, static_cast<std::size_t>(label_columns + 2)) + gesture;
 }
 
-// WL-CTX-03 -- agents/workshop/contextual.md
 PixelRect context_bounds(const Session& s, const Screen& sc) {
     const ContextMenu& menu = s.context;
     const std::vector<ContextEntry> rows = context_population(menu);
@@ -217,7 +212,7 @@ PixelRect context_bounds(const Session& s, const Screen& sc) {
     const PixelRect fitted = popup_bounds_at(want_cols, want_rows, x, y, sc);
     // A POPUP THE ROOM CUT IS WIDE ENOUGH TO SAY SO: a level taller than the room shows
     // `... n more`, and a marker cut to dots would say nothing. A level that fits keeps the width
-    // of its rows (WL-CTX-04).
+    // of its rows.
     const ProsePlace place = prose_place(fitted, sc);
     if (place.present && place.rows < want_rows) {
         const std::int64_t marker =

@@ -345,7 +345,6 @@ public:
     }
 
 
-    // WL-FOCUS-04 -- agents/workshop/focus.md
     /// A press the window landed on another row than the one the rows show there now is refused in
     /// words and spends nothing.
     void press(const zengine::pane::RowPress& at, loom::Mail& mail) {
@@ -388,7 +387,7 @@ public:
                 } else if (m->kind == files_row::kCandidate && chooser_.open) {
                     // THE CHOOSER'S OWN SECOND PRESS: the first names the candidate, the second
                     // authors it -- the browser's rule, one mode over, so no press means two
-                    // things at once. And only where the keys already were (WL-FOCUS-04): the
+                    // things at once. And only where the keys already were: the
                     // press that brings them here is a weaver pointing at the pane, not a weaver
                     // choosing a candidate in it.
                     if (keys_went_here && m->index == chooser_.cursor) {
@@ -415,7 +414,7 @@ public:
 
     /// THE SECOND BUTTON. A right press on a row this pane owns OFFERS that row's menu, beside
     /// the press, continuing it; a right press on anything else -- the header, a marker, blank
-    /// space -- is handed back to the host, whose own pane menu answers (WL-CTX-08). A middle
+    /// space -- is handed back to the host, whose own pane menu answers. A middle
     /// press means nothing here and is consumed.
     bool right_press(const FilesMeaning& m, const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (m.kind == files_row::kNone) {
@@ -921,8 +920,8 @@ public:
     }
 
     /// ASK THE HOST FOR THE KEYBOARD, CONTINUING THE CHOICE THIS DELIVERY BROUGHT. Spent only
-    /// where a chosen row actually began an edit: a right press by itself stays focus-neutral
-    /// (WL-CTX-08), and the host refuses a grab that is no longer the weaver's latest act.
+    /// where a chosen row actually began an edit: a right press by itself stays focus-neutral,
+    /// and the host refuses a grab that is no longer the weaver's latest act.
     void take_keys(loom::Mail& mail) {
         (void)pane_menu::take_keyboard(mail, files::kFilesRole, files::kProjectFilesPane);
     }
@@ -1096,7 +1095,7 @@ private:
         const std::vector<zengine::pane::ActionCause> authored{zengine::pane::cause_of<RecipeAuthorRequested>(), status};
         // The authoring line owns the keyboard except for these rows. The two arrows are the
         // field walk, free because a single line has no row above or below; `files.write-recipe`
-        // declares no default key (`kUnknown`, WL-KEY-13), reachable from its control and the
+        // declares no default key (`kUnknown`), reachable from its control and the
         // menu, or from a key the weaver names.
         if (authoring_.open) {
             row(files::kActionUp, "previous field", input::scan::kUp);
@@ -1417,7 +1416,7 @@ private:
     // ---- The places: a section of the browser (component::Accordion) --------------------
 
     /// THE PLACES THE SECTION SHOWS: the origin, the weaver's marks and the filesystem roots, in
-    /// the traversal's order (WL-FILES-06), the roots as the listing last read them.
+    /// the traversal's order, the roots as the listing last read them.
     std::vector<MarkedPlace> places() const { return marks_.destinations(roots_); }
 
     /// OPEN THE PLACES OR SHUT THEM: the pane's own word for its row, asked of the layouts' owner,

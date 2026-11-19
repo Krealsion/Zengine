@@ -46,5 +46,5 @@ already met. A marker row is now said only where the window reserved one, becaus
 anyway overran the budget and pushed the strip out of a short pane.
 
 **Laws supported.** [WL-HAND-01](../workshop/pane-controls.md),
-[WL-HAND-02](../workshop/pane-controls.md), [WL-HAND-03](../workshop/pane-controls.md),
-[WL-HAND-04](../workshop/pane-controls.md), [WL-HAND-05](../workshop/pane-controls.md).
+[WL-HAND-03](../workshop/pane-controls.md), [WL-HAND-04](../workshop/pane-controls.md),
+[WL-HAND-05](../workshop/pane-controls.md).

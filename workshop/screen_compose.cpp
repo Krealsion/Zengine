@@ -23,7 +23,7 @@ using pane::row_text_shown;
 
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
-// WL-FRONT-01, WL-FRONT-05, WL-FRONT-07 -- agents/workshop/planes.md
+// WL-FRONT-05 -- agents/workshop/planes.md
 void paint_panes(ScreenCanvas& c, const Session& s, const Screen& sc) {
     const Panes& panes = s.panes;
     const std::int64_t lifted = selected_pane(panes);
@@ -98,7 +98,6 @@ std::vector<PixelRect> selection_rings(const PixelRect& b, const Screen& sc) {
 
 } // namespace
 
-// WL-FOCUS-12 -- agents/workshop/focus.md
 void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc) {
     const PixelRect b = selection_ring_rect(s, sc);
     if (b.empty()) {
@@ -204,7 +203,6 @@ namespace {
 
 /// EVERY DOCK'S STRIP, its own ground the whole length of its edge, its arrow and its tags in it:
 /// an open pane's tag and an open edge's arrow in the accent ink, the rest quiet.
-// WL-CHROME-12 -- agents/workshop/chrome.md
 void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
     const std::vector<StripMark> marks = strip_marks(s, sc);
     for (const std::int64_t edge :
@@ -265,7 +263,6 @@ void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
 
 } // namespace
 
-// WL-FRONT-01, WL-FRONT-07 -- agents/workshop/planes.md
 // WL-ATTN-04 -- agents/workshop/attention.md
 ScreenCanvas paint(const Session& s) {
     const Screen sc = screen_of(s);
@@ -496,7 +493,6 @@ std::vector<PixelRect> outside_of(const PixelRect& r, const PixelRect& cut) {
 /// Workshop's own while a weaver arranges, its overlay while a pane opened is placed. A terminal
 /// leaves out a fill that is mostly transparent, so where the veil is, it draws none. The veil
 /// falls once where faded panes overlap: each pane is veiled only where no veil lies yet.
-// WL-ARR-18 -- agents/workshop/arrangement.md
 void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const Session& s,
                          const Screen& sc) {
     if (!s.arrange.open || s.arrange.desk || !s.arrange.addressed()) {

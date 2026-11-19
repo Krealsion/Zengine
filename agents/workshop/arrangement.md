@@ -4,16 +4,7 @@ Register `WL-ARR`: gestures, the resize law, the two arranging scopes, the coars
 Escape; the snap is its second file, [`arrangement-snap.md`](arrangement-snap.md). One law per
 heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
-## WL-ARR-01 — One press claims one gesture until release
-
-LAW — `PaneGesture` holds an identity, an edge, the press's size and its snap's lines — no rectangle, no live position — so every motion proposes `base + (pointer - press)` and nothing crossed moves it.
-
-MEANS
-- crossing another pane, the Terminal or a reorder changes nothing about who is being moved;
-- outside arrangement an addressed pane behind another claims no press and no address auto-raises;
-- each motion is interpreted; unchanged geometry, address, gesture and notice need no new picture.
-
-WHY — `agents/decisions/one-press-one-gesture.md`
+Retired: WL-ARR-01, WL-ARR-03, WL-ARR-04, WL-ARR-05, WL-ARR-07, WL-ARR-08, WL-ARR-09, WL-ARR-10, WL-ARR-11, WL-ARR-12, WL-ARR-18
 
 ## WL-ARR-02 — `end_held_gestures()` is the one release owner
 
@@ -26,31 +17,6 @@ DOES NOT MEAN
 - that a gesture may end anywhere else — `end_held_gestures()` is the one release owner.
 
 WHY — `agents/decisions/one-press-one-gesture.md`
-
-## WL-ARR-03 — `forget_removed_selection()` clears on membership, never on presentation
-
-LAW — A pane that becomes covered, off-room or unresolved stays addressed; a reference leaving the setup clears the address and its gesture, and closes the one-pane scope.
-
-MEANS
-- the desk stays open, its subject being the desk;
-- it runs inside `apply_setup`, the one door membership changes through.
-
-WHY — `agents/decisions/one-press-one-gesture.md`
-
-## WL-ARR-04 — A resize begins from the resolved window
-
-LAW — A first edit measures from `managed_bounds().resolved`, the unclipped ask captured at the press; `rect` is the visible intersection and owns painting, occupancy, coverage and handles.
-
-MEANS
-- a default pane resolving to 89 cells with four on screen answers one rightward step by five.
-
-WHY — `agents/decisions/anchors-and-axes.md`
-
-## WL-ARR-05 — Every resize edge preserves its opposite anchor
-
-LAW — The pulled edge follows the hand and the opposite edge holds still; a corner holds the corner across from it; right and bottom pulls leave a default place reactive by not writing it.
-
-WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-06 — Independent axes settle independently, refuse-never-clamp
 
@@ -65,63 +31,6 @@ DOES NOT MEAN
 - that a wall clamps an axis — a blocked axis is refused whole and keeps its authored value.
 
 WHY — `agents/decisions/anchors-and-axes.md`
-
-## WL-ARR-07 — Arrangement is two scopes and one vocabulary
-
-LAW — The one-pane scope is bound to exactly its pane — admission before binding through `arrange_geometry_ready` — and the desk opens with no pane addressed, every pane answering the pointer.
-
-MEANS
-- `PaneArrange{open, desk, pane, resetting}` replaced the selector with submodes;
-- in the one-pane scope a press elsewhere is consumed with the sentence naming the state;
-- on the desk a press takes hold and makes that pane the keyboard's target, topmost first.
-
-WHY — `agents/decisions/two-arranging-scopes.md`
-
-## WL-ARR-08 — The arranging keys are one vocabulary in both scopes
-
-LAW — Arrows place one cell, shift+arrows pull the extent one cell anchored at the place, `=`/`-` the coarse step, `f`/`b`/`r`/`l` order, `d` remove, `0` the reset prompt, esc leave.
-
-MEANS
-- the desk adds `tab`/`shift+tab` over `arrangeable()` — every setup row — and Return;
-- a hand and a key author the same setup values, each axis in its word; escape unwinds one level and rolls nothing back.
-
-WHY — `agents/decisions/two-arranging-scopes.md`
-
-## WL-ARR-09 — Arranging a pane is choosing it, and the rings are its statement
-
-LAW — `enter_arrange_pane` writes `Panes::selected` from the addressed reference after admission and nothing else; the state's visible statement is the rings, the legend and the notice.
-
-MEANS
-- rings: accent in the one-pane scope; over the desk muted, with accent on the target;
-- `arrange_status()` carries the pane's state word, so an invisible pane is recoverable by ear.
-
-WHY — `agents/decisions/two-arranging-scopes.md`
-
-## WL-ARR-10 — The coarse step is the fine step with a bigger delta
-
-LAW — The coarse step resizes the addressed pane by the coarse count on both axes through the ordinary resize seam: one proposal at the bottom-right edge, into the one gesture door, and no second owner.
-
-MEANS
-- it meets the identical per-axis settlement a shifted arrow meets, and there is no second owner;
-- it cannot move the pane it resizes, moves no other pane, and measures no content;
-- the coarse count is `workshop.arrange-step`, `kCoarseStepCells` until a weaver sets it.
-
-WHY — `agents/decisions/why-the-coarse-step-is-four.md`
-
-## WL-ARR-11 — Four is the default, and the default is pinned
-
-LAW — A `static_assert` holds `kStackRows + kCoarseStepCells - 2*kChromeCells - 1 >= 8`, so at the defaults one grow gives a stack pane's body the eight rows the Compose form needs.
-
-DOES NOT MEAN
-- that a weaver's settings keep it: a smaller `workshop.arrange-step` or `workshop.stack-rows` is theirs to choose.
-
-WHY — `agents/decisions/why-the-coarse-step-is-four.md`
-
-## WL-ARR-12 — The coarse step is ordinary action vocabulary
-
-LAW — `manage.grow`/`manage.shrink` are catalog rows declared in both scopes, so one override moves both; the legend and the effective keymap say them, and no pane's chrome paints them.
-
-WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-13 — Escape is back, not cancel, and its last meaning puts the pane down
 
@@ -165,20 +74,6 @@ MEANS
 
 WHY — `agents/decisions/escape-is-back.md`
 
-## WL-ARR-18 — Arranging cannot be missed: it is said at the room's top and every other pane fades
-
-LAW — While arranging is open the room's top says `Arranging Mode Active` on its own ground, beneath it the pane arranged or `all panes`; in a window every pane but the one arranged fades.
-
-MEANS
-- the fade is a veil in the pool's `veil` over what of each other pane the arranged one leaves showing, in Workshop's own area, or its overlay while a pane is placed as it opened;
-- where faded panes overlap the veil falls once, so every faded pane fades alike;
-- a terminal shows the words and no veil: it leaves out a fill that is mostly transparent.
-
-DOES NOT MEAN
-- that the desk's arrangement fades a pane: every pane is arranged there.
-
-WHY — `agents/decisions/the-weaver-places-a-pane.md`
-
 ## Do not assume
 
 - That Escape with a pane selected does nothing, or closes the pane — it puts the selection
@@ -189,16 +84,6 @@ WHY — `agents/decisions/the-weaver-places-a-pane.md`
 
 ## Proven by
 
-### WL-ARR-01
-`workshop/screen.hpp` PaneGesture Session::pane_drag kPaneEdgeBandPx
-`workshop/screen_arrange.cpp` pane_edge_at
-`workshop/weave_arrange.cpp` take_pane_hold arrange_motion commit_drag
-`workshop/weave_pointer.cpp` pointer_moved
-`tests/test_workshop_panes_window.cpp` "one press claims one gesture, and crossing anything does not
-move it" "outside arrangement, an addressed pane behind another clicks through nothing" "unchanged
-arrangement motion retains its gesture without another picture" "repeated refused arrangement motion
-retains the refusal and can recover" "queued arrangement motions retain order through release"
-
 ### WL-ARR-02
 `workshop/weave_pointer.cpp` end_held_gestures
 `tests/test_workshop_screen.cpp` "a release ends a pane gesture whatever mode sees it"
@@ -207,29 +92,6 @@ retains the refusal and can recover" "queued arrangement motions retain order th
 release, and one it gives a pane's area is the pane's, Workshop told where it landed" "a press Workshop holds in its own
 area of the window ends when the window says it ended the hold, and not before: an area Workshop
 places while it holds is the window's to judge"
-
-### WL-ARR-03
-`workshop/weave_arrange.cpp` forget_removed_selection
-`workshop/weave_session.cpp` apply_setup
-`workshop/screen.hpp` PaneArrange
-`tests/test_workshop_screen.cpp` "a removed target leaves no stale selection, submode or heading"
-"removing the pane being arranged ends the arrangement about it"
-`tests/test_workshop_panes_window.cpp` "clearing the selected pane clears its gesture safely"
-
-### WL-ARR-04
-`workshop/weave_arrange.cpp` managed_bounds managed_window_base
-`workshop/screen.hpp` PaneBounds PaneBounds::rect
-`workshop/screen_gestures.cpp` pane_window_proposal
-`tests/test_workshop_screen.cpp` "a clipped default resize begins from the full resolved size"
-
-### WL-ARR-05
-`workshop/screen_gestures.cpp` pane_window_proposal
-`workshop/screen.hpp` pane_edge::kBottomRight PaneWindowProposal
-`workshop/setup.hpp` author_pane_window
-`workshop/weave_arrange.cpp` arrange_resize arrange_window write_window
-`tests/test_workshop_screen.cpp` "every edge resizes pixel-fine and preserves its opposite anchor"
-"the reported top-edge defect is dead -- the bottom edge holds still" "a right or bottom resize
-leaves a default place reactive"
 
 ### WL-ARR-06
 `workshop/setup.hpp` author_pane_window check_pane_place_coord PaneAxisProposal share_reaching share_placing
@@ -244,55 +106,6 @@ still resizes the other" "a hand pulling a share's edge writes the share whose e
 pixel, at every pixel of the widest room" "a fill pulled at its far edge, with nothing sharing its
 frame, writes the share whose edge is the hand's pixel, and says so" "a hand moves an anchored pane
 in its word, a centred one into pixels, and pulls a fitted size into pixels, each said"
-
-### WL-ARR-07
-`workshop/screen.hpp` PaneArrange Session::arrange
-`workshop/weave_arrange.cpp` enter_arrange_pane take_pane_hold arrange_geometry_ready
-open_arrange_desk arrange_press
-`tests/test_workshop_panes_window.cpp` "the one-pane scope is bound -- another pane cannot be drawn
-into it" "the desk manipulates panes directly, and a press is its own targeting"
-`tests/test_workshop_host.cpp` "contextual Arrange admission precedes binding"
-
-### WL-ARR-08
-`workshop/keymap.hpp` kActionCatalog KeyContext::kArrangePane KeyContext::kArrangeDesk
-KeyContext::kArrangeReset
-`workshop/weave_arrange.cpp` arrange_key arrangeable arrange_step arrange_nudge arrange_grow
-`tests/test_workshop_panes_window.cpp` "the keyboard alone reaches every window operation" "a hand
-and a key author the same setup values" "escape unwinds one level and rolls nothing back"
-`tests/test_workshop_panes_info.cpp` "a pane its words leave too small to see, or off the room, is
-still listed, reached by tab, inspected by Info and given its size back there"
-
-### WL-ARR-09
-`workshop/weave_arrange.cpp` enter_arrange_pane arrange_status
-`workshop/screen_reveal.cpp` paint_pane_affordances
-`workshop/screen.hpp` pane_edge_name
-`workshop/screen_arrange.cpp` pane_edge_cell
-`tests/test_workshop_screen.cpp` "the arrangement's visible statement is the ring on the pane
-itself" "contextual Arrange lifts the pane it addressed, not the one in front"
-`tests/test_workshop_panes_window.cpp` "stepping names the pane, its state and its authored window
-in words"
-
-### WL-ARR-10
-`workshop/weave_arrange.cpp` arrange_grow arrange_key
-`workshop/screen.hpp` kCoarseStepCells pane_edge::kBottomRight Session::arrange_step_cells
-`workshop/screen_gestures.cpp` pane_window_proposal
-`workshop/setup.hpp` author_pane_window
-`tests/test_workshop_panes_window.cpp` "the coarse step is the resize seam with a bigger delta" "a
-coarse shrink meets the same per-axis refusal a fine one does"
-`tests/test_workshop_screen.cpp` "the coarse step is `workshop.arrange-step` cells, read from
-Workshop's settings file"
-
-### WL-ARR-11
-`workshop/screen.hpp` kCoarseStepCells kStackRows kChromeCells kMinArrangeStepCells
-kMaxArrangeStepCells
-`tests/test_workshop_panes_input.cpp` "one coarse grow gives the DEFAULT Compose pane a usable form"
-
-### WL-ARR-12
-`workshop/keymap.hpp` manage.grow manage.shrink
-`tests/test_workshop_panes_window.cpp` "the coarse step is ordinary action vocabulary, not pane
-chrome"
-`tests/test_workshop_screen.cpp` "no ordinary pane spends a row teaching a key the keymap already
-owns"
 
 ### WL-ARR-13
 `workshop/weave_external.cpp` unselect_pane
@@ -334,12 +147,3 @@ sent nothing" "every shipped pane that holds the keys and selects nothing hands 
 first, and are put down next"
 `tests/test_workshop_panes_attention.cpp` "a pane whose holder has no door for a key is put down by
 Escape, and nothing is sent"
-
-### WL-ARR-18
-`workshop/screen_reveal.cpp` paint_arranging_caption arranging_caption_subject arranging_caption_rect
-`workshop/screen.hpp` kArrangingCaption paint_arranging_caption arranging_caption_subject
-arranging_caption_rect
-`workshop/screen_compose.cpp` draw_arranging_veil
-`tests/test_workshop_screen.cpp` "WL-ARR-18: arranging says so at the room's top, naming what it
-arranges, and in a window every other pane fades" "WL-ARR-18: where faded panes overlap the veil falls
-once, and on all of each that shows"

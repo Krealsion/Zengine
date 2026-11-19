@@ -56,7 +56,6 @@ using zengine::persist::Written;
 
 /// The smallest surface this screen is laid out on, in canvas pixels -- 78 by 22 cells -- and,
 /// deliberately, the extent it uses when nothing tells it otherwise.
-// WL-GEO-02 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kScreenMinW = 78 * graphics::kCellPx;
 inline constexpr std::int64_t kScreenMinH = 22 * graphics::kCellPx;
 
@@ -67,13 +66,9 @@ inline constexpr std::int64_t kScreenMaxH = 400 * graphics::kCellPx;
 
 /// THE ROWS OF TEXT RESERVED AT THE TOP OF THE SCREEN, and they are the first thing a weaver
 /// reads. The band is as tall as these rows of the active medium's type need (`screen_of`).
-// WL-GEO-03 -- agents/workshop/geometry.md; WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr std::int64_t kTopRows = 2;
 
 /// The rows of text in the band under the workspace, the keys' legend, fitted the same way.
-// WL-GEO-03 -- agents/workshop/geometry.md
-// WL-FRONT-03 -- agents/workshop/planes.md
-// WL-RGN-03 -- agents/workshop/regions.md
 inline constexpr std::int64_t kBottomRows = 3;
 
 static_assert(kTopRows + kBottomRows == 5,
@@ -81,7 +76,6 @@ static_assert(kTopRows + kBottomRows == 5,
               "extent is what a share resolves against");
 
 // ---- THE OVERLAY STACK (`placement::kOverlayStack`), in cells -------------------------------
-// WL-PANE-04 -- agents/workshop/panes-and-windows.md
 /// THE MINIMUM WIDTH, and the base the surplus is measured from: wide enough for a build
 /// recipe's tail on the 78x22 composition, where it is also the whole of the workspace.
 inline constexpr std::int64_t kStackW = 48;
@@ -97,7 +91,6 @@ static_assert(kMinStackRows <= kStackRows && kStackRows <= kMaxStackRows,
 
 
 /// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE, in canvas pixels.
-// WL-GEO-05 -- agents/workshop/geometry.md
 struct Screen {
     std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints
     std::int64_t h = kScreenMinH;
@@ -121,7 +114,6 @@ struct Screen {
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
     /// The overlay stack's fallback height, in cells, as the session's settings choose it.
-    // WL-GEO-03 -- agents/workshop/geometry.md
     std::int64_t stack_rows = kStackRows;
 };
 
@@ -136,7 +128,6 @@ inline constexpr std::int64_t band_px_for(std::int64_t rows, std::int64_t text_a
 
 /// The furniture for a surface of this extent -- TOTAL over every std::int64_t, because the
 /// extent it is given came off the bus.
-// WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05 -- agents/workshop/geometry.md
 inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
                                   std::int64_t text_advance_px = 0,
                                   std::int64_t text_line_px = 0,
@@ -209,7 +200,6 @@ static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, graphics::kCellPx).band
 
 
 // ---- THE PIXEL LATTICE, AS A RECTANGLE --------------------------------------------------
-// WL-GEO-06 -- agents/workshop/geometry.md
 
 /// A rectangle on the canvas, in canvas pixels.
 struct PixelRect {
@@ -263,7 +253,6 @@ inline constexpr PixelRect pixels_of_cells(const CellRect& r) noexcept {
 
 /// THE CELLS A PIXEL RECTANGLE COVERS — the cell-grain quantization law as a rectangle:
 /// [floor(left), floor(right)) per axis.
-// WL-GEO-06 -- agents/workshop/geometry.md
 inline constexpr CellRect cells_covered(const PixelRect& f) noexcept {
     const std::int64_t x0 = graphics::cell_of_pixel(f.x);
     const std::int64_t y0 = graphics::cell_of_pixel(f.y);
@@ -314,10 +303,8 @@ inline constexpr PixelRect clip_to_canvas_px(const PixelRect& r, const Screen& s
 
 
 // ---- PLACEMENT RESOLVED: a place, on a screen, is a rectangle ---------------------------
-// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
 
 /// THE BOUNDS A PLACE RESOLVES TO on this screen, in canvas pixels.
-// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-04 -- agents/workshop/panes-and-windows.md
 inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot,
                                             const Screen& sc) noexcept {
     if (where == placement::kTopBand) {
@@ -336,7 +323,7 @@ inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot
 }
 
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
-// WL-CHROME-01, WL-CHROME-02, WL-CHROME-06 -- agents/workshop/chrome.md
+// WL-CHROME-02 -- agents/workshop/chrome.md
 
 /// The coarsest honest boundary, one every medium can show: one canvas cell, and the ceiling
 /// `chrome_outer_of` reserves for a surface sized by its own content.
@@ -351,7 +338,7 @@ inline constexpr std::int64_t chrome_grain(const Screen& sc) noexcept {
 
 /// The rectangle inside a pane's chrome: `outer` less `chrome_px` on every side, empty
 /// when the outer rectangle cannot hold both edges.
-// WL-CHROME-01, WL-CHROME-05 -- agents/workshop/chrome.md
+// WL-CHROME-05 -- agents/workshop/chrome.md
 inline constexpr PixelRect pane_interior(const PixelRect& outer,
                                         std::int64_t chrome_px) noexcept {
     const std::int64_t w = outer.w - 2 * chrome_px;
@@ -412,7 +399,6 @@ PixelRect pane_interior(const PixelRect& outer, const Screen& sc);
 
 /// The same subtraction read backwards: the outer extent a surface sized by its own content
 /// needs to hold that content inside its chrome.
-// WL-CHROME-06 -- agents/workshop/chrome.md; WL-CTX-03 -- agents/workshop/contextual.md
 inline constexpr PixelRect chrome_outer_of(std::int64_t x, std::int64_t y, std::int64_t w,
                                            std::int64_t h) noexcept {
     return PixelRect{x, y, w + 2 * kChromePx, h + 2 * kChromePx};
@@ -421,7 +407,6 @@ inline constexpr PixelRect chrome_outer_of(std::int64_t x, std::int64_t y, std::
 /// HOW MUCH ROOM ONE COARSE GROW GIVES A PANE, in canvas cells on both axes:
 /// `workshop.arrange-step`, from `kMinArrangeStepCells` to `kMaxArrangeStepCells`; this is its
 /// default.
-// WL-ARR-10, WL-ARR-11 -- agents/workshop/arrangement.md
 inline constexpr std::int64_t kCoarseStepCells = 4;
 inline constexpr std::int64_t kMinArrangeStepCells = 2;
 inline constexpr std::int64_t kMaxArrangeStepCells = 16;
@@ -434,16 +419,15 @@ static_assert(kStackRows + kCoarseStepCells - 2 * kChromeCells - 1 >= 8,
               "on both sides, less the pane's own title row");
 
 // ---- THE CHROME'S VOICE: three pool colours, each the palette's to set -----------------
-// WL-CHROME-07, WL-CHROME-08 -- agents/workshop/chrome.md
 inline constexpr graphics::PoolColor kPaneChrome = graphics::colors::frame;
 inline constexpr graphics::PoolColor kPaneChromeSelected = graphics::colors::frame_selected;
 inline constexpr graphics::PoolColor kTransientChrome = graphics::colors::frame_transient;
 
 // ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN -------------------------------------
-// WL-PANE-08, WL-PANE-09 -- agents/workshop/panes-and-windows.md
+// WL-PANE-09 -- agents/workshop/panes-and-windows.md
 
 /// WHAT ONE PANE'S AUTHORED INTENT RESOLVES TO ON THIS SCREEN.
-// WL-PANE-09, WL-PANE-10 -- agents/workshop/panes-and-windows.md
+// WL-PANE-09 -- agents/workshop/panes-and-windows.md
 struct PaneProjection {
     /// What the authored intent asks for before the canvas gets a say, in pixels; it may run
     /// past the screen's edge, which is legal intent and is not rewritten.
@@ -466,7 +450,6 @@ struct PaneBounds {
     /// this session, so it is answerable for a pane nobody has opened.
     std::int64_t placed_in = placement::kOverlayStack;
     /// EMPTY WHEN THE PANE IS NOT OPEN, deliberately.
-    // WL-ARR-04 -- agents/workshop/arrangement.md
     // WL-PANE-09 -- agents/workshop/panes-and-windows.md
     PixelRect rect{};
     /// ...and what the authored intent ASKED for, unclipped. Read by the state classifier,
@@ -493,7 +476,6 @@ DeskBounds desk_bounds(const Panes& panes, const Setup& setup, const Screen& sc)
 
 // The stack fits the SMALLEST screen this composition is honest on, which is where it is
 // tightest.
-// WL-GEO-04 -- agents/workshop/geometry.md
 inline constexpr PixelRect kMinStack =
     placement_bounds(placement::kOverlayStack, 0, kMinScreen);
 
@@ -529,8 +511,6 @@ inline constexpr PixelRect overlay_column(const Screen& sc) noexcept {
 
 /// How many overlay slots of the fallback height one pass down the column holds on this screen:
 /// a fact the desk's presentation claim carries, so a managed open sees the room move.
-// WL-PANE-03, WL-PANE-04 -- agents/workshop/panes-and-windows.md
-// WL-EDIT-13 -- agents/workshop/editor.md
 inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
     const std::int64_t floor_y = sc.room_y + sc.room_h;
     std::size_t fit = 0;
@@ -568,7 +548,7 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
               "next begins the column again at its top");
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
-// WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
+// WL-PRESS-04 -- agents/workshop/press-chain.md
 
 /// What `Occupancy` answers when it met no pane: the bare room. Negative, so it cannot collide
 /// with a kind, and a consumer that forgot to test it falls outside every lookup.
@@ -603,7 +583,6 @@ struct Occupancy {
     bool occupied = false;
     /// The name a weaver reads on those cells, empty when nothing is there: a sentence, never a
     /// kind to switch on.
-    // WL-PANE-05 -- agents/workshop/panes-and-windows.md
     std::string what;
     /// WHICH PRESENTATION, as a handle -- `kNoKind` for nothing at all.
     // WL-PRESS-04 -- agents/workshop/press-chain.md
@@ -622,7 +601,6 @@ Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
 // ---- PANE MANAGEMENT: what a weaver is ARRANGING, and how ------------------------------
 
 /// THE EIGHT MANIPULATION AFFORDANCES of a rectangle, and there is not a ninth.
-// WL-ARR-05 -- agents/workshop/arrangement.md
 namespace pane_edge {
 inline constexpr std::int64_t kLeft = 0;
 inline constexpr std::int64_t kRight = 1;
@@ -640,7 +618,6 @@ inline constexpr std::int64_t kCount = 8;
 inline constexpr std::int64_t kNoPaneEdge = -1;
 
 /// The edge a weaver reads, and the mark they read it BY.
-// WL-ARR-09 -- agents/workshop/arrangement.md
 inline constexpr const char* pane_edge_name(std::int64_t edge) noexcept {
     switch (edge) {
     case pane_edge::kLeft: return "left";
@@ -673,14 +650,12 @@ inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
 
 /// HOW DEEP AN EDGE'S GRAB BAND REACHES INTO THE PANE, in canvas pixels: one cell —
 /// exactly the ring the affordances have always occupied.
-// WL-ARR-01 -- agents/workshop/arrangement.md
 inline constexpr std::int64_t kPaneEdgeBandPx = graphics::kCellPx;
 
 /// HOW NEAR A LINE AN EDGE THE HAND MOVES COMES TO MEET IT, in canvas pixels: under a cell, so a
 /// terminal hand a cell away is not pulled across it, and at least half a cell, so a terminal hand
 /// at the nearest cell meets a line that falls inside it. The reach is `workshop.snap-reach`, from
 /// `kMinSnapReachPx` to `kMaxSnapReachPx`; this is its default.
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 inline constexpr std::int64_t kPaneSnapReachPx = 8;
 inline constexpr std::int64_t kMinSnapReachPx = 6;
 inline constexpr std::int64_t kMaxSnapReachPx = 11;
@@ -719,14 +694,13 @@ std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
 
 /// THE ARRANGEMENT STATE: WHICH SCOPE A WEAVER IS ARRANGING, AND WHICH PANE THE
 /// VOCABULARY ADDRESSES.
-// WL-ARR-03, WL-ARR-07 -- agents/workshop/arrangement.md
 struct PaneArrange {
     bool open = false;
     bool desk = false;
     PaneRef pane;
     bool resetting = false;
     /// Begun by the pane's own open: its title and edges take the hand, and the keys and a press
-    /// in its body stay the pane's, the first of either ending the arrangement (WL-DESK-19).
+    /// in its body stay the pane's, the first of either ending the arrangement.
     bool opened = false;
 
     bool addressed() const { return !pane.provider.empty(); }
@@ -749,7 +723,6 @@ struct InspectedPane {
 };
 
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
-// WL-ARR-01 -- agents/workshop/arrangement.md
 struct PaneGesture {
     bool active = false;
     PaneRef pane;
@@ -765,13 +738,12 @@ struct PaneGesture {
     std::int64_t base_h = 0;
     /// The lines the last motion's snap met, in the room, which the affordance plane marks while
     /// the gesture is held; none on an axis that met none.
-    // WL-ARR-17 -- agents/workshop/arrangement-snap.md
     std::optional<std::int64_t> met_x;
     std::optional<std::int64_t> met_y;
 };
 
 /// WHAT THE LAST PRESS ON A LAYOUT TAB NAMED, so the next one can be a double.
-// WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
+// WL-PTR-01 -- agents/workshop/pointer.md
 struct TabClickMemory {
     bool armed = false;
     std::size_t at = 0;      ///< the position the press landed on
@@ -784,7 +756,6 @@ bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                          std::int64_t clicks) noexcept;
 
 /// WHICH LAYOUT TAB A REORDER DRAG IS CARRYING -- the third gesture record.
-// WL-TAB-11 -- agents/workshop/tab-run.md
 struct LayoutTabDrag {
     bool active = false;
 };
@@ -807,23 +778,20 @@ struct Session {
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
     /// THE NORMAL WINDOW'S ROOM -- what a session save remembers as the viewport.
-    // WL-SESSION-09 -- agents/workshop/window-file.md
     std::int64_t normal_w = kScreenMinW;
     std::int64_t normal_h = kScreenMinH;
     /// THE WINDOW'S DESKTOP PLACEMENT, AS LAST REPORTED.
-    // WL-SESSION-08 -- agents/workshop/window-file.md
     bool placement_known = false;
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
     /// THE GUI WINDOW'S OWN NORMAL ROOM, as the session file kept it: what a run in another window
     /// writes back; 0 by 0 where none was kept.
-    // WL-SESSION-20 -- agents/workshop/window-file.md
     std::int64_t window_room_w = 0;
     std::int64_t window_room_h = 0;
     /// THE LAST THING WORKSHOP SAID, and that is all it is: each thing said is published to the
     /// notices record as it is said (`NoticeSaid`), and shown there, never here.
-    // WL-ATTN-01 -- agents/workshop/attention.md; WL-NOTE-01 -- agents/workshop/notices.md
+    // WL-ATTN-01 -- agents/workshop/attention.md
     std::string notice;
     bool notice_is_bad = false; ///< whether that thing was a refusal
     /// WHAT IS TRUE RIGHT NOW AND HAS NO LIVE OWNER TO DERIVE IT FROM (attention.hpp).
@@ -847,7 +815,6 @@ struct Session {
     // WL-INFO-15 -- agents/workshop/info-body.md
     std::optional<LayoutEdit> pending_edit;
     /// WHICH SCOPE A WEAVER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES.
-    // WL-ARR-07 -- agents/workshop/arrangement.md
     PaneArrange arrange;
     /// ...and the pane gesture their pointer is holding, if any: its own record, so a release ends
     /// the gesture its press began.
@@ -868,11 +835,9 @@ struct Session {
     // WL-KEY-02 -- agents/workshop/keyboard.md
     Keymap keymap;
     /// WHETHER THE ARRANGEABLE PANES PAINT THEIR TITLE ROWS -- a presentation preference.
-    // WL-FOCUS-11 -- agents/workshop/focus.md
     bool pane_titles = true;
     /// HOW THE BAND AND THE HOTKEYS VIEW EACH SPELL A KEY -- two presentation preferences, chosen
     /// apart; the manual a pane's `?` shows spells as the Hotkeys view does.
-    // WL-KEY-16 -- agents/workshop/key-spelling.md
     KeySpelling band_keys = KeySpelling::kFull;
     KeySpelling hotkeys_keys = KeySpelling::kFull;
     /// THE PANES THE LAST REFUSED QUIT FOUND HOLDING UNSAVED WORK, by the names they answered with:
@@ -881,23 +846,17 @@ struct Session {
     std::vector<std::string> quit_unsaved;
     /// WHETHER THE KEYBOARD'S SELECTION IS RINGED PLAIN -- one ring in the chrome's ink -- rather
     /// than in the accent's two: `workshop.focus.ring`.
-    // WL-FOCUS-12 -- agents/workshop/focus.md
     bool selection_ring_plain = false;
     /// WHETHER THE TERMINAL'S COMPLETION OFFERS A SHAPE'S REQUIRED FIELDS FIRST:
     /// `workshop.completion-order`.
-    // WL-TERM-04 -- agents/workshop/terminal-door.md
     bool completion_required_first = false;
     /// The arrangement's measures as the weaver set them: the coarse step, the snap's reach and
     /// the stack's fallback height.
-    // WL-ARR-10 -- agents/workshop/arrangement.md
     std::int64_t arrange_step_cells = kCoarseStepCells;
-    // WL-ARR-17 -- agents/workshop/arrangement-snap.md
     std::int64_t snap_reach_px = kPaneSnapReachPx;
-    // WL-GEO-03 -- agents/workshop/geometry.md
     std::int64_t stack_rows = kStackRows;
     /// WHETHER A PANE FIRST OPENED IN A LAYOUT OPENS AT THE HAND rather than the room's centre:
     /// `workshop.open-at`.
-    // WL-DESK-19 -- agents/workshop/desktop.md
     bool open_at_mouse = false;
     /// Where the weaver's hand last pressed or moved on the canvas, in pixels, once seen.
     std::optional<CanvasPoint> hand_px;
@@ -969,7 +928,7 @@ inline constexpr PixelRect strip_rect(const Screen& sc, std::int64_t edge) noexc
 
 /// This session's screen furniture, the strips its live desk keeps included. The one call; see
 /// `Screen`.
-// WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05, WL-GEO-14 -- agents/workshop/geometry.md
+// WL-GEO-14 -- agents/workshop/geometry.md
 inline Screen screen_of(const Session& s) noexcept {
     return with_strips(screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px,
                                  s.cell_px, s.stack_rows),
@@ -999,13 +958,11 @@ bool default_row_context(KeyContext c);
 /// THE PANES THE KEYBOARD'S SELECTION WALKS, in reading order: every open pane that takes the
 /// keys and stands on the canvas, top to bottom by its rectangle, then left to right, then front
 /// to back in the authored order.
-// WL-FOCUS-12 -- agents/workshop/focus.md
 std::vector<std::int64_t> selectable_panes(const Panes& panes, const Setup& setup,
                                            const Screen& sc);
 
 /// The pane `step` places after `from` in reading order, wrapping; from a pane not in it, the
 /// first (a step forward) or the last. None while no pane is selectable.
-// WL-FOCUS-12 -- agents/workshop/focus.md
 std::optional<std::int64_t> cycle_pane(const Panes& panes, const Setup& setup, const Screen& sc,
                                        std::int64_t from, std::int64_t step);
 
@@ -1014,7 +971,6 @@ std::optional<std::int64_t> cycle_pane(const Panes& panes, const Setup& setup, c
 /// panes overlap; the lowest gap along the direction plus twice the misalignment across it
 /// wins, a tie the front-most. From a pane not selectable, the first in reading order; none when
 /// nothing lies that way.
-// WL-FOCUS-12 -- agents/workshop/focus.md
 std::optional<std::int64_t> spatial_neighbour(const Panes& panes, const Setup& setup,
                                               const Screen& sc, std::int64_t from, Act dir);
 
@@ -1090,7 +1046,7 @@ std::vector<std::string> help_rows(const Keymap& k, KeySpelling spelling, KeyCon
 
 /// A PANE WINDOW PROPOSAL, IN CANVAS PIXELS: what one resize gesture asks the whole
 /// window to become.
-// WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
+// WL-ARR-06 -- agents/workshop/arrangement.md
 struct PaneWindowProposal {
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -1116,7 +1072,6 @@ struct PaneWindowAxes {
     PaneAxisProposal horizontal;
     PaneAxisProposal vertical;
 };
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base,
                                 const Screen& sc);
 
@@ -1137,7 +1092,6 @@ inline PaneWindowAxes pane_window_at(const PixelRect& base, const Screen& sc) {
 
 /// THE LINES AN EDGE THE HAND MOVES MAY MEET, in the room: the room's own edges and every edge
 /// of every other pane on the screen.
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 struct PaneSnapLines {
     std::vector<std::int64_t> xs;
     std::vector<std::int64_t> ys;
@@ -1147,7 +1101,6 @@ PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Scre
                               std::int64_t held);
 
 /// A HAND'S PROPOSAL, SNAPPED, and the line each axis met.
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 struct SnappedWindow {
     PaneWindowProposal want;
     std::optional<std::int64_t> met_x;
@@ -1165,7 +1118,6 @@ SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge
 
 
 /// WHERE A POINTER LANDED INSIDE A BOUNDED TEXT REGION, in that region's own prose.
-// WL-PRESS-03 -- agents/workshop/press-chain.md
 struct ProseAt {
     bool understood = false;
     std::int64_t column = 0;
@@ -1176,11 +1128,9 @@ ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
                  const RegionFit& fit) noexcept;
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
-// WL-INFO-03 -- agents/workshop/info-body.md
 
 /// Which members of an ordered collection a bounded place is showing, and how
 /// many it is leaving out on each side of them.
-// WL-INFO-03 -- agents/workshop/info-body.md
 struct ListWindow {
     std::size_t first = 0;  ///< the first member shown, as a position in the collection's order
     std::size_t count = 0;  ///< how many are shown, contiguously, in that order
@@ -1202,7 +1152,7 @@ void paint_pane_frame(ScreenPlane& layer, const PixelRect& b,
                               graphics::Color ink);
 
 /// THE POPUP'S OR A PANE'S BODY AS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE.
-// WL-CHROME-05 -- agents/workshop/chrome.md; WL-RGN-01 -- agents/workshop/regions.md
+// WL-CHROME-05 -- agents/workshop/chrome.md
 struct ProsePlace {
     bool present = false;
     std::int64_t rows = 0;    ///< prose rows of the ACTIVE medium's type that fit the rectangle
@@ -1222,7 +1172,6 @@ ProsePlace prose_place(const PixelRect& b, const Screen& sc);
 ScreenRegion prose_region(const ProsePlace& place);
 
 // ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word -----------------
-// WL-PANE-10 -- agents/workshop/panes-and-windows.md
 
 namespace pane_state {
 inline constexpr std::int64_t kClosed = 0;
@@ -1259,7 +1208,6 @@ std::int64_t pane_state_of(const Panes& panes, const Setup& setup, const Screen&
 
 
 // ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE ------------------------------
-// WL-GEO-09, WL-GEO-10 -- agents/workshop/geometry.md
 
 /// WHAT ONE PIXEL VALUE IS IN THE ACTIVE MEDIUM'S UNIT, AND WHETHER THAT IS THE
 /// AUTHORED NUMBER ITSELF. `exact` false means the amount shown is this medium's
@@ -1325,7 +1273,6 @@ std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px);
 
 /// WHAT A MOVE SAYS: `name`, where it stood and where it stands, in the medium's unit, and its size
 /// before and after too where that changed.
-// WL-GEO-12 -- agents/workshop/geometry.md
 std::string pane_move_text(const std::string& name, const PixelRect& before, const PixelRect& after,
                            std::int64_t cell_px);
 
@@ -1355,7 +1302,7 @@ std::string keyboard_context_name(const Session& s, KeyContext ctx);
 
 /// Every binding in force, grouped by where it is answered, read off `Session::keymap` -- the one
 /// truth dispatch reads. `file` and `word` are the keymap file and what loading it came to. A
-/// projection: it holds and decides nothing (WL-DESK-11).
+/// projection: it holds and decides nothing.
 KeymapShown keymap_shown(const Session& s, const std::string& file, const std::string& word);
 
 // ---- WHAT IS TRUE RIGHT NOW, PROJECTED ---------------------------------------------------
@@ -1437,7 +1384,6 @@ std::vector<std::string> context_line_names(const Session& s, const Screen& sc);
 /// WHERE A PRESS LANDED ON THE OPEN CONTEXTUAL SURFACE -- the painter's inverse, over the
 /// same composition (`info_body_at`'s family: it answers WHERE and nothing about what
 /// that means; the weave decides what a hit does).
-// WL-CTX-08 -- agents/workshop/contextual.md
 struct ContextPressAt {
     bool inside = false;
     bool entry = false;
@@ -1481,7 +1427,6 @@ bool presented_holds(const Session& s, const Screen& sc, const PointedAt& at);
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 
 /// One header row, Workshop's own, so the provenance of what follows is legible.
-// WL-FOCUS-11 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kExternalHeaderRows = 1;
 
 /// How many header rows this pane's presentation reserves now: the one resolution of the title
@@ -1492,7 +1437,6 @@ std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
 /// WHAT A PANE'S FRAME SAYS IN ITS BODY, behind the pane's own area: `waiting for <name>` until the
 /// pane draws there and its ground covers the words, or `<name> draws in no window` for a pane
 /// whose role takes no room in a window.
-// WL-PANE-16 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kExternalWaiting = "waiting for ";
 inline constexpr const char* kExternalNoWindow = " draws in no window";
 
@@ -1536,7 +1480,6 @@ ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
                                          std::int64_t space, std::int64_t x, std::int64_t y);
 
 /// The mark that says whether typing goes here.
-// WL-FOCUS-10 -- agents/workshop/focus.md
 inline constexpr const char* kTypingHere = "> ";
 inline constexpr const char* kTypingElsewhere = "  ";
 
@@ -1547,7 +1490,6 @@ std::string external_header(const RuntimePane& row, bool typing);
 /// A PANE'S `?` AND ITS GEAR, at the right end of its header row: the gear two cells before the
 /// `?`, which takes the last cell. Printable ASCII, which every face draws, and no glyph a
 /// terminal's border is drawn with.
-// WL-CHROME-09 -- agents/workshop/chrome.md
 inline constexpr const char* kChromeMarks = "= ?";
 /// The fewest header columns that keep the title's mark and a few of its letters beside them.
 inline constexpr std::int64_t kChromeMarksMinColumns = 12;
@@ -1562,14 +1504,12 @@ inline constexpr std::int64_t kFold = 3;     ///< the arrow at the title's start
 
 /// THE ARROW AT A TITLE'S START, which shuts the pane or opens it: down while it is open, right
 /// while it is shut. A character, where every medium draws one.
-// WL-CHROME-11 -- agents/workshop/chrome.md
 inline constexpr const char* kFoldOpenArrow = "v";
 inline constexpr const char* kFoldShutArrow = ">";
 inline constexpr std::int64_t kFoldArrowColumns = 2; ///< the arrow and the space after it
 
 /// THE ARROW CENTRED ON A DOCK'S STRIP: pointing into the room while every pane docked on the edge
 /// is shut, and out of it while one is open.
-// WL-CHROME-12 -- agents/workshop/chrome.md
 inline constexpr const char* strip_arrow(std::int64_t edge, bool open) noexcept {
     switch (edge) {
     case pane_dock::kLeft: return open ? "<" : ">";
@@ -1582,7 +1522,6 @@ inline constexpr const char* strip_arrow(std::int64_t edge, bool open) noexcept 
 
 /// ONE THING A STRIP SHOWS: its arrow, or a docked pane's tag -- its name, down a left or right
 /// strip a character a row, along a top or bottom one -- with the rectangle a press on it meets.
-// WL-CHROME-12 -- agents/workshop/chrome.md
 struct StripMark {
     std::int64_t edge = pane_dock::kNone;
     bool arrow = false;
@@ -1600,23 +1539,19 @@ struct StripMark {
 std::vector<StripMark> strip_marks(const Session& s, const Screen& sc);
 
 /// The mark a press at this point lands on, or none.
-// WL-CHROME-12 -- agents/workshop/chrome.md
 std::optional<StripMark> strip_mark_at(const Session& s, const Screen& sc, const PointedAt& at);
 
 /// THE FOLD'S ARROW AND ITS SPACE, as a title's prefix: `kFoldShutArrow` on a shut pane, else
 /// `kFoldOpenArrow`.
-// WL-CHROME-11 -- agents/workshop/chrome.md
 std::string fold_prefix(const Panes& panes, std::int64_t kind);
 
 /// THE HEADER ROW AS PAINTED, `prefix` before the title: the title fitted to `columns`, and the
 /// pane's `?` and gear at its right end when it wears them and the row has room.
-// WL-CHROME-09 -- agents/workshop/chrome.md
 std::string external_header_row(const RuntimePane& row, bool typing, bool marks,
                                 std::int64_t columns, const std::string& prefix = std::string());
 
 /// WHICH OF A PANE'S MARKS A PRESS LANDED ON, from the place the painter used; `kNone` off them,
 /// or on a pane that does not wear them.
-// WL-CHROME-09 -- agents/workshop/chrome.md
 std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen& sc,
                             std::int64_t kind, bool titles, std::int64_t space, std::int64_t x,
                             std::int64_t y);
@@ -1632,26 +1567,20 @@ void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
 /// THE KEYBOARD'S SELECTION MADE VISIBLE: in command mode, brackets on the selected pane's corners
 /// where text is a cell, rings outside its edge where an edge is finer, so a selection the keys
 /// have not entered is told from the pane that has them.
-// WL-FOCUS-12 -- agents/workshop/focus.md
 void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc);
 
 /// HOW MUCH OF A PANE SHOWS ROUND THE MANUAL OPENED OVER IT, on every edge.
-// WL-DESK-20 -- agents/workshop/desktop.md
 inline constexpr std::int64_t kManualMarginPx = 12;
 
 /// The words that say arranging is on, over what it arranges.
-// WL-ARR-18 -- agents/workshop/arrangement.md
 inline constexpr const char* kArrangingCaption = "Arranging Mode Active";
 
 /// ARRANGING SAID AT THE TOP OF THE ROOM, while it is open: its words, and beneath them the pane
 /// it arranges or "all panes", on a ground of their own.
-// WL-ARR-18 -- agents/workshop/arrangement.md
 void paint_arranging_caption(ScreenPlane& layer, const Session& s, const Screen& sc);
 /// ...what it names beneath its words, and the ground it stands on: the room's top, or where it
 /// clears the pane arranged; empty while nothing arranges.
-// WL-ARR-18 -- agents/workshop/arrangement.md
 std::string arranging_caption_subject(const Session& s);
-// WL-ARR-18 -- agents/workshop/arrangement.md
 PixelRect arranging_caption_rect(const Session& s, const Screen& sc);
 
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
@@ -1662,7 +1591,6 @@ namespace detail {
 
 /// ONE PLANE FOR ONE PRESENTATION — offered unconditionally, and taken back if that
 /// presentation turns out to draw nothing.
-// WL-FRONT-01 -- agents/workshop/planes.md
 template <typename Color>
 inline void on_own_layer(ScreenCanvas& c, Color&& paint_it) {
     c.layers.emplace_back();
@@ -1691,7 +1619,6 @@ inline constexpr std::int64_t kSetupNameMinCols = 8;
 
 /// THE ROWS THE SCREEN RESERVES AT THE TOP, AS A RECTANGLE -- and that is the
 /// LAYOUTS PANE'S DEVELOPER DEFAULT rather than a band's private geometry.
-// WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr PixelRect top_band_bounds(const Screen& sc) noexcept {
     return placement_bounds(placement::kTopBand, 0, sc);
 }
@@ -1703,7 +1630,6 @@ ExternalBodyPlace layouts_body(const Session& s, const Screen& sc);
 /// THE BOTTOM BAND'S RECTANGLE AND ITS FIT -- what the keys mean right now, composed against
 /// whatever the ACTIVE medium answers for these pixels through the same `fit_region` every bounded
 /// region resolves with.
-// WL-FRONT-02, WL-FRONT-03 -- agents/workshop/planes.md; WL-RGN-03 -- agents/workshop/regions.md
 inline constexpr PixelRect band_bounds(const Screen& sc) noexcept {
     return PixelRect{0, sc.band_y, sc.w, sc.h - sc.band_y};
 }
@@ -1718,7 +1644,6 @@ inline constexpr RegionFit band_fit(const Screen& sc) noexcept {
 std::int64_t setup_name_columns(const Session& s, const Screen& sc);
 
 // ---- THE `setup:` SLOT: what the ACTIVE layout's association is --------------------------
-// WL-TAB-02 -- agents/workshop/tab-run.md
 
 /// The word before the association and the three it is said in: constants, because the row's
 /// budget is derived from their widths.
@@ -1746,7 +1671,6 @@ std::string workspace_text(const Session& s);
 // ---- THE LAYOUT TABS: the left of the status row -----------------------------------------
 
 /// One painted tab: which layout it is, and exactly which bytes of the row are its own.
-// WL-TAB-07 -- agents/workshop/tab-run.md
 struct LayoutTab {
     std::size_t at = 0;       ///< the layout's position in the weaver's order
     std::int64_t column = 0;  ///< where its bytes begin in the composed row
@@ -1771,7 +1695,6 @@ std::string layouts_omitted_text(std::size_t how_many, bool ahead);
 
 /// The cell a tab opens with and the cell it closes with -- the live layout's pair and every
 /// other layout's, ONE CELL EACH SIDE either way.
-// WL-TAB-06 -- agents/workshop/tab-run.md
 inline constexpr char kLayoutLiveOpen = '>';
 inline constexpr char kLayoutLiveClose = '<';
 inline constexpr char kLayoutTabPad = ' ';
@@ -1781,7 +1704,6 @@ inline constexpr char kLayoutTabPad = ' ';
 std::string layout_tab_text(const LiveDesk& setup, std::size_t at);
 
 /// The room the ACTIVE LAYOUT'S ASSOCIATION must keep whatever the tab run wants.
-// WL-TAB-03 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kElidedCols =
     static_cast<std::int64_t>(std::char_traits<char>::length(detail::kElided));
 
@@ -1800,7 +1722,6 @@ inline constexpr std::int64_t kLayoutTabMinCols = 8;
 std::int64_t layout_tab_columns(std::int64_t row_columns) noexcept;
 
 /// THE POINTER'S SPELLING OF `layout.new`: one cell of ink at the end of the run.
-// WL-TAB-04 -- agents/workshop/tab-run.md
 inline constexpr char kLayoutCreate = '+';
 inline constexpr std::int64_t kLayoutCreateCols = 2; // one pad cell and the mark
 
@@ -1809,7 +1730,6 @@ LayoutTabRun layout_tab_run(const LiveDesk& setup, std::int64_t columns);
 
 /// THE BAND'S STATUS ROW, WHOLE: the tabs on the left, the status on the right, and where
 /// every painted tab's bytes are.
-// WL-TAB-05 -- agents/workshop/tab-run.md
 struct BandStatus {
     std::string text;
     std::vector<LayoutTab> tabs;
@@ -1828,13 +1748,11 @@ BandStatus band_status(const Session& s, const Screen& sc);
 /// WHICH ROW OF THE LAYOUTS PANE THE TAB RUN IS PAINTED ON, or `kNoBandRow` when it is not
 /// painted at all -- the composition's own answer, so a press can never be resolved against
 /// a run this budget did not write.
-// WL-TAB-05 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kNoBandRow = -1;
 
 std::int64_t band_tab_row(const Session& s, const Screen& sc);
 
 /// WHICH LAYOUT A PRESS LANDED ON, or none -- the exact inverse of what was painted.
-// WL-TAB-09 -- agents/workshop/tab-run.md
 struct LayoutTabPress {
     bool hit = false;      ///< this press was answered by the run
     std::size_t at = 0;    ///< the layout it landed on, when `create` is false

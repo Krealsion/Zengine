@@ -75,7 +75,6 @@ bool keeps_settings(const std::string& written) {
 /// A step's number in its owner's words: index 0 is step 1.
 constexpr std::size_t kMakeView = 0, kWireButton = 1, kShowAnswer = 2, kMakeApp = 3, kStartApp = 4;
 
-// WL-FIRST-01, WL-FIRST-04 -- agents/workshop/first-run.md
 class FirstRun
     : public loom::WeaveBase<
           FirstRun, FirstRunState,
@@ -122,7 +121,6 @@ public:
 
     /// ITS SETTINGS AS THE LAYOUTS' OWNER KEEPS THEM -- and, at a start that keeps a settings file,
     /// the quick setup shown once a run while it is not answered.
-    // WL-FIRST-01, WL-FIRST-05 -- agents/workshop/first-run.md
     void on(const ws::RoleSettingsAnswered& shown, loom::Mail& mail) {
         if (!answers(mail, settings_ask_) || shown.role != kRole) {
             return;
@@ -152,7 +150,6 @@ public:
     /// THE INVENTORY, answered to this weave's ask or said to any: whether the desk is fresh for
     /// the quick setup, and whether a running view is on it (step 1). A view newly there is asked
     /// what its wiring has done.
-    // WL-FIRST-01, WL-FIRST-04 -- agents/workshop/first-run.md
     void on(const ws::PaneInventory& inventory, loom::Mail& mail) {
         const bool fresh = answers(mail, fresh_ask_);
         if (!fresh && !answers(mail, inventory_ask_) && !mail.authored_from_role(kWorkshop)) {
@@ -195,7 +192,6 @@ public:
 
     /// WHAT A RUNNING VIEW'S WIRING HAS DONE, said by the view as its own role: an intent
     /// something accepted ticks step 2, a field it was told step 3.
-    // WL-FIRST-04 -- agents/workshop/first-run.md
     void on(const view::ViewWiring& wiring, loom::Mail& mail) {
         if (view_roles_.count(std::string(mail.authored_role())) == 0) {
             return; // only a running view on the desk says its own wiring
@@ -212,7 +208,6 @@ public:
 
     /// THE LAUNCHER'S LISTING, the answer to this weave's own ask: the setups the quick setup
     /// lists, an app in the project's apps/ (step 4), and an app that runs (step 5).
-    // WL-FIRST-04 -- agents/workshop/first-run.md
     void on(const launcher::LaunchCatalog& listed, loom::Mail& mail) {
         if (!answers(mail, listing_ask_)) {
             return;
@@ -243,7 +238,6 @@ public:
 
     /// A START, as the launcher answered this weave's own or said it to any: an app started ticks
     /// step 5; the quick setup's own start is said under its setups.
-    // WL-FIRST-04 -- agents/workshop/first-run.md
     void on(const launcher::Launched& said, loom::Mail& mail) {
         if (mail.answers_ask()) {
             if (!answers(mail, start_ask_)) {
@@ -266,7 +260,6 @@ public:
     /// LOOM'S WORD THAT ONE OF THIS WEAVE'S ASKS ENDED WITH NO ANSWER, by the ask's own number:
     /// what waited on it is said and waits no more -- the listing, a start, a launch, a write, the
     /// switch -- and a quiet ask (the settings, the inventory, the status) is simply not waited on.
-    // WL-FIRST-04 -- agents/workshop/first-run.md
     void on(const loom::AskEnded& ended, loom::Mail& mail) {
         const std::uint64_t c = mail.correlation();
         if (!mail.ask_ended() || c == 0) {
@@ -335,7 +328,6 @@ public:
     /// A SETTING WRITTEN, as the layouts' owner answered it: Done and Skip put the quick setup
     /// down and open "Start here" either way, so a settings file that would not take it never
     /// holds the weaver at this pane; a story's write that did not land is said in its pane.
-    // WL-FIRST-05 -- agents/workshop/first-run.md
     void on(const ws::RoleSettingCommitAnswered& acted, loom::Mail& mail) {
         if (commit_ask_ != 0 && answers(mail, commit_ask_)) {
             committed(acted, mail);
@@ -402,7 +394,6 @@ public:
     }
 
     /// THE EDITOR SWITCH'S WORD, in its own words: the box follows what holds the role.
-    // WL-FIRST-03 -- agents/workshop/first-run.md
     void on(const ws::EditorSwitchAnswered& a, loom::Mail& mail) {
         namespace out = ws::switch_outcome;
         if (answers(mail, status_ask_)) {
@@ -664,7 +655,6 @@ private:
     /// consent it asked); a setup's Start asks Workshop for the hand of `gesture`, then the
     /// launcher; The story, Done and Skip write `answered` and put the pane down when the layouts'
     /// owner has answered, opening "Start here".
-    // WL-FIRST-02 -- agents/workshop/first-run.md
     void choose(loom::Mail& mail, std::uint64_t gesture) {
         if (moment_.cursor == fr::Item::kNeovim) {
             if (moment_.switching) {
@@ -710,7 +700,6 @@ private:
 
     /// A SETUP'S START, asked of Workshop first for the hand behind `gesture`, classes `build` and
     /// `write` as Files' start is: one start at a time.
-    // WL-FIRST-02 -- agents/workshop/first-run.md
     void start(std::size_t setup, std::uint64_t gesture, loom::Mail& mail) {
         if (setup >= moment_.setups.size()) {
             return;
@@ -736,7 +725,6 @@ private:
 
     /// WHAT IS UNDER "START HERE"'S CURSOR, DONE: a box ticked or unticked by the weaver's hand
     /// (one its owner ticked stays), or Show me opening the step's pane and saying its next move.
-    // WL-FIRST-04 -- agents/workshop/first-run.md
     void choose_story(loom::Mail& mail) {
         const auto step = static_cast<std::size_t>(story_.cursor / 2);
         if (step >= fr::kSteps) {

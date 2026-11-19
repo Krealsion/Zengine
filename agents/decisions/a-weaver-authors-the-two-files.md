@@ -1,7 +1,7 @@
 # A weaver authors the two files, one row at a time, from inside the running Workshop
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [authoring](../workshop/authoring.md) and [files](../workshop/files.md).
+supports is in [authoring](../workshop/authoring.md).
 
 **Context.** A weaver could rebuild a loaded weave and see it enter the running project with its
 state kept — for a weave the project already named. Naming one still
@@ -55,5 +55,4 @@ the host may not spell a second. The Project pane may hide a long plan's new row
 `... n more`; that is a presentation gap, not a plan fact.
 
 **Laws supported.** [WL-AUTH-01](../workshop/authoring.md),
-[WL-AUTH-02](../workshop/authoring.md), [WL-AUTH-03](../workshop/authoring.md),
-[WL-FILES-15](../workshop/files.md).
+[WL-AUTH-02](../workshop/authoring.md), [WL-AUTH-03](../workshop/authoring.md).

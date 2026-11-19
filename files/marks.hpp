@@ -37,7 +37,6 @@ struct MarkedPlace {
 };
 
 /// IS THIS LOCATION ITS OWN LEXICAL PARENT -- the top of what a path can say?
-// WL-FILES-03 -- agents/workshop/files.md
 inline bool at_filesystem_root(const std::string& dir) {
     if (dir.empty()) {
         return false;
@@ -47,7 +46,6 @@ inline bool at_filesystem_root(const std::string& dir) {
 }
 
 /// THE LEXICAL PARENT OF `dir`, or EMPTY when `dir` is its own parent.
-// WL-FILES-03 -- agents/workshop/files.md
 inline std::string parent_location(const std::string& dir) {
     if (dir.empty()) {
         return std::string();
@@ -76,7 +74,6 @@ struct LocationMarks {
     std::vector<std::string> weaver;
 
     /// DOES THIS RUN KNOW ANYWHERE AT ALL, without asking a platform?
-    // WL-FILES-06 -- agents/workshop/files.md
     bool somewhere_to_go() const { return !origin.empty() || !weaver.empty(); }
 
     /// Is this exact location one of the weaver's own marks?
@@ -131,7 +128,6 @@ struct LocationMarks {
     }
 
     /// EVERY PLACE THIS RUN CAN JUMP TO, IN ONE DETERMINISTIC ORDER.
-    // WL-FILES-06 -- agents/workshop/files.md
     std::vector<MarkedPlace> destinations(const std::vector<std::string>& roots) const {
         std::vector<MarkedPlace> out;
         const auto join = [&out](const std::string& path, std::uint8_t from) {

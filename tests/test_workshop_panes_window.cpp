@@ -1809,7 +1809,7 @@ TEST_CASE("a right press over a provider's pane crosses the seam not at all") {
     const std::int64_t said_before = seat->said;
 
     // THE CHROME (title row) opens the host's menu ABOUT the pane, and so does a right press in
-    // the body of a holder without the door, which crosses the seam not at all (WL-CTX-08).
+    // the body of a holder without the door, which crosses the seam not at all.
     r.right_press_cell(head.x + 1, head.y);
     CHECK(r.session().context.open);
     CHECK(r.session().context.subject == context_subject::kPane);
@@ -1835,7 +1835,7 @@ TEST_CASE("input spent on the open surface reaches no provider") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    // THE CHROME (title row) opens the surface (WL-CTX-08).
+    // THE CHROME (title row) opens the surface.
     const CellRect head = external_body_rect(r.session(), kind);
     r.right_press_cell(head.x + 1, head.y);
     REQUIRE(r.session().context.open);

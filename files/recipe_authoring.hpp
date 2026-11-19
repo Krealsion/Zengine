@@ -558,8 +558,8 @@ inline void FilesWeave::say_chooser() {
 }
 
 /// The authoring line and the fields it walks. Every field is shown and any may be stood on;
-/// what is written is still one draft the host composes, checks and installs (WL-AUTH-01,
-/// WL-FILES-15). The line's caret is the medium's, its window follows the caret's column, and
+/// what is written is still one draft the host composes, checks and installs (WL-AUTH-01).
+/// The line's caret is the medium's, its window follows the caret's column, and
 /// a press places it. The fields go through the listing's own window, which keeps the field
 /// being typed into on screen; where the room cannot seat a neighbour, the menu offers a row
 /// for every field (`offer_field`).

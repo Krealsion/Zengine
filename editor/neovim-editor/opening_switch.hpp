@@ -6,7 +6,7 @@
 
 // The Neovim-backed Editor's doors for opening and switching: members of `NeovimEditorWeave`, which
 // pane.cpp declares and includes this after. The managed opening's preparation and publication and
-// the old door's relay (WL-NVIM-01); both halves of an editor switch, as the incumbent (WL-NVIM-04)
+// the old door's relay; both halves of an editor switch, as the incumbent (WL-NVIM-04)
 // and as the sealed candidate (WL-NVIM-03, WL-NVIM-05); and Neovim started headless from a Loom
 // with no Workshop (WL-NVIM-08).
 // Workshop law: agents/workshop/neovim.md

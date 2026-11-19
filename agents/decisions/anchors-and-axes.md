@@ -39,5 +39,4 @@ which edge authors the place, and `managed_window_base` is the one spelling the 
 pointer and the axis fallbacks measure from — later reused by the coarse step and by the Pane
 Manager's typed axes.
 
-**Laws supported.** [WL-ARR-04](../workshop/arrangement.md),
-[WL-ARR-05](../workshop/arrangement.md), [WL-ARR-06](../workshop/arrangement.md).
+**Laws supported.** [WL-ARR-06](../workshop/arrangement.md).

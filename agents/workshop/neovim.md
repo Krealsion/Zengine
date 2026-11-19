@@ -8,33 +8,7 @@ switch between the two is [`editor-switch.md`](editor-switch.md); an open is
 [`neovim-transfers.md`](neovim-transfers.md); Neovim's own behaviour is Neovim's, measured and
 never restated.
 
-## WL-NVIM-01 — Neovim holds the Editor's role as the Editor, and every entry point reaches it
-
-LAW — The Neovim-backed Editor holds `zengine.editor` with the Editor's pane key and answers the doors the standard Editor answers, so Files, the Builder and Edit Code reach it by reaching the role.
-
-MEANS
-- an open is loaded hidden, its claim unmoved, shown at the publication ahead of every later key; a refused showing is said when Neovim answers;
-- the old door relays to the opening manager with the requester's right kept;
-- while its pane holds the keys, `^s` writes the buffer and `^o` is Neovim's own jump back.
-
-DOES NOT MEAN
-- that Workshop knows it is Neovim: no host line names this weave or its artifact.
-
-WHY — `agents/decisions/neovim-holds-the-editor-role.md`
-
-## WL-NVIM-02 — Neovim's screen is the pane's own picture, under one status row
-
-LAW — The pane is one status row over Neovim's screen in drawable ASCII; a bar or underline cursor is the caret, and the one range is Visual, else the menu's selected item, else the block cursor's cell.
-
-MEANS
-- the status row says saved or UNSAVED, the mode and the file, or a notice in its place; `status` off gives Neovim it while none stands;
-- Neovim is given the room less that row and the caret's column; the blanks a cursor stands on stay;
-- it draws in its own room, so a retired editor's picture never repaints it; an opened file's preview stands until Neovim draws it.
-
-DOES NOT MEAN
-- syntax colours, search matches or a rectangle: the pane draws one range, the named next seam.
-
-WHY — `agents/decisions/neovim-holds-the-editor-role.md`
+Retired: WL-NVIM-01, WL-NVIM-02, WL-NVIM-07, WL-NVIM-09
 
 ## WL-NVIM-03 — A document crosses to Neovim and back exactly, and what does not is said
 
@@ -82,16 +56,6 @@ MEANS
 
 WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
-## WL-NVIM-07 — The clipboard crosses through the medium, both ways
-
-LAW — A copy Neovim makes to `+` or `*` is published as the process's clipboard; a paste Neovim asks for is asked of the window that shows it, and answered to the request it waits on.
-
-MEANS
-- a linewise copy is its lines and one newline; text ending in a newline pastes linewise;
-- the provider is installed only where the weaver's own configuration chose none.
-
-WHY — `agents/decisions/neovim-holds-the-editor-role.md`
-
 ## WL-NVIM-08 — From a Loom with no Workshop, Neovim listens for a second terminal
 
 LAW — `NeovimStartRequested` starts Neovim headless and listening and answers the address and the line that attaches to it; the status and the stop answer as `zen.Result` or `zen.Refused`.
@@ -99,20 +63,6 @@ LAW — `NeovimStartRequested` starts Neovim headless and listening and answers 
 MEANS
 - the stop is refused while a buffer holds unsaved changes, naming them, unless `discard` is set;
 - `loom-host` keeps its console: Neovim's own interface runs in the second terminal.
-
-WHY — `agents/decisions/neovim-holds-the-editor-role.md`
-
-## WL-NVIM-09 — Which Neovim and which configuration, judged before a start
-
-LAW — `ZENGINE_NEOVIM` names the program and `ZENGINE_NEOVIM_PROFILE` the configuration -- `clean`, `user`, or an init file resolved against this process's own directory -- judged before a Neovim is started.
-
-MEANS
-- a value that is neither word and names no file is refused, naming where it looked;
-- a running Neovim's pane says the profile in a word beside its mode; an answer says it whole;
-- nothing else names the program or an init file; with the variable unset, a layout's `profile` picks `clean` or `user`.
-
-DOES NOT MEAN — that a relative init path follows Neovim's own working directory, which is the
-project's: it follows the directory this process started in, where the weaver set the variable.
 
 WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 
@@ -125,36 +75,6 @@ WHY — `agents/decisions/neovim-holds-the-editor-role.md`
 - That a live Neovim session survives a reload of this image: a reload is refused instead.
 
 ## Proven by
-
-### WL-NVIM-01
-`editor/neovim-editor/pane.cpp` NeovimEditorWeave declare on(PaneActionRequested)
-`editor/neovim-editor/opening_switch.hpp` on(PrepareSourceRequested) on_claim_published
-on(OpenSourceRequested)
-`editor/neovim-editor/vocabulary.hpp` kEditorRole kEditorPane kActionWrite kActionJumpOlder
-`workshop/keymap.hpp` kActionCatalog
-`editor/neovim/lua.hpp` kModule
-`tests/test_workshop_neovim.cpp` "an open through the role shows the file in Neovim, and the save
-chord writes it" "after a switch to Neovim, an open through the role shows another file in Neovim,
-beside the unsaved one"
-`tests/test_neovim_live.cpp` "preparing a file hidden leaves the heard document the one Neovim
-shows"
-`tests/test_workshop_panes_actions.cpp` "the join judges a declaration whole, in order, and a
-refusal writes nothing"
-
-### WL-NVIM-02
-`editor/neovim/projection.hpp` project ascii_of
-`editor/neovim-editor/pane.cpp` compose say status_text on(AreaRoom)
-`editor/neovim-editor/common.hpp` Preview
-`editor/neovim-editor/opening_switch.hpp` on_claim_published
-`editor/neovim/host.hpp` Outcome::flushes
-`tests/test_neovim.cpp` "an answer says the screen as it stood when the answer came, not the one
-drawn after it" "the projection: a block cursor is its cell, a bar is a caret, rows carry their
-meaning" "the projection: Visual runs through the cursor cell, blockwise is the cursor row, a menu
-item is the range" "every cell becomes one drawable byte, and the document itself is never touched"
-`tests/test_workshop_neovim.cpp` "standard to Neovim and back carries the unsaved document and its
-caret exactly, with Neovim editing between" "an open in Neovim shows the opened file's picture at
-the commitment, and no screen of the file it replaced after it" "Neovim's cursor on an empty line, and after blanks it typed, is drawn as every
-caret is"
 
 ### WL-NVIM-03
 `editor/neovim/document.hpp` place carry neovim_text file_bytes
@@ -204,25 +124,9 @@ no document, said so, and switching back carries nothing" "a reload of the Neovi
 while its Neovim runs, said on its pane, and Neovim keeps running"
 UNWITNESSED — the handed document carried back when Neovim ends before it serves
 
-### WL-NVIM-07
-`editor/neovim/lua.hpp` kModule
-`editor/neovim-editor/pane.cpp` absorb on(ClipboardText)
-`editor/neovim-editor/common.hpp` join_lines paste_lines
-`tests/test_workshop_neovim.cpp` "a copy in Neovim reaches its medium, and a paste in Neovim asks it"
-`pane/drawing.hpp` WindowDrawing::clipboard_role
-
 ### WL-NVIM-08
 `editor/neovim-editor/opening_switch.hpp` on(NeovimStartRequested) on(NeovimStopRequested)
 on(NeovimStatusRequested)
 `editor/neovim/launch.hpp` launch_spec
 `tests/test_workshop_neovim.cpp` "from a Loom with no Workshop, Neovim listens for a second
 terminal, says where, and stops only when nothing is lost"
-
-### WL-NVIM-09
-`editor/neovim/launch.hpp` check_profile ProfileChoice profile_tag profile_words
-choice_from_environment kProfileVariable kProgramVariable
-`editor/neovim-editor/pane.cpp` start status_text started_words
-`tests/test_workshop_neovim.cpp` "a profile that is neither clean nor user and names no init file
-refuses the switch before starting Neovim" "the profile a weaver names is the configuration that
-runs and the pane says which one it is" "the Neovim editor holding the role under a profile it
-refuses says so, and a press on the row saying it moves nothing"

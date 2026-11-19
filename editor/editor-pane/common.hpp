@@ -95,8 +95,7 @@ using role::tail_of_path;
 using role::Take;
 
 /// The fewest rows in which a refusal gets a row of its own: status, refusal, and one document
-/// row. In a smaller room the refusal replaces the status row, so the document keeps its rows
-/// (WL-EDIT-12).
+/// row. In a smaller room the refusal replaces the status row, so the document keeps its rows.
 constexpr std::int64_t kNoticeNeedsRows = 3;
 
 /// The answer to a quit ask while a paste is arriving: a refusal, not a wait, since the host
@@ -126,7 +125,7 @@ struct Candidate {
     std::int64_t doc_rows = 0;
 };
 
-/// THE SWEEP A PRESS BEGAN, and the picture it began against (WL-EDIT-16).
+/// THE SWEEP A PRESS BEGAN, and the picture it began against.
 struct Drag {
     bool armed = false;
     std::int64_t chrome_rows = 0;
@@ -135,7 +134,7 @@ struct Drag {
 
 /// THE WINDOW THE DOCUMENT IS LOOKED AT THROUGH, as one value `reconcile` moves -- so a
 /// composition can be made for a room WITHOUT moving the live view (a candidate's, or a
-/// re-request's, which moves the pane and never the view: WL-EDIT-09).
+/// re-request's, which moves the pane and never the view).
 struct Viewport {
     std::size_t first_row = 0;
     std::int64_t first_col = 0;
@@ -180,7 +179,7 @@ struct Paste {
     std::uint64_t revision = 0; ///< ...and exactly where it stood
 };
 
-// ---- What a transfer holds, between the gestures and the answers (WL-EDIT-17..21) -------
+// ---- What a transfer holds, between the gestures and the answers (WL-EDIT-17, WL-EDIT-19, WL-EDIT-20, WL-EDIT-21) -------
 
 /// THE DOCUMENT AT ONE INSTANT (`mark_now`): equal marks mean nothing moved in between.
 struct Mark {
@@ -225,7 +224,7 @@ struct Dropped {
 /// A DROPPED LOCATION, judged against the document's mark when the open was asked.
 using Locate = role::LocateOf<Mark>;
 
-/// WHAT THE ROWS DRAWN MEAN (WL-EDIT-18): the document, its bytes, the viewport, the rows above
+/// WHAT THE ROWS DRAWN MEAN: the document, its bytes, the viewport, the rows above
 /// it, the room and the selection a drop may land on. A caret move alone keeps it.
 struct PictureKey {
     std::uint64_t epoch = 0;

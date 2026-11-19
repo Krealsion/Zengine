@@ -11,7 +11,7 @@ LAW — A double-click is the window's count, which a reader reads: `doubles_a_t
 
 MEANS
 - the window counts each hand's presses by input's `input.double-click-ms`, said in `PointerTimingSaid`; two hands' presses never make one;
-- Flow reads the same count (`flow_pane::doubles`); Double Shift is keys, timed by that same said time (WL-KEY-19);
+- Flow reads the same count (`flow_pane::doubles`); Double Shift is keys, timed by that same said time;
 - what Workshop still times -- Shift's taps, the desk reads' rate -- it times by the time the host's one wait hands it (`loom.host.Waited`), and reads no clock.
 
 DOES NOT MEAN

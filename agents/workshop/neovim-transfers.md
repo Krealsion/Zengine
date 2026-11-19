@@ -6,18 +6,7 @@ managed opening -- and a change Neovim holds. The shapes are `editor/source-tran
 Editor's halves are [`editor-transfers.md`](editor-transfers.md). One law per heading; cite by
 ID. Router: [`../workshop.md`](../workshop.md).
 
-## WL-NVIM-10 — Neovim's selection leaves as its own yank takes it
-
-LAW — The Visual or Select selection leaves as an owned `SourceText` equal to Neovim's own yank, unsaved edits included, by a drag begun on the highlight, right-click Extract, or `ctrl+r`.
-
-MEANS
-- a highlight press is Neovim's click; its first motion restores the selection with `gv`;
-- `ctrl+r` is declared only in Visual or Select mode, where Neovim gives it no meaning;
-- a right press on the highlight offers Extract and Neovim's own menu; off it, Neovim's.
-
-DOES NOT MEAN — that the copy is Neovim's register: no register, mark or mode is moved.
-
-WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
+Retired: WL-NVIM-10
 
 ## WL-NVIM-11 — What is dropped on Neovim is data, where it was aimed
 
@@ -65,21 +54,6 @@ WHY — `agents/decisions/a-held-change-is-owned-until-answered.md`
 - That a timeout's words are a refusal: a request Neovim was sent still runs when its wait ends.
 
 ## Proven by
-
-### WL-NVIM-10
-`editor/neovim-editor/pane.cpp` carries_selection declare
-`editor/neovim-editor/transfers.hpp` on_window press_at dragged right_press
-carry_snapshot snapshot_later
-`editor/neovim/lua.hpp` kSelection
-`tests/test_workshop_neovim_transfers.cpp` "a Visual selection dragged from its highlight lands in a
-named Inventory folder as exactly what Neovim's yank takes, unsaved edits included, and Neovim keeps
-its selection and its buffer" "ctrl+r carries a linewise selection as lines and a block as a block;
-in Insert mode ctrl+r stays Neovim's, and ctrl+k stays the desktop's" "right-click on the Visual
-highlight offers Extract and Neovim's own menu; off the highlight the right press is Neovim's alone"
-"a press on the Visual highlight that never moves is Neovim's own click, and a drag begun off the
-highlight is Neovim's own sweep and carries nothing"
-`tests/test_neovim_live.cpp` "the selection taken for a copy is exactly what Neovim's own yank
-takes, for every kind of Visual selection, and taking it moves nothing"
 
 ### WL-NVIM-11
 `editor/neovim-editor/pane.cpp` say fresh

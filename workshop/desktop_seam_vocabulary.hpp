@@ -31,7 +31,6 @@ inline constexpr const char* kDesktopRole = "zengine.desktop";
 /// THE APPLICATION ROW THAT SHOWS A PANE'S MANUAL, as the desktop declares it: a pane's `?` asks
 /// it about that pane, and the `?` is drawn only while some row by this id is declared. Spelled in
 /// the host too, for that reason, and a suite pins the two spellings against each other.
-// WL-CHROME-09 -- agents/workshop/chrome.md
 inline constexpr const char* kManualAction = "desktop.manual";
 
 // ---- Application actions -------------------------------------------------------------------

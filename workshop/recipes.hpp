@@ -30,7 +30,7 @@ public:
     using ArtifactFile = std::string (*)(std::string_view directory, std::string_view stem);
 
     /// TAKE CUSTODY OF A COMPLETED CATALOG AND OF THE FILE IT CAME FROM.
-    // WL-PROJ-03, WL-PROJ-04 -- agents/workshop/project.md
+    // WL-PROJ-04 -- agents/workshop/project.md
     void hold(std::string source, std::vector<builder::Recipe> completed,
               ArtifactFile artifact_file) {
         source_ = std::move(source);

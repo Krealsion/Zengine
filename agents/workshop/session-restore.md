@@ -5,7 +5,7 @@ layouts and their associations, the restore that runs once. The window's facts a
 file, in [`window-file.md`](window-file.md). One law per heading; cite by ID. The files and their domains are in [`session.md`](session.md). Router:
 [`../workshop.md`](../workshop.md).
 
-Retired: WL-SESSION-11, WL-SESSION-12.
+Retired: WL-SESSION-11, WL-SESSION-12, WL-SESSION-14
 
 ## WL-SESSION-05 — The session holds the run of layouts, each with its id and association
 
@@ -28,17 +28,6 @@ MEANS
 - each line decodes inside Loom's `kMaxDecodedCells`, and `kMaxPaneSettingsPerDesk` leaves a layout's room for a field on every row.
 
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
-
-## WL-SESSION-14 — The restore runs once per process, and answers four things
-
-LAW — The restore runs once per process, guarded by a flag, because a window offers itself again when it is started again; the answer carries present, outcome, honoured and declined.
-
-MEANS
-- the flag is set before the file is opened, so a refusal is final too;
-- `load_file` asks `exists` first, so a first launch is not an error and stays silent;
-- its sentence is said once, in the unit the first window that offers a room names, held from the owner's answer until that offer.
-
-WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-16 — Neither direction opens a setup file
 
@@ -83,19 +72,6 @@ the lines are not the header's count" "a maximal session decodes a line at a tim
 room for a field on every row" "a version-11 session written as one value is refused, its file being
 a line a layout" "a header counting more layouts than a Workshop keeps is refused before a line is
 read"
-
-### WL-SESSION-14
-`workshop/weave_session.cpp` restore_last_session restore_notice_text say_restore_notice
-restore_window say_restored
-`workshop/layouts/session_persist.hpp` LoadedSession::present LoadedSession::outcome LoadedSession
-load_file
-`graphics/vocabulary.hpp` WindowOffered
-`workshop/layouts/owner.cpp` on(LayoutEditRequested)
-`workshop/layouts/store.cpp` restore
-`tests/test_workshop_persistence.cpp` "the room is taken back only ONCE, however often a window
-offers itself" "a first launch is not an error, and needs no file to exist" "a malformed session
-costs the desk and nothing else" "the restore notice says the room in the unit the medium names:
-pixels in a window, cells in a terminal"
 
 ### WL-SESSION-16
 `workshop/weave_session.cpp` restore_last_session save_last_session restore_window

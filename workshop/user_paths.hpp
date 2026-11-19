@@ -108,7 +108,7 @@ inline std::string state_root(const Environment& env) {
 }
 
 /// ONE PER-USER DURABLE FACT'S PATH, BY THE PINNED PRECEDENCE.
-// WL-SESSION-01, WL-SESSION-02 -- agents/workshop/session.md
+// WL-SESSION-01 -- agents/workshop/session.md
 inline std::string resolve_durable_path(const std::string& explicit_path, bool isolated,
                                         const std::string& root, const char* default_name) {
     if (!explicit_path.empty()) {

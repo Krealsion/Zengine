@@ -508,7 +508,7 @@ public:
         if (line_.draft_epoch() != paste_.epoch) {
             return; // the draft that asked is over; the payload is discarded, silently
         }
-        // A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR (WL-TEXT-10), which is what
+        // A MEDIUM THAT CANNOT BE READ FALLS BACK TO THE MIRROR, which is what
         // keeps copy-here paste-there true on a terminal that claims nothing.
         const std::string offered = a.readable ? a.text : clip_.text;
         if (!admissible(component::pasteable_line(offered))) {

@@ -5,18 +5,7 @@ registration, delivery, the
 emit, inspection, the behaviour edit. One law per heading; cite by ID. Router:
 [`../maker.md`](../maker.md).
 
-## MW-WEAVE-01 — Registration claims the data-built schema
-
-LAW — `register_definition` mounts the revision's bodies, builds the weave at its default state, mints the grant and registers it bound to its name as role; the first snapshot claims the data-built schema.
-
-MEANS
-- a mount refusal registers nothing; a registration refusal unmounts, because the weave dies;
-- a candidate for a succession registers unbound, since a sealed weave may hold no role.
-
-DOES NOT MEAN
-- that a definition is loaded: nothing here touches the Kernel, and no artifact exists.
-
-WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
+Retired: MW-WEAVE-01, MW-WEAVE-05, MW-WEAVE-11
 
 ## MW-WEAVE-02 — The accept-set is the definition's, plus the doors
 
@@ -44,19 +33,6 @@ LAW — A trigger's body answers on one port, `value`, whose type is the target 
 MEANS
 - an answer of another kind is refused in the gate's words, the state unchanged;
 - the field is written by name: a state that lists another field first is untouched there.
-
-WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
-
-## MW-WEAVE-05 — The body is spent through the host's catalog, at spend
-
-LAW — A revision's bodies mount under `zengine.maker.<name>.r<rev>` in the host's one catalog and unmount at destruction; delivery spends `Catalog::evaluate`, resolving every operator at spend.
-
-MEANS
-- a power overlaid underneath moves the trigger and revealing it moves it back;
-- a body whose operator is unresolved at spend refuses (MW-WEAVE-06); nothing is cached.
-
-DOES NOT MEAN
-- that a weave holds a catalog: it holds the host's by reference, which outlives the bus.
 
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
@@ -116,20 +92,6 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
-## MW-WEAVE-11 — A revision's bodies are its own, and are not offered for reuse
-
-LAW — `definitions_of` mounts every trigger body with `offered` false and words saying whose reaction it is, so discovery never offers it; the mark decides nothing about spending it.
-
-MEANS
-- a body is revision-scoped: the next behaviour edit unmounts it, so a composition on it breaks;
-- a compiled module's bodies keep the mark: `CompiledModule::mount` keeps the description;
-- words that would pass the prose bound are left unsaid, so a long name refuses nothing.
-
-DOES NOT MEAN
-- that a body cannot be spent: naming it spends it, as any operator is spent.
-
-WHY — `agents/decisions/a-contribution-says-what-it-is-for.md`
-
 ## Do not assume
 
 - That the interpreter is a `WeaveBase` (MW-WEAVE-02): it implements `loom::Weave` raw, so its
@@ -139,13 +101,6 @@ WHY — `agents/decisions/a-contribution-says-what-it-is-for.md`
   for it.
 
 ## Proven by
-
-### MW-WEAVE-01
-`maker/weave.hpp` Weave register_definition Registered
-`maker/runtime.hpp` Runtime Runtime::snapshot
-`maker/write.hpp` default_value
-`tests/test_maker.cpp` "the state schema is built from data, the registry resolves it by name, and
-its content id is the descriptor's"
 
 ### MW-WEAVE-02
 `maker/runtime.hpp` Runtime::accepted_schemas
@@ -164,12 +119,6 @@ admission"
 `maker/runtime.hpp` Runtime::fire
 `tests/test_maker.cpp` "the answer lands in the named state field, and an answer of another kind is
 refused with the state unchanged"
-
-### MW-WEAVE-05
-`maker/weave.hpp` definitions_of Weave::mount Weave::unmount Weave::evaluate_body
-`maker/definition.hpp` Definition::provider Definition::trigger_identity
-`tests/test_maker.cpp` "the body is a composition spent through the host's catalog -- a power
-overlaid underneath moves the trigger, and revealing it moves it back"
 
 ### MW-WEAVE-06
 `maker/runtime.hpp` Runtime::fire Runtime::refused Runtime::in_weaver_words Runtime::answer
@@ -207,11 +156,3 @@ Runtime::handle Runtime::refused_at_door
 the host armed for this boundary; a stranger's are refused by name and the weave keeps serving"
 "before the merge: Adopt is honoured only by an unbound candidate and only from its coordinator; a
 bound weave refuses it by name and its state stands"
-
-### MW-WEAVE-11
-`maker/weave.hpp` definitions_of
-`flow/compiled.hpp` CompiledModule::mount
-`tests/test_maker.cpp` "a revision's bodies are its own reactions -- mounted not offered for reuse,
-saying whose, and still spent when named"
-`tests/test_flow.cpp` "Flow compiled trigger bodies keep the maker's mark -- not offered, in the
-same words"

@@ -371,7 +371,6 @@ private:
         return room().rows() - 1 - (notice_.empty() ? 0 : 1);
     }
 
-    // WL-ATTN-06 -- agents/workshop/attention.md
     template <class Push>
     void say_view(Push&& push) {
         const std::int64_t columns = room().columns();

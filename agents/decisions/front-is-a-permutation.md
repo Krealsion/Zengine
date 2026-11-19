@@ -1,7 +1,8 @@
 # Front is a permutation
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [setup-file](../workshop/setup-file.md) and [planes](../workshop/planes.md).
+supports is in [setup-file](../workshop/setup-file.md) and
+[panes-and-windows](../workshop/panes-and-windows.md).
 
 **Context.** The setup needed a durable front order once a weaver could author the window
 (`3024712`, the commit that authored the window). The order then had nowhere honest to go on
@@ -38,4 +39,4 @@ duplicated rank is refused. The plane list raised the surface floors from 59 to 
 and workshop's from 473 to 482 with zero slack.
 
 **Laws supported.** [WL-PANE-07](../workshop/panes-and-windows.md),
-[WL-FRONT-01](../workshop/planes.md), [WL-SETUP-07](../workshop/setup-file.md).
+[WL-SETUP-07](../workshop/setup-file.md).

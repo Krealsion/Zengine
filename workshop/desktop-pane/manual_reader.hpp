@@ -32,7 +32,6 @@ namespace ws = zengine::workshop;
 /// THE KEYS ONE COMMAND ANSWERS TO NOW, as the Hotkeys view spells them: every key a row in force
 /// gives it, else every key the weaver's file names for it, else the default the page wrote,
 /// respelled; `unbound` where that leaves none.
-// WL-DESK-17 -- agents/workshop/desktop-presenting.md
 inline std::string keys_of(const ws::KeymapShown& keymap, const std::string& id,
                            const std::string& written) {
     std::vector<std::string> keys;
@@ -70,7 +69,6 @@ inline std::string keys_of(const ws::KeymapShown& keymap, const std::string& id,
 
 /// A SECTION'S WORDS WITH EVERY KEY MARKER SHOWING THE KEY THE WEAVER HAS NOW, in backticks as the
 /// page writes a key. A marker the words do not hold where it says is left as written.
-// WL-DESK-17 -- agents/workshop/desktop-presenting.md
 inline std::string with_keys(const pane::PaneDocumentSection& section,
                              const ws::KeymapShown& keymap) {
     const std::string& text = section.text;
@@ -238,7 +236,6 @@ struct ManualText {
     std::vector<component::TextLook> looks;
 };
 
-// WL-DESK-17 -- agents/workshop/desktop-presenting.md
 inline ManualText manual_text(const pane::PaneDocumentShown& shown, const ws::KeymapShown& keymap) {
     ManualText out;
     const auto line = [&out](const std::string& text, std::int64_t look, std::int64_t hang = 0) {

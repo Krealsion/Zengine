@@ -51,9 +51,4 @@ delivery takes the press or, lacking its door, refuses it; nothing retries. The 
 comes from the keymap's global rows. A hidden title returns its row to the provider through the
 grant.
 
-**Laws supported.** [WL-FOCUS-01](../workshop/focus.md), [WL-FOCUS-02](../workshop/focus.md),
-[WL-FOCUS-03](../workshop/focus.md), [WL-FOCUS-04](../workshop/focus.md),
-[WL-FOCUS-05](../workshop/focus.md), [WL-FOCUS-06](../workshop/focus.md),
-[WL-FOCUS-08](../workshop/focus.md), [WL-FOCUS-09](../workshop/focus.md),
-[WL-FOCUS-10](../workshop/focus.md), [WL-FOCUS-11](../workshop/focus.md),
-[PANE-SEAM-03](../pane-contract/seam.md).
+**Laws supported.** [WL-FOCUS-08](../workshop/focus.md), [PANE-SEAM-03](../pane-contract/seam.md).

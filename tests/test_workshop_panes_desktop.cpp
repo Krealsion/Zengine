@@ -128,7 +128,7 @@ struct Desk {
         desktop = load_real_desktop(r);
         presenter = r.load_presenter(presenter_image); // the shipped one unless a case replaces it
         // EVERY PANE THESE CASES OPEN STANDS IN THE COLUMN: the layout keeps the column's place
-        // for each, so its first open gives that back rather than placing it (WL-DESK-19).
+        // for each, so its first open gives that back rather than placing it.
         for (const PaneRef& ref : {PaneRef{kDesktopRole, dp::kLauncherPane},
                                    PaneRef{"zengine.test.tools", "alpha"},
                                    PaneRef{"zengine.test.tools", "beta"},
@@ -177,10 +177,10 @@ constexpr std::int64_t kNameCol = 11; // on the name, past the mark
 } // namespace
 
 // =============================================================================
-// The Pane Manager by mouse (WL-DESK-14)
+// The Pane Manager by mouse
 // =============================================================================
 
-TEST_CASE("WL-DESK-14: a press on a row's mark shows or hides that pane; a press on its name only moves the marker") {
+TEST_CASE("a press on a row's mark shows or hides that pane; a press on its name only moves the marker") {
     Desk d;
     const std::int64_t alpha = d.row_of("Alpha");
     REQUIRE(alpha >= 0);
@@ -398,7 +398,7 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
     }
 }
 
-TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the keys already here, opens it -- or focuses and lifts it when it is open and covered") {
+TEST_CASE("a deliberate second press on the marked name, with the keys already here, opens it -- or focuses and lifts it when it is open and covered") {
     Desk d;
     const std::int64_t beta = d.row_of("Beta");
     d.press(beta, kNameCol); // chooses
@@ -435,7 +435,7 @@ TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the ke
     CHECK(d.r.session().panes.keyboard == beta_kind);
 }
 
-TEST_CASE("WL-DESK-10: the Pane Manager lists the panes by name, and its wheel scrolls the rows hidden its way before it walks the marker") {
+TEST_CASE("the Pane Manager lists the panes by name, and its wheel scrolls the rows hidden its way before it walks the marker") {
     // MUTATION (tests/mutants/workshop_panes_desktop.md#wheel-walks-the-marker): the wheel walking
     // the marker a row a notch -- the list does not move under it.
     Desk d;
@@ -502,7 +502,7 @@ TEST_CASE("WL-DESK-10: the Pane Manager lists the panes by name, and its wheel s
 
 // The press lands on the rows the window shows, and says the row it landed on; the Pane Manager
 // reads it against the rows the queued steps moved, where another row stands.
-TEST_CASE("WL-DESK-14: a press queued behind a change of the list is refused, never resolved against the moved rows") {
+TEST_CASE("a press queued behind a change of the list is refused, never resolved against the moved rows") {
     Desk d;
     // THE QUEUED PRESS. Six cursor steps and a press on Gamma's row are queued together, as a hand
     // that scrolls and clicks makes them; the host handles the press BEFORE the desktop composes
@@ -556,7 +556,7 @@ void swap_in_inventory(Desk& d, const char* one, const char* other) {
 
 } // namespace
 
-TEST_CASE("WL-DESK-14: a same-length inventory swap puts another pane's row under a press the window landed on the old one, so it opens nothing -- the meaning carries the subject, not just the slot -- and a press on a row redrawn under its own name opens it") {
+TEST_CASE("a same-length inventory swap puts another pane's row under a press the window landed on the old one, so it opens nothing -- the meaning carries the subject, not just the slot -- and a press on a row redrawn under its own name opens it") {
     Desk d;
     const auto row = d.row_of("Alpha");
     REQUIRE(row >= 0);
@@ -580,7 +580,7 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap puts another pane's row unde
     }
 }
 
-TEST_CASE("WL-DESK-14: an inventory change queued ahead of a raw press cannot retarget the row the hand aimed at -- the window lands the press on the row it shows, refused where the list has since moved there, and acting where it showed the new row") {
+TEST_CASE("an inventory change queued ahead of a raw press cannot retarget the row the hand aimed at -- the window lands the press on the row it shows, refused where the list has since moved there, and acting where it showed the new row") {
     // THE PRODUCTION BOUNDARY: the inventory swap reaches the real desktop and a raw press reaches
     // the real window, and nothing here supplies what the window drew under the hand.
     bool shown_first = false;
@@ -715,7 +715,7 @@ TEST_CASE("WL-DESK-13: Ctrl+P puts away a covered Pane Manager the weaver comes 
     CHECK(d.r.last_notice().find("forward") != std::string::npos);
 }
 
-TEST_CASE("WL-DESK-20: the Manual opens over the pane whose manual was asked, a margin of it showing on every edge, and moves over the next one asked") {
+TEST_CASE("the Manual opens over the pane whose manual was asked, a margin of it showing on every edge, and moves over the next one asked") {
     // MUTATION (tests/mutants/workshop_panes_desktop.md#manual-where-it-would-stand): the Manual
     // seated where it would have stood -- it opens at the room's centre, and the checks of its
     // place go red.
@@ -758,7 +758,7 @@ TEST_CASE("WL-DESK-20: the Manual opens over the pane whose manual was asked, a 
     over(alpha);
 }
 
-TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage and inspect -- and `manage <pane> >` opens the host's own pane menu on THAT pane; the menu key offers the marked row's") {
+TEST_CASE("a right press on a row offers its menu -- show, manage and inspect -- and `manage <pane> >` opens the host's own pane menu on THAT pane; the menu key offers the marked row's") {
     Desk d;
     const std::int64_t beta = d.row_of("Beta");
     d.right(beta, kNameCol);
@@ -802,7 +802,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage an
     CHECK(d.r.session().context.pane == PaneRef{kDesktopRole, dp::kLauncherPane});
 }
 
-TEST_CASE("WL-DESK-14: the Pane Manager renders within every budget the screen grants -- down to a heading alone -- and never says an omission marker it did not seat") {
+TEST_CASE("the Pane Manager renders within every budget the screen grants -- down to a heading alone -- and never says an omission marker it did not seat") {
     Desk d;
     for (const std::int64_t height : {8, 10, 12, 16}) {
         d.r.extent(160, height);
@@ -1396,7 +1396,7 @@ TEST_CASE("WL-HAND-06: Hotkeys names each binding's row by its identity") {
     CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
 }
 
-TEST_CASE("WL-DESK-14: a press the window landed on a Hotkeys row where another binding stands "
+TEST_CASE("a press the window landed on a Hotkeys row where another binding stands "
           "now is refused in words and chooses nothing, and one on the binding drawn there chooses "
           "it") {
     Keys k("hotkeys-moved");
@@ -1453,10 +1453,10 @@ TEST_CASE("WL-DESK-14: a press the window landed on a Hotkeys row where another 
 }
 
 // =============================================================================
-// Defects reproduced through the real desktop, and guarded (WL-DESK-14, WL-CTX-09, WL-KEY-17)
+// Defects reproduced through the real desktop, and guarded (WL-CTX-09, WL-KEY-17)
 // =============================================================================
 
-TEST_CASE("WL-DESK-14: a pane offered under a name past plain ASCII keeps its row, the name drawn as written") {
+TEST_CASE("a pane offered under a name past plain ASCII keeps its row, the name drawn as written") {
     // A NAME ANOTHER PARTY CHOSE is drawn as this pane draws every other party's words: every
     // character as written. The list stays the list, and the row is pressed as any other.
     Desk d;
@@ -1878,7 +1878,7 @@ void inspect_by_keys(Desk& d, const std::string& name) {
 
 } // namespace
 
-TEST_CASE("WL-DESK-14: choosing `inspect in Info` on a row makes that pane Info's subject -- by the "
+TEST_CASE("choosing `inspect in Info` on a row makes that pane Info's subject -- by the "
           "keys, by the mouse, and by a replacement presenter's digit -- and says so") {
     const PaneRef beta{"zengine.test.tools", "beta"};
     const auto inspected_beta = [&beta](Desk& d) {
@@ -1914,7 +1914,7 @@ TEST_CASE("WL-DESK-14: choosing `inspect in Info` on a row makes that pane Info'
     }
 }
 
-TEST_CASE("WL-DESK-14: an `inspect in Info` that cannot be carried out is said in the Pane Manager, "
+TEST_CASE("an `inspect in Info` that cannot be carried out is said in the Pane Manager, "
           "and the subject stays where it was") {
     SUBCASE("Info is not loaded") {
         Desk d;
@@ -2065,7 +2065,7 @@ std::size_t open_sections(const std::vector<std::string>& rows) {
 
 } // namespace
 
-TEST_CASE("WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first, Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it, shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the pane's state, kept across a reload") {
+TEST_CASE("the Hotkeys pane is in sections, a section a pane -- the desk's panes first, Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it, shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the pane's state, kept across a reload") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_desktop.md#sections-in-the-keymaps-order,
     // #absent-sections-not-grey, #sections-not-kept-across-a-reload): the sections in the
     // keymap's order; a pane off the desk drawn as any other; the open ones shut by a reload.

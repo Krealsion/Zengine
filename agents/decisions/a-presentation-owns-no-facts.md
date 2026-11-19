@@ -1,8 +1,7 @@
 # A presentation owns no facts
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws
-it supports are in [project](../workshop/project.md) and
-[panes-and-windows](../workshop/panes-and-windows.md).
+it supports are in [project](../workshop/project.md).
 
 **Context.** The Builder pane presents a tool this application does not own, and the first live
 run produced a lie without a rule about that: reopening the pane asked the tool, the tool
@@ -43,6 +42,5 @@ orders, the runner runs, the tool offers, and the realization owner decides in i
 there is no second build path, no direct load and no new sentence on the bus. A build's ending
 and a realization's answer are two rows and two notices.
 
-**Laws supported.** [WL-PANE-16](../workshop/panes-and-windows.md),
-[WL-PROJ-11](../workshop/project.md), [WL-PROJ-12](../workshop/project.md),
-[WL-PROJ-13](../workshop/project.md), [WL-PROJ-14](../workshop/project.md).
+**Laws supported.** [WL-PROJ-12](../workshop/project.md), [WL-PROJ-13](../workshop/project.md),
+[WL-PROJ-14](../workshop/project.md).

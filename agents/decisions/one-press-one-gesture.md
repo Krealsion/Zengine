@@ -40,5 +40,4 @@ the one-pane scope silently (the removing operation's sentence is on the notice)
 desk scope open. A drag left of the slice steps one character per motion; a text drag begins
 only on paths that consume the press; release keeps the selection.
 
-**Laws supported.** [WL-ARR-01](../workshop/arrangement.md),
-[WL-ARR-02](../workshop/arrangement.md), [WL-ARR-03](../workshop/arrangement.md).
+**Laws supported.** [WL-ARR-02](../workshop/arrangement.md).

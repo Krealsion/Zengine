@@ -7,6 +7,8 @@ the Workshop working on them. One law per heading; cite by ID. Router:
 is [`contextual.md`](contextual.md); the recipes and the Builder's choice are
 [`project.md`](project.md); what a build said is [`build-output.md`](build-output.md).
 
+Retired: WL-CODE-02
+
 ## WL-CODE-01 — What stands behind a role's code is three owners' answer, read at the ask
 
 LAW — The host reads the role's holder from the bus, the realized row with that WeaveId, and every recipe producing its artifact, at the ask; it chooses nothing, opens nothing and stores nothing.
@@ -18,21 +20,6 @@ MEANS
 
 DOES NOT MEAN
 - that the answer lists what a build compiles: a source or an entry is where reading starts.
-
-WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
-
-## WL-CODE-02 — Edit Code spends the pointed pane, and opens exactly one recipe's source
-
-LAW — Through the pane seam, Edit Code asks the host about the captured pane's role and asks the opening role to open only exactly one recipe's single source or editing entry; any other answer is words.
-
-MEANS
-- the pane seam re-asks the setup first; neither the selection nor the keyboard is read or moved;
-- several recipes are named and left to the Builder's choice; a target with no entry names none;
-- a pane made from data, Workshop's own, and a weave no plan row realized each say what they are.
-
-DOES NOT MEAN
-- that a key can spend it: command mode names no pane, so the bound action says where it lives;
-- that any hand opens: the source is class `open` for the hand that chose it (WL-GUEST-09).
 
 WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
@@ -149,22 +136,6 @@ WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 `workshop/workshop.cpp` code_source
 `tests/test_workshop_panes_code.cpp` "the code behind a role is found by the weave holding it,
 never by a plan row's authored role"
-
-### WL-CODE-02
-`workshop/weave_code.cpp` edit_code code_refusal
-`workshop/context.hpp` kContextCatalog
-`workshop/keymap.hpp` kEditCode kActionCatalog
-`workshop/weave_arrange.cpp` spend_pane_action
-`workshop/weave_pointer.cpp` spend_context_choice
-`workshop/weave_input.cpp` command
-`tests/test_workshop_panes_code.cpp` "Edit Code opens the pointed pane's one source through the
-opening role, and the Builder follows its recipe" "Edit Code acts on the pane that was pointed at,
-not the selection, and a later selection redirects nothing" "a pointed pane that left the setup
-before Edit Code was chosen is refused, and nothing is asked" "code that cannot be named is said in
-words -- no recipe, several, a CMake target, a weave the plan did not load -- and nothing is opened"
-"Edit Code bound to a key in command mode names no pane, says where the gesture lives, and opens
-nothing" "Edit Code opens a CMake target recipe's editing entry through the opening role, and the
-Builder follows that recipe"
 
 ### WL-CODE-03
 `workshop/weave_code.cpp` on(SourceOpened) on(AskEnded) same_code

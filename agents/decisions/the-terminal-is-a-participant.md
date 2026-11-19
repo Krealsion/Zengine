@@ -40,7 +40,7 @@ nothing. A press in the pane is the pane's.
   (`8f9a33e`).
 - *Fitting lines rather than entries* — rejected then, and superseded: the pane now reads the
   record through a view of wrapped rows ([the record is read through a
-  view](the-record-is-read-through-a-view.md)).
+  view](../../docs/history/decisions/the-record-is-read-through-a-view.md)).
 - *Clearing the presentation context on a fresh skin's hello* — measured, not blessed.
 - *Trusting the correlation alone for a completion answer* — replaced: it identifies the
   question and says nothing about whether it still stands, and three paths ended one without
@@ -99,7 +99,7 @@ the first such draft appears, not by this record.
 refusal is the answer to the gesture the weaver just made — so it is budgeted with the rows and
 not added after they are composed. A row added afterwards has to take one back, and the row it
 takes back is the last one composed, which is the input line: the sentence appeared and the
-line it was about vanished, with the caret (WL-TERM-10, found in review). In one row of room
+line it was about vanished, with the caret (found in review). In one row of room
 there is no row for a notice that is not the weaver's own line, and the line keeps it.
 
 **An answer applies to the line it was asked about.** Three operations cross the new seam as
@@ -127,9 +127,6 @@ was refused for being one row tall -- so the one sentence that tells a weaver th
 what they reached for never appeared.
 
 **Laws supported.** [WL-TERM-02](../workshop/terminal-door.md),
-[WL-TERM-03](../workshop/terminal-door.md), [WL-TERM-04](../workshop/terminal-door.md),
 [WL-TERM-05](../workshop/terminal-door.md), [WL-TERM-20](../workshop/terminal-door.md),
-[WL-TERM-01](../workshop/terminal.md), [WL-TERM-06](../workshop/terminal.md),
-[WL-TERM-07](../workshop/terminal.md), [WL-TERM-08](../workshop/terminal.md),
-[WL-TERM-09](../workshop/terminal.md), [WL-TERM-10](../workshop/terminal.md),
+[WL-TERM-01](../workshop/terminal.md), [WL-TERM-08](../workshop/terminal.md),
 [WL-TERM-11](../workshop/terminal.md).

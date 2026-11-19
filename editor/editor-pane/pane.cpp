@@ -18,7 +18,7 @@
 // This file is the weave: its lifecycle and revival, the room, the graphics window, the keys, the
 // clipboard and the exit, save, discard and close, and the rows, caret and mirror it composes. It
 // declares every member; `transfers.hpp` defines the pointer's, the menu's and the transfers'
-// (WL-EDIT-16..22) and `opening_switch.hpp` the open doors' and a switch's, both included after
+// (WL-EDIT-17, WL-EDIT-19, WL-EDIT-20, WL-EDIT-21, WL-EDIT-22) and `opening_switch.hpp` the open doors' and a switch's, both included after
 // the class, over the records and pure helpers of `common.hpp`.
 
 #include "editor/editor-pane/common.hpp"
@@ -844,7 +844,7 @@ private:
 
     // ---- The viewport ----------------------------------------------------------------------
 
-    /// Keep the viewport true against the room and the document it has now (WL-EDIT-09): clamp
+    /// Keep the viewport true against the room and the document it has now: clamp
     /// the offsets always, and follow the caret when a gesture asked or the granted room changed
     /// -- not the document's rows, which a notice moves -- and never after the wheel.
     static void reconcile(const EditorState& doc, Viewport& v, std::int64_t granted_rows,
@@ -900,7 +900,7 @@ private:
     // ---- The rows, and the caret beside them ---------------------------------------------
 
     /// The status row: the dirty word, then `L:C/N`, then the path, in the order the facts must
-    /// survive a narrow room (WL-EDIT-12). The path is cut from its head, since its end says which
+    /// survive a narrow room. The path is cut from its head, since its end says which
     /// file this is; the pane's name is the host's header, one row above.
     static std::string status_text(const EditorState& doc, std::int64_t columns) {
         if (!doc.open_document()) {
@@ -925,7 +925,7 @@ private:
 
     /// Compose a document for a room: the status row, a standing notice where the room holds one,
     /// then the document through the viewport, the caret and selection beside the rows on the
-    /// lattice a press names (WL-EDIT-12); pure, so it serves a candidate too. A notice
+    /// lattice a press names; pure, so it serves a candidate too. A notice
     /// gets its own row only where a document row survives under it, else stands in for the status
     /// row; with `status` off the document has that row, and a notice stands alone above it.
     static Composition compose(const EditorState& doc, Viewport view, std::int64_t rows,
@@ -1034,7 +1034,6 @@ private:
     /// as the composition moved it, drawn in that area -- the caret and selection standing in its
     /// rows, its first row named `status` (the status, or a notice in its place) and each document
     /// line by its number, `line:<n>`.
-    // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
         wear(e_); // whichever document is live now wears the layout's settings, shown or not
         if (!window_.in_window() || !activation_.activated() ||
@@ -1222,7 +1221,7 @@ private:
     /// THIS INCARNATION BEGAN AS A SWITCH'S CANDIDATE AND ADOPTED A DOCUMENT while sealed.
     bool adopted_ = false;
 
-    // ---- Transfers (WL-EDIT-17..21). None of it is reload state: every record below is this
+    // ---- Transfers (WL-EDIT-17, WL-EDIT-19, WL-EDIT-20, WL-EDIT-21). None of it is reload state: every record below is this
     // incarnation's conversation, and a reloaded image begins with none -- a late answer to a
     // predecessor's ask matches nothing here.
 

@@ -28,7 +28,7 @@ pixels: no anchor, no lock, nothing in a setup or a session.
   the desk has no grid and its own rules (a place never negative, an extent at least a cell).
 - *Marking only the edges that met* — argued: a line across the room is the View Builder's mark,
   and it reads the same in a window and in a terminal.
-- *Snapping the keys* — argued: a key's step is exact by its law (WL-ARR-08); near an edge one
+- *Snapping the keys* — argued: a key's step is exact by its law; near an edge one
   press would move a pane by another amount.
 
 **Consequences.** A hand within reach of the room's edge comes to it rather than being refused,

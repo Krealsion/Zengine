@@ -1330,7 +1330,7 @@ TEST_CASE("a failing build's OWN last words reach the role that asked") {
 }
 
 // ============================================================================
-// Tier 3b -- what a build said, kept by its operation and read back (WL-OUT-01, WL-OUT-02)
+// Tier 3b -- what a build said, kept by its operation and read back
 // ============================================================================
 
 namespace {

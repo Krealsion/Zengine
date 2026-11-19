@@ -1175,7 +1175,7 @@ TEST_CASE("WL-HAND-06: an Info view names its controls by action and its fields 
     CHECK(after.at("field:inner.a").row == s.field_at(b, "inner.a").first);
 }
 
-TEST_CASE("WL-INFO-16: Info's nested values are a tree -- first shown, every nested message and every list holding items shut with its summary, each row its own name indented by its depth; Right opens a level and steps in, Left shuts it and steps out, shift+left shuts every level with the cursor on the first field, a press on a level's mark opens or shuts it, levels open side by side, and the cursor walks only the rows shown") {
+TEST_CASE("Info's nested values are a tree -- first shown, every nested message and every list holding items shut with its summary, each row its own name indented by its depth; Right opens a level and steps in, Left shuts it and steps out, shift+left shuts every level with the cursor on the first field, a press on a level's mark opens or shuts it, levels open side by side, and the cursor walks only the rows shown") {
     // ⚔ MUTATION (tests/mutants/workshop_info_views.md#levels-open-at-first,
     // #shut-all-keeps-the-cursor, #cursor-walks-hidden-rows): every level open when first shown;
     // shutting every level leaving the cursor where it was; the cursor stepping onto a row a shut
@@ -1239,7 +1239,7 @@ TEST_CASE("WL-INFO-16: Info's nested values are a tree -- first shown, every nes
     CHECK_FALSE(s.shows(a, "[0]"));
 }
 
-TEST_CASE("WL-INFO-16: a view's open levels are its pane's state -- read there and written there, kept by a reload in place, carried by a fork, and shut for a new subject") {
+TEST_CASE("a view's open levels are its pane's state -- read there and written there, kept by a reload in place, carried by a fork, and shut for a new subject") {
     // ⚔ MUTATION (tests/mutants/workshop_info_views.md#levels-not-in-the-state,
     // #levels-kept-for-a-new-subject): the open levels kept beside the state, so a reload shuts
     // them; a new value shown with the old one's levels open.
@@ -1613,7 +1613,7 @@ TEST_CASE("info views: with pane titles hidden, a field dragged out of a view th
     REQUIRE_FALSE(s.r.session().pane_titles);
     REQUIRE(external_title_rows(s.r.session().panes, a, false) == 0);
     REQUIRE(external_title_rows(s.r.session().panes, b, false) == 0);
-    // THE PRESS TAKES THE KEYS, AND WITH THEM ITS VIEW'S TITLE (WL-FOCUS-11): the room that title
+    // THE PRESS TAKES THE KEYS, AND WITH THEM ITS VIEW'S TITLE: the room that title
     // takes waits for the press, so the press's own motion picks the field up and its release
     // places it.
     s.drag_between(a, s.field_at(a, "name"), b, s.field_at(b, "name"));

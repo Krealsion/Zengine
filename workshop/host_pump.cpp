@@ -63,13 +63,11 @@ ServedTurn served(loom::Switchboard& bus, ShowingFailures& book,
 
 } // namespace
 
-// WL-OPEN-09 -- agents/workshop/opening.md
 ServedTurn serve_until_idle(loom::Switchboard& bus, ShowingFailures& book,
                             const std::function<void(const std::string&)>& tell) {
     return served(bus, book, tell, [&bus] { bus.drain_until_idle(); });
 }
 
-// WL-OPEN-09 -- agents/workshop/opening.md
 ServedTurn serve_turn(loom::Switchboard& bus, ShowingFailures& book,
                       const std::function<void(const std::string&)>& tell) {
     return served(bus, book, tell, [&bus] { (void)bus.pump_pending(); });

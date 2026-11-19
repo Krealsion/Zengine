@@ -48,6 +48,5 @@ make that a lie. A live draft holds a contextual delete back. A stale catalog re
 compile error.
 
 **Laws supported.** [WL-CTX-01](../workshop/contextual.md),
-[WL-CTX-02](../workshop/contextual.md), [WL-CTX-05](../workshop/contextual.md),
-[WL-CTX-06](../workshop/contextual.md), [WL-CTX-07](../workshop/contextual.md),
-[WL-CTX-08](../workshop/contextual.md), [WL-CTX-09](../workshop/pane-menu.md).
+[WL-CTX-02](../workshop/contextual.md), [WL-CTX-07](../workshop/contextual.md),
+[WL-CTX-09](../workshop/pane-menu.md).

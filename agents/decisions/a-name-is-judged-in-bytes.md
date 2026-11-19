@@ -46,7 +46,7 @@ capacities: none is a statement about how many panes Workshop can usefully show,
 keeps nothing of what it refused.
 
 **Since.** The weaver-made pane retired into described views
-([a pane made from data is a view](a-pane-made-from-data-is-a-view.md)), and its name's law with
+([a pane made from data is a view](../../docs/history/decisions/a-pane-made-from-data-is-a-view.md)), and its name's law with
 it; a view's name is judged by the view's own rules.
 
 **Laws supported.** [WL-CAT-02](../workshop/catalog.md),

@@ -38,6 +38,4 @@ durable file; a restore hands this run's unit straight back. The mark is ASCII b
 face's letterform is 0x20–0x7E. A partly reactive window is followed by ` -- now @x,y WxH
 <unit>` from the unclipped ask, the rectangle a gesture measures from.
 
-**Laws supported.** [WL-GEO-08](../workshop/geometry.md), [WL-GEO-09](../workshop/geometry.md),
-[WL-GEO-10](../workshop/geometry.md), [WL-GEO-11](../workshop/geometry.md),
-[WL-GEO-12](../workshop/geometry.md).
+**Laws supported.** [WL-GEO-08](../workshop/geometry.md), [WL-GEO-11](../workshop/geometry.md).

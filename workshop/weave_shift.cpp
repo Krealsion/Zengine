@@ -12,7 +12,6 @@
 
 namespace zengine::workshop {
 
-// WL-KEY-19 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const input::PointerTimingSaid& said, loom::Mail& mail) {
     if (mail.authored_from_role(input::kInputRole)) {
         double_click_ms_ = std::clamp(said.double_click_ms, input::kLeastDoubleClickMs,
@@ -20,7 +19,6 @@ void WorkshopWeave::on(const input::PointerTimingSaid& said, loom::Mail& mail) {
     }
 }
 
-// WL-KEY-19 -- agents/workshop/keyboard.md
 bool WorkshopWeave::shift_tapped(const input::KeyPressed& k, loom::Mail& mail) {
     Hand& h = hand();
     // A PRESS WHILE THIS HAND'S SHIFT IS HELD is the key repeating: that hold is no tap, until
@@ -63,7 +61,6 @@ bool WorkshopWeave::shift_tapped(const input::KeyPressed& k, loom::Mail& mail) {
     return true;
 }
 
-// WL-KEY-19 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const input::KeyReleased& k, loom::Mail& mail) {
     if (duplicate_input(mail) || !is_shift_scan(k.scancode)) {
         return;

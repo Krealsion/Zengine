@@ -35,7 +35,6 @@ guest's gesture needs a new `open` power to reopen a location. In Neovim the car
 stays the desktop's Hotkeys, and the location has no default key.
 
 **Laws supported.** [WL-EDIT-17](../workshop/editor-transfers.md),
-[WL-EDIT-18](../workshop/editor-transfers.md), [WL-EDIT-19](../workshop/editor-transfers.md),
-[WL-EDIT-20](../workshop/editor-transfers.md), [WL-EDIT-21](../workshop/editor-transfers.md),
-[WL-NVIM-10](../workshop/neovim-transfers.md), [WL-NVIM-11](../workshop/neovim-transfers.md),
+[WL-EDIT-19](../workshop/editor-transfers.md), [WL-EDIT-20](../workshop/editor-transfers.md),
+[WL-EDIT-21](../workshop/editor-transfers.md), [WL-NVIM-11](../workshop/neovim-transfers.md),
 [WL-NVIM-12](../workshop/neovim-transfers.md).

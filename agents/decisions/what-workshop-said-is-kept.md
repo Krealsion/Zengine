@@ -28,6 +28,5 @@ understand what just happened: a role's own bookkeeping and a motion under way g
 every refusal and failure is said. The reserved chrome is five rows. A notice is no longer the desk's words, so
 saying one moves no desk stamp; the pane's rows are. A guest reads notices with `capture`.
 
-**Laws supported.** [WL-NOTE-01](../workshop/notices.md), [WL-NOTE-02](../workshop/notices.md),
-[WL-NOTE-03](../workshop/notices.md), [WL-NOTE-04](../workshop/notices.md),
-[WL-NOTE-05](../workshop/notices.md), [WL-NOTE-06](../workshop/notices.md).
+**Laws supported.** [WL-NOTE-02](../workshop/notices.md), [WL-NOTE-05](../workshop/notices.md),
+[WL-NOTE-06](../workshop/notices.md).

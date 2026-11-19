@@ -43,7 +43,6 @@ inline constexpr std::uintmax_t kMaxKeymapBytes = 1u << 16;
 inline constexpr const char* kDefaultKeymapFileName = "workshop-keymap.json";
 
 // ---- The legend's words, and why they are words -----------------------------------------
-// WL-KEY-09 -- agents/workshop/keyboard.md
 
 inline constexpr const char* kLegendDefault = "default";
 inline constexpr const char* kLegendFull = "full";

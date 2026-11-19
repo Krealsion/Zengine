@@ -36,7 +36,6 @@ void WorkshopWeave::open_context_at(const PointedAt& at) {
     session_.context = next;
 }
 
-// WL-CHROME-09 -- agents/workshop/chrome.md
 void WorkshopWeave::press_settings(std::int64_t kind, const PointedAt& at) {
     // THE HOST'S OWN MENU OF HOW WORKSHOP LOOKS, beside the press, about the pressed pane: its
     // rows are the catalog's settings, the same on every pane.
@@ -52,7 +51,6 @@ void WorkshopWeave::press_settings(std::int64_t kind, const PointedAt& at) {
     session_.context = next;
 }
 
-// WL-TAB-12 -- agents/workshop/tab-run.md
 void WorkshopWeave::open_context_on_layout(const PointedAt& at, std::size_t layout) {
     ContextMenu next;
     next.open = true;
@@ -127,7 +125,6 @@ void WorkshopWeave::leave_context_group() {
     }
 }
 
-// WL-CTX-08 -- agents/workshop/contextual.md
 void WorkshopWeave::choose_context_row(loom::Mail& mail) {
     ContextMenu& menu = session_.context;
     const std::vector<ContextEntry> rows = context_population(menu);
@@ -149,7 +146,7 @@ void WorkshopWeave::choose_context_row(loom::Mail& mail) {
     spend_context_choice(chosen.row->act, spent, mail);
 }
 
-// WL-CTX-01, WL-CTX-02, WL-CTX-07, WL-CTX-08 -- agents/workshop/contextual.md
+// WL-CTX-01, WL-CTX-02, WL-CTX-07 -- agents/workshop/contextual.md
 void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::Mail& mail) {
     switch (a) {
     // -- the pointed pane ---------------------------------------------------------
@@ -199,7 +196,6 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     }
 }
 
-// WL-CTX-08 -- agents/workshop/contextual.md
 void WorkshopWeave::context_press(const PointedAt& at, std::int64_t space, std::int64_t x,
                                   std::int64_t y, loom::Mail& mail) {
     const ContextPressAt hit =
@@ -222,7 +218,7 @@ void WorkshopWeave::on(const zengine::graphics::ClipboardCopy& c, loom::Mail&) {
     session_.clipboard.text = c.text;
 }
 
-// WL-TEXT-09, WL-TEXT-10 -- agents/workshop/text-box.md
+// WL-TEXT-09 -- agents/workshop/text-box.md
 void WorkshopWeave::on(const zengine::graphics::ClipboardText& a, loom::Mail& mail) {
     if (!mail.answers_ask()) {
         return; // not Loom's answer to anything this weave asked
@@ -303,7 +299,7 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     }
 }
 
-// WL-ARR-02 -- agents/workshop/arrangement.md; WL-TAB-11 -- agents/workshop/tab-run.md
+// WL-ARR-02 -- agents/workshop/arrangement.md
 WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures(loom::Mail& mail) {
     GesturesEnded out;
     if (session_.pane_drag.active) {
@@ -318,7 +314,7 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures(loom::Mail& mail) 
     return out;
 }
 
-// WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
+// WL-PRESS-04 -- agents/workshop/press-chain.md
 // WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, std::int64_t clicks,
                                    loom::Mail& mail) {
@@ -493,7 +489,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, std::
             return;
         }
         // A PANE'S `?` AND ITS GEAR are the host's marks on its chrome: a press on one is spent on
-        // it, and moves neither the selection nor the keys (WL-CHROME-09).
+        // it, and moves neither the selection nor the keys.
         if (here.occupied && is_runtime_kind(here.kind)) {
             const std::int64_t mark =
                 chrome_mark_at(session_.panes, session_.setup.active, screen_of(session_),
@@ -555,7 +551,6 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, std::
     repaint(mail);
 }
 
-// WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-ARR-01 -- agents/workshop/arrangement.md
 void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
@@ -650,7 +645,6 @@ void WorkshopWeave::pointer_wheel(const zengine::input::PointerWheel& w, loom::M
     count_gesture();
 }
 
-// WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-09 -- agents/workshop/tab-run.md
 bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, std::int64_t clicks,
                                   loom::Mail& mail) {
     const LayoutTabPress tab =

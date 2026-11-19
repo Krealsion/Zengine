@@ -1739,7 +1739,7 @@ inline void pick(Live& t, std::int64_t kind);
 inline void open_stock_pane(Live& t);
 
 /// TAKE THE KEYS BACK FROM WHATEVER PANE HOLDS THEM, without a gesture. A runtime pane holds the
-/// keyboard from the press that pointed at it until a press elsewhere (WL-FOCUS-01), so a case
+/// keyboard from the press that pointed at it until a press elsewhere, so a case
 /// that pressed into the stand-in and then wants COMMAND letters answered would otherwise be
 /// typing into a pane nobody is behind.
 inline void release_keys(Live& t) {
@@ -2639,7 +2639,7 @@ inline DoorHand& door_hand(Rig& t) {
 }
 
 /// A PANE A CASE OPENS, STOOD IN THE COLUMN: an open with the keys places a pane the layout never
-/// had at the room's centre (WL-DESK-19), so a case that is not about placement has the layout
+/// had at the room's centre, so a case that is not about placement has the layout
 /// hold a hidden row for it at the code's place and size first, past the doors, and the open
 /// shows it there.
 template <class Rig>
@@ -5539,7 +5539,7 @@ inline void press_body(PaneRig& r, std::int64_t kind) {
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
 }
 /// ...AND LET GO THERE: the press ended, so the area a held press kept where it was aimed
-/// (WL-FOCUS-11) is placed under the title rows the keys brought.
+/// is placed under the title rows the keys brought.
 inline void click_body(PaneRig& r, std::int64_t kind) {
     const CellRect body = external_body_rect(r.session(), kind);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
@@ -5946,7 +5946,7 @@ inline void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std:
 }
 
 /// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE. The keyboard goes to the pane a
-/// weaver last pressed into (WL-FOCUS-01) and there is no shape for asking, so this spends a press
+/// weaver last pressed into and there is no shape for asking, so this spends a press
 /// on a row whose provider-side meaning is NOTHING -- the bound sentence where there is one, the
 /// last row otherwise -- possible only because every target in this pane means exactly one thing.
 inline void focus_pane(PaneRig& r, std::int64_t kind) {

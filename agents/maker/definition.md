@@ -66,7 +66,7 @@ LAW — Admission refuses in one sentence naming the trigger, message or field: 
 
 MEANS
 - the conversion is planned against its own `from`; the value half waits for the edge;
-- a body's operators are not resolved at admission: the catalog is asked at spend (MW-WEAVE-05).
+- a body's operators are not resolved at admission: the catalog is asked at spend.
 
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 

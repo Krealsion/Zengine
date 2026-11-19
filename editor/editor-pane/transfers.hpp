@@ -6,7 +6,7 @@
 
 // The Editor pane's pointer and transfers: a press, a sweep and the wheel on its canvas, the
 // second button and the menu it opens, the highlight or this file's location carried out, material
-// dropped in, and a dropped location opened (WL-EDIT-16..22). These are `EditorPaneWeave`'s
+// dropped in, and a dropped location opened (WL-EDIT-17, WL-EDIT-19, WL-EDIT-20, WL-EDIT-21, WL-EDIT-22). These are `EditorPaneWeave`'s
 // members, declared in `pane.cpp`, which includes this file after the class; it compiles in no
 // other place.
 // Workshop law: agents/workshop/editor-transfers.md
@@ -46,7 +46,7 @@ namespace {
 /// press places the caret or remembers what it landed on, its motion sweeps or carries that, its
 /// release or loss ends the sweep, the wheel scrolls, and a right press offers this pane's rows or
 /// hands the press back. A press landed on another line than the rows show now is refused in words;
-/// on its line in a drawing whose meaning moved since, it is ordinary (WL-EDIT-18).
+/// on its line in a drawing whose meaning moved since, it is ordinary.
 // WL-PRESS-07 -- agents/workshop/press-chain.md
 inline void EditorPaneWeave::on_window(const std::optional<zengine::pane::WindowPointer>& p,
                                        loom::Mail& mail) {
@@ -94,8 +94,8 @@ inline void EditorPaneWeave::pointer(std::int64_t phase, std::int64_t button,
 }
 
 /// A press names a row of this pane's room. The rows above the document are a focus statement
-/// that moves nothing, and begins no sweep (WL-EDIT-16); a document row places the caret through
-/// the tab geometry its row was painted with (WL-EDIT-08), the notice row left alone. On a
+/// that moves nothing, and begins no sweep; a document row places the caret through
+/// the tab geometry its row was painted with, the notice row left alone. On a
 /// picture still `current` it may mean one thing more once the hand moves: ON the highlight it
 /// remembers the selection it landed on, and on the status row this file's location
 /// (WL-EDIT-19).

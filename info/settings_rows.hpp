@@ -58,7 +58,6 @@ inline std::string lock_of(const workshop::PaneSettingsAnswered& read, const std
 
 /// A DECLARED SETTING'S VALUE: what the row stores, its default when it stores none; a stored value
 /// the setting does not take is shown as stored, never repaired, beside what it takes.
-// WL-SETTING-05 -- agents/workshop/settings.md
 inline std::string value_text(const workshop::PaneSettingsAnswered& read,
                               const pane::PaneSettingRow& row) {
     const pane::PaneSetting fallback = pane::pane_setting_default(row);
@@ -75,7 +74,6 @@ inline std::string value_text(const workshop::PaneSettingsAnswered& read,
 
 /// THE ROWS, in the declaration's order and then the kept keys in the row's: every key the row
 /// stores that no declared setting takes is a kept row.
-// WL-SETTING-05 -- agents/workshop/settings.md
 inline std::vector<SettingsRow> rows_of(const workshop::PaneSettingsAnswered& read) {
     std::vector<SettingsRow> out;
     std::vector<pane::PaneSettingRow> declared;
@@ -122,7 +120,6 @@ inline std::vector<SettingsRow> rows_of(const workshop::PaneSettingsAnswered& re
 /// WHAT A ROW'S TYPED TEXT WRITES: the commit at the revision the row was read at, or why the text
 /// is no value it takes. `-` clears, as it resets every row Info edits; a flag or a number is read
 /// from what stands between the spaces, and a text is the text as typed, its spaces part of it.
-// WL-SETTING-05 -- agents/workshop/settings.md
 struct Typed {
     std::optional<workshop::PaneSettingCommitRequested> commit;
     std::string refusal;

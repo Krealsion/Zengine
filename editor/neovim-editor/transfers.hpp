@@ -6,7 +6,7 @@
 
 // The Neovim-backed Editor's pointer and transfers: members of `NeovimEditorWeave`, which pane.cpp
 // declares and includes this after. Neovim's own mouse on its screen; a press that becomes a carry
-// of the selection or this file's location (WL-NVIM-10); material dropped in as data (WL-NVIM-11);
+// of the selection or this file's location; material dropped in as data (WL-NVIM-11);
 // a dropped location opened (WL-NVIM-12); and a change Neovim holds until it answers (WL-NVIM-13).
 // Workshop law: agents/workshop/neovim-transfers.md
 
@@ -104,8 +104,7 @@ inline void NeovimEditorWeave::pointer(std::int64_t phase, std::int64_t button,
 /// A PRESS ON NEOVIM'S SCREEN IS NEOVIM'S OWN PRESS; on the status row it is a focus statement
 /// and moves nothing. On rows still current it may mean one thing more once the hand moves:
 /// ON the painted Visual highlight it remembers the selection Neovim held (its text taken now,
-/// as its yank takes it), and on the status row this file's location (WL-NVIM-10).
-// WL-NVIM-10 -- agents/workshop/neovim-transfers.md
+/// as its yank takes it), and on the status row this file's location.
 inline void NeovimEditorWeave::press_at(std::int64_t row, std::int64_t column, bool aimed,
                                         loom::Mail& mail) {
     if (held_still()) {
@@ -159,8 +158,8 @@ inline void NeovimEditorWeave::dragged(std::int64_t row, std::int64_t column, lo
     if (held_still()) {
         return;
     }
-    // A REMEMBERED PRESS BECOMES A CARRY ON ITS FIRST MOTION TO ANOTHER CELL, never a sweep
-    // (WL-NVIM-10): Neovim's own press ends as the click it was, the Visual selection is put
+    // A REMEMBERED PRESS BECOMES A CARRY ON ITS FIRST MOTION TO ANOTHER CELL, never a sweep:
+    // Neovim's own press ends as the click it was, the Visual selection is put
     // back (`gv`) when the buffer has not moved since, and the copy is the one taken at the press.
     if (grab_.armed) {
         if (!grab_.started && (row != grab_.row || column != grab_.column)) {
@@ -211,7 +210,7 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
     }
     grab_ = Grab{};
     if (row < chrome_rows()) {
-        // THE STATUS ROW NAMES THIS FILE: its menu carries the location (WL-NVIM-10).
+        // THE STATUS ROW NAMES THIS FILE: its menu carries the location.
         if (row == 0 && host_->ready() && !doc_path().empty()) {
             menu_take_ = Take::Location;
             menu_ = zengine::pane::pane_menu::Offer(nve::kEditorPane, "location")
@@ -518,8 +517,7 @@ inline void NeovimEditorWeave::begin_pickup(const st::Pair& pair, bool drag, std
                          pickup_, noticing());
 }
 
-/// A COPY OF THE SELECTION NEOVIM HELD (WL-NVIM-10): its text, with where it came from beside it.
-// WL-NVIM-10 -- agents/workshop/neovim-transfers.md
+/// A COPY OF THE SELECTION NEOVIM HELD: its text, with where it came from beside it.
 inline void NeovimEditorWeave::carry_snapshot(const Snapshot& snap, bool drag, std::uint64_t gesture,
                                               loom::Mail& mail) {
     st::SourceSelection s;

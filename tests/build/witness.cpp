@@ -97,7 +97,7 @@ std::string so_in(std::string_view dir, std::string_view stem) {
 /// the Builder's two publications, prints them, and sets a flag when the conversation it follows
 /// has no more to say. It commands nothing; like the Builder pane's reader it asks, once a build
 /// has ended, for what it said, by operation number, and prints that page: a weaver reads a
-/// compiler's reason there (WL-OUT-02), not in a status's last lines.
+/// compiler's reason there, not in a status's last lines.
 struct ReporterState {
     std::int64_t heard = 0;
     ZEN_SHAPE(ReporterState, 1, ZEN_FIELD(heard));

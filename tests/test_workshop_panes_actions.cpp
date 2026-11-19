@@ -390,7 +390,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
                   .find("a row with no default key cannot carry modifiers") != std::string::npos);
         const Keymap joined = accepted({declared("x.rename", "rename", input::scan::kUnknown)});
         // UNBOUND JOINS UNBOUND, and answers to no key -- the `kUnknown` key that the
-        // wire reports for a key this build cannot name requests nothing (WL-KEY-13).
+        // wire reports for a key this build cannot name requests nothing.
         REQUIRE(joined.pane_rows(kSomePane)->rows.size() == 1);
         CHECK_FALSE(is_bound(joined.pane_rows(kSomePane)->rows[0].gesture));
         CHECK(joined.pane_action_for(kSomePane, input::scan::kUnknown, input::mod::kNone) ==
@@ -438,7 +438,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(refused({declared("document.save", "save", input::scan::kS, input::mod::kCtrl)})
                   .find("retired with the object document") != std::string::npos);
         // A NO-TEXT ROW (`workshop.quit`, ^c) is NOT active while a text-taking pane
-        // holds the keys (WL-FOCUS-09): a pane may declare the chord.
+        // holds the keys: a pane may declare the chord.
         const Gesture quit = k.gesture_of(Act::kQuit);
         (void)accepted({declared("x.copy", "copy", quit.scancode, quit.modifiers)});
         // A COMMAND-MODE ROW is another mode's: `n` is free in a pane.
@@ -447,7 +447,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(refused({declared("x.up", "up", input::scan::kUp),
                        declared("x.also", "also", input::scan::kUp)}) ==
               collision_sentence(Gesture{input::scan::kUp, input::mod::kNone}, "x.up", "x.also"));
-        // ...and two UNBOUND rows are not two rows holding one gesture (WL-KEY-13).
+        // ...and two UNBOUND rows are not two rows holding one gesture.
         (void)accepted({declared("x.a", "a", input::scan::kUnknown),
                         declared("x.b", "b", input::scan::kUnknown)});
     }
@@ -721,7 +721,7 @@ TEST_CASE("a declared gesture arrives as the resolved id and an undeclared one a
     CHECK(seat->keys[0].scancode == input::scan::kP);
     REQUIRE(seat->typed.size() == 1);
     CHECK(seat->typed[0].text == "p");
-    // THE MODIFIERS ARE PART OF THE MATCH (WL-KEY-04): shift+m is not `hello.mark`.
+    // THE MODIFIERS ARE PART OF THE MATCH: shift+m is not `hello.mark`.
     r.key(input::scan::kM, input::mod::kShift);
     r.text("M");
     CHECK(seat->actions.size() == 2);
@@ -1190,7 +1190,7 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
         CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloRole)) !=
               std::string::npos);
         // THE PANE'S OWN ROWS, then the one host row requestable while a pane holds the keys, the
-        // way out: an unbound row teaches no key (WL-KEY-13).
+        // way out: an unbound row teaches no key.
         CHECK(lines[1] == "up row up | m mark | ctrl+q leave pane");
     }
     // THE EFFECTIVE KEYMAP: the pane's rows under its own name, the unbound one with no key.
@@ -2601,7 +2601,7 @@ TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, 
 
 // =============================================================================
 // THE PANE MANAGER'S WAY TO MAKE A PANE: `n` shows the View Builder through the host's launch
-// door (WL-MAKER-11). A pane of a weaver's own is a described view, made and saved there.
+// door. A pane of a weaver's own is a described view, made and saved there.
 // =============================================================================
 
 namespace {
@@ -2621,7 +2621,7 @@ const PaneRef kViewBuilderRef{"zengine.view.builder", "view-builder"};
 
 } // namespace
 
-TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder through the host's "
+TEST_CASE("the shipped Pane Manager's `n` shows the View Builder through the host's "
           "launch door, and a Workshop without one says so in the door's words") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#new-launches-another-pane,
     // #new-launches-nothing): `n` launching any other pane, or nothing -- the View Builder's pane

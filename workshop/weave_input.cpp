@@ -14,7 +14,6 @@ namespace zengine::workshop {
 // (`refresh_external_rooms` re-grants the rooms whose capacity moved) and how the band and the
 // Hotkeys view spell a key. A toggle states one, and asks the role that keeps it to write it:
 // the answer says whether the file holds it.
-// WL-KEY-16 -- agents/workshop/key-spelling.md
 void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
     const char* what = a == Act::kPaneTitles ? "pane titles were not toggled"
                        : a == Act::kBandKeys ? "the band's keys were not respelled"
@@ -79,7 +78,6 @@ const char* direction_words(Act a) {
 
 // WL-KEY-01 -- agents/workshop/keyboard.md
 // WL-GUEST-09 -- agents/workshop/guests.md
-// WL-FOCUS-12 -- agents/workshop/focus.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // Each arm calls one operation. A weaver's keymap row naming a retired id is kept byte for byte
     // and said at load (`kRetiredActions`); nothing here answers it.
@@ -114,7 +112,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     case Act::kQuit: quit(mail); break;
     // THE KEYBOARD'S WAY TO A PANE: the selection moves, lifting the pane it reaches as a press
     // would, and writes the keys nowhere; only `focus.enter` gives a pane the keys, and it sends
-    // the pane no press, so arriving never activates a row (WL-FOCUS-04).
+    // the pane no press, so arriving never activates a row.
     case Act::kFocusNext:
     case Act::kFocusPrevious:
     case Act::kFocusLeft:

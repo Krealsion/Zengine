@@ -55,7 +55,6 @@ inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, l
 }
 
 /// `LineSlot` AS THE SEAM SPELLS IT.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 inline const char* slot_name(LineSlot slot) noexcept {
     switch (slot) {
     case LineSlot::Verb: return kSlotVerb;
@@ -154,7 +153,6 @@ public:
 
     /// WHAT THE PARTICIPANT'S RECORD HOLDS, TO WHOEVER IS PRESENTING IT -- derived on the
     /// repaint, compared against the last utterance, and said only when it changed.
-    // WL-TERM-03 -- agents/workshop/terminal-door.md
     void say_transcript(loom::Mail& mail) {
         TranscriptShown now = transcript_shown(host_->terminal);
         if (transcript_said_ && same_transcript(now, said_transcript_)) {
@@ -174,7 +172,7 @@ private:
     /// Compose and author one line through the participant, in Loom's own grammar: the one path
     /// that speaks as the terminal, stamped with its identity and judged against its grant -- why
     /// the participant stayed this host's.
-    // WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal-door.md
+    // WL-TERM-02 -- agents/workshop/terminal-door.md
     void submit_terminal_line(const std::string& line) {
         if (line.empty()) {
             return;

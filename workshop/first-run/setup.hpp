@@ -34,7 +34,6 @@ inline constexpr const char* kAnsweredKey = "answered";
 /// THE DESK A FRESH START OPENS: Workshop's Layouts row, Info and Notices. The quick setup shows
 /// itself only while no other pane is open, so it never comes in front of a pane a hand already
 /// opened.
-// WL-FIRST-01 -- agents/workshop/first-run.md
 inline bool fresh_desk(const std::vector<std::pair<std::string, std::string>>& open) {
     for (const auto& [role, pane] : open) {
         const bool layouts = role == zengine::pane::pane_menu::kWorkshopRole && pane == "layouts";
@@ -148,7 +147,6 @@ inline std::vector<Item> items_of(const Moment& m) {
 /// THE LINES OF THE QUICK SETUP, top to bottom: the editor block, the setups the launcher lists
 /// with Start on each, what the launcher says of them, and The story beside them, then Done and
 /// Skip; the notice last, when there is one. Each is read whole in `columns` (`wrapped`).
-// WL-FIRST-02 -- agents/workshop/first-run.md
 inline std::vector<Line> lines_of(const Moment& m, std::int64_t columns = 0) {
     const auto mark = [&](Item i) { return std::string(m.cursor == i ? "> " : "  "); };
     const auto ink = [&](Item i) { return m.cursor == i ? Line::Ink::kCursor : Line::Ink::kPlain; };

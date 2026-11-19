@@ -114,7 +114,6 @@ public:
     /// WHAT PANES THERE ARE, SAID BY THE HOST -- replaced WHOLE, never merged: this pane keeps no
     /// copy it edits, and finds the weaver's choice in it again by identity. It lists them by name,
     /// alphabetically, whatever order the host said them in.
-    // WL-DESK-10 -- agents/workshop/desktop-presenting.md
     void inventory_said(const std::vector<ws::InventoryPane>& panes, DesktopState& state,
                         const Declared& pane_rows_decl, const Declared& app, loom::Mail& mail) {
         known_ = panes;
@@ -192,7 +191,6 @@ public:
 
     // ---- The mouse ----------------------------------------------------------------------------
 
-    // WL-DESK-14 -- agents/workshop/desktop-presenting.md
     /// A PRESS ON THE MARK SHOWS OR HIDES THE ROW'S PANE; a press on the name CHOOSES the row; a
     /// DELIBERATE SECOND PRESS on the marked name, with the keys already here, is Return's meaning
     /// -- open, or focus and lift. The first press (the one that brings the keys, or one on an
@@ -259,7 +257,6 @@ public:
         (void)pane::pane_menu::pass_back(mail, kDesktopRole, kLauncherPane);
     }
 
-    // WL-DESK-10 -- agents/workshop/desktop-presenting.md
     /// THE WHEEL SCROLLS THE ROWS HIDDEN ITS WAY FIRST, one row per notch, fractions carried; the
     /// marker is carried to the window's edge only when a scroll would leave it out of sight, and
     /// walks a row a notch once no row is hidden that way.
@@ -410,7 +407,6 @@ public:
 private:
     // ---- The cursor, held by identity -----------------------------------------------------------
 
-    // WL-DESK-10 -- agents/workshop/desktop-presenting.md
     /// Find the row the weaver chose, in the list as the host just said it, by identity. A choice
     /// whose row left is still a choice: the keys stay in `DesktopState`, the marker holds nothing
     /// and says so, and Return and `x` wait for a new choice, here and in any image a reload hands

@@ -42,7 +42,7 @@ using zengine::persist::Written;
 inline constexpr const char* kFormat = "zengine-workshop-session";
 
 /// The ONE session format version this build writes and admits.
-// WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
+// WL-MIG-01 -- agents/workshop/migration.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
 inline constexpr std::int64_t kFormatVersion = 14;
 
@@ -80,7 +80,6 @@ struct WorkshopSetupLink {
 
 /// ONE SAVED LAYOUT: the id the owner minted for it, the desk, and the artifact it is associated
 /// with.
-// WL-LAYOUT-09 -- agents/workshop/layouts.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopLayout {
     std::int64_t id = 0;
@@ -218,7 +217,6 @@ inline std::string to_text(const std::vector<Layout>& run, std::size_t active,
 // ---- Reading -------------------------------------------------------------------
 
 /// What reading a session produced.
-// WL-SESSION-14 -- agents/workshop/session-restore.md
 struct LoadedSession {
     Written outcome;        ///< whether a file that EXISTS was read and understood
     bool present = false;   ///< whether there was a previous session at all
@@ -250,7 +248,6 @@ inline std::string forged_version(std::int64_t found) {
 }
 
 /// WHAT TO SAY ABOUT AN OLDER SESSION THAT COULD NOT BE BROUGHT FORWARD.
-// WL-MIG-06 -- agents/workshop/migration.md
 inline std::string could_not_convert(std::uint32_t found, const std::string& why) {
     return "session version " + std::to_string(found) + " cannot be read: " + why;
 }
@@ -536,7 +533,7 @@ inline std::string whole_of_lines(const std::vector<std::string_view>& lines,
 }
 
 /// AN OLDER SESSION, ONE VALUE, BROUGHT FORWARD by this run's conversions, or refused in words.
-// WL-MIG-06, WL-MIG-08 -- agents/workshop/migration.md
+// WL-MIG-08 -- agents/workshop/migration.md
 inline LoadedSession converted_in(const loom::Unverified& claim, const op::Catalog* conversions) {
     const op::Evaluation converted =
         op::migrate(conversions, claim, loom::schema_of<WorkshopSession>());
@@ -549,7 +546,7 @@ inline LoadedSession converted_in(const loom::Unverified& claim, const op::Catal
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and
 /// nothing here throws.
-// WL-MIG-06, WL-MIG-08 -- agents/workshop/migration.md
+// WL-MIG-08 -- agents/workshop/migration.md
 inline LoadedSession from_text(std::string_view bytes,
                                const op::Catalog* conversions = nullptr) {
     // A FIRST LINE CLAIMING THE HEADER IS A FILE OF LINES: this format's, read a line at a time,
@@ -612,7 +609,7 @@ inline Written save_file(const std::string& path, const std::vector<Layout>& run
 }
 
 /// Read the last session from a file.
-// WL-MIG-08 -- agents/workshop/migration.md; WL-SESSION-14 -- agents/workshop/session-restore.md
+// WL-MIG-08 -- agents/workshop/migration.md
 inline LoadedSession load_file(const std::string& path,
                                const op::Catalog* conversions = nullptr) {
     std::error_code ec;

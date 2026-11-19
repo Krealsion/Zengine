@@ -24,7 +24,7 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 - *Seeding the remembered extent first* — measured against a real window (`4831165`).
 - *Applying the desk before the viewport* — measured red while the room's height rationed the
   stack (`4831165`); since no room rations it
-  ([the stack begins again](the-stack-begins-again.md)), the order changes no seating.
+  ([the stack begins again](../../docs/history/decisions/the-stack-begins-again.md)), the order changes no seating.
 - *Clamping an out-of-band viewport* — rejected: clamping 100000 to 640 still opens a window
   nobody chose on a display Workshop cannot see.
 - *Persisting `SurfaceExtent`, or pixels* — rejected: cells are what cross the Skin seam; the
@@ -39,6 +39,4 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 a want rather than a floor. A maximized close writes the room the weaver chose with `maximized`
 beside it, and a flag merely restored never gates a placement-less run's tracking.
 
-**Laws supported.** [WL-SESSION-07](../workshop/window-file.md),
-[WL-SESSION-08](../workshop/window-file.md), [WL-SESSION-09](../workshop/window-file.md),
-[WL-SESSION-20](../workshop/window-file.md).
+**Laws supported.** [WL-SESSION-07](../workshop/window-file.md).

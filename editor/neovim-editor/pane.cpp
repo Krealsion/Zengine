@@ -5,7 +5,7 @@
 // runs. It holds `zengine.editor`, offers the Editor's pane key and answers every door the
 // standard Editor answers -- a managed opening's preparation and publication, the old door's
 // relay, the orderly quit, the clipboard, the project root and both halves of an editor switch's
-// handoff -- so Files, the Builder and Edit Code reach it by reaching the role (WL-NVIM-01).
+// handoff -- so Files, the Builder and Edit Code reach it by reaching the role.
 // Workshop law: agents/workshop/neovim.md
 
 // Neovim owns the buffers, their bytes, the modes, undo, registers and the screen. This weave
@@ -156,7 +156,6 @@ using NeovimEditorBase = zengine::With<zengine::pane::PaneManualFacet<
                graphics::Drawn, graphics::RoomAsked, zengine::pane::v2::PaneSettingsDeclared>,
     loom::WeaveBase, loom::Claims<EditorDocument, loom::host::WaitSet>>;
 
-// WL-NVIM-01 -- agents/workshop/neovim.md
 class NeovimEditorWeave : public NeovimEditorBase {
 public:
     // ---- A reload, refused while Neovim runs ---------------------------------------------------
@@ -367,7 +366,7 @@ public:
         } else if (asked.id == nve::kActionCtrlSpace) {
             send_input(mail, "<C-Space>");
         } else if (asked.id == nve::kActionExtract) {
-            // THE KEYBOARD ROUTE (WL-NVIM-10), declared only while a selection stands. The weaver may
+            // THE KEYBOARD ROUTE, declared only while a selection stands. The weaver may
             // have left Visual mode after the row was declared: then `ctrl+r` was Neovim's own key
             // after all (redo, or Insert's register), and goes to Neovim as one.
             grab_ = Grab{};
@@ -847,7 +846,6 @@ private:
         wait_.settle(mail, nve::kEditorRole, set, look.on_time, look.every_ms);
     }
 
-    // WL-NVIM-07 -- agents/workshop/neovim.md
     void absorb(loom::Mail& mail, nv::Observed seen) {
         if (seen.became_ready) {
             notice(started_words() + " is ready", false);
@@ -882,7 +880,7 @@ private:
         }
         settle_warm(mail);
         if (activation_.activated() && carries_selection() != declared_selection_) {
-            declare(mail); // `ctrl+r` follows Neovim's mode (WL-NVIM-10)
+            declare(mail); // `ctrl+r` follows Neovim's mode
         }
         if (seen.flushed || seen.mode_changed || seen.doc_changed || seen.became_ready || seen.failed || seen.ended) {
             resay_ = true;
@@ -951,7 +949,7 @@ private:
     /// Two rows naming Workshop's retired document rows as what they stand in for, so an older
     /// host that still declares them lets these keep their chords: save writes the buffer, and
     /// open is Neovim's own jump back. Every other key reaches Neovim, except `ctrl+r` while a
-    /// Visual or Select selection stands, where it carries the selection (WL-NVIM-10); this
+    /// Visual or Select selection stands, where it carries the selection; this
     /// file's location has no default key, every plain ctrl+letter being Neovim's or the
     /// desktop's (WL-NVIM-12).
     void declare(loom::Mail& mail) {
@@ -1068,7 +1066,6 @@ private:
         return picture_hash(rows, caret, epoch_) == drawn_hash_;
     }
 
-    // WL-NVIM-02 -- agents/workshop/neovim.md
     void compose(std::vector<zengine::pane::TextRow>& rows, zengine::pane::RowsCaret& caret, std::int64_t room_rows,
                  std::int64_t room_cols) const {
         if (room_rows <= 0 || room_cols <= 0) {
@@ -1240,7 +1237,7 @@ private:
     std::string clip_;
     std::map<std::uint64_t, std::uint32_t> pastes_;
 
-    // ---- Transfers (WL-NVIM-10..12): this incarnation's conversations, none of them reload state.
+    // ---- Transfers (WL-NVIM-11, WL-NVIM-12): this incarnation's conversations, none of them reload state.
     /// The fingerprint of the rows last drawn in the window (`say`).
     std::uint64_t drawn_hash_ = 0;
     Grab grab_;

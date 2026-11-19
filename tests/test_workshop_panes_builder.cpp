@@ -744,7 +744,7 @@ TEST_CASE("a row whose product is built finishes with the button's act") {
     CHECK(b.tool->realize_asked[0] == true);
     // ...AND THE WEAVER IS TOLD, in the sentence a narrow pane can actually carry: the pane's
     // room is one stack slot wide, so its notices front-load their meaning the way a path
-    // does not (WL-PROJ-10's rule, one artifact over) -- the act first, the details after.
+    // does not (a path's rule, one artifact over) -- the act first, the details after.
     CHECK(b.text().find("loading `zengine-snake` now") != std::string::npos);
 }
 
@@ -1747,7 +1747,7 @@ TEST_CASE("while an artifact stands built, arming the next build is a different 
 
 TEST_CASE("a right press offers the Builder's own rows, and a menu from another mode "
           "acts on nothing") {
-    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-CTX-08, WL-CTX-09). Every operation the strip
+    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-CTX-09). Every operation the strip
     // carries is in the menu too, spelled with the subject it will act on -- and a menu is
     // about the MODE it was opened in, so an answer arriving after the mode changed does
     // nothing at all.
@@ -3874,7 +3874,7 @@ void choose_context(BuilderRig& b, const std::string& id) {
 
 } // namespace
 
-TEST_CASE("WL-CHROME-09: a pane whose holder answers its manual wears a `?` and a gear at its top "
+TEST_CASE("a pane whose holder answers its manual wears a `?` and a gear at its top "
           "right; one that does not, or a desk with no row to show one, wears neither") {
     // THE ROW THE HOST DRAWS THE `?` FOR is the one the desktop declares, spelled in both.
     CHECK(std::string(kManualAction) == dp::kActionManual);
@@ -3921,7 +3921,7 @@ TEST_CASE("WL-CHROME-09: a pane whose holder answers its manual wears a `?` and 
     }
 }
 
-TEST_CASE("WL-DESK-17: the Builder's `?` shows About, Use and every command it declares in every "
+TEST_CASE("the Builder's `?` shows About, Use and every command it declares in every "
           "mode, each beside the key it answers to, the census's default where nothing moved it") {
     BuilderRig b("bld-help-shown");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
@@ -3967,7 +3967,7 @@ TEST_CASE("WL-DESK-17: the Builder's `?` shows About, Use and every command it d
     CHECK(section_of(lines, pane::kActionBuild).find("press `b`") != std::string::npos);
 }
 
-TEST_CASE("WL-DESK-17: a key the weaver moved in a keymap file shows in place of the marked "
+TEST_CASE("a key the weaver moved in a keymap file shows in place of the marked "
           "default, beside the heading and in the words, for a command in force and one in "
           "another mode") {
     BuilderRig b("bld-help-moved");
@@ -3989,7 +3989,7 @@ TEST_CASE("WL-DESK-17: a key the weaver moved in a keymap file shows in place of
     CHECK(section_of(lines, "builder.output-older").find("`9`") != std::string::npos);
 }
 
-TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart from a pane's gear, "
+TEST_CASE("the band's spelling and the Hotkeys view's are set apart from a pane's gear, "
           "each changing only its own surface, the `?` spelling as the Hotkeys view does") {
     BuilderRig b("bld-help-spelling");
     b.r.host.prefs_path = (b.root / "workshop-prefs.json").generic_string();
@@ -4022,7 +4022,7 @@ TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart f
         b.r.key(input::scan::kDown);
     }
     CHECK(manual_heading() == "builder.build-realize -- shift+b");
-    // THE MANUAL OPENED OVER THE BUILDER (WL-DESK-20): the Builder put in front of it, so its own
+    // THE MANUAL OPENED OVER THE BUILDER: the Builder put in front of it, so its own
     // header and body are pressed below, and the Manual keeps its words where it was read.
     stage_desk(b.r, [](Setup& desk) { (void)send_to_front(desk, builder_ref()); });
     const_cast<Session&>(b.r.session()).panes.selected = kNoPaneKind;
@@ -4062,7 +4062,7 @@ TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart f
     CHECK(saved.prefs.hotkeys_keys == KeySpelling::kShort);
 }
 
-TEST_CASE("WL-DESK-17: the manual key asks for the manual of the pane holding the keys; the Manual "
+TEST_CASE("the manual key asks for the manual of the pane holding the keys; the Manual "
           "keeps no words once closed, and a pane reloaded in place shows its new words at the "
           "next `?`") {
     BuilderRig b("bld-help-reload");

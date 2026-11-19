@@ -19,17 +19,17 @@ what it drew there (`WindowDrawing::pointer`, `window_cell`, `pane/drawing.hpp`)
 lets a provider locate itself on a screen.
 
 - **Workshop learns of the press as the arranger, and the press is still the pane's.**
-  `on(AreaPressed)` moves the desk's selection and the keys (`workshop/focus.md` WL-FOCUS-03),
+  `on(AreaPressed)` moves the desk's selection and the keys (`workshop/focus.md`),
   keeps a continuation under the window's number, and ends an open menu; it sends the pane
   nothing about the press, and interprets none of its rows.
 - **Where the keys were is Workshop's word, said before the press moved them**: **`PaneKeys v1`
   `{pane, here}`**, to the pane's role whenever the keys come or go. A pane that activates a row
-  on a press does so only when the keys were already its own (WL-FOCUS-04); a mode holding the
+  on a press does so only when the keys were already its own; a mode holding the
   keys is "not here".
 - **The title rows are Workshop's frame, outside the area.** The area stands under the resolved
   header rows (`ExternalBodyPlace::header_rows`), so the row a pane means by 0 is its own first
   row. A hidden title returns its row by placing the area again; a press the window holds keeps
-  the area where the press was aimed until the window says it ended (WL-FOCUS-11). A provider
+  the area where the press was aimed until the window says it ended. A provider
   must not let the new room undo what the press selected (Files keeps its selection by name
   across a same-place re-listing).
 - **A place outside the rows names nothing.** The window cuts what a pane draws at its area's
@@ -37,7 +37,7 @@ lets a provider locate itself on a screen.
   nearest row.
 - **Workshop holds no selection INSIDE a pane and interprets no row meaning.** What it holds is
   which PANE: the desk's selection and the keyboard's candidate (`Panes::selected`,
-  `Panes::keyboard`, [`workshop/focus.md`](workshop/focus.md) WL-FOCUS-01). The moment Workshop
+  `Panes::keyboard`, [`workshop/focus.md`](workshop/focus.md)). The moment Workshop
   looked at a provider's rows to decide what a press means, the seam would stop being one.
 - **A press names the element it landed on** ([`workshop/press-chain.md`](workshop/press-chain.md)
   WL-PRESS-07). The window says what it drew under the hand -- the area, the part named there, that
@@ -100,8 +100,7 @@ Release outside a receiver cancels a drag, while an unsupported keyboard placeme
 The release's receiver is retained; a departed receiver cannot be silently replaced. A wheel
 during a drag is the pane's under the hand, and the drag stands.
 Acquiring bytes grants no authority to an operation requested by the receiver. On a canvas pane
-the place is the canvas's own (`PaneCanvasValueDrop`, and `PaneCanvasDrop` for a reference,
-WL-CANVAS-04): local pixels, room grant and aimed picture, for a provider that accepts it. A canvas pane carries out
+the place is the canvas's own (`PaneCanvasValueDrop`, and `PaneCanvasDrop` for a reference): local pixels, room grant and aimed picture, for a provider that accepts it. A canvas pane carries out
 as a prose pane does: its primary press's number approves the acquisition, a drag begins with the
 press, and the carry ends the press's canvas hold as lost (WL-CANVAS-05).
 
@@ -120,10 +119,10 @@ it holds on that pane -- for each pane it may observe from.
 
 `PanePointRequested` answers where one character of a word of a reading is now, refusing it
 when what the pane shows moved. It reads presentation; pressing the point is ordinary input. A
-pane's reading is the window's (WL-READ-08): the words its area shows, each with its place in
+pane's reading is the window's: the words its area shows, each with its place in
 canvas pixels and the point a press names it by, and its place and text measure, from which any
 cell is reckoned; a pane whose role nobody holds gives a word or part none, as its press reaches
-nothing. Workshop's own surfaces are answered from its own numbers (WL-GEO-13). Workshop names
+nothing. Workshop's own surfaces are answered from its own numbers. Workshop names
 nothing inside a pane: a word's number is its place in one answer. A pane names its parts
 (WL-HAND-06) as its drawing's records' actions -- a run of a row's columns, a rectangle of the
 picture -- in the order the pane reads a press, a place it names nothing unnamed; a presenter names
@@ -131,18 +130,17 @@ its menu's lines by the rows' ids in its own drawing. `PaneView` says each besid
 place and its point, a place of its own a press reaches -- none for a part with no such place --
 and `DeskView` a menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
 input at that point. Workshop names only its own surfaces' parts: its menu's lines and Layouts'
-tabs, `layout:<name>` and `layout:+` (WL-READ-04).
+tabs, `layout:<name>` and `layout:+`.
 
 `DeskReadRequested` answers the desk said whole, in one turn: `DeskView`, every
-presented pane's stamp and as many readings as one decoded value and one reply's bytes hold
-(WL-READ-01). A page is asked under its stamp and refused as stale when that moved (WL-READ-02),
+presented pane's stamp and as many readings as one decoded value and one reply's bytes hold.
+A page is asked under its stamp and refused as stale when that moved (WL-READ-02),
 and says a covered pane's visible words with the cover named, a point only where a press lands
 (WL-READ-05); desk reads are at most `kDeskReadsPerSecond` a second, each asker (WL-READ-03).
-A stamp names what a pane shows, and where, by a fingerprint, so a pane does nothing for it
-(WL-READ-07), and Workshop publishes `DeskStamps` at the end of each delivery that moved the desk
-number or a stamp (WL-READ-06). A guest session whose row holds `capture`
-is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-DESK-09, WL-DESK-11,
-WL-GUEST-11). The shapes: [the desk, said whole](../workshop/docs/workshop-panes.md#the-desk-said-whole).
+A stamp names what a pane shows, and where, by a fingerprint, so a pane does nothing for it,
+and Workshop publishes `DeskStamps` at the end of each delivery that moved the desk
+number or a stamp. A guest session whose row holds `capture`
+is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-GUEST-11). The shapes: [the desk, said whole](../workshop/docs/workshop-panes.md#the-desk-said-whole).
 
 ## A pane draws in its own area of the window
 
@@ -177,7 +175,7 @@ testing and every semantic action. No node, wire or pan behavior belongs in the 
 - **Where a carried item would land is Workshop's word.** While a value is carried, Workshop's
   own area stands in front, and it tells a pane accepting `PaneCanvasHover` the point of its area
   the item rests over; a drop is `PaneCanvasValueDrop` or `PaneCanvasDrop`, a point of the area
-  it landed in (WL-CANVAS-04).
+  it landed in.
 
 ## The keyboard crosses as two shapes
 
@@ -186,7 +184,7 @@ testing and every semantic action. No node, wire or pan behavior belongs in the 
 protocol and revised nothing — the older pane shapes are byte-identical, so a provider that
 knows only the earlier protocol is unchanged and valid. Which pane has the keys, and how the
 screen says so, is Workshop routing law
-([`workshop/focus.md`](workshop/focus.md) (WL-FOCUS-01)).
+([`workshop/focus.md`](workshop/focus.md)).
 
 - **On a weaver's host a guest's keys, text, presses, wheels and drops never reach the editor
   role, the Terminal, the Hotkeys pane or the quick setup, and its typed text and any carry it
@@ -307,8 +305,8 @@ in words. Several NEST — `PaneMenuRequested` and `MenuGranted` carry
 `vector<PaneMenuRow>` — and since Loom ABI v9 a
 nested component is agreed at admission like any other declared shape; these admit because
 every party declares them from the one installed header, not because they are flat. The host's
-side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08),
-`workshop/pane-menu.md` (WL-CTX-09) and `workshop/desktop-presenting.md` (WL-DESK-14); the
+side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md`,
+`workshop/pane-menu.md` (WL-CTX-09) and `workshop/desktop-presenting.md`; the
 presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pane may use are
 `pane/menu.hpp`, installed beside the protocol.
 
@@ -430,7 +428,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
 The Editor's document and Workshop's presentation of its pane change TOGETHER, at one
 published boundary, coordinated by the native opening manager the host mounts in
 `zengine.opening`. The law is [`workshop/opening.md`](workshop/opening.md) (`WL-OPEN`); the
-Editor's half is [`workshop/editor.md`](workshop/editor.md) (WL-EDIT-05, WL-EDIT-13); the
+Editor's half is [`workshop/editor.md`](workshop/editor.md) (WL-EDIT-05); the
 substrate — joint publication of latest claims, the showing, the record's lifetime — is Loom's
 joint-publication reference page, never restated here. What crosses, all in
 `workshop/open_seam_vocabulary.hpp` unless named otherwise:
@@ -459,7 +457,7 @@ EditorDocument v1, PanePresentation v1                    the two latest claims,
   preparation bound to the previous revision. Nothing is held. A rename or a setting written
   meanwhile survives the publication, which keeps the live desk's name and settings over the
   trial's copy.
-- **The opening carries no picture: the holder draws it** (WL-OPEN-10). The trial reserves the
+- **The opening carries no picture: the holder draws it**. The trial reserves the
   seat and says the room its area will have, in pixels and the window's measure; the Editor
   prepares B for that room, and draws it in its own area in the delivery that commits its claim,
   so the window never shows A after the commitment. Neovim's editor draws B's prepared preview

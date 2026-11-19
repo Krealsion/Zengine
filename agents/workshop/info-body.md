@@ -4,55 +4,7 @@ Register `WL-INFO`: Info's pane-property view, `info/property_view.hpp` in the w
 and the levels of a value view's rows. Cite laws by ID. Router: [`../workshop.md`](../workshop.md).
 The separate value views are owned by `info/value_view.hpp`; see [inventory](../inventory.md).
 
-Retired: WL-INFO-07, WL-INFO-09.
-
-## WL-INFO-01 — The Info body is composed once, by the pane, into the room it was granted
-
-LAW — `compose` makes Info’s body: one composition of one pane’s properties under one heading in the pane-property view, or a value view’s own rows while the default pane holds a value.
-
-MEANS
-- one pass composes rows and their press map;
-- the heading is `PANE <name>` for the subject a role named (`InspectPaneRequested`, as the Pane Manager's `inspect in Info` asks it), and `PROPERTIES` before one is named;
-- the desk's panes are the Pane Manager's to list: no row here lists them.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-02 — Nothing in the pane multiplies a font metric
-
-LAW — The pane counts in ROWS and COLUMNS: the rows and columns its area's room holds in the window's text measure; the fit from a face to a row count is made once, never by its own arithmetic.
-
-MEANS
-- 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one grant.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-03 — The vertical window is `list_window`
-
-LAW — `list_window`: a population that fits is shown whole, the focused row is always in the window, every omission is counted on its own side and spends a row; derived every publication, stored nowhere.
-
-MEANS
-- there is no scroll offset, no pane state field and no scroll gesture on the list.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-04 — The row maps are inverses, and a press names a row and not a cell
-
-LAW — The row that must stay visible is the draft's, else the cursor's; `mark` records what each published row is and `placed` reads it back, so the pane answers a press with the row it composed.
-
-MEANS
-- a press is read back to the pane's OWN row and column, in the room it was aimed at;
-- a heading, a section, a marker or a blank row means nothing.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-05 — A resting value is fitted and a live draft is windowed
-
-LAW — A resting value is fitted with a mark where it was cut, because a committed value has no caret to say it moved; a live draft is windowed unmarked, and the window follows its caret.
-
-MEANS
-- at most one row is ever editing, and its caret and selection stand in it, moving no character.
-
-WHY — `agents/decisions/one-body-two-lists.md`
+Retired: WL-INFO-07, WL-INFO-09, WL-INFO-01, WL-INFO-02, WL-INFO-03, WL-INFO-04, WL-INFO-05, WL-INFO-08, WL-INFO-10, WL-INFO-11, WL-INFO-16
 
 ## WL-INFO-06 — A new room must not drop a live draft, and rows named anew must
 
@@ -65,35 +17,6 @@ MEANS
 
 DOES NOT MEAN
 - that a commit already sent is recalled — the host writes it only while its name holds.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-08 — The heading is reserved before the list is offered anything
-
-LAW — The heading and a front sentence are subtracted from the granted rows before the list is windowed; a bound that grows when it is exceeded is not a bound, and `finish` truncates the rest.
-
-MEANS
-- the press inverse is measured from the same lead, so a sentence cannot move a press off its row.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-10 — An empty list says it is empty, whatever its room
-
-LAW — With nothing inspected the list says so in its own words, behind no budget: the list is offered nothing then, so a guarded row would be missing in the one state the sentence exists for.
-
-MEANS
-- blankness cannot distinguish empty from broken, so the sentence says where a subject is named: the Pane Manager's `inspect in Info`;
-- the granted room is still the wall: `finish` truncates and cannot be talked past.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-11 — The desk names this pane, and a role that does not offer leaves the row
-
-LAW — `default_setup` authors this pane's reference, so a run whose plan loads no Info role keeps the row, reads it unresolved and counts it on the band; silence would not tell an absent role from a loss.
-
-MEANS
-- the desk's row is the INTENT and a role's offer is what resolves it;
-- a plan row whose artifact is missing is the realization's to say (`agents/realization.md`).
 
 WHY — `agents/decisions/one-body-two-lists.md`
 
@@ -153,59 +76,7 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
-## WL-INFO-16 — A value view's nested values are a tree, and which levels are open is Info's state
-
-LAW — A value view shows its value as a tree: a row its own name indented by its depth, each nested message and list holding items a level, shut when first shown, with what it holds.
-
-MEANS
-- `info.value.open` opens a level or steps in, `info.value.shut` shuts it or steps out, `info.value.shut-all` shuts all to the first field; a press on a level's mark folds it;
-- levels open alone, side by side; the cursor walks the rows shown, and one inside a level that shuts stands on it;
-- the open levels are the view's row of `InfoPaneState`, read and written there: kept by a reload in place and a fork, shut for a new subject.
-
-DOES NOT MEAN
-- that a part or a carry names a field by anything but its whole path, or that the levels are kept across runs.
-
-WHY — `agents/decisions/an-accordion-is-a-section-its-owner-folds.md`
-
 ## Proven by
-
-### WL-INFO-01
-`info/property_view.hpp` compose finish lead
-`info/pane.cpp` say say_properties
-`info/vocabulary.hpp` InfoPaneState
-`pane/drawing.hpp` rows_drawing
-`tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
-over the host's subject, and the panes are the Pane Manager's to list" "a room too short for the
-body invents none of it"
-
-### WL-INFO-02
-`info/property_view.hpp` rows_ columns_ granted_ room
-`info/pane.cpp` fit_room
-`pane/drawing.hpp` RowsRoom RowsRoom::rows RowsRoom::columns
-`graphics/vocabulary.hpp` AreaRoom
-`tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it"
-
-### WL-INFO-03
-`info/property_view.hpp` list_window ListWindow say_properties
-`workshop/screen_gestures.cpp` list_window omitted_text
-`workshop/screen.hpp` ListWindow
-`tests/test_workshop_panes_info.cpp` "what the body cannot show, it counts -- on the side it left it
-out"
-
-### WL-INFO-04
-`info/property_view.hpp` placed Placed composed_ lead say_properties press press_placed
-`info/pane.cpp` press
-`pane/drawing.hpp` window_cell
-`tests/test_workshop_panes_info.cpp` "a press on an Info row while a notice stands names the row
-painted there, and a full room keeps its last row under the notice"
-
-### WL-INFO-05
-`info/property_view.hpp` say_properties begin_draft close_draft
-`pane/text.hpp` fit pad
-`component/text_box.hpp` TextBox::visible TextBox::keep_caret_visible
-`tests/test_workshop_panes_info.cpp` "a draft on a value the weaver owns is written to the desk"
-"Info draws its properties on its canvas on the medium's own ground, and a draft's caret and
-selection stand in its row where the weaver types, moving no character, and go with it"
 
 ### WL-INFO-06
 `info/property_view.hpp` shown shows_draft_subject end_draft close_draft Draft::subject draft_
@@ -216,24 +87,6 @@ says so, even where they have the same property on the same row, and writes noth
 desk" "an Info commit queued behind a restore of the desk from its file is refused, and a refused
 restore keeps the draft" "an Info draft outlives a new room and its pane's window moving, and its
 commit is written"
-
-### WL-INFO-08
-`info/property_view.hpp` compose lead finish front_sentence
-`tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it" "a press on
-an Info row while a notice stands names the row painted there, and a full room keeps its last row
-under the notice"
-
-### WL-INFO-10
-`info/property_view.hpp` say_properties finish kNoSubject kNoSubjectRow
-`tests/test_workshop_panes_info.cpp` "with nothing inspected, the properties say so and say what to
-do next"
-
-### WL-INFO-11
-`workshop/setup.hpp` default_setup
-`workshop/setup_reconcile.hpp` unresolved_panes
-`workshop/panes.hpp` kInfoPaneProvider kInfoPaneKey
-`workshop/screen_layouts.cpp` setup_rest_text
-`tests/test_workshop_panes_info.cpp` "a Workshop with no Info ROLE keeps the row and says so"
 
 ### WL-INFO-12
 `info/property_view.hpp` acted act answered_commit ask_commit end_draft Asked SentCommit
@@ -297,17 +150,3 @@ Info commit queued behind another desk put live, or another and back, is refused
 written and the pane says why" "an Info commit whose image was replaced before its answer is not the
 successor's: the successor holds no draft and says nothing of it, the subject stands, and the write
 shows as the owner's rows"
-### WL-INFO-16
-`info/value_view.hpp` ValueView levels fold tree shown_at open_here shut_here own_name brief
-forget_levels
-`info/value_picture.hpp` FieldLine Meaning
-`info/vocabulary.hpp` InfoViewState InfoPaneState kValueOpen kValueShut kValueShutAll
-`info/pane.cpp` snapshot revive
-`component/accordion.hpp` IndependentAccordions shown_tree tree_parent
-`tests/test_workshop_info_views.cpp` "WL-INFO-16: Info's nested values are a tree -- first shown,
-every nested message and every list holding items shut with its summary, each row its own name
-indented by its depth; Right opens a level and steps in, Left shuts it and steps out, shift+left
-shuts every level with the cursor on the first field, a press on a level's mark opens or shuts it,
-levels open side by side, and the cursor walks only the rows shown" "WL-INFO-16: a view's open
-levels are its pane's state -- read there and written there, kept by a reload in place, carried by a
-fork, and shut for a new subject"

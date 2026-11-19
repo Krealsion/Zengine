@@ -20,14 +20,13 @@
 namespace zengine::workshop {
 
 /// THE SUBJECT KINDS a contextual request can truthfully name.
-// WL-CTX-01 -- agents/workshop/contextual.md; WL-TAB-12 -- agents/workshop/tab-run.md
+// WL-CTX-01 -- agents/workshop/contextual.md
 namespace context_subject {
 inline constexpr std::int64_t kRoot = 0;   ///< the empty room / Workshop itself
 inline constexpr std::int64_t kPane = 1;   ///< an arrangeable pane, by durable `PaneRef`
 // 2 is not reused: a subject kind is a bit in every row's declaration.
 inline constexpr std::int64_t kLayout = 3; ///< a painted layout tab, by weaver position
 /// The presentation a pane's gear opens: what a weaver may change about how Workshop looks.
-// WL-CHROME-09 -- agents/workshop/chrome.md
 inline constexpr std::int64_t kSettings = 4;
 /// The box a quit refused for unsaved work opens, at the room's centre: back to work, or discard.
 // WL-SESSION-22 -- agents/workshop/session.md
@@ -47,7 +46,7 @@ inline constexpr std::int64_t kOnSettings = context_bit(context_subject::kSettin
 inline constexpr std::int64_t kOnQuit = context_bit(context_subject::kQuit);
 
 /// The surface's own state: open, a captured subject, which group level is showing, and a cursor.
-// WL-CTX-01, WL-CTX-03 -- agents/workshop/contextual.md
+// WL-CTX-01 -- agents/workshop/contextual.md
 struct ContextMenu {
     bool open = false;
     std::int64_t subject = context_subject::kRoot;
@@ -128,7 +127,6 @@ struct ContextRow {
 };
 
 /// THE DECLARED FIRST POPULATIONS.
-// WL-CTX-05 -- agents/workshop/contextual.md
 inline constexpr ContextRow kContextCatalog[] = {
     // -- the empty room: Workshop's own zero-target doors ------------------------------
     {"workshop.manage", kOnRoot, ""},
@@ -183,7 +181,6 @@ inline constexpr std::size_t kContextCatalogCount =
     sizeof(kContextCatalog) / sizeof(kContextCatalog[0]);
 
 // ---- The drift guard: every reference resolves, at compile time --------------------------
-// WL-CTX-05 -- agents/workshop/contextual.md
 
 inline constexpr bool context_same_id(const char* a, const char* b) noexcept {
     while (*a != '\0' && *a == *b) {
@@ -238,7 +235,6 @@ struct ContextEntry {
 };
 
 /// THE POPULATION AT ONE LEVEL.
-// WL-CTX-05 -- agents/workshop/contextual.md
 inline std::vector<ContextEntry> context_population(std::int64_t subject,
                                                     std::string_view open_group);
 

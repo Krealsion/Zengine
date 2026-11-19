@@ -79,7 +79,6 @@ struct LiveLayout {
 namespace layout_op {
 inline constexpr const char* kSeat = "seat";
 inline constexpr const char* kUnseat = "unseat";
-// WL-LAYOUT-14 -- agents/workshop/layouts.md
 inline constexpr const char* kOpen = "open";
 inline constexpr const char* kShut = "shut";
 inline constexpr const char* kHide = "hide";
@@ -138,7 +137,6 @@ struct LayoutEditRequested {
 /// WHAT THE EDITS CAME TO: stored, or refused in words with nothing written; the revision of the
 /// `LiveLayout` sent before this answer; for an unseat, the settings and locks the row took; and
 /// whether a seat put its pane back where it was left in this layout.
-// WL-DESK-19 -- agents/workshop/desktop.md
 struct LayoutEditAnswered {
     bool accepted = false;
     std::string refusal;

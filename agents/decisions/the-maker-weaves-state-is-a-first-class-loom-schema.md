@@ -47,7 +47,6 @@ resolved at spend, so the package caches nothing and a replaced power reaches ev
 
 **Laws supported.** [MW-DEF-01](../maker/definition.md), [MW-DEF-02](../maker/definition.md),
 [MW-DEF-05](../maker/definition.md), [MW-DEF-06](../maker/definition.md),
-[MW-WEAVE-01](../maker/weave.md), [MW-WEAVE-02](../maker/weave.md),
-[MW-WEAVE-03](../maker/weave.md), [MW-WEAVE-04](../maker/weave.md),
-[MW-WEAVE-05](../maker/weave.md), [MW-WEAVE-06](../maker/weave.md),
+[MW-WEAVE-02](../maker/weave.md), [MW-WEAVE-03](../maker/weave.md),
+[MW-WEAVE-04](../maker/weave.md), [MW-WEAVE-06](../maker/weave.md),
 [MW-WEAVE-07](../maker/weave.md), [MW-WEAVE-08](../maker/weave.md).

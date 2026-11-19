@@ -238,7 +238,7 @@ public:
             return;
         }
         if (p->button == 1) {
-            // A PRIMARY PRESS OF ITS OWN MOVES THE KEYS HERE (WL-FOCUS-03), so the next press is
+            // A PRIMARY PRESS OF ITS OWN MOVES THE KEYS HERE, so the next press is
             // made with them here, whether or not Workshop's word on this one has come yet.
             keys_here_ = true;
             if constexpr (requires { self.press(press, mail); }) {

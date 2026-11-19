@@ -427,7 +427,7 @@ public:
     /// state, so a reload starts with nothing and asks (WL-PROJ-12).
     void on(const builder::BuildStatus& said, loom::Mail& mail) {
         // Was this pane watching? Learning a fact and witnessing an event are different, and only
-        // the second is news (WL-PROJ-11): an answer about a build that finished earlier is not
+        // the second is news: an answer about a build that finished earlier is not
         // announced as though it just happened.
         const bool watching = awaiting_;
         const bool ended = !builder::still_going(said.outcome);
@@ -476,7 +476,7 @@ public:
 
     /// THE TOOL'S PAGE OF THE OPERATION THIS READER IS BOUND TO -- the answer to the one page
     /// ask outstanding, and nothing else: a stale answer, or one for a reader since closed or
-    /// rebound, settles nothing (WL-OUT-04).
+    /// rebound, settles nothing.
     void on(const builder::BuildOutputSaid& said, loom::Mail& mail) {
         if (!asks().answered(mail, of_kind(Act::kPage))) {
             return;
@@ -787,7 +787,7 @@ public:
                 } else if (m->kind == builder_row::kRecipe && choosing_.open) {
                     // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it
                     // the weaver's pick and closes the list -- Files' rule, so no press means two
-                    // things. And only where the keys already were (WL-FOCUS-04): the press that
+                    // things. And only where the keys already were: the press that
                     // brings them here points at the pane, and pointing is not choosing.
                     if (keys_went_here && m->subject == choosing_.name &&
                         m->artifact == choosing_.artifact) {
@@ -818,7 +818,7 @@ public:
 
     /// THE SECOND BUTTON. A right press on a row this pane owns OFFERS that row's menu, beside
     /// the press, continuing it; a right press on anything else is handed back to the host,
-    /// whose own pane menu answers (WL-CTX-08). A middle press means nothing here and is
+    /// whose own pane menu answers. A middle press means nothing here and is
     /// consumed.
     bool right_press(const BuilderMeaning& m, const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (m.kind == builder_row::kNone) {
@@ -854,7 +854,7 @@ public:
 
     /// ASK THE HOST FOR THE KEYBOARD, CONTINUING A MENU CHOICE BY ITS NUMBER. Spent only where
     /// a chosen row actually opened a line to type into: a right press by itself stays
-    /// focus-neutral (WL-CTX-08), and the host refuses a grab that is no longer the weaver's
+    /// focus-neutral, and the host refuses a grab that is no longer the weaver's
     /// latest act.
     void take_keys(loom::Mail& mail, std::uint64_t correlation) {
         if (correlation == 0) {
@@ -1063,7 +1063,7 @@ private:
             {}, pane::kModeRecipes);
         row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
         // THE TWO HALVES OF `builder.build-realize`, each reachable on its own terms and
-        // neither bound by default (WL-KEY-13): the shipped key keeps both meanings, and a
+        // neither bound by default: the shipped key keeps both meanings, and a
         // weaver who wants one of them alone names its id.
         row(pane::kActionArm, "turn load-after-build on or off", input::scan::kUnknown);
         row(pane::kActionLoadBuilt, "load what was built", input::scan::kUnknown,
@@ -1570,7 +1570,7 @@ private:
                          asking(Act::kPaste));
     }
 
-    // ---- The output reader (WL-OUT-04), defined in `output_reader.hpp` ----------------------
+    // ---- The output reader, defined in `output_reader.hpp` ----------------------
 
     void open_output(loom::Mail& mail);
     void bind_output(std::int64_t op, loom::Mail& mail);
@@ -1757,7 +1757,7 @@ private:
     Asks& asks() { return this->template facet<Asks>(); }
     const Asks& asks() const { return this->template facet<Asks>(); }
 
-    /// THE TOOL'S PICTURE, HELD ONLY WHILE THIS PANE IS SHOWING IT (WL-PROJ-11, WL-PROJ-12).
+    /// THE TOOL'S PICTURE, HELD ONLY WHILE THIS PANE IS SHOWING IT (WL-PROJ-12).
     /// `heard_` tells "the tool has not answered" from "the tool never built anything";
     /// `awaiting_` is the only fact here that is genuinely this pane's own, and it is what
     /// decides whether an arriving status is news.

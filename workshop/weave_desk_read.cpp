@@ -94,7 +94,6 @@ std::int64_t placed_fingerprint(std::int64_t shows, const DeskRect& at) {
 // Workshop resolves for it now; the menu; the band's legend where it is drawn, with
 // no point, since the band owns no pointer space; and the desk number, moved when anything said
 // here moves. Nothing is read off a pane's picture.
-// WL-READ-04 -- agents/workshop/desk-read.md
 DeskView WorkshopWeave::desk_view() const {
     const Screen sc = screen_of(session_);
     const Setup& setup = session_.setup.active;
@@ -245,7 +244,7 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind, co
 // no word; else its words and parts, a covered one not said, the cover named, and none given a
 // point while a menu is open. Read from the window that shows its area, and from Workshop's own
 // drawing for Layouts; a pane no window shows is no reading, and says why.
-// WL-READ-02 -- agents/workshop/desk-read.md; WL-READ-07 -- agents/workshop/desk-read.md
+// WL-READ-02 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::pane_reading(const std::string& provider, const std::string& pane_key,
                                         PaneView& out) const {
     return pane_reading(provider, pane_key, out, laid_desk());
@@ -273,7 +272,7 @@ DeskBounds WorkshopWeave::laid_desk() const {
 // A PANE THAT DRAWS IN AN AREA OF ITS OWN, AS THE WINDOW LAST SAID IT SHOWS: the window's words
 // and parts in the desk's pixels, the stamp naming what the window said, in flight while the
 // window waits for the pane's drawing, and Workshop's covers by its own order.
-// WL-READ-08 -- agents/workshop/desk-read.md; WL-READ-05 -- agents/workshop/desk-read.md
+// WL-READ-05 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out,
                                         const DeskBounds& laid) const {
     const std::string area = pane_window_area(session_.panes, row);
@@ -364,7 +363,6 @@ std::string WorkshopWeave::presented_area() const {
 // desk's pixels -- each line a word numbered by its line, each row's line a part named by the row's
 // id, at the point the window lands a press on it. None while the window has said nothing, or the
 // presenter owes it a drawing.
-// WL-READ-08 -- agents/workshop/desk-read.md
 void WorkshopWeave::presented_menu_reading(DeskMenu& menu) const {
     const std::string area = presented_area();
     const auto taken = area.empty() ? area_readings_.end() : area_readings_.find(area);
@@ -399,7 +397,6 @@ std::string WorkshopWeave::unshown_reading(const RuntimePane& row) const {
 // LAYOUTS, READ AS IT IS PAINTED: its rows as words, and its tabs and `+` as parts Workshop names
 // itself -- `layout:<name>` and `layout:+` -- as it names its menu's lines. Its fingerprint is what
 // it says, and the naming line's caret and selection.
-// WL-READ-04 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::layouts_reading(PaneView& out, const DeskBounds& laid) const {
     const std::int64_t kind = pane_kind::kLayouts;
     if (!session_.panes.has(kind)) return "pane view unavailable: closed or unknown";
@@ -491,7 +488,6 @@ std::uint64_t WorkshopWeave::ask_area(loom::Mail& mail, const std::string& area)
 
 // WHAT A WINDOW SAID AN AREA SHOWS, taken: kept as the area's reading, then each wait it completes
 // answered, a mark on it judged again, and the desk's notice said if it moved.
-// WL-READ-08 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const graphics::AreaShown& shown, loom::Mail& mail) {
     if (!mail.answers_ask()) return;
     const std::optional<loom::PendingAsk> settled = area_asks_.settle(mail.correlation(), mail.sender());
@@ -544,7 +540,6 @@ void WorkshopWeave::take_area_answer(loom::Mail& mail, std::uint64_t ask,
 
 // THE WAITS WHOSE AREAS HAVE ALL BEEN SAID SINCE THEY BEGAN, answered now from what was said; a wait
 // past its bound, or one whose window changed, refused in words.
-// WL-READ-08 -- agents/workshop/desk-read.md
 void WorkshopWeave::finish_desk_waits(loom::Mail& mail) {
     for (std::size_t i = 0; i < desk_waits_.size();) {
         DeskWait& w = desk_waits_[i];
@@ -622,7 +617,6 @@ bool WorkshopWeave::wait_on_areas(loom::Mail& mail, DeskWait wait, const std::ve
 // whose version moved past what Workshop took of it is asked again, one ask an area at a time, so a
 // pane that drew in its area moves the notice whenever it drew. A late or repeated word names a
 // version already taken, and asks nothing.
-// WL-READ-06 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const graphics::AreaSettled& settled, loom::Mail& mail) {
     if (settled.window != window_name_ || !window_.shown() ||
         !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + window_name_)) {
@@ -793,7 +787,6 @@ std::vector<PaneRef> WorkshopWeave::presented_refs(const DeskBounds& laid) const
 // fingerprint of what it shows as last said -- the one stamp a desk read, a page and a notice say.
 // A pane whose reading is refused still names what it shows where that is known, as a refused
 // picture's room shows the refusal.
-// WL-READ-07 -- agents/workshop/desk-read.md
 PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref, const DeskBounds& laid) const {
     PaneView reading;
     (void)pane_reading(ref.provider, ref.pane, reading, laid);
@@ -804,7 +797,6 @@ PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref, const DeskBounds& laid) c
 // panes' readings, in that order, as one decoded value and one reply's bytes hold; a stamp past the
 // last reading names a pane its reader asks alone. A pane the asker may not read is said by its
 // place, name and holder alone. Nothing is held between asks.
-// WL-READ-01 -- agents/workshop/desk-read.md
 Said<DeskRead> WorkshopWeave::desk_read_now(loom::Mail& mail, loom::WeaveId asker) const {
     DeskRead out;
     out.desk = desk_view();
@@ -843,7 +835,6 @@ Said<DeskRead> WorkshopWeave::desk_read_now(loom::Mail& mail, loom::WeaveId aske
     return out;
 }
 
-// WL-READ-01 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
     if (const std::string why = take_desk_read(mail.sender()); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
@@ -872,7 +863,6 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
 // THE DESK MOVED: its number and every presented pane's stamp front to back, published as the role
 // when any differs from what was last published, so the desk number never moves without a notice
 // and an unchanged desk sends none.
-// WL-READ-06 -- agents/workshop/desk-read.md
 void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const DeskView* known) {
     // A DESK STILL SETTLING IS SAID ONCE, as its owner presents it: one gesture, one notice.
     if (!edits_owed_.empty() && known == nullptr) {

@@ -31,25 +31,18 @@ using pane::ModeCauses;
 inline constexpr std::int64_t kNoPaneKind = -1;
 
 /// The built-in KINDS: the panes this Workshop presents itself.
-// WL-CAT-01 -- agents/workshop/catalog.md
 namespace pane_kind {
 // 0-3 and 5 are unused: a kind is a session-local handle, so renumbering would buy nothing.
 /// WORKSHOP'S OWN STANDING IDENTITY, AS A PANE.
-// WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kLayouts = 4;
 } // namespace pane_kind
 
 /// Where a pane kind is presented by default: one of two named places.
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 namespace placement {
 /// Over the workspace, from the canvas's top-left, stacked downwards.
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kOverlayStack = 1;
 /// The rows at the top of the canvas: full width, against the top edge, and reserved
 /// whether or not anything is in them.
-// WL-GEO-03 -- agents/workshop/geometry.md
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
-// WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kTopBand = 2;
 } // namespace placement
 
@@ -60,19 +53,17 @@ inline constexpr const char* kWorkshopProvider = pane::pane_menu::kWorkshopRole;
 
 /// The Info pane's role, spelled for `default_setup`'s desk and not a catalog row. A literal:
 /// this host does not link the weave, and a case checks the two spellings agree.
-// WL-INFO-11 -- agents/workshop/info-body.md
 inline constexpr const char* kInfoPaneProvider = "zengine.info";
 inline constexpr const char* kInfoPaneKey = "info";
 
 /// ...and the Notices pane's, the other row `default_setup`'s desk names: what Workshop says is
 /// shown there, not in the band.
-// WL-NOTE-04 -- agents/workshop/notices.md
 inline constexpr const char* kNoticesPaneProvider = "zengine.notices-pane";
 inline constexpr const char* kNoticesPaneKey = "notices";
 
 /// One entry in the catalog: what a weaver sees in the Pane Manager, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
-// WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md
+// WL-SETUP-01 -- agents/workshop/setup-file.md
 struct BuiltinPane {
     std::int64_t kind = kNoPaneKind;
     std::int64_t placed_in = placement::kOverlayStack; ///< which place it is in
@@ -81,7 +72,6 @@ struct BuiltinPane {
     const char* name = "";    ///< what the Pane Manager lists
     const char* summary = ""; ///< one line, so a weaver can tell what they are opening
     /// CAN A PRESS INTO THIS BUILT-IN POINT THE KEYBOARD AT IT?
-    // WL-FOCUS-02 -- agents/workshop/focus.md
     bool takes_keyboard = false;
 };
 
@@ -93,8 +83,6 @@ inline constexpr const char* kLayouts = "layouts";
 } // namespace pane_key
 
 /// The catalog: the one pane this host presents itself. Every other pane is offered by a role.
-// WL-FOCUS-02 -- agents/workshop/focus.md
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr BuiltinPane kBuiltinPanes[] = {
     // Layouts holds no state of its own (it is `SetupState`'s), so closing it loses no layout; it
     // takes no keyboard, because its gestures are the pointer's and the keymap's.
@@ -102,7 +90,6 @@ inline constexpr BuiltinPane kBuiltinPanes[] = {
      "layout tabs and setup"},
 };
 
-// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr std::size_t kBuiltinPaneCount = sizeof(kBuiltinPanes) / sizeof(kBuiltinPanes[0]);
 
 /// The catalog entry for a kind, or the first one: total, because a kind can arrive from a cursor.
@@ -117,18 +104,15 @@ inline constexpr const BuiltinPane& builtin_pane(std::int64_t kind) noexcept {
 
 /// WHERE THE SESSION-LOCAL KINDS BEGIN, and the whole of how a runtime
 /// pane is told from a built-in one.
-// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr std::int64_t kFirstRuntimeKind = 1024;
 
 /// Is this a session-local runtime kind rather than a compile-time one?
-// WL-CAT-01 -- agents/workshop/catalog.md
 inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
     return kind >= kFirstRuntimeKind;
 }
 
 /// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
 /// a column.
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
     if (is_runtime_kind(kind)) {
         return placement::kOverlayStack;
@@ -137,7 +121,6 @@ inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
 }
 
 /// MAY A PRESS INTO THIS KIND POINT THE KEYBOARD AT IT?
-// WL-FOCUS-02 -- agents/workshop/focus.md
 inline constexpr bool kind_takes_keyboard(std::int64_t kind) noexcept {
     if (is_runtime_kind(kind)) {
         return true;
@@ -301,7 +284,6 @@ struct RuntimeCatalog {
 /// AN OPEN EXTERNAL PANE'S VIEW OF THE PANE IT PRESENTS -- what Workshop knows of it beside its
 /// catalog row: where its area was last placed, and its chrome.
 /// Nothing of what the pane draws: that is the pane's, in its own area. Session, not document.
-// WL-PANE-06 -- agents/workshop/panes-and-windows.md
 struct ExternalPane {
     std::int64_t kind = kFirstRuntimeKind;
     /// Whether its role draws in a graphics window -- its holder takes `graphics::AreaRoom` --
@@ -311,7 +293,7 @@ struct ExternalPane {
     bool held = false;
     /// WHERE ITS AREA WAS LAST PLACED in the desk's pixels, and under how many title rows: a press
     /// a window holds there keeps the area where it was while only the title row its keys bring or
-    /// take would move it (WL-FOCUS-11), and the frame draws no title over it meanwhile.
+    /// take would move it, and the frame draws no title over it meanwhile.
     std::int64_t placed_x = 0, placed_y = 0, placed_w = 0, placed_h = 0;
     std::int64_t placed_titles = 0;
     bool title_waits = false;
@@ -320,12 +302,10 @@ struct ExternalPane {
     /// WHETHER THIS PANE WEARS ITS `?` AND ITS GEAR: its holder takes `PaneDocumentRequested` now,
     /// and the application declares the row that shows a manual. Read again before every paint,
     /// so it is the live holder's answer; nothing of the manual is kept.
-    // WL-CHROME-09 -- agents/workshop/chrome.md
     bool manual = false;
 };
 
 /// One pane a weaver has opened.
-// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 struct OpenPane {
     std::int64_t kind = kNoPaneKind;
     /// Its row is shut: the desk shows its title alone (WL-SETUP-13).
@@ -333,7 +313,6 @@ struct OpenPane {
 };
 
 /// Open in a fresh session before any weave speaks; every other pane arrives when offered.
-// WL-TAB-01 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kDefaultPanes[] = {pane_kind::kLayouts};
 
 inline constexpr std::size_t kDefaultPaneCount =
@@ -357,7 +336,6 @@ struct Panes {
     /// Each open external pane's view: made by the open door, destroyed by the close door.
     std::vector<ExternalPane> external;
     /// The keyboard's candidate: the pane a weaver last pointed the keys at, not the answer.
-    // WL-FOCUS-01, WL-FOCUS-03, WL-FOCUS-05 -- agents/workshop/focus.md
     std::int64_t keyboard = kNoPaneKind;
 
     /// The pane the weaver last pressed into: the selection the foreground order lifts.
@@ -365,7 +343,6 @@ struct Panes {
     // WL-CTX-01 -- agents/workshop/contextual.md
     std::int64_t selected = kNoPaneKind;
 
-    // WL-PANE-13 -- agents/workshop/panes-and-windows.md
     bool has(std::int64_t kind) const {
         for (const OpenPane& p : open) {
             if (p.kind == kind) {
@@ -404,7 +381,6 @@ inline std::int64_t selected_pane(const Panes& panes) noexcept {
 }
 
 /// WHETHER THE OPEN PANE OF THIS KIND IS SHUT, its title alone on the desk.
-// WL-CHROME-11 -- agents/workshop/chrome.md
 inline bool pane_is_shut(const Panes& panes, std::int64_t kind) noexcept {
     for (const OpenPane& p : panes.open) {
         if (p.kind == kind) {
@@ -416,7 +392,6 @@ inline bool pane_is_shut(const Panes& panes, std::int64_t kind) noexcept {
 
 /// The external pane the keyboard points at right now, or `kNoPaneKind`, resolved at each spend:
 /// never a shut one, whose body shows nothing to type into.
-// WL-FOCUS-01, WL-FOCUS-05, WL-FOCUS-10 -- agents/workshop/focus.md
 inline std::int64_t keyboard_pane(const Panes& panes) noexcept {
     const std::int64_t kind = panes.keyboard;
     if (!is_runtime_kind(kind) || !panes.has(kind) || pane_is_shut(panes, kind)) {
@@ -431,7 +406,6 @@ inline std::int64_t keyboard_pane(const Panes& panes) noexcept {
 }
 
 /// Open a pane of this kind; answers whether anything changed.
-// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 inline bool open_kind(Panes& panes, std::int64_t kind) {
     if (panes.has(kind)) {
         return false;
@@ -447,8 +421,6 @@ inline bool open_kind(Panes& panes, std::int64_t kind) {
 }
 
 /// Close the pane of this kind, and forget what it was showing.
-// WL-LAYOUT-07 -- agents/workshop/layouts.md
-// WL-PANE-13 -- agents/workshop/panes-and-windows.md
 inline bool close_kind(Panes& panes, std::int64_t kind) {
     for (std::size_t i = 0; i < panes.open.size(); ++i) {
         if (panes.open[i].kind == kind) {
