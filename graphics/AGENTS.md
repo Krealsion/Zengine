@@ -97,7 +97,6 @@ rows; it shares the rig.
 
 ## Practices
 
-- An element's code draws what it is told; a game's or a pane's rules stay with its owner.
 - A part in `elements/` draws the state its owner set and asks for no action of its own: a press
   on it reaches the owner as the action the owner named when it drew the part, or, in an area
   placed to hear the pointer, as the press itself.

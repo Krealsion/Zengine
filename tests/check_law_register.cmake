@@ -97,12 +97,14 @@ set(ZEN_LAW_AGENTS_DIR agents)
 # wraps, and short of it a line breaks where its writer judges (rule i). A register's proofs stand
 # in an appendix at its end, under the heading below, one `### <id>` each: the laws above it are
 # held to ZEN_LAW_REGISTER_BYTES and the whole file, laws and appendix, to ZEN_LAW_FILE_BYTES.
-set(ZEN_LAW_REGISTER_BYTES 16384)
-set(ZEN_LAW_FILE_BYTES 24576)
+# Any other page under agents/, a law page or a decision record, is held to ZEN_LAW_PAGE_BYTES.
+set(ZEN_LAW_REGISTER_BYTES 2048)
+set(ZEN_LAW_FILE_BYTES 3072)
+set(ZEN_LAW_PAGE_BYTES 4096)
 set(ZEN_LAW_APPENDIX_HEADING "## Proven by")
 set(ZEN_VM_APPENDIX_HEADING "## Seen")
 set(ZEN_LAW_ROUTER_BYTES 12288)
-set(ZEN_LAW_CORE_BYTES 20480)
+set(ZEN_LAW_CORE_BYTES 17408)
 set(ZEN_LAW_LAW_BYTES 210)
 set(ZEN_LAW_LINE_BYTES 196)
 set(ZEN_LAW_MEANS_MAX 3)
@@ -1053,7 +1055,7 @@ function(zen_law_raised_problems rel steps kind law_bytes file_bytes out)
             set(default "${ZEN_LAW_CORE_BYTES}")
             set(what "${ZEN_LAW_CORE}")
         else()
-            set(default "${ZEN_LAW_REGISTER_BYTES}")
+            set(default "${ZEN_LAW_PAGE_BYTES}")
             set(what "a file under ${ZEN_LAW_AGENTS_DIR}/")
         endif()
         zen_law_raised_budget("${default}" "${steps}" budget)
@@ -2242,8 +2244,8 @@ if(NOT pin_laws EQUAL 19660 OR NOT pin_file EQUAL 29491
         "${pin_file} (want 19660 and 29491) and ${pin_zero} at zero steps (want "
         "${ZEN_LAW_REGISTER_BYTES}). The remainder of a fifth would then be kept.")
 endif()
-zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" 2 canary_at)
-zen_law_raised_budget("${ZEN_LAW_REGISTER_BYTES}" 1 canary_prev)
+zen_law_raised_budget("${ZEN_LAW_PAGE_BYTES}" 2 canary_at)
+zen_law_raised_budget("${ZEN_LAW_PAGE_BYTES}" 1 canary_prev)
 math(EXPR canary_over_bytes "${canary_at} + 1")
 math(EXPR canary_edge_bytes "${canary_prev} + 1")
 zen_law_raised_problems("canary/over.md" 2 "file" 0 "${canary_over_bytes}" canary_over)
@@ -2586,7 +2588,7 @@ endif()
 #
 # A file's bytes are counted without its value markers or carriage returns. A router is one named
 # in ZEN_LAW_ROUTERS or ZEN_VM_ROUTERS; a register's laws have a budget, and its whole file one;
-# every other file under agents/ has the register budget. tests/raised_budgets.txt raises a page,
+# every other file under agents/ has the page budget. tests/raised_budgets.txt raises a page,
 # its kind's default times (1 + 0.2 * steps). A record over the flag size is counted.
 
 function(zen_law_steps_of rel rels steps out)
@@ -2662,8 +2664,8 @@ foreach(rel IN LISTS agents_md)
             foreach(p IN LISTS budget_problems)
                 zen_law_fail("${p}")
             endforeach()
-        elseif(bytes GREATER ZEN_LAW_REGISTER_BYTES)
-            zen_law_fail("${rel} is ${bytes} bytes (a file under ${ZEN_LAW_AGENTS_DIR}/ is at most ${ZEN_LAW_REGISTER_BYTES}; a router ${ZEN_LAW_ROUTER_BYTES})")
+        elseif(bytes GREATER ZEN_LAW_PAGE_BYTES)
+            zen_law_fail("${rel} is ${bytes} bytes (a file under ${ZEN_LAW_AGENTS_DIR}/ is at most ${ZEN_LAW_PAGE_BYTES}; a router ${ZEN_LAW_ROUTER_BYTES})")
         endif()
         if(rel MATCHES "^${ZEN_LAW_RECORD_DIR}/" AND bytes GREATER ZEN_LAW_RECORD_FLAG_BYTES)
             math(EXPR records_flagged "${records_flagged} + 1")

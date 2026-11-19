@@ -15,8 +15,6 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
 - Absence, false, empty text and empty containers are distinct. Nothing fills an
   unauthored scalar. `unset` removes content; a frontend wanting disabled contents
   or invalid unfinished text owns that presentation state separately.
-- Nested values copied into or out of a draft are isolated by the editing/snapshot
-  doors. Ordinary `value()`/`get()` inspections obey Loom's immutable-reader rule.
 - `Library` is a data library, not a schema catalog for a running host. Presets carry
   title, schema closure and draft content; no destination, sender, grants,
   correlation or reply provenance is persisted. A send is the caller's fresh act.
@@ -28,9 +26,6 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   The original descriptors stay authoritative across save/reopen.
 - Persistence retains the existing maker file writer's single-writer-per-path
   discipline and size limit. Validate the whole candidate before replacement.
-- `tests/test_message_draft.cpp` covers presence, scalar meaning, nested editing,
-  copy isolation, partial persistence, conflicts, corruption and failed saves.
-  `tests/package/message_draft_consumer.cpp` exercises the installed boundary.
 
 - `transfer.hpp` wraps one Library entry in complete StoredDraft data, or a selected branch
   in FieldValue data with a structural path. It never changes ordinary message admission.

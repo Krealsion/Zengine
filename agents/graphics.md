@@ -6,14 +6,6 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 
 ## The window is a compositor above its medium
 
-- A window weave does the whole job of showing: it keeps every area's nodes, records and presented
-  elements in its STATE (a reload keeps them and draws nothing again), paints a node only when it
-  changes, keeps what it painted in its MEMORY (a reload paints it again from the state, once),
-  composes the areas front to back by their order, and shows only what changed: a TUI window
-  writes the cells whose picture changed, as runs; a GUI window draws its whole picture once a
-  showing. It judges a press against what it painted and routes it, and gives keys, their releases
-  and the text they type to the owners of the areas placed to hear each (`AreaKeyPressed`,
-  `AreaKeyReleased`, `AreaTextEntered`), naming the area.
 - **One window, many media.** The store, the judge, the element seam, the directory's words, keys
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
   painted, how it shows it and what it reads are the medium's alone (`window_tui.hpp`,
@@ -22,8 +14,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   paste's read of the clipboard (`ClipboardText`), its place on the desktop and a place offered
   back, a close its desktop asked for, the beat on request (`PumpSurface`), and the picture it last
   presented, read back -- never one a drawing saying `more` holds back. The clipboard is read when a
-  paste asks, never on the beat. The GUI window publishes its place when it changed, before its
-  offer when both did, and each close once, as its role; a terminal publishes neither. A
+  paste asks, never on the beat. A
   window's title and size are said by a role that arranges an area in it (`WindowShaped`),
   judged by the window from the arrangers its areas were introduced with, and from no other; the
   GUI window keeps the size within its display (`window::shaped_within`) and, as after a weaver's
@@ -36,27 +27,18 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   moved sends the window a word, never a drawing.
 - **One showing a beat, on the drawer's word.** A drawing or a change saying `more` is held back;
   the next message from that drawer without it shows everything since, once. Any other handler of
-  the window shows what it changed. `Canvas::show` sends a beat's nodes before its elements and
-  cannot forget the last word, and `DrawingFacet` (`graphics/drawing.hpp`) shows at the end of
-  every delivery after the weave's own `after_delivery` when composed with `With` (`DrawingWeave`
-  keeps the single-base compile-time refusal).
+  the window shows what it changed.
 - **Every bound is judged before anything changes**, and a drawing past one is refused whole, to
   its drawer, in words (`DrawnRefused`): the nodes, records and presented elements of an area, a
-  path's bytes and depth, an operator's operands. A send Loom refuses before the window reads it --
-  a drawing past what Loom decodes of one value -- reaches its drawer the same way: the `Canvas`
-  that sent it reads Loom's notice (`zen.DispatchRefused`) as its `DrawnRefused`, naming an image for
-  an area whose every node wears a look of its own, and sends a whole drawing so refused again only
-  once the picture changes or a room comes (`Canvas::refused`, `DrawingFacet`, `WindowDrawing`). A record said again at its own path counts as
+  path's bytes and depth, an operator's operands.
+  A record said again at its own path counts as
   itself. An element whose data does not read as its type is refused saying so, and nothing of a
   never-presented element stays.
-- A window's incarnation is a random token drawn on its first activation and carried by its state:
-  a loaded weave cannot read its own id. Owners draw whole only when the window, its incarnation,
+- Owners draw whole only when the window, its incarnation,
   its size or its measure changed, or the window says the area is empty (`AreaRoom`,
   `Canvas::room`).
-- **The window says how it sets text, and every owner places its text by it.** A window that shows
-  every pixel offers its room in pixels and the face it draws with, measured: a character's advance
-  and a line's height (`WindowOffered`, `AreaRoom`, `PaintTask`); a TUI window's text is the
-  cell. Nothing in a window that shows every pixel is set a character a cell. Each owner paints its
+- **The window says how it sets text, and every owner places its text by it.**
+  Nothing in a window that shows every pixel is set a character a cell. Each owner paints its
   area's ground, so nothing behind a pane shows through what it leaves blank; no window paints an
   area's ground for its owner.
 - **The window tells the room.** It answers every introduction of an area with the owner's room,
@@ -81,8 +63,6 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **The arranger learns where presses land, never the moment**: `AreaPressed` to the role that
   placed an area another role owns, under the press's number. The directory names that role from
   the placing's authorship (`AreaIntroduced::arranger`); a placing spoken personally names none.
-- A move with no button held that leaves an area hearing the pointer is told, `AreaPointerLeft`; so
-  is the pointer resting in an area handed to another owner, to the owner it had.
 - **What became of the pointer goes to the area's owner, and to its arranger when another role**:
   `AreaHoldEnded` and `AreaPointerLeft` reach no other role, so none learns where the weaver's
   pointer goes.
@@ -112,11 +92,6 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   composition: each run of text on one line, and each record naming an action as the part it
   names, with the box its drawing shows, in the area's pixels; a cell or point another role's
   area in front paints over is not said, and one the asker's own area paints over is.
-- **A part's point is where the window's own judge lands a press on it**, or none; its availability
-  is what its record says (`PartFace`), else available.
-- **Asking again costs nothing when nothing moved**: an area's `version` moves with its drawing, its
-  place, and any area that meets it, and an ask `since` the version still standing is answered
-  `same`, with nothing else. `waiting` says the owner owes a whole drawing for the room it was told.
 - Past `kMaxAreaWords` runs of text a reading is refused whole, in words, rather than said in part.
 - **What a window says of an area unasked goes to an arranger that follows it**
   (`AreaPlaced::followed`): where a press there landed while another role owns it, a hold
@@ -134,8 +109,8 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   of a size and a style; `graphics/color.hpp`; `graphics/window/palette.hpp`), when it paints, from the
   palette the area wears: a pool name as the palette says, else the pool's default, else `text`; a
   own value as the palette says for the area's owner, else the default the drawing carries, an
-  exact colour or a pool colour as the palette says. An area
-  wearing no palette the window holds wears the window's own, the pool's defaults. A text's style
+  exact colour or a pool colour as the palette says.
+  A text's style
   is turned into its font, size, colour and weight there too, each field the draw changes standing
   over the style's (`resolve_text`). The painter is handed exact colours (`PaintNode::inks`) and a
   resolved weight and measure, and keeps none; no drawer, painter or medium resolves a name.
@@ -145,34 +120,17 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   the name declared. Nothing judges a name's spelling but what C++ cannot spell.
 - **A palette is offered whole, at a revision**, through the directory, and kept by every window: a
   higher revision paints every area wearing it again from what the window keeps, and no owner is
-  told. A palette chosen before its area is placed is kept for it, so the area is introduced once.
-- **A terminal shows a colour's ink, else its nearest**: the ink the palette's terminal look names
-  for it, else the terminal's own look's (`TerminalLook`; `graphics/terminal.json`), else the
-  nearest of the sixteen inks, never the terminal's default unless an ink asks for it; a shape fills
-  with its colour's fill character there, and an exact colour or an own value's exact default shows
-  as the pool colour it is `like`. A terminal's look holds nothing of a window of light's, and a
-  palette's colours nothing of a terminal's.
+  told.
 - **A drawer names a colour, never a role**: a pool name, an own value of its own, or an exact value
   beside the pool colour it is `like`; where only the pool's colours are shown, a colour shows as
   its pool colour (`pool_color_of`, `graphics/ops.hpp`).
-- **Pixels are bytes**: an `image` carries its own red, green, blue and alpha, four bytes a pixel.
-- **A node's operands are one union** (`Operands`, `graphics/operands.hpp`): the case it holds is
-  its operator, and the gate refuses operands of another shape or version as it refuses any value.
 - **What a drawing's nodes share is said once**: the looks they wear (`Drawn::looks`, `Look`: a
   paint, an ink or a text's look), each node naming one by its place there or none, its operator's
   default; the window keeps an area's looks once and lets go of one no node wears, and its judge
-  refuses a look the drawing does not say or the operator does not wear. A look is found among a
-  drawing's or an area's in one step (`LookHash`). A node costs Loom a cell for its path, one for
-  its look and its operands' fields (a text 8, an image 12), so a whole area at the window's bound
-  whose nodes share their looks is one drawing, and a window holding one such area reloads; one
-  whose every node wears a look of its own is drawn as an image.
-  An element change's shape is implied by the element's type: it travels as its shape's body, and
-  the receiver restores the envelope before the gate reads it (`graphics/implied.hpp`).
+  refuses a look the drawing does not say or the operator does not wear.
 - **An element's changes are a list whose order is the wire**: a change travels as its index, so
   the list only grows at its end, and a change outside it does not compile where its owner sends
   it.
-- The window's painter draws every operator, natively or by its medium's fallback; an operator it
-  does not know is painted as its name, in `quiet`.
 
 ## The element seam, and the window's own painter
 

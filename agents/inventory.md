@@ -5,8 +5,7 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
 [zengine.inventory-pane](../inventory/docs/zengine.inventory-pane.md). Packaging follows
 [packaging](packaging.md); verification follows [verification](verification.md).
 
-- `zengine::inventory` exports the codec, vocabulary and explicit `inventory_grant()` helper.
-  `zengine-inventory` is an ordinary
+- `zengine-inventory` is an ordinary
   loadable artifact, installed and selected by Workshop's authored load plans. No native host
   mount owns its role. Unload/load starts empty; an explicit toolbox restore repopulates it.
 - `inventory/codec.hpp` carries complete item and metadata schema roots plus their dependency
@@ -68,20 +67,13 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   A value whose schema happens to be InventoryReference remains data on the copy route.
 - Inventory list pictures map rows to entry identities with `component::RowMap`. Sorting and
   renaming cannot redirect a queued press; source data is read by reference, never row index.
-  The small-room projection uses `cursor_window` and accounts for its marker rows.
-- Main Inventory browses one folder (`inventory/inventory-pane/browser.hpp`): folders by name, then
-  entries. Navigation is local view state, never reload state: it follows a moved folder, falls
+- Navigation is local view state, never reload state: it follows a moved folder, falls
   back to the nearest surviving ancestor, and a restore returns to the root. Folder, crumb and
   control meanings carry the owner. Navigation works while an operation waits; other acts refuse
-  aloud; answers are described by their own request. One press selects a folder, a second
-  opens it, Enter opens a selected one; Backspace climbs only while no line editor is open.
-  A menu row that leaves something to finish by key (a name line, a confirming Delete, a pick
-  awaiting Ctrl+V or Escape) takes the keys by continuing its choice (`take_keys`), refused by
-  Workshop once the weaver has acted since; Open and other rows leave the keys where they were.
+  aloud; answers are described by their own request.
 - One gesture changes one fact at one owner: a drop on a folder row, crumb or `[Up]` files the
-  entry; elsewhere it moves placement. Main lists only entries placed there, counting the
-  folder's other members; a returned entry shows in its own folder. Copies land where dropped
-  (else the shown folder, root for views); a duplicate beside its source. Filing names as
+  entry; elsewhere it moves placement.
+  Filing names as
   `from` the folder recorded when the pick or the drag's pickup began, before any round trip;
   a listing that arrives meanwhile never changes it, so an entry filed elsewhere first refuses.
 
@@ -98,8 +90,7 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   minted. Each view owns draft, structural selection, RowMap picture and every pending record;
   weave-wide monotonic correlations plus answer provenance let only the asking view settle.
   Retiring drops the records, so an old incarnation's late answer settles nothing; the slot keeps
-  only a watch request Workshop has not answered, to end the lease it grants. Only `info` keeps
-  pane-property inspection (Workshop holds one subject per role).
+  only a watch request Workshop has not answered, to end the lease it grants.
 - A view has one owner operation in flight, and its purpose (refresh, link, save, save of a copy
   as a new entry, save copy) is one record set at the start and settled on every outcome --
   answer, owner refusal, denied permission, undelivered or unqueued -- so no later operation
@@ -130,20 +121,6 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   Main Inventory and new contexts start inactive. Explicit duplication appends an independent
   owner entry and copies binding settings disabled. Movement never executes. A filled single box
   returns its displaced reference to main Inventory; an unsuccessful proposal retains placement.
-- A pane is offered when Workshop has not heard it or its offer changed -- each one on an
-  activation or a catalog request -- since Workshop takes a re-offer as a reloaded image and
-  starts that pane's picture over; and a view's picture is sent only when it differs from the last
-  one sent since its room was granted, its caret included, since Workshop repaints the desk for
-  each. So making a view offers and draws that view alone (`tests/test_workshop_inventory_info.cpp`
-  case `"views: making a view offers only that view, so a view already on the desk never stands
-  blank"`).
-- Each view draws its rows on its own canvas; a press, a right press and a drop are read back
-  to its row map, current only on the picture it still shows, and the wheel walks the selection
-  only in the room the view still holds. The line being typed writes no caret into itself: the
-  caret and selection stand in it, said beside the rows to a host granting no canvas
-  (`tests/test_workshop_inventory_info.cpp` case `"Inventory draws its rows on its canvas on the
-  medium's own ground, and a name line's caret and selection stand in the line, writing nothing
-  into it, each move of them drawn"`).
 - Desktop admits active globals atomically through PaneShortcuts. Invocation traverses Workshop's
   current attributed action and checks actor permission for the stored message's actual target
   and version. Configuration grants and metadata do not authorize execution. Complete messages
@@ -152,8 +129,7 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   current actor authority and attributed dragging. Public vocabulary joins the package witness;
   inventory-slots-demo provides the maintained visible journey. Pending tokens/read/permission
   books remain image-local. Restored references never rebind to a different owner by label.
-- Portable tile interiors and their hit spans come from one composition. Shared borders and
-  clipped tiles are not entry targets. Copy-drop naming begins only after owner storage succeeds;
+- Copy-drop naming begins only after owner storage succeeds;
   cancelling it leaves the stored value. Rename uses the current naming gesture's authority and
   exact entry revision, never a cached grant from the earlier drop.
 
@@ -167,8 +143,8 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   in inventory. The file excludes live owner/stamp, activation, pending work and authority. Schema
   closures remain stored data, not registry publication. References embedded in user values are
   unchanged. Source absence is not a reason to mutate historical data.
-- Restored binding/context switches are OFF. Unused offered views become empty inactive spares;
-  repeated restore reuses identities. Desktop cleanup follows the owner commit; a later refusal
+- Restored binding/context switches are OFF.
+  Desktop cleanup follows the owner commit; a later refusal
   explicitly reports that the collection already changed. No distributed rollback is claimed.
 - Guest file access uses the separate `toolbox` power, checked for injected actors too, and a
   save is class `write`: on a weaver's host a guest's is refused, by key (Workshop's approval) or

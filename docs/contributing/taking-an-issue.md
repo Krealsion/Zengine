@@ -121,8 +121,7 @@ The commands are in
 [AGENTS.md](../../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom), and every
 configuration is in [build and test](build-and-test.md). Configure a tree once; after each edit,
 `cmake --build build` rebuilds what changed. Build the whole tree before believing a focused
-run: not every suite has a build edge to the libraries it loads
-([a loaded weave can spend the host's operators](../../agents/operators.md#a-loaded-weave-can-spend-the-hosts-operators)).
+run: not every suite has a build edge to the libraries it loads.
 
 ## 6. A test that fails before the change
 

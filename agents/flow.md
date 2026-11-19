@@ -10,8 +10,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 
 - Definitions, schemas, admission and graph meaning retain their existing owners. Keep the
   authoring package independent of Workshop and external-host test-session infrastructure.
-- `maker::Runtime` owns shared dispatch/state/emission behavior. The interpreted subclass spends
-  a catalog composition; the generated weave spends the compiled contribution in that catalog.
+- `maker::Runtime` owns shared dispatch/state/emission behavior.
 - The native representation must keep the outer trigger replaceable as well as its leaves.
   Every node runs in order, including unused nodes after the selected result. No purity-based
   optimization follows from an operator's bus-free argument surface.
@@ -25,8 +24,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 - Generation refuses a fold in words and writes nothing: only the evaluator spends an operator
   reference, and a generated loop would spend its body outside the evaluation's budget.
   `write_generated` is the one writer of a generated project, for the workbench and the pane.
-- The pane authors emits as the definition holds them: `emitted-message`, `emitted-field`,
-  `emit` (fields from same-named state fields unless written) and `emit-remove`. Emits stay the
+- Emits stay the
   participant's own publications in its namespace (MW-DEF-08); an empty trigger keeps none, so an
   emit on one is refused rather than lost at save.
 - The standalone workbench owns its local Loom session. Its form switch prepares a fresh
@@ -41,12 +39,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 - `Workspace` owns the graph, layout, named examples and retained forms, and where each When
   and Then card was put (`DockPlace`, since version 2 of its file), and each trigger whose answer
   was deleted with none chosen since (`unanswered`, version 3). Versions 1 and 2 are read still,
-  and listed for the census as `flow::v1::WorkspaceFile` and `flow::v2::WorkspaceFile`. A delete
-  takes every connection with it: ports that read the step are left open, and deleting the answer
-  leaves the trigger unanswered (`answered`). The right-press menus' edits are `GraphDraft`
+  and listed for the census as `flow::v1::WorkspaceFile` and `flow::v2::WorkspaceFile`.
+  The right-press menus' edits are `GraphDraft`
   operations, each taking what it breaks with it (`prune_emits`, `reads_of`); a message declared
-  elsewhere is never renamed or reshaped (`owns`). A dialog about something carries it in its
-  action (`pane::about`), so it shows only what is typed. Historical form
+  elsewhere is never renamed or reshaped (`owns`).
+  Historical form
   shapes are separate observations, not competing definitions published in a host registry.
   A changed shape never silently overwrites authored values. Initial-state edits stay
   distinct from incomplete form contents and observed running state.
@@ -54,15 +51,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   A refused command leaves its previous model intact. Form edits update retained workspace
   data and dirty state; reopening restores active context by exact schema identity.
 - A graphical dialog is an unfinished edit owned by its current interaction context. All
-  `FlowEdit` requests are refused while it is open; failure to confirm preserves its text. Keeping
-  a field, saying a message and declaring one open in place (`flow_pane::in_place`): beside the
-  press that opened them, or what they edit where none did, the page drawn round them, and a press
-  outside one puts it down and is spent on nothing more, so while one is open only its own parts
-  are named. A kept field's kind is chosen from `flow_pane::field_kinds`, never typed. A message's
-  name is offered as it is typed (`flow_pane::suggestions`): what the rule says, for a message it
-  says, and what each running view's buttons say and labels show, asked of every view by
-  `ViewWiringRequested` as the editor opens and kept by the role that answered (`ViewWiring`),
-  bounded; never a name the rule hears, nor for a new message one it says.
+  `FlowEdit` requests are refused while it is open; failure to confirm preserves its text.
   While one is open the pane declares Return as its `dialog-confirm` row, so a confirm arrives
   under a gesture; a writing verb's confirm (save, generate, export, library save) asks Workshop
   for class `write` before any byte, and a refusal keeps the dialog and its text.
@@ -74,45 +63,14 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   Grants, hit maps, held gestures and pending asks are reacquired or ended.
 - Canvas pictures clip invisible primitives before spending the shared budgets. A still-dense
   view becomes an explicit recovery picture with no graph hit regions; it never silently drops
-  visible nodes. Ellipses mark shortened text. ASCII display substitution changes no values.
+  visible nodes. ASCII display substitution changes no values.
   Saved layout uses the authored grid; `GridProjection` maps it to the room's measured text
-  advance and padded row height. Pointer deltas invert those axes before applying graph zoom.
+  advance and padded row height.
   Shared canvas text clipping owns glyph bounds, caret and selection; native text keeps the
-  pane's ground beneath it. Zoom scales node positions and widths, not glyph size or port-row
-  height. Pointer hit tests spend the room's device grain, and an interaction spends the
+  pane's ground beneath it.
+  Pointer hit tests spend the room's device grain, and an interaction spends the
   pictured meaning or is refused. Every room change immediately ends held gestures and
-  invalidates old picture maps, including a change of text metrics. A press on empty graph room
-  lets go of the chosen step and its port, and its drag pans; a step moves only by a drag from its
-  own head, and the Delete key or the x on the chosen step's corner takes it away. A When or Then
-  card is chosen by its head and moved by a drag from there up and down its own column, where it
-  stays; an empty press or Escape lets it go. A wire let go on the write card's head lands on the
-  write, and a say card is carried out by its row of values. Two presses on one place, the second
-  counted a double click's by the window, are one gesture there, Flow reading the window's count
-  with its own target and slack (`flow_pane::doubles`, as WL-PTR-01 reads Workshop's tab): an
-  operator row is added; empty Do room opens the wire's search with no wire there,
-  at its second release, so a click and then a drag pans; empty When room asks for a new message;
-  empty Then room offers to keep a field or say a message. A right press means nothing on the
-  graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane menu
-  opens where it landed.
-- Flow draws its own look (`flow/flow-pane/look.hpp`): its rule's three parts and their outlines
-  in own values of its own (declared in `flow/flow-pane/look.hpp`), every other colour a pool name, only the marks the graphics library draws, a part the rule still lacks dashed, and
-  in cells each medium's fallback. The rule's sentence and the Next line are read from the draft
-  (`next.hpp`); the Events lines and the values on wires from the host's journal, read against
-  the definition that runs (`observed.hpp`).
-- The graphics window that shows the area `zengine.flow` is sent the same picture, composed for
-  the window's room (`flow_pane::window_picture`) and sketched by Flow (`flow_pane::sketch_of`),
-  every mark at one name for its life, since a window paints a newly held name after its
-  siblings; a part carries a run of words only where the run's whole row stands inside it, since a
-  window draws a run whole once its row begins inside a group; one more than a window keeps is the
-  recovery picture. Its room is
-  the window's word alone (`AreaRoom`, as that window's role), asked of `zengine.graphics` once a
-  life. A refused change goes whole at once; a refused whole picture is said in the notice and
-  draws nothing more until the next change, so a window that keeps refusing starts no loop. The
-  window's pointer there is read against the picture last sent there as Workshop's canvas pointer
-  is against Workshop's: a node held and dragged, a control done, a press's moves and release under
-  the window's number for it, a hold the window ends the drag's end. Where a window shows the area
-  deaf to the pointer, a press there names a part and is that place's first-button press, which
-  begins no drag and carries nothing. A window's room ends no Workshop gesture or picture map.
+  invalidates old picture maps, including a change of text metrics.
 - The pane carries a declared message's shape out, with every shape it nests
   (`flow::shape::carried`), from a press's drag or a right press on its row in Messages. A
   dropped description is read with the shapes it carries and nothing else
@@ -128,34 +86,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   or a field (`held_wire`) only for what takes the wire's type, the preview adding a step wired
   from it at a port of that type (`ports_taking`). It shows rows as the door answered
   them: it matches nothing again and classifies nothing. A row is known by its kind and its
-  identity together, since a form and an operator may share a name. A selected port is held by its node's
-  place id, so removing another node never moves it; replacing the graph or changing the
-  trigger puts it down. A port pressed with no wire in hand opens a box beside its step: what
-  `in_scope` holds of its type, each by its own name and where it comes from, and one value of its
-  own kind -- a number checked as it is typed (`flow_pane::whole_number`, the rule `flow::integer`
-  reads by), or yes or no -- whose words name no node or port by number, and no `$` or `%`.
-  Wherever it draws, a step is named by its operator (`flow_pane::step_name`), counted where two
-  share one, a port by its step and a field by its name, and what the draft lacks is said so too
-  (`Model::lacks`, over `GraphDraft::problem_list`, whose `problems` lines keep the library's own
-  words): no step number, `$`, `%`, revision or operator identity is drawn.
-  It hears the pointer resting with no button held and keeps what it rests on, never saved
-  (`Model::hover`, found by `rest_at` among the picture's rests and wire lines); a part of the
-  sentence lights the cards, steps and places it stands for (`Chip::subjects`), a card or a step
-  lights its parts (`lighting`), and a press or the pointer leaving the area ends the rest. A
-  dashed part, pressed, does what the Next line's button does. Resting on a port, an answer, a
-  field or a wire tells it in words
-  (`told`), a wire's two ends lit; a wire that does not fit a port (`flow_pane::unfit`) says why
-  before it is let go, and is refused in those words, never handed to the graph to refuse. While
-  the rule runs, what the last message changed against the one before it (`changed_by_last`) stays
-  lit until the next; nothing is lit while it is stopped.
+  identity together, since a form and an operator may share a name.
   A preview evaluates nothing. Add takes an operator reference (the row's
   identity and two content ids): `add-node` places a step at the end or before a node, and
   `add-node-into` before a port's node and into that port, one renumbering edit; a stale
-  reference is refused against the graph's ports, never re-bound. The fold is placed by
-  `add-fold` with `step` bound to 1 and given its body by `fold-body` from a slot that asks the
-  door `fits=fold`; the maker names the count's port. A reference the slot offered that the
-  graph refused is put down, so the slot offers the door's row next. A node's words stay inside
-  its box, and a node just added or given its body is panned into view inside the Do lane.
+  reference is refused against the graph's ports, never re-bound.
   `GraphDraft::node_ports` is the one answer to a node's ports, a fold's derived from its body by
   `op::fold_ports`.
 - `tests/test_flow.cpp` compares state, outputs, refusal reasons, live overlays, authority and

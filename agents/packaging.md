@@ -85,14 +85,11 @@ its JSON as Zengine's own panes do, with CMake 3.22 or newer, the package's floo
 the shipped themes' JSON install under `share/zengine/graphics/`. `zengine_manual()`,
 `cmake/ZengineManual.cmake`: a weave's page compiled in, as every Zengine weave carries its own.
 `zengine_weave()`, `zengine_provider()` and `zengine_stage_sdl()`, `cmake/ZengineWeave.cmake`: this
-tree's weave pattern. The installed-package witness calls it for
-every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;
-`public_surface.cpp` checks the code page it runs in.
+tree's weave pattern.
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
-Every one of them is a weave but `zengine-operators-basic`, a provider (enforced by
-`zengine_provider()`, `cmake/ZengineWeave.cmake`). The public
+The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`
 CTest entry keeps the retired spellings from coming back — it owns the list of them, so this
@@ -129,16 +126,9 @@ and each third party's licence text (`workshop/package/`). Under it:
   `zengine-workshop --version` says it with the package's other facts as `BUILD-INFO.txt` does.
   Loom is named by its commit too, `ZENGINE_PACKAGE_LOOM_COMMIT`. A build that is no package is
   the series alone, and Workshop's `--version` says it is no package;
-- Workshop compiles no CMake, so its Builder refuses in its own words and its banner says it
-  builds nothing;
-- the launcher's demo service is the package's own `share/zengine/loom-tools/demo.py`, run by a
-  Python 3.8 or newer found on the PATH, which the package does not carry ([the launcher](launcher.md));
 - every compile maps its source, build and prefix folders away (`-ffile-prefix-map`), the fetched
   SDL's included, and on MinGW-w64 every executable links its runtime statically, so an image names
-  no build machine and needs nothing beside the package but the system;
-- the launchers make the weaver's project outside the package (`%USERPROFILE%\Zengine`,
-  `~/Zengine`, `terminal/` inside for the terminal's) and write `zengine-app.path` there
-  ([the app](../app/docs/app.md#which-zengine-app-the-launchers-start)).
+  no build machine and needs nothing beside the package but the system.
 
 It is a Release build with GCC or Clang, refused otherwise at configure, installed with
 `cmake --install --strip`; the installed-package witness's package arm
@@ -147,47 +137,14 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
 **How the package is made** (`.github/workflows/package.yml`):
 - **When.** Each night, from the newest `main` commit whose CI push run passed and is newer than the
   last tag of its series, `vX.Y.*`, X.Y being that commit's own `ZENGINE_SERIES`, so a package's
-  version is always the commit's it is built from. A commit of another series than `main`'s tip
-  -- a series moved and not yet passed -- is packaged by no night, nor one whose Loom commit's
-  `LOOM_SERIES` is another than its own -- a series moved in one repository and not yet in the
-  other; the night ends green and says why. Nor does a run that publishes package a commit whose
-  `.github/workflows/` differs from `main`'s tip's: GitHub refuses the workflow's token a tag on a
-  commit whose workflows are no branch tip's, so after a change to a workflow nothing is published
-  until a commit carrying it passes, and the night ends green with a warning saying so. `decide`
-  reads that run's `loom-commit` artifact, which `ci.yml`'s `resolve-loom` keeps, and builds at
-  that Loom commit. When nothing moved, the night ends green and says so. A pull request touching
-  how the package is made runs the same jobs on its own head, at Loom's branch of the pull
-  request's branch name where Loom has one (a change made in both repositories at once), else at
-  Loom `main`, as a dry run, all but the judging of `main`'s tip, which is a night's and a
-  dispatch's; in its place the dry run holds that judge (`tests/package/tip/judge.py`) to its fixed
-  cases (`cases.py` beside it), each answer kept there and none read from GitHub, and a wrong
-  verdict is red.
-- **Built** cold and Release, Loom and Zengine both as the next tag's release number:
-  - Linux in Ubuntu 22.04 pinned by digest, its packages from Ubuntu's archive on one named day,
-    and SDL with its X11 and Wayland drivers (`cmake/ZengineSdl.cmake` keeps SDL's guard under the
-    switch). The packages it downloads are cached, keyed by that day and the build set; the indexes
-    are fetched fresh every run, and a cached file stays only when its SHA-256 is the one they give
-    it, since apt takes a cached file of the right size without its hash. The install has its own
-    limit, `INSTALL_LIMIT_MIN`, and past it the job ends naming the archive;
-  - Windows with WinLibs' GCC UCRT archive, pinned by SHA-256 and checked against the checksum
-    WinLibs publishes.
-  - Both repositories install into one folder, packed by `tests/package/pack.py`, so the
-    same files make the same bytes.
-- **Judged** on a runner that did not build it, extracted under a folder named with a space and
-  letters outside the code page: `--version` naming the commit and a clean tree, then the judges
-  (`tests/package/judges/`), the first of them one release number in all the package says, then
-  the story (`tests/package/story.py`, whose header says each step): the tally app, exported from
-  the package's own Workshop, runs in the package's `zengine-app` and outlives Workshop. Its
-  pictures and the app's console are kept on the run, red or green. Then `SHA256SUMS`.
+  version is always the commit's it is built from.
 - **What a red judge does.** Nothing is published while any judge is red.
 - **Published** by a night, or by a dispatch asked to (`publish: true`); a pull request and a
   dispatch that is not asked publish nothing. The workflow's own token alone does it:
   - `attest`, holding `id-token` and `attestations: write` alone, attests each archive and
     `SHA256SUMS`;
   - `publish`, holding `contents: write` alone, refuses a tag `vX.Y.N` that already exists and
-    takes down a draft of that name a failed night left. It opens a draft with the notes
-    (`workshop/package/release-notes.md`, each `@NAME@` the night's), aimed at the packaged
-    commit, downloads its assets back and matches their sums, then publishes it. Publishing
+    takes down a draft of that name a failed night left. Publishing
     makes the tag, so a night that fails before then leaves no tag naming no release; the tag is
     read back on the packaged commit before anything else is put down.
   - Then every other release is deleted, and its tag stays: the Releases page holds one package,

@@ -18,17 +18,12 @@ is and the program that runs it). Public contract: [the manual](../launcher/docs
 - A start is detached and kept by nobody (`launcher/start.hpp`): on Windows a console and a process
   group of its own, no inherited handle, out of the job where the job allows; on POSIX a session of
   its own, its input empty, its output appended to a log, every other descriptor closed. The
-  answer names the process's id: it started, not that it runs. What a started app does next on
-  this platform is one sentence, `kStartedAppGoesOn` (`launcher/vocabulary.hpp`), which every
-  start's notice says. The build runner's child, which dies with its holder, is not this.
+  answer names the process's id: it started, not that it runs.
+  The build runner's child, which dies with its holder, is not this.
 - `zengine.launcher` takes `Launch` only from `zengine.view.builder`, `zengine.files`,
   `zengine.palette` and `zengine.first-run` (`kAskers`); each asks Workshop first for the hand that
   pressed, classes `build` and `write` together, so a guest starts nothing on a weaver's host. It
   asks `zengine.project` where the project is at its start, and refuses a start before the answer.
-- Each start it answered `ok` is published to any, as `zengine.launcher`, beside its answer; a
-  refusal is answered alone. Nothing else of a start is kept or said.
-- A listing (`LaunchCatalogRequested`, from any role) is `launcher::listing`: the configured
-  setups with the title and line each one's `setup.json` gives at configure, then each folder in
-  `apps/` that `judge_launch` would start, at most `kMaxListed`, the rest counted. An app runs when
+- An app runs when
   its session file names a process the system says still runs the catalog's app host
   (`app_runs`, `runs_program`): asked at each listing, never remembered.

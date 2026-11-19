@@ -26,8 +26,6 @@ theme sets are graphics' ([graphics](graphics.md)).
   joined by `+`; a stack of none wears the window's own).
 - **One owner per palette name**: where the theme role runs it offers every stack's palette, the
   shipped looks among them, and the host offers none; a host without it offers its own.
-- **A stack lays each theme over the pool's defaults and the terminal's own look and over the theme
-  below it** (`lay_stack`), and a palette is offered again only where what was laid changed.
 - **A theme of the other medium alone is a normal link**, applied in its place and converted as
   well as it can be -- a colour to its nearest ink (`nearest_terminal_ink`), an ink to the colour
   xterm shows it in (`kTerminalInkColors`, `ink_rgba`), `terminal default` falling through to the
