@@ -140,6 +140,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **The window paints with its own painter**, one of each medium behind one interface (`PaintTask`
   in, `PaintResult` out, every colour resolved): no library replaces it, and another way of
   painting is another window weave.
+- **A terminal is never made to show every element a window shows.**
 - **Which library is the load plan's word**, through the arranger and the directory; a drawer
   names a type, never a library.
 - **Element code draws what it is told.** It holds no game's or pane's rules; behaviour stays with

@@ -33,6 +33,9 @@ mistake to refuse; a problem that arises inside Loom's architecture is the one w
 When a piece earns being a participant, and when it is a library of another, is
 [a decision record](agents/decisions/a-participant-earns-its-place.md) and its law, WL-PART-01.
 
+**Names are verbs that say what happens, and parameters say what they hold.** A renamed thing's
+files change with it.
+
 ## Read this, then route
 
 This file is the one mandatory read before touching this repository. Everything else is
