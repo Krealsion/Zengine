@@ -315,6 +315,23 @@ inline std::vector<PaintInk> inks_of(const Look* look, const PaletteOffered& pal
     return out;
 }
 
+/// The colours a node names, as painted in `palette` in an area `role` owns: its look's
+/// (`inks_of(look, ...)`), or where its operands carry their own, theirs, in the order
+/// `colors_of(draw)` gives.
+inline std::vector<PaintInk> inks_of(const Operands& draw, const Look* look,
+                                     const PaletteOffered& palette, const std::string& role) {
+    const std::vector<Color> own = colors_of(draw);
+    if (own.empty()) {
+        return inks_of(look, palette, role);
+    }
+    std::vector<PaintInk> out;
+    out.reserve(own.size());
+    for (const Color& c : own) {
+        out.push_back(resolve(c, palette, role));
+    }
+    return out;
+}
+
 /// A task's own colours and border characters, as `palette` gives them for an area `role` owns: its text,
 /// its quiet, and a terminal's corner, across and down.
 inline void dress(PaintTask& task, const PaletteOffered& palette, const std::string& role) {

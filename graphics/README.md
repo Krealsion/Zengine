@@ -29,8 +29,9 @@ an element the window presents from the owner's data (`element_export.hpp`).
 - [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual: what the arranger and a
   window tell it, and what it says to each window
 - [The Graphics package](docs/graphics.md): drawing into a window -- who says what, the node and the
-  element record, the seven operators, colours by name, drawing with a canvas, a drawing weave, an
-  element of your own, the element seam, and what a window answers to C++ in its own process
+  element record, the eleven operators, paint order and layers, colours by name, drawing with a
+  canvas, sheets, tiles, sprites and points, the helpers, a drawing weave, an element of your own,
+  the element seam, and what a window answers to C++ in its own process
 
 ## What is in this folder
 
@@ -40,8 +41,10 @@ an element the window presents from the owner's data (`element_export.hpp`).
 | `color.hpp` | a colour a look carries, one union: none, an exact value, a name from the shared pool, or an own value its pane declares |
 | `pool.json`, `themes/` | the pool's colours and their defaults, and the three shipped themes, generated into C++ names (`graphics/colors.hpp`) and palettes (`graphics/themes.hpp`) as the package is configured |
 | `pixels.hpp` | arithmetic on pixels and cells that cannot overflow, a pixel in a medium's device unit, and the grain a hit test floors by |
-| `operands.hpp` | the node, the seven operators' operands and the looks a node wears, each one union |
-| `ops.hpp` | the colours a look carries |
+| `operands.hpp` | the node, the eleven operators' operands -- a sheet's frames among them -- and the looks a node wears, each one union |
+| `ops.hpp` | the colours a look and an operator's operands carry |
+| `box.hpp`, `group.hpp` | a place and a size by name; a group and the drawing calls inside it by each node's own name |
+| `sheet.hpp`, `tiles.hpp`, `sprites.hpp`, `points.hpp` | a sheet made in code and its frames; a tile's side in a window, places in tiles and a grid of them; sprites and points gathered for one node each |
 | `implied.hpp` | a value's body without its envelope, where an element's type implies its shape |
 | `canvas.hpp` | what an owner draws with: a `Sketch`, a `Canvas`, `difference` |
 | `elements.hpp` | every part below, in one include |

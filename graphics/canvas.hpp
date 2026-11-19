@@ -87,6 +87,14 @@ public:
                std::int64_t h, std::int64_t pw, std::int64_t ph, loom::Bytes rgba) {
         put(name, ImageArgs{x, y, w, h, pw, ph, std::move(rgba)});
     }
+    /// A sheet: pixels and the frames cut from them, held for the tiles and sprites that name it
+    /// (graphics/sheet.hpp makes one).
+    void sheet(const std::string& name, SheetArgs sheet) { put(name, std::move(sheet)); }
+    /// Tiles, sprites and points, each one node however many it draws (graphics/tiles.hpp,
+    /// graphics/sprites.hpp and graphics/points.hpp gather them).
+    void tiles(const std::string& name, TilesArgs tiles) { put(name, std::move(tiles)); }
+    void sprites(const std::string& name, SpritesArgs sprites) { put(name, std::move(sprites)); }
+    void points(const std::string& name, PointsArgs points) { put(name, std::move(points)); }
 
     /// What the subtree at `name` means, as the record shape T's value.
     template <class T>
@@ -174,6 +182,39 @@ public:
     /// press on the picture would mean what it meant, 0 for none.
     void number(std::int64_t n) { number_ = n; }
     std::int64_t number() const { return number_; }
+
+    /// A WHOLE PICTURE'S NODES DRAWN IN A PARENT IT DOES NOT DRAW BEFORE THEM, taken out with
+    /// everything drawn in them and the records there: the words naming each one and its parent,
+    /// the first of each subtree taken out. Every other node stays as drawn, so a window takes the
+    /// rest of the picture, where it would refuse the whole for one such node.
+    std::vector<std::string> drop_unparented() {
+        std::vector<std::string> words;
+        std::set<std::string> kept;
+        std::set<std::string> dropped;
+        for (const Node& n : drawn_) {
+            const std::string parent = parent_of(n.path);
+            if (!parent.empty() && kept.count(parent) == 0) {
+                if (dropped.count(parent) == 0) {
+                    words.push_back("'" + n.path + "' is drawn in '" + parent +
+                                    "', which the picture does not draw before it: it is left "
+                                    "out, with what is drawn in it");
+                }
+                dropped.insert(n.path);
+                continue;
+            }
+            kept.insert(n.path);
+        }
+        if (words.empty()) {
+            return words;
+        }
+        std::erase_if(drawn_, [&](const Node& n) { return dropped.count(n.path) != 0; });
+        at_.clear();
+        for (std::size_t i = 0; i < drawn_.size(); ++i) {
+            at_[drawn_[i].path] = i;
+        }
+        std::erase_if(said_, [&](const ElementRecord& r) { return kept.count(r.path) == 0; });
+        return words;
+    }
 
 private:
     /// The place of `look` among the sketch's looks, found in one step, said there first if new.

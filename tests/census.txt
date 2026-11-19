@@ -102,6 +102,11 @@ doors examples/snake/play.cpp ConsoleWeave 6
 doors examples/snake/score.cpp ScoreWeave 1
 doors examples/snake/world.cpp SnakeWorld 7
 doors examples/snake/world.cpp SnakeWorld.2 4
+doors examples/tile-defense/bench.cpp BenchDoor 1
+doors examples/tile-defense/bench.cpp BenchEars 3
+doors examples/tile-defense/game.hpp TileDefense 4
+doors examples/tile-defense/play.cpp Door 4
+doors examples/tile-defense/stage.cpp TileDefenseStage 4
 doors examples/tally-pane/tally.cpp Tally 8
 doors examples/tower-defense/td.cpp Game 7
 doors examples/workshop-probe/probe.hpp ProbeWeave 11
@@ -169,7 +174,7 @@ lines editor/editor-pane/pane.cpp EditorPaneWeave 1178 falls
 lines editor/neovim-editor/pane.cpp NeovimEditorWeave 1124 falls
 lines files/files.cpp FilesWeave 1593 falls
 lines flow/flow-pane/pane.cpp FlowPane 2542 falls
-lines graphics/window/window.hpp Window 1423 falls
+lines graphics/window/window.hpp Window 1411 falls
 lines info/property_view.hpp PropertyView 1002 falls
 lines info/value_view.hpp ValueView 1359 falls
 lines realization/owner.hpp Owner 1141 falls

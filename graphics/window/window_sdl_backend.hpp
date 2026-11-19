@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -450,10 +451,19 @@ public:
         }
     }
 
+    /// The textures this backend has made in its life: one an image or a sheet whose pixels it
+    /// had not shown in that node before.
+    std::int64_t textures_made() const noexcept { return textures_made_; }
+
 private:
+    /// A node's textures as made: the version of the node they were made from, and each image's
+    /// texture, then each sheet's, with the pixels it was made from, so a node painted anew with
+    /// the same pixels keeps its texture.
     struct Made {
         std::uint64_t version = 0;
         std::vector<SDL_Texture*> made;
+        std::vector<loom::Bytes> pixels;
+        std::vector<std::pair<std::int32_t, std::int32_t>> sizes;
     };
 
     /// The window's frame in the desktop's units: its rectangle with the platform's borders, and
@@ -659,13 +669,25 @@ private:
     }
 
     /// The picture drawn, presenting nothing: back to front, each area clipped to its bounds, its
-    /// quads as one geometry batch until a node's lines, text or images break it.
+    /// sheets' textures made or kept first, its quads as one geometry batch until a node's lines,
+    /// text, images or blits break it.
     void draw(const ComposedLightFrame& frame) {
         SDL_SetRenderClipRect(renderer_, nullptr);
         ink(frame.ground);
         SDL_RenderClear(renderer_);
         std::set<std::string> seen;
         for (const LightAreaShown& a : frame.areas) {
+            std::map<std::string_view, SDL_Texture*> sheets;
+            for (const LightNodeShown& n : a.nodes) {
+                if (!n.prims->sheets.empty()) {
+                    const std::string key = a.area + '\x1f' + n.path;
+                    seen.insert(key);
+                    const Made& m = textures(*n.prims, key, n.version);
+                    sheets[n.path] = m.made.size() > n.prims->images.size()
+                                         ? m.made[n.prims->images.size()]
+                                         : nullptr;
+                }
+            }
             const SDL_Rect clip{static_cast<int>(a.x), static_cast<int>(a.y),
                                 static_cast<int>(a.w), static_cast<int>(a.h)};
             SDL_SetRenderClipRect(renderer_, &clip);
@@ -676,13 +698,17 @@ private:
                              static_cast<float>(q.w), static_cast<float>(q.h), q.rgba);
                 }
                 const light::NodePrimitives& p = *n.prims;
-                if (p.lines.empty() && p.texts.empty() && p.images.empty()) {
+                if (p.lines.empty() && p.texts.empty() && p.images.empty() && p.blits.empty()) {
                     continue;
                 }
                 flush();
                 const std::string key = a.area + '\x1f' + n.path;
-                seen.insert(key);
-                draw_rest(p, key, n.version, a.x, a.y, clip);
+                if (!p.images.empty()) {
+                    seen.insert(key);
+                }
+                const auto sheet = sheets.find(p.sheet);
+                draw_rest(p, key, n.version, a.x, a.y, clip,
+                          sheet != sheets.end() ? sheet->second : nullptr);
             }
             flush();
         }
@@ -728,10 +754,55 @@ private:
         indices_.clear();
     }
 
-    /// A node's lines, text and images; an image's texture made when its node was painted anew. A
-    /// run of text a clip cut is drawn inside the area's clip and its own kept rows.
+    /// A NODE'S TEXTURES, one an image and then one a sheet, made when its node was painted anew
+    /// and an image's or a sheet's pixels are not those its texture was made from; else kept, so a
+    /// node moved, or painted again unchanged, makes none.
+    const Made& textures(const light::NodePrimitives& p, const std::string& key,
+                         std::uint64_t version) {
+        Made& m = textures_[key];
+        if (m.version == version && m.made.size() == p.images.size() + p.sheets.size()) {
+            return m;
+        }
+        m.version = version;
+        std::vector<SDL_Texture*> made;
+        std::vector<loom::Bytes> pixels;
+        std::vector<std::pair<std::int32_t, std::int32_t>> sizes;
+        const auto keep_or_make = [&](std::size_t i, std::int32_t pw, std::int32_t ph,
+                                      const loom::Bytes& rgba) {
+            if (i < m.made.size() && m.made[i] != nullptr && m.sizes[i] == std::make_pair(pw, ph) &&
+                m.pixels[i] == rgba) {
+                made.push_back(std::exchange(m.made[i], nullptr));
+            } else {
+                SDL_Texture* tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
+                                                     SDL_TEXTUREACCESS_STATIC, pw, ph);
+                if (tex != nullptr) {
+                    SDL_UpdateTexture(tex, nullptr, rgba.data(), pw * 4);
+                    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+                    ++textures_made_;
+                }
+                made.push_back(tex);
+            }
+            pixels.push_back(rgba);
+            sizes.emplace_back(pw, ph);
+        };
+        for (std::size_t i = 0; i < p.images.size(); ++i) {
+            keep_or_make(i, p.images[i].pw, p.images[i].ph, p.images[i].rgba);
+        }
+        for (std::size_t i = 0; i < p.sheets.size(); ++i) {
+            keep_or_make(p.images.size() + i, p.sheets[i].pw, p.sheets[i].ph, p.sheets[i].rgba);
+        }
+        destroy(m.made);
+        m.made = std::move(made);
+        m.pixels = std::move(pixels);
+        m.sizes = std::move(sizes);
+        return m;
+    }
+
+    /// A node's lines, text, images and blits; its images' textures as `textures` keeps them, and
+    /// its blits from its sheet's (`sheet`, none where its area shows no such sheet), one geometry
+    /// batch. A run of text a clip cut is drawn inside the area's clip and its own kept rows.
     void draw_rest(const light::NodePrimitives& p, const std::string& key, std::uint64_t version,
-                   std::int64_t ox, std::int64_t oy, const SDL_Rect& area) {
+                   std::int64_t ox, std::int64_t oy, const SDL_Rect& area, SDL_Texture* sheet) {
         for (const light::Line& l : p.lines) {
             ink(l.rgba);
             SDL_RenderLine(renderer_, static_cast<float>(ox + l.x1), static_cast<float>(oy + l.y1),
@@ -758,22 +829,39 @@ private:
                 SDL_SetRenderClipRect(renderer_, &area);
             }
         }
+        if (sheet != nullptr && !p.blits.empty()) {
+            float tw = 0, th = 0;
+            (void)SDL_GetTextureSize(sheet, &tw, &th);
+            if (tw > 0 && th > 0) {
+                const SDL_FColor white{1.0f, 1.0f, 1.0f, 1.0f};
+                for (const light::Blit& bl : p.blits) {
+                    const float x0 = static_cast<float>(ox + bl.x);
+                    const float y0 = static_cast<float>(oy + bl.y);
+                    const float x1 = x0 + static_cast<float>(bl.w);
+                    const float y1 = y0 + static_cast<float>(bl.h);
+                    const float u0 = static_cast<float>(bl.sx) / tw;
+                    const float v0 = static_cast<float>(bl.sy) / th;
+                    const float u1 = static_cast<float>(bl.sx + bl.sw) / tw;
+                    const float v1 = static_cast<float>(bl.sy + bl.sh) / th;
+                    const int base = static_cast<int>(batch_.size());
+                    batch_.push_back(SDL_Vertex{SDL_FPoint{x0, y0}, white, SDL_FPoint{u0, v0}});
+                    batch_.push_back(SDL_Vertex{SDL_FPoint{x1, y0}, white, SDL_FPoint{u1, v0}});
+                    batch_.push_back(SDL_Vertex{SDL_FPoint{x1, y1}, white, SDL_FPoint{u1, v1}});
+                    batch_.push_back(SDL_Vertex{SDL_FPoint{x0, y1}, white, SDL_FPoint{u0, v1}});
+                    for (const int i : {0, 1, 2, 0, 2, 3}) {
+                        indices_.push_back(base + i);
+                    }
+                }
+                SDL_RenderGeometry(renderer_, sheet, batch_.data(), static_cast<int>(batch_.size()),
+                                   indices_.data(), static_cast<int>(indices_.size()));
+                batch_.clear();
+                indices_.clear();
+            }
+        }
         if (p.images.empty()) {
             return;
         }
-        Made& m = textures_[key];
-        if (m.version != version || m.made.size() != p.images.size()) {
-            destroy(m.made);
-            m.version = version;
-            for (const light::ImageBlit& im : p.images) {
-                SDL_Texture* tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
-                                                     SDL_TEXTUREACCESS_STATIC, im.pw, im.ph);
-                if (tex != nullptr) {
-                    SDL_UpdateTexture(tex, nullptr, im.rgba.data(), im.pw * 4);
-                }
-                m.made.push_back(tex);
-            }
-        }
+        const Made& m = textures(p, key, version);
         for (std::size_t i = 0; i < p.images.size(); ++i) {
             if (m.made[i] == nullptr) {
                 continue;
@@ -817,6 +905,7 @@ private:
     std::vector<SDL_Vertex> batch_;
     std::vector<int> indices_;
     std::map<std::string, Made> textures_;
+    std::int64_t textures_made_ = 0;
     SdlFace face_;
 };
 

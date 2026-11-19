@@ -15,6 +15,7 @@ them and their practices are. It states no law. The repository's own rules are t
 | `snake/pilot.cpp` | loadable weave `snake-pilot`, role `snake.pilot`; its choice: `pilot.hpp`, pure |
 | `snake/play.cpp` | executable `zengine-snake`, the playable host; state: `play_state.hpp` |
 | `snake/vocabulary.hpp` | snake's shapes and role `snake.world`; `logic.hpp`: the pure simulation |
+| `tile-defense/` | the tile defense, built only where `loom::kernel` exists: `game.hpp`, loadable weave `tile-defense` (`game.cpp`, role `tile_defense.game`); `stage.cpp`, loadable weave `tile-defense-stage` (role `tile_defense.stage`); `play.cpp`, executable `zengine-tile-defense`; `bench.cpp`, executable `zengine-tile-defense-bench`; `rules.hpp`, `art.hpp`, `picture.hpp`, pure; `vocabulary.hpp` |
 | `tally-app/` | an app's folder `zengine-app` runs; `fixture.cpp`, `zengine-tally-app-fixture`, writes its view and flow from `tally.hpp` |
 | `tally-pane/tally.cpp` | loadable weave `zengine-example-tally`, role `example.tally` |
 | `guard-pane/guard.cpp` | loadable weave `zengine-example-guard`, role `example.guard` |
@@ -35,6 +36,10 @@ root routes; the presenter's half of a pane's menu is `agents/workshop/pane-menu
   swaps through the real kernel, a palette chosen mid-game, the world's doors beside its own keys
   and beat, the pilot flying and landing, the pause, zero stdout bytes with no terminal
   (`tests/test_snake.cpp`; it reads `play.cpp` and `world.cpp` as text)
+- `tile_defense` — the tile defense played headless through both windows' painting: its game and
+  stage loaded by the kernel, a window in process over the suite's terminal, its pixel backend and,
+  where the build has SDL, SDL's own under its dummy driver; keys and presses through the window, a
+  wave played, what each window shows read where it shows it (`tests/test_tile_defense.cpp`)
 - `story_journey` — `tower-defense/story.py`'s custody of the Workshop and Loom-host
   processes it starts (`tests/session/story_journey.py`; the `session` gate)
 - `workshop_probe` — the probe weave on one bus behind a scripted link: when it may say
@@ -50,8 +55,8 @@ witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/`
 
 ## Host side
 
-- Built: `snake/` by the root `CMakeLists.txt`; Tally, Guard and the numbered presenter by
-  `tests/CMakeLists.txt`.
+- Built: `snake/` and `tile-defense/` by the root `CMakeLists.txt`; Tally, Guard and the numbered
+  presenter by `tests/CMakeLists.txt`.
 - The pane seam: `pane/vocabulary.hpp`; Guard also `pane/menu.hpp`; the
   numbered presenter `pane/presenter_vocabulary.hpp`, loaded under `zengine.presenter` in
   place of `workshop/menu-presenter/`.
@@ -62,10 +67,14 @@ witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/`
   with its launchers; the `app_host` suite (`tests/test_app_host.cpp`, `app/`'s router) reads it.
 - The snake draws through `graphics/`: `snake/play.cpp` loads the directory and the TUI
   window and arranges them; `cmake/ZengineInstall.cmake` installs nothing from here.
+- The tile defense draws through `graphics/` too: `tile-defense/play.cpp` loads its stage, the
+  directory, one window (the GUI window, or the TUI window with `--tui`), the game and the Timer,
+  and its stage arranges the window; the artifacts it loads are staged beside it.
 
 ## Pages
 
 - [snake — a worked example](snake/README.md)
+- [Tile defense — a game drawn in both windows](tile-defense/README.md)
 - [Tower Defense, made from inside Workshop](tower-defense/README.md)
 - [The tally app](tally-app/README.md)
 - Walkthroughs: [Tally](../builder/docs/edit-a-running-pane.md),

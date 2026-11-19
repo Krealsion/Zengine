@@ -196,6 +196,8 @@ set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp
     graphics/term_paint.hpp graphics/light_paint.hpp graphics/canvas.hpp graphics/drawing.hpp
     graphics/elements.hpp
     graphics/element_abi.h graphics/element_export.hpp graphics/pixels.hpp
+    graphics/box.hpp graphics/group.hpp graphics/sheet.hpp graphics/tiles.hpp
+    graphics/sprites.hpp graphics/points.hpp
     ${ZENGINE_GRAPHICS_GENERATED})
 set(zengine_public_headers_graphics/window graphics/window/terminal_io.hpp)
 list(APPEND zengine_public_headers_graphics graphics/terminal_inks.hpp)

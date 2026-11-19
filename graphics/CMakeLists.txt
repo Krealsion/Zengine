@@ -16,6 +16,11 @@ target_include_directories(zengine-graphics-vocabulary INTERFACE
 add_library(zengine::graphics ALIAS zengine-graphics-vocabulary)
 target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-activation
     zengine-component)
+# A unit built on these headers holds more sections than a COFF object takes by default, so every
+# consumer is given big objects on Windows, the package carrying its own requirement (VM-PLAT-01).
+target_compile_options(zengine-graphics-vocabulary INTERFACE
+    $<$<AND:$<CXX_COMPILER_ID:GNU>,$<PLATFORM_ID:Windows>>:-Wa,-mbig-obj>
+    $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
 
 # The pool's names (`zengine::graphics::colors`, graphics/colors.hpp), the terminal's own look and
 # the shipped themes as palettes (`zengine::graphics::themes`, graphics/themes.hpp): generated, and

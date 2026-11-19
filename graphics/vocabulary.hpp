@@ -42,6 +42,12 @@ inline constexpr std::size_t kMaxPathBytes = 256;
 inline constexpr std::size_t kMaxPathDepth = 16;
 inline constexpr std::size_t kMaxArgsBytes = 64 * 1024;
 inline constexpr std::size_t kMaxAreas = 256;
+/// The bounds a sheet keeps, besides its node's bytes: its pixels on a side, the frames it cuts,
+/// and a frame's character in bytes; and the colours one points node names, each a byte's place.
+inline constexpr std::int64_t kMaxSheetSide = 4096;
+inline constexpr std::size_t kMaxSheetFrames = 1024;
+inline constexpr std::size_t kMaxFrameGlyphBytes = 16;
+inline constexpr std::size_t kMaxPointColors = 255;
 /// The palettes one window and the directory hold: one offered past them is not held, said in words.
 inline constexpr std::size_t kMaxPalettes = 64;
 /// The most runs of text one reading of an area says (`AreaShown`): an area showing more is refused
@@ -150,7 +156,8 @@ struct Drawn {
     std::vector<std::string> unsaid;
     bool more = false;
     std::int64_t number = 0;
-    ZEN_SHAPE(Drawn, 3, ZEN_FIELD(area), ZEN_FIELD(whole), ZEN_FIELD(looks), ZEN_FIELD(put),
+    /// Version 4: its nodes draw by eleven operators.
+    ZEN_SHAPE(Drawn, 4, ZEN_FIELD(area), ZEN_FIELD(whole), ZEN_FIELD(looks), ZEN_FIELD(put),
               ZEN_FIELD(removed), ZEN_FIELD(said), ZEN_FIELD(unsaid), ZEN_FIELD(more),
               ZEN_FIELD(number));
 };
@@ -680,7 +687,9 @@ struct WindowShowAsked {
 };
 
 /// What a window shows, row by row as text, and its spending since it started: showings (writes
-/// to its terminal) and their bytes, calls of its painter and of element code, and its refusals.
+/// to its terminal) and their bytes, calls of its painter and of element code, its refusals, and
+/// the textures it made (a window of light: one each time an image's or a sheet's pixels are new to
+/// its node; none in a terminal).
 struct WindowShown {
     std::string window;
     std::int64_t epoch = 0;
@@ -694,10 +703,12 @@ struct WindowShown {
     std::int64_t element_calls = 0;
     std::int64_t refusals = 0;
     std::string last_refusal;
-    ZEN_SHAPE(WindowShown, 1, ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(rows),
+    std::int64_t textures = 0;
+    /// Version 2: it says the textures it made.
+    ZEN_SHAPE(WindowShown, 2, ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(rows),
               ZEN_FIELD(areas), ZEN_FIELD(nodes), ZEN_FIELD(elements), ZEN_FIELD(showings),
               ZEN_FIELD(device_bytes), ZEN_FIELD(painter_calls), ZEN_FIELD(element_calls),
-              ZEN_FIELD(refusals), ZEN_FIELD(last_refusal));
+              ZEN_FIELD(refusals), ZEN_FIELD(last_refusal), ZEN_FIELD(textures));
 };
 
 /// An area's arranger -> the window that shows it: what the area shows now. `since` is the

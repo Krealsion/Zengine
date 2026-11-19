@@ -21,6 +21,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace zengine::graphics {
 
@@ -73,12 +74,22 @@ public:
 
     /// End-of-delivery step, run after the weave's own `after_delivery` when present: the
     /// drawer's picture drawn, the room asked once in each life while no window has said it,
-    /// and the beat shown -- its nodes, then its elements, shown once.
+    /// and the beat shown -- its nodes, then its elements, shown once. A node the picture draws in
+    /// a parent it does not draw before it is left out, with what is drawn in it, and the drawer
+    /// told why through its handler for `DrawnRefused`, as the window says a refusal -- once, until
+    /// what it is told changes.
     template <class Self>
     void after_delivery(Self& self, loom::Mail& mail) {
         if constexpr (requires(Self& s, Sketch& f) { s.picture(f); }) {
             Sketch picture;
             self.picture(picture);
+            std::vector<std::string> unparented = picture.drop_unparented();
+            if (unparented != told_) {
+                told_ = unparented;
+                for (const std::string& words : unparented) {
+                    self.on(DrawnRefused{canvas_.area(), words}, mail);
+                }
+            }
             canvas_.draw(picture);
         }
         if (!asked_ && canvas_.window().empty()) {
@@ -95,6 +106,7 @@ public:
 private:
     Canvas canvas_;
     bool asked_ = false; ///< the room asked in this life
+    std::vector<std::string> told_; ///< what the drawer was last told its picture left out
 };
 
 /// `DrawingFacet` for a drawer whose parts name actions, composed in its place: a press on one of

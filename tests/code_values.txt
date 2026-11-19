@@ -243,3 +243,10 @@ fact  zengine.workshop           workshop/pane_migration.hpp            kRetired
 fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredEditorProvider
 fact  zengine.workshop           workshop/pane_migration.hpp            kRetiredManagerProvider
 name  zengine.workshop.host      workshop/host_sources.hpp              kHostProvider
+
+# ---- the tile defense: its board and its waves (examples/tile-defense/README.md)
+tile_defense::kCols             examples/tile-defense/vocabulary.hpp      kCols
+tile_defense::kRows             examples/tile-defense/vocabulary.hpp      kRows
+tile_defense::kTileWantPx       examples/tile-defense/vocabulary.hpp      kTileWantPx
+tile_defense::kWaves            examples/tile-defense/rules.hpp           kWaves
+tile_defense::kStartLives       examples/tile-defense/rules.hpp           kStartLives

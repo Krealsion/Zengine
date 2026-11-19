@@ -27,6 +27,8 @@ using CellAt = std::pair<std::int64_t, std::int64_t>; ///< a column and a row of
 
 /// The colour a TUI window numbers 0: the terminal's default ink, where no area painted.
 inline constexpr std::int64_t kDefaultInk = 0;
+/// The ground a TUI window numbers 0: the terminal's default ground, where no node shows one.
+inline constexpr std::int64_t kDefaultGround = 0;
 
 /// Where an area's cells stand among its window's.
 struct Place {
@@ -170,8 +172,10 @@ inline std::vector<const WinArea*> front_to_back(const std::vector<WinArea>& are
 }
 
 /// The window's cells at `dirty`: each from the front-most area that painted it there, its top
-/// node by paint order; an area shows what lies behind it wherever it painted nothing; else blank.
-/// The cells are settled on a grid over the box `dirty` spans, front area first.
+/// node by paint order that shows a character, on the ground of that area's top node there that
+/// shows one, else the terminal's; an area shows what lies behind it wherever it painted nothing;
+/// else blank. The
+/// cells are settled on a grid over the box `dirty` spans, front area first.
 inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const Cache& cache,
                                        const DirtyCells& dirty) {
     if (dirty.empty()) {
@@ -185,12 +189,15 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
     };
     const auto n = static_cast<std::size_t>(w * (r1 - r0 + 1));
     const auto wanted = [&](std::int64_t c, std::int64_t r) { return dirty.marked(c, r); };
-    // Each cell's top so far: the area that holds it (its place front first) and the node.
+    // Each cell's top so far: the area that holds it (its place front first) and the node; and the
+    // top node of that area there that shows a ground, with its ground.
     struct Top {
         std::size_t area = 0;
         const std::vector<std::int64_t>* key = nullptr;
         std::string glyph = " ";
         std::int64_t ink = kDefaultInk;
+        const std::vector<std::int64_t>* ground_key = nullptr;
+        std::int64_t ground = kDefaultGround;
     };
     std::vector<Top> tops(n);
     const auto front = front_to_back(areas);
@@ -208,8 +215,21 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
                     continue;
                 }
                 Top& t = tops[at(col, row)];
-                if (t.key == nullptr || (t.area == i && *t.key < node.key)) {
-                    t = Top{i, &node.key, c.glyph, c.ink};
+                if ((t.key != nullptr || t.ground_key != nullptr) && t.area != i) {
+                    continue; // an area in front painted it
+                }
+                if (c.ink != term::ink::kNone && (t.key == nullptr || *t.key < node.key)) {
+                    t.area = i;
+                    t.key = &node.key;
+                    t.glyph = c.glyph;
+                    t.ink = c.ink;
+                } else if (t.key == nullptr && t.ground_key == nullptr) {
+                    t.area = i; // its ground alone: this area holds the cell
+                }
+                if (c.ground != term::ink::kNone &&
+                    (t.ground_key == nullptr || *t.ground_key < node.key)) {
+                    t.ground_key = &node.key;
+                    t.ground = c.ground;
                 }
             }
         }
@@ -220,7 +240,7 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
         for (std::int64_t c = c0; c <= c1; ++c) {
             if (wanted(c, r)) {
                 const Top& t = tops[at(c, r)];
-                out.push_back(term::Cell{c, r, t.glyph, t.ink});
+                out.push_back(term::Cell{c, r, t.glyph, t.ink, false, t.ground});
             }
         }
     }

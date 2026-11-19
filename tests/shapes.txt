@@ -46,6 +46,9 @@ ArtifactPromoted v2 0xcd195946b477f817
 ArtifactRealized v3 0x4eb86e150248805f
 AttentionPaneState v1 0xf0a5ee0b4711aff9
 AttributedInput v2 0x828144ef5c7534ec
+BenchActivate v1 0xb7725d68334712a7
+BenchDoorState v1 0xcc55c586186fd5b5
+BenchEarsState v1 0x456889479c669549
 BootState v1 0x5f04b7184e717a33
 BuildAsked v1 0x2215f7302e39841e
 BuildFinished v2 0x3c7310d9d01acf1f
@@ -109,7 +112,7 @@ DirectoryArea v8 0x64e015db58920989
 DirectoryState v13 0x5da5f3d1488dd701
 Dismissal v1 0x2ef46c30c9e25ec4
 DockPlace v1 0xf7c97a163eb541df
-Drawn v3 0xb579788e68eb1d6c
+Drawn v4 0xa021f1f74c89a653
 DrawnRefused v1 0x7475c98771250027
 EditorAdoptRequested v1 0x1efd4eae17ab61eb
 EditorAdopted v1 0xa550901d6a48aadc
@@ -142,7 +145,7 @@ ElementChange v1 0xb28ddcb72b0d11b1
 ElementCodeOffered v1 0x23282614162dbf06
 ElementDescribed v1 0x9b314314d98e7c03
 ElementEvent v1 0xb3dc069aafefcd2c
-ElementOutcome v3 0x9739e41435bad6de
+ElementOutcome v4 0xe4caca02470761d8
 ElementPut v1 0x7635164e539fe9ef
 ElementRecord v1 0xd92207515bccaaa7
 EllipseArgs v3 0x71e1c50768256710
@@ -170,6 +173,7 @@ FlowRun v1 0xf302d236bacd5899
 FlowSend v1 0xe9410dc99c886b02
 FlowStop v1 0x278297d584178707
 FoodEaten v1 0xd706fbefb2e08392
+Frame v1 0xebee9799d2d8a32f
 GraphicsReady v1 0x4fb9597f75fd9ee3
 GridCellFace v3 0x55c2ea980eef89c6
 GroupArgs v1 0x1a7335e87f537a1f
@@ -263,7 +267,7 @@ InventoryViews v1 0x74b30cca23ac202d
 InventoryViewsRequested v1 0x9ce389452ddaae8b
 InventoryWeaveState v5 0x13facb2ceba33bb3
 InventoryWrite v1 0x87f8fccc914daac2
-KeptNode v2 0xa2a48802dc50a099
+KeptNode v3 0xaf66b4cde580c98a
 KeptNotice v1 0x1a3b85fc469f38ca
 KeyPressed v2 0x9809b0e961ac1b5a
 KeyReleased v2 0x383cfe55dcb0d80c
@@ -308,7 +312,7 @@ NeovimEditorState v1 0x5de22f665f5bb6d1
 NeovimStartRequested v1 0x88b541cccf223cbc
 NeovimStatusRequested v1 0x6e604950c0890f1b
 NeovimStopRequested v1 0x933ebc68d1dffa9d
-Node v2 0x1d6f14d1df436854
+Node v3 0x5ae6effc9bedd6da
 NodePaint v1 0x05f9f6a6c2e4ba98
 NodePlace v1 0x50443c10cee88b33
 NoticeSaid v1 0xa3a090986ca9946d
@@ -327,7 +331,7 @@ OfficeSettingsRequested v1 0xc72ad63d323aef9a
 OpenSourceRequested v1 0x7202b83683b28f3b
 OpeningRoom v1 0x3028e7c9b444ab5d
 OpeningState v1 0x7bed74362789d96d
-Operands v1 0xd5fadae500ace359
+Operands v2 0xce2a3bf5b6420277
 OwnDeclared v1 0x85004933a5372c32
 OwnSkipped v1 0xbf1787269ce043fa
 OwnValues v1 0x0642c1c6a5fec7e1
@@ -335,9 +339,9 @@ OwnValuesAsked v1 0xee2bdb0205a4ceaa
 OwnValuesDeclared v1 0x3457cefaef363311
 Paint v1 0x337611500c14901a
 PaintInk v1 0x89d64272a39df0f9
-PaintNode v5 0x7976f276cac1a9e1
+PaintNode v6 0x3f72d8a4bc784c1c
 PaintResult v1 0xf6f28b0522c96a8b
-PaintTask v6 0x20f76922e1fab9fa
+PaintTask v7 0xf69b419d8f5350d0
 PaletteChosen v1 0x9086ee799ceb3a7f
 PaletteColor v2 0xfcf99c647bf84b32
 PaletteFont v1 0xbcfc409b94b549bf
@@ -461,6 +465,7 @@ PointerMoved v1 0xa35d16a49acba4d8
 PointerTimingAsked v1 0x5e997c6bb6b3ef09
 PointerTimingSaid v1 0xde48d9fc2dfdff6f
 PointerWheel v1 0xa0ba7a1a5d62bb34
+PointsArgs v1 0xde07930bc8fc4648
 Pos v1 0x2bead5df850cbe32
 PowerDescribed v1 0xb983589f8365107d
 PowerLayer v1 0x6cd0a218f7324bc5
@@ -527,6 +532,7 @@ SettingsWriteRequested v3 0x7e2955ae49b029cf
 SetupApplyRequested v1 0xdbed9509ec8b868a
 ShapeDocumentRequested v1 0x6a2a97debe09af6e
 ShapeDocumentShown v1 0x5444c736d8fefe30
+SheetArgs v1 0x4e03df6da0dc2764
 ShownBinding v5 0xeb37fffbf9421bf4
 ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff
@@ -556,6 +562,7 @@ SourcePrepared v3 0x800e68c17d96316d
 SourceSampled v1 0x3ade3edfe4f9c815
 SourceSelection v1 0xbcb27a5d9f6c509c
 SourceText v1 0xc8eac939a45d0903
+SpritesArgs v1 0x14728668872118ba
 StackLaid v1 0x94a690e6af2f0a46
 StackSaid v1 0xa283e081a7d53181
 StacksRequested v1 0xd1028b77ba55dde2
@@ -616,6 +623,17 @@ ThemesPlacedRequested v1 0x1c07a7eb6d53f046
 ThemesRequested v1 0x136acafb4fd0bcc3
 ThemesShown v2 0xf46126d404db2b36
 ThemesWorn v1 0xaf0ab3f751963490
+TileBurst v1 0xadab7d8b0a3dcdb5
+TileDoorState v1 0x88c6a009811e2333
+TileQuit v1 0xd08c40c15f4f7849
+TileShot v1 0x36027e8da7de1e01
+TileSpark v1 0x7a6a94bf1716ffbe
+TileStageState v1 0x7502100782576d5f
+TileTick v1 0xb7c90b8f2a1a17c7
+TileTower v1 0x30ee0f9b1dbf9fca
+TileWalker v1 0x4397edf806fbaa8d
+TileWorld v1 0x8fa0fa1389362c20
+TilesArgs v1 0x5d819a680f164051
 TimerCandidateDeclined v1 0x834074dbde7f94a3
 TimerCandidatePrepared v1 0x724841040511a4aa
 TimerFired v1 0xaeac2a8c7ccbe19a
@@ -644,12 +662,12 @@ ViewWiring v1 0x8747e35faccef5d3
 ViewWiringRequested v1 0x0e99863486cb0438
 WeaversActAnswered v1 0xc7eff665a85bc677
 WeaversActRequested v2 0x662d46f2b4dedac3
-WinArea v11 0xa91478a771657d38
+WinArea v12 0x65e5dda143dc181e
 WindowOffered v5 0x2e85cafc6482f39e
 WindowShaped v1 0x65fc824d06476f98
 WindowShowAsked v1 0x9ae7f3bd1654e34e
-WindowShown v1 0x67d34473f44e6144
-WindowState v13 0x642143e0568d2815
+WindowShown v2 0x2f8e98afc022125b
+WindowState v14 0x620a842ac853253e
 WorkshopCMakeTarget v1 0x9e240d00291fccca
 WorkshopCMakeTarget v2 0x7d80363632515662
 WorkshopChoice v1 0x055a1b8162c2b26d
