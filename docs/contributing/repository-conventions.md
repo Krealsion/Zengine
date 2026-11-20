@@ -35,7 +35,7 @@ examples/            worked examples to read, run and copy into a project of the
 tests/               every suite, fixture and check; tests/folders.txt names every top-level
                      folder and its kind, and tests/front_page_folders.txt the folders routed by
                      their front page
-quarry/              the pre-Zen V1 engine, kept as a quarry. NOT built
+quarry/              the earlier engine this project grew from, kept as a quarry. NOT built
 ```
 
 A page under `docs/contributing/` routes to the registers under `agents/` that own its rules.
@@ -122,15 +122,15 @@ obvious.
 **`docs/history/` is frozen.** It describes the tree it was written against and is not
 maintained against the current one. Do not fix it and do not cite it as current.
 
-**`quarry/` is a quarry, not a codebase.** It holds the pre-Zen V1 engine as material to
-read. Nothing in it is built by this repository, and ports out of it are read-and-rewrite —
-landing in their proper home from birth, never lift-and-shift. Its provenance is a plain file
-import of that project's working tree rather than a history-carrying subtree split, so its
-history stays in the original working copy. What is actually in there is indexed by
-[quarry/QUARRY-CATALOG.md](../../quarry/QUARRY-CATALOG.md) — capability by capability,
-with source paths, the legacy interaction shape, and where the comparable question is answered
-today. It is archaeology, not authority: an entry saying a capability is absent is a statement
-about coverage, never a request for work.
+**`quarry/` is a quarry, not a codebase.** It holds the earlier engine this project grew from, as
+material to read. Nothing in it is built by this repository, and ports out of it are
+read-and-rewrite — landing in their proper home from birth, never lift-and-shift. Its provenance is
+a plain file import of that project's working tree rather than a history-carrying subtree split, so
+its history stays in the original working copy. What is actually in there is indexed by
+[quarry/QUARRY-CATALOG.md](../../quarry/QUARRY-CATALOG.md) — capability by capability, with source
+paths, the legacy interaction shape, and where the comparable question is answered today. It is
+archaeology, not authority: an entry saying a capability is absent is a statement about coverage,
+never a request for work.
 
 ### Values the code owns
 

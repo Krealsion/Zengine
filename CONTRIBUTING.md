@@ -5,8 +5,8 @@ The guide for everyone who changes Zengine, a person or an agent: one reader wit
 read when a question needs it. Every page and comment is written to
 [the documentation's design](https://github.com/Krealsion/Loom/blob/main/docs/contributing/documentation-design.md),
 and [the recommended setup](https://github.com/Krealsion/Loom/blob/main/docs/contributing/recommended-setup.md)
-says how we suggest you work. Both are Loom's, and so is the half of this guide the two
-repositories share, which the sections below link by address.
+helps you choose a machine, a clone and a harness. Both are Loom's, and so is the half of this
+guide the two repositories share, which the sections below link by address.
 
 ## What any task needs
 
@@ -27,7 +27,8 @@ not yet brought to it keeps an `AGENTS.md` beside its front page, the folder's r
 (registers under `agents/`), its suites by CTest entry, the host's side of it and its practices;
 read it before working there. The map of every folder is [`docs/README.md`](docs/README.md);
 [`tests/folders.txt`](tests/folders.txt) names every top-level folder and its kind, and
-[`tests/front_page_folders.txt`](tests/front_page_folders.txt) the folders brought to the design. The project's own words are in [the glossary](docs/glossary.md).
+[`tests/front_page_folders.txt`](tests/front_page_folders.txt) the folders brought to the design.
+The project's own words are in [the glossary](docs/glossary.md).
 
 ### What a change is judged against
 
@@ -44,7 +45,7 @@ earns being a weave of its own, and when it is a library of another, is
 
 ### Build and test
 
-The canonical machine is Linux (WSL), and Zengine builds against an installed Loom:
+The official lane runs on Linux, and Zengine builds against an installed Loom:
 
 ```bash
 # once, in ../Loom:  cmake --build build -j && cmake --install build --prefix build/_install
@@ -58,7 +59,8 @@ cmake -P tests/documentation_lane.cmake
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`.** A bare run cannot tell whether the tests
   that ran are the tests this repository meant to run. Add `-DZEN_CTEST_ARGS=-j<n>` to run it in
-  parallel ([more lanes](#more-lanes)).
+  parallel. The sanitizer lane, the installed-package and build witnesses, and which of them a
+  change owes, are [building and testing](docs/contributing/build-and-test.md).
 - **A change that touches no compiled line is verified by the documentation lane**: Markdown, an
   image under a `docs/` folder, a text check or the files only text checks read.
   `tests/check_change_kind.cmake` says each changed file's kind against `origin/main` and why,
@@ -98,10 +100,8 @@ cases; a run that selects no case fails; and the tests pass.
 
 Do not assume any of these:
 
-- That Loom's laws stop applying here. They all do, and substrate questions (bus semantics, grants,
-  answer provenance) are answered by Loom's pages, not worked out again here.
-- That `Switchboard` has a bounded drain. `drain_until_idle()` is unbounded by contract. A host turns
-  its bus with `pump_pending()` and rests between turns in its one wait (Loom's
+- That `Switchboard` has a bounded drain. `drain_until_idle()` is unbounded by contract. A host
+  turns its bus with `pump_pending()` and rests between turns in its one wait (Loom's
   `loom::host::Reactor`), which sends the Timer and every source it trusts the time
   ([the host's wait](timer/docs/timers.md#the-hosts-wait)).
 - That the delay a weaver authors is the delay that is scheduled. It is normalized
@@ -109,19 +109,19 @@ Do not assume any of these:
   hosts operators the rule is resolved through the host's catalog, not the Timer's own image.
 - That a count is a population. Totals of assertions, deliveries or queued messages are evidence to
   report, never the test of acceptance ([agents/verification.md](agents/verification.md)).
-- That "built", "loaded" or "sent" names one fact. Each names two: a green build and the artifact it produced, a
-  load and a live weave, a send and a delivery. The second fact has its own owner and its own
-  witness ([agents/realization.md](agents/realization.md)).
-- That a shape's version is its own. A shape that encloses a changed shape is a new version too. Loom
-  folds a nested shape's content id into its parent's and refuses a second shape under a name and
-  version it already holds, so a component built before the change and one built after could not
+- That "built", "loaded" or "sent" names one fact. Each names two: a green build and the artifact it
+  produced, a load and a live weave, a send and a delivery. The second fact has its own owner and
+  its own witness ([agents/realization.md](agents/realization.md)).
+- That a shape's version is its own. A shape that encloses a changed shape is a new version too.
+  Loom folds a nested shape's content id into its parent's and refuses a second shape under a name
+  and version it already holds, so a component built before the change and one built after could not
   load side by side. Nor may two shapes share a name: Loom claims a library's state and vocabulary
   at load, so two components' shapes of one name meet at the next version either takes.
   `tests/shapes.txt` pins every shape the tree publishes, nested ones included, by content id under
   its name and version, and its census (`tests/test_shapes_census.cpp`) fails a content id that
-  moved without a new version, naming each enclosing shape; it writes the census as it stands
-  beside the build to diff. `tests/test_workshop_shapes.cpp` claims the shapes as they were
-  published beside the current ones and reads every name the tree declares.
+  moved without a new version, naming each enclosing shape; it writes the census as it stands beside
+  the build to diff. `tests/test_workshop_shapes.cpp` claims the shapes as they were published
+  beside the current ones and reads every name the tree declares.
 
 ### Writing text
 
@@ -145,46 +145,6 @@ surface. [Making a change](https://github.com/Krealsion/Loom/blob/main/CONTRIBUT
 [attacking the result](https://github.com/Krealsion/Loom/blob/main/CONTRIBUTING.md#attacking-the-result)
 are Loom's, and hold here whole; this repository's attribution check is
 `tests/check_commit_attribution.cmake`. Open an issue before preparing a large change to the core.
-
-## More lanes
-
-```bash
-# the sanitizer lane: the same suites under ASan and UBSan
-cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug \
-      -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install" -DZENGINE_SANITIZE=ON
-cmake --build build-san -j"$(nproc)"
-cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
-
-# the installed-package witness: install, then build an unrelated project against the
-# prefix alone, OUTSIDE this repository
-cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
-```
-
-- **The lane runs in parallel**: `-DZEN_CTEST_ARGS=-j<n>`, the same proofs. It is safe because no
-  CTest entry writes what this build tree builds — the compile-judged ones build their fixtures in
-  a tree of their own ([agents/verification.md](agents/verification.md)); an entry that took
-  custody of `${CMAKE_BINARY_DIR}` would put that back, and the registration helper refuses one
-  that tries. What sets the floor is the longest single entry, so a suite that grows past its
-  neighbours is the thing to watch, not the suite count. Both Windows libraries run it in parallel
-  too, and CI runs every build job at `-j4`; an entry that cannot share the machine runs alone
-  after the rest, named in `-DZEN_CTEST_APART=<entry>` (VM-LANE-11).
-- **The sanitizer lane is a second kind of evidence**: the same full population under ASan and
-  UBSan, for defects whose symptom is that no answer changes (lifetimes, extents, retained
-  references). A new target lists `zengine-sanitize` beside `zengine-warnings` (on Workshop's side,
-  its own `workshop-sanitize` beside `workshop-warnings`); omitting it fails nothing and silently
-  drops the target out of the witness, which is the one way this lane degrades.
-- **The package witness is a third kind**: both lanes above reach Zengine through its own build
-  tree, so a requirement the package fails to carry is invisible to them. Run it after touching
-  any public header, exported link line, or `cmake/ZengineInstall.cmake`; it is not a CTest entry
-  and `verify.cmake` will not run it for you.
-- **A change to how a host turns its bus** — its loop, its wait, what it sends its sources — owes
-  two more that are no CTest entry, so neither the lane nor a loop over the affected entries runs
-  them: the build witness (`cmake -DZEN_BUILD_DIR=build -DZEN_WORK=<dir> -P
-  tests/build/run.cmake`), a weave built, loaded and reloaded through the Builder, and the package
-  judges' first start (`tests/package/judges/README.md`), Workshop started from a built package.
-  The hosted runs run both; run them before the push when a host's loop changed.
-- Which machine runs what, and with how much memory, is
-  [the recommended setup](https://github.com/Krealsion/Loom/blob/main/docs/contributing/recommended-setup.md).
 
 ## What crosses folders
 

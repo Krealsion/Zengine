@@ -60,6 +60,10 @@ can move into its surface's own document.
   [VM-LANE-03](../../agents/verification/lanes.md#vm-lane-03--a-green-names-its-repository-configuration-and-compiler)
 - **A verdict is the check's own exit code**, written to a file, never read through a pipe.
   [VM-LANE-16](../../agents/verification/lanes.md#vm-lane-16--a-verdict-is-the-checks-own-exit-code)
+- **A change to how a host turns its bus — its loop, its wait, what it sends its sources — runs
+  the build witness and the package's first start before the push**: neither is a CTest entry, so
+  neither the lane nor a loop over the affected entries runs them.
+  [The build witness](build-and-test.md#the-build-witness)
 - **A hosted run is read job by job.**
   [VM-LANE-05](../../agents/verification/lanes.md#vm-lane-05--a-job-under-continue-on-error-is-red-only-in-the-jobs-list)
 - **A new CTest entry is a line in the population file, a case added raises its suite's floor, and

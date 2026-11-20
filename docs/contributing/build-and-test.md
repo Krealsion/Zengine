@@ -5,7 +5,9 @@ change, and what a green result does and does not mean. This is about working *o
 project; for using it, see [getting started](../getting-started.md).
 
 Writing a Workshop interaction test? [Testing a loaded pane](testing-workshop-panes.md) covers
-actor grants, delayed answers, layout/input measurement and focused case selection.
+actor grants, delayed answers, layout/input measurement and focused case selection. Which machine
+runs which lane, and with how much memory, is
+[the recommended setup](https://github.com/Krealsion/Loom/blob/main/docs/contributing/recommended-setup.md).
 
 ## How Zengine gets the Loom
 
@@ -104,6 +106,11 @@ host that loads it is an installed Loom session host, which is uninstrumented an
 instrumented image. It only declares shapes, and Workshop on the far side of `workshop_journey`
 stays instrumented.
 
+**A new target lists its side's sanitizer beside its warnings**: `zengine-sanitize` beside
+`zengine-warnings`, or on Workshop's side `workshop-sanitize` beside `workshop-warnings`
+(VM-LANE-08). Omitting it fails nothing: the target builds uninstrumented and green, and drops out
+of this lane unseen, which is the one way the lane degrades.
+
 The lane runs the **full** population, the GUI window included — the verifier prints
 `gates active: always;sdl`, and every entry the ordinary lane declares is here at the same
 floor. No floor is lowered and no gate is turned off to buy the instrumentation.
@@ -127,7 +134,8 @@ It installs Zengine into an isolated prefix, copies
 [`tests/package/`](../../tests/package/CMakeLists.txt) **out of this repository**, and builds
 that copy as an unrelated project against the prefix alone. `ZEN_WORK` must be outside the
 Zengine tree, and the driver refuses if it is not — otherwise "it does not need the source
-tree" would be a claim rather than a fact.
+tree" would be a claim rather than a fact. Run it after touching any public header, an exported
+target's link line or `cmake/ZengineInstall.cmake`: `verify.cmake` will not run it for you.
 
 **A third question, which neither of the lanes above can ask.** The verifier and the sanitizer
 both reach Zengine through its own build tree, where every header is on the include path and
@@ -184,6 +192,20 @@ unrelated project, and folding that into `ctest` would put a nested CMake build 
 binary's population. One command, run by hand and by CI, so the two cannot come to mean
 different things.
 
+## The build witness
+
+```sh
+cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-build -P tests/build/run.cmake
+```
+
+It installs Zengine into a prefix under `ZEN_WORK`, outside both repositories, writes a one-file
+weave there, builds it, loads it and reloads it through the real Builder
+([`tests/build/witness.cpp`](../../tests/build/witness.cpp)), then breaks the package so its
+canaries fire. It is not a CTest entry, for the package witness's reason; a pull request's run
+runs it beside the package witness. The package's first start,
+[`first_start.py`](../../tests/package/judges/first_start.py), starts Workshop from a built
+package, and runs in the nightly package run.
+
 ## Verification
 
 ### Run `tests/verify.cmake`, not a bare `ctest`
@@ -212,8 +234,10 @@ Pass extra CTest flags through with `-DZEN_CTEST_ARGS=-V`.
 **The lane is safe to run in parallel**, on Linux and on Windows with either compiler.
 `-DZEN_CTEST_ARGS=-j<n>` spends the machine on the suites without changing what any of them
 proves; on a 12-core desktop it takes the Linux lane from about a minute to under ten seconds, and
-CI runs every build job at `-j4`. An entry that cannot share the machine runs alone after the
-rest when `-DZEN_CTEST_APART=<entry>;...` names it. Every build job runs every entry, in the one
+CI runs every build job at `-j4` (VM-LANE-11). What sets the lane's time is its longest single
+entry, so a suite that grows past its neighbours is the one to watch, not the suite count. An
+entry that cannot share the machine runs alone after the rest when
+`-DZEN_CTEST_APART=<entry>;...` names it. Every build job runs every entry, in the one
 pool unless it is kept apart: an entry seen to fail under load runs apart until its repair merges,
 the repair proved on a local parallel lane. A panes part longer than a piece runs as pieces,
 `workshop_panes_<part>_<n>`, each a process of its own over a range of the part's cases, and the
@@ -229,7 +253,8 @@ compile-judged entries: each of them proves its point by trying to build a fixtu
 used to build it in this build tree — so eight tests that have nothing to do with each other
 were all writers of the tree everything else depends on, and whenever CMake owed the tree a
 regeneration they raced through it. They build in a small tree of their own now, prepared by
-this tree's configure, which nothing else writes and which cannot re-run CMake at all.
+this tree's configure, which nothing else writes and which cannot re-run CMake at all, and
+`zengine_compile_test()` refuses an entry whose fixture tree is this build tree.
 
 ### Per-repo green
 
