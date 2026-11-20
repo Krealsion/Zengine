@@ -717,7 +717,11 @@ jobs:
     needs: [zengine-change-kind, resolve-loom]
     if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: windows-2025
-    timeout-minutes: 60
+    # NINETY MINUTES, the MSVC job's: from a cold compile cache -- a pull request's, which saves
+    # none, or `main`'s after a change to headers most files include -- the build alone nears the
+    # hour and the population's run follows it, and a job stopped at its limit saves no cache and
+    # leaves its run cancelled, not passed.
+    timeout-minutes: 90
     steps:
       - name: Check out Zengine
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
