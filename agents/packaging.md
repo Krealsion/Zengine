@@ -1,6 +1,6 @@
 # Agent law — Packaging
 
-Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `cmake/ZengineInstall.cmake`,
+Routed detail behind [the guide](../CONTRIBUTING.md), for tasks touching `cmake/ZengineInstall.cmake`,
 any public header, or any exported target's link line. The installed-package witness lane is in
 [`verification.md`](verification.md).
 

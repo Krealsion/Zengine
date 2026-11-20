@@ -2,8 +2,8 @@
 
 Register `WL-PART`: when a piece of Workshop, a pane, a tool, a service or an example is a
 participant of its own, and when it is a library of another. One law per heading; cite by ID.
-Router: [`../workshop.md`](../workshop.md). The split rule it tests is the root
-[AGENTS.md](../../AGENTS.md)'s: write Loom, not host code, and split until a piece is too small to
+Router: [`../workshop.md`](../workshop.md). The split rule it tests is
+[the guide](../../CONTRIBUTING.md#what-a-change-is-judged-against)'s: write Loom, not host code, and split until a piece is too small to
 be useful alone.
 
 ## WL-PART-01 — A participant earns its place, by measure, or is a library of another

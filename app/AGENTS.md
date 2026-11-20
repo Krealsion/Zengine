@@ -1,7 +1,7 @@
 # `app/` — The app host: working on it
 
 The router for `app/`, a host: where its law, its suites, the side of it other hosts hold and its
-practices are. It states no law. The repository's own rules are the root [AGENTS.md](../AGENTS.md).
+practices are. It states no law. The repository's own rules are [the guide](../CONTRIBUTING.md).
 
 ## Parts
 
@@ -49,4 +49,4 @@ installed-package witness, `tests/package/run.cmake` (not a CTest entry), starts
 
 ## Practices
 
-- [Write Loom, not host code](../AGENTS.md#intent-evidence-and-architectural-fit)
+- [Write Loom, not host code](../CONTRIBUTING.md#what-a-change-is-judged-against)

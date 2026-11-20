@@ -85,12 +85,14 @@ approves them.
 
 ## 3. Read what owns the surface
 
-[AGENTS.md](../../AGENTS.md) is the one mandatory read. Its table routes each surface to the
-document that owns its law: read that document, and the pages the issue links, before designing
+[The guide](../../CONTRIBUTING.md) is the one required read, and then the front page of the folder
+the change is in: its last section, "Working on it", or the `AGENTS.md` router beside it, names the
+document that owns each surface's law, and the guide's [table](../../CONTRIBUTING.md#what-crosses-folders)
+routes what crosses folders. Read that document, and the pages the issue links, before designing
 the change. Where the issue and the law disagree, trace both: correct the code, test or prose that
 is wrong inside the fences, and take a change to the law itself to its owner, in a comment on the
 issue, before building it
-([intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)).
+([intent, evidence, and architectural fit](../../CONTRIBUTING.md#what-a-change-is-judged-against)).
 
 ## 4. The environment
 
@@ -102,7 +104,7 @@ needs:
   [Loom](https://github.com/Krealsion/Loom) beside this checkout, then build and install it as
   [the default configuration](build-and-test.md#the-default-an-installed-loom-package-zen_loom_devoff)
   shows. The tests need that Loom's kernel, which on Windows is an opt-in
-  ([the population contract](../../AGENTS.md#the-population-contract)).
+  ([the population contract](../../CONTRIBUTING.md#what-a-green-means)).
 - **The network at configure**, unless SDL3 and SDL3_ttf are installed, for the GUI window's pinned
   fetch; or `-DZENGINE_TUI_ONLY=ON` ([SDL](supported-toolchains.md#sdl)).
 
@@ -118,7 +120,7 @@ documentation lane needs CMake and Git.
 ## 5. Build
 
 The commands are in
-[AGENTS.md](../../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom), and every
+[the guide](../../CONTRIBUTING.md#build-and-test), and every
 configuration is in [build and test](build-and-test.md). Configure a tree once; after each edit,
 `cmake --build build` rebuilds what changed. Build the whole tree before believing a focused
 run: not every suite has a build edge to the libraries it loads.
@@ -128,7 +130,7 @@ run: not every suite has a build edge to the libraries it loads.
 The case comes first, and it fails on the unchanged code for the reason the issue gives.
 
 1. **Put it with its subject's cases.** Workshop's suites are split by subject, and
-   the router of the folder the change is in, its `AGENTS.md`, names the one that pins a
+   the folder's front page or router names the one that pins a
    register's law; each package has its own suite; the external host's
    tool packages are checked by the scripts under `tests/session/`.
    [Testing a loaded pane](testing-workshop-panes.md) covers a case that needs a real pane. A case
@@ -194,7 +196,7 @@ cmake -P tests/documentation_lane.cmake
 Otherwise the official lane runs over the whole built tree, and
 [the lanes in order](../../agents/verification.md#the-lanes-in-order) say when the sanitizer lane
 and the installed-package witness are owed beside it; their commands are in
-[AGENTS.md](../../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom). Then, before
+[the guide](../../CONTRIBUTING.md#build-and-test). Then, before
 the push:
 
 ```sh
@@ -266,7 +268,7 @@ A check's link ends in its job's id.
   for a documentation-only change counts as passed.
 - **CI builds against Loom's current `main`**, resolved once when the run starts, so a red can
   come from Loom moving; the run names the Loom commit it built, and a red from Loom is reported
-  as Loom's ([ownership and dependency direction](../../AGENTS.md#ownership-and-dependency-direction)).
+  as Loom's ([ownership and dependency direction](../../CONTRIBUTING.md#ownership)).
 - **An advisory job is red only in the job list.** The MSVC job says in its name that it is
   advisory: its red does not fail the run, and it is still reported
   ([VM-LANE-05](../../agents/verification/lanes.md#vm-lane-05--a-job-under-continue-on-error-is-red-only-in-the-jobs-list)).

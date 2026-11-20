@@ -5,7 +5,7 @@ registers here that serve it. Behavioral ownership follows the component when it
 Workshop's law lives in the registers under [`workshop/`](workshop/), each law under a permanent
 `WL-<AREA>-<NN>` id in the form rule 1 below gives, its `WHY` a record under `decisions/`.
 Disagreements follow
-[intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit)
+[intent, evidence, and architectural fit](../CONTRIBUTING.md#what-a-change-is-judged-against)
 (rule 5 below). The whole law is
 `grep -h '^LAW' agents/workshop/*.md`.
 

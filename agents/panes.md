@@ -1,6 +1,6 @@
 # Agent law — The pane seam and the tools that arrive through it
 
-Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching the external pane
+Routed detail behind [the guide](../CONTRIBUTING.md), for tasks touching the external pane
 protocol, `introspection/` or `composer/` — what crosses the seam between Workshop and a pane, told
 from both sides, and the shipped tools that live entirely on the far side of it. The contract's own
 law, what a pane and any host owe each other, is the register

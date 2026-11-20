@@ -1,6 +1,6 @@
 # Agent law — Operators
 
-Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `operator/` — named
+Routed detail behind [the guide](../CONTRIBUTING.md), for tasks touching `operator/` — named
 semantic rules, the catalog, the host/consumer seam, and providers. Public reference:
 [`operator/docs/operator-host.md`](../operator/docs/operator-host.md),
 [`operator/docs/operator-providers.md`](../operator/docs/operator-providers.md) and

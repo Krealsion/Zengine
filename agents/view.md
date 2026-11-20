@@ -1,6 +1,6 @@
 # Described views
 
-Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Also read
+Routed behind [the guide](../CONTRIBUTING.md) for `view/` and `view/view-builder/`. Also read
 [panes](panes.md) (the canvas and the carry), [flow](flow.md) (the one shape model) and
 [flow host](flow-host.md) (the sibling host). Public contract:
 [view reference](../view/docs/view.md); weaver guide:

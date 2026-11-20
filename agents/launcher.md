@@ -1,6 +1,6 @@
 # The launcher
 
-Routed behind [AGENTS.md](../AGENTS.md) for `launcher/`. Also read [app host](app.md) (what an app
+Routed behind [the guide](../CONTRIBUTING.md) for `launcher/`. Also read [app host](app.md) (what an app
 is and the program that runs it). Public contract: [the manual](../launcher/docs/zengine.launcher.md).
 
 - What may be started is a kind and a name in a catalog fixed at configure (`launcher/catalog.hpp`,

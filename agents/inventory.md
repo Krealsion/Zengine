@@ -1,6 +1,6 @@
 # The inventory weave
 
-Routed behind [AGENTS.md](../AGENTS.md). Public contract:
+Routed behind [the guide](../CONTRIBUTING.md). Public contract:
 [zengine.inventory](../inventory/docs/zengine.inventory.md) and
 [zengine.inventory-pane](../inventory/docs/zengine.inventory-pane.md). Packaging follows
 [packaging](packaging.md); verification follows [verification](verification.md).

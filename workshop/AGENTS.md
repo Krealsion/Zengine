@@ -1,7 +1,7 @@
 # `workshop/` — Workshop, the host: working on it
 
 The router for `workshop/`, the host: where its law, its suites, the host's side of it and its
-practices are. It states no law. The repository's own rules are the root [AGENTS.md](../AGENTS.md).
+practices are. It states no law. The repository's own rules are [the guide](../CONTRIBUTING.md).
 
 ## Parts
 

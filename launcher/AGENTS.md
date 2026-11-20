@@ -1,7 +1,7 @@
 # `launcher/` — The launcher: working on it
 
 The router for `launcher/`, a feature: where its law, its suites and the side of it others hold
-are. It states no law. The repository's own rules are the root [AGENTS.md](../AGENTS.md).
+are. It states no law. The repository's own rules are [the guide](../CONTRIBUTING.md).
 
 ## Parts
 
