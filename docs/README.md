@@ -72,7 +72,7 @@ are separate weaves and a small game made from inside Workshop.
 | [contributing/supported-toolchains.md](contributing/supported-toolchains.md) | the platform matrix, and the reloadable-weave build contract |
 | [contributing/repository-conventions.md](contributing/repository-conventions.md) | layout, package shape, documentation and comment conventions |
 
-Automated collaborators working in this tree start at [AGENTS.md](../AGENTS.md).
+Contributors, people and agents alike, start at [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Architecture
 

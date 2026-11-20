@@ -1,6 +1,6 @@
 # Agent law — Load plans, realization and the Builder
 
-Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `realization/` (the owner,
+Routed detail behind [the guide](../CONTRIBUTING.md), for tasks touching `realization/` (the owner,
 the plan and its file, what the owner claims), `builder/`, or a host's boot path — the authored load plan, the
 realization owner, the load conversation, and how building relates to participating. Public
 reference: [`workshop/docs/load-plan.md`](../workshop/docs/load-plan.md) and

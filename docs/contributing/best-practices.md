@@ -13,17 +13,17 @@ can move into its surface's own document.
 
 ### Scope and design
 
-- **Read the owner before the code.** [AGENTS.md](../../AGENTS.md#read-this-then-route) routes
+- **Read the owner before the code.** [The guide](../../CONTRIBUTING.md#what-crosses-folders) routes
   each surface to the document that owns its law.
 - **Intent decides what is right; a passing test shows what happens.**
-  [Intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)
+  [Intent, evidence, and architectural fit](../../CONTRIBUTING.md#what-a-change-is-judged-against)
 - **Judge the whole result, and what it leaves the next consumer.**
-  [Intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)
+  [Intent, evidence, and architectural fit](../../CONTRIBUTING.md#what-a-change-is-judged-against)
 - **Stay inside the issue's fences.** [Taking an issue](taking-an-issue.md#1-choose-a-ready-issue)
 - **Write Loom, not host code.**
-  [Intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)
+  [Intent, evidence, and architectural fit](../../CONTRIBUTING.md#what-a-change-is-judged-against)
 - **Preserve coherent ownership, and know who owns a behaviour before moving it.**
-  [Intent, evidence, and architectural fit](../../AGENTS.md#intent-evidence-and-architectural-fit)
+  [Intent, evidence, and architectural fit](../../CONTRIBUTING.md#what-a-change-is-judged-against)
   and [the ownership map](../architecture/README.md#ownership-map)
 - **Address a slot, not an instance; refuse rather than clamp; say absence, never guess it.**
   [Recurring principles](../architecture/README.md#recurring-principles)
@@ -60,10 +60,14 @@ can move into its surface's own document.
   [VM-LANE-03](../../agents/verification/lanes.md#vm-lane-03--a-green-names-its-repository-configuration-and-compiler)
 - **A verdict is the check's own exit code**, written to a file, never read through a pipe.
   [VM-LANE-16](../../agents/verification/lanes.md#vm-lane-16--a-verdict-is-the-checks-own-exit-code)
+- **A change to how a host turns its bus — its loop, its wait, what it sends its sources — runs
+  the build witness and the package's first start before the push**: neither is a CTest entry, so
+  neither the lane nor a loop over the affected entries runs them.
+  [The build witness](build-and-test.md#the-build-witness)
 - **A hosted run is read job by job.**
   [VM-LANE-05](../../agents/verification/lanes.md#vm-lane-05--a-job-under-continue-on-error-is-red-only-in-the-jobs-list)
 - **A new CTest entry is a line in the population file, a case added raises its suite's floor, and
-  a floor is never lowered to pass a deletion.** [The population contract](../../AGENTS.md#the-population-contract)
+  a floor is never lowered to pass a deletion.** [The population contract](../../CONTRIBUTING.md#what-a-green-means)
   and [VM-POP-05](../../agents/verification/population.md#vm-pop-05--floors-are-minimums-anchored-to-a-measured-baseline)
 
 ### Writing
@@ -106,7 +110,7 @@ can move into its surface's own document.
 The host, `workshop/`, and the panes that reach it. Workshop's law is in the registers
 [its router](../../agents/workshop.md#where-the-law-is) lists, what crosses the pane seam is
 [the pane protocol's](../../agents/panes.md), a register's proofs name the cases that pin its
-law, and the router of each folder, its `AGENTS.md`, names the suites. The Workshop entry
+law, and each folder's front page or `AGENTS.md` router names the suites. The Workshop entry
 `workshop_<subject>` runs `build/tests/zengine-workshop-<subject>-tests`; each
 `workshop_panes_<part>` runs `build/tests/zengine-workshop-panes-tests` with its part's
 `--source-file`.
@@ -122,7 +126,7 @@ law, and the router of each folder, its `AGENTS.md`, names the suites. The Works
 - **A published shape is frozen**: a new version goes beside it, never a field added in place.
   [A pane declares its actions](../../agents/panes.md#a-pane-declares-its-actions-and-the-host-dispatches-the-resolved-id)
 - **A changed shape is a new version, and so is every shape that encloses it**; `tests/shapes.txt`
-  pins them. [Do not assume](../../AGENTS.md#do-not-assume)
+  pins them. [Do not assume](../../CONTRIBUTING.md#traps)
 - **A press reaches a pane from the window, as a place in its area**, read against what the pane
   drew there. [A press reaches a pane from the window](../../agents/panes.md#a-press-reaches-a-pane-from-the-window-as-a-place-in-its-area)
 - **Rooms, picture maps and gestures stay out of reload state.**
@@ -404,21 +408,21 @@ Its law, pages and suites: [`ui/AGENTS.md`](../../ui/AGENTS.md).
 
 ## The Timer and activation (`timer/`, `activation/`)
 
-Its law, pages and suites: [`timer/AGENTS.md`](../../timer/AGENTS.md) and
+Its law, pages and suites: [the Timer's front page](../../timer/README.md#working-on-it) and
 [`activation/AGENTS.md`](../../activation/AGENTS.md).
 
 - **A host rests in its one wait**: its loop turns with `pump_pending()` and rests between turns
   in Loom's `loom::host::Reactor`, which wakes the Timer and every source it trusts at their time
   and hands them that time; nothing sleeps or reads a clock in a handler.
-  [Do not assume](../../AGENTS.md#do-not-assume)
+  [Do not assume](../../CONTRIBUTING.md#traps)
 - **Orders are placed again on `TimerReady`.**
-  [The one rule](../../timer/docs/timers.md#the-one-rule-that-keeps-schedules-honest)
+  [The one rule](../../timer/docs/timers.md#the-one-rule-that-keeps-a-timers-time)
 - **A compile wall is judged on its diagnostic, beside a control that must compile.**
   [VM-WALL-04](../../agents/verification/walls.md#vm-wall-04--one-compile-negative-case-per-reachable-path-with-its-control)
 - **An activation's provenance is asked before its lineage.**
   [Two questions, in this order](../../activation/docs/activation.md#two-questions-in-this-order)
 - **The lane runs in parallel on Windows too.**
-  [Build / test](../../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom)
+  [Build / test](../../CONTRIBUTING.md#build-and-test)
 
 ## Operators (`operator/`)
 
@@ -442,8 +446,8 @@ Its law, pages and suites: [`maker/AGENTS.md`](../../maker/AGENTS.md).
 
 ## Snake and smoke (`examples/snake/`, `tests/smoke/`)
 
-Snake's law, pages and suites: [`examples/AGENTS.md`](../../examples/AGENTS.md); `smoke` is the
-root [AGENTS.md](../../AGENTS.md#read-this-then-route)'s.
+Snake's law, pages and suites: [`examples/AGENTS.md`](../../examples/AGENTS.md); `smoke` is
+[the guide's](../../CONTRIBUTING.md#what-crosses-folders).
 
 - **The smoke test shows the gate refusing**, which is what makes it a proof.
   [What is in the lane](build-and-test.md#what-is-in-the-lane)
@@ -477,7 +481,7 @@ witnessed by the installed-package witness and `package_vocabulary`.
 ## Documentation and its checks
 
 [Documentation conventions](repository-conventions.md#documentation-conventions) and
-[the population contract](../../AGENTS.md#the-population-contract); witnessed by the text
+[the population contract](../../CONTRIBUTING.md#what-a-green-means); witnessed by the text
 checks `tests/text_checks.cmake` lists, `doc_links` and `doc_names` among them, which the
 documentation lane runs together.
 
@@ -486,8 +490,8 @@ documentation lane runs together.
 - **One page has one reader purpose.**
   [Documentation conventions](repository-conventions.md#documentation-conventions)
 - **A page cites a test case only by a name a test declares, and a law only by an id a register
-  declares.** [Read this, then route](../../AGENTS.md#read-this-then-route)
+  declares.** [What crosses folders](../../CONTRIBUTING.md#what-crosses-folders)
 - **A page a compiled test reads is the official lane's**, and `tests/text_checks.cmake` names it.
-  [Build / test](../../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom)
+  [Build / test](../../CONTRIBUTING.md#build-and-test)
 - **A check that reads the tree self-tests before it answers.**
   [VM-CHECK-01](../../agents/verification/checks.md#vm-check-01--a-tree-reading-check-self-tests-before-it-answers)

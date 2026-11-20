@@ -8,7 +8,7 @@ nothing.**
 
 It is header-only and needs no kernel. A program links `zengine::activation` and writes
 `#include "activation/activation.hpp"`. A weave that uses the Timer binding has a cursor kept for
-it ([the Timer binding](../timer/docs/timer-binding.md)).
+it ([the Timer binding](../timer/docs/timed-weaves.md)).
 
 ## Pages
 

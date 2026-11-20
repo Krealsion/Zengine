@@ -8,11 +8,11 @@ expected to keep. This describes working on the public project.
 ```text
 README.md            orientation, and the map of the folders below
 cheat_sheet.md       the index: a line per topic, linking the page that owns it
-AGENTS.md            the contract for automated collaborators working in this tree
-agents/              routed detail behind AGENTS.md, by surface — internal working law for
-                     automated collaborators. Not user documentation, not indexed by
-                     docs/README.md, and not part of the installed package
-CONTRIBUTING.md      contribution terms
+AGENTS.md            the start file an agent's harness loads: it sends its reader to CONTRIBUTING.md
+agents/              the law registers and method registers of the folders that keep an AGENTS.md
+                     router, by surface. Not user documentation, not indexed by docs/README.md,
+                     and not part of the installed package
+CONTRIBUTING.md      the contributor's guide: what any task needs, then reference
 LICENSING.md         the plain-language licence boundary
 
 docs/                the pages no one folder owns; docs/README.md is the index of them all
@@ -22,18 +22,20 @@ docs/                the pages no one folder owns; docs/README.md is the index o
   history/           frozen. Describes the tree it was written against
 
 <feature>/           what a weaver meets by name in Workshop: its README.md (its front page), its
-                     AGENTS.md (its router: its law, suites, the host's side and practices), its
-                     parts, its core library if it has one, and, where it has pages of its own,
-                     docs/ -- its guides, reference pages, laws and decisions
+                     router (the front page's last section, "Working on it", or an AGENTS.md
+                     beside it: its law, suites, the host's side and practices), its parts, its
+                     core library if it has one, and, where it has pages of its own, docs/ --
+                     its guides, reference pages, laws and decisions
 workshop/            the host: Workshop itself, with its README.md and AGENTS.md, the parts it
                      carries (workshop/desktop-pane/, workshop/menu-presenter/) and docs/ -- its
                      guides and reference pages
-<package>/           one directory per library, with its README.md, AGENTS.md and docs/; see below
+<package>/           one directory per library, with its README.md, its router and docs/; see below
 examples/            worked examples to read, run and copy into a project of their own;
                      examples/snake/ is built with the tree, the pane examples by tests/
 tests/               every suite, fixture and check; tests/folders.txt names every top-level
-                     folder and its kind
-quarry/              the pre-Zen V1 engine, kept as a quarry. NOT built
+                     folder and its kind, and tests/front_page_folders.txt the folders routed by
+                     their front page
+quarry/              the earlier engine this project grew from, kept as a quarry. NOT built
 ```
 
 A page under `docs/contributing/` routes to the registers under `agents/` that own its rules.
@@ -120,15 +122,15 @@ obvious.
 **`docs/history/` is frozen.** It describes the tree it was written against and is not
 maintained against the current one. Do not fix it and do not cite it as current.
 
-**`quarry/` is a quarry, not a codebase.** It holds the pre-Zen V1 engine as material to
-read. Nothing in it is built by this repository, and ports out of it are read-and-rewrite —
-landing in their proper home from birth, never lift-and-shift. Its provenance is a plain file
-import of that project's working tree rather than a history-carrying subtree split, so its
-history stays in the original working copy. What is actually in there is indexed by
-[quarry/QUARRY-CATALOG.md](../../quarry/QUARRY-CATALOG.md) — capability by capability,
-with source paths, the legacy interaction shape, and where the comparable question is answered
-today. It is archaeology, not authority: an entry saying a capability is absent is a statement
-about coverage, never a request for work.
+**`quarry/` is a quarry, not a codebase.** It holds the earlier engine this project grew from, as
+material to read. Nothing in it is built by this repository, and ports out of it are
+read-and-rewrite — landing in their proper home from birth, never lift-and-shift. Its provenance is
+a plain file import of that project's working tree rather than a history-carrying subtree split, so
+its history stays in the original working copy. What is actually in there is indexed by
+[quarry/QUARRY-CATALOG.md](../../quarry/QUARRY-CATALOG.md) — capability by capability, with source
+paths, the legacy interaction shape, and where the comparable question is answered today. It is
+archaeology, not authority: an entry saying a capability is absent is a statement about coverage,
+never a request for work.
 
 ### Values the code owns
 
@@ -194,18 +196,23 @@ sends or reads it.
 
 ## Source comment conventions
 
-A comment stays only if, without it, a competent reader with the code and the law registers
-open would make a mistake. Prefer a clearer name to a comment; keep a comment to one line where
-one line will do, and point to the owner that holds the rest. Be conservative where authority,
-custody or lifetime is at stake.
+Every comment is written to
+[the documentation's design](https://github.com/Krealsion/Loom/blob/main/docs/contributing/documentation-design.md)
+and to [Loom's comments and documents](https://github.com/Krealsion/Loom/blob/main/CONTRIBUTING.md#comments-and-documents),
+which hold here whole. A comment says why, what the code must not become, or what cannot be seen
+from its line, in complete sentences a reader understands from the line and the code around it;
+when they cannot, it says more. Prefer a clearer name to a comment. Be conservative where
+authority, custody or lifetime is at stake.
 
 - **What stays.** The file header: the SPDX lines, one line of purpose and, where the package
-  has one, its law line (`// Workshop law: …`). A law pointer above its declaration
-  (`// WL-… -- agents/workshop/<register>.md`). A section banner that names a subject. A why the
-  code cannot say, beside the code it explains.
-- **What moves.** Reasoning no owner holds yet, when it would prevent a future mistake, goes
-  where a reader first needs it: usually a decision record, sometimes a reference page. Law is
-  already in its register; the source keeps the pointer.
+  has one, its law line (`// Workshop law: …`). In a folder that keeps registers under `agents/`,
+  a law pointer above its declaration (`// WL-… -- agents/workshop/<register>.md`), which
+  `law_register` holds to the declaration; in a folder its front page routes, a law is named
+  inside a sentence that says the rule (TIMER-01). A section banner that names a subject. A why
+  the code cannot say, beside the code it explains.
+- **What moves.** A rule about one declaration that nothing else relies on is written in that
+  declaration's comment. Reasoning that spans files goes where a reader first needs it: a law, a
+  decision record or a reference page.
 - **What goes.** History — a removal note, "was here", what a retired piece did — is Git's to
   keep. A restatement of the code, of a law or of a neighbouring comment goes. So does a
   development-phase name or a private id used as an explanation: if the reason matters, state
@@ -226,9 +233,9 @@ custody or lifetime is at stake.
   states is named by its id.
 
 `source_comments` holds the folders `tests/folders.txt` lists as code, and the root
-`CMakeLists.txt`, to this on the official lane: a comment block over six lines
-outside an installed header, a removal note, or a phase name or private id is a red that names
-where the text belongs.
+`CMakeLists.txt`, to this on the official lane: a removal note, or a phase name or private id, is
+a red that names where the text belongs. Its limit of six lines on a comment block outside an
+installed header only caps size, and is paused while the comments are rewritten.
 
 ## Attribution
 

@@ -1,35 +1,32 @@
 # Timer continuity carries remaining duration, not absolute time
 
-**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the
-behaviour it decided is in [the Timer's manual](zengine.timer.md#about).
+**Decision record.** One decision, the other ways it could have gone, and why this one. What the
+Timer does today is in [the Timer's manual](zengine.timer.md#about).
 
-**Context.** When the Timer service is replaced, standing schedules must cross
-to the successor. What number crosses?
+**The question.** When the Timer is replaced, its standing timers must cross to its successor.
+What number crosses for each?
 
-**Decision.** The handoff letter converts every active entry to a **remaining
-duration** (`remaining_ms`) at one clock read. `remaining_ms` is never a due
-time, and the letter is written by a service that fires, cancels and advances
-nothing while describing itself.
+**The decision.** The letter the old Timer writes turns every standing timer into the time it has
+left, `remaining_ms`, measured at one reading of the clock. `remaining_ms` is never a deadline, and
+the Timer writing the letter fires, cancels and moves nothing while it describes itself.
 
-**Alternatives considered.**
-- *Absolute due timestamps* — rejected: the successor's monotonic clock has no
-  shared epoch with the predecessor's, and any replacement downtime would
-  silently *pause* deadlines — exactly the behavior a deadline must not have.
-- *Re-anchoring on arrival* ("restart every delay") — rejected as the default:
-  it converts "two seconds left" into "full delay from now"; it survives only
-  as the requester's explicit `restart_delay` preference.
-- *Wall-clock times* — rejected: wall clocks jump; alarms that want them are a
-  different vocabulary with its own continuity answer, named future work.
+**The other ways.**
 
-**Consequences.** The letter is meaningful on any clock; the moving-clock
-proof ("the incumbent advanced one more second mid-preparation, the letter
-carries 1000 not 2000") is assertable exactly; requesters choose per timer
-(`preserve_remaining` / `restart_delay` / `drop`) and receive a receipt naming
-what actually happened.
+- *Deadlines as timestamps.* Rejected: the successor's clock does not count from the same moment
+  as its predecessor's, and any time the replacement took would silently pause every deadline,
+  which is the one thing a deadline must not do.
+- *Starting every delay again when it lands.* Rejected as the default: it turns "two seconds left"
+  into "the full delay from now". It survives as a choice a weave makes for itself, `restart_delay`.
+- *Times of day.* Rejected: a wall clock jumps. An alarm that wants a time of day is a different
+  kind of message, with its own answer to replacement, and is not built yet.
 
-**Laws supported.** [TIMER-03](timer-laws.md),
-[TIMER-04](timer-laws.md).
+**What follows.** The letter means the same on any clock. A clock that moves while the letter is
+written can be tested exactly: when the old Timer's clock moves one more second while it prepares,
+the letter carries 1000 and not 2000. A weave chooses timer by timer (`preserve_remaining`,
+`restart_delay` or `drop`) and receives a receipt that says what actually happened.
 
-**Evidence / history.** The continuity and handover work in
-[Loom's history](https://github.com/Krealsion/Loom/blob/main/docs/history/README.md); the keystone and
-moving-clock cases in `tests/test_timer.cpp`.
+**The laws it supports.** [TIMER-03](timer-laws.md) and [TIMER-04](timer-laws.md).
+
+**Evidence.** The work on continuity and handover is in [Loom's
+history](https://github.com/Krealsion/Loom/blob/main/docs/history/README.md), and the cases are in
+`tests/test_timer.cpp`.

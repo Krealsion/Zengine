@@ -1,6 +1,6 @@
 # The app host
 
-Routed behind [AGENTS.md](../AGENTS.md) for `app/`. Also read [realization](realization.md) (the
+Routed behind [the guide](../CONTRIBUTING.md) for `app/`. Also read [realization](realization.md) (the
 plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts it composes) and
 [graphics](graphics.md) (the window and its arranger). Public contract:
 [running an app on its own](../app/docs/app.md).

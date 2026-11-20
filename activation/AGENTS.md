@@ -1,7 +1,7 @@
 # `activation/` — The activation cursor: working on it
 
 The router for `activation/`, a library: where its law, its suites, the host's side of it and its
-practices are. It states no law. The repository's own rules are the root [AGENTS.md](../AGENTS.md).
+practices are. It states no law. The repository's own rules are [the guide](../CONTRIBUTING.md).
 
 ## Parts
 
@@ -23,7 +23,7 @@ LIFE-03, LIFE-04). The Timer's activation law, TIMER-01, is in
 
 ## Suites
 
-No CTest entry of its own; the entries that exercise it are the Timer's (`timer/AGENTS.md`).
+No CTest entry of its own; the entries that exercise it are the Timer's (`timer/README.md`, its last section).
 Its cases in shared suites: `timer` (`tests/test_timer.cpp`: forged, unactivated, duplicate,
 replayed, newer and second-initiator activations, through the Timer and its binding) and
 `timer_cursor_bypass_refused` (`tests/compile_negative/activation_collision.cpp`, case 4). The

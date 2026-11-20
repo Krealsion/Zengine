@@ -1,7 +1,7 @@
 # `manual/` — The manual: working on it
 
 The router for `manual/`, a library: where its law, its suites, the host's side of it and its
-practices are. It states no law. The repository's own rules are the root [AGENTS.md](../AGENTS.md).
+practices are. It states no law. The repository's own rules are [the guide](../CONTRIBUTING.md).
 
 ## Parts
 

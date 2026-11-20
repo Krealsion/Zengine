@@ -18,16 +18,11 @@ namespace zengine::manual {
 // ---- The bounds a page is judged by --------------------------------------------------------
 //
 // The splitter reads these by name from this file, so the bounds a page is built under are the ones
-// the code states.
+// the code states. A section has no bound of its own beyond the page's: a manual says what its
+// reader needs in complete sentences, and the page's bound is what an answer carries.
 
 /// The longest section key: an action id's bound, or a shape's name.
 inline constexpr std::size_t kMaxManualKeyBytes = 64;
-/// The longest section: the lead, `About`, `Use`, a command's section, a group's opening words.
-inline constexpr std::size_t kMaxManualSectionBytes = 2048;
-/// The longest `Follow`.
-inline constexpr std::size_t kMaxManualFollowBytes = 1024;
-/// The longest section under `Hears` or `Shows`.
-inline constexpr std::size_t kMaxManualHeardBytes = 512;
 /// The most sections one page holds.
 inline constexpr std::size_t kMaxManualSections = 128;
 /// The longest page, in bytes, and so the most words one answer carries.

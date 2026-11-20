@@ -1,8 +1,8 @@
 # `examples/` — Examples: working on it
 
 The router for `examples/`, the worked examples: where their law, their suites, the host's side of
-them and their practices are. It states no law. The repository's own rules are the root
-[AGENTS.md](../AGENTS.md).
+them and their practices are. It states no law. The repository's own rules are
+[the guide](../CONTRIBUTING.md).
 
 ## Parts
 

@@ -1,6 +1,6 @@
 # Agent law — The line between Workshop and Zengine
 
-Routed detail behind [`AGENTS.md`](../AGENTS.md), for a change that moves a file across the line,
+Routed detail behind [the guide](../CONTRIBUTING.md), for a change that moves a file across the line,
 includes a header of the other side, or edits `tests/census.txt`.
 
 ## Two sides in one repository

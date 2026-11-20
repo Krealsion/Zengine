@@ -11,8 +11,8 @@ read through a pipe. The run passes when every command exits 0; `expect=red` pas
 LAST command exits non-zero, which is how a mutation's red is recorded as evidence.
 
 WHAT IT DOES NOT DO. It configures nothing (a tree is configured once, by whoever owns it), it
-edits no source, and it does not decide what a green means: the repository's AGENTS.md does, and
-the official lane is `op=verify`, never a bare test binary."""
+edits no source, and it does not decide what a green means: the repository's CONTRIBUTING.md does,
+and the official lane is `op=verify`, never a bare test binary."""
 import json
 import os
 import subprocess

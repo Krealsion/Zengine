@@ -1,11 +1,12 @@
-# TimedWeave — a weave with an authored rhythm
+# TimedWeave: a weave with a declared rhythm
 
-**How-to.** Declaring a cadence once and letting the binding layer keep it true. For a delay
-that is runtime data, speak [the raw protocol](timers.md) instead.
+**How-to and reference.** A weave whose rhythm is part of what it is declares that rhythm once,
+and the binding keeps it true. When a delay is data the weave learns at run time, it sends [the
+plain messages](timers.md) instead.
 
-If your weave's rhythm is part of what it *is* — "I pump every 50 ms", "I poll
-every quarter second" — declare it once and let the binding layer keep it true
-across activations and Timer-service replacements.
+If your weave moves every 50 ms or polls every quarter second, that rhythm is part of what it
+is. Declare it once in the constructor and let `TimedWeave` keep it true: when the weave is
+activated, and again whenever the Timer is replaced.
 
 ```cpp
 #include "timer/binding.hpp"
@@ -33,18 +34,38 @@ private:
 };
 ```
 
-What the layer does for you: accepts `zen.Activated` / `TimerReady` /
-`TimerFired`, trusts activations only when Loom attests them, and **re-places
-your declared orders** at the two moments that matter — your activation, and
-the Timer service announcing itself (including after it is replaced). Cancel a
-binding any time with `tick_.cancel(mail)`.
+## What the binding does for you
 
-## Activation work
+`TimedWeave` accepts `zen.Activated`, `TimerReady`, `TimerFired` and `TimerResolution` for you, and
+adds them, with the messages it sends the Timer, to your weave's declared contract. It trusts an
+activation only when Loom attests it. It asks the Timer for every declared timer at two moments:
+when your weave's activation is accepted, and when the Timer announces itself with `TimerReady`,
+which it does again after it is replaced. Each ask is an `EnsureTimer` that prefers to keep the
+time a standing timer has left, so a timer the old Timer passed on keeps its time, and the receipt
+says what happened. A firing reaches the callback you declared under its id, and nothing else.
 
-Don't declare a raw `on(const loom::Activated&, ...)` — the compiler refuses
-by name (it would replace the layer's reconciliation and silently cost every
-declared timer). Domain work that belongs to your first breath goes here,
-*after* your timers are already ordered:
+The factories on `timers()` each return a `Handle`:
+
+| on `timers()` | the beat goes to |
+|---|---|
+| `repeat(id, delay, cb)` | this weave, at every beat |
+| `once(id, delay, cb)` | this weave, once; after it fires it stays spent until you restart it |
+| `repeat_to_role(id, delay, role, cb)` | whoever holds `role` at each beat, so a successor in that role inherits it |
+| `once_to_role(id, delay, role, cb)` | whoever holds `role`, once |
+
+| on a `Handle` | what it does |
+|---|---|
+| `cancel(mail)` | stops wanting the timer and tells the Timer; a beat already on its way still arrives |
+| `restart(mail)` | wants it again and asks now; it is the only thing that arms a spent one-shot |
+| `waiting()`, `spent()`, `canceled()` | where it stands, as your weave knows it; the Timer is not asked |
+| `resolution()`, `resolution_reason()` | what the Timer last said it did about it, empty before its first receipt |
+
+## Work at activation
+
+Do not declare your own `on(const loom::Activated&, loom::Mail&)`. It would replace the binding's
+handler, and none of your timers would ever be asked for, so the compiler refuses it and names the
+alternative. Work that belongs to your weave's first moment goes in the optional hook, which runs
+after your timers have been asked for, and only for an activation your weave accepted:
 
 ```cpp
 void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
@@ -52,14 +73,25 @@ void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
 }
 ```
 
-## Know the boundary
+The hook cannot accept the activation a second time, because the binding gives it only a read-only
+view of the activation's state. Forgetting `using TimedWeave::on;` is refused by name at compile
+time too.
 
-The binding table is **authored, not dynamic**
-([TIMER-05](timer-laws.md)): a binding created after the
-reconciliation moments waits for the next `TimerReady` rather than
-reconciling immediately. If your rhythm is runtime data — jobs with their own
-cadences, user-configured alarms — speak the
-[raw protocol](timers.md) directly and count your own beats; that is the
-designed split, not a workaround.
+## Where it stops
 
-Deeper: [timer-binding reference](timer-binding.md).
+The declared timers are a fixed table, not a collection to add to at run time
+([TIMER-05](timer-laws.md#timer-05--the-binding-table-is-authored-not-dynamic)). A binding
+declared after the two moments above waits for the next `TimerReady`, which may not come until the
+Timer is replaced. If your rhythm is data, such as jobs with their own cadences or alarms a person
+sets, send [the plain messages](timers.md) and count your own beats. That is the intended split,
+found by a real scheduler that needed it
+([Night Lab's evidence](https://github.com/Krealsion/Loom/blob/main/docs/evidence/night-lab.md)).
+
+## Across a replacement
+
+Your timers carry your own ids, so after a replacement each receipt tells you what survived:
+`preserved_remaining` when the timer kept its time, `restarted_delay` when it starts its delay
+again ([`EnsureTimer` in the manual](zengine.timer.md#ensuretimer)).
+
+The binding's cases are in the `timer` suite, and the four compile-time refusals and their control
+are CTest entries of their own ([the folder's suites](../README.md#working-on-it)).

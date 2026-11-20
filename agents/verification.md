@@ -1,17 +1,17 @@
 # Agent law — Verification (router)
 
-Routed behind [`../AGENTS.md`](../AGENTS.md): how this repository is verified. The method lives
+Routed behind [the guide](../CONTRIBUTING.md): how this repository is verified. The method lives
 in the registers under [`verification/`](verification/): one method per `##`, a `VM-<AREA>-<NN>`
 id that is permanent, a `METHOD` of one line, a `BECAUSE` of at most three, and, under `### <id>` in
 the appendix that ends the register, `## Seen`, where the method is applied in this tree — a test
 file and case, a script, a lane step — or `nowhere yet`, a debt of the same kind as an unwitnessed
 law. The lane commands are in
-[`../AGENTS.md`](../AGENTS.md#build--test-canonical-wsl-consumes-an-installed-loom); the public
+[`../AGENTS.md`](../CONTRIBUTING.md#build-and-test); the public
 reference is [`../docs/contributing/build-and-test.md`](../docs/contributing/build-and-test.md).
 
 ## Before choosing a lane
 
-Apply the [architectural review](../AGENTS.md#intent-evidence-and-architectural-fit) before
+Apply the [architectural review](../CONTRIBUTING.md#what-a-change-is-judged-against) before
 implementation and at review. A suite can agree with the code about the wrong behavior;
 the existing [fixture method VM-FIX-04](verification/fixtures.md) states that limit. Judge the
 whole design against its intended capability and known next consumers, then choose evidence
@@ -75,33 +75,37 @@ the official lane, and self-test before they answer:
   names (`agents/workshop/` for `WL`, `agents/maker/` for `MW`; a family is a property of its
   directory) and `agents/verification/` (the VM form): ids unique under `agents/`, every path,
   identifier and witness resolving, every record reciprocal with the WHY lines that name it,
-  every `// WL-` or `// MW-` pointer naming the declaration beneath it, every file under
-  `agents/` within its byte budget — a register's laws <!-- value ZEN_LAW_REGISTER_BYTES grouped -->2,048<!-- /value --> and its whole file
-  <!-- value ZEN_LAW_FILE_BYTES grouped -->3,072<!-- /value -->, a router <!-- value ZEN_LAW_ROUTER_BYTES grouped -->12,288<!-- /value -->, `AGENTS.md`
-  <!-- value ZEN_LAW_CORE_BYTES grouped -->17,408<!-- /value -->, a page `tests/raised_budgets.txt` names taking that default times (1 + 0.2 × its
-  steps), in whole bytes, rounded down, a register's laws and its whole file alike — no plan code or step
-  label in a case name, a law id a name opens with declared, every case a
+  every `// WL-` or `// MW-` pointer naming the declaration beneath it, a front-page folder's laws
+  (`tests/front_page_folders.txt`) declared once on its own law pages and every citation of their
+  family declared, no plan code or step label in a case name, a law id a name opens with declared, every case a
   current-facing document cites by name existing wherever the citation stands, every WL, MW or VM
   id a source comment names declared, and no development-phase id in a current-facing Markdown
-  file.
+  file. Its page budgets are paused while `ZEN_LAW_BUDGETS_PAUSED` is on: a register's laws
+  <!-- value ZEN_LAW_REGISTER_BYTES grouped -->2,048<!-- /value --> and its whole file <!-- value ZEN_LAW_FILE_BYTES grouped -->3,072<!-- /value -->, a router
+  <!-- value ZEN_LAW_ROUTER_BYTES grouped -->12,288<!-- /value -->, `AGENTS.md` <!-- value ZEN_LAW_CORE_BYTES grouped -->17,408<!-- /value -->, and a page
+  `tests/raised_budgets.txt` names taking that default times (1 + 0.2 × its steps).
 - **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under the folders
-  `tests/folders.txt` lists as code meet the source comment standard: no block over six lines
-  outside an installed header, no removal note, no phase name or private id; each finding names
-  where the text belongs.
+  `tests/folders.txt` lists as code meet the source comment standard: no removal note, no phase
+  name or private id; each finding names where the text belongs. Its limit of six lines on a
+  comment block outside an installed header is paused while `ZEN_COMMENT_BLOCK_LIMIT_PAUSED` is on.
 - **`code_values`** (`tests/check_code_values.cmake`) — every value `tests/code_values.txt`
   registers is read from its owner: no marker out of step, no known value copied unmarked, no
   role's name spelled in a part's code past its home and its registered copies, no test count
   naming no commit and command.
 - **`folder_map`** (`tests/check_folder_map.cmake`) — `tests/folders.txt` names every top-level
-  folder and its kind; every feature, the host and every library holds a `README.md` and an
-  `AGENTS.md` router within the router budget; every file under `agents/` but the decision records
-  is routed by one router's `## Law`, and every CTest entry is claimed by one `## Suites`.
+  folder and its kind; every feature, the host and every library holds a `README.md`. A folder
+  `tests/front_page_folders.txt` names holds no `AGENTS.md`, and its front page's last section,
+  `## Working on it`, claims its suites; every other one holds an `AGENTS.md` router with
+  `## Law` and `## Suites`. Every file under `agents/` but the decision records is routed by one
+  router's `## Law`, and every CTest entry is claimed once, by a router, a front page or the
+  guide's `## What crosses folders`.
 - **`manual`** (`tests/check_manual.cmake`) — every weave's manual in form and carried by a
   target, a pane's commands exactly its ids in the action census, and every key marker in a current
   page its declared default.
 - **`census`** (`tests/check_census.cmake`) — every number `tests/census.txt` pins is the tree's,
   in either direction, and a row marked `falls` is not raised against the change's base
-  (VM-CHECK-17): today the line between Workshop and Zengine, each include across it a row.
+  (VM-CHECK-17): today the line between Workshop and Zengine, each include across it a row, and
+  a class's lines of code, a comment line counting for none.
 
 ## Where the method is
 

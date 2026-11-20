@@ -1,13 +1,13 @@
 # Agent law — The pane contract (router)
 
-Routed behind [`../AGENTS.md`](../AGENTS.md), for tasks touching `pane/`: the contract between a
+Routed behind [the guide](../CONTRIBUTING.md), for tasks touching `pane/`: the contract between a
 pane and the host that arranges it -- what crosses, which way, and what each side may trust. The
 law lives in the registers under [`pane-contract/`](pane-contract/): one law per `##`, a
 `PANE-<AREA>-<NN>` id that is permanent, a `LAW` of one line, `MEANS`, `DOES NOT MEAN` and a `WHY`
 naming one decision record under `decisions/`, and its proof, naming the owner identifiers and the
 exact witness cases, under `### <id>` in the appendix that ends the register, `## Proven by`.
 Disagreements follow
-[intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit), not
+[intent, evidence, and architectural fit](../CONTRIBUTING.md#what-a-change-is-judged-against), not
 an automatic ranking of tests over law. The whole of the law in one screen is
 `grep -h '^LAW' agents/pane-contract/*.md`.
 

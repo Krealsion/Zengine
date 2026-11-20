@@ -1,6 +1,6 @@
 # Flow authoring and generation
 
-Routed behind [AGENTS.md](../AGENTS.md). For `flow/`, also read the maker and operator owners:
+Routed behind [the guide](../CONTRIBUTING.md). For `flow/`, also read the maker and operator owners:
 [maker](maker.md), [operators](operators.md), and [packaging](packaging.md).
 Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 [standalone workbench](../flow/docs/flow-guide.md), and

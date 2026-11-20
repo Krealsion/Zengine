@@ -2,7 +2,7 @@
 
 **Reference.** How a Zengine weave decides whether an arriving `zen.Activated` is its own to act
 on, and why the rule has the shape it has. If your weave uses the Timer binding, the binding
-keeps a cursor for you ([timer binding](../../timer/docs/timer-binding.md)); read on if your weave accepts
+keeps a cursor for you ([timer binding](../../timer/docs/timed-weaves.md)); read on if your weave accepts
 `zen.Activated` itself.
 
 Source: [`activation/activation.hpp`](../activation.hpp). Link
