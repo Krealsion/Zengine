@@ -213,7 +213,8 @@ endfunction()
 # One page, read: each problem, `<page>:<line>: `<name>` <what>`, appended to the global
 # ZEN_NAMES_PROBLEMS, the names read counted in ZEN_NAMES_READ. A fenced block is code and is not
 # read; a span left open at a line's end closes on the next. A router names a suite at a bullet's
-# head, after `witnessed by`, or in that table's last cell. A sentence names a suite, an entry or
+# head or in a table row's first cell in its routing section, after `witnessed by`, or in that
+# table's last cell. A sentence names a suite, an entry or
 # a gate beside that word, joined with the next line until a blank line or a fence.
 function(zen_names_page label dir router text)
     string(REPLACE "\n" ";" lines "${text}")
@@ -263,6 +264,10 @@ function(zen_names_page label dir router text)
             if(section STREQUAL router AND line MATCHES "^- `")
                 string(REGEX REPLACE " (—|--) .*$" "" head "${line}")
                 zen_names_suites("${head}" FALSE suites ignored)
+            elseif(section STREQUAL router AND line MATCHES "^[|][ \t]*(`[^|]*)[|]")
+                # A table row in the routing section names its suites in its first cell, as
+                # folder_map reads a front page's claims.
+                zen_names_suites("${CMAKE_MATCH_1}" FALSE suites ignored)
             elseif(section STREQUAL "Law")
                 if(line MATCHES "^[|]")
                     set(witness FALSE)
@@ -487,6 +492,15 @@ get_property(st_used GLOBAL PROPERTY ZEN_NAMES_USED)
 if(NOT st_used STREQUAL "made.json;include/zengine/")
     message(FATAL_ERROR "doc-names: SELF-TEST FAILED -- the canary used the rows '${st_used}', "
                         "want 'made.json;include/zengine/'")
+endif()
+# A front page's routing section names its suites in a table row's first cell, and nowhere else in
+# the row.
+zen_names_swap("# t\n\n## Working on it\n\n| suite | what |\n|---|---|\n| `kept_suite` | one |\n| `lost_row` | names `other_cell` |\n" st_front)
+set_property(GLOBAL PROPERTY ZEN_NAMES_PROBLEMS "")
+zen_names_page("canary/README.md" "canary" "Working on it" "${st_front}")
+get_property(st_front_problems GLOBAL PROPERTY ZEN_NAMES_PROBLEMS)
+if(NOT st_front_problems STREQUAL "canary/README.md:8: `lost_row` is named as a suite, and tests/test_population.txt declares no such CTest entry")
+    message(FATAL_ERROR "doc-names: SELF-TEST FAILED -- a front page's suite table read as '${st_front_problems}'")
 endif()
 # The same page read as no router still names a sentence's misses, and none of the router's.
 set(st_plain "")
