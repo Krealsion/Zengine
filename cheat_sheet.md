@@ -61,8 +61,8 @@ like.
 
 ## Libraries
 
-- The Timer: [ordering a timer](timer/docs/timers.md), [an authored rhythm](timer/docs/timed-weaves.md),
-  [the binding's factories and handles](timer/docs/timer-binding.md#model),
+- The Timer: [ordering a timer](timer/docs/timers.md),
+  [a declared rhythm, and the binding's factories and handles](timer/docs/timed-weaves.md),
   [its role](timer/docs/zengine.timer.md), [its laws](timer/docs/timer-laws.md).
 - Key, text and pointer moments: [input](input/docs/input.md),
   [pointer spaces](workshop/docs/pointer-spaces.md).

@@ -1,119 +1,112 @@
-# Timer laws (TIMER)
+# The Timer's laws (TIMER)
 
-**Invariants.** The numbered truths the Timer package keeps, each with the evidence that pins
-it. Cite these by number.
+**Laws.** The numbered rules the Timer keeps, each a rule that more than one file must keep
+true. A comment or a page that relies on one names it by its number. A rule about one
+declaration is in that declaration's comment, not here. The messages themselves are in [the
+Timer's manual](zengine.timer.md), and the Loom laws these build on are
+[Loom's](https://github.com/Krealsion/Loom/blob/main/docs/laws/README.md).
 
-Zengine owns these truths. Reference:
-[the Timer's manual](zengine.timer.md) ·
-[timer-binding](timer-binding.md). Loom-tier laws they build on:
-[`Loom docs/laws/`](https://github.com/Krealsion/Loom/blob/main/docs/laws/README.md).
+## TIMER-01 — A Timer keeps time by one claim, and only the host tells it the time
 
-## TIMER-01 — One claim of time per activated incarnation
+Each Timer that Loom has activated keeps time by one claim on the host's wait, made as its role:
+the time its soonest timer is due. It fires only on a time that the host's own wait sends it in a
+`loom::host::Waited` message. A `Waited` that any weave sent, an activation that is a duplicate or
+a replay, and anything that arrives before activation change nothing.
 
-LAW — Every successfully activated Timer incarnation keeps time by one claim, as
-its role, of the time its soonest timer is due, and fires only on a time the
-host's own wait hands it. A wake from any participant, a duplicate or replayed
-activation, or one before activation, moves nothing.
+What this means:
 
-MEANS
-- the claim rides the ROLE, so moving the role ends the incumbent's wakes
-  naturally: the wait reads the role's claim, which is the successor's now;
-- nothing of the Timer's time is on the bus between wakes, so a replacement
-  has nothing in flight to refuse or inherit;
-- a new incarnation begins unactivated; a wake meant for a predecessor finds an
-  inert weave.
+- The claim belongs to the role, so when the role moves to a new Timer the old one stops being
+  woken: the wait reads the role's claim, which is now the new Timer's.
+- Between two wakes nothing of the Timer's time is on the bus, so a replacement finds no message
+  in flight to refuse or to inherit.
+- A new Timer starts unactivated, so a wake meant for the Timer before it finds a Timer that does
+  nothing with it.
 
-DOES NOT MEAN
-- that the host's word is authentication of anything but the time — it is the
-  word with no sender, which only the host can say (all in-process code is
-  trusted today).
+What it does not mean: that a message with no sender proves anything but the time. Only the host
+can send one, and all code in one process is trusted today.
 
-PROVEN BY — `timer/timer_weave.hpp` (activation cursor, `after_delivery`'s
-claim); suite `timer` (the host's word, the claim at replacement); suite
-`audit_probes`.
+Proved by `TimerWeave` in `timer/timer_weave.hpp`, by the `timer` suite (a `Waited` from a weave,
+and the claim across a replacement) and by the `audit_probes` suite.
 
-## TIMER-02 — The host owes the service its wait, and nothing else
+## TIMER-02 — The host owes the Timer its wait, and nothing else
 
-LAW — The host never winds the clock and the service reads none. The host
-turns the bus and rests in its one wait, trusting the Timer's role; the wait
-wakes the service when the time it claimed comes, handing it that time, and
-the service fires what is due by it. No handler sleeps or reads a clock, and
-nothing is queued to keep time.
+The host never moves the clock forward and the Timer reads none. The host turns the bus and then
+rests in its one wait, with the Timer's role among the roles it trusts. The wait wakes the Timer
+when the time it claimed comes and sends it that time, and the Timer fires every timer due by it.
+No handler sleeps or reads a clock, and no message is queued to keep time.
 
-MEANS
-- load order decides nothing — every package arranges its own timers on its
-  own activation (or on `TimerReady`);
-- there is no host beat and no host schedule: what the host rests for is the
-  service's claim, never a time of its own;
-- a reply to a firing, a key or an answer is delivered in the next turn, not
-  after a rest: the host rests only with its bus empty;
-- a host that does not wait on the Timer's role wakes it never.
+What this means:
 
-DOES NOT MEAN
-- that the pump is the Timer's — pumping the bus is running the world; the
-  wait between turns is merely where the world breathes.
+- Load order decides nothing: every weave asks for its own timers on its own activation, or when
+  it hears `TimerReady`.
+- The host keeps no beat and no schedule of its own. What it rests for is the Timer's claim.
+- A reply to a firing, a key or an answer is delivered in the next turn, not after a rest: the
+  host rests only when its bus is empty.
+- A host that does not wait on the Timer's role never wakes it, so no timer fires there.
 
-PROVEN BY — suite `timer` (the host's loop on a clock that moves only when
-told; a reply in the next turn; no Timer, no time); the snake host winds
-nothing and waits on the Timer's role.
+What it does not mean: that turning the bus belongs to the Timer. Turning the bus runs every
+weave; the wait between turns is only where the program rests.
 
-## TIMER-03 — Continuity carries remaining duration, never due times
+Proved by the `timer` suite (the host's loop on a clock that moves only when a case moves it; a
+reply in the next turn; no Timer, no time) and by the snake host, which moves no clock and waits on
+the Timer's role.
 
-LAW — A Timer handoff letter converts every active entry's absolute deadline
-into a **remaining duration** at one clock read. `remaining_ms` is never a due
-time.
+## TIMER-03 — A replacement carries the time each timer has left, never when it is due
 
-MEANS
-- the letter is meaningful on the successor's clock, whatever epoch it runs;
-- writing the letter fires nothing, cancels nothing, advances nothing — being
-  asked to describe yourself is not an event in a schedule's life;
-- the clock read is the host's wait's: a Timer the wait holds writes its letter
-  when the next wait hands it the time, and one no wait holds writes from its
-  last wake, the one time it has.
+When a Timer is replaced, the letter it writes for its successor turns every standing timer's
+deadline into the time it has left, `remaining_ms`, measured at one reading of the clock.
+`remaining_ms` is never a time of day or a deadline.
 
-DOES NOT MEAN
-- that deadlines are "preserved" as instants — a moving clock cannot cross as
-  timestamps; that is the point.
+What this means:
 
-PROVEN BY — `TimerHandoffEntry.remaining_ms`; suite `timer` (moving-clock
-one-second proof; the two-seconds-remaining keystone).
+- The letter means the same on the successor's clock, whatever that clock counts from.
+- Writing the letter fires, cancels and moves nothing: being asked to describe a schedule is not an
+  event in its life.
+- The clock reading is the wait's. A Timer the wait holds writes its letter when the next wait
+  sends it the time; one the wait does not hold writes it from its last wake, the only time it has.
 
-## TIMER-04 — TimerReady follows the continuity decision
+What it does not mean: that deadlines cross as instants. A clock that keeps moving cannot carry an
+instant to another clock, and that is why the letter carries durations ([the
+decision](timer-continuity-carries-remaining-duration.md)).
 
-LAW — A successor may not announce `TimerReady` before it has decided what it
-inherited (restored a letter, or honestly started fresh).
+Proved by `TimerHandoffEntry::remaining_ms` and by the `timer` suite (a clock that moves one
+second while the letter is prepared, so the letter carries 1000 and not 2000; a timer with two
+seconds left that still has two seconds left after the replacement).
 
-MEANS
-- `TimerReady` is what makes consumers re-ask; announcing early would make
-  them re-anchor the very schedules the letter carried ("two seconds left"
-  silently becoming "five seconds from now");
-- operations arriving during the decision are held and replayed after it, in
-  order.
+## TIMER-04 — A new Timer says `TimerReady` only after it has decided what it inherited
 
-DOES NOT MEAN
-- that readiness (the *replacement* transaction's `Ready`) and `TimerReady`
-  are the same word — one is the bus's verdict about a candidate, the other is
-  this package's service announcement.
+A Timer that succeeds another does not announce `TimerReady` until it has decided what it
+inherited: the letter it restored, or a fresh start.
 
-PROVEN BY — suite `timer` (no-TimerReady-before-restoration, hold-and-replay
-cases).
+What this means:
+
+- `TimerReady` is what makes every weave ask for its timers again. Said too early, it would make
+  them restart the very timers the letter carried, and "two seconds left" would become "the full
+  delay from now".
+- Asks that arrive while the Timer decides are held, and applied in the order they arrived once it
+  has decided.
+
+What it does not mean: that `TimerReady` and the `Ready` of Loom's replacement are one thing. Loom
+says `Ready` of a candidate; `TimerReady` is the Timer's own notice that it is serving.
+
+Proved by the `timer` suite (no `TimerReady` before the letter is restored, and the cases that hold
+asks and apply them after).
 
 ## TIMER-05 — The binding table is authored, not dynamic
 
-LAW — `TimedWeave` bindings are declared at construction and reconciled at
-known moments: the weave's activation and `TimerReady`. It is not a general
-dynamic scheduling collection.
+The timers a `TimedWeave` declares are declared in its constructor, and the binding asks for them
+at two known moments: the weave's activation, and `TimerReady`. The table is not a collection a
+weave adds to at run time.
 
-MEANS
-- a binding created after those moments waits for the next reconciliation
-  (in practice: the next `TimerReady` — e.g. when the Timer service is
-  replaced) rather than reconciling immediately;
-- a weave whose rhythm is genuinely data-driven speaks the raw protocol
-  (`EnsureTimer` etc.) and counts its own beats.
+What this means:
 
-DOES NOT MEAN
-- that this is a defect — the boundary is the design (authored rhythm), found
-  and priced by a real application (Night Lab's scheduler).
+- A binding declared after those moments waits for the next one, which in practice is the next
+  `TimerReady`, as when the Timer is replaced.
+- A weave whose rhythm is data sends the plain messages (`EnsureTimer` and the rest) and counts its
+  own beats.
 
-PROVEN BY — `timer/binding.hpp` (reconciliation moments); suite `timer`;
-evidence: [Loom docs/evidence/night-lab.md](https://github.com/Krealsion/Loom/blob/main/docs/evidence/night-lab.md).
+What it does not mean: that this is a defect. The fixed table is the design, and a real
+application's scheduler is what found and priced it
+([Night Lab's evidence](https://github.com/Krealsion/Loom/blob/main/docs/evidence/night-lab.md)).
+
+Proved by `TimerBindings` in `timer/binding.hpp` and by the `timer` suite's binding cases.

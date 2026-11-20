@@ -4,28 +4,30 @@
 #ifndef ZENGINE_TIMER_TIMER_WEAVE_HPP
 #define ZENGINE_TIMER_TIMER_WEAVE_HPP
 
-// The TimerService weave. It reads no clock and sleeps nowhere: it claims, as its role, the time
-// its soonest timer is due (`loom::host::WaitSet::until_ms`), and the host's one wait (Loom's
-// `zen/host/reactor.hpp`) tells it when that time came in a `loom::host::Waited` carrying the
-// wait's clock, `now_ms`, which it fires on. The wire is the manual, timer/docs/zengine.timer.md;
-// what follows is what that page does not carry: the ordering this code depends on, its traps.
-// Timer law: timer/docs/timer-laws.md
+// The Timer weave. It reads no clock and never sleeps. It claims, as its role, the time its
+// soonest timer is due (`loom::host::WaitSet::until_ms`), and the host's one wait (Loom's
+// `zen/host/reactor.hpp`) tells it when that time has come by sending a `loom::host::Waited` that
+// carries the wait's clock, `now_ms`; the Timer fires on that time. The messages themselves are
+// described in the manual, `timer/docs/zengine.timer.md`. These comments say what the page does
+// not: the order of events this code depends on, and the mistakes it guards against.
 
-// Time is learned, never read (TIMER-02): an ask is anchored at the next time the wait hands over,
-// so a timer asked while none is known is claimed as a time already past and the next wait says
-// the time -- one more wake an arm. Nothing is queued to keep time: between a claim and its wake
-// the bus holds nothing for the Timer, and a bus whose only business is the Timer drains. Only the
-// host's own `Waited` (no sender) is time; one from any participant is nothing (TIMER-01).
+// The Timer learns the time and never reads it (TIMER-02). A timer starts counting at the next
+// time the wait sends, so a timer asked for while no time is known is claimed as a time already
+// past, and the next wait sends the time: the first ask costs one more wake. No message is queued
+// to keep time. Between a claim and its wake the bus holds nothing for the Timer, so a bus with no
+// other work empties. Only the host's own `Waited`, which has no sender, is time; one from any
+// weave changes nothing (TIMER-01).
 
-// When the service goes: unloaded or swapped, its claim goes stale with its role; reloaded, the
-// new instance keeps TimerState -- its counters, and the table as remaining durations
-// (`standing`), measured from the last time it was handed -- and republishes TimerReady. A reload
-// writes no letter: PrepareShutdown is a replacement's.
+// When the Timer goes away: unloaded or replaced, its claim ends with its role. Reloaded in place,
+// the new incarnation keeps `TimerState`, which holds the counters and the table as the time each
+// timer had left (`standing`), measured from the last time the wait sent, and it publishes
+// `TimerReady` again. A reload writes no letter; only a replacement's `PrepareShutdown` asks for
+// one.
 
-// Cleanup is told: a timer fired at a weave that is gone comes back as the bus's refusal
-// (`zen.DispatchRefused`, NoSuchTarget), and every timer that weave started is dropped then.
-// Role-addressed timers outlive their holders by construction; polite weaves cancel on their way
-// out (`CancelAllMyTimers`).
+// The Timer learns that a weave is gone from the bus. A timer fired at a weave that no longer
+// exists comes back as the bus's refusal (`zen.DispatchRefused`, NoSuchTarget), and every timer
+// that weave started is dropped then. A role timer outlives each holder of the role by design, so
+// a weave that is leaving for good cancels its own on the way out (`CancelAllMyTimers`).
 
 #include "normalize.hpp"
 #include "source_wait.hpp"
@@ -54,12 +56,10 @@
 
 namespace zengine::timer {
 
-/// Seven honest counters, poke-inspectable: the wait's wakes it took, firings, timers standing,
-/// asks dropped for having nobody to answer, operations dropped from a full bootstrap hold, entries
-/// this incarnation began with (`inherited`: restored from a predecessor's letter or carried
-/// through a reload in place; 0 means it started fresh), and timers dropped because the weave they
-/// fire at is gone (`gone`). `standing` is the table as a reload carries it: filled only in a
-/// snapshot and read only at revival, never the live table.
+/// The Timer's state, which an inspection can read: seven counters, each labelled where a maker
+/// reads them, in the About section of the Timer's manual (timer/docs/zengine.timer.md), and
+/// `standing`, the table as a reload carries it. `standing` is filled only in a snapshot and read
+/// only on revival, and it is never the table the Timer runs on.
 struct TimerState {
     std::int64_t wakes = 0;
     std::int64_t fired = 0;
@@ -88,61 +88,64 @@ class TimerWeave
 public:
     TimerWeave() = default;
 
-    /// With another catalog carrying the same identity: the Timer consumes the delay rule and
-    /// does not own it, so the suite can replace a primitive beneath it and watch execution and an
-    /// independent reader move together.
+    /// A Timer with another catalog that holds the same delay rule. The Timer uses the rule and
+    /// does not own it, so a suite can replace a primitive under it and see the Timer's schedule and
+    /// a separate reader of the rule change together.
     explicit TimerWeave(op::Catalog operators) : semantics_(std::move(operators)) {}
 
-    /// ...or with the authority it resolves the rule through: a loaded artifact builds one from
-    /// what its host offered (`DelayAuthority`). The only door to a host-backed Timer; no setter.
+    /// A Timer that looks up the delay rule through `semantics`, which a loaded library builds from
+    /// what its host offered (`DelayAuthority`). This constructor is the only way to make a Timer
+    /// backed by a host; there is no setter.
     explicit TimerWeave(DelayAuthority semantics) : semantics_(std::move(semantics)) {}
 
-    /// The rule this Timer runs, for anyone who wants to evaluate it without scheduling anything.
-    /// LOCAL-FALLBACK only: a host-backed Timer carries no catalog at all, and this throws rather
-    /// than inventing one.
+    /// The catalog holding the rule this Timer runs, for anyone who wants to run the rule without
+    /// scheduling anything. Only a local Timer has one: a host-backed Timer carries no catalog, and
+    /// this throws rather than making one up.
     const op::Catalog& operators() const { return semantics_.operators(); }
 
-    /// Whether this Timer resolves through a host's catalog or its own. A diagnostic and nothing
-    /// more -- what a Timer SCHEDULES is where its authority is proven.
+    /// Whether this Timer looks up the rule in a host's catalog or its own. It is for diagnosis
+    /// only: which rule a Timer runs is proved by what it schedules.
     bool host_backed() const noexcept { return semantics_.host_backed(); }
 
-    /// The Loom's control door says this incarnation is committed and live. That is the whole of
-    /// what it says -- so this is where the service decides what to DO about it, which is: find
-    /// out what it inherited, and only then become available (TIMER-04).
+    /// Loom's activation: this incarnation is committed and live, and that is all it means. So this
+    /// is where the Timer decides what to do about it: find out what it inherited, and only then
+    /// start serving (TIMER-04).
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
-            // Unattested, forged, duplicate or replayed: no notice, no claim, nothing. A first
-            // breath is Loom's to grant, not a shape's to claim.
+            // Not attested, forged, a duplicate or a replay: no notice, no claim, nothing. Only
+            // Loom can activate a weave; sending the message does not.
             return;
         }
-        // Tell the truth about the table rather than assuming: activation is not state migration
-        // and has no business clearing one that legitimately holds entries.
+        // Count the table as it is rather than assume it is empty: activation does not move state,
+        // and must not clear a table that rightly holds timers, such as one a reload carried.
         this->state_.active = static_cast<std::int64_t>(entries_.size());
-        // No TimerReady until the decision (TIMER-04): a consumer re-asking before restoration
-        // would re-anchor the very schedule the letter carried.
+        // No `TimerReady` until the decision is made (TIMER-04): a weave that asked again before
+        // the letter was restored would start again the very timer the letter carried.
         bootstrap_ = Bootstrap::Awaiting;
         bootstrap_wakes_ = 0;
         this->state_.inherited = revived_;
-        // WHERE THIS INCARNATION LOOKS FOR ITS LETTER, decided by what it was TOLD before it was
-        // admitted and never by what it can see. Anything already held stays held in every mode.
+        // Where this incarnation looks for its letter is decided by what it was told before it was
+        // admitted, never by what it can see. Any ask already held stays held in every case.
         switch (startup_) {
         case Startup::PreparedRestoration:
-            // A prepared candidate knows whose letter it waits for -- it read the preparer off its
-            // ask's bus-stamped sender -- so it asks that weave by id, trusting only Loom's word.
+            // A prepared candidate knows whose letter it waits for, because it took the preparer
+            // from the sender the bus named on the request. So it asks that weave by id, and trusts
+            // only Loom's word that the answer answers it.
             claim_open_ = true;
             claim_budget_ = kPreparedClaimWakes;
             mail.send(preparer_, loom::ClaimBequest{kTimerRole}, kClaimCorrelation);
             return;
         case Startup::Fresh:
-            // Told plainly that nothing is being carried: no claim goes out, so there is nothing
-            // a late letter could reopen. Decide now, replay what was held, and announce.
+            // Told that nothing is carried, it sends no claim, so a late letter has nothing to
+            // answer. It decides now, applies what was held, and announces itself.
             claim_open_ = false;
             claim_budget_ = 0;
             resolve_bootstrap(mail, /*letter=*/nullptr);
             return;
         case Startup::GracefulClaim:
-            // Ask the steward by role. Its answer -- a letter or a refusal -- decides, and so does
-            // the bus's refusal of the claim when no steward stands; the wakes are the bound.
+            // Ask the steward, Loom's keeper of bequests, by its role. Its answer, a letter or a
+            // refusal, decides; so does the bus's refusal of the claim when no steward stands. The
+            // count of wakes bounds the wait.
             claim_open_ = true;
             claim_budget_ = kBootstrapWakes;
             mail.send_to_role(loom::kManagerRole, loom::ClaimBequest{kTimerRole},
@@ -151,12 +154,13 @@ public:
         }
     }
 
-    /// "Be ready to become the Timer", through a sealed candidate's coordinator-only door: the
-    /// seal is the Loom's, so the sender recorded as preparer is a coordinator because the bus
-    /// said so. Every fallible step happens here while the incumbent is fully live -- the plan
-    /// checked, the mode chosen, a full letter's capacity reserved, so restoration never grows a
-    /// container (copying entry strings may still allocate). A live incarnation refuses the ask,
-    /// and a second ask is answered as the mistake it is.
+    /// A coordinator's request that this sealed candidate get ready to become the Timer. Loom seals
+    /// the candidate so that only a coordinator can send this, so the sender recorded as the
+    /// preparer is a coordinator on the bus's word. Every step that can fail happens here, while
+    /// the old Timer is still fully live: the plan is checked, the start is chosen, and space for a
+    /// whole letter is reserved, so restoring never grows a container (copying a timer's strings
+    /// may still allocate). A live Timer refuses the request, and a second request is answered as
+    /// the mistake it is.
     void on(const PrepareTimerHandover& p, loom::Mail& mail) {
         if (activation_.activated()) {
             decline(mail, p, "this Timer is already live under an accepted activation; a "
@@ -176,8 +180,8 @@ public:
                         kStartFresh + "' and guesses at neither");
             return;
         }
-        // Reserved so neither the table, the restore buffer nor the hold grows after "ready": a
-        // letter never exceeds kMaxHandoffEntries.
+        // Reserved now, so that neither the table, the restore buffer nor the hold grows after the
+        // candidate has answered that it is ready; a letter never holds more than kMaxHandoffEntries.
         entries_.reserve(kMaxHandoffEntries);
         restoring_.reserve(kMaxHandoffEntries);
         deferred_.reserve(kMaxDeferredOps);
@@ -187,9 +191,10 @@ public:
         mail.answer(TimerCandidatePrepared{p.transaction});
     }
 
-    /// WHAT THE HOST'S WAIT SAID: the time, `now_ms`, on the wait's clock. Only the host's own
-    /// word is time (it has no sender); a `Waited` from a participant is nothing. Every one the
-    /// host sends carries the time, so each anchors what waited for one and fires what is due.
+    /// The host's wait has sent the time, `now_ms`, on the wait's clock. Only the host's own
+    /// `Waited`, which has no sender, is time; one from any weave changes nothing (TIMER-01). Every
+    /// `Waited` the host sends carries the time, so each one starts the timers that were waiting to
+    /// learn it and fires every timer that is due.
     void on(const loom::host::Waited& w, loom::Mail& mail) {
         if (mail.sender().valid() || !activation_.activated()) {
             return;
@@ -201,9 +206,9 @@ public:
         }
         handed(w.now_ms);
         if (bootstrap_ == Bootstrap::Awaiting) {
-            // A wake spent waiting for the claim's answer is counted and fires nothing.
+            // A wake spent waiting for the claim's answer is counted, and it fires nothing.
             if (w.due && claim_open_ && ++bootstrap_wakes_ >= claim_budget_) {
-                resolve_bootstrap(mail, /*letter=*/nullptr); // nobody answered: fresh
+                resolve_bootstrap(mail, /*letter=*/nullptr); // Nobody answered, so start fresh.
             }
             write_letters(mail);
             return;
@@ -222,7 +227,7 @@ public:
                           {}, {}});
     }
 
-    /// The ordered form: a preference, a fallback, and a receipt.
+    /// The ordered ask: a preference, a fallback and a receipt.
     void on(const EnsureTimer& e, loom::Mail& mail) {
         schedule(mail, Op{Op::Kind::Ensure, mail.sender(), e.id, e.delay_ms, e.repeat, {},
                           e.preferred, e.fallback});
@@ -241,12 +246,13 @@ public:
         schedule(mail, Op{Op::Kind::CancelAll, mail.sender(), {}, 0, false, {}, {}, {}});
     }
 
-    /// "You are being replaced; say what your heir should know": how far each schedule has got,
-    /// written at the time the next wait hands over (a time already past is claimed for it), after
-    /// what is due then fired; at once, from the last wake, where no wait holds this Timer or its
-    /// role has left it (a prepared replacement asks after its commit). Being asked fires, cancels
-    /// and advances nothing. Sent to the stamped sender under its correlation; past
-    /// `kMaxLettersHeld` waiting asks, refused in words (timer/docs/zengine.timer.md, About).
+    /// Loom's request, when this Timer is being replaced, for the letter its successor needs: the
+    /// time each timer has left. The letter is written at the time the next wait sends, for which
+    /// a time already past is claimed, after the timers due then have fired. It is written at once,
+    /// from the last wake, where no wait holds this Timer or its role has left it, as when a
+    /// prepared replacement asks after it has committed. Being asked fires, cancels and moves
+    /// nothing. The letter goes to the sender the bus named, under the ask's correlation; with
+    /// `kMaxLettersHeld` asks already waiting, a further ask is refused in words.
     void on(const loom::PrepareShutdown&, loom::Mail& mail) {
         const LetterAsk asked{mail.sender(), mail.correlation()};
         if (!activation_.activated() || !waited_on_) {
@@ -263,20 +269,20 @@ public:
         }
         letters_due_.push_back(asked);
         if (!claim_wait(mail)) {
-            write_letters(mail); // the role is not this Timer's: no wait will hand it a time
+            write_letters(mail); // The role is not this Timer's, so no wait will send it a time.
         }
     }
 
-    /// The steward's answer to our claim: a letter.
+    /// The steward's answer to this Timer's claim: a letter.
     void on(const loom::Bequest& letter, loom::Mail& mail) {
         if (!answers_our_claim(mail)) {
-            return; // unsolicited, stale, or arriving after the decision was made
+            return; // Not asked for, out of date, or arriving after the decision was made.
         }
         resolve_bootstrap(mail, &letter);
     }
 
-    /// The steward's other answer: "no bequest is held for you." A real answer, and the fastest
-    /// honest way to a fresh start.
+    /// The steward's other answer: no letter is held for this Timer. It is a real answer, and the
+    /// quickest true way to a fresh start.
     void on(const loom::Refused&, loom::Mail& mail) {
         if (!answers_our_claim(mail)) {
             return;
@@ -284,12 +290,13 @@ public:
         resolve_bootstrap(mail, /*letter=*/nullptr);
     }
 
-    /// WHAT THE BUS REFUSED OF THIS TIMER'S SENDS, in Loom's own word (`dispatch_refused`): the
-    /// claim, when nobody stands to answer it -- a fresh start; a firing at a weave that is gone --
-    /// every timer that weave started dropped, since none of them can ever be delivered.
+    /// A message this Timer sent that the bus refused, on Loom's own word (`dispatch_refused`).
+    /// When it is the claim, nobody stands to answer it, so the Timer starts fresh. When it is a
+    /// firing at a weave that is gone, every timer that weave started is dropped, because none of
+    /// them can ever be delivered.
     void on(const loom::DispatchRefused& r, loom::Mail& mail) {
         if (!mail.dispatch_refused()) {
-            return; // ordinary speech wearing the shape, not the bus's word
+            return; // A weave sent this message itself; it is not the bus's refusal.
         }
         if (r.shape == loom::ClaimBequest::zen_name) {
             if (claim_open_ && bootstrap_ == Bootstrap::Awaiting) {
@@ -302,7 +309,7 @@ public:
         }
         const loom::WeaveId gone = r.addressed_weave();
         if (!gone.valid()) {
-            return; // a role timer's holder came and went; the role keeps its timers
+            return; // A role's holder came and went; the role keeps its timers.
         }
         const std::size_t before = entries_.size();
         entries_.erase(std::remove_if(entries_.begin(), entries_.end(),
@@ -312,9 +319,9 @@ public:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    /// AFTER EVERY DELIVERY: what this Timer waits for, claimed as its role whenever it changed or
-    /// a wake was taken -- the wait holds a time due once per claim, so a source claims anew after
-    /// each wake, unchanged or not.
+    /// Runs after every message this Timer handles. It claims, as its role, the time it waits for
+    /// whenever that time changed or a wake was taken. The wait honours a claimed time once, so a
+    /// source must claim again after each wake, whether its time changed or not.
     void after_delivery(loom::Mail& mail) {
         if (!activation_.activated()) {
             return;
@@ -323,21 +330,21 @@ public:
             return;
         }
         if (!claim_wait(mail) && !letters_due_.empty()) {
-            write_letters(mail); // the role left this Timer: no wait will hand it a time
+            write_letters(mail); // The role has left this Timer, so no wait will send it a time.
         }
     }
 
     /// The state a reload carries: the counters, and every standing timer as the letter describes
-    /// one -- its remaining duration from the last time handed, since a deadline on this wait's
-    /// clock means nothing on the next instance's.
+    /// one, by the time it had left at the last time the wait sent. A deadline on this incarnation's
+    /// clock would mean nothing to the next incarnation.
     loom::Value snapshot() const override {
         TimerState carried = this->state_;
         carried.standing = describe_table(entries_.size());
         return loom::to_value(carried);
     }
 
-    /// Revival installs what the snapshot carried, the table whole or not at all, as a letter is
-    /// adopted; the next activation counts it as `inherited`.
+    /// Restores what the snapshot carried: the whole table or none of it, as a letter is taken.
+    /// The next activation counts the restored timers as `inherited`.
     void revive(const loom::Value& v) override {
         TimerState revived = loom::from_value<TimerState>(v);
         std::vector<TimerHandoffEntry> standing;
@@ -349,12 +356,12 @@ public:
     }
 
 private:
-    /// Loom's name for a delivery whose addressed weave does not exist (`name_of(NoSuchTarget)`).
+    /// Loom's word for a delivery to a weave that does not exist (`name_of(NoSuchTarget)`).
     static constexpr const char* kNoSuchTarget = "NoSuchTarget";
 
-    /// One standing timer. `role` empty = requester-addressed. `next_due` is a reading of the
-    /// wait's clock, or none while the timer waits for the next time handed to be anchored at,
-    /// `first_in` after it.
+    /// One standing timer. An empty `role` means the timer fires back to its requester. `next_due`
+    /// is a time on the wait's clock, or none while the timer waits to learn the time: it is then
+    /// due `first_in` after the next time the wait sends.
     struct Entry {
         std::string id;
         std::string role;
@@ -366,8 +373,8 @@ private:
         bool spent = false;
     };
 
-    /// One internal spelling for every schedule operation, so a held-and-replayed operation runs
-    /// exactly the code a live one does.
+    /// Every ask to change the table, in one form, so that an ask held and applied later runs
+    /// exactly the code an ask applied at once does.
     struct Op {
         enum class Kind { Start, StartRole, Ensure, EnsureRole, Cancel, CancelAll };
         Kind kind = Kind::Start;
@@ -386,27 +393,30 @@ private:
         std::uint64_t correlation = 0;
     };
 
-    /// Where this incarnation is in deciding what it inherited: awaiting from construction, not
-    /// activation, so an operation arriving before the activation is held too -- it was sent
-    /// after the fork point, and a fresh request beats inherited state for the same key.
+    /// Where this incarnation is in deciding what it inherited. It is awaiting from construction, not
+    /// from activation, so an ask that arrives before the activation is held too: it was sent after
+    /// the old Timer's letter was taken, and a fresh ask wins over an inherited timer under the
+    /// same key.
     enum class Bootstrap { Awaiting, Resolved };
 
-    /// Where this incarnation expects its past from, declared rather than inferred:
-    /// `GracefulClaim` (ask the steward by role; start fresh if nobody answers -- every ordinary
-    /// load, swap and reload), `PreparedRestoration` (a coordinator said a letter is coming, and
-    /// from whom), `Fresh` (told nothing is carried; waits for no letter and refuses a late one).
+    /// Where this incarnation expects its letter to come from, as it was told, never as it guesses.
+    /// `GracefulClaim`: ask the steward by role, and start fresh if nobody answers; this is every
+    /// ordinary load, swap and reload. `PreparedRestoration`: a coordinator's request named a
+    /// letter coming, and from whom. `Fresh`: told that nothing is carried, it waits for no letter and
+    /// takes no late one.
     enum class Startup { GracefulClaim, PreparedRestoration, Fresh };
 
-    /// Whether this incarnation has answered a preparation ask, and how. One ask gets one
-    /// answer; a second is answered as the mistake it is.
+    /// Whether this incarnation has answered a request to get ready, and how. One request gets one
+    /// answer, and a second is answered as the mistake it is.
     enum class Preparation { None, Accepted, Declined };
 
-    /// The time this Timer waits for, as its claim says it: a time already past while it must
-    /// learn the time (a letter waiting to be written, an entry waiting to be anchored, or a
-    /// bootstrap counting wakes), else its soonest deadline, else none.
+    /// The time this Timer waits for, as its claim states it. It is a time already past while the
+    /// Timer must learn the time: a letter waits to be written, a timer waits to start counting, or
+    /// a new Timer is counting wakes for its claim's answer. Otherwise it is the soonest deadline,
+    /// or none.
     std::optional<std::int64_t> wanted_until() const {
         if (!letters_due_.empty()) {
-            return kTimePast; // a letter waits for the time the next wait hands over
+            return kTimePast; // A letter waits for the time the next wait sends.
         }
         if (bootstrap_ == Bootstrap::Awaiting) {
             return claim_open_ ? std::optional<std::int64_t>(kTimePast) : std::nullopt;
@@ -423,15 +433,16 @@ private:
         return soonest;
     }
 
-    /// A reading of the wait's clock, kept as the latest time this Timer knows; the clock never
-    /// goes back, and a stale reading moves nothing.
+    /// Keeps a time the wait sent as the latest time this Timer knows. The wait's clock never goes
+    /// back, so an older time changes nothing.
     void handed(std::int64_t now) {
         if (!now_ || now > *now_) {
             now_ = now;
         }
     }
 
-    /// Every timer that waited for a time, due `first_in` after the time just handed.
+    /// Starts every timer that was waiting to learn the time: each is due `first_in` after the time
+    /// the wait just sent.
     void anchor_waiting() {
         if (!now_) {
             return;
@@ -443,26 +454,29 @@ private:
         }
     }
 
-    // ---- the bootstrap: deciding what this incarnation inherited -------------
+    // ---- deciding what this incarnation inherited -------------------------------
 
-    /// Does this answer our claim? `answers_ask()` first -- Loom's word, which only the weave that
-    /// received our claim can produce, once; the heir asks by role and cannot pre-bind the
-    /// steward's id, and a forged letter would name whom future firings reach. Then our
-    /// correlation, then one-shot: `claim_open_` closes at the decision, so a late answer, even a
-    /// genuine one, cannot reopen it.
+    /// Whether this message answers this Timer's claim. `answers_ask()` comes first: it is Loom's
+    /// word, which only the weave that received the claim can earn, and only once. The new Timer
+    /// asks by role, so it cannot know the steward's id in advance, and a forged letter would
+    /// decide whom future firings reach. Then the correlation must match, and the claim must still
+    /// be open: `claim_open_` closes when the decision is made, so a late answer, even a true one,
+    /// cannot reopen it.
     bool answers_our_claim(const loom::Mail& mail) const {
         return claim_open_ && mail.answers_ask() && mail.correlation() == kClaimCorrelation;
     }
 
-    /// Say no, authentically, spending the one answer a readiness would have: a coordinator hears
-    /// a verdict rather than a silence to time out, and the reason stands on its own.
+    /// Says no, as the true answer to the request, using the one answer a readiness would have
+    /// used. The coordinator hears a decision rather than waiting out a silence, and the reason is
+    /// a sentence that stands alone.
     void decline(loom::Mail& mail, const PrepareTimerHandover& p, std::string why) {
         prepared_ = Preparation::Declined;
         mail.answer(TimerCandidateDeclined{p.transaction, std::move(why)});
     }
 
-    /// The decision, and the only place it is made. Restore (or don't), then apply everything
-    /// that arrived while we were deciding, and only then say the service is available.
+    /// The decision of what this Timer inherited, and the only place it is made. Restore the
+    /// letter, if there is one; then apply every ask that arrived while the Timer was deciding; and
+    /// only then announce that it is serving.
     void resolve_bootstrap(loom::Mail& mail, const loom::Bequest* letter) {
         bootstrap_ = Bootstrap::Resolved;
         claim_open_ = false;
@@ -474,25 +488,25 @@ private:
         mail.publish(TimerReady{});
     }
 
-    /// Read the letter: each item is re-admitted through the gate (`loom::claim_item`) before a
-    /// field is touched, so a malformed item or another version's handoff is a clean nothing.
+    /// Reads the letter. Each item is checked again by Loom (`loom::claim_item`) before any field
+    /// is read, so a malformed item, or a letter of another version, gives nothing at all.
     void restore_from(const loom::Bequest& letter) {
         for (const loom::Bytes& item : letter.items) {
             if (const std::optional<TimerHandoff> handoff = loom::claim_item<TimerHandoff>(item)) {
                 adopt(*handoff);
-                return; // one Timer handoff per letter; the rest is not ours
+                return; // A letter holds one Timer handoff; its other items are not the Timer's.
             }
         }
     }
 
-    /// A letter is adopted whole or not at all: over the bound, or with one requester that is not
-    /// a lossless decimal weave id, nothing is taken -- an honest predecessor writes neither, and
-    /// half an untrusted letter is a schedule nobody authored.
+    /// Takes a letter whole or not at all. A letter over the bound, or with one requester that is
+    /// not a weave id written exactly in decimal, gives nothing: an honest predecessor writes
+    /// neither, and half of an untrusted letter is a schedule nobody asked for.
     void adopt(const TimerHandoff& handoff) {
         if (handoff.entries.size() > kMaxHandoffEntries) {
             return;
         }
-        // A member buffer, reserved at preparation, so the step after "ready" does not grow it.
+        // A member buffer, reserved when the candidate got ready, so this step does not grow it.
         restoring_.clear();
         this->state_.inherited = static_cast<std::int64_t>(table_from(handoff.entries, restoring_));
         for (Entry& e : restoring_) {
@@ -501,8 +515,9 @@ private:
         restoring_.clear();
     }
 
-    /// The table as letter records, in table order, at most `bound` of them: what is left of each
-    /// timer from the last time handed, and a timer still waiting for one with all of it left.
+    /// The table as the letter describes it, in table order and at most `bound` timers: the time
+    /// each has left at the last time the wait sent, and all of its delay for a timer still
+    /// waiting to learn the time.
     std::vector<TimerHandoffEntry> describe_table(std::size_t bound) const {
         std::vector<TimerHandoffEntry> out;
         for (const Entry& e : entries_) {
@@ -517,8 +532,8 @@ private:
         return out;
     }
 
-    /// What this Timer waits for, claimed as its role, and recorded as claimed either way; false
-    /// when the claim is refused, the role not this Timer's.
+    /// Claims, as this Timer's role, the time it waits for, and records the claim either way.
+    /// Returns false when the claim is refused because the role is not this Timer's.
     bool claim_wait(loom::Mail& mail) {
         const std::optional<std::int64_t> until = wanted_until();
         loom::host::WaitSet set;
@@ -530,11 +545,11 @@ private:
         return accepted;
     }
 
-    /// THE LETTER, to whoever asked for it, with its correlation: the table as it stands at the
-    /// time last handed.
+    /// Writes the letter to whoever asked for it, under the ask's correlation: the table as it
+    /// stands at the time the wait last sent.
     void write_letter(loom::Mail& mail, const LetterAsk& asked) const {
         TimerHandoff handoff;
-        // The published bound, from the writing side.
+        // The writer keeps to the same published bound the reader checks.
         handoff.entries = describe_table(kMaxHandoffEntries);
         loom::Bequest letter;
         letter.role = kTimerRole;
@@ -542,8 +557,8 @@ private:
         mail.send(asked.to, letter, asked.correlation);
     }
 
-    /// Every letter that waited for the time, written now that the wait handed it, in the order
-    /// asked.
+    /// Writes every letter that was waiting for the time, now that the wait has sent it, in the
+    /// order they were asked for.
     void write_letters(loom::Mail& mail) {
         for (const LetterAsk& asked : letters_due_) {
             write_letter(mail, asked);
@@ -551,9 +566,9 @@ private:
         letters_due_.clear();
     }
 
-    /// Letter records as timers due their remaining time after the next time handed, appended to
-    /// `out`: all of them, or none when one requester is not a lossless decimal weave id. Returns
-    /// how many were appended.
+    /// Turns the letter's timers into table entries, each due its remaining time after the next
+    /// time the wait sends, and appends them to `out`: all of them, or none when one requester is
+    /// not a weave id written exactly in decimal. Returns how many were appended.
     std::size_t table_from(const std::vector<TimerHandoffEntry>& records,
                            std::vector<Entry>& out) const {
         const std::size_t first = out.size();
@@ -561,7 +576,7 @@ private:
             const std::optional<loom::WeaveId> who = parse_weave_id(t.requester);
             if (!who) {
                 out.resize(first);
-                return 0; // malformed: adopt nothing
+                return 0; // A malformed requester: take nothing.
             }
             Entry e{t.id, t.role, *who, effective_delay(t.delay_ms, t.repeat), t.repeat,
                     std::nullopt, std::max<std::int64_t>(t.remaining_ms, 0), false};
@@ -570,8 +585,8 @@ private:
         return out.size() - first;
     }
 
-    /// Put a restored entry in the table under its own key -- replacing rather than doubling,
-    /// exactly as an upsert would.
+    /// Puts a restored timer in the table under its own key, replacing one already there rather
+    /// than doubling it, exactly as a second ask would.
     void install(Entry e) {
         if (Entry* existing = find_entry(e.id, e.role, e.requester)) {
             *existing = std::move(e);
@@ -580,8 +595,8 @@ private:
         entries_.push_back(std::move(e));
     }
 
-    /// Every schedule operation, whatever shape carried it, enters here: hold it if the
-    /// continuity decision is still pending, otherwise perform it.
+    /// Every ask to change the table enters here, whatever message carried it: it is held while
+    /// the Timer still decides what it inherited, and applied otherwise.
     void schedule(loom::Mail& mail, Op op) {
         if (defer(mail, op)) {
             return;
@@ -589,8 +604,9 @@ private:
         apply(mail, op);
     }
 
-    /// Hold an operation while the decision is pending; true when the caller must stop. Overflow
-    /// is counted (`deferred_dropped`) and, for an ordered request, refused with a receipt.
+    /// Holds an ask while the decision is pending, and returns true when the caller must stop. An
+    /// ask past the hold's bound is counted (`deferred_dropped`), and an ordered one is refused
+    /// with a receipt.
     bool defer(loom::Mail& mail, const Op& op) {
         if (bootstrap_ == Bootstrap::Resolved) {
             return false;
@@ -609,10 +625,10 @@ private:
         return true;
     }
 
-    /// Everything that waited, in ARRIVAL ORDER, after the inheritance and before the
-    /// availability notice. Arrival order is what makes a later request beat an earlier one for
-    /// the same key, and running it after the restore is what makes any request beat inherited
-    /// state.
+    /// Applies every held ask, in the order they arrived, after the letter is restored and before
+    /// `TimerReady`. The order of arrival is what lets a later ask win over an earlier one under
+    /// the same key, and applying them after the restore is what lets any ask win over a timer the
+    /// letter carried.
     void replay_deferred(loom::Mail& mail) {
         std::vector<Op> ops;
         ops.swap(deferred_);
@@ -625,13 +641,13 @@ private:
         return k == Op::Kind::Ensure || k == Op::Kind::EnsureRole;
     }
 
-    // ---- performing an operation --------------------------------------------
+    // ---- applying an ask ----------------------------------------------------
 
     void apply(loom::Mail& mail, const Op& op) {
         switch (op.kind) {
         case Op::Kind::Start:
             if (!op.sender.valid()) {
-                // No weave asked, so there is no one to fire at. Dropped, counted.
+                // No weave asked, so there is nobody to fire at: the ask is dropped and counted.
                 ++this->state_.dropped;
                 return;
             }
@@ -639,7 +655,7 @@ private:
             return;
         case Op::Kind::StartRole:
             if (op.role.empty()) {
-                ++this->state_.dropped; // a role beat with no role is no ask at all
+                ++this->state_.dropped; // A role beat with no role is no ask at all.
                 return;
             }
             upsert(op.id, op.role, op.sender, op.delay_ms, op.repeat);
@@ -657,15 +673,15 @@ private:
         }
     }
 
-    /// The order model: request -> available menu -> chosen -> receipt. A standing entry matches
-    /// when it has the same upsert key and the same meaning -- repeat mode and normalized delay.
-    /// A changed addressing mode finds nothing; a changed delay or mode finds the entry but no
-    /// match: both are unavailable and go to the fallback, since "preserved" would describe a
-    /// schedule nobody asked for.
+    /// An ordered ask: the asker's preference, what is possible, the choice, and the receipt. A
+    /// standing timer matches when it has the same key and means the same: the same repeat and the
+    /// same normalized delay. A changed way of addressing the beat finds no timer at all, and a
+    /// changed delay or repeat finds the timer but no match. Either way keeping the time is not
+    /// possible, and the fallback applies, because "kept" would describe a timer nobody asked for.
     void apply_ensure(loom::Mail& mail, const Op& op) {
         if (!op.sender.valid()) {
-            // An order with no stamped requester has nowhere to send its receipt; the raw shapes
-            // are the fire-and-forget door.
+            // An ordered ask with no sender has nowhere to send its receipt; a sender that wants no
+            // receipt uses the plain messages.
             ++this->state_.dropped;
             return;
         }
@@ -713,8 +729,9 @@ private:
         }
         switch (choice) {
         case Continuity::PreserveRemaining:
-            // Ownership moves exactly as an upsert moves it (a successor re-asking takes cancel
-            // rights); the ONE thing preservation does not do is re-anchor the schedule.
+            // The timer becomes the asker's, exactly as a plain second ask makes it, so a successor
+            // that asks again gains the right to cancel it. The one thing keeping the time does not
+            // do is start the delay again.
             existing->requester = op.sender;
             answer_order(mail, op, kResolutionPreserved,
                          why + "the standing schedule kept its remaining time and was not "
@@ -733,20 +750,21 @@ private:
         }
     }
 
-    /// The receipt, to the stamped requester, with correlation 0: the ordered shapes are sent, not
-    /// forwarded, so there is no asker's correlation to echo; a binding matches on the timer id.
+    /// Sends the receipt to the sender the bus named, with correlation 0. An ordered ask is sent as
+    /// a message, not as a question, so it has no correlation to echo, and a binding matches the
+    /// receipt by the timer's id.
     void answer_order(loom::Mail& mail, const Op& op, const char* resolved, std::string reason) {
         mail.send(op.sender, TimerResolution{op.id, resolved, std::move(reason)});
     }
 
-    /// Fire every anchored timer due by the time last handed, in table order.
+    /// Fires every counting timer due by the time the wait last sent, in table order.
     void fire_due(loom::Mail& mail) {
         if (!now_) {
             return;
         }
         const std::int64_t now = *now_;
-        // Indexed loop on purpose: firing can grow the queue, never entries_, and an upsert
-        // arriving mid-fire is impossible (single-threaded dispatch).
+        // An indexed loop, on purpose: firing adds to the bus's queue but never to `entries_`, and
+        // no ask can arrive in the middle of this loop, because dispatch runs on one thread.
         for (std::size_t i = 0; i < entries_.size(); ++i) {
             Entry& e = entries_[i];
             if (!e.next_due || *e.next_due > now) {
@@ -759,8 +777,10 @@ private:
             }
             ++this->state_.fired;
             if (e.repeat) {
-                // Hold the lattice when merely late; never burst to catch up (one firing a wake a
-                // timer -- a stalled host gets one tick on resume, not a flood of stale ones).
+                // A timer that is late by less than its delay keeps its rhythm: its next beat is
+                // one delay after the beat it was due. One later than that starts again a delay
+                // from now. Either way it never fires twice to catch up, so a host that stalled
+                // gets one beat when it resumes, not a flood of stale ones.
                 *e.next_due = add_clamped(*e.next_due, e.delay_ms);
                 if (*e.next_due <= now) {
                     e.next_due = add_clamped(now, e.delay_ms);
@@ -775,9 +795,11 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    /// The upsert key, in one place: (requester, id) for requester timers, (role, id) across
-    /// requesters for role timers -- a successor replaces its predecessor's beat and takes cancel
-    /// rights. The ordered availability and the raw replace-or-insert are one question.
+    /// The key a timer is found by, in one place: the requester and the id for a timer that fires
+    /// back to its requester, and the role and the id, whoever asked, for a role timer, so that a
+    /// successor replaces its predecessor's beat and gains the right to cancel it. An ordered
+    /// ask's question "is there a timer to keep?" and a plain ask's "replace or add?" are the same
+    /// question, asked here.
     Entry* find_entry(const std::string& id, const std::string& role, loom::WeaveId requester) {
         for (Entry& e : entries_) {
             const bool same = role.empty()
@@ -799,7 +821,7 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    /// The one write path for asks: due `delay` after the next time the wait hands over.
+    /// The one way an ask writes a timer: it is due `delay` after the next time the wait sends.
     void upsert(const std::string& id, const std::string& role, loom::WeaveId requester,
                 std::int64_t delay_ms, bool repeat) {
         const std::int64_t delay = effective_delay(delay_ms, repeat);
@@ -815,8 +837,9 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    /// Cancellation: everything `who` started (id == nullptr), or its timers with exactly that id.
-    /// Matching is by recorded requester -- the bus stamps senders, so this is identity, not claim.
+    /// Cancels every timer `who` started when `id` is null, or its timers with exactly that id. It
+    /// matches by the recorded requester: the bus names every sender, so this is who the weave is,
+    /// not a name it gives itself.
     void remove_mine(loom::WeaveId who, const std::string* id) {
         entries_.erase(std::remove_if(entries_.begin(), entries_.end(),
                                       [&](const Entry& e) {
@@ -827,21 +850,21 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    // ---- the numbers this service works in ----------------------------------
+    // ---- the arithmetic of time --------------------------------------------
     //
-    // The delay rule is `timer.normalize_delay`'s and only its call is here; saturating a
-    // deadline and measuring what is left of one are facts about a clock, and stay the Timer's.
+    // The delay rule belongs to `timer.normalize_delay`, and only the call to it is here. Capping a
+    // deadline and measuring what is left of one are facts about a clock, so they stay the Timer's.
 
-    /// What this Timer makes of an authored delay, from `timer.normalize_delay` (normalize.hpp),
-    /// never re-encoded. Every path that normalizes -- `upsert`, the ordered availability
-    /// comparison, `adopt` -- comes through here, so no schedule can reach another truth than the
-    /// one this instance was built with.
+    /// The delay this Timer schedules for the delay a weave asked for, from `timer.normalize_delay`
+    /// (normalize.hpp) and never written out again here. Every path that normalizes a delay, a
+    /// plain ask, the comparison an ordered ask makes, and a restored letter, comes through here,
+    /// so no timer can be scheduled by any rule but the one this incarnation was built with.
     std::int64_t effective_delay(std::int64_t delay_ms, bool repeat) const {
         return semantics_.effective_delay(delay_ms, repeat);
     }
 
-    /// now + duration, saturating rather than wrapping. A wrapped deadline would read as
-    /// permanently overdue and fire forever.
+    /// `now` plus `duration`, capped at the largest value rather than wrapping. A deadline that
+    /// wrapped would read as always overdue, and its timer would fire forever.
     static std::int64_t add_clamped(std::int64_t now, std::int64_t duration) {
         constexpr std::int64_t kMax = std::numeric_limits<std::int64_t>::max();
         if (duration > 0 && now > kMax - duration) {
@@ -850,8 +873,9 @@ private:
         return now + duration;
     }
 
-    /// How long until this deadline, without underflow: a due or overdue entry transfers with
-    /// zero remaining, and the subtraction is unsigned (defined), saturated into the wire's range.
+    /// The time left until a deadline, with no overflow. A timer that is due or overdue has zero
+    /// left, and the subtraction is done unsigned, where it is defined, and capped to the range a
+    /// letter can carry.
     static std::int64_t remaining_from(std::int64_t next_due, std::int64_t now) {
         if (next_due <= now) {
             return 0;
@@ -863,8 +887,8 @@ private:
         return static_cast<std::int64_t>(diff > kMax ? kMax : diff);
     }
 
-    /// A weave id, off the wire, losslessly or not at all. Canonical decimal only: no sign, no
-    /// whitespace, no trailing characters.
+    /// Reads a weave id from a letter, exactly or not at all. Only plain decimal is accepted: no
+    /// sign, no spaces, and nothing after the digits.
     static std::optional<loom::WeaveId> parse_weave_id(const std::string& text) {
         if (text.empty()) {
             return std::nullopt;
@@ -879,34 +903,35 @@ private:
         return loom::WeaveId{value};
     }
 
-    // Per-incarnation, never TimerState: nothing about a claim, a time or a bootstrap may
-    // transplant through a reload, or a new instance would inherit liveness it did not author.
-    zengine::ActivationCursor activation_; ///< which activation this incarnation lives under
-    std::optional<std::int64_t> now_;      ///< the latest time the wait handed over
+    // These belong to this incarnation and are never part of `TimerState`. Nothing about a claim, a
+    // time or a decision in progress may cross a reload, or a new incarnation would believe it was
+    // live in ways it never earned.
+    zengine::ActivationCursor activation_; ///< the activation this incarnation lives under
+    std::optional<std::int64_t> now_;      ///< the latest time the wait sent
     bool claimed_ = false;                 ///< a WaitSet has been claimed since activation
     std::optional<std::int64_t> claimed_until_; ///< the time that claim named
     bool woke_ = false;                         ///< a wake was taken since the last claim
-    bool waited_on_ = false; ///< the host's wait holds this Timer's claim, as it last said
-    std::vector<LetterAsk> letters_due_; ///< asks for the letter waiting for the time, at most
-                                         ///< `kMaxLettersHeld`
-    Bootstrap bootstrap_ = Bootstrap::Awaiting; ///< open from construction; closed by the decision
+    bool waited_on_ = false; ///< whether the last `Waited` reported this claim held
+    std::vector<LetterAsk> letters_due_; ///< asks for the letter that wait for the time, at
+                                         ///< most `kMaxLettersHeld`
+    Bootstrap bootstrap_ = Bootstrap::Awaiting; ///< open from construction, closed by the decision
     std::int64_t bootstrap_wakes_ = 0;          ///< wakes spent waiting for the claim's answer
-    std::int64_t claim_budget_ = kBootstrapWakes; ///< how many that mode allows before it gives up
-    bool claim_open_ = false;                     ///< a claim is outstanding (opens at activation)
+    std::int64_t claim_budget_ = kBootstrapWakes; ///< how many wakes this start allows before it gives up
+    bool claim_open_ = false;                     ///< a claim is unanswered; it opens at activation
     std::vector<Op> deferred_;                    ///< held while the decision is pending
-    /// The prepared-replacement half, all per-incarnation for the same reason everything else
-    /// here is: nothing about a preparation may transplant.
-    Startup startup_ = Startup::GracefulClaim; ///< told, before admission, never inferred
-    Preparation prepared_ = Preparation::None; ///< one ask, one answer
-    loom::WeaveId preparer_{};                 ///< read off the ask; whose letter to claim
-    std::vector<Entry> restoring_;             ///< adopt()'s buffer; reserved at preparation
-    std::int64_t revived_ = 0;                 ///< entries the last revival installed
+    /// What a prepared replacement needs. All of it is this incarnation's own, for the same reason as
+    /// the rest: nothing about getting ready may cross a reload.
+    Startup startup_ = Startup::GracefulClaim; ///< told before admission, never guessed
+    Preparation prepared_ = Preparation::None; ///< one request, one answer
+    loom::WeaveId preparer_{};                 ///< the request's sender; whose letter to claim
+    std::vector<Entry> restoring_;             ///< adopt()'s buffer, reserved when getting ready
+    std::int64_t revived_ = 0;                 ///< timers the last revival restored
 
-    /// Which semantic truth this service executes: the operator surface of a host that offered
-    /// one, for this Timer's whole life, or the vocabulary this repository authors. Both resolve
-    /// `timer.normalize_delay` at every spend and hold no resolution, so execution and a preview
-    /// cannot disagree. Default-constructed means local fallback: a host that never heard of
-    /// operators.
+    /// Whose copy of the delay rule this Timer runs: the catalog of a host that offered one, for
+    /// the Timer's whole life, or the catalog this repository builds. Both look up
+    /// `timer.normalize_delay` at every call and keep no earlier answer, so the Timer's schedule
+    /// and a preview of the rule cannot disagree. A default-constructed one is local, as for a host
+    /// that knows nothing of operators.
     DelayAuthority semantics_;
     std::vector<Entry> entries_;
 };

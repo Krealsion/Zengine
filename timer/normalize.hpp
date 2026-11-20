@@ -4,12 +4,12 @@
 #ifndef ZENGINE_TIMER_NORMALIZE_HPP
 #define ZENGINE_TIMER_NORMALIZE_HPP
 
-// What a Timer makes of a delay, the one place the rule lives: `timer.normalize_delay` is a
-// composition over two published primitives, with no C++ body, evaluated by the one evaluator
-// every consumer uses -- so a second consumer needs no copy of it, and cannot disagree with the
-// Timer. A repeating delay below 1 ms becomes 1; a negative delay fires on the next beat
-// (timer/docs/zengine.timer.md#about).
-// Timer law: timer/docs/timer-laws.md
+// The rule for the delay a Timer schedules, and the one place it is written. `timer.normalize_delay`
+// is an operator built from two published primitives, with no C++ body of its own, and the one
+// evaluator every user of the rule calls runs it. So a second user of the rule, such as a tool that
+// previews a delay, needs no copy of it and cannot disagree with the Timer. A repeating delay below
+// 1 ms becomes 1, and a negative delay fires at the next wake (`timer/docs/zengine.timer.md`,
+// About).
 
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
@@ -30,17 +30,17 @@
 
 namespace zengine::timer {
 
-/// The rule's identity, and its three port names. Spelled once, because a
-/// consumer names them and a suite asserts them: two spellings of a port is how
-/// a caller and a callee stop meaning the same thing.
+/// The rule's name and its three port names, each written once, because a caller names them and
+/// a suite asserts them, and two spellings of one port are how a caller and the rule stop meaning
+/// the same thing.
 inline constexpr const char* kNormalizeDelay = "timer.normalize_delay";
 inline constexpr const char* kAuthoredDelayPort = "delay_ms";
 inline constexpr const char* kRepeatPort = "repeat";
 inline constexpr const char* kEffectiveDelayPort = "effective_delay";
 
-/// Author the rule against a catalog that already carries the primitives. The output schema is
-/// derived as each step resolves; the two input ports are written once, by hand, since a
-/// composite has no C++ signature to take them from.
+/// Builds the rule against a catalog that already holds the primitives. The output's schema is
+/// worked out as each step resolves. The two input ports are written out here, because a rule
+/// built from steps has no C++ signature to take them from.
 inline op::OperatorDef normalize_delay(const op::Catalog& primitives) {
     op::Builder rule(primitives, kNormalizeDelay,
                      {loom::Field{kAuthoredDelayPort, loom::type_of(loom::Kind::Int), true},
@@ -58,10 +58,10 @@ inline op::OperatorDef normalize_delay(const op::Catalog& primitives) {
                                   "negative, and at least 1 ms when it repeats");
 }
 
-/// What this package contributes to a host: its composition, and not one primitive. The catalog
-/// inside is authoring scaffolding (signatures to compose against, not ownership of the power)
-/// and dies at the brace; the graph names `math.max` and `logic.select_int`, spent from
-/// whoever provides them where the rule lands.
+/// What this package supplies to a host: the rule, and none of the primitives it is built from.
+/// The catalog made here only gives the rule signatures to build against, and it ends with the
+/// function. The rule names `math.max` and `logic.select_int`, and wherever it is installed it
+/// calls whichever weave provides those there.
 inline std::vector<op::OperatorDef> provider_contributions() {
     op::Catalog against;
     op::publish_primitives(against);
@@ -70,9 +70,9 @@ inline std::vector<op::OperatorDef> provider_contributions() {
     return defs;
 }
 
-/// The no-host arrangement's vocabulary: the basic primitives plus this composition, assembled
-/// locally because nobody claims semantic authority here (`snake`, a plain Loom, any program
-/// without the operator seam). A value, never a registry, and never a host's catalog.
+/// The catalog a Timer uses when no host offers one: the basic primitives and this rule, put
+/// together here, as in the snake example, a plain Loom, or any program without an operator host.
+/// It is a value the Timer owns, never a shared registry, and never a host's catalog.
 inline op::Catalog fallback_vocabulary() {
     op::Catalog catalog;
     op::publish_primitives(catalog);
@@ -80,7 +80,8 @@ inline op::Catalog fallback_vocabulary() {
     return catalog;
 }
 
-/// The ask, spelled once for both doors, against the input schema the authority answered with.
+/// The rule's input for one delay, written once for both ways of running it, against the input
+/// schema that the catalog or the host described.
 inline loom::Value normalize_ask(const std::shared_ptr<const loom::Schema>& inputs,
                                  std::int64_t delay_ms, bool repeat) {
     loom::Value ask(inputs);
@@ -89,9 +90,9 @@ inline loom::Value normalize_ask(const std::shared_ptr<const loom::Schema>& inpu
     return ask;
 }
 
-/// Spell the ask, run it, read the answer: this calls the rule and knows nothing of what it
-/// says. Total for a catalog that accepted the rule; one that never carried it is an authoring
-/// mistake, refused loudly, since inventing a delay would be a second copy of the rule.
+/// Runs the rule on one delay and returns its answer; this function knows nothing of what the rule
+/// says. It always answers for a catalog that holds the rule. A catalog without it is a mistake in
+/// the program, and it throws, because making up a delay here would be a second copy of the rule.
 inline std::int64_t effective_delay(const op::Catalog& catalog, std::int64_t delay_ms,
                                     bool repeat) {
     const op::OperatorDef* rule = catalog.find(kNormalizeDelay);
@@ -107,26 +108,27 @@ inline std::int64_t effective_delay(const op::Catalog& catalog, std::int64_t del
     return answer.value().at(0)->as_int();
 }
 
-/// Which semantic authority a Timer spends: one of two, chosen once by the constructor and fixed
-/// for its life. Host-backed: every normalization crosses to the host's catalog, resolved at the
-/// call, and no catalog is held here. Local fallback: the vocabulary this repository authors, a
-/// supported arrangement and not a degraded one. A host-backed Timer never falls back: `local_`
-/// is empty in that mode, a host that cannot serve the rule is refused at construction, and a
-/// later failure throws.
+/// Whose copy of the delay rule a Timer uses: one of two, chosen once by the constructor and kept
+/// for the Timer's life. Backed by a host, every delay is sent to the host's catalog and the rule
+/// is looked up there at each call, and no catalog is kept here. Local, the Timer uses the catalog
+/// this repository builds, which is a supported arrangement and not a lesser one. A host-backed
+/// Timer never falls back to the local catalog: `local_` is empty then, a host that cannot serve
+/// the rule is refused in the constructor, and a later failure throws.
 class DelayAuthority {
 public:
-    /// LOCAL-FALLBACK over the vocabulary this repository authors.
+    /// A local Timer, using the catalog this repository builds.
     DelayAuthority() : local_(fallback_vocabulary()) {}
 
-    /// Local fallback over a catalog the caller chose: how a suite replaces a primitive beneath
-    /// the rule and watches a running weave and an independent reader move together.
+    /// A local Timer over a catalog the caller chose. A suite uses it to replace a primitive under
+    /// the rule and see a running Timer and a separate reader of the rule change together.
     explicit DelayAuthority(op::Catalog local) : local_(std::move(local)) {}
 
-    /// What a loaded Timer does with what it was offered. An unbound host means local fallback --
-    /// nothing was supplied -- never recovery from a host that failed. A bound host must publish
-    /// `timer.normalize_delay` at the signature this Timer was authored against (`same_identity`,
-    /// against `normalize_delay`'s own authoring). Otherwise it throws, and the throw is the
-    /// refusal: `create()` returns null and the Kernel refuses the load.
+    /// What a loaded Timer does with the operator host it was offered. An empty offer means no
+    /// host was supplied, so the Timer is local; it never means recovery from a host that failed.
+    /// A real host must publish `timer.normalize_delay` with the signature this Timer was built
+    /// against, compared with `same_identity` to the signature `normalize_delay` builds. Otherwise
+    /// the constructor throws, and the throw is the refusal: `create()` returns null and the Kernel
+    /// refuses the load.
     explicit DelayAuthority(op::OperatorHost offered) {
         if (!offered.bound()) {
             local_.emplace(fallback_vocabulary());
@@ -153,9 +155,8 @@ public:
         contract_ = contract;
     }
 
-    /// Which of the two this is. A diagnostic, never a door: nothing about the
-    /// answer changes what `effective_delay` spends, and no case may prove
-    /// canonicality by reading it.
+    /// Which of the two this is. It is for diagnosis only: nothing about the answer changes which
+    /// rule `effective_delay` runs, and a case must not prove which rule runs by reading it.
     bool host_backed() const noexcept { return !local_.has_value(); }
 
     /// The catalog this Timer carries, in local fallback only; a host-backed one carries none.
@@ -168,19 +169,19 @@ public:
         return *local_;
     }
 
-    /// What this Timer makes of an authored delay: both branches spend `timer.normalize_delay`
-    /// and differ only in where the identity resolves.
+    /// The delay this Timer schedules for the delay a weave asked for. Both branches run
+    /// `timer.normalize_delay`, and they differ only in where the rule is looked up.
     std::int64_t effective_delay(std::int64_t delay_ms, bool repeat) const {
         if (local_) {
             return timer::effective_delay(*local_, delay_ms, repeat);
         }
-        // Resolved at spend, on the far side: `contract_` is an identity and two schemas, never a
-        // handle into the host, so a rule that changed underneath is spent as it is now.
+        // The rule is looked up in the host at each call: `contract_` holds a name and two
+        // schemas, never a pointer into the host, so a rule the host changed is run as it is now.
         const op::HostAnswer answer =
             host_.evaluate(contract_, normalize_ask(contract_.inputs, delay_ms, repeat));
         if (!answer.ok()) {
-            // Unreachable while the host's catalog outlives this Timer and cannot be edited; it
-            // throws, since the other spelling of this branch is the silent fallback.
+            // This cannot happen while the host's catalog outlives the Timer and cannot be edited.
+            // It throws, because the only other way to write this branch is a silent fallback.
             throw std::invalid_argument("'" + std::string(kNormalizeDelay) +
                                         "' was refused by this Timer's operator host: " +
                                         answer.reason);
@@ -189,8 +190,8 @@ public:
     }
 
 private:
-    /// Exactly one of these is engaged: host-backed leaves `local_` empty, so no later edit can
-    /// reach a local catalog by accident.
+    /// Exactly one of the two is in use. A host-backed Timer leaves `local_` empty, so no later
+    /// change to this class can reach a local catalog by accident.
     std::optional<op::Catalog> local_;
     op::OperatorHost host_;
     op::HostSignature contract_;
