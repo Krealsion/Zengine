@@ -2,7 +2,9 @@
 # (tests/check_law_register.cmake). The budget is that default times (1 + 0.2 * steps),
 # in whole bytes, the remainder dropped. A register's laws and its whole file both take
 # the row's steps, each from its own default. The row is the fewest steps that hold the
-# page. A row arrives in the pull request that needs it. ASCII only.
+# page. A row arrives in the pull request that needs it. The budgets are paused while
+# ZEN_LAW_BUDGETS_PAUSED is on in tests/check_law_register.cmake, and this file is not read then: its
+# rows wait, as they stood, for the budgets to hold again. ASCII only.
 agents/decisions/a-layout-is-a-lifted-value.md 1
 agents/decisions/a-menu-is-presented-by-a-participant.md 4
 agents/decisions/a-paste-is-a-conversation.md 2

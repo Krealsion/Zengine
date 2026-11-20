@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The `doc_names` entry (docs/contributing/build-and-test.md): does each name a router or a
-# much-read page gives in backticks still name something -- a file or folder of this tree, a suite
-# a router names, or a suite, an entry or a gate a sentence names beside that word? doc_links holds
-# the Markdown links and law_register the law ids; a name in backticks is this check's.
+# The `doc_names` entry (docs/contributing/build-and-test.md): does each name a router, a front page
+# that routes its folder or a much-read page gives in backticks still name something -- a file or
+# folder of this tree, a suite a router names, or a suite, an entry or a gate a sentence names
+# beside that word? doc_links holds the Markdown links and law_register the law ids; a name in
+# backticks is this check's.
 #   cmake -P tests/check_doc_names.cmake    (from the repository root, or -DZEN_REPO=<repo>)
 
 cmake_minimum_required(VERSION 3.16)
@@ -33,8 +34,11 @@ set(ZEN_NAMES_EXTENSIONS md hpp h ipp cpp c cc cxx cmake txt json py sh cmd yml 
 # The folders whose files a name may be the tail of: every row of tests/folders.txt but the quarry,
 # whose files are named from the root or not at all.
 set(ZEN_NAMES_NOT_TAILS quarry)
-# The section of the root router whose bullets name suites, as folder_map reads it.
-set(ZEN_NAMES_ROOT_SECTION "Read this, then route")
+# The section of the guide whose bullets name suites, and the section of a front page that routes
+# its folder (tests/front_page_folders.txt), as folder_map reads them.
+set(ZEN_NAMES_ROOT_PAGE CONTRIBUTING.md)
+set(ZEN_NAMES_ROOT_SECTION "What crosses folders")
+set(ZEN_NAMES_FRONT_SECTION "Working on it")
 # The kinds a row of tests/doc_names.txt may give a name the tree does not hold.
 set(ZEN_NAMES_KINDS written generated installed loom)
 
@@ -608,13 +612,27 @@ foreach(row IN LISTS name_rows)
 endforeach()
 
 # ---- the pages --------------------------------------------------------------------------------
+# A front page that routes its folder is read as a router is.
+set(ZEN_NAMES_FRONT_PAGES "")
+file(STRINGS "${ZEN_REPO}/tests/front_page_folders.txt" front_rows REGEX "^[^#]")
+foreach(folder IN LISTS front_rows)
+    string(STRIP "${folder}" folder)
+    if(NOT folder STREQUAL "" AND EXISTS "${ZEN_REPO}/${folder}/README.md")
+        list(APPEND ZEN_NAMES_FRONT_PAGES "${folder}/README.md")
+        if(NOT "${folder}/README.md" IN_LIST page_files)
+            list(APPEND page_files "${folder}/README.md")
+        endif()
+    endif()
+endforeach()
 foreach(page IN LISTS page_files)
     file(READ "${ZEN_REPO}/${page}" text)
     zen_names_swap("${text}" text)
     get_filename_component(dir "${page}" DIRECTORY)
     set(router "")
-    if(page STREQUAL "AGENTS.md")
+    if(page STREQUAL ZEN_NAMES_ROOT_PAGE)
         set(router "${ZEN_NAMES_ROOT_SECTION}")
+    elseif(page IN_LIST ZEN_NAMES_FRONT_PAGES)
+        set(router "${ZEN_NAMES_FRONT_SECTION}")
     elseif(page MATCHES "(^|/)AGENTS[.]md$")
         set(router "Suites")
     endif()

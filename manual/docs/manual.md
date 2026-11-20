@@ -62,7 +62,7 @@ Builds the recipe you have chosen.
 - **Example:** one concrete use: a press, a line typed, or a weave's send.
 ```
 
-Each section, the page and the number of sections are bounded by the constants
+The page, a section's key and the number of sections are bounded by the constants
 [`manual/manual.hpp`](../manual.hpp) declares, which the build and Workshop judge a page by.
 
 **A key is written in a key marker, and only there**: `<!-- key builder.build -->`b`<!-- /key -->`,
@@ -170,7 +170,7 @@ automatically, so the page describes exactly the shapes the gate lets in.
 
 | check | lane | refuses |
 |---|---|---|
-| the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice, a control byte or a byte past 0x7F |
+| the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a page past its bound, a key twice, a control byte or a byte past 0x7F |
 | `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its role, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its role; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in any current page, whose key is not a default the census or Workshop's own actions hold for its id |
 | Workshop's own actions (`tests/workshop_actions.txt`) | official | a row of `kActionCatalog` -- its context, id, default key and label -- that differs from the committed file; the catalog as it stands is written beside the build to diff |
 | the action census (`tests/actions.txt`, and `tests/actions/<role>.txt` for each further role) | official | a shipped pane whose declared rows -- their keys, causes and the mode each enters -- in every mode its suite drives, differ from the committed census, or a mode whose word of the other modes' causes is not theirs there; the census as it stands is written beside the build to diff |

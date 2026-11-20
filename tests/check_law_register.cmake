@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The `law_register` entry (docs/contributing/build-and-test.md), AGENTS.md's register rules: are
-# the registers, records and pointers well formed and in budget; does every name they make, every
-# case a document cites and every law a comment or document names resolve; do case names carry no
-# plan code or bare label, and documents no plan code? It cannot say whether a law is true; each parse says why.
+# The `law_register` entry (docs/contributing/build-and-test.md), CONTRIBUTING.md's register rules:
+# are the registers, records and pointers well formed (and in budget, while the budgets hold); does
+# every name they make, every case a document cites and every law a comment or document names
+# resolve, a front-page folder's laws on its own law pages among them; do case names carry no plan
+# code or bare label, and documents no plan code? It cannot say whether a law is true; each parse
+# says why.
 #   cmake [-DLAW_REGISTER_STRICT=OFF] [-DZEN_REPO=<repo>] -P tests/check_law_register.cmake
 
 cmake_minimum_required(VERSION 3.16)
@@ -119,6 +121,13 @@ set(ZEN_VM_BECAUSE_MAX 3)
 # to `nowhere yet`, and nobody lowers it to make that pass.
 set(ZEN_VM_APPLIED_FLOOR 103)
 set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
+# The page budgets only cap size, and they are paused while the text is rewritten to the
+# documentation's design (Loom's contributor page on it, its section "The checks"): no page
+# under agents/, no router and no AGENTS.md is held to its bytes, and tests/raised_budgets.txt is
+# not read. folder_map reads this switch too. The self-test still proves every budget's reading;
+# set it OFF and the budgets hold again. The line width, a law's length and the MEANS and DOES NOT
+# MEAN counts are form, and hold.
+set(ZEN_LAW_BUDGETS_PAUSED ON)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.
 set(ZEN_LAW_EXCLUDE
@@ -2584,6 +2593,60 @@ if(vm_applied_count LESS ZEN_VM_APPLIED_FLOOR)
     zen_law_fail("method registers: ${vm_applied_count} entries are applied in the tree, below the floor ${ZEN_VM_APPLIED_FLOOR}; a SEEN was deleted or a method went back to nowhere yet, and the floor is lowered by no one to make that pass")
 endif()
 
+# ---- a front-page folder's laws: its own law pages ----------------------------------------------
+#
+# A folder tests/front_page_folders.txt names keeps its laws on its own pages in its `docs/`, each
+# named for its laws (`*-laws`), one `## <FAMILY>-<NN> — <title>` heading a law, as
+# timer/docs/timer-laws.md does. Every id is
+# declared once, and every citation of a family those pages declare, in a first-party source file or
+# a current-facing document, names a law one of them declares.
+
+# The laws a law page declares, as `<id>` entries, from its `## <FAMILY>-<NN> — ` headings.
+function(zen_law_page_ids text out)
+    string(REGEX MATCHALL "\n## [A-Z]+-[0-9]+ (—|--) " heads "\n${text}")
+    set(ids "")
+    foreach(h IN LISTS heads)
+        string(REGEX MATCH "[A-Z]+-[0-9]+" id "${h}")
+        list(APPEND ids "${id}")
+    endforeach()
+    set(${out} "${ids}" PARENT_SCOPE)
+endfunction()
+# The citations in a text of the families in `families` (a `|` alternation), as `<line>|<id>`: a
+# family, a dash and digits, standing alone: an id inside a longer token, with a letter or a dash
+# before it or a dash after it, is no citation.
+function(zen_law_page_cites text families out)
+    string(REPLACE "\r" "" text "${text}")
+    string(REPLACE ";" "," text "${text}")
+    string(REPLACE "\n" ";" lines "${text}")
+    set(found "")
+    set(n 0)
+    foreach(line IN LISTS lines)
+        math(EXPR n "${n} + 1")
+        if(NOT line MATCHES "(${families})-[0-9]")
+            continue()
+        endif()
+        string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(${families})-[0-9]+([^A-Za-z0-9_-]|$)" hits "${line}")
+        foreach(hit IN LISTS hits)
+            if(hit MATCHES "-[0-9]+-$")
+                continue()
+            endif()
+            string(REGEX MATCH "(${families})-[0-9]+" id "${hit}")
+            list(APPEND found "${n}|${id}")
+        endforeach()
+    endforeach()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
+zen_law_page_ids("# Laws\n\n## TIMER-01 — One\n\ntext ## TIMER-09 — not a heading\n## TIMER-02 -- Two\n### TIMER-03 — a subheading\n" st_page_ids)
+if(NOT st_page_ids STREQUAL "TIMER-01;TIMER-02")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a law page declares '${st_page_ids}', want "
+                        "'TIMER-01;TIMER-02' (only a `## ` heading opening with an id declares one)")
+endif()
+zen_law_page_cites("see TIMER-01 and (TIMER-07);\nX-TIMER-02, TIMER-03-B and TIMER-04a are no citation\nTIMER-05" "TIMER" st_page_cites)
+if(NOT st_page_cites STREQUAL "1|TIMER-01;1|TIMER-07;3|TIMER-05")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- citations read as '${st_page_cites}', want "
+                        "'1|TIMER-01;1|TIMER-07;3|TIMER-05'")
+endif()
+
 # ---- the budgets: every *.md under agents/ -----------------------------------------------------
 #
 # A file's bytes are counted without its value markers or carriage returns. A router is one named
@@ -2610,6 +2673,9 @@ list(LENGTH agents_md agents_md_count)
 if(agents_md_count EQUAL 0)
     message(FATAL_ERROR "law-register: no *.md under ${ZEN_LAW_AGENTS_DIR}/ at all; check ZEN_REPO.")
 endif()
+set(records_flagged 0)
+set(raised_report "")
+if(NOT ZEN_LAW_BUDGETS_PAUSED)
 set(raised_path "${ZEN_REPO}/tests/raised_budgets.txt")
 if(NOT EXISTS "${raised_path}")
     zen_law_fail("tests/raised_budgets.txt does not exist")
@@ -2695,6 +2761,7 @@ foreach(rel IN LISTS raised_rels)
         zen_law_fail("${gone}")
     endif()
 endforeach()
+endif()
 
 # ---- witness debts are written in both places or in neither -------------------------------
 #
@@ -3322,9 +3389,73 @@ foreach(family IN LISTS ZEN_LAW_FAMILIES)
 endforeach()
 message(STATUS "law-register: ${vm_register_count} method registers, ${vm_entry_count} entries -- "
                "${vm_applied_count} applied in the tree (floor ${ZEN_VM_APPLIED_FLOOR}), ${vm_nowhere_count} nowhere yet")
-message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/ within budget; "
-               "raised:${raised_report}; records over "
-               "${ZEN_LAW_RECORD_FLAG_BYTES} bytes: ${records_flagged}")
+# ---- population 7: a front-page folder's law pages, and every citation of their families --------
+set(front_law_folder_count 0)
+set(front_law_page_count 0)
+set(front_law_count 0)
+set(front_cite_count 0)
+set(front_law_ids "")
+set(front_law_family_list "")
+file(STRINGS "${ZEN_REPO}/tests/front_page_folders.txt" front_rows REGEX "^[^#]")
+foreach(folder IN LISTS front_rows)
+    string(STRIP "${folder}" folder)
+    if(folder STREQUAL "")
+        continue()
+    endif()
+    math(EXPR front_law_folder_count "${front_law_folder_count} + 1")
+    file(GLOB pages RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${folder}/docs/*-laws.md")
+    list(SORT pages)
+    foreach(page IN LISTS pages)
+        math(EXPR front_law_page_count "${front_law_page_count} + 1")
+        zen_law_text("${page}" content)
+        zen_law_page_ids("${content}" ids)
+        if(ids STREQUAL "")
+            zen_law_fail("${page} is a law page and declares no law: a `## <FAMILY>-<NN> — <title>` heading a law")
+        endif()
+        foreach(id IN LISTS ids)
+            if(id IN_LIST front_law_ids OR id IN_LIST all_ids OR id IN_LIST vm_ids)
+                zen_law_fail("${page} declares ${id}, which another law page or register declares too; an id is declared once")
+            endif()
+            list(APPEND front_law_ids "${id}")
+            math(EXPR front_law_count "${front_law_count} + 1")
+            string(REGEX MATCH "^[A-Z]+" family "${id}")
+            if(NOT family IN_LIST front_law_family_list)
+                list(APPEND front_law_family_list "${family}")
+            endif()
+        endforeach()
+    endforeach()
+endforeach()
+if(front_law_folder_count EQUAL 0)
+    message(FATAL_ERROR "law-register: tests/front_page_folders.txt names no folder; an empty population "
+                        "is a failure, not a pass")
+endif()
+string(REPLACE ";" "|" front_families "${front_law_family_list}")
+string(REPLACE ";" ", " front_law_families "${front_law_family_list}")
+if(NOT front_families STREQUAL "")
+    foreach(rel IN LISTS source_files plan_documents)
+        zen_law_text("${rel}" content)
+        zen_law_page_cites("${content}" "${front_families}" cites)
+        foreach(cite IN LISTS cites)
+            math(EXPR front_cite_count "${front_cite_count} + 1")
+            string(REGEX MATCH "^([0-9]+)[|](.*)$" _ "${cite}")
+            if(NOT CMAKE_MATCH_2 IN_LIST front_law_ids)
+                zen_law_fail("${rel}:${CMAKE_MATCH_1}: cites ${CMAKE_MATCH_2}, which no law page of a front-page folder declares; cite the law that holds the fact, or say it in words")
+            endif()
+        endforeach()
+    endforeach()
+endif()
+
+if(ZEN_LAW_BUDGETS_PAUSED)
+    message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/; the page "
+                   "budgets are paused (ZEN_LAW_BUDGETS_PAUSED), and tests/raised_budgets.txt is not read")
+else()
+    message(STATUS "law-register: ${agents_md_count} files under ${ZEN_LAW_AGENTS_DIR}/ within budget; "
+                   "raised:${raised_report}; records over "
+                   "${ZEN_LAW_RECORD_FLAG_BYTES} bytes: ${records_flagged}")
+endif()
+message(STATUS "law-register: ${front_law_folder_count} front-page folders, ${front_law_page_count} "
+               "law pages, ${front_law_count} laws (${front_law_families}), ${front_cite_count} "
+               "citations of them read")
 message(STATUS "law-register: ${path_count} proof paths, ${ident_count} identifiers, "
                "${witness_checked} witnesses checked against ${witness_count} TEST_CASE/SUBCASE "
                "literals in ${witness_file_count} files")
@@ -3374,8 +3505,8 @@ if(NOT problems STREQUAL "")
         "${problems}\n\n"
         "  This check validates register form and references, not intended behavior or "
         "architectural fitness. Trace disagreements before changing code, tests, or law; "
-        "passing tests do not automatically overrule a contract. See AGENTS.md, Intent, "
-        "evidence, and architectural fit, and the routers (${ZEN_LAW_ROUTERS}, Ongoing rules).")
+        "passing tests do not automatically overrule a contract. See CONTRIBUTING.md, What a "
+        "change is judged against, and the routers (${ZEN_LAW_ROUTERS}, Ongoing rules).")
 endif()
 
 message(STATUS "law-register: PASSED -- every register is well-formed and every name it makes resolves"

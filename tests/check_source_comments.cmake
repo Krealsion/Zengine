@@ -2,8 +2,9 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The `source_comments` entry: do the comments under the roots below meet the source comment
-# standard (docs/contributing/repository-conventions.md)? A long block, a removal note or a private
-# id is a red that names where the text belongs; an empty population is a red. It cannot see a
+# standard (docs/contributing/repository-conventions.md)? A long block while its limit holds, a
+# removal note or a private id is a red that names where the text belongs; an empty population is a
+# red. It cannot see a
 # multi-line `/* */` comment, or history and phase names put in other words.
 #   cmake -P tests/check_source_comments.cmake    (from the repository root, or -DZEN_REPO=<repo>)
 
@@ -32,6 +33,11 @@ set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt 
 # (`// Workshop law:`) and the SPDX pair not counted, outside an installed header: one that
 # cmake/ZengineInstall.cmake's code installs documents a public API and is spared this rule alone.
 set(ZEN_COMMENT_BLOCK_LIMIT 6)
+# The limit only caps size, and it is paused while the comments are rewritten to the documentation's
+# design (Loom's contributor page on it, its section "The checks"), which asks for complete
+# sentences and lets a comment say more where its reader needs it. The self-test still proves the
+# block count; set this OFF and the tree is held to the limit again.
+set(ZEN_COMMENT_BLOCK_LIMIT_PAUSED ON)
 # A private id is an upper-case token ending in a dash and a number, outside the families a
 # comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's published law families,
 # whose numbers have two digits: a family's letters with a one-digit number are a phase tag. A
@@ -162,7 +168,7 @@ function(zen_comments_scan rel kind exempt content out)
                 math(EXPR block "${block} + 1")
             endif()
         else()
-            if(block GREATER ZEN_COMMENT_BLOCK_LIMIT AND NOT exempt)
+            if(NOT ZEN_COMMENT_BLOCK_LIMIT_PAUSED AND block GREATER ZEN_COMMENT_BLOCK_LIMIT AND NOT exempt)
                 list(APPEND findings "${rel}:${block_start}: a comment block of ${block} lines (at most ${ZEN_COMMENT_BLOCK_LIMIT}) -- keep what a reader needs in a line and move the reasoning to its owner, a decision record or a reference page, and law to its register")
             endif()
             set(block 0)
@@ -173,7 +179,7 @@ function(zen_comments_scan rel kind exempt content out)
             list(APPEND findings ${judged})
         endif()
     endforeach()
-    if(block GREATER ZEN_COMMENT_BLOCK_LIMIT AND NOT exempt)
+    if(NOT ZEN_COMMENT_BLOCK_LIMIT_PAUSED AND block GREATER ZEN_COMMENT_BLOCK_LIMIT AND NOT exempt)
         list(APPEND findings "${rel}:${block_start}: a comment block of ${block} lines at the end of the file")
     endif()
     set(${out} "${findings}" PARENT_SCOPE)
@@ -277,6 +283,14 @@ function(zen_comments_expect label kind text want)
     endif()
 endfunction()
 set(six "// one\n// two\n// three\n// four\n// five\n// six\n")
+# The block count is proven with the limit held, whatever the tree is held to, and the pause is
+# proven to let a long block through while a private id in it is still refused.
+set(zen_paused_for_tree ${ZEN_COMMENT_BLOCK_LIMIT_PAUSED})
+set(ZEN_COMMENT_BLOCK_LIMIT_PAUSED ON)
+zen_comments_expect("a seven-line block while the limit is paused" cxx "${six}// seven\nint x;\n" 0)
+zen_comments_expect("a private id in a long block while the limit is paused" cxx
+    "${six}// see VD-27\nint x;\n" 1)
+set(ZEN_COMMENT_BLOCK_LIMIT_PAUSED OFF)
 zen_comments_expect("a seven-line block" cxx "${six}// seven\nint x;\n" 1)
 zen_comments_expect("six lines, a pointer and the law line" cxx
     "// Workshop law: agents/workshop/x.md\n${six}// WL-KEY-15 -- agents/workshop/keyboard.md\nint x;\n" 0)
@@ -351,6 +365,12 @@ if(pointer STREQUAL "")
     message(FATAL_ERROR "source-comments: no law pointer found in the population to self-test against")
 endif()
 zen_comments_expect("a pointer read from the tree" cxx "${six}${pointer}\nint x;\n" 0)
+set(ZEN_COMMENT_BLOCK_LIMIT_PAUSED ${zen_paused_for_tree})
+if(ZEN_COMMENT_BLOCK_LIMIT_PAUSED)
+    set(zen_block_rule "paused ${ZEN_COMMENT_BLOCK_LIMIT}-line block rule")
+else()
+    set(zen_block_rule "${ZEN_COMMENT_BLOCK_LIMIT}-line block rule")
+endif()
 
 # ---- the tree --------------------------------------------------------------------------
 set(findings "")
@@ -374,10 +394,14 @@ list(LENGTH findings finding_count)
 message(STATUS "source-comments: ${population_count} files held under ${ZEN_COMMENT_ROOTS} (C/C++, "
                "CMake and the population manifest), ${lines_read} lines "
                "read; ${installed_count} installed headers exempt from the "
-               "${ZEN_COMMENT_BLOCK_LIMIT}-line block rule; self-test passed")
+               "${zen_block_rule}; self-test passed")
 if(finding_count GREATER 0)
     zen_comments_show("${findings}" shown)
     string(REPLACE ";" "\n  " shown "${shown}")
     message(FATAL_ERROR "source-comments: ${finding_count} findings:\n  ${shown}")
 endif()
-message(STATUS "source-comments: PASSED -- no long block, removal note or private id")
+if(ZEN_COMMENT_BLOCK_LIMIT_PAUSED)
+    message(STATUS "source-comments: PASSED -- no removal note or private id")
+else()
+    message(STATUS "source-comments: PASSED -- no long block, removal note or private id")
+endif()

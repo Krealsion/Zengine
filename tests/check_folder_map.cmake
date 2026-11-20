@@ -2,9 +2,12 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The `folder_map` entry (docs/contributing/build-and-test.md): tests/folders.txt names every
-# top-level folder and its kind; each feature, the host and each library holds a README.md and an
-# AGENTS.md router within the law check's router budget; each file under agents/ but the decision
-# records is routed by one router's `## Law`, each CTest entry claimed by one `## Suites`.
+# top-level folder and its kind; each feature, the host and each library holds a README.md. A folder
+# tests/front_page_folders.txt names is in the documentation's shape: no AGENTS.md, and a front page
+# whose last section, `## Working on it`, claims its suites. Every other one holds an AGENTS.md
+# router with `## Law` and `## Suites`. Each file under agents/ but the decision records is routed by
+# one router's `## Law`, and each CTest entry is claimed once, by a router, a front page or the
+# guide's `## What crosses folders`.
 #   cmake -P tests/check_folder_map.cmake    (from the repository root, or -DZEN_REPO=<repo>)
 
 cmake_minimum_required(VERSION 3.16)
@@ -23,14 +26,26 @@ endif()
 set(ZEN_MAP_KINDS feature host library examples build tests tools docs law quarry repository)
 set(ZEN_MAP_ROUTED_KINDS feature host library)
 set(ZEN_MAP_NOT_FOLDERS "^([.](git|idea|vscode|claude|cache)|__pycache__|build|out|_install)$|^build-|^cmake-build")
-set(ZEN_MAP_ROOT_SECTION "Read this, then route")
+set(ZEN_MAP_ROOT_PAGE CONTRIBUTING.md)
+set(ZEN_MAP_ROOT_SECTION "What crosses folders")
+set(ZEN_MAP_FRONT_SECTION "Working on it")
 
-# The router budget and the line width are the law check's (AGENTS.md, rule i), read from it.
+# The router budget, its pause and the line width are the law check's (CONTRIBUTING.md, rule i),
+# read from it, so one switch pauses the page budgets for both checks.
 file(READ "${ZEN_REPO}/tests/check_law_register.cmake" law_check)
 if(NOT law_check MATCHES "set\\(ZEN_LAW_ROUTER_BYTES ([0-9]+)\\)")
     message(FATAL_ERROR "folder-map: no ZEN_LAW_ROUTER_BYTES in tests/check_law_register.cmake")
 endif()
 set(ZEN_MAP_ROUTER_BYTES ${CMAKE_MATCH_1})
+if(NOT law_check MATCHES "set\\(ZEN_LAW_BUDGETS_PAUSED (ON|OFF)\\)")
+    message(FATAL_ERROR "folder-map: no ZEN_LAW_BUDGETS_PAUSED in tests/check_law_register.cmake")
+endif()
+set(ZEN_MAP_BUDGETS_PAUSED ${CMAKE_MATCH_1})
+if(ZEN_MAP_BUDGETS_PAUSED)
+    set(ZEN_MAP_BUDGETS_PAUSED_WORD paused)
+else()
+    set(ZEN_MAP_BUDGETS_PAUSED_WORD held)
+endif()
 if(NOT law_check MATCHES "set\\(ZEN_LAW_LINE_BYTES ([0-9]+)\\)")
     message(FATAL_ERROR "folder-map: no ZEN_LAW_LINE_BYTES in tests/check_law_register.cmake")
 endif()
@@ -73,6 +88,16 @@ function(zen_map_section text title out)
     set(${out} "${rest}" PARENT_SCOPE)
 endfunction()
 
+# The title of the text's last `## ` heading, or empty when it has none.
+function(zen_map_last_section text out)
+    string(REGEX MATCHALL "\n## [^\n]*" headings "\n${text}")
+    set(last "")
+    foreach(h IN LISTS headings)
+        string(REGEX REPLACE "^\n## " "" last "${h}")
+    endforeach()
+    set(${out} "${last}" PARENT_SCOPE)
+endfunction()
+
 # The repository paths a section's Markdown links name, resolved from the router's folder `dir`
 # (empty at the root); an anchor is dropped, a link to a URL or above the root is not a path.
 function(zen_map_link_targets section dir out)
@@ -99,15 +124,19 @@ function(zen_map_link_targets section dir out)
 endfunction()
 
 # The entries a section claims: on each line opening `- \``, the backticked names before the
-# line's first dash of explanation (` — ` or ` -- `), those of them the population declares.
+# line's first dash of explanation (` — ` or ` -- `), and on each table row the backticked names in
+# its first cell; those of them the population declares.
 function(zen_map_claims section population out)
     set(found "")
     string(REPLACE "\n" ";" lines "${section}")
     foreach(line IN LISTS lines)
-        if(NOT line MATCHES "^- `")
+        if(line MATCHES "^[|][ \t]*(`[^|]*)[|]")
+            set(head "${CMAKE_MATCH_1}")
+        elseif(line MATCHES "^- `")
+            string(REGEX REPLACE " (—|--) .*$" "" head "${line}")
+        else()
             continue()
         endif()
-        string(REGEX REPLACE " (—|--) .*$" "" head "${line}")
         string(REGEX MATCHALL "`[^`]+`" names "${head}")
         foreach(name IN LISTS names)
             string(REGEX REPLACE "^`(.*)`$" "\\1" name "${name}")
@@ -134,6 +163,20 @@ if(NOT st_claims STREQUAL "e1;e2;e4;e7")
                         "want 'e1;e2;e4;e7' (a name after the dash, in prose or in another section is "
                         "no claim, and a stray bracket hides none)")
 endif()
+zen_map_swap("# t\n\n## Parts\n\n| `e9` | not a suite section |\n\n## Working on it\n\n| suite | what |\n|---|---|\n| `e1` | one |\n| `e2`, `e3` | two, naming `e4` |\n| the rest | `e5` |\n- `e6` -- a list line\n" st_front)
+zen_map_last_section("${st_front}" st_last)
+zen_map_section("${st_front}" "Working on it" st_work)
+zen_map_claims("${st_work}" "e1;e2;e3;e4;e5;e6;e9" st_claims)
+if(NOT st_last STREQUAL "Working on it" OR NOT st_claims STREQUAL "e1;e2;e3;e6")
+    message(FATAL_ERROR "folder-map: SELF-TEST FAILED -- a front page's last section read as '${st_last}' "
+                        "and claims '${st_claims}', want 'Working on it' and 'e1;e2;e3;e6' (a table row "
+                        "claims what its first cell names, and nothing in another cell or section)")
+endif()
+zen_map_swap("# t\n\n## Working on it\n\n- `e1`\n\n## Notes\n" st_front)
+zen_map_last_section("${st_front}" st_last)
+if(NOT st_last STREQUAL "Notes")
+    message(FATAL_ERROR "folder-map: SELF-TEST FAILED -- a front page ending in another section read as '${st_last}'")
+endif()
 string(MD5 st_a "agents/w/a.md")
 string(MD5 st_b "agents/w_a.md")
 if(st_a STREQUAL st_b)
@@ -150,6 +193,23 @@ if(NOT "__pycache__" MATCHES "${ZEN_MAP_NOT_FOLDERS}" OR NOT "build-win" MATCHES
 endif()
 
 set(problems "")
+
+# ---- the folders whose front page is their router ----------------------------------------------
+file(STRINGS "${ZEN_REPO}/tests/front_page_folders.txt" front_rows REGEX "^[^#]")
+set(front_folders "")
+foreach(row IN LISTS front_rows)
+    string(STRIP "${row}" row)
+    if(row STREQUAL "")
+        continue()
+    endif()
+    if(NOT row MATCHES "^[A-Za-z0-9_.-]+$")
+        list(APPEND problems "tests/front_page_folders.txt: '${row}' is not a top-level folder's name")
+    elseif(row IN_LIST front_folders)
+        list(APPEND problems "tests/front_page_folders.txt names ${row} twice")
+    else()
+        list(APPEND front_folders "${row}")
+    endif()
+endforeach()
 
 # ---- the rows ---------------------------------------------------------------------------------
 file(STRINGS "${ZEN_REPO}/tests/folders.txt" rows REGEX "^[^#]")
@@ -174,11 +234,23 @@ foreach(row IN LISTS rows)
         list(APPEND problems "tests/folders.txt names ${folder}, which is no folder of this repository")
     elseif(kind IN_LIST ZEN_MAP_ROUTED_KINDS)
         list(APPEND routed "${folder}")
-        foreach(page README.md AGENTS.md)
-            if(NOT EXISTS "${ZEN_REPO}/${folder}/${page}")
-                list(APPEND problems "${folder}/ is a ${kind} and holds no ${page}")
+        if(NOT EXISTS "${ZEN_REPO}/${folder}/README.md")
+            list(APPEND problems "${folder}/ is a ${kind} and holds no README.md")
+        endif()
+        if(folder IN_LIST front_folders)
+            if(EXISTS "${ZEN_REPO}/${folder}/AGENTS.md")
+                list(APPEND problems "${folder}/ is in tests/front_page_folders.txt and holds an AGENTS.md: its front page's `## ${ZEN_MAP_FRONT_SECTION}` is its router, so the router goes")
             endif()
-        endforeach()
+        elseif(NOT EXISTS "${ZEN_REPO}/${folder}/AGENTS.md")
+            list(APPEND problems "${folder}/ is a ${kind} and holds no AGENTS.md: give it a router, or give its front page a last section `## ${ZEN_MAP_FRONT_SECTION}` and name it in tests/front_page_folders.txt")
+        endif()
+    elseif(folder IN_LIST front_folders)
+        list(APPEND problems "tests/front_page_folders.txt names ${folder}, a ${kind}; only a feature, the host or a library has a router")
+    endif()
+endforeach()
+foreach(folder IN LISTS front_folders)
+    if(NOT folder IN_LIST listed)
+        list(APPEND problems "tests/front_page_folders.txt names ${folder}, which tests/folders.txt does not")
     endif()
 endforeach()
 list(LENGTH listed listed_count)
@@ -198,10 +270,15 @@ foreach(entry IN LISTS top)
     endif()
 endforeach()
 
-# ---- the routers: the root's routing section, and every listed folder's AGENTS.md ------------
-set(routers AGENTS.md)
+# ---- the routers: the guide's routing section, each front page's last section, and every other
+# listed folder's AGENTS.md -----------------------------------------------------------------------
+set(routers "${ZEN_MAP_ROOT_PAGE}")
 foreach(folder IN LISTS listed)
-    if(EXISTS "${ZEN_REPO}/${folder}/AGENTS.md")
+    if(folder IN_LIST front_folders)
+        if(EXISTS "${ZEN_REPO}/${folder}/README.md")
+            list(APPEND routers "${folder}/README.md")
+        endif()
+    elseif(EXISTS "${ZEN_REPO}/${folder}/AGENTS.md")
         list(APPEND routers "${folder}/AGENTS.md")
     endif()
 endforeach()
@@ -227,13 +304,26 @@ endif()
 
 foreach(router IN LISTS routers)
     zen_map_read("${ZEN_REPO}/${router}" text)
-    if(router STREQUAL "AGENTS.md")
+    if(router STREQUAL ZEN_MAP_ROOT_PAGE)
         set(dir "")
         zen_map_section("${text}" "${ZEN_MAP_ROOT_SECTION}" law)
         set(suites "${law}")
         if(law STREQUAL "")
-            list(APPEND problems "AGENTS.md has no `## ${ZEN_MAP_ROOT_SECTION}` section to route from")
+            list(APPEND problems "${ZEN_MAP_ROOT_PAGE} has no `## ${ZEN_MAP_ROOT_SECTION}` section to route from")
         endif()
+    elseif(router MATCHES "/README[.]md$")
+        # A front page claims its suites in its last section and routes no register: its laws are
+        # its own pages, and a link it gives into agents/ is a reference, not a route.
+        set(dir "")
+        set(law "")
+        zen_map_last_section("${text}" last)
+        if(NOT last STREQUAL ZEN_MAP_FRONT_SECTION)
+            if(last STREQUAL "")
+                set(last "none")
+            endif()
+            list(APPEND problems "${router}'s last section is `## ${last}`; a front page that is its folder's router ends with `## ${ZEN_MAP_FRONT_SECTION}`")
+        endif()
+        zen_map_section("${text}" "${ZEN_MAP_FRONT_SECTION}" suites)
     else()
         get_filename_component(dir "${router}" DIRECTORY)
         zen_map_section("${text}" "Law" law)
@@ -248,7 +338,7 @@ foreach(router IN LISTS routers)
         file(READ "${ZEN_REPO}/${router}" raw)
         string(REPLACE "\r" "" raw "${raw}")
         string(LENGTH "${raw}" bytes)
-        if(bytes GREATER ZEN_MAP_ROUTER_BYTES)
+        if(NOT ZEN_MAP_BUDGETS_PAUSED AND bytes GREATER ZEN_MAP_ROUTER_BYTES)
             list(APPEND problems "${router} is ${bytes} bytes (a router is at most ${ZEN_MAP_ROUTER_BYTES})")
         endif()
         string(REPLACE ";" "," raw "${raw}")
@@ -302,9 +392,11 @@ endforeach()
 
 list(LENGTH routers router_count)
 list(LENGTH routed routed_count)
+list(LENGTH front_folders front_count)
 message(STATUS "folder-map: ${listed_count} folders listed and ${present} present; ${routed_count} "
-               "are a feature, the host or a library; ${router_count} routers read with the root's; "
-               "${register_count} registers and ${population_count} CTest entries routed")
+               "are a feature, the host or a library, ${front_count} of them routed by their front "
+               "page; ${router_count} routers read with the guide's; ${register_count} registers and "
+               "${population_count} CTest entries routed; router budgets ${ZEN_MAP_BUDGETS_PAUSED_WORD}")
 if(problems)
     list(LENGTH problems problem_count)
     string(REPLACE ";" "\n  " shown "${problems}")
