@@ -596,7 +596,7 @@ both placed (`component/control_strip.hpp`).
 
 Scrolling: a Workshop list's window comes from `list_window`, and every omission is counted and
 said out loud; Info's is derived every publication and stored nowhere
-(`agents/workshop/info-body.md`, WL-INFO-03).
+(`agents/workshop/info-body.md`).
 
 **Traps.**
 - ⚠ `DropDown::_toggle_panel()` on close does `delete _option_panel;` **without** clearing the
@@ -1459,14 +1459,14 @@ touching this file, and the owner is always the better answer.*
 | input: layers, priority, consumption | `create_layer` + `PASS`/`CONSUME` (**never driven**) | consumption is the application's; Workshop's press chain and its priority order are written down | partial | `agents/workshop/press-chain.md` (WL-PRESS-01, WL-PRESS-04) |
 | input: rebinding capture | `listen_for_key_combo()` | none | absent | — |
 | input: pointer warp / cursor / relative mode | nine `Input` methods | none | absent | — |
-| keyboard focus | a `bool` on `TextBox` | `Panels::keyboard` — a pointing's memory, resolved fresh at every spend | covered (stronger) | `agents/workshop/focus.md` (WL-FOCUS-01) |
+| keyboard focus | a `bool` on `TextBox` | `Panels::keyboard` — a pointing's memory, resolved fresh at every spend | covered (stronger) | `agents/workshop/focus.md` |
 | authored geometry (mode + amount) | `SizeTo`/`PositionTo`/`PaddingTo` with per-axis amounts | `Extent{mode, amount}`, authored `x`/`y`, a named context frame | partial | `ui/docs/ui.md` |
 | resolved geometry, kept separate | not separated — one mutable node held both | a compile-time fence; resolution needs a viewport; result cached nowhere | intentionally different | `ui/docs/ui.md` |
 | parent/child containment | `CustomLayout` tree | **none** — an element names what its values are measured against, not what contains it | intentionally different | `ui/docs/ui.md` |
 | padding / margin box model | full, per side, with percent | none | absent | — |
 | row/column stacking with spacing | `set_vertical`/`set_horizontal` + `set_child_spacing` | none in `ui`; Workshop composes rows itself | absent | — |
 | fill / leftover-space distribution | `SizeTo::FILL` | none in `ui`; `share_body_rows` is Workshop's own max-min fair share over rows | partial | `agents/workshop.md` |
-| z-order / floating content | none — popups escaped to the `GameState` | an ordered plane sequence; hit order the exact reverse of paint order | covered (stronger) | `agents/workshop/planes.md` (WL-FRONT-01, WL-FRONT-05) |
+| z-order / floating content | none — popups escaped to the `GameState` | an ordered plane sequence; hit order the exact reverse of paint order | covered (stronger) | `agents/workshop/planes.md` (WL-FRONT-05) |
 | hit testing | `find_component`, plus two copies elsewhere | one geometry draws a thing and hits it — a standing rule against a second copy | covered (stronger) | `agents/workshop/geometry.md` (WL-GEO-01) |
 | widget set | Button, DropDown, ScrollView, Text, TextBox | no widget set: pieces extracted from repeated working behaviour; Button explicitly declined | intentionally different | `component/docs/component.md` |
 | text editing state | append + backspace-at-end, caret as a literal pipe glyph in the string | `component::TextBox` — one state carrying text, caret and a visible window, on character boundaries | superseded | `component/docs/component.md` |

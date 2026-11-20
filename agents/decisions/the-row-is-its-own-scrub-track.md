@@ -38,8 +38,8 @@ was the Info pane's two rows, and the Info pane became a loaded weave, which sen
 already cut, so the unfitted string the reveal depended on never reaches the host. The alternative
 this record rejected — widening the pane protocol to ask for a longer text — is still refused.
 The decision lives where the value does: Files holds its paths, and the pane protocol's facets hand
-it the resting pointer, so its path rows are their own scrub track (WL-FILES-20), by the same rule
+it the resting pointer, so its path rows are their own scrub track, by the same rule
 -- the pointer's column the offset, the left edge the start and the right the end. The host's four
 retired laws are in [pointer](../workshop/pointer.md); the one about a medium stands.
 
-**Laws supported.** [WL-FILES-20](../workshop/files.md), [WL-PTR-09](../workshop/pointer.md).
+**Laws supported.** [WL-PTR-09](../workshop/pointer.md).

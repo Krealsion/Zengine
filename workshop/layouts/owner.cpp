@@ -135,7 +135,6 @@ void LayoutsOwner::settle(loom::Mail& mail, bool picture) {
 // ---- The presenter's link -----------------------------------------------------------------------
 
 // WL-LAYOUT-01 -- agents/workshop/layouts.md
-// WL-SESSION-14 -- agents/workshop/session-restore.md
 void LayoutsOwner::on(const LayoutEditRequested& asked, loom::Mail& mail) {
     read_host();
     if (!from_presenter(mail)) {
@@ -198,7 +197,6 @@ void LayoutsOwner::on(const SessionSaveRequested&, loom::Mail& mail) {
     (void)mail.answer(SessionSaveAnswered{refused.empty(), refused});
 }
 
-// WL-PANE-10 -- agents/workshop/panes-and-windows.md
 void LayoutsOwner::on(const PaneInventory& said, loom::Mail& mail) {
     read_host();
     // THE PRESENTER'S PUBLICATION, or its answer to this role's ask, which Loom verifies.
@@ -260,7 +258,6 @@ void LayoutsOwner::on(const WeaversActAnswered& answered, loom::Mail& mail) {
 
 // ---- A desk put live from a caller's text -------------------------------------------------------
 
-// WL-LAYOUT-05 -- agents/workshop/layouts.md
 void LayoutsOwner::on(const SetupApplyRequested& asked, loom::Mail& mail) {
     read_host();
     const std::string refused = store_.apply_setup(asked.setup);

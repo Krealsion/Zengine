@@ -19,7 +19,6 @@
 namespace zengine::input {
 
 /// One gesture as the wire reports it: a named scancode and the EXACT observed modifier bits.
-// WL-KEY-04 -- agents/workshop/keyboard.md
 struct Gesture {
     std::int64_t scancode = 0;
     std::int64_t modifiers = 0;
@@ -30,14 +29,12 @@ struct Gesture {
 };
 
 /// IS THIS A GESTURE A WEAVER CAN PRESS?
-// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-13 -- agents/workshop/key-spelling.md
 inline constexpr bool is_bound(const Gesture& g) noexcept {
     return g.scancode != scan::kUnknown;
 }
 
 /// The declaration a row makes when the action is reachable from a surface that names it
 /// and from no key at all.
-// WL-KEY-13 -- agents/workshop/key-spelling.md
 inline constexpr Gesture kNoGesture{scan::kUnknown, mod::kNone};
 
 // ---- The written gesture grammar ---------------------------------------------------------
@@ -179,7 +176,7 @@ inline constexpr bool is_letter_scan(std::int64_t sc) noexcept {
 }
 
 /// A gesture as the SCREEN spells it -- the band's own compact voice.
-// WL-KEY-02 -- agents/workshop/keyboard.md; WL-KEY-13 -- agents/workshop/key-spelling.md
+// WL-KEY-02 -- agents/workshop/keyboard.md
 inline std::string gesture_text(const Gesture& g) {
     // An action that answers to no key says so: `?` would read as a key a weaver cannot find, and
     // `-` is a real binding.
@@ -223,7 +220,6 @@ inline std::string gesture_text(const Gesture& g) {
 /// HOW A SURFACE SPELLS A KEY, the weaver's to choose for each surface apart: short, the band's
 /// compact voice (`B`, `^p`, `enter`), or full, as a keymap file writes it (`shift+b`, `ctrl+p`,
 /// `return`).
-// WL-KEY-16 -- agents/workshop/key-spelling.md
 enum class KeySpelling : std::uint8_t { kShort, kFull };
 
 /// The two spellings' words, as a preferences file and `KeymapShown` write them.
@@ -240,7 +236,6 @@ inline KeySpelling spelling_of(std::string_view word) {
 }
 
 /// A gesture in the spelling chosen: `gesture_text` or `gesture_word`, and `unbound` for no key.
-// WL-KEY-16 -- agents/workshop/key-spelling.md
 inline std::string spell_gesture(const Gesture& g, KeySpelling spelling) {
     if (spelling == KeySpelling::kShort || !is_bound(g)) {
         return gesture_text(g);
@@ -379,7 +374,6 @@ inline std::string gap_sentence(std::string_view spelled, std::string_view id, c
 
 /// THE TEXT A CONSUMED PRINTABLE GESTURE'S OWN KEYSTROKE PRODUCES, or "" when none is
 /// expected.
-// WL-KEY-12 -- agents/workshop/keyboard.md
 inline std::string expected_text_of(std::int64_t scancode, std::int64_t modifiers) {
     // Ctrl+Space is the one chord a window may also type, as a space: the Windows console does.
     if (scancode == scan::kSpace && modifiers == mod::kCtrl) {

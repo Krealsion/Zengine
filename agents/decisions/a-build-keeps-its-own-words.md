@@ -32,6 +32,4 @@ as a space and an escape sequence as nothing.
 to that line is still the Editor's wheel. More `BuildOutput` messages cross the bus in a chatty
 build, each bounded.
 
-**Laws supported.** [WL-OUT-01](../workshop/build-output.md),
-[WL-OUT-02](../workshop/build-output.md), [WL-OUT-03](../workshop/build-output.md),
-[WL-OUT-04](../workshop/build-output.md).
+**Laws supported.** [WL-OUT-03](../workshop/build-output.md).

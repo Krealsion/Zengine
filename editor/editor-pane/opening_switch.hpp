@@ -128,7 +128,7 @@ inline Preparation EditorPaneWeave::prepare(std::int64_t asked_op, const std::st
     if (plan.same_path) {
         // THE DOCUMENT IS THIS ONE; what the operation changes is the desk. Composed for
         // the trial room on a COPY of the view, because asking for the open source again
-        // moves the pane and never the view (WL-EDIT-09).
+        // moves the pane and never the view.
         offered = identity_now();
         offered.opened_by = asked_op;
         out.shown = compose(e_, viewport_of(e_), rows, columns,

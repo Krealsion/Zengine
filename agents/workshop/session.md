@@ -5,6 +5,8 @@ the roots. What a session holds and how it comes back is in
 [`session-restore.md`](session-restore.md). One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
+Retired: WL-SESSION-02
+
 ## WL-SESSION-01 — The weaver's files live in three ownership domains, each file one writer's
 
 LAW — The weaver-facing files live in three ownership domains: project (`--setup`), configuration (`--keymap`, `--prefs`), state (`--session`, its window file, `--marks`); plans ship beside the binary.
@@ -17,16 +19,6 @@ MEANS
 
 DOES NOT MEAN
 - that an old object document is read: `--document` names one to be said and left (WL-DOC-22).
-
-WHY — `agents/decisions/three-ownership-domains.md`
-
-## WL-SESSION-02 — The precedence is pinned and has one spelling
-
-LAW — The precedence has one spelling: an explicit path the weaver typed, then `--isolated`, then the per-user default; `--isolated` resolves the per-user defaults to the designed empty-path absence.
-
-MEANS
-- `--isolated` is the flag every witness harness and executor live run must carry;
-- an environment with no resolvable root is the same absence, said once on the banner.
 
 WHY — `agents/decisions/three-ownership-domains.md`
 
@@ -126,12 +118,6 @@ HostContext::keymap_path HostContext::prefs_path
 `tests/test_workshop_persistence.cpp` "the two Windows roots are the platform's own conventions"
 "the two XDG roots, and their home fallbacks" "the host resolves the weaver's files through the one
 precedence"
-
-### WL-SESSION-02
-`workshop/user_paths.hpp` resolve_durable_path
-`workshop/workshop.cpp` Arguments::session
-`tests/test_workshop_persistence.cpp` "one precedence -- explicit path, then isolation, then the
-default" "the host resolves the weaver's files through the one precedence"
 
 ### WL-SESSION-03
 `workshop/user_paths.hpp` import_legacy_file LegacyImport

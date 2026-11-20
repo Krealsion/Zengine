@@ -31,8 +31,6 @@ listening, and Neovim's own interface attaches from a second terminal.
 installed per Neovim and touches no weaver configuration; the profile is `clean` unless the weaver
 opts in. A copy and a paste cross through the Skin exactly as the standard Editor's do.
 
-**Laws supported.** [WL-NVIM-01](../workshop/neovim.md), [WL-NVIM-02](../workshop/neovim.md),
-[WL-NVIM-03](../workshop/neovim.md), [WL-NVIM-04](../workshop/neovim.md),
+**Laws supported.** [WL-NVIM-03](../workshop/neovim.md), [WL-NVIM-04](../workshop/neovim.md),
 [WL-NVIM-05](../workshop/neovim.md), [WL-NVIM-06](../workshop/neovim.md),
-[WL-NVIM-07](../workshop/neovim.md), [WL-NVIM-08](../workshop/neovim.md),
-[WL-NVIM-09](../workshop/neovim.md).
+[WL-NVIM-08](../workshop/neovim.md).

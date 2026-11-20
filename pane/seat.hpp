@@ -372,7 +372,7 @@ private:
             return;
         }
         const bool keys_went_here = seat->keys_here();
-        // A PRIMARY PRESS OF ITS OWN MOVES THE KEYS TO THE PANE (WL-FOCUS-03), so the next press is
+        // A PRIMARY PRESS OF ITS OWN MOVES THE KEYS TO THE PANE, so the next press is
         // made with them there, whether or not Workshop's word on this one has come yet.
         if (p->phase == canvas_pointer::kPress && p->button == 1) {
             seat->keys_here(true);

@@ -6,7 +6,7 @@
 
 // Neovim's screen, said in the pane protocol's words: printable ASCII rows, one role per row, one
 // caret and one selection range in reading order. The difference is decided here, in one place,
-// so editor/docs/neovim.md and a case read the same rules (WL-NVIM-02).
+// so editor/docs/neovim.md and a case read the same rules.
 // Workshop law: agents/workshop/neovim.md
 
 // Text: every cell one byte -- printable ASCII itself, box drawing `-`, `|` or `+`, a few symbols

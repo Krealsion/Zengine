@@ -49,9 +49,8 @@ with a weaver action. The document is still not read at launch.
 **Since.** `--document` retired with the object canvas and is still read, so an old launch line
 starts, and said once; `--pane` retired with the Pane Creator, and is an unknown argument.
 
-**Laws supported.** [WL-SESSION-14](../workshop/session-restore.md),
-[WL-SESSION-16](../workshop/session-restore.md), [WL-SESSION-17](../workshop/session-restore.md),
-[WL-SESSION-01](../workshop/session.md), [WL-SESSION-02](../workshop/session.md),
+**Laws supported.** [WL-SESSION-01](../workshop/session.md),
 [WL-SESSION-03](../workshop/session.md), [WL-SESSION-04](../workshop/session.md),
 [WL-SESSION-13](../workshop/session.md), [WL-SESSION-15](../workshop/session.md),
-[WL-SESSION-18](../workshop/session.md), [WL-SESSION-21](../workshop/window-file.md).
+[WL-SESSION-18](../workshop/session.md), [WL-SESSION-16](../workshop/session-restore.md),
+[WL-SESSION-17](../workshop/session-restore.md), [WL-SESSION-21](../workshop/window-file.md).

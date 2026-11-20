@@ -73,7 +73,7 @@ WHY — `agents/decisions/a-quit-that-cannot-be-asked-is-refused.md`
 ## Do not assume
 
 - That a law here is Workshop's: what Workshop does as the host -- its catalog's bound, its keymap,
-  its presenter's grant, its desk -- is in its own registers (WL-CAT-03, WL-FOCUS-04, WL-KEY-15,
+  its presenter's grant, its desk -- is in its own registers (WL-CAT-03, WL-KEY-15,
   WL-CTX-10, WL-SESSION-19), and a second host owes none of it.
 - That the settings, approval and carry halves are not the contract's: they are, and their prose
   is [`../panes.md`](../panes.md) until they are laws here.

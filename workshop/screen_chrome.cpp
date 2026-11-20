@@ -39,7 +39,6 @@ PaneInside pane_inside_at(const PixelRect& outer, const Screen& sc,
 
 } // namespace detail
 
-// WL-CHROME-01, WL-CHROME-03, WL-CHROME-04, WL-CHROME-07 -- agents/workshop/chrome.md
 PaneInside pane_inside(const PixelRect& outer, const Screen& sc) {
     const std::int64_t fine = chrome_grain(sc);
     if (fine < kChromePx) {
@@ -94,8 +93,6 @@ ui::Element frame_part(std::int64_t id, std::string label, std::int64_t context,
 /// measured from; the top band, whole; and the stack, the room's top-left, as wide as the
 /// catalog's slot and the room's height, laying its panes down a cell apart and beginning again at
 /// its top.
-// WL-GEO-03 -- agents/workshop/geometry.md
-// WL-PANE-01, WL-PANE-03 -- agents/workshop/panes-and-windows.md
 void add_desk_frames(std::vector<ui::Element>& parts, std::vector<ui::Measure>& measures,
                      const Screen& sc) {
     const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
@@ -137,7 +134,6 @@ ui::Measure pane_measure(std::int64_t where, const Screen& sc, const RuntimePane
 }
 
 /// HOW TALL A SHUT PANE STANDS: its edge on each side and its title's one row, in this medium.
-// WL-CHROME-11 -- agents/workshop/chrome.md
 std::int64_t shut_height(const Screen& sc) {
     const StackCapacity room = stack_capacity(sc);
     return room.line + 2 * room.border;
@@ -147,8 +143,7 @@ std::int64_t shut_height(const Screen& sc) {
 /// said none, and a shut pane's height its title's, which writes no size; it stands in the room
 /// at its place word, or, for a `default` place, in its catalog place's frame: down the stack, or
 /// in the top band.
-// WL-PANE-01, WL-PANE-11 -- agents/workshop/panes-and-windows.md
-// WL-CHROME-11 -- agents/workshop/chrome.md
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
 ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* authored,
                       const Screen& sc) {
     ui::Element e;
@@ -267,8 +262,7 @@ PaneBounds closed_bounds(std::int64_t kind) {
 
 } // namespace
 
-// WL-GEO-06 -- agents/workshop/geometry.md
-// WL-PANE-01, WL-PANE-08, WL-PANE-11 -- agents/workshop/panes-and-windows.md
+// WL-PANE-11 -- agents/workshop/panes-and-windows.md
 PaneProjection project_pane(std::int64_t where, std::size_t slot,
                             const SetupPane* authored, const Screen& sc,
                             const RuntimePane* preference, std::int64_t stack_y) {
@@ -294,7 +288,7 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     return out;
 }
 
-// WL-PANE-03, WL-PANE-07, WL-PANE-09 -- agents/workshop/panes-and-windows.md
+// WL-PANE-07, WL-PANE-09 -- agents/workshop/panes-and-windows.md
 PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                       const Screen& sc) {
     for (std::size_t i = 0; i < panes.open.size(); ++i) {
@@ -347,7 +341,6 @@ PixelRect strip_span(const RegionFit& f, bool vertical, std::int64_t at, std::in
 
 } // namespace
 
-// WL-CHROME-12 -- agents/workshop/chrome.md
 std::vector<StripMark> strip_marks(const Session& s, const Screen& sc) {
     std::vector<StripMark> out;
     for (const std::int64_t edge :
@@ -413,7 +406,6 @@ std::vector<StripMark> strip_marks(const Session& s, const Screen& sc) {
     return out;
 }
 
-// WL-CHROME-12 -- agents/workshop/chrome.md
 std::optional<StripMark> strip_mark_at(const Session& s, const Screen& sc, const PointedAt& at) {
     if (!at.understood) {
         return std::nullopt;
@@ -441,11 +433,8 @@ PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) no
     return PointedAt{};
 }
 
-// WL-FRONT-02, WL-FRONT-05 -- agents/workshop/planes.md
-// WL-PRESS-04, WL-PRESS-05 -- agents/workshop/press-chain.md
-// WL-FOCUS-03 -- agents/workshop/focus.md
-// WL-PANE-05 -- agents/workshop/panes-and-windows.md
-// WL-TAB-09 -- agents/workshop/tab-run.md
+// WL-FRONT-05 -- agents/workshop/planes.md
+// WL-PRESS-04 -- agents/workshop/press-chain.md
 Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                       const PointedAt& at) {
     // Every test is the pointer's own grain against fine geometry (the aligned-span law), so a
@@ -463,11 +452,8 @@ Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
     return Occupancy{};
 }
 
-// WL-FRONT-02, WL-FRONT-05 -- agents/workshop/planes.md
-// WL-PRESS-04, WL-PRESS-05 -- agents/workshop/press-chain.md
-// WL-FOCUS-03 -- agents/workshop/focus.md
-// WL-PANE-05 -- agents/workshop/panes-and-windows.md
-// WL-TAB-09 -- agents/workshop/tab-run.md
+// WL-FRONT-05 -- agents/workshop/planes.md
+// WL-PRESS-04 -- agents/workshop/press-chain.md
 Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                       std::int64_t cx, std::int64_t cy) {
     return occupied_at(panes, setup, sc,

@@ -8,7 +8,6 @@
 
 namespace zengine::workshop {
 
-// WL-TEXT-03 -- agents/workshop/text-box.md
 void WorkshopWeave::refresh_setup_name() {
     if (!session_.setup.naming.open) {
         return;
@@ -17,7 +16,6 @@ void WorkshopWeave::refresh_setup_name() {
         setup_name_columns(session_, screen_of(session_)));
 }
 
-// WL-ATTN-02 -- agents/workshop/attention.md; WL-NOTE-01 -- agents/workshop/notices.md
 void WorkshopWeave::say(std::string text, bool bad) {
     ++notices_said_;
     session_.notice = text;
@@ -50,7 +48,6 @@ void WorkshopWeave::on(const PaneRefusalRequested& asked, loom::Mail& mail) {
     say(asked.text, true);
 }
 
-// WL-NOTE-01 -- agents/workshop/notices.md
 void WorkshopWeave::publish_notices(loom::Mail& mail) {
     std::vector<NoticeSaid> said;
     said.swap(notices_owed_);

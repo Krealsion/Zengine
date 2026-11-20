@@ -165,7 +165,7 @@ struct LastWords {
 
 } // namespace
 
-// WL-SESSION-01, WL-SESSION-02 -- agents/workshop/session.md
+// WL-SESSION-01 -- agents/workshop/session.md
 struct Arguments {
     bool ok = true;
     std::string complaint;
@@ -178,7 +178,6 @@ struct Arguments {
     /// The setup file: the arrangement a weaver saved, a PROJECT file resolved like the others.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
     /// The last-session file, written by nobody's gesture.
-    // WL-SESSION-02 -- agents/workshop/session.md
     std::string session;
     /// The weaver's keymap file, read at startup.
     // WL-KEY-07 -- agents/workshop/keyboard.md
@@ -732,7 +731,7 @@ int main(int argc, char** argv) {
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
     // ...and its answer to "what did operation #n say": one bounded page, reaching no runner, file
-    // or process (WL-OUT-02).
+    // or process.
     order_builds.allow_to_any(builder::BuildOutputSaid::zen_name,
                               builder::BuildOutputSaid::zen_version);
     // ...and what a shape it accepts does, from its own page, to the one who asked.

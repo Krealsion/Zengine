@@ -60,7 +60,7 @@ inline constexpr const char* kActionRecipeBack = "builder.recipe-back";
 inline constexpr const char* kActionFrontier = "builder.frontier";
 inline constexpr const char* kActionEditSource = "builder.edit-source";
 /// Read what a build said: the pane becomes a reader bound to one operation's output until it
-/// is closed (WL-OUT-04).
+/// is closed.
 inline constexpr const char* kActionOutput = "builder.output";
 
 // ---- The output reader, as the pane's own mode ------------------------------------------
@@ -93,7 +93,7 @@ inline constexpr const char* kActionCancel = "authoring.cancel"; ///< abandon th
 // One id with two meanings (a button when an artifact waits, a toggle elsewhere) is a key's
 // bargain, not a button's: a hand aiming at `[load built rocket.dll]` must get that, whatever
 // the state became meanwhile. So each half has its own id, refusing in words where it does not
-// apply, with no default key (`kUnknown`, WL-KEY-13); the shipped key keeps both meanings.
+// apply, with no default key (`kUnknown`); the shipped key keeps both meanings.
 inline constexpr const char* kActionArm = "builder.arm";
 inline constexpr const char* kActionLoadBuilt = "builder.load-built";
 

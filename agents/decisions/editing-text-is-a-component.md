@@ -46,5 +46,4 @@ the smaller repair. The founder retired that rule, 2026-10-31: a piece is built 
 direction sets, whole and with care. The decision stands on its invariant: one state, one door.
 
 **Laws supported.** [WL-TEXT-01](../workshop/text-box.md), [WL-TEXT-02](../workshop/text-box.md),
-[WL-TEXT-06](../workshop/text-box.md), [WL-TEXT-07](../workshop/text-box.md),
-[WL-TEXT-11](../workshop/text-box.md), [WL-TEXT-12](../workshop/text-box.md).
+[WL-TEXT-11](../workshop/text-box.md).

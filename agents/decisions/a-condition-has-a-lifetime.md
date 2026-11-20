@@ -32,7 +32,7 @@ condition names an action and holds no power, and the condition path has no wire
 - *A band row, a timer, an expiry, a toast, a history, a callback, a registry, new Surface
   vocabulary* — none (`f656b74`).
 - *Anchoring `attention_bounds` to the selected pane* as the hotkey view did — rejected: a
-  condition is about the application (`d91bbe4`). The view has since left the host (WL-DESK-11).
+  condition is about the application (`d91bbe4`). The view has since left the host.
 - *A keys-modal view* — rejected: its four gestures are catalog rows a keymap file must see.
 
 **Consequences.** `closed`, `unresolved`, `covered` and `open` earn nothing — the model may know
@@ -43,9 +43,6 @@ the Recorder and Logger attached to a live bus. `workshop.attention` is a no-tex
 the component owning that chord inside a text field.
 
 **Laws supported.** [WL-ATTN-01](../workshop/attention.md),
-[WL-ATTN-02](../workshop/attention.md), [WL-ATTN-03](../workshop/attention.md),
-[WL-ATTN-04](../workshop/attention.md), [WL-ATTN-05](../workshop/attention.md),
-[WL-ATTN-06](../workshop/attention.md), [WL-ATTN-07](../workshop/attention.md),
-[WL-ATTN-08](../workshop/attention.md), [WL-ATTN-09](../workshop/attention.md),
-[WL-ATTN-10](../workshop/attention.md), [WL-ATTN-11](../workshop/attention.md),
-[WL-ATTN-12](../workshop/attention.md).
+[WL-ATTN-03](../workshop/attention.md), [WL-ATTN-04](../workshop/attention.md),
+[WL-ATTN-07](../workshop/attention.md), [WL-ATTN-08](../workshop/attention.md),
+[WL-ATTN-10](../workshop/attention.md), [WL-ATTN-11](../workshop/attention.md).

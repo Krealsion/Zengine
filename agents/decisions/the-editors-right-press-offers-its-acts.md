@@ -1,7 +1,7 @@
 # The Editor's right press offers its acts, each beside its key
 
 **Decision record.** One decision, its alternatives, and why this one. The laws it supports are in
-[editor-transfers](../workshop/editor-transfers.md) and [pane-menu](../workshop/pane-menu.md).
+[pane-menu](../workshop/pane-menu.md).
 
 **Context.** A right press in the standard Editor offered Extract on the highlight and the file's
 location on the status row, and handed every other press back to Workshop's own pane menu. The

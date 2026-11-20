@@ -4,7 +4,7 @@
 #ifndef ZENGINE_BUILDER_PANE_OUTPUT_READER_HPP
 #define ZENGINE_BUILDER_PANE_OUTPUT_READER_HPP
 
-// The Builder pane's output reader (WL-OUT-04): the members of `BuilderPaneWeave` that bind
+// The Builder pane's output reader: the members of `BuilderPaneWeave` that bind
 // the reader to one build's operation, move its view, ask the tool for the page it starts at,
 // and say that page with the controls drawn under it.
 // A part of `builder/builder-pane/pane.cpp`, which includes it after `BuilderPaneWeave` and its
@@ -28,7 +28,6 @@ namespace {
 /// bound to that operation's number from here on: a later build, a new choice or a catalog
 /// moves nothing it shows, and the tool's words about another operation are never shown
 /// under this one's header.
-// WL-OUT-04 -- agents/workshop/build-output.md
 inline void BuilderPaneWeave::open_output(loom::Mail& mail) {
     if (!heard_) {
         notice_ = "the Builder has not said what it builds yet -- there is no output to read";
@@ -159,7 +158,6 @@ inline std::int64_t BuilderPaneWeave::output_body_rows() const {
 /// row. Every line is shown as written (`printable`): a control character a space and an escape
 /// sequence left out, and the header says how many control characters the rows shown did not show. A gap the tool no longer keeps is a row of its
 /// own, never two ends shown as one.
-// WL-OUT-04 -- agents/workshop/build-output.md
 inline void BuilderPaneWeave::say_output() {
     const builder::BuildOutputSaid& p = output_.page;
     const std::string number = "#" + std::to_string(output_.op);

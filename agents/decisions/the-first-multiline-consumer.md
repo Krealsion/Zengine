@@ -42,5 +42,4 @@ host's Pane Manager were the last, and every list is a pane's now, spending its 
 its wheel moves its window without moving its selection. The Composer's fields were not touched.
 
 **Laws supported.** [WL-EDIT-02](../workshop/editor.md), [WL-EDIT-07](../workshop/editor.md),
-[WL-EDIT-08](../workshop/editor.md), [WL-EDIT-09](../workshop/editor.md),
 [WL-PTR-10](../workshop/pointer.md).

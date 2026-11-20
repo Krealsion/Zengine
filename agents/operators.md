@@ -24,16 +24,7 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   `operator/` adds no type system. Every port's `TypeRef` comes from `loom::type_ref_for`, the
   table every `ZEN_SHAPE` field already goes through; the argument pack is admitted by
   `loom::admit`, so **no arity check is ever written** and a missing port is a `MissingField`;
-  and a signature versions itself, because `Schema::content_id()` already is that number. A
-  derived port schema is byte-for-byte the hand-built one, content id included, and the suite
-  asserts it.
-- **`make_operator<&fn>("id", {"lhs","rhs"}, "result")` is the whole registration.** Arity,
-  every parameter type and the return type are the compiler's; the identity and the PORT NAMES
-  are authored, because C++20 has no parameter source names at all — not in `decltype`, not in
-  `__PRETTY_FUNCTION__`, not in `__FUNCSIG__`. A wrong NUMBER of port names does not compile
-  (the parameter is a `std::array` sized by `arity_of<F>`), so that refusal cannot be a runtime
-  case and is not written as one. What the operator is for is an optional fourth argument.
-  ⚠ A block-scope lambda cannot be the `<&F>` argument — its `_FUN` has no linkage.
+  and a signature versions itself, because `Schema::content_id()` already is that number.
 - **What a contributor says rides WITH its contribution.** `op::Description` — `about`, what
   the operator is for, and `offered`, whether it is offered for reuse — is authored where the
   operator is (`make_operator`, `Builder::result`, the `OperatorDef` constructor) and held on the
@@ -48,9 +39,7 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   walk and a generated weave's steps both begin a node's refusal with the composition's identity
   quoted and the node as a graph shows it (`op::place_in`, `op::node_title`, which Flow titles
   its nodes by): never a word of the evaluator's own, such as "step", beside a weaver's field of
-  that name. A weave made from a definition answers a refused reaction with that identity named
-  as its weaver named it, `<definition> on <message>` (`maker::Runtime::in_weaver_words`), the
-  same for both, since a generated source passes its steps only the identity.
+  that name.
 - **One graph is acyclic by construction; a call cycle THROUGH IDENTITIES is not, and the
   evaluation's budget refuses it.** `Builder` cannot name a node before it exists and a decoded
   composition re-checks the order, so a single graph holds no cycle. But a node names its operator
@@ -94,25 +83,14 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
 - **Four failure modes, two owners.** Unresolved and signature-mismatch are the catalog's
   sentences; a bad argument pack and a bad answer are `loom::admit`'s, quoted verbatim. There
   is no operator error enum and none is wanted.
-- **The substitution instrument is the canonicality proof.** The suite replaces `math.max`
-  underneath and watches the running weave and an independent reader move together. Two
-  implementations that merely agreed could not do that. The canary that reverts the Timer's
-  delegation reddens exactly the path witnesses while the behaviour matrix stays green, which
-  is the distinction: the witnesses are about the PATH, not the answer.
 - **An operator's answer is RETURNED, not delivered.** It is not an `Emit<>`, no port schema is
   registered with a Switchboard, and a complete round trip runs with no bus in the process. Do
   not turn arithmetic into message traffic: a five-node DAG over messages is five sequential
   dispatch turns.
-- **`op::invocations()` is `loom::gate_invocations()`'s sibling** and carries its caveats —
-  process-wide, monotonic, read as a DELTA, decides nothing. It counts NATIVE bodies only, so
-  the number does not move when a rule is refactored.
 - **An ordinary helper stays an ordinary C++ function** until two or more surfaces need the
   same rule and would otherwise each hold a copy. This package is not a logic framework: the
   primitive vocabulary is deliberately minimal, and everything a future logic system will want
   — `min`, `clamp`, `and`, `or`, `greater_than`, a Float max — is deliberately absent.
-  **`math.add` is there for the fold**: a sum is the body a count is folded through, and it is a
-  native leaf of its own, never built from the other primitives nor hidden inside the form. A sum
-  outside Int is refused in words, never wrapped.
 
 ## A loaded weave can spend the host's operators
 
@@ -133,15 +111,7 @@ verbs, `describe` and `evaluate`.
   several deliveries deep. So `OperatorOffer` goes up before the command is sent and comes
   down after the answer. Its destructor offers `nullptr` unconditionally, which is what makes
   the module's slot empty outside one load and two instances of one image two separate
-  handoffs rather than one durable module-wide binding. A canary that removes the withdrawal
-  reddens exactly one case, and it is the one that asks.
-- **The host opens the image itself, and that is the seam's one duplication.** Loom's
-  `LoadedLibrary` is defined in its `.cpp` and `lib_symbol` has one caller for one name, so
-  there is NO public door to a second exported symbol of a kernel-loaded image.
-  `OperatorOffer` opens the same path with the same flags (`RTLD_NOW | RTLD_LOCAL` /
-  `LoadLibraryA`), which refcounts to ONE image, and releases its share inside `load()` — so
-  `kernel_lifetime_counts()` sees exactly what it would for a weave that never heard of
-  operators. Do not turn that share into something the host keeps.
+  handoffs rather than one durable module-wide binding.
 - **`detail::offered_host_slot()` is DECLARED in the header and DEFINED by the macro**, and it
   must stay that way. A `static` inside an inline function is vague-linkage: on ELF the host
   executable's copy interposes into an RTLD_LOCAL library and on PE it does not, so the same
@@ -154,27 +124,11 @@ verbs, `describe` and `evaluate`.
   means *an ordinary weave, load it normally*. Two different facts must not arrive as the same
   silence. The host reads the consumer's number before it reads any other field, because every
   other field's meaning is what the version decides.
-- **`Catalog::evaluate` has two entrances and one body.** The `loom::Unverified` overload
-  exists so the seam does not admit for itself and then say, in its own words, what
-  `catalog.hpp` already says about a refused pack. A case asserts the loaded consumer's refusal
-  string is character-for-character an in-process caller's; two spellings of one refusal is how
-  a caller and a callee stop meaning the same thing.
 - **`describe` derives from the definition `evaluate` resolves.** There is no hand-written
   descriptor beside an operator and there must never be one — and the gate makes that
   self-enforcing: a canary that emits a plausible-but-different descriptor reddens the describe
   case AND every evaluation, because a pack built from a lying description is refused by the
   real input schema.
-- **The suite does not depend on the artifacts it loads.** `$<TARGET_FILE:...>` in a
-  `target_compile_definitions` is a path, not a build edge, so
-  `cmake --build build --target zengine-operator-tests` will happily run last build's
-  fixtures. Build the whole tree before believing a result — which the official lane does, and
-  which a hand-run canary loop must be told to do.
-- **The stranger fence is header-only honest.** `zengine-operator-stranger` is a static library
-  rather than a source file in a suite, and the shape is the claim: the independent consumer links
-  `zengine-operator` and nothing else. These are header-only packages, so no link line can stop a
-  later edit from including sideways; what it says, checkably, is that the translation unit names
-  no timer symbol and no timer string. The loaded stranger is the same idea in another IMAGE and
-  its fence is stronger for it.
 
 ## One authoring is one live answer
 
@@ -196,20 +150,11 @@ built from one authoring. A Zengine host owns ONE `op::Catalog`, and a Timer it 
   with another signature, makes the constructor throw, `create()` return null, and
   `Kernel::load` refuse. **There is deliberately no path from a host that failed to a local
   evaluation**, and adding one is the single edit that reintroduces everything this law
-  removed: a Timer that diverges from its host exactly when the host became inconsistent. The
-  expectation is derived from `normalize_delay` inside the constructor — the same call this
-  package's provider contribution is built from — and the scaffolding it needs dies at the
-  closing brace; a host-backed Timer holds no catalog at all.
+  removed: a Timer that diverges from its host exactly when the host became inconsistent.
 - **Fallback is a supported arrangement and is not warned at.** `zengine-snake` offers nothing
   and gets the Timer it always got; so does every host that predates the seam. Do not make the
   operator host a dependency of using a Timer. A Timer holds a catalog only in the no-host
   arrangement, and what it CONTRIBUTES is one composition rather than a vocabulary.
-- **`ZEN_EXPORT_WEAVE` builds its weave with `new S()`, so an artifact that must take an offer
-  needs a class of its own.** `timer/timer.cpp` and `tests/weavelib/timer_virtual.cpp` each
-  derive a six-line `TimerService` whose only member is a constructor passing
-  `DelayAuthority(OperatorHost::offered())` down. It adds no state and overrides nothing. The
-  refusal sentence goes to **stderr** before the throw, and the throw's words are the load's
-  refusal (`library create() refused: <what it threw>`).
 - **Do not write `ZENGINE_OPERATOR_CONSUMER()` in a test binary.**
   `detail::offered_host_slot()` has default visibility, so an executable that defined it would
   sit in the lookup scope of every `.so` that also defines it. A suite drives the consumer
@@ -219,45 +164,15 @@ built from one authoring. A Zengine host owns ONE `op::Catalog`, and a Timer it 
   delay composition (`zengine-operator`, the authoring surface and the contribution codec) and
   CONSUMES a host's runtime surface (`zengine-operator-consumer`). Provider and consumer are
   different roles and one artifact may be both; do not collapse them, and do not conclude a
-  provider must be the thing that instantiates what it authors. Both targets are header-only
-  INTERFACE targets: the Timer's `ldd` and PE import table are unchanged; its export table
-  names THREE symbols (see providers, below).
-- **The host's catalog is a local of `main`, and the DECLARATION ORDER is the lifetime claim**
-  — `op::Catalog` (EMPTY; provider mounts fill it), then `OperatorHostSurface`, then
-  `loom::Kernel`, so reverse-order destruction takes the Kernel and its artifacts down first.
-  No static, no registry, no accessor. A case reads that ordering off the SOURCE FILE, because
-  Workshop's `main()` claims a terminal and no case can run it — declared as a tripwire rather
-  than a proof.
-- **`Kernel::reload_from` is the OTHER `create()` site**, and an operator-aware host owes a
-  reload the same bracket it owes a load. Both are pinned: bracketed keeps the binding,
-  unbracketed comes back a fallback Timer. Nothing in this repository can take the unbracketed
-  path — Workshop's boot weave may send `zen.LoadWeave` and nothing else — and closing it in
-  general means a Kernel that can be TOLD an artifact must always be offered something, which
-  is a loader question rather than an operator one.
-- **A canonicality claim needs a substitution, not a matrix.** `sabotaged_operators()` is
-  invisible to every structural check (same identity, ports, types, content ids), so a host
-  built over it moves a host-backed Timer and a loaded stranger together and leaves a fallback
-  Timer where it was. Observe the Timer through `TimerHandoffEntry.delay_ms` off a real
-  `zen.Bequest` — **never** through `host_backed()`, which is a diagnostic and decides
-  nothing. The same instrument exists as an ARTIFACT (`zengine-provider-min`), mounted over
-  the basic provider at run time and unmounted again.
+  provider must be the thing that instantiates what it authors.
 
 ## Powers come from providers; the host owns resolution
 
 `operator/provider_abi.h` points the loaded-weave seam the other way: a loaded image may
 OPTIONALLY export one symbol saying *I supply these operator definitions*, and a host mounts it.
 
-```text
-zengine-operators-basic    math.max, math.add, logic.select_int,
-                           compare.less_int, logic.select_bool     NOT a weave
-zengine-timer              timer.normalize_delay           weave + provider + consumer
-host resolution            all three, layered, replaceable
-```
-
 - **A host authors NO operator and cannot.** Its catalog starts empty, it mounts artifacts, and it
-  includes no semantic header. A case in `test_operator_provider.cpp` reads `workshop.cpp` for
-  forbidden strings — declared as a tripwire rather than a proof, because Workshop's `main()`
-  claims a terminal. **A host knows HOW to host operators; it does not know WHAT any of them
+  includes no semantic header. **A host knows HOW to host operators; it does not know WHAT any of them
   means.** Do not reintroduce a semantic include there to save a mount. Which artifacts it mounts
   is the load plan's law ([`realization.md`](realization.md)). ⚠ The Sources boundary refines
   this and does not weaken it: **the host may describe itself; it may not invent provider power**
@@ -297,11 +212,6 @@ host resolution            all three, layered, replaceable
 - **`fallback_vocabulary()` is the no-host arrangement's LOCAL assembly**, and it is what
   keeps `zengine-snake` and every pre-seam host working without loading a second artifact. Do
   not call it from a host that has providers.
-- **`op::image_counts()` is `kernel_lifetime_counts()`'s sibling** — process-wide, monotonic,
-  read as a DELTA, decides nothing, and it counts THIS package's shares (an offer's, a
-  mount's) and not the Kernel's. Like `op::invocations()` it is a vague-linkage static and is
-  **not** a cross-image instrument; only a host opens an image for itself, and a host is an
-  executable.
 - **`Catalog::run` CONTAINS a native throw.** A native body may live in another image, so
   "the provider could not answer" is an evaluation's own refusal rather than an exception
   leaving a call whose contract is a value or a reason.
@@ -326,13 +236,6 @@ Source     zero unbound weaver inputs          evaluated on its own subject
   add ConstantSource/ComputedSource/CompositeSource, and do not add a second store: binding a
   composite's LAST input turns it into a Source with nothing re-registered, which is only
   expressible because one store holds both readings.
-- **`sample(catalog, identity)` adds ceremony-removal and nothing else.** By hand, sampling
-  costs a `find` FIRST purely to obtain the empty input schema the pack must claim. The
-  helper resolves at the spend, refuses an absent identity **by resolving through
-  `Catalog::evaluate` rather than re-wording its sentence**, refuses a parameterized Operator
-  in a sentence of its own (the one failure this seam owns), and spends the one evaluator with
-  both gates. It caches no provider, no definition, no callable and no answer — a mutation
-  that memoises the result reddens the fresh-per-sample cases immediately.
 - **AN EMPTY SCHEMA IS STILL AN IDENTITY, and that is what enforces "the Source's own pack".**
   `make_operator` names an input schema `<identity>.in` and `Schema::content_id()` hashes the
   name, so two Sources have two different empty schemas and a generic empty pack is refused by
@@ -340,21 +243,10 @@ Source     zero unbound weaver inputs          evaluated on its own subject
   work, and the suite measures that.
 - **Routing is not evaluation, and it is a fact about the call graph.** `invoke_native` has
   one caller — `Catalog::run`, past admission — so registration, mount, `find`, enumeration,
-  description, schema and provenance inspection and `is_source` cannot reach a body. The suite
-  proves it on a COUNTING body and on a provider artifact whose Source answers its own spend
-  count; a constant-returning body would have made an accidental evaluation invisible, which
-  is the one way this proof degrades.
-- **The discovery door's row carries the classification and the output schema IDENTITY**
-  (name, version, content id), because *what would sampling this yield* must be answerable
-  without sampling and the only alternatives are N describes across the loaded-weave seam or a
-  side effect in a view. The three identity facts travel as one nested shape because
-  `loom::same_identity` compares all three; splitting them invites a consumer to compare the
-  cheap one. `kind` is derived at each ask from `op::is_source` and `op::declares_migration` on
+  description, schema and provenance inspection and `is_source` cannot reach a body.
+- `kind` is derived at each ask from `op::is_source` and `op::declares_migration` on
   the contribution in force (`workshop/powers_door.hpp`), never authored and never stored.
-- **NOTHING ADDS A SECOND CLASSIFICATION.** Flow groups its rail and the Powers pane derives its
-  `Sources` and `Operators` views from that `kind`; Powers shows the output identity as
-  `yields <name> v<N>` and Flow's preview the signature — so *what would I get?* is answered by
-  a READ. Nothing parses an
+- **NOTHING ADDS A SECOND CLASSIFICATION.** Nothing parses an
   identity, consults a naming rule or reads a registration flag, because none exists: **the
   catalog states the classification once and the door carries it.** A change that adds an
   authored kind, a `SourceDef`, a Source registry or a second store has added a second answer,
@@ -365,10 +257,7 @@ Source     zero unbound weaver inputs          evaluated on its own subject
   evaluate; the Powers pane's `workshop/sample_door.hpp` holds `zengine.sources`, calls
   `op::sample` at the spend, renders the admitted value host-side and answers with LINES. A door
   of its own rather than another Accept on a describing one, deliberately: *which role can
-  cause evaluation* is worth a one-word answer. The door holds a `const op::Catalog&` and retains
-  no provider, definition, callable or
-  answer — so a repeated sample resolves current truth again, which is exactly the property
-  `sample`'s own header claims and this is the first consumer that could have broken it.
+  cause evaluation* is worth a one-word answer.
 - **Senses are not Sources and no bridge exists.** A Source sample runs the evaluator NOW; a
   Sense read returns the owner's already-stored claim and runs no owner code. A
   Switchboard-reading operator is technically synchronous and would hand the catalog a bus
@@ -388,25 +277,6 @@ with a null custody — the parameter that already exists for a provider that is
 under the ordinary provider identity `zengine.workshop.host`. There is no `register_source`
 and no host-only registration path.
 
-```text
-zengine.project.anchor    -> zengine.ProjectAnchor { anchor : Text }
-zengine.recipes.catalog   -> zengine.RecipeCatalog { catalog : RecipeCatalogFacts }
-```
-
-- **The bodies read their OWNERS, and the host's declaration order is the lifetime proof.**
-  `CurrentRecipes` and the `HostContext` are declared far above `op::Catalog operators;`, so
-  reverse-order destruction drops the closures first; the rvalue overloads are `= delete`d so
-  a temporary owner cannot be handed over at all. A startup COPY would report the launch
-  catalog forever, and the live-swap witness is what catches it.
-- **A refused catalog replacement moves nothing, because it moves no owner.** The Source has
-  no opinion about a failed swap and needs none — which is exactly the difference between a
-  registered route and a cached answer, and is why the recipe Source is the load-bearing
-  witness rather than the project one.
-- **`workshop.cpp` still authors nothing.** It builds no schema, mints no definition, names
-  neither Source identity and spells neither `operators.publish(` nor `operators.mount(`. Two
-  tripwires keep that: `test_operator_provider.cpp` reads the host for semantic authorship and
-  for a second way into its own catalog; `test_workshop_files.cpp` reads it for the one door
-  and the declaration order, and drives the real owners through the real seams.
 - **Exposure is deliberate and the list is written by hand.** Nothing is auto-wrapped and the
   host does not become reflectable. The clipboard, an editor's buffer, the keymap and prefs,
   the session file and Loom's grant ledger are all true and all deliberately unregistered —
@@ -472,16 +342,12 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
 
 ## Do not assume
 
-- A catalog is acyclic — one graph is; a cycle through identities is refused by the budget.
-- An operator's words decide something — `op::Description` describes, and nothing gates on it.
 - A migration is a weave — it is a PROVIDER contribution: `zengine_provider()`, no
   switchboard, no role, no grant, no manifest, no bus. `zengine-workshop-session-history` is
   the shipped one.
 - The delay a weaver authors is the delay that is scheduled — it is normalized, and the rule is
   `timer.normalize_delay`. An `EnsureTimer` comparison runs the same rule, so `-500` repeating
   really is the standing 1 ms beat.
-- `zengine-operator` is a place to put helpers — it is for rules TWO surfaces need. One
-  consumer is a C++ function.
 - A Timer evaluates the rule its own image carries — it does **only** where no host offered it
   one. In `zengine-workshop` the answer comes from the host's catalog, and substituting a
   primitive there changes what the Timer schedules.

@@ -46,7 +46,7 @@ bool narrow_paths_are_utf8() {
 #endif
 }
 
-// Which roots this operating system reports (the WL-FILES-06 / WL-FILES-07 body). Carried
+// Which roots this operating system reports (the WL-FILES-07 body). Carried
 // from `workshop/filesystem_roots.cpp` unchanged; the pointer moves here at retirement.
 std::vector<std::string> host_filesystem_roots() {
     std::vector<std::string> out;

@@ -24,8 +24,7 @@ deciding, and pins every reach across the line, a `line` row a file and a header
 - a file of Workshop's side including a header of Zengine's side that the package does not
   install.
 
-`census` (`tests/check_census.cmake`, [VM-CHECK-17](verification/checks.md)) is red when the tree
-holds a reach no row pins, naming the file and line, or a row the tree no longer holds. Every
+Every
 `line` row is marked to only fall: a change that adds a reach, or raises a row, is red against the
 base the change is measured from, so the line moves one way. A change that closes a reach removes
 its row in the same change, and a file that moves across the line takes its rows with it as a

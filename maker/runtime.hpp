@@ -40,7 +40,6 @@ namespace zengine::maker {
 
 /// A maker weave. Owned by the Switchboard once registered; the host reaches it through
 /// `Switchboard::weave(id)` (host authority) or the pointer `register_definition` returns.
-// MW-WEAVE-01 -- agents/maker/weave.md
 class Runtime : public loom::Weave {
 public:
     explicit Runtime(Definition definition)

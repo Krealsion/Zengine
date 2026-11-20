@@ -9,6 +9,8 @@ because what it states is a law both sides keep: most of it constrains the packa
 two entries constrain the host. Values are proved in `files_weave`, gestures in
 `workshop_panes_project`.
 
+Retired: WL-FILES-03, WL-FILES-06, WL-FILES-14, WL-FILES-15, WL-FILES-18, WL-FILES-19, WL-FILES-20
+
 ## WL-FILES-01 — The browser owns no source truth
 
 LAW — The browser is its own package and its state its own shape; a row is a name, a kind, a linked flag and an openable flag and nothing else, and what it denotes is derived at activation.
@@ -31,12 +33,6 @@ MEANS
 
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
-## WL-FILES-03 — Parent is lexical and stops at the filesystem, not at the project
-
-LAW — `parent_path()` until the fixed point `p.parent_path() == p`, which POSIX `/`, a drive root and `//server/` all answer; `has_parent_path()` is not a root test, and nothing canonicalizes.
-
-WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
-
 ## WL-FILES-04 — A linked directory is marked and enterable
 
 LAW — A directory row is `linked` when the entry leaves the tree: on Windows the host says reparse point; elsewhere following says directory and not following does not; never `is_symlink()`.
@@ -54,12 +50,6 @@ LAW — One `LocationMarks` owner holds every stop, with three provenances as fl
 
 MEANS
 - it lives inside the weave, so nothing in the host can read or write a weaver's places.
-
-WHY — `agents/decisions/four-facts-that-coincide.md`
-
-## WL-FILES-06 — The traversal set is built at the gesture and held nowhere
-
-LAW — Origin, the weaver's marks sorted bytewise, then `host_filesystem_roots()` asked fresh; one address is one stop, and there is no standing selected mark — the cycle starts where the browser is.
 
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
@@ -131,26 +121,6 @@ MEANS
 
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
-## WL-FILES-14 — A failed listing has no rows, and an unclassifiable entry is a file
-
-LAW — A directory that is missing, unreadable or replaced lists as a refusal and no rows, never a partial listing; an entry whose kind cannot be asked keeps its row as a file the editor's door refuses.
-
-MEANS
-- every failure is an ordinary refusal through the iterator's `error_code` forms: nothing throws.
-
-WHY — `agents/decisions/four-facts-that-coincide.md`
-
-## WL-FILES-15 — `pick buildable` hands over a place, and Files still knows no recipe
-
-LAW — `a` is an ordinary declared row; the gesture hands the location and the listing's names to a chooser in the pane's own room, and a row learns nothing about what it names.
-
-MEANS
-- the one thing added to the listing is an existence probe per directory row, at the gesture;
-- the chooser and the line are rows in the pane's room: no popup, no pane, no second surface;
-- what a weaver types is a DRAFT; the host composes, checks and installs it (WL-AUTH-01).
-
-WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
-
 ## WL-FILES-16 — A pane's rows are its mode's, and an id is one operation
 
 LAW — The pane declares only its mode's rows, one id per operation, with the ids a weaver's keymap names, re-declared as the mode changes; a key they do not claim reaches it as a key.
@@ -173,44 +143,11 @@ MEANS
 
 WHY — `agents/decisions/files-is-a-weave.md`
 
-## WL-FILES-18 — The places are a section of the browser, and their fold is the pane's own word
-
-LAW — The origin, the marks and the roots the listing read are a section under the header, shut at first and counted; its fold is `places` in the layout's row, which the pane commits itself.
-
-MEANS
-- a press on its header, `files.places` or its menu row asks the layouts' owner; one fold in flight, a refusal said;
-- what shows is what the row hands back; open, a row a place takes the listing's rows, leaving it one, and the pane offers again; a press on a place goes there;
-- the pointer resting on the shut header shows the places over the listing, taking no room; a press on one opens them.
-
-DOES NOT MEAN
-- that a peek is kept, or that a fold writes a size: a `fit` row follows the new offer.
-
-WHY — `agents/decisions/an-accordion-is-a-section-its-owner-folds.md`
-
-## WL-FILES-19 — A path is cut in its middle
-
-LAW — The header's path and each place's are fitted by `pane_text::fit_path`: the root that says which filesystem, the mark, and as much of the end as the row holds.
-
-MEANS
-- a path that fits is drawn whole; a row with no room for the root, the mark and a character is cut at its end.
-
-WHY — `agents/decisions/a-path-is-not-a-sentence.md`
-
-## WL-FILES-20 — A path the pointer rests on stands whole across its row
-
-LAW — Where the medium reports a resting pointer, a path its row cut stands whole across the row while the pointer rests on it, scrolled to where the pointer's column puts it, until it leaves.
-
-MEANS
-- the row's first column shows the path's start and its last the end (`pane_text::scrub`); no other row moves;
-- nothing is kept: a POSIX terminal reports no resting pointer (WL-PTR-09), and there the cut stands.
-
-WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
-
 ## Do not assume
 
 - That the Files pane cannot leave the project, that a linked directory is refused, or that its
   location is project-relative — none holds; what did not move is the project anchor
-  (WL-FILES-02, WL-FILES-03, WL-FILES-04).
+  (WL-FILES-02, WL-FILES-04).
 - That a marked place is part of the project, trusted, or buildable (WL-FILES-05).
 - That entering a dangling junction on libstdc++/Windows has been measured — it has not
   (WL-FILES-04, UNWITNESSED).
@@ -236,12 +173,6 @@ door" "Files reloaded in place keeps the place it shows and the row the weaver w
 `tests/test_workshop_files.cpp` "the project door answers the weave that asked, and nobody else" "an
 external catalog is chosen live, and the project still owns relative sources"
 
-### WL-FILES-03
-`files/marks.hpp` parent_location parent_path at_filesystem_root
-`files/files.cpp` parent
-`tests/test_files.cpp` "parent is lexical and stops where a path stops, not where a project does"
-`tests/test_workshop_panes_files.cpp` "Return walks into a directory, Backspace walks out"
-
 ### WL-FILES-04
 `files/os.cpp` leaves_the_tree GetFileAttributesW symlink_status
 `files/files.hpp` FileRow::linked
@@ -257,13 +188,6 @@ UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked direc
 `files/files.cpp` mark jump_mark
 `tests/test_files.cpp` "the marks owner is session truth, and Files is only its first reader"
 `tests/test_workshop_panes_files.cpp` "a marked place is the pane's own file, written by the pane"
-
-### WL-FILES-06
-`files/marks.hpp` LocationMarks::somewhere_to_go LocationMarks::destinations
-`files/os.cpp` host_filesystem_roots
-`files/files.cpp` jump_mark
-`tests/test_files.cpp` "one address is one traversal stop, however many ways it is known" "the
-host's filesystem roots are asked for, never invented"
 
 ### WL-FILES-07
 `files/os.cpp` host_filesystem_roots GetLogicalDrives
@@ -313,17 +237,6 @@ it caused has settled, and a later press opens gamma"
 `tests/test_files.cpp` "a listing is directories first, then files, bytewise inside each" "a
 directory that cannot be listed is a refusal, not an empty listing"
 
-### WL-FILES-14
-`files/files.hpp` enumerate_directory Listing
-`tests/test_files.cpp` "a directory that cannot be listed is a refusal, not an empty listing"
-
-### WL-FILES-15
-`files/vocabulary.hpp` kActionPickBuildable
-`files/recipe_authoring.hpp` pick_buildable chooser_choose authoring_commit
-`workshop/project_seam_vocabulary.hpp` RecipeAuthorRequested
-`tests/test_workshop_panes_files.cpp` "a weaver authors a recipe row in-pane, and the host writes
-it"
-
 ### WL-FILES-16
 `files/files.cpp` declare action_rows answers
 `files/vocabulary.hpp` kActionOpen kActionChoose kActionCommitField
@@ -346,32 +259,3 @@ RecipeAuthorRequested RecipeOutcome
 door answers a role, and refuses speech with no author" "the project door spends this host's one
 recipe writer and re-words nothing"
 `tests/test_workshop_panes_editor.cpp` "the door refuses speech with no author, and answers nobody"
-
-### WL-FILES-18
-`files/vocabulary.hpp` kSettingPlaces kActionPlaces kMenuPlaces
-`files/files.cpp` setting_rows on_settings fold_places places offer_again go_to_place rest
-`files/browser_view.hpp` say_places say_peek
-`component/accordion.hpp` Accordion section_span
-`tests/test_workshop_panes_files.cpp` "Files' places are a section of the pane: shut at first and
-saying how many they hold, opened and shut by their header and by `p` as the pane's own word in the
-layout's row, and a place pressed is gone to" "in a window that reports a resting pointer, Files'
-shut places peek over the rows under their header and take no room, the pointer on what the peek
-shows keeps it, a press there opens them, a move a held press carries is no rest, and the leave ends
-the peek"
-
-### WL-FILES-19
-`pane/text.hpp` path_root fit_path
-`files/browser_view.hpp` say_header place_text
-`tests/test_workshop_files.cpp` "a pane fits a path by its middle -- its root, the mark and as much of
-its end as fits -- and a resting pointer scrubs the whole of it across a row"
-`tests/test_workshop_panes_files.cpp` "Files' path keeps its root and as much of its end as fits, cut
-in the middle, and under a resting pointer stands whole across the row, scrolled to where the
-pointer's column puts it, until the pointer leaves"
-
-### WL-FILES-20
-`pane/text.hpp` scrub
-`files/files.cpp` rest pointer_left Reveal
-`files/browser_view.hpp` say_header say_places
-`tests/test_workshop_panes_files.cpp` "Files' path keeps its root and as much of its end as fits, cut
-in the middle, and under a resting pointer stands whole across the row, scrolled to where the
-pointer's column puts it, until the pointer leaves"

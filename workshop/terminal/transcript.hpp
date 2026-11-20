@@ -50,7 +50,7 @@ inline const char* entry_addressing(loom::Addressing addressing) noexcept {
 
 /// THE PARTICIPANT'S RECORD, AS THE SEAM CARRIES IT: derived at the moment of the ask, holding
 /// no `loom::TerminalSession`, no `Transcript` and no entry the renderer could not read.
-// WL-TERM-02, WL-TERM-03 -- agents/workshop/terminal-door.md
+// WL-TERM-02 -- agents/workshop/terminal-door.md
 inline TranscriptShown transcript_shown(const loom::TerminalSession* me) {
     TranscriptShown shown;
     if (me == nullptr) {
@@ -87,7 +87,6 @@ inline TranscriptShown transcript_shown(const loom::TerminalSession* me) {
 }
 
 /// ...and the comparison that decides whether saying it again would be news.
-// WL-TERM-03 -- agents/workshop/terminal-door.md
 inline bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) {
     if (a.attached != b.attached || a.participant != b.participant || a.dropped != b.dropped ||
         a.entries.size() != b.entries.size()) {

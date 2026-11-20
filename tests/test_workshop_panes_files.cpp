@@ -1196,7 +1196,7 @@ TEST_CASE("in a room too small for the window Files composes, a press names only
 // ============================================================================
 
 TEST_CASE("a press on Files' selected row after its open moved the keys to the Editor selects that row and takes the keys back, and opens nothing") {
-    // THE PRESS THAT POINTS THE KEYS IS NOT AN ACT IN THE PANE (WL-FOCUS-04). Files opened beta
+    // THE PRESS THAT POINTS THE KEYS IS NOT AN ACT IN THE PANE. Files opened beta
     // and the Editor took the keys; beta is still Files' selection. Pressing it again is a weaver
     // coming back to Files, and what it may do is aim the keys -- a second open of beta is the
     // defect. Only the press after that, with the keys Files' own, opens it.
@@ -1345,7 +1345,7 @@ TEST_CASE("a press on Files' selected row opens it when the keys were already Fi
 TEST_CASE("two presses on Files' selected row queued while the keys were the Editor's cross as elsewhere then here, and open that row's file once") {
     // ONE DRAIN, TWO GESTURES, NO RE-WINDOW BETWEEN THEM. The window may give Files both presses
     // before Workshop's word that the first moved the keys there; Files reads its own first press
-    // as moving them (WL-FOCUS-03), so the second is made with the keys here. The first aims, the
+    // as moving them, so the second is made with the keys here. The first aims, the
     // second acts.
     FilesRig f("files-two-queued");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
@@ -1372,7 +1372,7 @@ TEST_CASE("two presses on Files' selected row queued while the keys were the Edi
 }
 
 TEST_CASE("with pane titles hidden, a first press on the row painted gamma selects gamma once every delivery it caused has settled, and a later press opens gamma") {
-    // THE PRESS THAT TAKES THE KEYS ALSO BRINGS BACK THE PANE'S TITLE (WL-FOCUS-11): the keyboard's
+    // THE PRESS THAT TAKES THE KEYS ALSO BRINGS BACK THE PANE'S TITLE: the keyboard's
     // pane keeps its title whatever the preference says. So the picture the weaver pressed has no
     // title row and the picture after the press has one. The press is read against the first;
     // the room the title takes is granted once the press ends, and that re-grant must not move
@@ -1434,7 +1434,7 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
 }
 
 TEST_CASE("a press into Files while the layout name line has the keys never opens its selected row, and the band does not say typing goes to Files; with the line closed the press opens it") {
-    // A MODE ABOVE THE PANE HAS THE KEYS, AND THE PANE IS STILL THE CANDIDATE (WL-FOCUS-06). The
+    // A MODE ABOVE THE PANE HAS THE KEYS, AND THE PANE IS STILL THE CANDIDATE. The
     // layout name line holds the keyboard and none of the pointer: a press on Files makes Files
     // the pane the keys return to, but an ordinary key reaches the line. Workshop reports that,
     // and says it: neither the press nor the band may claim the keys are Files'.
@@ -3077,8 +3077,8 @@ TEST_CASE("a weaver authors a recipe with the mouse alone: the chooser, every fi
     press_face(f, "[pick buildable]");
     REQUIRE(any_row(f.shown(), "pick something buildable"));
 
-    // A PRESS THAT BRINGS THE KEYS BACK POINTS AT THE PANE AND AUTHORS NOTHING (WL-FOCUS-04,
-    // one mode over): the candidate is named again, and the line stays shut. The row is read
+    // A PRESS THAT BRINGS THE KEYS BACK POINTS AT THE PANE AND AUTHORS NOTHING (the press that
+    // points the keys, one mode over): the candidate is named again, and the line stays shut. The row is read
     // afresh each time, because spending the notice moves every row under it up one.
     f.r.press_cell(0, gfx::cell_of_pixel(screen_of(f.r.session()).h) - 1);
     REQUIRE(typing_pane(f.r.session()) != f.kind);
@@ -3128,7 +3128,7 @@ TEST_CASE("a weaver authors a recipe with the mouse alone: the chooser, every fi
 }
 
 TEST_CASE("a right press on an entry offers this pane's rows, and the choice acts on the place it was opened about") {
-    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-CTX-08, WL-CTX-09): the browser offers rows of
+    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-CTX-09): the browser offers rows of
     // its own, the presenter shows and answers them, and what a chosen row MEANS is judged here
     // against what the browser holds when the answer arrives.
     FilesRig f("files-menu");
@@ -3188,7 +3188,7 @@ TEST_CASE("a right press on an entry offers this pane's rows, and the choice act
     }
     SUBCASE("a right press on a row that names nothing is handed back to the host") {
         // THE HEADER IS NOT AN ENTRY AND NOT A CONTROL: the pane passes the press back, and the
-        // host's own pane menu opens for it -- the deliberate pass-back (WL-CTX-08).
+        // host's own pane menu opens for it -- the deliberate pass-back.
         const std::int64_t header = row_beginning(f.shown(), "Files ");
         REQUIRE(header >= 0);
         files_button(f.r, f.kind, 3, true, header, 0);

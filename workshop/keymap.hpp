@@ -26,7 +26,7 @@ using pane::kMaxPaneActionIdLen;
 using pane::kMaxPaneMenuIdLen;
 
 /// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values.
-// WL-KEY-03, WL-KEY-05 -- agents/workshop/keyboard.md
+// WL-KEY-03 -- agents/workshop/keyboard.md
 enum class KeyContext : std::uint8_t {
     kCommand,
     kNaming,
@@ -44,7 +44,6 @@ enum class KeyContext : std::uint8_t {
 };
 
 /// Does this context hand ordinary keys to something that takes text?
-// WL-FOCUS-09 -- agents/workshop/focus.md
 // WL-KEY-03 -- agents/workshop/keyboard.md
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
     return c == KeyContext::kNaming || c == KeyContext::kPane;
@@ -52,7 +51,6 @@ inline constexpr bool context_takes_text(KeyContext c) noexcept {
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
 /// context?
-// WL-CTX-06 -- agents/workshop/contextual.md
 inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcept {
     if (declared == KeyContext::kGlobal) {
         return true;
@@ -210,8 +208,6 @@ namespace mod = input::mod;
 /// The declarations; order inside a context group is presentation priority. An id is the durable
 /// spelling a weaver's keymap file names, so a meaning that changes keeps its id.
 // WL-KEY-01, WL-KEY-06 -- agents/workshop/keyboard.md
-// WL-ARR-08 -- agents/workshop/arrangement.md
-// WL-CTX-05 -- agents/workshop/contextual.md
 inline constexpr ActionRow kActionCatalog[] = {
     // -- above every mode -------------------------------------------------------------
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kNoText, {scan::kC, mod::kCtrl}},
@@ -427,7 +423,6 @@ inline constexpr std::size_t kActionCatalogCount = sizeof(kActionCatalog) / size
 // ---- The legend preference ---------------------------------------------------------------
 
 /// How much of the effective bindings the bottom band's two help rows project.
-// WL-KEY-09 -- agents/workshop/keyboard.md
 namespace legend_mode {
 inline constexpr std::int64_t kDefault = 0;
 inline constexpr std::int64_t kFull = 1;
@@ -678,7 +673,6 @@ struct Keymap {
 
     /// WHICH ACTION THIS GESTURE REQUESTS IN THIS CONTEXT, or kNone. `keyboard_pane` is the
     /// runtime handle of the pane holding the keys, where one does (`kNoPaneKind` otherwise).
-    // WL-KEY-04 -- agents/workshop/keyboard.md
     Act action_for(KeyContext current, std::int64_t scancode, std::int64_t modifiers,
                    std::int64_t keyboard_pane = -1) const noexcept {
         const Gesture pressed{scancode, modifiers};
@@ -697,7 +691,6 @@ struct Keymap {
 
     /// WHICH ABOVE-THE-MODES ACTION THIS GESTURE REQUESTS, or kNone -- `action_for`
     /// restricted to the rows DECLARED kGlobal, kNoText or kUnlessOwned.
-    // WL-FOCUS-06 -- agents/workshop/focus.md; WL-KEY-05 -- agents/workshop/keyboard.md
     Act above_mode_action(KeyContext current, std::int64_t scancode, std::int64_t modifiers,
                           std::int64_t keyboard_pane = -1) const noexcept {
         const Gesture pressed{scancode, modifiers};

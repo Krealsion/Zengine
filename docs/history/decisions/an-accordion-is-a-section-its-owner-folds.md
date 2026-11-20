@@ -30,7 +30,7 @@ keeps it. No fold writes a size: the pane offers again, and a `fit` row follows.
 
 **Consequences.** A POSIX terminal reports no resting pointer (WL-PTR-09), so there a section opens
 only when pressed or keyed. A pane that does not hear rests is told nothing new and accepts nothing
-new (WL-CANVAS-06).
+new.
 
 **Laws supported.** [WL-DESK-21](../workshop/desktop-presenting.md),
 [WL-FILES-18](../workshop/files.md), [WL-INFO-16](../workshop/info-body.md).

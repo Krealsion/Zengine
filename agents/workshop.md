@@ -25,23 +25,21 @@ consumer-specific behavior of its extracted panes.
 | a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
 | a key, the keymap, an edit, a press's causes | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) · [spelling](workshop/key-spelling.md) `WL-KEY` · [causes](workshop/action-causes.md) `WL-CAUSE` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
-| Info's body, its subject, its grounds, the desk row naming it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
-| semantic text in a pane, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
+| Info's body, its subject, its grounds, the desk row naming it | [info-body](workshop/info-body.md) `WL-INFO` |
 | the Editor, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for a role, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
-| the quick setup a first start shows: its one setting, Done and Skip, the Neovim box | [first-run](workshop/first-run.md) `WL-FIRST` |
 | the Neovim-backed Editor: screen, keys, switch transfer and losses, second terminal, carry | [neovim](workshop/neovim.md) · [transfers](workshop/neovim-transfers.md) `WL-NVIM` |
 | a pane's code: the join from a role to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
 | what Workshop said: each notice published, the notices record and its `keep`, the Notices pane | [notices](workshop/notices.md) `WL-NOTE` |
-| several desks, the tab run, the durable files, the session and the window file, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) · [window-file](workshop/window-file.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
-| the application's defaults: their role, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
-| a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [weaver-pane](workshop/maker-pane.md) `WL-MAKER` |
+| several desks, the tab run, the durable files, the session and the window file, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) · [window-file](workshop/window-file.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
+| the application's defaults: their role, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) `WL-DESK` |
+| a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` |
 | the typed rows a property is edited through, the file doors, an old object document | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
-| the Terminal pane and its seam; the participant, its door, the completer and its speech; the pane's history and view of the record | [terminal](workshop/terminal.md) · [terminal-door](workshop/terminal-door.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
+| the Terminal pane and its seam; the participant, its door, the completer and its speech; the pane's history and view of the record | [terminal](workshop/terminal.md) · [terminal-door](workshop/terminal-door.md) `WL-TERM` |
 | a guest's hand: the guests file's host, its row, action classes, what a weaver's host refuses, each hand's gestures | [guests](workshop/guests.md) `WL-GUEST` |
 | a guest that reads and points by door: the file's version 3, a role, a by-pane read, a guide mark | [guide](workshop/guide.md) `WL-GUIDE` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |
@@ -59,8 +57,8 @@ its suites.
 1. Routed law documents are registers in the `timer-laws` form: one law per `##`, LAW one line,
    MEANS at most <!-- value ZEN_LAW_MEANS_MAX -->3<!-- /value -->, DOES NOT MEAN at most <!-- value ZEN_LAW_DNM_MAX -->2<!-- /value -->, WHY naming one decision record, and the law's
    proof, naming owner identifiers and exact witness cases, under `### <id>` in the appendix that ends
-   the register, `## Proven by`. Each register's laws at most <!-- value ZEN_LAW_REGISTER_BYTES KiB -->16<!-- /value --> KB and its whole
-   file, appendix included, at most <!-- value ZEN_LAW_FILE_BYTES KiB -->24<!-- /value --> KB; this router at most <!-- value ZEN_LAW_ROUTER_BYTES KiB -->12<!-- /value --> KB.
+   the register, `## Proven by`. Each register's laws at most <!-- value ZEN_LAW_REGISTER_BYTES KiB -->2<!-- /value --> KB and its whole
+   file, appendix included, at most <!-- value ZEN_LAW_FILE_BYTES KiB -->3<!-- /value --> KB, each times (1 + 0.2 × its steps in `tests/raised_budgets.txt`); this router at most <!-- value ZEN_LAW_ROUTER_BYTES KiB -->12<!-- /value --> KB.
 2. A new law is a new entry under its owner. Never a bullet appended to a neighbouring entry.
 3. Law text lives in the register only; source carries the pointer
    `// WL-… -- agents/workshop/<file>`. Other comments meet

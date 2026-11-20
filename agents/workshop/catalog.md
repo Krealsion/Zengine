@@ -5,15 +5,7 @@ them. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md
 the pane seam is the protocol's law, in [`../panes.md`](../panes.md); a reference's two keys
 are the setup file's law (WL-SETUP-10).
 
-## WL-CAT-01 — A pane kind is one integer from one closed vocabulary
-
-LAW — A pane kind is a plain integer: the compile-time kinds are `kBuiltinPanes`'s rows, in its order, and a runtime handle is minted from `kFirstRuntimeKind` up; nothing else is a kind.
-
-MEANS
-- `is_runtime_kind` is the one test that tells a session-local handle from a compile-time kind;
-- the kinds are deliberately unalike, and nothing in the vocabulary tells the built-ins apart.
-
-WHY — `agents/decisions/the-catalog-is-one-list.md`
+Retired: WL-CAT-01
 
 ## WL-CAT-02 — A descriptor's prose is judged whole, in bytes, before it is kept
 
@@ -57,11 +49,6 @@ MEANS
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
 ## Proven by
-
-### WL-CAT-01
-`workshop/panes.hpp` pane_kind kBuiltinPanes kBuiltinPaneCount kFirstRuntimeKind is_runtime_kind
-`tests/test_workshop_panes_seam.cpp` "the runtime catalog is beside the compile-time one and never
-inside it" "an unknown runtime reference never becomes the Builder"
 
 ### WL-CAT-02
 `workshop/setup_reconcile.hpp` check_pane_text kMaxPaneNameLen kMaxPaneSummaryLen

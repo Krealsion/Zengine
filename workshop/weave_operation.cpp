@@ -589,7 +589,6 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     repaint(mail);
 }
 
-// WL-CANVAS-04 -- agents/workshop/canvas.md
 WorkshopWeave::AreaPoint WorkshopWeave::pane_area_at(std::int64_t x, std::int64_t y) const {
     AreaPoint out;
     std::int64_t order = 0;
@@ -612,7 +611,7 @@ WorkshopWeave::AreaPoint WorkshopWeave::pane_area_at(std::int64_t x, std::int64_
 // A VALUE OR A REFERENCE PLACED ON A PANE: the place in its area's own pixels, for the pane to read
 // against what it drew there; a pane without the door for what is carried is told nothing and the
 // item stays held, as on any place that does not accept it.
-// WL-GUEST-06 -- agents/workshop/guests.md; WL-CANVAS-04 -- agents/workshop/canvas.md
+// WL-GUEST-06 -- agents/workshop/guests.md
 bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
     if (carried_.data.empty()) return false;
     if (!input_actor_.known || input_actor_.local != carried_.actor.local ||
@@ -671,7 +670,6 @@ bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
     return true;
 }
 
-// WL-CANVAS-06 -- agents/workshop/canvas.md
 void WorkshopWeave::carry_hover(std::int64_t x, std::int64_t y, loom::Mail& mail) {
     const AreaPoint at = carried_.data.empty() ? AreaPoint{} : pane_area_at(x, y);
     const RuntimePane* row =

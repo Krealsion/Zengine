@@ -158,7 +158,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // rule, same silence when nothing changed: it is derived at every gesture, so the
     // comparison inside is what keeps a launcher from repainting for nothing.
     publish_inventory(mail);
-    // ...AND THE EFFECTIVE KEYMAP, to whoever presents keys (WL-DESK-11), on the same terms.
+    // ...AND THE EFFECTIVE KEYMAP, to whoever presents keys, on the same terms.
     publish_keymap(mail);
     publish_pane_subject(mail);
     // ...and what the terminal participant's record holds, to whoever is presenting it.
@@ -288,7 +288,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         const PaneBounds where = bounds_of(session_.panes, session_.setup.active, order[i], sc);
         const std::int64_t titles =
             external_title_rows(session_.panes, order[i], session_.pane_titles);
-        // THE PLACE A HELD PRESS KEEPS (WL-FOCUS-11): the keys a press moved bring or take the
+        // THE PLACE A HELD PRESS KEEPS: the keys a press moved bring or take the
         // title their pane wears while it has them, and the area that title row alone would move
         // -- the pane where it was, under the title rows it was placed under -- stays where the
         // press was aimed until the window says the press ended. A pane moved keeps none.
@@ -418,7 +418,6 @@ bool WorkshopWeave::desk_in_front_of_panes() const {
     return desk_in_front(session_) || !carried_.data.empty();
 }
 
-// WL-FOCUS-04 -- agents/workshop/focus.md
 void WorkshopWeave::tell_keys(loom::Mail& mail) {
     const std::int64_t typing = typing_pane(session_);
     std::map<std::int64_t, std::pair<std::uint64_t, bool>> told;
@@ -482,7 +481,6 @@ std::pair<std::int64_t, std::int64_t> WorkshopWeave::area_origin(const std::stri
     return {at->second.x, at->second.y};
 }
 
-// WL-ATTN-12 -- agents/workshop/attention.md
 void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& mail) {
     std::vector<StandingCondition> now = standing_conditions(session_, frontier);
     if (conditions_said_ && same_conditions(now, said_conditions_)) {

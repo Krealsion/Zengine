@@ -38,7 +38,7 @@ weave or taking it off the bus between a send and its delivery, because no gestu
 **Since.** The desktop's Pane Creator held one act at a time and met the same failure: a make
 the host's admission denied at dispatch held its slot, so every later make, save and discard said
 it was not sent. It kept its act's ticket on these terms, paste included, until it retired into
-described views ([a pane made from data is a view](a-pane-made-from-data-is-a-view.md)); the
+described views ([a pane made from data is a view](../../docs/history/decisions/a-pane-made-from-data-is-a-view.md)); the
 Hotkeys pane's edit and its paste keep theirs.
 
 **Laws supported.** [WL-INFO-13](../workshop/info-body.md).

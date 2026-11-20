@@ -62,13 +62,12 @@ its words kept for the host's turn to tell, and the turn explains no exception t
 identities cross the bus, never bytes or rows. The Editor's state carries `opened_by` so its
 claim reads the same after a reload. The opening carries no picture: the Editor draws the
 candidate in its own area, in the room the trial reserved, as it commits its claim
-([the opening carries a picture](the-opening-carries-a-picture.md) says what it carried before). A host that
+([the opening carries a picture](../../docs/history/decisions/the-opening-carries-a-picture.md) says what it carried before). A host that
 replaces its manager must mint again; manager hot reload is unsupported. The bus's eight-record
 bound is shared with any other operator on it, met in words.
 
-**Laws supported.** [WL-EDIT-05](../workshop/editor.md), [WL-EDIT-13](../workshop/editor.md),
-[WL-OPEN-01](../workshop/opening.md), [WL-OPEN-02](../workshop/opening.md),
-[WL-OPEN-03](../workshop/opening.md), [WL-OPEN-04](../workshop/opening.md),
-[WL-OPEN-05](../workshop/opening.md), [WL-OPEN-06](../workshop/opening.md),
-[WL-OPEN-07](../workshop/opening.md), [WL-OPEN-08](../workshop/opening.md),
-[WL-OPEN-09](../workshop/opening.md).
+**Laws supported.** [WL-EDIT-05](../workshop/editor.md), [WL-OPEN-01](../workshop/opening.md),
+[WL-OPEN-02](../workshop/opening.md), [WL-OPEN-03](../workshop/opening.md),
+[WL-OPEN-04](../workshop/opening.md), [WL-OPEN-05](../workshop/opening.md),
+[WL-OPEN-06](../workshop/opening.md), [WL-OPEN-07](../workshop/opening.md),
+[WL-OPEN-08](../workshop/opening.md).

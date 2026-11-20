@@ -5,7 +5,7 @@ pane protocol. One law per heading; cite by ID. Router: [`../workshop.md`](../wo
 Paths: [`project.md`](project.md); caret: [`pane-caret.md`](pane-caret.md); sweep:
 [`text-box.md`](text-box.md).
 
-Retired: WL-EDIT-04.
+Retired: WL-EDIT-04, WL-EDIT-08, WL-EDIT-09, WL-EDIT-12, WL-EDIT-13, WL-EDIT-16
 
 ## WL-EDIT-01 — One document, weave-owned, presented by a pane
 
@@ -75,25 +75,6 @@ MEANS
 
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
-## WL-EDIT-08 — Tabs expand at presentation only
-
-LAW — Tabs expand only at presentation, at the layout's `tab-width` stop; one tab-geometry measurer (bytes to displayed columns and back, plus the slice) is what the rows, the press and the drag spend.
-
-MEANS
-- `kCaretCols` reserves the caret's column of every document row (the Terminal's rule).
-
-WHY — `agents/decisions/the-first-multiline-consumer.md`
-
-## WL-EDIT-09 — The viewport reconciles once per composition
-
-LAW — `reconcile` clamps the offsets always, follows the caret when a gesture asked (`follow_caret`) or the GRANTED ROOM changed, and deliberately not after the wheel or a reveal; it runs once, inside `say`.
-
-MEANS
-- a notice appearing or clearing changes the document's rows and is not a resize;
-- asking for the OPEN source again is a reveal: a scrolled view is the weaver's.
-
-WHY — `agents/decisions/the-first-multiline-consumer.md`
-
 ## WL-EDIT-11 — A paste answer lands where the weaver asked or nowhere
 
 LAW — A pending paste pins the document epoch and the buffer revision it was asked for, so a replaced document strands the payload silently and a document that merely moved is told to paste again.
@@ -102,28 +83,6 @@ MEANS
 - it retires with its subject: a new document clears the flight, so a clean one is not
 
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
-
-## WL-EDIT-12 — The pane composes its rows, the caret and the selection standing in them
-
-LAW — The pane composes a status row (dirty word, `L:C/N`, the path), a notice row where the room holds one, then the document through the viewport; the caret and the clipped selection stand in them.
-
-MEANS
-- a room too small for both keeps the document's row: the notice replaces the status row;
-- one row is the status row alone, and the caret has nowhere to be; a layout's `status` off gives that row to the document;
-- they are its picture in its own area of the window, the caret and the selection drawn as marks in the run they stand in.
-
-WHY — `agents/decisions/the-editor-is-the-custodian.md`
-
-## WL-EDIT-13 — The desk's half: a trial on a copy, an admission, the publication applied
-
-LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges and offers its presentation; shown the publication, it applies seat, keys and room.
-
-MEANS
-- a change of its rows, of the desk's panes, places, sizes or ranks, or a routed input before the commitment aborts it; a canvas moved before the admission refuses it there;
-- a presentation it holds no trial for is Declined, said, and re-claimed from the live desk;
-- the content is the Editor's to draw in its area at the commitment, in the room the trial reserved (WL-OPEN-10).
-
-WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-EDIT-14 — The exit is asked of the room, and decided by the answer
 
@@ -152,21 +111,10 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
-## WL-EDIT-16 — A sweep arrives as places, unclamped, and the pane says what they mean
-
-LAW — A held primary press's motion extends the gesture it began and means nothing otherwise; its unclamped place is read against the chrome THAT PRESS SAW, and a row past either edge steps the window.
-
-MEANS
-- a press taken as focus alone, or beside the rows, begins no gesture: later motions sweep nothing;
-- a pointer gesture composes no new rows, so the notice and the picture survive it;
-- its release or its loss ends it; the window ends the hold of an area that went (WL-CANVAS-03).
-
-WHY — `agents/decisions/the-editor-is-the-custodian.md`
-
 ## Do not assume
 
 - That an empty Editor leaves the keys to command mode — a runtime pane holds them from
-  the press that pointed at it (WL-FOCUS-01).
+  the press that pointed at it.
 
 ## Proven by
 
@@ -225,21 +173,6 @@ PasteableSource
 `tests/test_workshop_panes_editor.cpp` "a clipboard holding non-ASCII refuses the paste, and typed
 non-ASCII is refused with a sentence"
 
-### WL-EDIT-08
-`editor/editor-pane/editor.hpp` EditorState::first_col visual_col_of byte_of_visual_col
-expanded_slice kEditorTabStop
-`editor/editor-pane/common.hpp` kCaretCols
-`editor/editor-pane/transfers.hpp` press_at
-`tests/test_editor.cpp` "tab geometry maps bytes and displayed columns both ways, exactly"
-`tests/test_workshop_panes_editor.cpp` "a press places the caret through the same tab geometry the
-paint used, and the caret stands in its picture where the press put it"
-
-### WL-EDIT-09
-`editor/editor-pane/pane.cpp` reconcile say
-`editor/editor-pane/editor.hpp` EditorState::follow_caret EditorState::last_rows
-`tests/test_workshop_panes_editor.cpp` "keyboard navigation scrolls the window and the caret never
-leaves it" "asking for the open source again moves the pane, never the view"
-
 ### WL-EDIT-11
 `editor/editor-pane/pane.cpp` begin_paste on(ClipboardText)
 `editor/editor-pane/common.hpp` Paste
@@ -249,29 +182,6 @@ EditorBuffer::paste_lines EditorBuffer::set_lines
 `tests/test_workshop_panes_editor.cpp` "a late paste answer may not land at a caret that has since
 moved" "a paste retires with the document it was asked for" "a dirty document with no paste in
 flight still refuses the exit"
-
-### WL-EDIT-12
-`editor/editor-pane/pane.cpp` say compose caret_of status_text
-`editor/editor-pane/common.hpp` parts_of kNoticeNeedsRows
-`pane/drawing.hpp` rows_drawing
-`workshop/screen_external.cpp` external_header external_body_place
-`tests/test_workshop_panes_editor.cpp` "a selection that runs above the window is clipped, and one
-wholly out of it is not said" "in a room too small for both, the document keeps its rows and a
-notice stands in for the status row"
-
-### WL-EDIT-13
-`workshop/weave_managed.cpp` on(PresentationTrialRequested) on(v3::PresentationAdmitRequested)
-on(ManagedOpenSettled) on_claim_published show_presentation
-trial_room trial_room_stands
-`workshop/weave_seam.cpp` on(PaneRevealRequested) revealed
-`workshop/screen.hpp` stack_slots_that_fit
-`workshop/open_seam_vocabulary.hpp` PanePresentation ManagedOpenSettled
-`tests/test_workshop_panes_opening.cpp` "a canvas room that moves while the document is prepared
-refuses its admission, though its rows and columns stand" "a setting written while an opening
-prepares survives its publication"
-`tests/test_workshop_panes_editor.cpp` "a resize after the commitment is an ordinary presentation
-change" "the real desk, shown a presentation it holds no trial for, answers that it did not apply it
--- Declined, not held, named, and re-claiming its own truth"
 
 ### WL-EDIT-14
 `workshop/weave_run.cpp` quit finish_quit on(PaneQuitAnswered) hold_input replay_held
@@ -294,13 +204,3 @@ before it" "a carried undo history is put back within the buffer's two bounds: p
 oldest steps go and the newest stays"
 `tests/test_workshop_load.cpp` "an unchanged room after a reload is not a resize, and the view it
 was scrolled to stands" "the reloaded pane reads live, not out of the snapshot it revived from"
-
-### WL-EDIT-16
-`editor/editor-pane/transfers.hpp` on_window press_at dragged
-`editor/editor-pane/common.hpp` Drag
-`editor/editor-pane/editor.hpp` EditorBuffer::drag_to
-`pane/drawing.hpp` WindowPointer
-`tests/test_workshop_panes_editor.cpp` "a press that only focuses begins no sweep, and a gesture
-keeps the geometry it was made against" "a sweep in a pane that lost its seat is lost with it, and a
-motion after the close moves nothing it selected" "a press begins a sweep only where it named a row
-of the body"

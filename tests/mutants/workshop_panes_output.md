@@ -24,5 +24,5 @@ In `builder/builder-pane/view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-OUT-04: in a room too small for its strip the reader's whole list is in its own menu, and every
+- in a room too small for its strip the reader's whole list is in its own menu, and every
   row of it acts

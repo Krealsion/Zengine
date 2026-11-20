@@ -14,7 +14,6 @@ namespace zengine::workshop {
 
 // ---- PANE MANAGEMENT: what a weaver is ARRANGING, and how ------------------------------
 
-// WL-ARR-09 -- agents/workshop/arrangement.md
 PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept {
     const std::int64_t cell = graphics::kCellPx;
     const std::int64_t x0 = r.x;
@@ -36,7 +35,7 @@ PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept {
     }
 }
 
-// WL-ARR-01 -- agents/workshop/arrangement.md; WL-GEO-07 -- agents/workshop/geometry.md
+// WL-GEO-07 -- agents/workshop/geometry.md
 std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
                           std::int64_t grain) noexcept {
     if (!r.contains_at(sx, sy, grain)) {
@@ -77,14 +76,13 @@ std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
     return kNoPaneEdge;
 }
 
-// WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
+// WL-PTR-01 -- agents/workshop/pointer.md
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                          std::int64_t clicks) noexcept {
     return clicks >= 2 && prior.armed && prior.at == at;
 }
 
-// WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06 -- agents/workshop/focus.md
-// WL-CTX-06 -- agents/workshop/contextual.md
+// WL-KEY-03 -- agents/workshop/keyboard.md
 KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.setup.naming.open) {
         return KeyContext::kNaming;
@@ -95,8 +93,8 @@ KeyContext keyboard_context_beneath_menu(const Session& s) {
     return KeyContext::kCommand;
 }
 
-// WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06, WL-FOCUS-09 -- agents/workshop/focus.md
-// WL-ARR-14 -- agents/workshop/arrangement.md; WL-CTX-08 -- agents/workshop/contextual.md
+// WL-KEY-03 -- agents/workshop/keyboard.md
+// WL-ARR-14 -- agents/workshop/arrangement.md
 KeyContext keyboard_context(const Session& s) {
     if (s.arrange.open && !s.arrange.opened) {
         if (s.arrange.resetting) {
@@ -113,7 +111,6 @@ KeyContext keyboard_context(const Session& s) {
     return keyboard_context_beneath_menu(s);
 }
 
-// WL-FOCUS-04, WL-FOCUS-10 -- agents/workshop/focus.md
 std::int64_t typing_pane(const Session& s) {
     // THE KEY HANDLER'S OWN ORDER, READ AS A VALUE: the resolved context decides
     // (`on(KeyPressed)`).
@@ -171,7 +168,6 @@ std::vector<Selectable> selectable_rects(const Panes& panes, const Setup& setup,
 
 } // namespace
 
-// WL-FOCUS-12 -- agents/workshop/focus.md
 std::vector<std::int64_t> selectable_panes(const Panes& panes, const Setup& setup,
                                            const Screen& sc) {
     std::vector<std::int64_t> out;
@@ -181,7 +177,6 @@ std::vector<std::int64_t> selectable_panes(const Panes& panes, const Setup& setu
     return out;
 }
 
-// WL-FOCUS-12 -- agents/workshop/focus.md
 std::optional<std::int64_t> cycle_pane(const Panes& panes, const Setup& setup, const Screen& sc,
                                        std::int64_t from, std::int64_t step) {
     const std::vector<std::int64_t> order = selectable_panes(panes, setup, sc);
@@ -197,7 +192,6 @@ std::optional<std::int64_t> cycle_pane(const Panes& panes, const Setup& setup, c
     return order[static_cast<std::size_t>(((i + step) % n + n) % n)];
 }
 
-// WL-FOCUS-12 -- agents/workshop/focus.md
 std::optional<std::int64_t> spatial_neighbour(const Panes& panes, const Setup& setup,
                                               const Screen& sc, std::int64_t from, Act dir) {
     const bool horizontal = dir == Act::kFocusLeft || dir == Act::kFocusRight;

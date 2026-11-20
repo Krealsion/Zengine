@@ -45,9 +45,8 @@ their looks arrives as one drawing: a node costs Loom a cell for its path, one f
 (said once a drawing) and its operands' fields, 8 a text and 12 an image; one whose every node wears
 a look of its own is drawn as an image. Old `capture` rows read more than they did. One
 version of each reading stands now, and a pane drawing in an area of its own is read from the window
-([a pane is read from the window that shows it](a-pane-is-read-from-the-window-that-shows-it.md)).
+([a pane is read from the window that shows it](../../docs/history/decisions/a-pane-is-read-from-the-window-that-shows-it.md)).
 
-**Laws supported.** [WL-READ-01](../workshop/desk-read.md),
-[WL-READ-02](../workshop/desk-read.md), [WL-READ-03](../workshop/desk-read.md),
-[WL-READ-04](../workshop/desk-read.md), [WL-READ-05](../workshop/desk-read.md),
+**Laws supported.** [WL-READ-02](../workshop/desk-read.md),
+[WL-READ-03](../workshop/desk-read.md), [WL-READ-05](../workshop/desk-read.md),
 [WL-GUEST-10](../workshop/guests.md), [WL-GUEST-11](../workshop/guests.md).

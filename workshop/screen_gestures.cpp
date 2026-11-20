@@ -76,7 +76,6 @@ std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 
 } // namespace detail
 
-// WL-KEY-09 -- agents/workshop/keyboard.md; WL-RGN-03 -- agents/workshop/regions.md
 std::vector<std::string> help_rows(const Keymap& k, KeySpelling spelling, KeyContext ctx,
                                    std::int64_t width, std::size_t rows, std::int64_t pane) {
     std::vector<std::string> out;
@@ -172,7 +171,6 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
     return out;
 }
 
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base,
                                 const Screen& sc) {
     PaneWindowAxes out = pane_window_at(base, sc);
@@ -285,7 +283,6 @@ Axis snap_axis(std::int64_t at, std::int64_t size, Moving moving,
 
 } // namespace
 
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Screen& sc,
                               std::int64_t held) {
     PaneSnapLines out;
@@ -307,7 +304,6 @@ PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Scre
     return out;
 }
 
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
                                const PaneSnapLines& lines, std::int64_t reach_px) noexcept {
     SnappedWindow out{want, std::nullopt, std::nullopt};
@@ -345,8 +341,6 @@ ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
 
-// WL-INFO-03 -- agents/workshop/info-body.md
-// WL-TAB-08 -- agents/workshop/tab-run.md
 ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows) {
     ListWindow w;
     if (total == 0 || rows == 0) {
@@ -393,7 +387,6 @@ ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t r
     return w;
 }
 
-// WL-INFO-03 -- agents/workshop/info-body.md
 std::string omitted_text(std::size_t how_many, const char* which) {
     return "... " + std::to_string(how_many) + " " + which;
 }

@@ -24,7 +24,6 @@ namespace {
 /// Why the code behind a pane cannot be opened, in a weaver's words, or empty when the host named
 /// exactly one recipe with one source file. The reason comes before any path, and every absence
 /// is its own sentence, since each asks something different of the weaver.
-// WL-CODE-02 -- agents/workshop/code.md
 std::string code_refusal(const std::string& name, const HostContext::CodeSource& code) {
     if (code.weave == 0) {
         return "nobody holds " + code.role + " now, so " + name +
@@ -73,7 +72,6 @@ bool same_code(const HostContext::CodeSource& now, const HostContext::CodeSource
 
 } // namespace
 
-// WL-CODE-02 -- agents/workshop/code.md
 // WL-GUEST-09 -- agents/workshop/guests.md
 void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     // THE SETUP HAS ALREADY ANSWERED FOR THE REFERENCE: this is reached only through

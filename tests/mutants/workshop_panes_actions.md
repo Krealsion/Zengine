@@ -363,7 +363,7 @@ In `workshop/desktop-pane/launcher_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder through the host's launch door,
+- the shipped Pane Manager's `n` shows the View Builder through the host's launch door,
   and a Workshop without one says so in the door's words
 
 ## new-launches-nothing
@@ -379,7 +379,7 @@ In `workshop/desktop-pane/launcher_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder through the host's launch door,
+- the shipped Pane Manager's `n` shows the View Builder through the host's launch door,
   and a Workshop without one says so in the door's words
 
 ## help-lines-kept

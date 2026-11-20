@@ -112,7 +112,6 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     }
 }
 
-// WL-ATTN-02 -- agents/workshop/attention.md
 void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
     if (startup_spoken_) {
         return;
@@ -153,7 +152,7 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-ATTN-01, WL-ATTN-02 -- agents/workshop/attention.md
+// WL-ATTN-01 -- agents/workshop/attention.md
 void WorkshopWeave::take_host_conditions() {
     conditions_taken_ = host_->conditions_generation;
     for (const Condition& c : host_->standing_conditions) {
@@ -254,7 +253,7 @@ void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
     FrameDrawing* frame = frame_of(r.area);
     const bool desk = window_.room(r, mail);
     if (desk) {
-        // THE DESK'S AREA IS IN THE WINDOW: a restore's shaping may be said now (WL-SESSION-20).
+        // THE DESK'S AREA IS IN THE WINDOW: a restore's shaping may be said now.
         shape_restored_window(mail);
     }
     const bool overlay = !desk && overlay_.room(r, mail);
@@ -365,8 +364,8 @@ void WorkshopWeave::on(const graphics::AreaWheelTurned& w, loom::Mail& mail) {
     pointer_wheel(input::PointerWheel{w.dx, w.dy, x, y, input::space::kPixels, w.modifiers}, mail);
 }
 
-// WL-FOCUS-03 -- agents/workshop/focus.md; WL-CANVAS-05 -- agents/workshop/canvas.md
-// WL-CTX-08 -- agents/workshop/contextual.md; WL-GUIDE-06 -- agents/workshop/guide.md
+// WL-CANVAS-05 -- agents/workshop/canvas.md
+// WL-GUIDE-06 -- agents/workshop/guide.md
 void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     if (p.window != window_name_ ||
         !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + p.window) ||
@@ -487,8 +486,8 @@ void WorkshopWeave::area_pressed(const graphics::AreaPressed& p, std::uint64_t p
     repaint(mail);
 }
 
-// WL-ARR-02 -- agents/workshop/arrangement.md; WL-FOCUS-11 -- agents/workshop/focus.md
-// WL-PRESS-06 -- agents/workshop/press-chain.md; WL-CANVAS-03 -- agents/workshop/canvas.md
+// WL-ARR-02 -- agents/workshop/arrangement.md
+// WL-PRESS-06 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
     if (e.button < 1 || e.button > 3) {
         return;
@@ -516,7 +515,6 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
     }
 }
 
-// WL-CANVAS-06 -- agents/workshop/canvas.md
 void WorkshopWeave::on(const graphics::AreaPointerLeft& l, loom::Mail& mail) {
     if (own_pointer_area(l.area, mail)) {
         leave_carry_hover(mail);
@@ -557,7 +555,6 @@ void WorkshopWeave::on(const graphics::AreaHandRefused& r, loom::Mail& mail) {
     }
 }
 
-// WL-SESSION-08, WL-SESSION-09 -- agents/workshop/window-file.md
 void WorkshopWeave::on(const zengine::graphics::SurfacePlacement& p, loom::Mail&) {
     medium_placed_ = true;
     session_.placement_known = true;
@@ -578,8 +575,7 @@ void WorkshopWeave::on(const zengine::graphics::SurfaceCloseRequested&, loom::Ma
     quit(mail);
 }
 
-// WL-KEY-03, WL-KEY-05, WL-KEY-12 -- agents/workshop/keyboard.md
-// WL-FOCUS-13 -- agents/workshop/focus.md
+// WL-KEY-03 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
     // WHILE THE ROOM IS BEING ASKED WHETHER THIS WORKSHOP MAY END, NOTHING IS ROUTED. Held,

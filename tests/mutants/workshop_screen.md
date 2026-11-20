@@ -1039,7 +1039,7 @@ In `workshop/layouts/store.cpp`:
 
 Red in `zengine-workshop-screen-tests`:
 
-- WL-DESK-19: a pane the layout never had opens at the room's centre, placed by its title and edges
+- a pane the layout never had opens at the room's centre, placed by its title and edges
   while its keys and body stay its own; shown again after a hide it comes back where it was left
 
 ## no-veil
@@ -1054,7 +1054,7 @@ In `workshop/screen_compose.cpp`:
 
 Red in `zengine-workshop-screen-tests`:
 
-- WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows
+- where faded panes overlap the veil falls once, and on all of each that shows
 
 ## veil-each-pane-whole
 
@@ -1070,7 +1070,7 @@ In `workshop/screen_compose.cpp`:
 
 Red in `zengine-workshop-screen-tests`:
 
-- WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows
+- where faded panes overlap the veil falls once, and on all of each that shows
 
 ## shut-keeps-its-height
 

@@ -17,8 +17,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Law
 
 No register of its own. Its law is its reference page,
-[The UI package — authored and solved](docs/ui.md). Workshop's desk is solved by it: WL-PANE-03 in
-`agents/workshop/panes-and-windows.md` (which `workshop/` routes) names `ui/layout.hpp`'s `arrange`.
+[The UI package — authored and solved](docs/ui.md). Workshop's desk is solved by it, through `ui/layout.hpp`'s `arrange`.
 
 ## Suites
 

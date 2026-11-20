@@ -4,6 +4,8 @@ Register `WL-GEO`: the composition in canvas pixels, the whole pixel, the unit a
 and the desk and its words read in Workshop's numbers. One law per heading;
 cite by ID. Router: [`../workshop.md`](../workshop.md).
 
+Retired: WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05, WL-GEO-06, WL-GEO-09, WL-GEO-10, WL-GEO-12, WL-GEO-13
+
 ## WL-GEO-01 — One geometry draws a thing and hits it
 
 LAW — The geometry that draws a thing and the geometry that hits it are one resolved geometry; Workshop has no click-bounds beside a paint-bounds.
@@ -17,68 +19,6 @@ DOES NOT MEAN
 - that a caret moves a press: it moves no character from its cell, so a cell names what it shows.
 
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
-
-## WL-GEO-02 — `screen_of` sizes no tool's rectangle
-
-LAW — The screen answers the room, the bands and the text metric, and nothing else: no presentation has a rectangle here, and a pane's is the arrangement's.
-
-MEANS
-- the four constants that sized the terminal overlay left with it;
-- so did the six `Screen` fields that carried its corner, its extent and its interior.
-
-DOES NOT MEAN
-- that overlap was patched. It ENDED: what it pinned is a pane over a pane, with a boundary.
-
-WHY — `agents/decisions/the-room-is-the-screen.md`
-
-## WL-GEO-03 — The room is the surface, and every place stands on it
-
-LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. Every point a pane's word names is a point of the room, reserved out of nothing.
-
-MEANS
-- a pane's presence, place, size or removal changes no room;
-- take a pane off the desk and the weaver gets its columns of workspace, not of nothing;
-- the stack's fallback height is `workshop.stack-rows`, and a commit re-fits the panes standing there.
-
-DOES NOT MEAN
-- that the bands are a pane's — `placement_bounds` merely defaults the Layouts pane to them.
-
-WHY — `agents/decisions/the-room-is-the-screen.md`
-
-## WL-GEO-04 — Overlaps are measured, not forbidden
-
-LAW — Presentations may overlap; every overlap this composition makes is measured exactly, and none of them may leave the room.
-
-MEANS
-- a pane over the workspace, a pane over another pane (the picker over a slot, while it was);
-- the stack's slot reaching past the room's middle, counted at every extent.
-
-DOES NOT MEAN
-- that a test may forbid overlap generally — it would forbid every one of them.
-
-WHY — `agents/decisions/the-room-is-the-screen.md`
-
-## WL-GEO-05 — The composition is pixels, its bands fitted to the text they hold
-
-LAW — `screen_of` answers in canvas pixels: each band is as tall as the rows it holds in the face's metric, inside one device unit of chrome, or whole cells without type; the room is what is left.
-
-MEANS
-- the top band holds the Layouts pane's `kTopRows` rows and the foot `kBottomRows`, on every face;
-- a resize or a new metric recomputes all of it, and nothing of it is remembered from one screen;
-- pane preferences resolve separately, against the room this answers.
-
-WHY — `agents/decisions/the-whole-pixel.md`
-
-## WL-GEO-06 — Workshop's unit is the whole pixel
-
-LAW — A pane rectangle is a `PixelRect` of whole canvas pixels, twelve to the cell, distinct from the cell rectangle; a cell enters by one multiply, and a span leaves only as the cells it covers.
-
-MEANS
-- conversion is only `pixels_of_cells` / `cells_covered`; nothing finer than a pixel is held;
-- an axis authored in `pixels` is presented at exactly its pixels, on every medium;
-- a one-pixel drag moves a pane by exactly one pixel; the file keeps every pixel.
-
-WHY — `agents/decisions/the-whole-pixel.md`
 
 ## WL-GEO-07 — One quantization law, every consumer, every grain
 
@@ -105,29 +45,6 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
-## WL-GEO-09 — Geometry is spelled in the face's unit by one derivation
-
-LAW — A pane's geometry has one spelling path — one unit, one amount, one rect — with no per-medium table and no second conversion constant.
-
-MEANS
-- there is no unit type in Workshop;
-- the unit is said once per line, where a number in it was printed (`@75,60 482x12 px f0`).
-
-WHY — `agents/decisions/the-face-reports-the-unit.md`
-
-## WL-GEO-10 — A projection wears `~` and names the reason once
-
-LAW — A value not exact in the active face's unit is spelled with `~`, and the line says `(~ projected)` once; an exact value carries neither.
-
-MEANS
-- a whole-cell value is exact on every medium; a pixel-authored value is exact in pixels only;
-- the mark is ASCII, because the shipped face's letterform is 0x20–0x7E.
-
-DOES NOT MEAN
-- that a rounded value is ever presented as the stored one — the mark is the distinction.
-
-WHY — `agents/decisions/the-face-reports-the-unit.md`
-
 ## WL-GEO-11 — Looking is not authoring
 
 LAW — No readout path writes: a session that crosses both media reading a geometry no terminal can say writes the same session file byte for byte, and the unit reaches no durable file.
@@ -137,32 +54,6 @@ MEANS
 - a session restore hands this run's unit straight back rather than resetting it to cells.
 
 WHY — `agents/decisions/the-face-reports-the-unit.md`
-
-## WL-GEO-12 — The notice says each word and where it put the pane
-
-LAW — A window says each axis in its word, `-` for `default`, followed by ` -- now @x,y WxH <unit>` from the resolved, unclipped window wherever an axis is not exact pixels.
-
-MEANS
-- the clause names the unclipped ask — the rectangle a gesture measures from; a window in pixels on every axis carries none;
-- a share reads `50.00%`, then `fit`, `fill`, and a place its word and the offsets it reads, a share place's as shares;
-- a move says `moved <name>: @x,y -> @x,y <unit>`, its place before and after, each size where it changed, and an axis whose word it changed.
-
-WHY — `agents/decisions/the-face-reports-the-unit.md`
-
-## WL-GEO-13 — The desk and its words are Workshop's numbers, placed where they are drawn
-
-LAW — A desk and a pane's words are answered in canvas pixels, each where the medium draws it: Workshop's own from what it owns, a pane's from what the window says its area shows (WL-READ-08).
-
-MEANS
-- a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
-- a word's point is resolved by the measurer a press is, and a reading's place and text measure give any cell; a pane whose role nobody holds gives none;
-- reading grants nothing and moves nothing: a press is ordinary input.
-
-DOES NOT MEAN
-- that a word is named: its number is its place in one answer, and a pane names its parts;
-- that a covered word is said: a reading says a pane's visible words and its cover (WL-READ-05).
-
-WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## WL-GEO-14 — A dock keeps a strip, and its open pane covers the room
 
@@ -178,9 +69,9 @@ WHY — `agents/decisions/docks-cover-the-room.md`
 ## Do not assume
 
 - That any part of the room is reserved for a pane — the room is the surface less the strips its
-  docks keep (WL-GEO-03, WL-GEO-14).
+  docks keep (WL-GEO-14).
 - That a metric chooses where a pane goes — it sizes the two bands, and a default place is
-  measured from what they leave (WL-GEO-05).
+  measured from what they leave.
 
 ## Proven by
 
@@ -203,45 +94,6 @@ the column of the character each cell shows, a caret moving none"
 `tests/test_workshop_panes_editor.cpp` "in a terminal, a press on a character past the caret puts
 the caret before that character, and a sweep ends before the character under the hand"
 
-### WL-GEO-02
-`workshop/screen.hpp` screen_of kScreenMinW Screen::room_w
-`tests/test_workshop_screen.cpp` "a pane may lie over a pane, and the boundary is what makes it
-legible" "the screen's extent is TOTAL over whatever a medium published"
-
-### WL-GEO-03
-`workshop/screen.hpp` screen_of Screen::room_w Screen::room_h kTopRows kBottomRows placement_bounds
-Screen::room_y Screen::stack_rows kMinStackRows kMaxStackRows Session::stack_rows stack_capacity
-`workshop/screen_chrome.cpp` add_desk_frames
-`workshop/panes.hpp` kTopBand
-`workshop/weave_settings.cpp` apply_workshop_settings
-`tests/test_workshop_screen.cpp` "the screen's furniture cannot see a pane, open or closed" "the
-reservation does not follow the Layouts pane" "a stacked pane is `workshop.stack-rows` tall, read
-from Workshop's settings file, and a file still keeping `workshop.side-columns` reads"
-`tests/test_workshop_panes_settings.cpp` "Workshop's measures and its completion order apply when
-committed, are kept in the settings file, and a value outside what each takes is refused"
-
-### WL-GEO-04
-`workshop/screen.hpp` screen_of kStackRows kMinStack
-`tests/test_workshop_screen.cpp` "a pane may lie over a pane, and the boundary is what makes it
-legible" "an overlapping pane is painted where it is hit, in both front orders"
-
-### WL-GEO-05
-`workshop/screen.hpp` screen_of band_px_for kMinScreen Screen Screen::room_y Screen::band_y
-`tests/test_workshop_screen.cpp` "the screen's furniture cannot see a pane, open or closed" "the
-screen's extent is TOTAL over whatever a medium published" "the band is the keys' legend alone, and
-the room takes the row the notice left"
-
-### WL-GEO-06
-`workshop/screen.hpp` PixelRect CellRect pixels_of_cells cells_covered
-`workshop/screen_chrome.cpp` project_pane
-`graphics/vocabulary.hpp` kCellPx
-`workshop/setup.hpp` kPixels kPanePxMin
-`tests/test_workshop_screen.cpp` "a one-pixel drag moves a pane by exactly one pixel of lattice"
-"pixel geometry survives the setup file without losing a pixel"
-`tests/test_workshop_panes_window.cpp` "an axis in pixels is presented at exactly its pixels, on
-every medium"
-`tests/test_graphics.cpp` "the pixel and cell conversions are exact, floored, and total"
-
 ### WL-GEO-07
 `workshop/screen.hpp` PixelRect::contains_at PointedAt PointedAt::px
 `workshop/screen_arrange.cpp` pane_edge_at
@@ -259,55 +111,12 @@ Screen::cell_px Screen::text_advance_px
 `workshop/weave_handlers.cpp` on(WindowOffered)
 `tests/test_workshop_screen.cpp` "the canvas's device unit is the medium's answer, never Workshop's"
 
-### WL-GEO-09
-`workshop/screen_pane_state.cpp` geometry_unit geometry_spelling geometry_amount_text
-pixel_rect_text pane_window_text
-`workshop/screen.hpp` GeometrySpelling
-`graphics/pixels.hpp` device_of_px
-`tests/test_workshop_screen.cpp` "one authored value, spelled in whatever unit the active face
-reported"
-`tests/test_graphics.cpp` "a medium's own device unit, and whether it can say a value exactly"
-
-### WL-GEO-10
-`workshop/screen_pane_state.cpp` geometry_spelling geometry_amount_text pixel_rect_text
-`workshop/screen.hpp` GeometrySpelling
-`tests/test_workshop_screen.cpp` "one authored value, spelled in whatever unit the active face
-reported"
-`tests/test_workshop_panes_window.cpp` "the arrangement notice speaks the unit the FACE reported"
-
 ### WL-GEO-11
 `workshop/weave_arrange.cpp` arrange_status
 `workshop/layouts/session_persist.hpp` kFormatVersion
 `tests/test_workshop_persistence.cpp` "a read-only visit through the other medium writes the SAME
 BYTES" "the medium's device unit reaches no durable file"
 `tests/test_workshop_screen.cpp` "the medium's unit reaches the READOUT and no geometry at all"
-
-### WL-GEO-12
-`workshop/weave_arrange.cpp` arrange_status managed_bounds WorkshopWeave::moved_words
-WorkshopWeave::pane_room_rect
-`workshop/screen_pane_state.cpp` pane_window_reads_words pane_window_text pane_move_text
-`workshop/screen.hpp` pane_move_text
-`workshop/screen_pane_subject.cpp` pane_axis_text
-`tests/test_workshop_panes_window.cpp` "the notice says where a pane the weaver did not place
-actually is"
-`tests/test_workshop_screen.cpp` "which parts of a pane's window its numbers alone do not place"
-"the readout says each word, and where the words put the pane"
-`tests/test_workshop_desk.cpp` "Workshop's notice says a pane's words, and the desk read the pixels
-they came to"
-
-### WL-GEO-13
-`workshop/weave_desk_read.cpp` area_reading shown_words_and_parts pane_point
-`workshop/desk_read.hpp` word_on glyph_point
-`tests/test_workshop_desk.cpp` "every place the desk and the words give is where the medium draws
-it, in a window and in a terminal" "a canvas pane's words are its labels and text runs, each where
-it is drawn, and a press at a word's point lands inside it in the pane's own canvas" "a character's
-point is the cell showing it, a caret moving none, and a press on a cell reaches the pane as the
-column of the character it shows" "a row as wide as its pane with a caret in it says every
-character, at a place inside the pane, the caret past its end on its last cell" "a row with nothing
-on it but the caret says no word, and a press on the caret's own cell reaches the pane, in a text row
-and in a canvas field at the body's right edge" "a part whose one cell holds the caret at the body's right edge has a point
-there, and a press on it reaches the pane" "a canvas picture its role's holder no longer
-holds says its words and parts with no point, gives none, and a press where one was reaches nothing"
 
 ### WL-GEO-14
 `workshop/screen.hpp` Screen::strip_left strip_px with_strips strip_rect screen_of canvas_of_room

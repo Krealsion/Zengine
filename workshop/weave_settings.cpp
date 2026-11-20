@@ -66,7 +66,6 @@ void WorkshopWeave::on(const RoleSettings& settings, loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-KEY-16 -- agents/workshop/key-spelling.md
 void WorkshopWeave::commit_own_setting(RoleSettingCommitRequested commit, std::string note,
                                        loom::Mail& mail) {
     if (own_revision_ == 0) {
@@ -84,7 +83,6 @@ void WorkshopWeave::commit_own_setting(RoleSettingCommitRequested commit, std::s
     say(note + "; not saved: nothing keeps this Workshop's settings", true);
 }
 
-// WL-KEY-16 -- agents/workshop/key-spelling.md
 void WorkshopWeave::on(const RoleSettingCommitAnswered& acted, loom::Mail& mail) {
     // AN ANSWER IS LOOM'S TO VERIFY, to an ask this weave sent; it is personal speech.
     if (!mail.answers_ask()) {

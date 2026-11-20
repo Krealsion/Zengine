@@ -44,10 +44,10 @@ desktop's Pane Manager, over the one inventory and the two presence doors (WL-DE
 WL-DESK-12); a pane as a subject is an inspector's — Info names it and the host keeps it
 (WL-INFO-14), and a commit is the owner's write through a door the desk already has
 (WL-INFO-15). What this record decided about a subject stands: a subject is not a selection and
-is never derived from `Panes::selected`; its rows read fresh and nothing writes on paint
-(WL-PED-04); every write is an existing door (WL-PED-05); a typed value is refused, never
+is never derived from `Panes::selected`; its rows read fresh and nothing writes on paint;
+every write is an existing door (WL-PED-05); a typed value is refused, never
 clamped (WL-PED-06). The host keeps no manager beside the desktop's: two presentations of one
 inventory are two lists to drift, the picker's reason.
 
-**Laws supported.** [WL-PED-04](../workshop/pane-manager.md),
-[WL-PED-05](../workshop/pane-manager.md), [WL-PED-06](../workshop/pane-manager.md).
+**Laws supported.** [WL-PED-05](../workshop/pane-manager.md),
+[WL-PED-06](../workshop/pane-manager.md).

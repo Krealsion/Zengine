@@ -4,7 +4,7 @@
 #ifndef ZENGINE_NEOVIM_LAUNCH_HPP
 #define ZENGINE_NEOVIM_LAUNCH_HPP
 
-// Which Neovim, with which configuration, and how it is spoken to (WL-NVIM-09): two environment
+// Which Neovim, with which configuration, and how it is spoken to: two environment
 // variables, read when a Neovim starts. `ZENGINE_NEOVIM` is the program, a path or a name on
 // PATH (default `nvim`); `ZENGINE_NEOVIM_PROFILE` is `clean` (the default: `--clean` under
 // NVIM_APPNAME `zengine-neovim-clean`, so a weaver's own setup is neither read nor written),

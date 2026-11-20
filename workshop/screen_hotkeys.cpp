@@ -12,7 +12,6 @@
 namespace zengine::workshop {
 using pane::ActionCause;
 
-// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     switch (ctx) {
     case KeyContext::kNaming: return "naming a layout";
@@ -55,14 +54,12 @@ bool authored_for(const Keymap& k, const std::string& id) {
 std::string spelled(const Gesture& g) { return is_bound(g) ? gesture_word(g) : std::string(); }
 
 /// ...and as the Hotkeys view shows it, in the spelling the weaver chose for it.
-// WL-KEY-16 -- agents/workshop/key-spelling.md
 std::string shown_as(const Gesture& g, KeySpelling spelling) {
     return is_bound(g) ? spell_gesture(g, spelling) : std::string();
 }
 
 } // namespace
 
-// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 KeymapShown keymap_shown(const Session& s, const std::string& file, const std::string& word) {
     const Keymap& k = s.keymap;
     KeymapShown out;

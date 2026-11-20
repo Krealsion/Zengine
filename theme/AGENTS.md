@@ -46,5 +46,4 @@ The weave names no host. Its files are read and written through `persist/`.
 
 ## Practices
 
-- A theme is the look alone: nothing here reads or writes a setting or a key.
 - Nothing here assumes Workshop: a host is whoever says where the themes are and what is worn.

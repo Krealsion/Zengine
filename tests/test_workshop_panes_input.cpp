@@ -372,7 +372,7 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     // THE AUTHORITY AUDIT, FROM THE BUS. Across a whole life -- discovery, a room, presses on
     // several rows, a resize -- Workshop says exactly these shapes, and none about a pane's rows.
     // Each is deliberate: `StandingConditions` and `TranscriptShown` are readings the panes that
-    // show them cannot make (WL-ATTN-12, WL-TERM-03), `PaneLaunchAnswered` goes to the role
+    // show them cannot make, `PaneLaunchAnswered` goes to the role
     // that asked (WL-DESK-03), `PaneSubjectShown` waits for an inspector (WL-INFO-14), and the
     // window's are its areas, their skins, rooms and drawing. An accidental sentence fails here.
     PaneRig r;
@@ -1443,7 +1443,7 @@ TEST_CASE("every Workshop mode owns the keyboard above a focused pane") {
     // THE CONTEXTUAL SURFACE, opened by a right press on the focused pane itself: pointing names
     // a subject and moves no candidate (WL-CTX-01), and the surface owns the keys while it is
     // open. The chrome (the title row) opens the host surface; a pane's body is empty by
-    // default, so the host menu is reached on the title, not in the content (WL-CTX-08).
+    // default, so the host menu is reached on the title, not in the content.
     const CellRect head = external_body_rect(r.session(), kind);
     r.right_press_cell(head.x + 1, head.y);
     REQUIRE(r.session().context.open);
@@ -3777,7 +3777,7 @@ TEST_CASE("Return gives the selected pane the keys with no press, and a typed ke
     CHECK(t.r.session().panes.keyboard == t.b);
     CHECK(t.r.session().panes.selected == t.b);
     CHECK(keyboard_pane(t.r.session().panes) == t.b);
-    // ARRIVING IS NOT AN ACT IN THE PANE (WL-FOCUS-04): no press crossed, so nothing in it was
+    // ARRIVING IS NOT AN ACT IN THE PANE: no press crossed, so nothing in it was
     // activated, and the Return that entered it did not cross either.
     CHECK(t.presses() == 0);
     CHECK(t.keys() == 0);

@@ -72,13 +72,13 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         }
     }
     // A party that has just arrived has heard nothing, so what is true is said again on the next
-    // repaint: `say_conditions` is silent while the reading is unchanged (WL-ATTN-12), and an offer
+    // repaint: `say_conditions` is silent while the reading is unchanged, and an offer
     // is the one moment a new listener certainly exists.
     conditions_said_ = false;
     // ...and the terminal participant's record, for the same reason
     facet<TerminalDoorFacet>().say_again();
     inventory_published_ = false; // ...and the inventory, which a presenter reads (WL-DESK-04)
-    keymap_published_ = false;    // ...and the effective keymap, for the same reason (WL-DESK-11)
+    keymap_published_ = false;    // ...and the effective keymap, for the same reason
     subject_published_ = false;   // ...and the inspector's subject (WL-INFO-14)
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the doors and a restore go through -- so a
@@ -273,7 +273,7 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
     }
 }
 
-// WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
+// WL-FRONT-04 -- agents/workshop/planes.md
 void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     // A ROLE, AND ONLY A ROLE -- the seam's rule for every sentence that changes the
     // desk. And the role must have offered the pane it names: a reveal of a pane this
@@ -324,7 +324,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
         mail, true);
 }
 
-// WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
+// WL-FRONT-04 -- agents/workshop/planes.md
 void WorkshopWeave::revealed(std::int64_t kind, const std::string& name, const std::string& pane,
                              const loom::DeferredAnswer& owed, loom::Mail& mail) {
     // AND IT SELECTS THE PANE IT JUST SEATED AND POINTS THE KEYS AT IT -- the keyboard
@@ -348,7 +348,6 @@ void WorkshopWeave::revealed(std::int64_t kind, const std::string& name, const s
 
 const Session& WorkshopWeave::session() const { return session_; }
 
-// WL-KEY-12 -- agents/workshop/keyboard.md
 bool WorkshopWeave::same_keystroke(const std::string& text, const std::string& owed) {
     if (text == owed) {
         return true;
@@ -383,7 +382,7 @@ WorkshopWeave::PasteOwner WorkshopWeave::paste_owner_now() {
     }
 }
 
-// WL-TEXT-09, WL-TEXT-10 -- agents/workshop/text-box.md
+// WL-TEXT-09 -- agents/workshop/text-box.md
 void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
     PendingPaste p;
     p.owner = paste_owner_now();

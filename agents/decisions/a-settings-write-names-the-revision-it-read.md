@@ -4,7 +4,7 @@
 supports is in [settings](../workshop/settings.md).
 
 **Context.** A pane's settings are edited as rows of its subject in Info
-([rows](settings-are-rows-of-a-panes-subject.md)). A script, an agent, the Terminal and later
+([rows](../../docs/history/decisions/settings-are-rows-of-a-panes-subject.md)). A script, an agent, the Terminal and later
 editors need the same row by message, and a write must not land on a row that moved since it was
 read: a switch, another editor's write or a re-declaration.
 

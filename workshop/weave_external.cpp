@@ -34,7 +34,6 @@ using pane::kPresenterRole;
 
 // ---- THE EXTERNAL PANE'S CHROME AND KEYS --------------------------------------------------
 
-// WL-CHROME-09 -- agents/workshop/chrome.md; WL-PANE-16 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::note_manuals() {
     // THE APPLICATION SHOWS A MANUAL while it declares the row that does; a pane's holder answers
     // one while it takes the door. Both asked now, of the live keymap and the live holder -- and
@@ -63,7 +62,6 @@ void WorkshopWeave::note_manuals() {
     }
 }
 
-// WL-CHROME-09 -- agents/workshop/chrome.md
 void WorkshopWeave::press_manual(std::int64_t kind, loom::Mail& mail) {
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) {
@@ -72,7 +70,6 @@ void WorkshopWeave::press_manual(std::int64_t kind, loom::Mail& mail) {
     request_app_action(kManualAction, mail, hand(), row);
 }
 
-// WL-CHROME-11 -- agents/workshop/chrome.md
 void WorkshopWeave::press_fold(std::int64_t kind, loom::Mail& mail) {
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) {
@@ -82,7 +79,6 @@ void WorkshopWeave::press_fold(std::int64_t kind, loom::Mail& mail) {
     fold_or_dock(Act::kManageFold, ref, mail);
 }
 
-// WL-CHROME-12 -- agents/workshop/chrome.md
 void WorkshopWeave::press_strip(const StripMark& mark, loom::Mail& mail) {
     const Setup& desk = session_.setup.active;
     if (!mark.arrow) {
@@ -109,7 +105,6 @@ void WorkshopWeave::press_strip(const StripMark& mark, loom::Mail& mail) {
     }
 }
 
-// WL-FOCUS-04 -- agents/workshop/focus.md
 bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
                        const loom::Schema& shape) {
     const loom::WeaveId holder = bus.role_holder(role);
@@ -139,7 +134,6 @@ bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
     return false;
 }
 
-// WL-FOCUS-01, WL-FOCUS-05 -- agents/workshop/focus.md
 std::int64_t WorkshopWeave::keyboard_pane() const {
     return zengine::workshop::keyboard_pane(session_.panes);
 }
@@ -225,7 +219,6 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
     });
 }
 
-// WL-CTX-08 -- agents/workshop/contextual.md
 void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
@@ -990,7 +983,6 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
 }
 
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
-// WL-FOCUS-05 -- agents/workshop/focus.md
 // WL-FRONT-04 -- agents/workshop/planes.md
 void WorkshopWeave::unselect_pane() {
     const std::string name = kind_name(session_.panes, session_.panes.selected);

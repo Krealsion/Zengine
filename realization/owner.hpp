@@ -873,7 +873,6 @@ public:
     /// whose artifact is `stem`, recorded after Loom's admission moved the role. The former
     /// holder's row becomes `switched`; the choice's row is resolved with the admitted weave.
     /// Refused, changing nothing, for an unauthored choice or while a conversation is open.
-    // WL-SWITCH-02 -- agents/workshop/editor-switch.md
     Recorded record_choice_holder(const std::string& role, const std::string& stem,
                                   loom::WeaveId weave, const std::string& image) {
         const Telling told{*this};

@@ -18,7 +18,7 @@ In `info/value_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-INFO-16: Info's nested values are a tree -- first shown, every nested message and every list
+- Info's nested values are a tree -- first shown, every nested message and every list
   holding items shut with its summary, each row its own name indented by its depth; Right opens a
   level and steps in, Left shuts it and steps out, shift+left shuts every level with the cursor on
   the first field, a press on a level's mark opens or shuts it, levels open side by side, and the
@@ -37,7 +37,7 @@ In `info/value_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-INFO-16: Info's nested values are a tree -- first shown, every nested message and every list
+- Info's nested values are a tree -- first shown, every nested message and every list
   holding items shut with its summary, each row its own name indented by its depth; Right opens a
   level and steps in, Left shuts it and steps out, shift+left shuts every level with the cursor on
   the first field, a press on a level's mark opens or shuts it, levels open side by side, and the
@@ -58,7 +58,7 @@ In `info/value_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-INFO-16: Info's nested values are a tree -- first shown, every nested message and every list
+- Info's nested values are a tree -- first shown, every nested message and every list
   holding items shut with its summary, each row its own name indented by its depth; Right opens a
   level and steps in, Left shuts it and steps out, shift+left shuts every level with the cursor on
   the first field, a press on a level's mark opens or shuts it, levels open side by side, and the
@@ -77,7 +77,7 @@ In `info/value_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-INFO-16: a view's open levels are its pane's state -- read there and written there, kept by a
+- a view's open levels are its pane's state -- read there and written there, kept by a
   reload in place, carried by a fork, and shut for a new subject
 
 ## levels-kept-for-a-new-subject
@@ -93,5 +93,5 @@ In `info/value_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-INFO-16: a view's open levels are its pane's state -- read there and written there, kept by a
+- a view's open levels are its pane's state -- read there and written there, kept by a
   reload in place, carried by a fork, and shut for a new subject

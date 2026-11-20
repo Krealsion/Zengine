@@ -6,7 +6,7 @@
 
 // The terminal participant across the pane seam: the record the Terminal pane is shown, the one
 // act it may ask for and the one read. The participant stays this host's (WL-TERM-02): what
-// crosses is a picture of its record, said when it changed (WL-TERM-03), and two asks answered
+// crosses is a picture of its record, said when it changed, and two asks answered
 // at the role this host holds. The completion is an ask, never a picture, because `compose`
 // is a live fact about a conversation in progress (WL-TERM-05).
 

@@ -5,9 +5,9 @@
 #define ZENGINE_TERMINAL_VIEW_HPP
 
 // The Terminal pane's view of the record: each entry said as a sentence and wrapped into rows of
-// the pane's width (WL-TERM-07), the window onto those rows and the gestures that move it, the
-// rows above and below it said (WL-TERM-14, WL-TERM-15), and the pane composed from them with the
-// caret in its line (WL-TERM-06, WL-TERM-10). The members are `TerminalPaneWeave`'s, declared in
+// the pane's width, the window onto those rows and the gestures that move it, the
+// rows above and below it said, and the pane composed from them with the
+// caret in its line. The members are `TerminalPaneWeave`'s, declared in
 // `pane.cpp`, which includes this file after the class; it compiles in no other place.
 // Workshop law: agents/workshop/terminal.md, agents/workshop/terminal-pane.md
 

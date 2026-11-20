@@ -18,7 +18,7 @@ In `workshop/desktop-pane/launcher_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-DESK-10: the Pane Manager lists the panes by name, and its wheel scrolls the rows hidden its
+- the Pane Manager lists the panes by name, and its wheel scrolls the rows hidden its
   way before it walks the marker
 
 ## toggle-closes-a-covered-pane
@@ -67,7 +67,7 @@ In `workshop/weave_desktop.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-DESK-20: the Manual opens over the pane whose manual was asked, a margin of it showing on every
+- the Manual opens over the pane whose manual was asked, a margin of it showing on every
   edge, and moves over the next one asked
 
 ## hotkeys-paste-asked-elsewhere
@@ -102,7 +102,7 @@ In `workshop/desktop-pane/hotkeys_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
+- the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
   Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how
   many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it,
   shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the
@@ -122,7 +122,7 @@ In `workshop/desktop-pane/hotkeys_view.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
+- the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
   Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how
   many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it,
   shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the
@@ -143,7 +143,7 @@ In `workshop/desktop-pane/pane.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
+- the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
   Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how
   many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it,
   shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the

@@ -511,7 +511,7 @@ TEST_CASE("a build that worked and a realization that was refused read as two an
 }
 
 // =============================================================================
-// The reader by hand (WL-OUT-04, and the mouse work over it)
+// The reader by hand, and the mouse work over it
 // =============================================================================
 
 namespace {
@@ -538,7 +538,7 @@ void out_press_face(OutputRig& o, const std::string& face) {
 
 } // namespace
 
-TEST_CASE("WL-OUT-04: a build's own words are opened, stepped, panned and closed by hand") {
+TEST_CASE("a build's own words are opened, stepped, panned and closed by hand") {
     // A BUILD THAT FAILED IS WHERE A WEAVER MOST NEEDS THE MOUSE. The reader is a mode with no
     // build verb in it, by key and by hand: every control it draws moves the view or closes it,
     // and the pane sends the tool nothing but a page while it is open.
@@ -633,7 +633,7 @@ void narrow(OutputRig& o) {
 
 } // namespace
 
-TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list is in its own menu, and every row of it acts") {
+TEST_CASE("in a room too small for its strip the reader's whole list is in its own menu, and every row of it acts") {
     // THE STRIP'S PROMISE IN A NARROW ROOM: the strip drops what will not fit and writes `+N in
     // menu`, so the reader's menu carries the pan, the two ends and the neighbouring builds --
     // with `close` and `manage` alone they would be reachable by no hand. ⚔ MUTATION
@@ -687,7 +687,7 @@ TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list 
     CHECK_MESSAGE(o.rows()[0].rfind("output #", 0) != 0, o.text());
 }
 
-TEST_CASE("WL-OUT-04: the reader offers its whole list even when it is drawing no lines at all") {
+TEST_CASE("the reader offers its whole list even when it is drawing no lines at all") {
     // A STATE THE READER DRAWS NO LINES IN. A menu that only existed once lines were on the
     // screen would leave a weaver stuck in exactly the state they most need a way out of. The
     // other such state -- a page the Builder has not answered yet -- is the Builder suite's,

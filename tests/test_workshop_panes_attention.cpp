@@ -5,7 +5,7 @@
 // in its owner's words, explaining the one under the cursor, moving that cursor, hiding a
 // statement and finding it again when it materially changes, driven through the real
 // `zengine-attention-pane` image over the real pane protocol against the host's real
-// publication (WL-ATTN-12). The pane derives nothing -- every row is the host's reading -- so the
+// publication. The pane derives nothing -- every row is the host's reading -- so the
 // cases drive the HOST into a state and read what the PANE made of it.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that

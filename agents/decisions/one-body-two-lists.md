@@ -61,8 +61,4 @@ panes itself. The windowing, the inverse row maps, the fitted value and the wind
 over that one list, and the room is reserved for its heading and the front sentence alone. What a
 subject is, and who names it, is [an inspector names its subject](an-inspector-names-its-subject.md).
 
-**Laws supported.** [WL-INFO-01](../workshop/info-body.md),
-[WL-INFO-02](../workshop/info-body.md), [WL-INFO-03](../workshop/info-body.md),
-[WL-INFO-04](../workshop/info-body.md), [WL-INFO-05](../workshop/info-body.md),
-[WL-INFO-06](../workshop/info-body.md), [WL-INFO-08](../workshop/info-body.md),
-[WL-INFO-10](../workshop/info-body.md), [WL-INFO-11](../workshop/info-body.md).
+**Laws supported.** [WL-INFO-06](../workshop/info-body.md).

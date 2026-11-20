@@ -20,7 +20,7 @@
 namespace zengine::workshop {
 
 /// A LAYOUT'S OPTIONAL RELATIONSHIP TO ONE STANDALONE SETUP ARTIFACT.
-// WL-LAYOUT-01, WL-LAYOUT-02, WL-LAYOUT-11 -- agents/workshop/layouts.md
+// WL-LAYOUT-01, WL-LAYOUT-02 -- agents/workshop/layouts.md
 struct SetupLink {
     std::string path;
     Setup known;
@@ -57,7 +57,7 @@ struct Layout {
 };
 
 /// THE LAYOUTS ONE RUN HOLDS, WHICH ONE IS LIVE, AND THE ID THE NEXT NEW ONE TAKES.
-// WL-LAYOUT-01, WL-LAYOUT-03 -- agents/workshop/layouts.md
+// WL-LAYOUT-01 -- agents/workshop/layouts.md
 struct SetupState {
     Setup active = default_setup();
     SetupLink active_link;
@@ -144,7 +144,6 @@ inline std::optional<std::size_t> position_of(const SetupState& s, std::int64_t 
 /// MAKE THE LAYOUT AT POSITION `to` THE LIVE ONE -- the whole of a switch's value
 /// half, and the only thing in this application that changes which layout is
 /// active.
-// WL-LAYOUT-03, WL-LAYOUT-05 -- agents/workshop/layouts.md
 inline bool activate_layout(SetupState& s, std::size_t to) {
     if (to >= layout_count(s) || to == s.active_at) {
         return false;
@@ -161,7 +160,6 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
 }
 
 /// THE WEAVER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS, each with its id.
-// WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline std::vector<Layout> layout_run(const SetupState& s) {
     std::vector<Layout> run = s.shelved;
     // Total over `active_at`, as `layout_at` is.
@@ -175,7 +173,6 @@ inline std::vector<Layout> layout_run(const SetupState& s) {
 /// the only other place the run's spelling is made. Its ids are kept when each is positive and
 /// none is held twice, else each layout is given one in run order; `next_id` is then at least
 /// one above every id, never lower than it was.
-// WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size_t active) {
     if (run.empty() || active >= run.size()) {
         return false;
@@ -206,7 +203,6 @@ inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size
 }
 
 /// ONE MORE LAYOUT: A FRESH BLANK DESK WITH A NEW ID, APPENDED, AND LIVE.
-// WL-LAYOUT-03 -- agents/workshop/layouts.md
 inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
     if (layout_count(s) >= ceiling) {
         return false;
@@ -222,7 +218,6 @@ inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
 }
 
 /// COPY THE LAYOUT AT `at` UNDER A NEW ID, PUT THE COPY DIRECTLY AFTER IT, AND STAND ON THE COPY.
-// WL-LAYOUT-04 -- agents/workshop/layouts.md
 inline bool duplicate_layout(SetupState& s, std::size_t at, std::size_t ceiling = kMaxLayouts) {
     if (at >= layout_count(s) || layout_count(s) >= ceiling) {
         return false;
@@ -235,7 +230,6 @@ inline bool duplicate_layout(SetupState& s, std::size_t at, std::size_t ceiling 
 }
 
 /// DISCARD THE LAYOUT AT `at`. Its id is never minted again.
-// WL-LAYOUT-03 -- agents/workshop/layouts.md
 inline bool remove_layout(SetupState& s, std::size_t at) {
     if (s.shelved.empty() || at >= layout_count(s)) {
         return false;
@@ -259,7 +253,6 @@ inline bool remove_layout(SetupState& s, std::size_t at) {
 }
 
 /// MOVE THE LAYOUT AT `from` TO POSITION `to` IN THE WEAVER'S ORDER.
-// WL-LAYOUT-04 -- agents/workshop/layouts.md; WL-TAB-11 -- agents/workshop/tab-run.md
 inline bool move_layout(SetupState& s, std::size_t from, std::size_t to) {
     const std::size_t n = layout_count(s);
     if (from >= n || to >= n || from == to) {
@@ -288,7 +281,7 @@ inline bool move_layout(SetupState& s, std::size_t from, std::size_t to) {
 /// GIVE THE LAYOUT AT `at` A NEW NAME -- the whole of a rename's value
 /// half, and the only thing in this application that writes a layout's name
 /// without writing a file.
-// WL-LAYOUT-04, WL-LAYOUT-10 -- agents/workshop/layouts.md
+// WL-LAYOUT-10 -- agents/workshop/layouts.md
 inline bool rename_layout(SetupState& s, std::size_t at, std::string name) {
     if (at >= layout_count(s)) {
         return false;
@@ -302,7 +295,6 @@ inline bool rename_layout(SetupState& s, std::size_t at, std::string name) {
 }
 
 /// TEACH EVERY LAYOUT ASSOCIATED WITH `path` WHAT THAT ARTIFACT NOW HOLDS.
-// WL-LAYOUT-11 -- agents/workshop/layouts.md
 inline void adopt_known_setup(SetupState& s, const std::string& path, const Setup& known) {
     if (path.empty()) {
         return;

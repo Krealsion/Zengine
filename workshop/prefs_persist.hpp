@@ -99,7 +99,6 @@ inline constexpr const char* kStackRowsKey = "workshop.stack-rows";
 inline constexpr const char* kOpenAtKey = "workshop.open-at";
 
 /// Where a pane opened for the first time in a layout opens: the room's centre, or the hand.
-// WL-DESK-19 -- agents/workshop/desktop.md
 inline constexpr const char* kOpenAtCenter = "center";
 inline constexpr const char* kOpenAtMouse = "mouse";
 
@@ -111,7 +110,6 @@ inline constexpr const char* kCompletionRequiredFirst = "required-first";
 inline constexpr const char* kRingAccent = "accent";
 inline constexpr const char* kRingPlain = "plain";
 
-// WL-FOCUS-11 -- agents/workshop/focus.md
 inline constexpr const char* kTitlesDefault = "default";
 inline constexpr const char* kTitlesShown = "shown";
 inline constexpr const char* kTitlesHidden = "hidden";
@@ -121,7 +119,6 @@ inline constexpr const char* kTitlesWords = "default, shown or hidden";
 /// What the code answers when no preference is authored: titles are shown.
 inline constexpr bool kTitlesDefaultValue = true;
 
-// WL-KEY-16 -- agents/workshop/key-spelling.md
 inline constexpr const char* kKeysDefault = "default";
 inline constexpr const char* kKeysShort = kSpelledShort;
 inline constexpr const char* kKeysFull = kSpelledFull;

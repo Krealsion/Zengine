@@ -46,9 +46,7 @@ version claim is a lookup key that reaches no load door; the file first changes 
 close-time save.
 
 **Laws supported.** [WL-MIG-01](../workshop/migration.md), [WL-MIG-02](../workshop/migration.md),
-[WL-MIG-03](../workshop/migration.md), [WL-MIG-04](../workshop/migration.md),
-[WL-MIG-05](../workshop/migration.md), [WL-MIG-06](../workshop/migration.md),
+[WL-MIG-03](../workshop/migration.md), [WL-MIG-05](../workshop/migration.md),
 [WL-MIG-07](../workshop/migration.md), [WL-MIG-08](../workshop/migration.md),
-[WL-MIG-09](../workshop/migration.md), [WL-MIG-10](../workshop/migration.md),
-[WL-MIG-11](../workshop/migration.md), [WL-MIG-12](../workshop/migration.md),
-[WL-MIG-13](../workshop/migration.md).
+[WL-MIG-10](../workshop/migration.md), [WL-MIG-11](../workshop/migration.md),
+[WL-MIG-12](../workshop/migration.md), [WL-MIG-13](../workshop/migration.md).

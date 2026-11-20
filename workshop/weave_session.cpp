@@ -220,8 +220,6 @@ void WorkshopWeave::unseat_then(const PaneRef& ref, EditThen then, loom::Mail& m
 
 // ---- The setup: name it, save it, restore it ------------------------------
 
-// WL-LAYOUT-05, WL-LAYOUT-07 -- agents/workshop/layouts.md
-// WL-ARR-03 -- agents/workshop/arrangement.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
 void WorkshopWeave::apply_setup(loom::Mail& mail) {
     apply_setup_now();
@@ -275,7 +273,7 @@ void WorkshopWeave::close_naming() {
     session_.setup.naming = LayoutNaming{};
 }
 
-// WL-LAYOUT-04, WL-LAYOUT-10 -- agents/workshop/layouts.md
+// WL-LAYOUT-10 -- agents/workshop/layouts.md
 void WorkshopWeave::commit_layout_rename(loom::Mail& mail) {
     LayoutNaming& naming = session_.setup.naming;
     const std::size_t at = naming.at;
@@ -322,7 +320,7 @@ void WorkshopWeave::save_setup(loom::Mail& mail) {
     ask_layout({save}, nullptr, mail, false);
 }
 
-// WL-LAYOUT-09, WL-LAYOUT-10, WL-LAYOUT-11 -- agents/workshop/layouts.md
+// WL-LAYOUT-10 -- agents/workshop/layouts.md
 void WorkshopWeave::restore_setup(loom::Mail& mail) {
     LayoutEdit restore;
     restore.op = layout_op::kRestore;
@@ -358,7 +356,6 @@ std::string WorkshopWeave::layout_ceiling_note() const {
            " drops this one";
 }
 
-// WL-LAYOUT-03 -- agents/workshop/layouts.md
 void WorkshopWeave::new_layout(loom::Mail& mail) {
     if (layout_count(session_.setup) >= kMaxLayouts) {
         say(layout_ceiling_note(), true);
@@ -369,7 +366,7 @@ void WorkshopWeave::new_layout(loom::Mail& mail) {
     ask_layout({made}, nullptr, mail, false);
 }
 
-// WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-04 -- agents/workshop/layouts.md
+// WL-CTX-07 -- agents/workshop/contextual.md
 void WorkshopWeave::duplicate_layout(std::size_t at, loom::Mail& mail) {
     if (at >= layout_count(session_.setup)) {
         return; // the belt: a captured position the run no longer holds
@@ -384,7 +381,7 @@ void WorkshopWeave::duplicate_layout(std::size_t at, loom::Mail& mail) {
     ask_layout({copy}, nullptr, mail, false);
 }
 
-// WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-03 -- agents/workshop/layouts.md
+// WL-CTX-07 -- agents/workshop/contextual.md
 void WorkshopWeave::drop_layout(std::size_t at, loom::Mail& mail) {
     if (at >= layout_count(session_.setup)) {
         return; // the belt: a captured position the run no longer holds
@@ -395,7 +392,7 @@ void WorkshopWeave::drop_layout(std::size_t at, loom::Mail& mail) {
     ask_layout({drop}, nullptr, mail, false);
 }
 
-// WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-04 -- agents/workshop/layouts.md
+// WL-CTX-07 -- agents/workshop/contextual.md
 void WorkshopWeave::shift_layout(std::size_t at, std::int64_t by, loom::Mail& mail) {
     const std::size_t n = layout_count(session_.setup);
     if (at >= n) {
@@ -414,7 +411,6 @@ void WorkshopWeave::shift_layout(std::size_t at, std::int64_t by, loom::Mail& ma
     ask_layout({move}, nullptr, mail);
 }
 
-// WL-PANE-10 -- agents/workshop/panes-and-windows.md
 std::string WorkshopWeave::unresolved_note(const Setup& s) const {
     const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panes);
     if (waiting.empty()) {
@@ -431,7 +427,7 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 
 // ---- THE LAST SESSION: the desk that comes back on its own ----------------
 
-// WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
+// WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // ONCE PER PROCESS: a window started again offers itself again, and an afternoon of arranging
@@ -470,7 +466,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
                mail, false);
 }
 
-// WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
+// WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 void WorkshopWeave::restore_window(const window_persist::LoadedWindow& window, loom::Mail& mail) {
     const window_persist::Placement& placement = window.placement;
     // ---- The GUI window's own room, kept whichever window this is ------------
@@ -520,7 +516,6 @@ void WorkshopWeave::restore_window(const window_persist::LoadedWindow& window, l
     repaint(mail);
 }
 
-// WL-SESSION-14 -- agents/workshop/session-restore.md
 void WorkshopWeave::say_restored(const LiveLayout& live, loom::Mail&) {
     RestoreNotice notice;
     notice.head = live.said;
@@ -543,7 +538,6 @@ void WorkshopWeave::say_restored(const LiveLayout& live, loom::Mail&) {
     }
 }
 
-// WL-SESSION-20 -- agents/workshop/window-file.md
 void WorkshopWeave::shape_restored_window(loom::Mail& mail) {
     if (!restored_window_ || window_name_ != graphics::kGuiWindow) {
         return;
@@ -560,7 +554,6 @@ void WorkshopWeave::shape_restored_window(loom::Mail& mail) {
     }
 }
 
-// WL-SESSION-14 -- agents/workshop/session-restore.md
 std::string WorkshopWeave::restore_notice_text(const RestoreNotice& n, std::int64_t cell_px) {
     bool projected = false;
     std::string said = n.head + " -- " + geometry_amount_text(n.w, cell_px, projected) + "x" +
@@ -571,7 +564,6 @@ std::string WorkshopWeave::restore_notice_text(const RestoreNotice& n, std::int6
     return said + n.tail;
 }
 
-// WL-SESSION-14 -- agents/workshop/session-restore.md
 bool WorkshopWeave::say_restore_notice(std::int64_t cell_px) {
     if (!restore_notice_) {
         return false;

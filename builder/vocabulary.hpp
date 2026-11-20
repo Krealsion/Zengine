@@ -59,7 +59,6 @@ inline constexpr const char* kRealizationRole = "zengine.realization";
 
 /// The most output one `BuildOutput` carries, in bytes: a bound on a message, not on a build.
 /// The runner says all it drained, in as many messages as that takes, in order.
-// WL-OUT-01 -- agents/workshop/build-output.md
 inline constexpr std::size_t kMaxOutputChars = 2048u;
 
 /// Where a build stands, as one value. The failures are told apart because each needs a
@@ -255,7 +254,6 @@ struct BuildStarted {
 /// A running process said something: its next bytes, in order, line breaks included, never
 /// anything already reported. Consecutive messages are one stream; a line longer than
 /// `kMaxOutputChars` continues in the next.
-// WL-OUT-01 -- agents/workshop/build-output.md
 struct BuildOutput {
     std::int64_t op = 0;
     std::string recipe;
@@ -337,7 +335,6 @@ inline constexpr std::size_t kMaxOutputPageBytes = 16u * 1024u;
 /// Ask the tool for a page of one operation's output, by operation and never by recipe: a
 /// reader bound to op 7 reads 7's words whatever happens after. `from` counts lines from 1
 /// (0 asks for the last page); `lines` is the reader's room, bounded by the tool.
-// WL-OUT-02 -- agents/workshop/build-output.md
 struct BuildOutputRequested {
     std::int64_t op = 0;
     std::int64_t from = 1;
@@ -350,7 +347,6 @@ struct BuildOutputRequested {
 /// from `first`, of `said` so far; lines no longer kept are `omitted` from `omitted_from`, and a
 /// page stops before that gap. `cut` counts the bytes over-long lines on this page lost; `ended`
 /// says the operation will say no more.
-// WL-OUT-02 -- agents/workshop/build-output.md
 struct BuildOutputSaid {
     std::int64_t op = 0;
     bool kept = false;

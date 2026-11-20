@@ -93,7 +93,7 @@ inline constexpr const char* kActionWriteRecipe = "files.write-recipe";
 /// `files.commit-field`, whose Return writes the recipe from the last field. A control drawn
 /// `(next field)` on the last field says the operation does not apply, so a press on it must
 /// not write the recipe the adjacent `[write the recipe]` control is for; it refuses in words.
-/// No default key (`kUnknown`, WL-KEY-13): Return already steps.
+/// No default key (`kUnknown`): Return already steps.
 inline constexpr const char* kActionNextField = "files.next-field";
 
 /// THE PANE'S OWN MENU ON WHAT IS SELECTED -- the keyboard's way to the rows a right press

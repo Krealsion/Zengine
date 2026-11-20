@@ -751,7 +751,7 @@ TEST_CASE("a pane may lie over a pane, and the boundary is what makes it legible
 TEST_CASE("the screen's furniture cannot see a pane, open or closed") {
     // THE TEST FOR THE WRONG OWNER, AS A CASE. Were a pane's placement "must not cover Info",
     // closing Info would move it -- a placement that moves because a weaver hid a list of names,
-    // which `agents/decisions/the-room-is-the-screen.md` refuses. Nothing in `screen_of` can
+    // which `docs/history/decisions/the-room-is-the-screen.md` refuses. Nothing in `screen_of` can
     // see a pane; that is what lets every point of the room be an ordinary place.
     Session open_info;
     Session no_info;
@@ -3832,7 +3832,7 @@ TEST_CASE("the popup shifts to stay usable inside the room, at every boundary") 
     Live t;
     t.extent_px(cells_px(160), cells_px(44), 0, 0);
     // A PANE IN THE FAR CORNER, so the press on its CHROME captures a PANE subject and the
-    // menu's top row is `arrange`. The body is empty by default (WL-CTX-08), so the host menu
+    // menu's top row is `arrange`. The body is empty by default, so the host menu
     // is reached on the title row (the chrome), which for a right-column pane sits at the
     // top-right corner.
     open_at_top_right(t, second::kKind);
@@ -4246,7 +4246,7 @@ TEST_CASE("a transient surface stays over the pane it covers, selected or not") 
     t.press_canvas(builder.x, builder.y);
     REQUIRE(t.session().panes.selected == stock::kKind);
 
-    // THE CHROME (title row) opens the host's pane menu; the body is empty by default (WL-CTX-08).
+    // THE CHROME (title row) opens the host's pane menu; the body is empty by default.
     t.right_press_canvas(builder.x + 2, builder.y);
     REQUIRE(t.menu().open);
     const CellRect popup = cells_covered(context_bounds(t.session(), screen_of(t.session())));
@@ -5775,7 +5775,7 @@ TEST_CASE("the move re-homed reserved rows and did not add one") {
     }
     // The minimum composition's own numbers are the ones every golden is written against; the
     // width is 78 because the room is the screen
-    // (agents/decisions/the-room-is-the-screen.md), and this case's subject is the two BANDS.
+    // (docs/history/decisions/the-room-is-the-screen.md), and this case's subject is the two BANDS.
     CHECK(cells_of(kMinScreen).room_w == 78);
     CHECK(cells_of(kMinScreen).room_h == 17);
 }
@@ -6932,7 +6932,7 @@ TEST_CASE("a batch whose setup file cannot be written is refused whole, the run 
     CHECK(store.revision() == seen);
 }
 
-TEST_CASE("WL-DESK-19: a pane the layout never had opens at the room's centre, placed by its title and edges while its keys and body stay its own; shown again after a hide it comes back where it was left") {
+TEST_CASE("a pane the layout never had opens at the room's centre, placed by its title and edges while its keys and body stay its own; shown again after a hide it comes back where it was left") {
     // MUTATION (tests/mutants/workshop_screen.md#seat-forgets-where-left): a seat that forgets
     // where a pane was left -- the second open stands at the centre and is placed again; the checks
     // after the hide go red.
@@ -6988,7 +6988,7 @@ TEST_CASE("WL-DESK-19: a pane the layout never had opens at the room's centre, p
     CHECK_FALSE(t.session().arrange.open);
 }
 
-TEST_CASE("WL-DESK-19: a press in the body of a pane being placed is the pane's, and ends the placing") {
+TEST_CASE("a press in the body of a pane being placed is the pane's, and ends the placing") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
     REQUIRE(hand_launch(t, stock_ref()).opened);
@@ -7017,7 +7017,7 @@ TEST_CASE("WL-DESK-19: a press in the body of a pane being placed is the pane's,
     CHECK(*pane_of(t.session().setup.active, stock_ref()) == before);
 }
 
-TEST_CASE("WL-DESK-19: where workshop.open-at says mouse, a pane the layout never had opens at the hand") {
+TEST_CASE("where workshop.open-at says mouse, a pane the layout never had opens at the hand") {
     TempDir dir("open-at-mouse");
     prefs_persist::Prefs kept;
     REQUIRE(prefs_persist::put_workshop_value(
@@ -7043,7 +7043,7 @@ TEST_CASE("WL-DESK-19: where workshop.open-at says mouse, a pane the layout neve
     CHECK(row->place.y == at.y);
 }
 
-TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arranges, and in a window every other pane fades") {
+TEST_CASE("arranging says so at the room's top, naming what it arranges, and in a window every other pane fades") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
     (void)seat_pane(t, second_ref());
@@ -7156,7 +7156,7 @@ TEST_CASE("the chrome paints the frame, frame_selected and frame_transient its p
     CHECK(painted_in(mine, t.session()).count(0x070809ff) == 1);
 }
 
-TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows") {
+TEST_CASE("where faded panes overlap the veil falls once, and on all of each that shows") {
     // MUTATION (tests/mutants/workshop_screen.md#veil-each-pane-whole): each faded pane veiled
     // whole but for the arranged one -- two veils where they overlap. MUTATION
     // (tests/mutants/workshop_screen.md#no-veil): no veil at all while a weaver arranges.

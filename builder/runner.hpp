@@ -61,7 +61,6 @@ inline std::string take_complete_lines(std::string& buffer, bool ending) {
 /// it fits in `kMaxOutputChars`, else up to the last line break inside that bound, else the
 /// bound itself (a line longer than a message continues in the next). A message ends where a
 /// line does whenever one can, and no byte is left out to make one fit.
-// WL-OUT-01 -- agents/workshop/build-output.md
 inline std::size_t output_piece(const std::string& ready, std::size_t at) {
     const std::size_t left = ready.size() - at;
     if (left <= kMaxOutputChars) {

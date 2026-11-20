@@ -89,7 +89,7 @@ struct PaneRef {
 namespace pane_unit {
 inline constexpr std::int64_t kDefault = ui::kSizeDefault; ///< the developer's answer
 /// AN ABSOLUTE COUNT OF CANVAS PIXELS: one window pixel each, twelve to a terminal's cell.
-// WL-GEO-06 -- agents/workshop/geometry.md; WL-SETUP-04 -- agents/workshop/setup-file.md
+// WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kPixels = ui::kSizePixels;
 static_assert(kDefault == ui::kPlaceDefault && kPixels == ui::kPlacePixels,
               "`default` and `pixels` are one number in both of ui's lists");
@@ -101,7 +101,6 @@ inline constexpr std::int64_t kSavedCellPx = 12;
 
 /// THE SMALLEST AUTHORED EXTENT, in canvas pixels: one cell, the TUI window's step, so every
 /// window can show an extent a weaver authors.
-// WL-GEO-06 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPanePxMin = kSavedCellPx;
 
 /// WHERE A WEAVER PUT A PANE -- one fact, both coordinates.
@@ -234,7 +233,7 @@ struct SetupPins {
 
 /// A setup: what a weaver calls this arrangement, which panes it has, in order, and what this
 /// layout keeps for itself -- the themes it wears, bottom first, its locks and its pins.
-// WL-LAYOUT-01, WL-LAYOUT-06 -- agents/workshop/layouts.md
+// WL-LAYOUT-01 -- agents/workshop/layouts.md
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Setup {
     std::string name;
@@ -296,7 +295,6 @@ inline bool resolvable(const PaneRef& ref, const Panes& panes) {
 inline std::string ref_text(const PaneRef& ref) { return ref.provider + "/" + ref.pane; }
 
 /// A SETUP'S NAME AS ONE QUOTED TOKEN OF WEAVER-FACING PROSE.
-// WL-TAB-07 -- agents/workshop/tab-run.md
 inline std::string quoted_setup_name(const std::string& name) {
     std::string quoted;
     quoted.reserve(name.size() + 2);
@@ -593,7 +591,6 @@ inline std::string layout_themes_problem(const std::vector<std::string>& themes)
 /// WHAT A LAYOUT KEEPS FOR ITSELF, judged: the themes it wears, each row's theme a theme's name or
 /// none, and each lock and pin list on a row the desk seats, once each, with keys a setting may
 /// have.
-// WL-LAYOUT-06 -- agents/workshop/layouts.md
 inline Written check_layout_own(const Setup& s) {
     if (const std::string wrong = layout_themes_problem(s.themes); !wrong.empty()) {
         return Written::no(wrong);
@@ -856,7 +853,6 @@ inline bool open_row(Setup& s, const PaneRef& ref) {
 /// and a value equal to `fallback`, the pane's default, is stored as its absence. Judged whole
 /// first -- the row on this desk, the setting's form, the row's and the desk's bounds -- and
 /// written whole or not at all. What the pane takes is its declaration's to judge, before this.
-// WL-SETTING-05 -- agents/workshop/settings.md
 inline Written author_pane_setting(Setup& s, const PaneRef& ref, const std::string& key,
                                    const std::optional<PaneSetting>& value,
                                    const std::optional<PaneSetting>& fallback) {
@@ -1121,7 +1117,7 @@ inline std::string share_text(std::int64_t share) {
 /// edge, the share whose edge is the hand's pixel. A moved centred or `default` place becomes
 /// `pixels` at the hand's corner; `fit`, `default` and a moved `fill` become the hand's extent in
 /// pixels. Every word of the weaver's that the hand changed is said (WL-ARR-06).
-// WL-ARR-05, WL-ARR-06, WL-ARR-10 -- agents/workshop/arrangement.md
+// WL-ARR-06 -- agents/workshop/arrangement.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
 inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
                                         const PaneAxisProposal& horizontal,
@@ -1335,7 +1331,7 @@ inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
 }
 
 /// A fresh Workshop's setup: the default panes, then Info at the room's top-right.
-// WL-LAYOUT-03 -- agents/workshop/layouts.md; WL-SETUP-07 -- agents/workshop/setup-file.md
+// WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Setup default_setup() {
     Setup s;
     s.name = kDefaultSetupName;

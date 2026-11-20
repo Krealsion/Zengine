@@ -3,6 +3,8 @@
 Register `WL-PROJ`: the project anchor and the recipe catalog. One law per heading; cite by ID.
 Router: [`../workshop.md`](../workshop.md).
 
+Retired: WL-PROJ-03, WL-PROJ-05, WL-PROJ-10, WL-PROJ-11
+
 ## WL-PROJ-01 — The project is the launch directory, captured once
 
 LAW — The project is the launch directory, captured once by the host; it is not the install directory, and nothing derives it from that, from `--document`, from `--recipes` or from a prefix.
@@ -23,20 +25,6 @@ MEANS
 
 WHY — `agents/decisions/one-completion-one-owner.md`
 
-## WL-PROJ-03 — The completed catalog has one session owner, and every consumer reads it
-
-LAW — One session owner holds the completed recipes, its views and the file they came from; holding a new catalog assigns into members it owns, so a replacement changes contents, never the bound objects.
-
-MEANS
-- `main` declares it above the bus, the Kernel and every weave; that order is the lifetime proof;
-- the two build weaves take `const&` and refuse an rvalue; `recipe_source` asks at the gesture;
-- the owner is not authorship: nothing completes host paths back into the recipe file.
-
-DOES NOT MEAN
-- that a running build re-aims when the catalog changes — it resolved its artifact at accept (no witness yet).
-
-WHY — `agents/decisions/one-completion-one-owner.md`
-
 ## WL-PROJ-04 — `install_recipes` is the one seam that turns a file into the answer
 
 LAW — Read, parse, complete, hold, every step on a candidate, so a refusal at any stage leaves all three answers as they were; the source path is a parameter of `hold()`, not a setter.
@@ -48,17 +36,6 @@ MEANS
 
 DOES NOT MEAN
 - that a catalog has another road in — `install_recipes` is the one seam, at startup and live.
-
-WHY — `agents/decisions/one-completion-one-owner.md`
-
-## WL-PROJ-05 — A live catalog choice is one door, and the authoring one spends it
-
-LAW — `u` in Project Files resolves a row to a path as activation does, refuses a directory and an uncarriable name, and hands it to `use_recipes`; every judgement about the bytes is the recipe owner's.
-
-MEANS
-- same-path is a reload and never a no-op: that is the application's whole live-refresh mechanism;
-- a dirty Editor buffer is neither consumed nor auto-saved; no Builder pane need be loaded;
-- a foreign catalog's relative `single_source` still names a file under the active project.
 
 WHY — `agents/decisions/one-completion-one-owner.md`
 
@@ -81,30 +58,6 @@ MEANS
 - the Builder pane names it again, from `RecipeCatalog` v2's `source`, on the owner's word;
 
 WHY — `agents/decisions/one-completion-one-owner.md`
-
-## WL-PROJ-10 — A path is not a sentence
-
-LAW — `detail::fit_path` measures a path a weaver has to recognize: a root cue (`path_root_cue`, lexical), a mark where the middle went, the tail cut at a component boundary.
-
-MEANS
-- a sentence front-loads its meaning and a path back-loads it: they are cut at opposite ends;
-- it changes no stored identity, and no pane widens to avoid a cut.
-
-WHY — `agents/decisions/a-path-is-not-a-sentence.md`
-
-## WL-PROJ-11 — The Builder pane announces only what it watched
-
-LAW — The pane's `awaiting` latch is set when it asks and released only at an outcome the build will not leave (`still_going`), so an arriving status is news exactly when this pane watched the build begin.
-
-MEANS
-- `heard` tells "the tool has not answered" from "the tool never built anything";
-- a pane granted room while a child is alive is told `running`, shows it, and announces nothing;
-- `awaiting_realization` is the twin latch, held longer, to the load's answer for the operation whose build it watched end; none of them is durable state.
-
-DOES NOT MEAN
-- that a build ask refused at dispatch, or refused while a plain build runs, leaves a load armed.
-
-WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-12 — The tool's status is kept only while a pane presents it
 
@@ -196,15 +149,6 @@ complete_recipes
 in the build" "the project door names the file that recipe's build would compile" "a catalog's own
 directory is not a source base"
 
-### WL-PROJ-03
-`workshop/recipes.hpp` CurrentRecipes RecipeView CurrentRecipes::hold
-`workshop/workshop.cpp` BuildRunnerWeave BuilderWeave
-`builder/weave.hpp` BuilderWeave::path_ BuilderWeave::before_
-`realization/owner.hpp` AwaitingBuild
-`tests/test_workshop_files.cpp` "the owner derives the tool's view from the recipes it is holding"
-"holding a new catalog replaces the contents, never the object" "the host's edit-source answer is
-asked of the owner, not of a copy"
-
 ### WL-PROJ-04
 `workshop/recipes.hpp` install_recipes CurrentRecipes::hold
 `workshop/weave.hpp` HostContext::use_recipes
@@ -213,17 +157,6 @@ asked of the owner, not of a copy"
 `tests/test_workshop_files.cpp` "one completed catalog, installed through one seam" "installing a
 catalog moves its source, its rows and its views together" "a candidate that cannot be read installs
 nothing at all" "a valid EMPTY catalog is a replacement, not a failure"
-
-### WL-PROJ-05
-`workshop/pane_doors.hpp` ProjectDoor
-`workshop/project_seam_vocabulary.hpp` RecipeUseRequested RecipeOutcome
-`workshop/weave.hpp` HostContext::use_recipes RecipeSwap
-`tests/test_workshop_files.cpp` "a weaver chooses a catalog in Files and every consumer moves with
-it" "selecting the catalog already in force is a reload, not a no-op" "the chooser needs no Builder
-pane loaded at all" "an external catalog is chosen live, and the project still owns relative
-sources"
-`tests/test_workshop_panes_editor.cpp` "recipes come from the saved file, never from an unsaved
-Editor buffer"
 
 ### WL-PROJ-07
 `builder/builder-pane/vocabulary.hpp` BuilderPaneState::chosen
@@ -240,21 +173,6 @@ Editor buffer"
 `tests/test_files.cpp` "a refusal says what went wrong AND what is still running, in that order"
 `tests/test_workshop_files.cpp` "a live catalog choice is this session's and is written nowhere"
 `tests/test_workshop_panes_builder.cpp` "the pane names the catalog in force, from RecipeCatalog v2"
-
-### WL-PROJ-10
-`workshop/screen_bindings.cpp` fit_path path_root_cue
-`workshop/screen_layouts.cpp` fit_path
-`tests/test_workshop_files.cpp` "fitting a path keeps the end that says which file it is"
-
-### WL-PROJ-11
-`builder/builder-pane/pane.cpp` on(builder::BuildStatus) send_build build_words realize_words
-`builder/builder-pane/vocabulary.hpp` BuilderPaneState
-`builder/vocabulary.hpp` still_going
-`tests/test_workshop_panes_builder.cpp` "the pane asks the tool what it is on its own room grant,
-and shows it" "after a plain build that worked, `B` is the button" "closing the pane forgets its
-copy; the TOOL keeps its own count" "a build-and-load is said twice: the build's ending, then the
-load's answer" "a build-and-load refused at dispatch is said with the role and Loom's reason, and
-nothing stays armed"
 
 ### WL-PROJ-12
 `builder/builder-pane/vocabulary.hpp` BuilderPaneState

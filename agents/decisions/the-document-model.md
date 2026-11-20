@@ -92,5 +92,4 @@ The safe write's rename replaces an existing destination on both lanes, measured
 `"a detected write failure leaves the last good save readable and unchanged"`).
 
 **Laws supported.** [WL-DOC-15](../workshop/document-file.md),
-[WL-DOC-22](../workshop/document-file.md),
-[WL-DOC-02](../workshop/document.md).
+[WL-DOC-22](../workshop/document-file.md), [WL-DOC-02](../workshop/document.md).

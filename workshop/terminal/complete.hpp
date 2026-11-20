@@ -26,7 +26,6 @@ namespace zengine::workshop {
 
 /// ONE VERB THIS PANE SPEAKS — its spelling, whether it remembers a conversation,
 /// and what it does, for a weaver to read.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 struct TerminalVerb {
     const char* name;
     bool ask;             ///< does the participant remember this as a conversation?
@@ -34,7 +33,6 @@ struct TerminalVerb {
 };
 
 /// The whole of what a Workshop Terminal pane says.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 inline constexpr TerminalVerb kTerminalVerbs[] = {
     {"send", false, "author one message; a sender is not told its fate"},
     {"ask", true, "author one message and remember it until Loom's answer arrives"},
@@ -73,7 +71,6 @@ struct CommandLine {
     bool open = false;   ///< the last token is still being typed
     bool quoted = false; ///< ...and it carries a double quote
     /// How many tokens are FINISHED — `tokens.size()` less the one still being typed.
-    // WL-TERM-04 -- agents/workshop/terminal-door.md
     std::size_t said = 0;
     LineSlot slot = LineSlot::Verb;
     std::string partial;
@@ -91,7 +88,6 @@ struct CommandLine {
 inline constexpr std::uint64_t kMaxShapeVersion = 0xFFFFFFFFull;
 
 /// DECOMPOSE ONE (POSSIBLY HALF-TYPED) COMMAND LINE.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 inline CommandLine read_command_line(const std::string& line) {
     CommandLine cl;
     cl.tokens = loom::tokenize(line);
@@ -135,7 +131,6 @@ enum class CandidateKind : std::uint8_t {
 };
 
 /// ONE THING THE WEAVER MAY SAY NEXT.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 struct Candidate {
     std::string insert;
     std::string display;
@@ -160,7 +155,6 @@ struct Destination {
 };
 
 /// EVERYTHING THE PANE KNOWS ABOUT THE LINE BEING TYPED.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 struct Completion {
     bool open = false;             ///< is there anything to show at all?
     LineSlot slot = LineSlot::Verb;
@@ -173,7 +167,6 @@ struct Completion {
 namespace detail {
 
 /// Case-sensitive prefix.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 inline bool starts_with(std::string_view s, std::string_view prefix) noexcept {
     return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
@@ -244,7 +237,6 @@ inline std::string destination_detail(const Destination& d) {
 }
 
 /// The field names already assigned BY NAME earlier on this line.
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 inline bool named_already(const CommandLine& cl, std::string_view field) {
     const std::size_t said = cl.said;
     for (std::size_t i = 4; i < said; ++i) {
@@ -263,7 +255,6 @@ inline bool named_already(const CommandLine& cl, std::string_view field) {
 
 /// THE ORDER A SHAPE'S FIELDS ARE OFFERED IN: the shape's own, or its required fields first and
 /// its optional ones after them, each in the shape's order (`workshop.completion-order`).
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 enum class CompletionFieldOrder : std::uint8_t {
     Declared = 0,
     RequiredFirst = 1,
@@ -272,7 +263,6 @@ enum class CompletionFieldOrder : std::uint8_t {
 /// WHAT THIS PARTICIPANT CAN SAY NEXT, given what has been typed so far -- and, for the address,
 /// where a line can go right now when the host read the bus for it (`reachable`; null is a host
 /// that lists nothing, which is offered the address FORMS instead).
-// WL-TERM-04 -- agents/workshop/terminal-door.md
 inline Completion complete_line(const loom::TerminalSession& me, const std::string& line,
                                 const std::vector<Destination>* reachable = nullptr,
                                 CompletionFieldOrder field_order = CompletionFieldOrder::Declared) {

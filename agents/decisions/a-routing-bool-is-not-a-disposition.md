@@ -41,6 +41,4 @@ gesture performs one transition: the press that closes an arrangement scope neve
 the menu, and its release is dropped on the ordinary path.
 
 **Laws supported.** [WL-PRESS-01](../workshop/press-chain.md),
-[WL-PRESS-02](../workshop/press-chain.md), [WL-PRESS-03](../workshop/press-chain.md),
-[WL-PRESS-04](../workshop/press-chain.md), [WL-PRESS-05](../workshop/press-chain.md),
-[WL-PRESS-06](../workshop/press-chain.md).
+[WL-PRESS-04](../workshop/press-chain.md), [WL-PRESS-06](../workshop/press-chain.md).

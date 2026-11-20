@@ -78,7 +78,6 @@ struct WorkshopViewport {
 } // namespace v1
 
 // ---- The placement's words, and why they are words ----------------------------------------
-// WL-SESSION-08 -- agents/workshop/window-file.md
 
 inline constexpr const char* kPlacementNone = "none";
 inline constexpr const char* kPlacementDesktop = "desktop";
@@ -89,7 +88,6 @@ inline constexpr const char* kWindowMaximized = "maximized";
 inline constexpr const char* kWindowWords = "normal or maximized";
 
 /// WHERE THE WINDOW SAT ON ITS DESKTOP, as the last medium reported it.
-// WL-SESSION-08 -- agents/workshop/window-file.md
 struct WorkshopPlacement {
     std::string mode;   ///< none | desktop
     std::int64_t x = 0; ///< the normal window's top-left, in the medium's desktop units
@@ -139,7 +137,6 @@ inline std::string declined_viewport(std::int64_t width, std::int64_t height) {
 
 /// THE PLACEMENT, AS A VALUE -- what Workshop remembers between a medium's report and a close,
 /// and what a read hands back.
-// WL-SESSION-08 -- agents/workshop/window-file.md
 struct Placement {
     bool known = false;     ///< a medium has reported one (this run or a restored one)
     std::int64_t x = 0;     ///< the normal window's top-left, opaque desktop units
@@ -147,7 +144,6 @@ struct Placement {
     bool maximized = false; ///< whether the window was maximized
     /// The GUI window's normal room, in its pixels, kept beside the place whether or not one is
     /// known; 0 by 0 when none was kept.
-    // WL-SESSION-20 -- agents/workshop/window-file.md
     std::int64_t room_w = 0;
     std::int64_t room_h = 0;
 };
@@ -173,7 +169,6 @@ struct LoadedWindow {
 
 /// The placement's own admission: the two closed word sets, and the one-spelling law for the
 /// absence. The coordinates are another machine's desktop truth, accepted unjudged.
-// WL-SESSION-08 -- agents/workshop/window-file.md
 inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
     bool maximized = false;
     if (file.window == kWindowMaximized) {

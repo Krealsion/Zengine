@@ -57,10 +57,6 @@ an unread value with no catalog fanout. A half-association is refused. `s` and `
 one desk, and a Setup file still means one desk.
 
 **Laws supported.** [WL-LAYOUT-01](../workshop/layouts.md),
-[WL-LAYOUT-02](../workshop/layouts.md), [WL-LAYOUT-03](../workshop/layouts.md),
-[WL-LAYOUT-04](../workshop/layouts.md), [WL-LAYOUT-05](../workshop/layouts.md),
-[WL-LAYOUT-06](../workshop/layouts.md), [WL-LAYOUT-07](../workshop/layouts.md),
-[WL-LAYOUT-08](../workshop/layouts.md), [WL-LAYOUT-09](../workshop/layouts.md),
-[WL-LAYOUT-10](../workshop/layouts.md), [WL-LAYOUT-11](../workshop/layouts.md),
-[WL-LAYOUT-12](../workshop/layouts.md), [WL-LAYOUT-13](../workshop/layouts.md),
-[WL-SESSION-05](../workshop/session-restore.md), [WL-SESSION-06](../workshop/session-restore.md).
+[WL-LAYOUT-02](../workshop/layouts.md), [WL-LAYOUT-08](../workshop/layouts.md),
+[WL-LAYOUT-10](../workshop/layouts.md), [WL-SESSION-05](../workshop/session-restore.md),
+[WL-SESSION-06](../workshop/session-restore.md).

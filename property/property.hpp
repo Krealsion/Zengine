@@ -141,7 +141,6 @@ public:
     }
 
     /// A SECTION HEADING INSIDE A LIST OF ROWS: a label with no value, never editable.
-    // WL-PED-04 -- agents/workshop/pane-manager.md
     static Row section(std::string label) {
         Row row;
         row.label_ = std::move(label);

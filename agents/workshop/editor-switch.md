@@ -6,6 +6,8 @@ between them with the document carried across. One law per heading; cite by ID. 
 [`opening.md`](opening.md); what crosses the seam is the protocol's law in
 [`../panes.md`](../panes.md); prepared replacement is Loom's law, never restated here.
 
+Retired: WL-SWITCH-02
+
 ## WL-SWITCH-01 — A plan authors a role's choices, and exactly one of them starts
 
 LAW — `choices` name the artifacts that may hold a role, each name and artifact once; exactly one row of `artifacts` loads the role and is a choice, and the rest load only when a switch asks.
@@ -17,16 +19,6 @@ MEANS
 
 DOES NOT MEAN
 - that a host names an artifact: only the plan confers participation.
-
-WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
-
-## WL-SWITCH-02 — Realization records which choice holds the role, and every reader follows it
-
-LAW — After Loom moved the role, realization records the choice's weave and image; the row it left is `switched` and refuses a reload in words, and arrangement and provenance follow the weave.
-
-MEANS
-- a switch back resolves the plan's own row again; a choice outside `artifacts` gets a kept row;
-- a record for a stem that is no choice, or made during a load, is refused and moves nothing.
 
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
@@ -116,17 +108,6 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 what it always was" "choices are written as version 2 and read back as the same plan, byte for byte"
 "a version-2 file with no choices is refused, and a version-1 file cannot carry choices" "the choice
 law: one start holder that is a choice, one role per artifact, one spelling per word"
-
-### WL-SWITCH-02
-`realization/owner.hpp` record_choice_holder choice_holder image_of reload_refusal
-ResolvedArtifact::switched_to
-`workshop/arrangement.hpp` kSwitchedToken
-`introspection/resolved.hpp` kSwitchedRow
-`tests/test_workshop_load.cpp` "a recorded switch moves a role between its authored choices, and
-every reader follows the weave" "a switch is recorded only for an authored choice, and a refused
-record moves nothing"
-`tests/test_workshop_editor_switch.cpp` "a switch between two authored Editors carries the document,
-its unsaved edits and its caret, and moves the role"
 
 ### WL-SWITCH-03
 `workshop/editor_switch.hpp` EditorSwitchCoordinator on(EditorSwitchRequested)

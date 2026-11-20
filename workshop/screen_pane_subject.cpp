@@ -14,7 +14,6 @@ using zengine::property::Row;
 using zengine::property::TextForm;
 using zengine::persist::Written;
 
-// WL-MAKER-12 -- agents/workshop/maker-pane.md
 std::string interior_capture_text(const Session& s, const PaneRef& ref) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, s.panes);
     if (!kind.has_value()) {
@@ -61,7 +60,7 @@ PixelRect pane_window_base(const Session& s, const PaneRef& ref) {
     return out;
 }
 
-// WL-PED-06 -- agents/workshop/pane-manager.md; WL-PANE-08 -- agents/workshop/panes-and-windows.md
+// WL-PED-06 -- agents/workshop/pane-manager.md
 Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
     if (!has_pane(s.setup.active, ref)) {
         return Written::no(ref_text(ref) + " is not in this layout -- open it first");
@@ -78,7 +77,7 @@ Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
     return Written::ok();
 }
 
-// WL-PED-05 -- agents/workshop/pane-manager.md; WL-GEO-12 -- agents/workshop/geometry.md
+// WL-PED-05 -- agents/workshop/pane-manager.md
 std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axis) {
     const SetupPane* row = pane_of(s.setup.active, ref);
     if (row == nullptr) {

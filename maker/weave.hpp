@@ -53,7 +53,7 @@ inline constexpr const char* kAnswerPort = "value";
 /// edit's successor, the conversion edge in `operator/migration.hpp`'s convention: input the
 /// predecessor's state schema whole, output one port carrying the successor's, body the
 /// field-wise write closed over the conversion record.
-// MW-WEAVE-04, MW-WEAVE-05, MW-WEAVE-11 -- agents/maker/weave.md; MW-SUCC-03 -- agents/maker/succession.md
+// MW-WEAVE-04 -- agents/maker/weave.md
 inline std::vector<op::OperatorDef> definitions_of(const Definition& d) {
     std::vector<op::OperatorDef> out;
     for (const On& trigger : d.on) {
@@ -98,7 +98,6 @@ inline std::vector<op::OperatorDef> definitions_of(const Definition& d) {
 }
 
 /// The interpreted form mounts and spends bodies in the host's live catalog.
-// MW-WEAVE-01 -- agents/maker/weave.md
 class Weave final : public Runtime {
 public:
     Weave(op::Catalog& catalog, Definition definition)
@@ -175,7 +174,6 @@ struct Registered {
 /// constructs the weave at its default state, mints the grant, registers it bound to the
 /// definition's name as its role -- or unbound, for a candidate that a succession will seal.
 /// Returns after registration; nothing here pumps.
-// MW-WEAVE-01 -- agents/maker/weave.md
 inline Registered register_definition(loom::Switchboard& bus, op::Catalog& catalog,
                                       Definition definition,
                                       std::optional<loom::Grant> grant = std::nullopt,

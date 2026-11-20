@@ -23,7 +23,6 @@ inline constexpr std::size_t kMaxNoticesOwed = 256;
 
 /// ONE THING WORKSHOP SAID, published to any by `zengine.workshop`, once: its number in this run,
 /// from 1, the words, and whether it was a refusal.
-// WL-NOTE-01 -- agents/workshop/notices.md
 struct NoticeSaid {
     std::int64_t number = 0;
     std::string text;

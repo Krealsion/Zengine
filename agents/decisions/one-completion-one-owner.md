@@ -49,7 +49,6 @@ relative source still names a file under the active project. An in-flight build 
 artifact it was ordered for and is never re-aimed — a claim with no witness yet. The Builder's
 catalog row costs one `said` row, only where the fact has moved.
 
-**Laws supported.** [WL-PROJ-02](../workshop/project.md), [WL-PROJ-03](../workshop/project.md),
-[WL-PROJ-04](../workshop/project.md), [WL-PROJ-05](../workshop/project.md),
+**Laws supported.** [WL-PROJ-02](../workshop/project.md), [WL-PROJ-04](../workshop/project.md),
 [WL-PROJ-07](../workshop/project.md), [WL-PROJ-09](../workshop/project.md),
 [WL-PROJ-15](../workshop/project.md).

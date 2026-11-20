@@ -383,7 +383,7 @@ struct Drag {
     std::int64_t col = 0;
 };
 
-// ---- What a transfer holds, between the gestures and the answers (WL-NVIM-10..12) --------
+// ---- What a transfer holds, between the gestures and the answers (WL-NVIM-11, WL-NVIM-12) --------
 
 /// THE SELECTION AS NEOVIM HELD IT at one instant (`zengine_neovim.selection`): its text as
 /// Neovim's own yank takes it, and the identity a later step compares against.

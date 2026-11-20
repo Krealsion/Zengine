@@ -30,7 +30,7 @@ answer's accounting are Info's, carried from the object inspector unchanged.
   another property, and a draft typed for one would be written into the other.
 - *A general property or component editor* — out of scope: the rows are the ones the Pane
   Manager already showed; a new kind of row is a new decision, as a pane's settings rows are
-  ([theirs](settings-are-rows-of-a-panes-subject.md)).
+  ([theirs](../../docs/history/decisions/settings-are-rows-of-a-panes-subject.md)).
 - *One subject per inspecting role* — not needed with one inspector; recorded as the limit.
 
 **Consequences.** One subject slot: a role that asks moves it. A restore or a layout switch
@@ -42,4 +42,4 @@ Info owns no act of its own: naming a subject and writing a property are the hos
 because the host holds the rows they address.
 
 **Laws supported.** [WL-INFO-14](../workshop/info-body.md),
-[WL-INFO-15](../workshop/info-body.md), [WL-CTRL-05](../workshop/info-controls.md).
+[WL-INFO-15](../workshop/info-body.md).

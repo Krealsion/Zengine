@@ -45,7 +45,6 @@ inline std::shared_ptr<const loom::Schema> succession_state_schema() {
 
 /// THE COORDINATOR of a maker weave's schema edits. One per host, generic across definitions: it
 /// speaks the five ceremony shapes and carries state as bytes, so it needs no weave's schema.
-// MW-SUCC-06 -- agents/maker/succession.md
 class Succession final : public loom::Weave {
 public:
     explicit Succession(op::Catalog& catalog) : catalog_(&catalog) {}
@@ -130,7 +129,7 @@ public:
 private:
     /// THE EDGE, SPENT: the incumbent's final bytes through `op::migrate` to the successor's
     /// state schema. A refusal reaches no candidate.
-    // MW-SUCC-03, MW-SUCC-04 -- agents/maker/succession.md
+    // MW-SUCC-04 -- agents/maker/succession.md
     void on_quiesced(const Quiesced& final, const loom::Message& in, loom::Bus& bus) {
         if (final.token != token_ || !(in.sender == incumbent_)) {
             return; // not this edit's boundary; a stranger's word converts nothing

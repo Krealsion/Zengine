@@ -29,7 +29,6 @@ using zengine::persist::Written;
 // ---- The editor's fixed policy numbers ---------------------------------------------------
 
 /// THE TAB STOP, IN COLUMNS, unless a layout keeps another, and the fewest and most it may keep.
-// WL-EDIT-08 -- agents/workshop/editor.md
 inline constexpr std::int64_t kEditorTabStop = 4;
 inline constexpr std::int64_t kEditorTabStopLow = 1;
 inline constexpr std::int64_t kEditorTabStopHigh = 16;
@@ -87,7 +86,6 @@ inline bool source_text_ok(const std::string& text) noexcept {
 }
 
 // ---- Tab geometry: byte positions <-> displayed columns ----------------------------------
-// WL-EDIT-08 -- agents/workshop/editor.md
 
 /// The displayed column immediately after `byte` bytes of this line, its tabs stopping every `tab`
 /// columns.
@@ -111,7 +109,6 @@ inline std::int64_t visual_len(const std::string& line, std::int64_t tab = kEdit
 }
 
 /// THE BYTE A DISPLAYED COLUMN NAMES -- `visual_col_of` read backwards.
-// WL-EDIT-08 -- agents/workshop/editor.md
 inline std::size_t byte_of_visual_col(const std::string& line, std::int64_t col,
                                       std::int64_t tab = kEditorTabStop) noexcept {
     if (col <= 0) {
@@ -134,7 +131,6 @@ inline std::size_t byte_of_visual_col(const std::string& line, std::int64_t col,
 
 /// THE SLICE OF A LINE A VIEWPORT SHOWS, tab-expanded: displayed columns
 /// `[first_col, first_col + columns)`, as the exact bytes a region row carries.
-// WL-EDIT-08 -- agents/workshop/editor.md
 inline std::string expanded_slice(const std::string& line, std::int64_t first_col,
                                   std::int64_t columns, std::int64_t tab = kEditorTabStop) {
     if (columns <= 0) {

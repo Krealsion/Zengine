@@ -3,6 +3,8 @@
 Register `WL-KEY`: one executable binding truth. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
+Retired: WL-KEY-04, WL-KEY-05, WL-KEY-09, WL-KEY-10, WL-KEY-11, WL-KEY-12, WL-KEY-19
+
 ## WL-KEY-01 — Action, binding and execution are three things
 
 LAW — An ACTION is a stable dotted id, label, context and default gesture in `kActionCatalog`; a BINDING is the gesture that requests it; EXECUTION stays with each dispatch site.
@@ -34,27 +36,6 @@ MEANS
 - `context_takes_text(ctx)` replaced the old hand-kept mirror;
 - it is resolved fresh and stored nowhere: no context stack, no registration, no focus framework;
 - a pane's rows are keyed by its runtime handle, the value `kPane` stands for (WL-KEY-15).
-
-WHY — `agents/decisions/one-binding-truth.md`
-
-## WL-KEY-04 — Matching is exact
-
-LAW — A binding matches the observed modifier bits exactly, one family spelled two ways is two declared actions, and `shift+space` is gone rather than aliased.
-
-WHY — `agents/decisions/one-binding-truth.md`
-
-## WL-KEY-05 — Three declaration-only activity classes
-
-LAW — Three declaration-only classes answer above a mode: global rows everywhere, no-text rows where no editable text has the keys, unless-owned rows unless the keyboard's pane declared it owns them.
-
-MEANS
-- the host's rows above a mode are `workshop.quit` (`^c`, `kNoText`) and `focus.leave` (`^q`, `kGlobal`);
-- ⭐ `kUnlessOwned` holds no host row since `^s`/`^o` retired; the class stands; launches are an app's;
-- `Keymap::row_active` is the one answer for all three; every view spends it.
-
-DOES NOT MEAN
-- that a pane's row is a fourth class: it meets these, never another mode's (WL-KEY-15).
-- ⚠ that `kNoEditor` survived: `kUnlessOwned` is it, with the exception declared.
 
 WHY — `agents/decisions/one-binding-truth.md`
 
@@ -94,35 +75,6 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/one-binding-truth.md`
 
-## WL-KEY-09 — The legend preference governs the band's legend rows and nothing else
-
-LAW — `full`/`compact`/`hidden` (`default` is the code's answer) govern every band row and nothing else; hidden blanks them, reclaims no geometry and unbinds nothing.
-
-MEANS
-- the full rows fold four families exactly while every member sits on its default (`help_pairs`);
-- compact is the application's rows above every mode; the effective keymap stays the full list;
-- where no pane holds the keys, the full rows lead with the application's rows above every mode.
-
-WHY — `agents/decisions/one-binding-truth.md`
-
-## WL-KEY-10 — The key list is the desktop's Hotkeys pane
-
-LAW — The key list is the desktop's Hotkeys pane, seated and arranged like any pane; nothing in this host anchors, sizes or paints a key list.
-
-WHY — `agents/decisions/content-sized-popups.md`
-
-## WL-KEY-11 — The host projects the effective keymap as a value and presents none of it
-
-LAW — The host projects the effective keymap as a value (`keymap_shown`, WL-DESK-11) and presents none of it; the text box's keys are listed there, marked not remappable.
-
-WHY — `agents/decisions/content-sized-popups.md`
-
-## WL-KEY-12 — The printable-trigger swallow is derived from the binding
-
-LAW — `expected_text_of` arms the swallow centrally in `on(KeyPressed)` when the keymap consumed a text-faced gesture, and the very next key or text of that hand clears it; no site hard-codes a character.
-
-WHY — `agents/decisions/one-binding-truth.md`
-
 ## WL-KEY-15 — A pane declares its actions, and the host joins them at admission
 
 LAW — A pane declares rows beside its offer, in either published version; Workshop judges them whole under the role stamp, joins them under the collision law, and dispatches the resolved id.
@@ -138,21 +90,10 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
-## WL-KEY-19 — Double Shift is Workshop's gesture, read per hand from Shift's press, release and press
-
-LAW — Two Shift taps of one hand, alone, within input's double-click time, are the key `double-shift` where a row in force answers to it; otherwise the second press goes on as any Shift press
-
-MEANS
-- a tap is Shift pressed with nothing else held and let go: a held Shift repeats with no release;
-- any other key, text, press or wheel of that hand between the taps forgets the first;
-- another hand's tap never pairs with this one's; `double-shift` takes no modifier, its gap said.
-
-WHY — `agents/decisions/one-binding-truth.md`
-
 ## Do not assume
 
 - That the legend has a fixed row count per medium — it is every band row, however many the
-  band's budget grants (WL-KEY-09).
+  band's budget grants.
 
 ## Proven by
 
@@ -183,23 +124,6 @@ chrome"
 host answers ^s nowhere"
 `tests/test_workshop_document.cpp` "the effective keymap lists every place a key is answered, and
 marks the text box's keys as nobody's to move"
-
-### WL-KEY-04
-`workshop/keymap.hpp` Keymap Keymap::action_for
-`input/gesture_grammar.hpp` Gesture
-`tests/test_workshop_document.cpp` "exact modifier matching -- the accidental subset aliases no
-longer fire" "a known backend gap is accepted and said, never silently rewritten"
-
-### WL-KEY-05
-`workshop/keymap.hpp` KeyContext::kGlobal KeyContext::kNoText KeyContext::kUnlessOwned
-Keymap::above_mode_action workshop.quit focus.leave
-`workshop/weave_handlers.cpp` on(KeyPressed)
-`tests/test_workshop_panes_editor.cpp` "^s is the Editor's save while it holds the keys, and the
-host answers ^s nowhere"
-`tests/test_workshop_document.cpp` "^c still quits exactly where nothing takes text"
-`tests/test_workshop_panes_input.cpp` "the keys that mean the same thing in every mode still outrank
-a pane" "ctrl+q gives Workshop the keys back from a pane that keeps Escape, and the pane stays
-selected"
 
 ### WL-KEY-06
 `workshop/keymap.hpp` kActionCatalog manage.arrange manage.next manage.previous workshop.manage
@@ -256,35 +180,6 @@ Hotkeys pane spells the POSIX key beside the default"
 `tests/test_workshop_panes_builder.cpp` "every shipped action has a default key, or a POSIX key beside
 it, a POSIX terminal delivers"
 
-### WL-KEY-09
-`workshop/screen_compose.cpp` band_region
-`workshop/screen_gestures.cpp` help_rows
-`workshop/screen_bindings.cpp` help_pairs
-`workshop/keymap.hpp` legend_mode
-`workshop/keymap_persist.hpp` kLegendDefault
-`tests/test_workshop_document.cpp` "the legend's three modes project the band, and hidden unbinds
-nothing" "the legend modes move only the legend rows, in both budgets"
-`tests/test_workshop_panes_actions.cpp` "the band and the Hotkeys pane teach the application's keys
-as they are in force: a moved row where it moved, a disabled one as having no key"
-
-### WL-KEY-10
-`tests/test_workshop_panes_actions.cpp` "the band and the Hotkeys pane teach the application's keys
-as they are in force: a moved row where it moved, a disabled one as having no key"
-
-### WL-KEY-11
-`workshop/screen_hotkeys.cpp` keymap_shown
-`tests/test_workshop_document.cpp` "the effective keymap lists every place a key is answered, and
-marks the text box's keys as nobody's to move"
-
-### WL-KEY-12
-`input/gesture_grammar.hpp` expected_text_of
-`workshop/weave.hpp` WorkshopWeave::Hand::swallow_text
-`workshop/weave_seam.cpp` same_keystroke
-`workshop/weave_handlers.cpp` on(KeyPressed)
-`tests/test_workshop_document.cpp` "a printable trigger's own character is swallowed, wherever it is
-authored" "the swallow eats only the trigger's own character, never a different one" "a shift+letter
-binding swallows the capital its keystroke produced"
-
 ### WL-KEY-15
 `pane/vocabulary.hpp` PaneActionRow PaneActions PaneActionRequested v2::PaneActionRow
 v2::PaneActions kOwnableDocumentSave
@@ -308,10 +203,3 @@ declares and dispatches"
 `tests/test_workshop_panes_editor.cpp` "an application row a pane stands in for belongs to every
 context that is not the pane's own" "a pane that owns one action may put its other rows on that
 action's key"
-
-### WL-KEY-19
-`input/gesture_grammar.hpp` kDoubleShift is_shift_scan
-`workshop/weave_shift.cpp` shift_tapped on(KeyReleased) on(PointerTimingSaid)
-`workshop/weave_operation.cpp` count_gesture
-`tests/test_workshop_panes_palette.cpp` "WL-KEY-19: two Shift taps of one hand open the palette; a
-held Shift, a key between, a slow pair and another hand's tap do not"

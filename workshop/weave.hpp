@@ -140,7 +140,6 @@ struct HostContext {
     /// Does whoever holds `role` now accept `shape`? Read off the bus at the call
     /// (`holder_accepts_on`). It picks which published version to send and promises nothing about
     /// delivery; empty answers no, and the first version crosses.
-    // WL-FOCUS-04 -- agents/workshop/focus.md
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
     /// Does whoever holds `role` now declare it emits `shape`? Read off the bus at the call
     /// (`holder_emits_on`); empty answers nothing, and the caller acts as before.
@@ -205,7 +204,7 @@ struct HostContext {
     std::function<CodeSource(const std::string& role)> code_source;
 
     /// WHAT A WEAVER'S CHOICE OF AUTHORED CATALOG ANSWERED.
-    // WL-PROJ-05, WL-PROJ-09 -- agents/workshop/project.md
+    // WL-PROJ-09 -- agents/workshop/project.md
     struct RecipeSwap {
         bool accepted = false;   ///< the candidate became this session's catalog
         std::string refusal;     ///< the owner's own words; empty exactly when accepted
@@ -214,7 +213,7 @@ struct HostContext {
     };
 
     /// USE THIS AUTHORED FILE AS THE CURRENT RECIPE CATALOG.
-    // WL-PROJ-04, WL-PROJ-05 -- agents/workshop/project.md
+    // WL-PROJ-04 -- agents/workshop/project.md
     std::function<RecipeSwap(const std::string&)> use_recipes;
 
     /// A weaver's recipe row as typed. The host composes it, checks it by the recipe law, appends
@@ -282,7 +281,7 @@ struct HostContext {
     bool posix_terminal = false;
 
     /// The one file this Workshop's presentation PREFERENCES live in.
-    // WL-FOCUS-11 -- agents/workshop/focus.md; WL-SESSION-01 -- agents/workshop/session.md
+    // WL-SESSION-01 -- agents/workshop/session.md
     std::string prefs_path;
 
     /// WHERE THE THEMES ARE, as the theme role is told: the weaver's own folder, empty where this
@@ -295,7 +294,7 @@ struct HostContext {
     const op::Catalog* conversions = nullptr;
 
     /// ONE HUMAN-READABLE SENTENCE ABOUT THE LEGACY-FILE TRANSITION, or empty.
-    // WL-ATTN-02 -- agents/workshop/attention.md; WL-SESSION-03 -- agents/workshop/session.md
+    // WL-SESSION-03 -- agents/workshop/session.md
     std::string transition_note;
 
     /// The one pane whose presentation this host claims and commits jointly with its document,
@@ -1058,7 +1057,7 @@ public:
     PaneInventory inventory_reading(const realization::PlanStatus& plan = {}) const;
 
     /// SAY THE EFFECTIVE KEYMAP OUT LOUD, if it changed since it was last said -- the one
-    /// binding truth dispatch reads, for the presenters that show keys (WL-DESK-11).
+    /// binding truth dispatch reads, for the presenters that show keys.
     void publish_keymap(loom::Mail& mail);
 
     /// ...AND ANSWER IT TO A PRESENTER THAT HAS JUST ARRIVED.
@@ -1272,7 +1271,7 @@ public:
     /// arranger: the pane heard the press itself; Workshop counts the gesture, chooses the pane
     /// and moves the keys, ends a guide mark it lands in, holds the pane's room against a title row
     /// until the release, and keeps the press, under the window's number for it, for the
-    /// continuations a pane sends about it (WL-FOCUS-03, WL-CANVAS-05, WL-CTX-08, WL-CTX-09).
+    /// continuations a pane sends about it (WL-CANVAS-05, WL-CTX-09).
     void on(const graphics::AreaPressed& p, loom::Mail& mail);
     /// WHAT A PRESS A WINDOW LANDED ON A PANE'S AREA DOES HERE, under the window's number for it:
     /// the menu it chose in, or the pane it chose and the keys it moved (`on(AreaPressed)`).
@@ -1629,7 +1628,7 @@ private:
                       loom::Mail& mail);
 
     // ---- The second button: continuation, and a pane's own menu -----------------------------
-    // (the laws WL-PRESS-06, WL-CTX-08 and WL-CTX-09)
+    // (the laws WL-PRESS-06 and WL-CTX-09)
 
     /// A CONTINUATION WHOSE PANE LEFT THE DESK is dropped -- closing invalidates it independently
     /// of the physical button -- and a menu presented for a pane that left is closed and answered
@@ -1842,7 +1841,7 @@ private:
     std::vector<ScreenPlane> window_overlays_;
     /// Every area placed with the directory now, as placed, and the panes among them.
     std::map<std::string, graphics::AreaPlaced> areas_placed_;
-    /// The pane whose manual was last asked, which the Manual opens over (WL-DESK-20).
+    /// The pane whose manual was last asked, which the Manual opens over.
     std::int64_t manual_over_ = kNoPaneKind;
     std::set<std::int64_t> placed_kinds_;
     /// The palette each area was last given under this directory.
@@ -2074,7 +2073,7 @@ private:
         SecondaryContinuation secondary_cont[2];
         ChoiceAnswered choice_answered;
         AppAsked app_asked;
-        /// The character this hand's own keystroke produced, which is not text it typed (WL-KEY-12).
+        /// The character this hand's own keystroke produced, which is not text it typed.
         std::string swallow_text;
         /// THIS HAND'S SHIFT, toward a double Shift: held now alone, or tapped once -- pressed and
         /// let go with nothing else -- at `first_ms`. Any other key, text, press or wheel of the
@@ -2165,7 +2164,7 @@ private:
     std::size_t held_dropped_ = 0;
 
     /// THE ASKER'S OWN BOOK OF PASTES STILL IN FLIGHT, and the drafts each one belongs to.
-    // WL-TEXT-09, WL-TEXT-10 -- agents/workshop/text-box.md
+    // WL-TEXT-09 -- agents/workshop/text-box.md
     loom::AskBook paste_asks_{4};
     std::vector<PendingPaste> pending_pastes_;
 
@@ -2180,7 +2179,6 @@ private:
     /// THE GUI WINDOW'S OWN ROOM, TO SHAPE IT TO AT RESTORE, AND THE PLACE AFTER IT: held until the
     /// desk's area is in that window, since a window takes a shaping only from a role arranging
     /// in it, and sent shape first, so a maximize lands on the room a restore-down returns to.
-    // WL-SESSION-20 -- agents/workshop/window-file.md
     struct RestoredWindow {
         std::int64_t w = 0;
         std::int64_t h = 0;
@@ -2258,13 +2256,11 @@ private:
 
     /// What this weave last said about what is true: its own last utterance, not a cache of the
     /// conditions, so the publication is silent when nothing changed.
-    // WL-ATTN-12 -- agents/workshop/attention.md
     /// The wire shape, not `Condition`: what is compared must be what was said.
     std::vector<StandingCondition> said_conditions_;
     bool conditions_said_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
-    // WL-SESSION-09 -- agents/workshop/window-file.md
     bool medium_placed_ = false;
 };
 

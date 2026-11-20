@@ -41,13 +41,10 @@ and not one number. Three chrome colours, from the shared pool: `frame`, `frame_
 **Consequences.** Measured on a terminal: every stack pane's interior is 46x7 where the slot is
 48x9, so the Builder drops its lowest-priority row, the picker windows two entries sooner, the
 Info lists lose a row each, and the Compose form no longer fits the default slot — closed at the
-desk by [the coarse step](why-the-coarse-step-is-four.md). On the shipped window a 576x108 slot
+desk by [the coarse step](../../docs/history/decisions/why-the-coarse-step-is-four.md). On the shipped window a 576x108 slot
 has a 574x106 interior, one pixel a side, and nothing pads it back. The rungs cannot oscillate
 because each candidate is a larger interior than the last; a two-cell pane exists on every face,
 wears no ring on a terminal and no selected ink on the last rung; `chrome_px == 0` on the cell
 medium.
 
-**Laws supported.** [WL-CHROME-01](../workshop/chrome.md), [WL-CHROME-02](../workshop/chrome.md),
-[WL-CHROME-03](../workshop/chrome.md), [WL-CHROME-04](../workshop/chrome.md),
-[WL-CHROME-05](../workshop/chrome.md), [WL-CHROME-06](../workshop/chrome.md),
-[WL-CHROME-07](../workshop/chrome.md), [WL-CHROME-08](../workshop/chrome.md).
+**Laws supported.** [WL-CHROME-02](../workshop/chrome.md), [WL-CHROME-05](../workshop/chrome.md).

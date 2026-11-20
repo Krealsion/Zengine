@@ -13,7 +13,6 @@ using zengine::persist::Written;
 
 // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
 
-// WL-ARR-08 -- agents/workshop/arrangement.md
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 std::vector<PaneRef> WorkshopWeave::arrangeable() const {
     std::vector<PaneRef> out;
@@ -25,7 +24,6 @@ std::vector<PaneRef> WorkshopWeave::arrangeable() const {
     return out;
 }
 
-// WL-ARR-07 -- agents/workshop/arrangement.md
 void WorkshopWeave::open_arrange_desk() {
     PaneArrange& a = session_.arrange;
     a.open = true;
@@ -43,7 +41,6 @@ void WorkshopWeave::open_arrange_desk() {
         false);
 }
 
-// WL-ARR-07, WL-ARR-09 -- agents/workshop/arrangement.md
 // WL-CTX-02 -- agents/workshop/contextual.md
 // WL-FRONT-04 -- agents/workshop/planes.md
 // WL-PRESS-06 -- agents/workshop/press-chain.md
@@ -80,7 +77,6 @@ void WorkshopWeave::enter_arrange_pane(const PaneRef& ref, bool opened) {
         false);
 }
 
-// WL-DESK-19 -- agents/workshop/desktop.md
 bool WorkshopWeave::placing_press(const PointedAt& at) {
     const PaneArrange& a = session_.arrange;
     const std::optional<std::int64_t> kind = resolve_pane(a.pane, session_.panes);
@@ -103,7 +99,6 @@ bool WorkshopWeave::placing_press(const PointedAt& at) {
     return take_pane_hold(a.pane, at, sc, /*top_moves=*/true);
 }
 
-// WL-DESK-19 -- agents/workshop/desktop.md
 void WorkshopWeave::leave_placing(const std::string& what) {
     const PaneRef ref = session_.arrange.pane;
     session_.arrange = PaneArrange{};
@@ -111,7 +106,6 @@ void WorkshopWeave::leave_placing(const std::string& what) {
     say("placed " + inventory_name(ref) + " -- " + what + " ended placing it", false);
 }
 
-// WL-ARR-03 -- agents/workshop/arrangement.md
 void WorkshopWeave::forget_removed_selection() {
     // The inspected subject is not repaired here: the arrangement's address is a claim about a
     // pane on the desk, an inspector's subject is an identity, so "remove, look, reopen" keeps
@@ -134,9 +128,7 @@ void WorkshopWeave::close_arrange() {
     say("left arranging", false);
 }
 
-// WL-GEO-11, WL-GEO-12 -- agents/workshop/geometry.md
-// WL-ARR-09 -- agents/workshop/arrangement.md
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
+// WL-GEO-11 -- agents/workshop/geometry.md
 std::string WorkshopWeave::arrange_status() const {
     const PaneArrange& a = session_.arrange;
     if (!a.addressed()) {
@@ -170,7 +162,6 @@ std::string WorkshopWeave::arrange_status() const {
     return text;
 }
 
-// WL-ARR-08 -- agents/workshop/arrangement.md
 void WorkshopWeave::arrange_step(std::int64_t by) {
     const std::vector<PaneRef> rows = arrangeable();
     if (rows.empty()) {
@@ -196,9 +187,7 @@ void WorkshopWeave::arrange_step(std::int64_t by) {
     say(arrange_status(), false);
 }
 
-// WL-ARR-07 -- agents/workshop/arrangement.md
 // WL-CTX-02 -- agents/workshop/contextual.md
-// WL-PANE-08 -- agents/workshop/panes-and-windows.md
 Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
     if (ref.provider.empty()) {
         return Written::no("no pane is addressed -- " + hotkey(Act::kManageNext) +
@@ -227,7 +216,6 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
     return Written::ok();
 }
 
-// WL-ARR-04 -- agents/workshop/arrangement.md; WL-GEO-12 -- agents/workshop/geometry.md
 PaneBounds WorkshopWeave::managed_bounds() const {
     const std::optional<std::int64_t> kind =
         resolve_pane(session_.arrange.pane, session_.panes);
@@ -237,7 +225,7 @@ PaneBounds WorkshopWeave::managed_bounds() const {
     return bounds_of(session_.panes, session_.setup.active, *kind, screen_of(session_));
 }
 
-// WL-ARR-04 -- agents/workshop/arrangement.md; WL-PED-05 -- agents/workshop/pane-manager.md
+// WL-PED-05 -- agents/workshop/pane-manager.md
 PixelRect WorkshopWeave::managed_window_base() {
     // One reading for the hand and the typed value: `pane_window_base` (screen.hpp), so a subject
     // row's per-axis write measures from the arrangement's window.
@@ -262,7 +250,7 @@ void WorkshopWeave::arrange_place(std::int64_t x, std::int64_t y, loom::Mail& ma
     write_window(session_.arrange.pane, axes.horizontal, axes.vertical, mail);
 }
 
-// WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
+// WL-ARR-06 -- agents/workshop/arrangement.md
 void WorkshopWeave::write_window(const PaneRef& ref, const PaneAxisProposal& horizontal,
                                  const PaneAxisProposal& vertical, loom::Mail& mail) {
     // JUDGED ON A COPY OF THE DESK THIS HAND SEES, through the same door the store judges again.
@@ -299,7 +287,6 @@ void WorkshopWeave::write_window(const PaneRef& ref, const PaneAxisProposal& hor
                mail);
 }
 
-// WL-GEO-12 -- agents/workshop/geometry.md
 PixelRect WorkshopWeave::pane_room_rect(const Setup& desk, const PaneRef& ref) const {
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
     if (!kind.has_value()) {
@@ -309,7 +296,6 @@ PixelRect WorkshopWeave::pane_room_rect(const Setup& desk, const PaneRef& ref) c
     return room_of_canvas(bounds_of(session_.panes, desk, *kind, sc).resolved, sc);
 }
 
-// WL-GEO-12 -- agents/workshop/geometry.md
 std::string WorkshopWeave::moved_words(const PaneRef& ref, const PixelRect& before) const {
     std::string text = pane_move_text(inventory_name(ref), before,
                                       pane_room_rect(session_.setup.active, ref), session_.cell_px);
@@ -321,7 +307,6 @@ std::string WorkshopWeave::moved_words(const PaneRef& ref, const PixelRect& befo
     return text;
 }
 
-// WL-ARR-01 -- agents/workshop/arrangement.md
 void WorkshopWeave::commit_drag(const PaneRef& ref, loom::Mail& mail) {
     const SetupPane* now = pane_of(session_.setup.active, ref);
     const SetupPane* was = pane_of(session_.setup.owned, ref);
@@ -341,7 +326,6 @@ void WorkshopWeave::commit_drag(const PaneRef& ref, loom::Mail& mail) {
                mail);
 }
 
-// WL-ARR-08 -- agents/workshop/arrangement.md
 void WorkshopWeave::arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
     const Written ready = arrange_geometry_ready(session_.arrange.pane);
     if (!ready.accepted) {
@@ -354,7 +338,7 @@ void WorkshopWeave::arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& 
                   detail::step(from.y, dy * graphics::kCellPx), mail);
 }
 
-// WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
+// WL-ARR-06 -- agents/workshop/arrangement.md
 void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
                                    std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
                                    std::int64_t dy, loom::Mail& mail) {
@@ -362,7 +346,7 @@ void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::
                    base_y, base_w, base_h, mail);
 }
 
-// WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
+// WL-ARR-06 -- agents/workshop/arrangement.md
 void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t base_x,
                                    std::int64_t base_y, std::int64_t base_w, std::int64_t base_h,
                                    loom::Mail& mail) {
@@ -376,7 +360,6 @@ void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t 
     write_window(session_.arrange.pane, axes.horizontal, axes.vertical, mail);
 }
 
-// WL-ARR-08, WL-ARR-10 -- agents/workshop/arrangement.md
 void WorkshopWeave::arrange_grow(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
     const Written ready = arrange_geometry_ready(session_.arrange.pane);
     if (!ready.accepted) {
@@ -535,7 +518,6 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     }
 }
 
-// WL-LAYOUT-14 -- agents/workshop/layouts.md
 void WorkshopWeave::fold_or_dock(Act a, const PaneRef& ref, loom::Mail& mail) {
     const SetupPane* row = pane_of(session_.setup.active, ref);
     if (row == nullptr) {
@@ -579,7 +561,6 @@ void WorkshopWeave::fold_or_dock(Act a, const PaneRef& ref, loom::Mail& mail) {
                mail, false);
 }
 
-// WL-LAYOUT-14 -- agents/workshop/layouts.md
 void WorkshopWeave::fold_pane(const PaneRef& ref, const char* op, loom::Mail& mail) {
     LayoutEdit edit;
     edit.op = op;
@@ -615,7 +596,6 @@ void WorkshopWeave::reset_front_order(loom::Mail& mail) {
                mail, false);
 }
 
-// WL-ARR-08 -- agents/workshop/arrangement.md
 void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     PaneArrange& a = session_.arrange;
     const KeyContext ctx = keyboard_context(session_);
@@ -704,9 +684,6 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
 
 // ---- The pointer, inside arrangement -------------------------------------
 
-// WL-ARR-01 -- agents/workshop/arrangement.md
-// WL-ARR-01, WL-ARR-07 -- agents/workshop/arrangement.md
-// WL-PANE-01 -- agents/workshop/panes-and-windows.md
 bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc,
                                    bool top_moves) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
@@ -767,7 +744,7 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
     return false;
 }
 
-// WL-ARR-07 -- agents/workshop/arrangement.md; WL-FRONT-05 -- agents/workshop/planes.md
+// WL-FRONT-05 -- agents/workshop/planes.md
 void WorkshopWeave::arrange_press(const PointedAt& at) {
     PaneArrange& a = session_.arrange;
     const Screen sc = screen_of(session_);
@@ -805,8 +782,6 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
     say("nothing to arrange there -- " + hotkey(Act::kManageClose) + " leaves", false);
 }
 
-// WL-ARR-01 -- agents/workshop/arrangement.md
-// WL-ARR-17 -- agents/workshop/arrangement-snap.md
 void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool snap,
                                    loom::Mail& mail) {
     PaneGesture& g = session_.pane_drag;

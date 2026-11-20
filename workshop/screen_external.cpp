@@ -11,7 +11,6 @@ using pane::TextRow;
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 
-// WL-FOCUS-11 -- agents/workshop/focus.md; WL-CHROME-11 -- agents/workshop/chrome.md
 std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
                                  bool titles_shown) noexcept {
     return (titles_shown || keyboard_pane(panes) == kind || pane_is_shut(panes, kind))
@@ -20,8 +19,6 @@ std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
 }
 
 // WL-CHROME-05 -- agents/workshop/chrome.md
-// WL-EDIT-12 -- agents/workshop/editor.md
-// WL-PANE-06 -- agents/workshop/panes-and-windows.md
 ExternalBodyPlace external_body_place(const PixelRect& pane_rect, const Screen& sc,
                                       std::int64_t header_rows) {
     ExternalBodyPlace p;
@@ -67,7 +64,6 @@ ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
     return ExternalPressAt{true, row, at.column};
 }
 
-// WL-EDIT-12 -- agents/workshop/editor.md; WL-FOCUS-10 -- agents/workshop/focus.md
 std::string external_header(const RuntimePane& row, bool typing) {
     return std::string(typing ? kTypingHere : kTypingElsewhere) + row.name + " @" +
            row.provider;
@@ -82,7 +78,6 @@ bool marks_fit(bool marks, std::int64_t columns) noexcept {
 
 } // namespace
 
-// WL-CHROME-09 -- agents/workshop/chrome.md
 std::string external_header_row(const RuntimePane& row, bool typing, bool marks,
                                 std::int64_t columns, const std::string& prefix) {
     const std::string title = prefix + external_header(row, typing);
@@ -95,12 +90,10 @@ std::string external_header_row(const RuntimePane& row, bool typing, bool marks,
            kChromeMarks;
 }
 
-// WL-CHROME-11 -- agents/workshop/chrome.md
 std::string fold_prefix(const Panes& panes, std::int64_t kind) {
     return std::string(pane_is_shut(panes, kind) ? kFoldShutArrow : kFoldOpenArrow) + " ";
 }
 
-// WL-CHROME-09, WL-CHROME-11 -- agents/workshop/chrome.md
 std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen& sc,
                             std::int64_t kind, bool titles, std::int64_t space, std::int64_t x,
                             std::int64_t y) {
@@ -135,12 +128,10 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
     return chrome_mark::kNone;
 }
 
-// WL-PANE-16 -- agents/workshop/panes-and-windows.md
 std::string external_body_words(const ExternalPane& pane, const std::string& name) {
     return pane.held && !pane.in_window ? name + kExternalNoWindow : kExternalWaiting + name;
 }
 
-// WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
                     const PixelRect& b, const Screen& sc, bool titles, graphics::Color chrome) {
     paint_pane_frame(layer, b, chrome);

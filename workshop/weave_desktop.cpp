@@ -429,7 +429,6 @@ void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail
         mail, keys, window);
 }
 
-// WL-DESK-20 -- agents/workshop/desktop.md
 std::optional<SetupPane> WorkshopWeave::manual_window() const {
     const RuntimePane* row = session_.panes.runtime.of_kind(manual_over_);
     if (row == nullptr || !session_.panes.has(manual_over_)) {
@@ -682,7 +681,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
             return;
         }
     }
-    // APPLIED LIVE: the candidate is the map now, and every presenter is told (WL-DESK-11).
+    // APPLIED LIVE: the candidate is the map now, and every presenter is told.
     session_.keymap = std::move(candidate);
     // A pane's row now on a gesture the terminal cannot produce stands, and is said (WL-KEY-08).
     std::string gaps;
@@ -935,7 +934,6 @@ PaneInventory WorkshopWeave::inventory_reading(const realization::PlanStatus& pl
     return said;
 }
 
-// WL-DESK-09 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
     if (mail.authored_role().empty() && !capture_guest(mail.sender())) {
         return; // a role, or a guest session holding `capture`; other speech is answered by nobody
@@ -1041,7 +1039,6 @@ bool same_keymap(const KeymapShown& a, const KeymapShown& b) {
 
 } // namespace
 
-// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::publish_keymap(loom::Mail& mail) {
     KeymapShown said = keymap_shown(session_, host_->keymap_path, keymap_standing_);
     // COMPARED BEFORE IT IS PUBLISHED, `publish_inventory`'s rule: derived at every gesture,
@@ -1054,7 +1051,6 @@ void WorkshopWeave::publish_keymap(loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
 }
 
-// WL-DESK-11 -- agents/workshop/desktop-presenting.md
 void WorkshopWeave::on(const KeymapRequested&, loom::Mail& mail) {
     if (mail.authored_role().empty() && !capture_guest(mail.sender())) {
         return; // a role asks, or a guest session holding `capture`

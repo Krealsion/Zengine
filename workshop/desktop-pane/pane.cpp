@@ -423,7 +423,7 @@ public:
 
     /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth, published when it
     /// changes or answered to this image's ask. The Hotkeys pane is read from it; this weave
-    /// keeps no gesture of its own to print (WL-DESK-11).
+    /// keeps no gesture of its own to print.
     void on(const KeymapShown& said, loom::Mail& mail) {
         if (!from_workshop(mail)) {
             return;

@@ -49,7 +49,6 @@ struct StandingConditions {
 
 /// THE GLANCE: the loudest condition said and an honest count of the rest, `(+N more)` -- the one
 /// line a presenter of what is true leads with. Empty when nothing is true.
-// WL-ATTN-06 -- agents/workshop/attention.md
 inline std::string attention_glance(const std::vector<StandingCondition>& said) {
     if (said.empty()) {
         return std::string();

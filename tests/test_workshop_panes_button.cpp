@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // THE SECOND BUTTON AND THE MENU A PANE ASKS THE HOST TO PRESENT, through the real Workshop weave,
-// bus and native provider seats (WL-PRESS-06, WL-CTX-08, WL-CTX-09): delivery by the door, the
+// bus and native provider seats (WL-PRESS-06, WL-CTX-09): delivery by the door, the
 // host's menu where no door is, release custody, turn orders a model cannot establish, owner loss
 // and replacement, a late request, the standard rows beneath a pane's own, and the presenter's
 // lifecycle -- keys, mouse, Escape, outside presses, a newer menu, a pane that leaves, a withdrawal
@@ -455,7 +455,7 @@ TEST_CASE("WL-PRESS-06: a right press in a doorless pane's body opens the host's
     const CellRect body = external_body_rect(t.r.session(), t.hello_kind);
     // NEVER LOST: a holder that cannot hand a press back keeps none, and the press opens
     // the host's pane menu about that pane, beside the hand. Pointing moves no keys and no
-    // selection, and the provider hears nothing pointer-shaped (WL-CTX-08).
+    // selection, and the provider hears nothing pointer-shaped.
     const std::int64_t px = body.x + 1;
     const std::int64_t py = body.y + kExternalHeaderRows + 1;
     t.r.right_press_cell(px, py);
@@ -503,7 +503,7 @@ TEST_CASE("WL-PRESS-06: the release is the pressing pane's wherever the pointer 
     CHECK(t.guard->buttons.size() == 2);
 }
 
-TEST_CASE("WL-CTX-08: a further right press while the host's menu is open asks again -- a pane with the door is offered it first, and a doorless body opens the host's menu where it landed") {
+TEST_CASE("a further right press while the host's menu is open asks again -- a pane with the door is offered it first, and a doorless body opens the host's menu where it landed") {
     Rigged t;
     t.guard->menu_on_press = true;
     const CellRect hello = t.hello_body();
@@ -530,7 +530,7 @@ TEST_CASE("WL-CTX-08: a further right press while the host's menu is open asks a
     CHECK(t.hello->presses.empty());
 }
 
-TEST_CASE("WL-CTX-08: a pass-back after a clean click opens the host's menu for that pane, once") {
+TEST_CASE("a pass-back after a clean click opens the host's menu for that pane, once") {
     Rigged t;
     t.right_in_guard();
     t.right_in_guard(false);
@@ -548,7 +548,7 @@ TEST_CASE("WL-CTX-08: a pass-back after a clean click opens the host's menu for 
     CHECK_FALSE(t.menu_open());
 }
 
-TEST_CASE("WL-CTX-08: a pass-back on the press's own turn opens the menu, and the release still reaches the pane under it") {
+TEST_CASE("a pass-back on the press's own turn opens the menu, and the release still reaches the pane under it") {
     Rigged t;
     t.guard->pass_on_press = true;
     t.right_in_guard();
@@ -583,7 +583,7 @@ TEST_CASE("WL-PRESS-06: the review's interleaving -- press, an intervening key, 
     CHECK_FALSE(t.menu_open());
 }
 
-TEST_CASE("WL-CTX-08: a stale correlation, a zero one, and a pass-back from a role that did not offer the pane all move nothing") {
+TEST_CASE("a stale correlation, a zero one, and a pass-back from a role that did not offer the pane all move nothing") {
     Rigged t;
     ButtonSeat* stranger = nullptr;
     const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoRole, kGuardTwoPane);

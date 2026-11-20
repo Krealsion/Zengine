@@ -193,7 +193,7 @@ quarter of the slowest runner's 90 minutes less its cold build. ASan keeps every
 
 ### VM-LANE-04
 `.github/workflows/ci.yml` continue-on-error
-`tests/test_workshop_files.cpp` (the comment on the WL-FILES-14 second-clause case)
+`tests/test_workshop_files.cpp` (the comment on a failed listing's second clause)
 
 ### VM-LANE-05
 `.github/workflows/ci.yml` continue-on-error

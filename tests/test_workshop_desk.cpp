@@ -702,7 +702,7 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         REQUIRE(before.words.size() == 4);
         const ExternalPane kept = *d.r.session().panes.external_pane(d.sketch_kind);
         // A PRESS HELD ON THE PANE takes the keys, and with them the title the pane wears while
-        // it has them (WL-FOCUS-11); the room that title takes waits for the press.
+        // it has them; the room that title takes waits for the press.
         const PaneWord& pressed = before.words[2];
         const std::size_t rooms_before = d.sketch->rooms.size();
         d.r.hand_button(pressed.x, pressed.y, pressed.space, true);

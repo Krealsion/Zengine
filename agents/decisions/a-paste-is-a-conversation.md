@@ -66,9 +66,8 @@ act at a time turned a refused send into a block on every later act (the next re
 undelivered ask of Info's is released; an act the host received and has not answered still waits.
 
 **Since.** The Pane Creator's name line and acts retired into described views
-([a pane made from data is a view](a-pane-made-from-data-is-a-view.md)); the Hotkeys pane's
+([a pane made from data is a view](../../docs/history/decisions/a-pane-made-from-data-is-a-view.md)); the Hotkeys pane's
 spelling line keeps its paste on the same terms.
 
 **Laws supported.** [WL-EDIT-11](../workshop/editor.md), [WL-INFO-12](../workshop/info-body.md),
-[WL-TEXT-08](../workshop/text-box.md), [WL-TEXT-09](../workshop/text-box.md),
-[WL-TEXT-10](../workshop/text-box.md).
+[WL-TEXT-08](../workshop/text-box.md), [WL-TEXT-09](../workshop/text-box.md).

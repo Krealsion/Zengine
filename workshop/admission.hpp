@@ -37,7 +37,6 @@ inline loom::Grant inventory_role_grant() {
 // status the quiet one, to the switch's role alone; Workshop asked to approve a start for the
 // hand, and the launcher asked for its listing and a start; and every running view asked what its
 // wiring has done, said to any since a view's role is its own name.
-// WL-FIRST-03, WL-FIRST-04 -- agents/workshop/first-run.md
 inline loom::Grant first_run_role_grant() {
     loom::Grant g;
     const auto to = [&g](std::string name, std::uint32_t version, const std::string& role) {

@@ -37,5 +37,4 @@ the first setting a pane declares.
 
 **Laws supported.** [WL-SETTING-01](../workshop/settings.md),
 [WL-SETTING-02](../workshop/settings.md), [WL-SETTING-03](../workshop/settings.md),
-[WL-SETTING-04](../workshop/settings.md), [WL-SETTING-06](../workshop/settings.md),
-[WL-TERM-19](../workshop/terminal-pane.md).
+[WL-SETTING-04](../workshop/settings.md), [WL-SETTING-06](../workshop/settings.md).

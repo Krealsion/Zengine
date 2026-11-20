@@ -31,7 +31,7 @@ std::string arrows_text(const Keymap& k, KeySpelling spelling, Act left, Act rig
            hotkey_text(k, spelling, up) + "/" + hotkey_text(k, spelling, down);
 }
 
-// WL-KEY-09, WL-KEY-15 -- agents/workshop/keyboard.md
+// WL-KEY-15 -- agents/workshop/keyboard.md
 std::vector<std::string> help_pairs(const Keymap& k, KeySpelling spelling, KeyContext ctx,
                                     std::int64_t pane) {
     std::vector<std::string> out;
@@ -139,7 +139,6 @@ std::string pad(std::string text, std::size_t width) {
     return text;
 }
 
-// WL-TEXT-05 -- agents/workshop/text-box.md
 std::string fit(std::string text, std::int64_t width) {
     if (width <= 0) {
         return {};
@@ -157,7 +156,6 @@ std::string fit(std::string text, std::int64_t width) {
     return text;
 }
 
-// WL-PROJ-10 -- agents/workshop/project.md
 std::size_t path_root_cue(const std::string& p) {
     if (p.size() >= 2 && p[0] == '/' && p[1] == '/') {
         const std::size_t at = p.find('/', 2); // `//server/` -- the name AND its separator
@@ -172,7 +170,6 @@ std::size_t path_root_cue(const std::string& p) {
     return 0;
 }
 
-// WL-PROJ-10 -- agents/workshop/project.md; WL-TAB-03 -- agents/workshop/tab-run.md
 std::string fit_path(const std::string& path, std::int64_t width) {
     if (width <= 0) {
         return {};

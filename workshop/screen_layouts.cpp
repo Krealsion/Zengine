@@ -27,9 +27,7 @@ std::string setup_hints(const Keymap& k, KeySpelling spelling) {
            hotkey_text(k, spelling, Act::kSetupRestore) + " restore";
 }
 
-// WL-TAB-01, WL-TAB-05 -- agents/workshop/tab-run.md
 // WL-CHROME-05 -- agents/workshop/chrome.md
-// WL-PRESS-05 -- agents/workshop/press-chain.md
 ExternalBodyPlace layouts_body(const Session& s, const Screen& sc) {
     const PaneBounds where = bounds_of(s.panes, s.setup.active, pane_kind::kLayouts, sc);
     if (!where.open) {
@@ -38,7 +36,6 @@ ExternalBodyPlace layouts_body(const Session& s, const Screen& sc) {
     return external_body_place(where.rect, sc, 0);
 }
 
-// WL-TEXT-03 -- agents/workshop/text-box.md
 std::int64_t setup_name_columns(const Session& s, const Screen& sc) {
     const std::int64_t chrome =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
@@ -49,7 +46,6 @@ std::int64_t setup_name_columns(const Session& s, const Screen& sc) {
 
 // ---- THE `setup:` SLOT: what the ACTIVE layout's association is --------------------------
 
-// WL-TAB-02, WL-TAB-03 -- agents/workshop/tab-run.md
 std::string setup_link_text(const LiveDesk& setup, std::int64_t path_columns) {
     const std::int64_t status = setup.link;
     std::string line = kSetupSlot;
@@ -63,7 +59,6 @@ std::string setup_link_text(const LiveDesk& setup, std::int64_t path_columns) {
     return line;
 }
 
-// WL-TAB-03 -- agents/workshop/tab-run.md
 std::string setup_rest_text(const LiveDesk& setup, const Panes& panes,
                             const Keymap& keymap, KeySpelling spelling) {
     std::string line;
@@ -96,7 +91,6 @@ std::string workspace_text(const Session& s) {
 
 // ---- THE LAYOUT TABS: the left of the status row -----------------------------------------
 
-// WL-TAB-08 -- agents/workshop/tab-run.md
 std::string layouts_omitted_text(std::size_t how_many, bool ahead) {
     return ahead ? " " + std::to_string(how_many) + ">" : "<" + std::to_string(how_many);
 }
@@ -115,7 +109,6 @@ std::int64_t layout_tab_columns(std::int64_t row_columns) noexcept {
     return room > kLayoutTabMinCols ? room : kLayoutTabMinCols;
 }
 
-// WL-TAB-05, WL-TAB-08 -- agents/workshop/tab-run.md
 LayoutTabRun layout_tab_run(const LiveDesk& setup, std::int64_t columns) {
     LayoutTabRun run;
     const std::size_t n = layout_count(setup);
@@ -311,8 +304,6 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 
 // ---- THE LAYOUTS PANE AND THE BOTTOM BAND, EACH COMPOSED AGAINST ITS BUDGET ---------------
 
-// WL-TAB-01 -- agents/workshop/tab-run.md
-// WL-TAB-01, WL-TAB-05 -- agents/workshop/tab-run.md
 void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
                    const Screen& sc, graphics::Color chrome) {
     paint_pane_frame(layer, b, chrome);

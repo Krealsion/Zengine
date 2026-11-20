@@ -17,7 +17,7 @@ opens Workshop's own menu of its settings, a population of its own.
 
 **Alternatives considered.**
 - *Tried: the settings as a group in every pane's menu and the room's* — refused: it moves the
-  researched populations of those menus (WL-CTX-05), and the cases that pin them went red.
+  researched populations of those menus, and the cases that pin them went red.
 - *Argued: Workshop draws the manual itself, over the pane* — refused: a document reader grown in
   the host where a weave can hold it, and the menu's own precedent is a presenting participant.
 - *Argued: the pane declares that it has a manual* — refused: a new declaration where Loom already

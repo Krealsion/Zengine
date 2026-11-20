@@ -118,7 +118,7 @@ PanePresentation WorkshopWeave::derive_presentation() const {
     return now;
 }
 
-// Silent when nothing changed -- the discipline of WL-ATTN-12, one claim over.
+// Silent when nothing changed -- the standing conditions' discipline, one claim over.
 void WorkshopWeave::mirror_presentation(loom::Mail& mail) {
     if (host_->managed_pane.provider.empty()) {
         return; // a Workshop with no managed pane claims nothing and pays nothing
@@ -307,7 +307,6 @@ void WorkshopWeave::offer_presentation(std::int64_t op, std::int64_t generation,
 
 // ---- The publication hook: the trial becomes the desk ----------------------------------------
 
-// WL-OPEN-09 -- agents/workshop/opening.md
 loom::Weave::PublishedClaim WorkshopWeave::on_claim_published(const PanePresentation& published) {
     // THE DESK IS A NATIVE OWNER, SO ITS APPLICATION RUNS INSIDE THE HOST'S BOUNDARY: a throw
     // from anything below is this desk's own failure -- Loom holds the desk, and the host's

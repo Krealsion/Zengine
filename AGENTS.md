@@ -33,6 +33,9 @@ mistake to refuse; a problem that arises inside Loom's architecture is the one w
 When a piece earns being a participant, and when it is a library of another, is
 [a decision record](agents/decisions/a-participant-earns-its-place.md) and its law, WL-PART-01.
 
+**Names are verbs that say what happens, and parameters say what they hold.** A renamed thing's
+files change with it.
+
 ## Read this, then route
 
 This file is the one mandatory read before touching this repository. Everything else is
@@ -76,7 +79,7 @@ document that owns it; this core gains a rule only when the rule is genuinely cr
 needed for essentially any Zengine task. Routed documents hold **current law, rewritten in
 place**: a change updates the sentences it made false and states the present, never an account
 of itself, and its story stays in Git history, not here. A change that edits this core rechecks
-its budget: **this file stays at or under <!-- value ZEN_LAW_CORE_BYTES KiB -->20<!-- /value --> KB.**
+its budget: **this file stays at or under <!-- value ZEN_LAW_CORE_BYTES KiB -->17<!-- /value --> KB.**
 Executor/internal material (this file, every folder's `AGENTS.md` router, and `agents/`) stays out
 of the public documentation index and out of the installed package.
 
@@ -185,30 +188,9 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- The text checks (`tests/text_checks.cmake` lists them) read the source tree rather than a build:
-  `doc_links` (every repo-local documentation reference must resolve, anchors included, and no
-  current-facing file names a path outside the repository), `doc_names` (every file and folder a
-  router or a much-read page names in backticks is the tree's or a row of `tests/doc_names.txt`,
-  and every suite a router names a CTest entry), `package_vocabulary` (the installed package's
-  nouns), `law_register`
-  (the registers under `agents/`: the form, every name they make, and every file's byte budget,
-  a page `tests/raised_budgets.txt` names taking its kind's default times (1 + 0.2 × its steps),
-  in whole bytes, rounded down, a register's laws and its whole file alike;
-  every case a current-facing document cites and every law id a source comment or document names
-  resolving; no plan code or step label in a case name, and in a current-facing document no plan
-  code, no development phase used as a clock and no history told in the forms the check names),
-  `source_comments` (the comment standard over the folders `tests/folders.txt` lists as code: no
-  long block, removal note or private id), `code_values` (every value `tests/code_values.txt`
-  registers read from its owner: no marker out of step, no known value copied unmarked, no role's
-  name spelled past its home, no test count without its commit and command) and `folder_map` (every top-level folder listed with its
-  kind, a front page and a router in every feature, the host and every library, and every
-  register and CTest entry routed by exactly one router), `manual` (every weave's manual in
-  form and carried by a target, a pane's commands exactly its ids in the action census
-  (`tests/actions.txt`, `tests/actions/`), and every key marker in a current page its declared default,
-  Workshop's own in `tests/workshop_actions.txt`) and `census` (every number `tests/census.txt`
-  pins held by the tree, both ways, and a row marked to fall never raised: the line between
-  Workshop and Zengine, [agents/workshop-line.md](agents/workshop-line.md)). Full contract detail:
-  [agents/verification/population.md](agents/verification/population.md).
+- The text checks (`tests/text_checks.cmake` lists them) read the source tree rather than a build;
+  what each holds is [the tree-reading checks](agents/verification.md#the-tree-reading-checks). Full
+  contract detail: [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction
 

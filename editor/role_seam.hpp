@@ -49,7 +49,7 @@ namespace ws = zengine::workshop;
 using zengine::pane::pane_menu::kWorkshopRole;
 
 /// One column of every document row the text may not use: the caret's own, so a caret after the
-/// end of a full row stays inside the room (WL-EDIT-08).
+/// end of a full row stays inside the room.
 inline constexpr std::int64_t kCaretCols = 1;
 
 /// How many opens one Editor relays through the old door at once.

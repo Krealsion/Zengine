@@ -195,7 +195,7 @@ ZEN_PRESS_WITNESS_CASE(fr::kFirstRunRole, 0, "the first run's rows")
 
 } // namespace
 
-TEST_CASE("WL-FIRST-01: the quick setup shows itself once at a start that keeps settings and has "
+TEST_CASE("the quick setup shows itself once at a start that keeps settings and has "
           "not answered, and never where none are kept") {
     SUBCASE("a start keeping a settings file: shown in front, holding the keys") {
         TempDir dir("first-run-shown");
@@ -234,7 +234,7 @@ TEST_CASE("WL-FIRST-01: the quick setup shows itself once at a start that keeps 
     }
 }
 
-TEST_CASE("WL-FIRST-02: Done writes answered and puts the pane down, and the next start shows "
+TEST_CASE("Done writes answered and puts the pane down, and the next start shows "
           "nothing") {
     TempDir dir("first-run-done");
     const std::string prefs = dir.file("prefs.json");
@@ -254,7 +254,7 @@ TEST_CASE("WL-FIRST-02: Done writes answered and puts the pane down, and the nex
     CHECK_FALSE(on_desk(again));
 }
 
-TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer in its words, and "
+TEST_CASE("the Neovim box asks the editor switch, shows its answer in its words, and "
           "confirms a consent only when chosen again") {
     TempDir dir("first-run-switch");
     PaneRig r;
@@ -342,7 +342,7 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
                                      "zen.manager"));
 }
 
-TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the setups the launcher lists with "
+TEST_CASE("the quick setup's lines name the box, the setups the launcher lists with "
           "Start on each, The story, the pages and Done and Skip, each press choosing its own item") {
     fr::Moment m;
     const std::vector<fr::Line> lines = fr::lines_of(m);
@@ -404,7 +404,7 @@ TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the setups the lau
     CHECK(fr::stepped(m, fr::Item::kNeovim, 1) == fr::Item::kStory);
 }
 
-TEST_CASE("WL-FIRST-02: a press the window landed on Done before a notice came under the items "
+TEST_CASE("a press the window landed on Done before a notice came under the items "
           "chooses Done: the items stand where they stood") {
     TempDir dir("first-run-notice-press");
     PaneRig r;
@@ -618,7 +618,7 @@ std::string story_kept(const std::string& prefs) {
 
 } // namespace
 
-TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the inventory, a running "
+TEST_CASE("each step is ticked by the fact its owner says -- the inventory, a running "
           "view's wiring, the launcher's listing and its start -- and kept; a view's wiring said "
           "by a role no running view holds ticks nothing") {
     // MUTATION (tests/mutants/workshop_panes_first_run.md#wiring-from-any-role): the wiring
@@ -668,7 +668,7 @@ TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the in
     CHECK(rows_say(r, story, "The story is done"));
 }
 
-TEST_CASE("WL-FIRST-04: a step ticked while Start here stands behind another pane brings it in front, the keys left where they are") {
+TEST_CASE("a step ticked while Start here stands behind another pane brings it in front, the keys left where they are") {
     // MUTATION (tests/mutants/workshop_panes_first_run.md#fact-asks-nothing): a fact that asks
     // nothing of the desk -- Start here stays behind, and the tick is not seen; the order check
     // goes red.
@@ -704,7 +704,7 @@ TEST_CASE("WL-FIRST-04: a step ticked while Start here stands behind another pan
     CHECK(r.session().panes.keyboard == alpha);
 }
 
-TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and no "
+TEST_CASE("Start here opens when the quick setup closes, holding the keys, and no "
           "later start opens it again") {
     // MUTATION (tests/mutants/workshop_panes_first_run.md#later-start-opens-the-story): a later
     // start opening Start here while its story is not done.
@@ -751,7 +751,7 @@ TEST_CASE("WL-NOTE-06: what the quick setup keeps for itself is kept without a n
     CHECK(r.session().notice_is_bad);
 }
 
-TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone by it, its owner's "
+TEST_CASE("a box ticked by the weaver's hand says so and is undone by it, its owner's "
           "fact makes it the owner's, and Show me opens the step's pane and says its next move") {
     // MUTATION (tests/mutants/workshop_panes_first_run.md#hand-tick-kept-over-the-fact): a hand's
     // tick kept over the owner's fact -- the box still says "ticked by you".
@@ -815,7 +815,7 @@ TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone 
     CHECK(step4_says);
 }
 
-TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and a Start asks "
+TEST_CASE("the quick setup lists the setups the launcher lists, and a Start asks "
           "Workshop for the hand that pressed, then the launcher, saying what it answered") {
     // MUTATION (tests/mutants/workshop_panes_first_run.md#start-before-approval): a Start sent to
     // the launcher before Workshop approved the hand -- a guest's press on a weaver's host starts
@@ -888,7 +888,7 @@ std::string read_whole(PaneRig& r, std::int64_t kind) {
 }
 } // namespace
 
-TEST_CASE("WL-FIRST-02: every line of the quick setup and of Start here is read whole at the pane's "
+TEST_CASE("every line of the quick setup and of Start here is read whole at the pane's "
           "own size, a line wider than the pane going on in the rows beneath it") {
     // MUTATION (tests/mutants/workshop_panes_first_run.md#lines-left-as-written): the lines left as
     // wide as they are written -- the desk cuts each at the pane's edge, and what ticks a step and
