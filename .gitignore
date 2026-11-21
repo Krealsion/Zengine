@@ -17,9 +17,5 @@ cmake-build-*/
 *.a
 *.so
 
-# The quarry's own tooling regenerates these if it is ever run in place
-quarry/.venv/
-quarry/all_code.txt
-
 # Python byte-code caches, left behind by the session journeys and tool packages run in place
 __pycache__/

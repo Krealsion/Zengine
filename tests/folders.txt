@@ -3,8 +3,8 @@
 # in Workshop, a pane or the tool behind one; a host is a program that composes what weaves cannot
 # hold, Workshop and the app host; a library is what a program links or a weave builds on by name; the rest is the repository's own: examples, the build's
 # helpers (build), every suite and check (tests), repository scripts (tools), the cross-cutting
-# pages (docs), the law registers (law), the pre-Zen engine kept and not built (quarry), and the
-# forge's and the IDE's settings (repository). A new top-level folder takes a row here. ASCII only.
+# pages (docs), the law registers (law), and the forge's and the IDE's settings (repository). A new
+# top-level folder takes a row here. ASCII only.
 activation        library
 agents            law
 app               host
@@ -33,7 +33,6 @@ operator          library
 pane              library
 persist           library
 property          library
-quarry            quarry
 realization       library
 tally             library
 terminal          feature

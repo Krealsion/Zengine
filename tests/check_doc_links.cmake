@@ -4,7 +4,7 @@
 # The `doc_links` entry (docs/contributing/build-and-test.md): does each repo-local reference
 # resolve -- a current-facing markdown file's links and anchors, a first-party source comment's
 # `.md` path read from the repository root -- and does no current-facing file name a path outside
-# this repository? Frozen history, the quarry and paths above the root are not asked.
+# this repository? Frozen history and paths above the root are not asked.
 #   cmake -P tests/check_doc_links.cmake    (from the repository root, or -DZEN_REPO=<repo>)
 
 cmake_minimum_required(VERSION 3.16)
@@ -35,7 +35,6 @@ set(ZEN_DOC_EXCLUDE
     "^\\.vscode/"
     "^\\.claude/"            # harness state, gitignored
     "^docs/history/"         # frozen: describes the tree at its source commit
-    "^quarry/"            # the pre-Zen engine, kept as a quarry and not live
     "third_party/")          # vendored
 
 # First-party C/C++, CMake and the population manifest, whose comments are read: the folders

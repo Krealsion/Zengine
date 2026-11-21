@@ -226,8 +226,7 @@ whose parts are separate weaves.
 
 **The repository's own** — `tests/` (every suite, fixture and check), `cmake/` (build helpers),
 `tools/` (repository scripts), `docs/` ([the documentation index](docs/README.md), getting
-started, contributing, architecture), `agents/` (the law automated collaborators work to) and
-`quarry/` (the pre-Zen engine, kept as a quarry and not built).
+started, contributing, architecture) and `agents/` (the law automated collaborators work to).
 
 An exported package's headers install under `include/zengine/` at the path they have here, so
 `#include "timer/vocabulary.hpp"` reads the same from either side, and a part's vocabulary is

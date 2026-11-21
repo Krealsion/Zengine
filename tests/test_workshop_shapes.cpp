@@ -111,9 +111,9 @@ std::map<std::string, std::set<std::string>> declared_shape_names(const std::fil
         if (it->is_directory()) {
             const bool top = it.depth() == 0;
             if (name == ".git" || name == "third_party" ||
-                (top && (name == "tests" || name == "docs" || name == "quarry" ||
-                         name == "build" || name.rfind("build-", 0) == 0 ||
-                         name.rfind("cmake-build", 0) == 0 || name == "_install"))) {
+                (top && (name == "tests" || name == "docs" || name == "build" ||
+                         name.rfind("build-", 0) == 0 || name.rfind("cmake-build", 0) == 0 ||
+                         name == "_install"))) {
                 it.disable_recursion_pending();
             }
             continue;

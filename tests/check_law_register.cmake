@@ -136,12 +136,11 @@ set(ZEN_LAW_EXCLUDE
     "^_install"
     "^\\.git/"
     "^docs/history/"
-    "^quarry/"
     "third_party/")
 set(ZEN_LAW_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
-# Current-facing text the document sweep would not reach: the one Zen-authored file inside the
-# excluded quarry, and a root file no glob names. Each is read as a document; a missing one fails.
-set(ZEN_PLAN_EXTRA_DOCUMENTS quarry/QUARRY-CATALOG.md .gitattributes)
+# Current-facing text the document sweep would not reach: a root file no glob names. Each is read
+# as a document; a missing one fails.
+set(ZEN_PLAN_EXTRA_DOCUMENTS .gitattributes)
 
 # A token in a proof is a path when it ends in one of these; otherwise it is an identifier checked
 # against the path named before it.

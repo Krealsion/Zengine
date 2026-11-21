@@ -31,9 +31,6 @@ set(ZEN_NAMES_NOT_PAGES "^agents/decisions/")
 # and no name.
 set(ZEN_NAMES_EXTENSIONS md hpp h ipp cpp c cc cxx cmake txt json py sh cmd yml yaml xml in png svg
     ttf otf)
-# The folders whose files a name may be the tail of: every row of tests/folders.txt but the quarry,
-# whose files are named from the root or not at all.
-set(ZEN_NAMES_NOT_TAILS quarry)
 # The section of the guide whose bullets name suites, and the section of a front page that routes
 # its folder (tests/front_page_folders.txt), as folder_map reads them.
 set(ZEN_NAMES_ROOT_PAGE CONTRIBUTING.md)
@@ -419,7 +416,7 @@ endfunction()
 # ---- the self-test (VM-CHECK-01): a canary page over a canary tree ----------------------------
 # Each line of the canary holds names that resolve beside names that do not, and the reading must
 # name exactly the second kind, by page, line and name, before the tree is asked anything.
-set(ZEN_NAMES_TREE "\n/tests/kept.cpp\n/tests/test_panes_button.cpp\n/tests/test_panes_code.cpp\n/part/pane.cpp\n/part/snake/board.hpp\n/agents/law.md\n/quarry-free.txt\n")
+set(ZEN_NAMES_TREE "\n/tests/kept.cpp\n/tests/test_panes_button.cpp\n/tests/test_panes_code.cpp\n/part/pane.cpp\n/part/snake/board.hpp\n/agents/law.md\n")
 set(ZEN_NAMES_TOP tests part agents)
 set(ZEN_NAMES_POPULATION kept_suite other_suite third_suite)
 set(ZEN_NAMES_GATES open kept-gate)
@@ -534,7 +531,7 @@ endforeach()
 set(tree_files "")
 set(page_files "")
 foreach(folder IN LISTS ZEN_NAMES_TOP)
-    if(folder IN_LIST ZEN_NAMES_NOT_TAILS OR NOT IS_DIRECTORY "${ZEN_REPO}/${folder}")
+    if(NOT IS_DIRECTORY "${ZEN_REPO}/${folder}")
         continue()
     endif()
     file(GLOB_RECURSE found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${folder}/*")
@@ -571,16 +568,6 @@ foreach(file IN LISTS tree_files)
 endforeach()
 string(REPLACE ";" "\n/" ZEN_NAMES_TREE "${tree_files}")
 set(ZEN_NAMES_TREE "\n/${ZEN_NAMES_TREE}\n")
-# The quarry is named from the root: its folder and its catalog stand in the list, its files do not.
-foreach(folder IN LISTS ZEN_NAMES_NOT_TAILS)
-    file(GLOB found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${folder}/*")
-    foreach(entry IN LISTS found)
-        if(NOT IS_DIRECTORY "${ZEN_REPO}/${entry}")
-            string(APPEND ZEN_NAMES_TREE "/${entry}\n")
-        endif()
-    endforeach()
-endforeach()
-
 file(STRINGS "${ZEN_REPO}/tests/test_population.txt" pop_rows REGEX "^[^#]")
 set(ZEN_NAMES_POPULATION "")
 set(ZEN_NAMES_GATES "")

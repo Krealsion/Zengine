@@ -34,12 +34,11 @@ not the copyright owner and not an LLC.
 Files or directories carrying their own license or copyright notice remain
 under those terms. Bundled third-party material is listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); today that is the doctest
-test framework, the JetBrains Mono and GNU Unifont typefaces the GUI window sets its text in
+test framework and the JetBrains Mono and GNU Unifont typefaces the GUI window sets its text in
 (`graphics/window/fonts/`, SIL OFL 1.1, provenance in
-[graphics/window/fonts/PROVENANCE.md](graphics/window/fonts/PROVENANCE.md)), and the font files
-inside the quarry (below). SDL, SDL_ttf and FreeType, unless the build is
-`ZENGINE_TUI_ONLY`, are fetched at build time and are not distributed in this
-repository.
+[graphics/window/fonts/PROVENANCE.md](graphics/window/fonts/PROVENANCE.md)). SDL, SDL_ttf and
+FreeType, unless the build is `ZENGINE_TUI_ONLY`, are fetched at build time and are not
+distributed in this repository.
 
 `graphics/window/fonts/` is **not** first-party material and is excluded from the AGPL-3.0-only claim
 above. Its bytes are unmodified upstream bytes and remain under the SIL Open Font License 1.1,
@@ -47,22 +46,3 @@ whose text travels with them in the `OFL.txt` and `OFL-Unifont.txt` beside them.
 compiles those bytes into the GUI window weave, so anything distributing that weave is
 distributing the fonts and carries the OFL's notice obligation with it — which is what the
 notices file records.
-
-## `quarry/` — the quarry
-
-`quarry/` is the read-only quarry imported from the prior V1 Zen engine
-working tree. Its C++ source is first-party (single-author history, no
-contrary notices) and falls under this repository's AGPL-3.0-only statement, but as
-frozen reference material it does not carry per-file headers.
-
-Its `Resources/TTFs/` directory contains third-party fonts that are **not**
-first-party and **not** AGPL-licensed. `Airstream.ttf` is covered by the
-adjacent `Nick's Fonts License.txt`. `Elounda-Regular.otf` is Elounda Regular
-1.000, Copyright (c) 2024, Silverblur_type, under the SIL Open Font License 1.1
-with no Reserved Font Name declared. Its bytes match the regular face at commit
-`fbe57c50f74a7230b4cc67524a4d2e4c9c89ede2` of
-<https://github.com/silverblurtype/elounda> (SHA-256
-`7a4135312b6e4b085a8bb830f9e28af9b0b835c0cf879f51f8bee47f4b5fdc3e`), and
-`quarry/Resources/TTFs/OFL-Elounda.txt` beside it is that commit's license
-text. The Basic face is not in the directory: its terms could not be verified
-from an authoritative source, and the file was removed.

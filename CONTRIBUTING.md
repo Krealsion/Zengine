@@ -149,8 +149,7 @@ are Loom's, and hold here whole; this repository's attribution check is
 ## What crosses folders
 
 What crosses folders, and the folders with no front page of their own (`tests/`, `cmake/`,
-`tools/`, `docs/`, `agents/`, `quarry/` and the forge's `.github/` and `.run/`), are routed here;
-`quarry/` is read and never built ([the quarry's catalog](quarry/QUARRY-CATALOG.md)):
+`tools/`, `docs/`, `agents/` and the forge's `.github/` and `.run/`), are routed here:
 
 | the task touches… | read |
 |---|---|
