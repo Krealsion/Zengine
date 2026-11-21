@@ -19,3 +19,6 @@ cmake-build-*/
 
 # Python byte-code caches, left behind by the session journeys and tool packages run in place
 __pycache__/
+
+# The ready build's preset, written by tools/ready-build.cmake for this checkout alone
+/CMakeUserPresets.json

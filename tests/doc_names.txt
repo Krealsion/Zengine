@@ -13,6 +13,7 @@ src/example.cpp                  written
 view-builder.json                written
 workshop-keymap.json             written
 workshop.json                    written
+CMakeUserPresets.json            written
 CMakeCache.txt                   generated
 colors.hpp                       generated
 development-build-recipes.json   generated

@@ -57,6 +57,15 @@ cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake        # the official lane
 cmake -P tests/documentation_lane.cmake
 ```
 
+- **One command to a ready build**, on Linux or in MSYS2's MinGW64 shell on Windows, from this
+  checkout: `cmake -P tools/ready-build.cmake <build folder>` gets Loom beside it (`../Loom`,
+  cloned when it is not there; a second argument names another checkout), builds and installs it
+  into the build folder, and configures and builds Zengine there against it. It writes a `ready`
+  preset into `CMakeUserPresets.json`, so an IDE that reads CMake presets, CLion among them,
+  opens the checkout ready to build. Run it again to move both checkouts forward to their upstream
+  branches and rebuild only what changed; a checkout with uncommitted changes, or no upstream, is
+  left at what it holds. `-DREADY_JOBS=<n>` before `-P` bounds the build's jobs, for a machine with
+  less memory than one heavy unit a core needs.
 - **Quote `tests/verify.cmake`, never a bare `ctest`.** A bare run cannot tell whether the tests
   that ran are the tests this repository meant to run. Add `-DZEN_CTEST_ARGS=-j<n>` to run it in
   parallel. The sanitizer lane, the installed-package and build witnesses, and which of them a
