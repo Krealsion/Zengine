@@ -1160,7 +1160,7 @@ function(zengine_workshop_suite entry)
             "would not be compiled and its cases would vanish from the population.")
     endif()
     set(target zengine-workshop-${entry}-tests)
-    add_executable(${target} ${sources} doctest_main.cpp)
+    add_executable(${target} ${sources} doctest_main.cpp workshop_suite.cpp)
     target_link_libraries(${target} PRIVATE ${ZENGINE_WORKSHOP_LIBS} ${WS_LINKS})
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
     # The suite's own name: the suites run at once, and a temporary directory belongs to one

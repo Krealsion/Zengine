@@ -120,6 +120,18 @@
 #include <utility>
 #include <vector>
 
+namespace zengine::testing {
+
+/// The entry name CMake gave this suite, `ZENGINE_WORKSHOP_SUITE`, answered by the suite's own unit
+/// (tests/workshop_suite.cpp), which is compiled with the suite's definitions.
+const char* workshop_suite();
+
+/// The image file `stem` names when only some suites are given one and this suite is, else null;
+/// answered by the suite's own unit as `workshop_suite` is.
+const char* workshop_suite_artifact(const std::string& stem);
+
+} // namespace zengine::testing
+
 using namespace zengine::workshop;
 
 using namespace zengine::pane;
@@ -1465,13 +1477,13 @@ inline std::string this_process_id() {
 /// THE TEMPORARY ROOT THIS SUITE OWNS IN THIS PROCESS, and nothing else does (VM-POP-14): the
 /// suites run at once, each `TempDir` counter starts at zero, and `TempDir` removes what it finds
 /// before it creates, so a shared name would be one case deleting another's files. The suite is
-/// `ZENGINE_WORKSHOP_SUITE`, the entry name CMake gave this binary, and the process id is the
+/// `zengine::testing::workshop_suite()`, the entry name CMake gave this binary, and the process id is the
 /// rest, so two runs of one suite cannot collide either. A process sweeps only the root it made:
 /// a crashed run's root stays, since a global sweep would be the deleting this name prevents.
 inline std::filesystem::path workshop_temp_root() {
     static const std::filesystem::path root =
         std::filesystem::temp_directory_path() /
-        ("zengine-workshop-" ZENGINE_WORKSHOP_SUITE "-" + this_process_id());
+        ("zengine-workshop-" + std::string(zengine::testing::workshop_suite()) + "-" + this_process_id());
     return root;
 }
 
@@ -4109,6 +4121,10 @@ struct PaneRig {
     // bounded turns. The artifacts resolve from the suite's own `_SO` paths, not a staging
     // directory: where a host finds a file is the load suite's question.
     static std::string artifact_path(const std::string& stem) {
+        // A stem only some suites are given an image for is answered by the suite's own unit.
+        if (const char* own = zengine::testing::workshop_suite_artifact(stem)) {
+            return own;
+        }
         if (stem == "zengine-operators-basic") {
             return PROVIDER_BASIC_SO;
         }
@@ -4139,13 +4155,6 @@ struct PaneRig {
         if (stem == "zengine-notices-pane") {
             return WORKSHOP_SO_NOTICES_PANE;
         }
-#ifdef WORKSHOP_SO_COMPOSER
-        if (stem == "zengine-composer") return WORKSHOP_SO_COMPOSER;
-#endif
-#ifdef WORKSHOP_SO_INVENTORY_PANE
-        if (stem == "zengine-inventory-pane") return WORKSHOP_SO_INVENTORY_PANE;
-        if (stem == "zengine-inventory") return WORKSHOP_SO_INVENTORY;
-#endif
         if (stem == "zengine-info-pane") {
             return WORKSHOP_SO_INFO_PANE;
         }
@@ -4197,12 +4206,6 @@ struct PaneRig {
             return WORKSHOP_SO_TALLY;
         }
 #endif
-#ifdef WORKSHOP_WASM_TALLY
-        // ...AND THE SAME PANE AS A MODULE, named by a stem the host spells as it is.
-        if (stem == "zengine-example-tally.wasm") {
-            return WORKSHOP_WASM_TALLY;
-        }
-#endif
 #ifdef WORKSHOP_SO_FAILING_EDITOR
         if (stem == "zengine-failing-editor") {
             return WORKSHOP_SO_FAILING_EDITOR;
@@ -4211,30 +4214,6 @@ struct PaneRig {
 #ifdef WORKSHOP_SO_EDITOR_THROWING
         if (stem == "zengine-editor-throwing") {
             return WORKSHOP_SO_EDITOR_THROWING;
-        }
-#endif
-#ifdef WORKSHOP_SO_EDITOR_SWITCH_B
-        // THE EDITOR SWITCH SUITE'S OTHER CHOICES: the standard Editor built under other stems.
-        if (stem == "zengine-editor-pane-b") {
-            return WORKSHOP_SO_EDITOR_SWITCH_B;
-        }
-        if (stem == "zengine-editor-pane-silent") {
-            return WORKSHOP_SO_EDITOR_SWITCH_SILENT;
-        }
-        if (stem == "zengine-editor-pane-refusing") {
-            return WORKSHOP_SO_EDITOR_SWITCH_REFUSING;
-        }
-        if (stem == "zengine-editor-pane-not-live") {
-            return WORKSHOP_SO_EDITOR_SWITCH_NOT_LIVE;
-        }
-        if (stem == "zengine-editor-pane-losing") {
-            return WORKSHOP_SO_EDITOR_SWITCH_LOSING;
-        }
-#endif
-#ifdef WORKSHOP_SO_NEOVIM_EDITOR
-        // THE NEOVIM-BACKED EDITOR, for suite `workshop_neovim`.
-        if (stem == "zengine-neovim-editor") {
-            return WORKSHOP_SO_NEOVIM_EDITOR;
         }
 #endif
         return stem; // a stem this rig cannot spell refuses at the loader, by name
