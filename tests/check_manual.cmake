@@ -92,11 +92,11 @@ function(zen_manual_workshop_actions text out)
     set(${out} "${entries}" PARENT_SCOPE)
 endfunction()
 
-# Every current-facing page under the root, relative to it: frozen history, the quarry, vendored
-# and build trees left out, each excluded directory never entered.
+# Every current-facing page under the root, relative to it: frozen history, vendored and build
+# trees left out, each excluded directory never entered.
 set(ZEN_MANUAL_PAGE_EXCLUDE
     "^build(-[^/]*)?/" "^cmake-build" "^_install" "^out/" "^[.]git(/|$)" "^[.]idea/" "^[.]vscode/"
-    "^[.]claude/" "^docs/history/" "^quarry/" "third_party/" "/_deps/")
+    "^[.]claude/" "^docs/history/" "third_party/" "/_deps/")
 function(zen_manual_page_excluded rel out)
     set(${out} 0 PARENT_SCOPE)
     foreach(rx IN LISTS ZEN_MANUAL_PAGE_EXCLUDE)
@@ -368,9 +368,9 @@ zen_manual_judge("ws-role" "zengine.workshop" "${st_workshop_page}" "${st_worksh
 if(st_problems)
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- Workshop's own actions were asked of a manual: '${st_problems}'")
 endif()
-# The pages read for markers: a current page is, frozen history, the quarry and a build tree's are not.
+# The pages read for markers: a current page is, frozen history and a build tree's are not.
 foreach(case "0|README.md" "0|workshop/docs/hotkeys.md" "0|agents/panes.md" "1|docs/history/a/b.md"
-             "1|quarry/x.md" "1|build/_deps/sdl-src/README.md" "1|build-msys/x.md" "1|.git")
+             "1|build/_deps/sdl-src/README.md" "1|build-msys/x.md" "1|.git")
     string(REGEX MATCH "^([01])[|](.*)$" _ "${case}")
     set(st_want "${CMAKE_MATCH_1}")
     zen_manual_page_excluded("${CMAKE_MATCH_2}" st_skip)
@@ -466,7 +466,7 @@ list(APPEND census ${workshop_census})
 # The pages a target embeds: each `MANUAL <page>` and `zengine_manual(<target> <scope> <page>)`
 # in a CMakeLists.txt, relative to that file's folder or `${PROJECT_SOURCE_DIR}`.
 file(GLOB_RECURSE lists RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/CMakeLists.txt")
-list(FILTER lists EXCLUDE REGEX "^(build(-[^/]*)?|cmake-build[^/]*|out|quarry|_install)/|/_deps/|third_party/")
+list(FILTER lists EXCLUDE REGEX "^(build(-[^/]*)?|cmake-build[^/]*|out|_install)/|/_deps/|third_party/")
 set(compiled_pages "")
 foreach(cmake_list IN LISTS lists)
     file(READ "${ZEN_REPO}/${cmake_list}" body)

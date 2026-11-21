@@ -45,7 +45,6 @@ set(ZEN_PKG_EXCLUDE
     "^_install"
     "^\\.git/"
     "^docs/history/"         # frozen: describes the tree at its source commit
-    "^quarry/"            # the pre-Zen engine, kept as a quarry and not live
     "third_party/")          # vendored
 
 set(ZEN_PKG_GLOBS

@@ -26,7 +26,7 @@ word has one definition and three compositions.
   bracket convention and a row, presentation with no invariant to keep (`2756aef`). Labelled
   controls are a strip a pane packs (`component/control_strip.hpp`).
 - *A focus flag, a filter, a max length, a multiline mode, a blink* — refused: the pre-Zen
-  `Zen::TextBox` in `quarry/` had most of those and could not move its caret.
+  engine's `Zen::TextBox` had most of those and could not move its caret.
 - *The box learning application chords to refuse* — rejected: declining is `default:`, and a
   chord carrying Alt or Super is never the box's; pinned by case `"component: consume owns
   exactly the editing vocabulary and declines the rest"`.

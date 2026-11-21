@@ -23,7 +23,7 @@ endif()
 
 # The kinds a row may name, the kinds that hold a front page and a router, and the top-level names
 # that are a tool's or a build's and never the repository's.
-set(ZEN_MAP_KINDS feature host library examples build tests tools docs law quarry repository)
+set(ZEN_MAP_KINDS feature host library examples build tests tools docs law repository)
 set(ZEN_MAP_ROUTED_KINDS feature host library)
 set(ZEN_MAP_NOT_FOLDERS "^([.](git|idea|vscode|claude|cache)|__pycache__|build|out|_install)$|^build-|^cmake-build")
 set(ZEN_MAP_ROOT_PAGE CONTRIBUTING.md)
