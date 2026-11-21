@@ -12,6 +12,7 @@
 // Reference: manual/docs/manual.md.
 
 #include "workshop_support.hpp"
+#include "pane_stand_in.hpp" // check_answered_manual
 
 #include "graphics/vocabulary.hpp"
 #include "manual/manual.hpp"
@@ -271,37 +272,6 @@ struct ManualReader {
         return asker->heard[0];
     }
 };
-
-/// THE MANUAL A PANE ANSWERS, HELD TO ITS ROWS: asked whole, it answers with no refusal and its
-/// commands are exactly `declared`, the ids the role's panes declare in every mode driven; asked
-/// for one, each declared id is answered by its own section, under a command group.
-inline void check_answered_manual(ManualReader& reader, const std::string& pane,
-                                  const std::set<std::string>& declared) {
-    REQUIRE_FALSE(declared.empty());
-    const PaneDocumentShown whole = reader.ask(pane, "");
-    CHECK(whole.refusal.empty());
-    CHECK_FALSE(whole.content_id.empty());
-    std::set<std::string> commands;
-    for (const PaneDocumentSection& s : whole.sections) {
-        if (zengine::manual::is_command_group(s.group) && s.key != "commands" &&
-            s.key.rfind("commands-", 0) != 0) {
-            commands.insert(s.key);
-        }
-    }
-    CHECK(commands == declared);
-    for (const std::string& id : declared) {
-        INFO("pane ", pane, ", id ", id);
-        const PaneDocumentShown one = reader.ask(pane, id);
-        CHECK(one.refusal.empty());
-        REQUIRE(one.sections.size() == 1);
-        CHECK(one.sections[0].key == id);
-        CHECK(zengine::manual::is_command_group(one.sections[0].group));
-        CHECK(one.content_id == whole.content_id);
-    }
-    const PaneDocumentShown missing = reader.ask(pane, "no.such-command");
-    CHECK_FALSE(missing.refusal.empty());
-    CHECK(missing.sections.empty());
-}
 
 /// THE IDS A CENSUS'S LINES NAME, once each.
 inline std::set<std::string> census_ids(const std::vector<std::string>& lines) {

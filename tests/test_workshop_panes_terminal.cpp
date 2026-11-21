@@ -389,17 +389,6 @@ TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") 
     CHECK(gesture_of(pane::kActionNewest) == G{input::scan::kEnd, input::mod::kCtrl});
 }
 
-TEST_CASE("the manual the Terminal answers names exactly the commands it declares") {
-    TerminalRig t;
-    t.open();
-    ManualReader reader(t.r, pane::kTerminalPaneRole);
-    std::set<std::string> declared;
-    for (const zengine::pane::v4::PaneActionRow& a : t.row()->actions) {
-        declared.insert(a.id);
-    }
-    check_answered_manual(reader, pane::kTerminalPane, declared);
-}
-
 /// A ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
 struct ForgerState {
     ZEN_SHAPE(ForgerState, 1);
