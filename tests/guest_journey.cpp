@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // THE GUEST JOURNEY ACROSS TWO REAL PROCESSES, the other half of what the guests suite proves in
-// one: a REAL `zengine-workshop` launched headless with a guests file, and THIS process as the
+// one: a REAL `zengine-workshop` launched with its TUI window alone (`--tui`, so a machine with a
+// display seats the same window as one with none) and a guests file, and THIS process as the
 // other host's participant -- admitted as the file's row, injecting the Pane Manager chord through
 // an input session, fetching a picture of what the TUI window shows. It does not prove the
 // SDL window's pixels (a machine with a display witnesses those) or the platform's input edge (an
@@ -384,8 +385,8 @@ int main(int argc, char** argv) {
     std::printf("guest journey: two real processes\n");
     Child child;
     const bool started = child.start(workshop,
-                                     {"--isolated", "--load-plan", plan, "--guests", guests_path,
-                                      "--log", "workshop.log"},
+                                     {"--isolated", "--tui", "--load-plan", plan, "--guests",
+                                      guests_path, "--log", "workshop.log"},
                                      work, out_path);
     check(started, "the Workshop process started");
     if (!started) {
@@ -564,9 +565,9 @@ int main(int argc, char** argv) {
         o << R"({"version":"2","host":"development","listen":"127.0.0.1:0","port_file":"own.port",)"
           << R"("guests":[{"name":"weaver","credential":"open-sesame","may":["input","capture","demo"]}]})";
     }
-    const std::vector<std::string> own_args = {"--load-plan", plan,    "--guests", own_guests,
-                                               "--log",       "own.log", "--keymap",
-                                               folder + "/keymap.json"};
+    const std::vector<std::string> own_args = {"--tui",   "--load-plan", plan,
+                                               "--guests", own_guests, "--log",
+                                               "own.log",  "--keymap",  folder + "/keymap.json"};
     const std::string session_file = folder + "/state/zengine-workshop/workshop-session.json";
     const std::string prefs_file = folder + "/config/zengine-workshop/workshop-prefs.json";
     check(made && !std::filesystem::exists(held(session_file)),
