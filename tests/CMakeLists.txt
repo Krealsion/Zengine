@@ -461,7 +461,10 @@ endif()
 foreach(passthrough CMAKE_CXX_COMPILER CMAKE_CXX_COMPILER_LAUNCHER CMAKE_CXX_FLAGS
                     CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES CMAKE_RC_COMPILER CMAKE_MT)
     if(DEFINED ${passthrough})
-        list(APPEND zengine_cn_args "-D${passthrough}=${${passthrough}}")
+        # A list (two launchers, say) stays one argument: its `;` escaped, the fixture tree reads
+        # the same list.
+        string(REPLACE ";" "\;" value "${${passthrough}}")
+        list(APPEND zengine_cn_args "-D${passthrough}=${value}")
     endif()
 endforeach()
 # The Loom this tree resolved, by either route: a fixture that found another Loom would be
