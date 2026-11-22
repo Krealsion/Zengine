@@ -34,7 +34,7 @@ composer                          doctest           always  42
 # (VM-WALL-11).
 files_weave                       doctest           always  20
 # Tripwires in this suite read maker/definition.hpp as text (VM-WALL-11).
-maker                             doctest           always  29
+maker                             doctest           always  30
 # Tripwires in this suite read builder/weave.hpp, builder/runner.hpp and workshop/workshop.cpp as
 # text (VM-WALL-11).
 builder                           doctest           always  71
