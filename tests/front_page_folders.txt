@@ -9,3 +9,4 @@ activation
 tally
 property
 persist
+manual

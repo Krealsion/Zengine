@@ -3,12 +3,12 @@
 **Reference.** A manual is the primary reference for one weave: one Markdown page, named by the
 weave's role, with one section per command. The weave carries it compiled in, so the words a
 running weave says are the words of the page at the commit it was built from. A pane answers its
-manual when asked, and a role a shape's section; nothing keeps a copy. The same bytes are what a
+manual when asked, and a role answers a shape's section; nothing keeps a copy. The same bytes are what a
 reader of the repository reads on GitHub.
 
 Source: [`manual/manual.hpp`](../manual.hpp) · [`manual/vocabulary.hpp`](../vocabulary.hpp) ·
 [`cmake/ZengineManual.cmake`](../../cmake/ZengineManual.cmake) ·
-[`pane/document.hpp`](../../pane/document.hpp). The first manuals are the
+[`pane/document.hpp`](../../pane/document.hpp). Two manuals to read beside this page are the
 Builder's: [the Builder pane](../../builder/docs/zengine.builder-pane.md) and
 [the Builder](../../builder/docs/zengine.builder.md).
 
@@ -19,7 +19,7 @@ A command is what a caller names to make a weave act or answer:
 - for a **pane**, an action id it declares (`PaneActions`): what a weaver's keymap file moves, what
   the hotkey view lists, what a menu line performs. A menu line's own id is not a command, and the
   pane protocol's shapes are Workshop's, not the pane's;
-- for an **role**, a request shape it accepts. The rest of what it accepts, what its collaborators
+- for a **role**, a request shape it accepts. The rest of what it accepts, what its collaborators
   tell it, it *hears*; Loom's own doors (`zen.DescribeAccepted`, the pokes) are Loom's to describe.
 
 ## The page
@@ -137,8 +137,8 @@ class MyPane : public zengine::With<pane::PaneManualFacet<kMyPane,
 ```
 
 A role that composes `pane::PaneFacet`, `pane::PaneRowsFacet` or
-`pane::PaneDrawingFacet` (`pane/facets.hpp`), which hold its offer and its room, is
-answered by them the same way.
+`pane::PaneDrawingFacet` (`pane/facets.hpp`), which hold its offer and the area it is given to
+draw in, is answered by them the same way.
 
 A weave that claims, as the Editor claims its document, names its `loom::Claims<...>` after
 `loom::WeaveBase`: `Weave<MyPane, MyState, loom::Accept<...>, loom::Emit<...>, loom::WeaveBase,
