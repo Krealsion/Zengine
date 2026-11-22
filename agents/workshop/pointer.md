@@ -50,8 +50,9 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 ## Proven by
 
 ### WL-PTR-01
-`workshop/screen.hpp` TabClickMemory Session::tab_click
-`workshop/screen_arrange.cpp` doubles_a_tab_click
+`desk-gestures/gestures.hpp` TabClickMemory
+`workshop/screen.hpp` Session::tab_click
+`desk-gestures/gestures.cpp` doubles_a_tab_click
 `workshop/weave.hpp` on(Waited)
 `workshop/weave_run.cpp` on(Waited)
 `graphics/window/clicks.hpp` clicks_of ClickCounter

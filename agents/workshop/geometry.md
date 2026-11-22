@@ -95,8 +95,8 @@ the column of the character each cell shows, a caret moving none"
 the caret before that character, and a sweep ends before the character under the hand"
 
 ### WL-GEO-07
-`workshop/screen.hpp` PixelRect::contains_at PointedAt PointedAt::px
-`workshop/screen_arrange.cpp` pane_edge_at
+`desk-gestures/geometry.hpp` PixelRect::contains_at PointedAt PointedAt::px
+`desk-gestures/gestures.cpp` pane_edge_at
 `graphics/pixels.hpp` px_span_contains kPixelGrainPx kCellGrainPx
 `tests/test_workshop_screen.cpp` "the hand meets exactly the pixels and cells a pane paints" "the
 TUI projects a pane onto its covered cells and rewrites nothing"

@@ -613,6 +613,18 @@ target_include_directories(zengine-component-tests PRIVATE
 
 zengine_doctest_test(component zengine-component-tests)
 
+# ---- the desk's gestures: geometry and transitions as a library -------------------------------
+# The desk-gestures package links its own library and nothing of the host, so a gesture's arithmetic
+# is proved with no Workshop built; that Workshop's press, motion and release call it is Workshop's
+# suites' claim.
+add_executable(zengine-desk-gestures-tests test_desk_gestures.cpp doctest_main.cpp)
+target_link_libraries(zengine-desk-gestures-tests
+    PRIVATE zengine-desk-gestures zengine-warnings zengine-sanitize)
+target_include_directories(zengine-desk-gestures-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(desk_gestures zengine-desk-gestures-tests)
+
 # ---- the Editor buffer suite: the multiline document as values -------------------------
 # The buffer, the source byte law, the tab geometry and the paste flattening are
 # editor/editor-pane/editor.hpp's; what they do is this suite's claim, in its own executable with an
