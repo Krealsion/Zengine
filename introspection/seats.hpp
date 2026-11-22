@@ -4,7 +4,7 @@
 #ifndef ZENGINE_INTROSPECTION_SEATS_HPP
 #define ZENGINE_INTROSPECTION_SEATS_HPP
 
-// The three panes of the Introspection weave, each in a seat of its own: the rooms it holds, the
+// The three panes of the Introspection weave, each in a seat of its own: the areas it holds, the
 // question it has outstanding and the pictures it says (`PaneSeat`), then what each pane knows and
 // does -- Loaded's selection, scroll and search, Project's reading, and Powers' search, cursor, sample,
 // carry and clipboard. The weave (introspection.cpp) checks who is speaking, routes each delivery
@@ -50,11 +50,11 @@
 
 namespace zengine::introspection {
 
-/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// Who this pane is talking to: Workshop's role, read from the installed pane protocol
 /// (`pane/menu.hpp`) as a stranger's pane reads it.
 using zengine::pane::pane_menu::kWorkshopRole;
 
-/// WHAT A SEAT SPEAKS WITH ON ONE DELIVERY: the mail it answers, the weave's own id (the sender a
+/// What a seat speaks with on one delivery: the mail it answers, the weave's own id (the sender a
 /// value sent as a message names), and the one counter every question this role asks is
 /// numbered from, for all three panes -- so a refusal's correlation matches one question at most.
 struct Voice {
@@ -65,13 +65,13 @@ struct Voice {
     std::uint64_t next() { return ++asked; }
 };
 
-/// ONE PANE'S SEAT: its area (`workshop::PaneCanvasSeat`) and the question it has outstanding for
-/// the room it holds. Transient, as every room is.
+/// One pane's seat: its area (`workshop::PaneCanvasSeat`) and the question it has outstanding for
+/// the area it holds. Transient, as every area is.
 class PaneSeat {
 public:
     explicit PaneSeat(const char* key) : room_(key, kIntrospectionRole) {}
 
-    /// THE PANE'S AREA ITSELF, where a graphics window that shows it finds the pane.
+    /// The pane's area itself, where a graphics window that shows it finds the pane.
     pane::PaneCanvasSeat& room() noexcept { return room_; }
 
     /// The owner declined, or the ask ended with no answer: the question is retired and nothing
@@ -83,19 +83,19 @@ public:
     }
 
 protected:
-    /// The room the pane's next reading is projected into: the rows and columns it holds.
+    /// The area the pane's next reading is projected into: the rows and columns it holds.
     std::int64_t rows() const noexcept { return room_.rows(); }
     std::int64_t columns() const noexcept { return room_.columns(); }
 
-    /// A NEW QUESTION OUTSTANDING, numbered from the role's one counter: a newer grant replaces
-    /// the correlation, so the answer to an older room is dropped.
+    /// A new question outstanding, numbered from the role's one counter: a newer grant replaces
+    /// the correlation, so the answer to an older area is dropped.
     std::uint64_t pose(Voice voice) {
         pending_ = voice.next();
         awaiting_ = true;
         return pending_;
     }
 
-    /// Ask this pane's owner its question for the room it holds, by role (the addresses that
+    /// Ask this pane's owner its question for the area it holds, by role (the addresses that
     /// survive their holders), as this role, because the arrangement door answers roles
     /// (workshop/arrangement.hpp).
     template <class Question>
@@ -122,7 +122,7 @@ protected:
 
     bool awaiting() const noexcept { return awaiting_; }
 
-    /// SAY WHAT THE PANE SHOWS, the one place its content leaves: its rows, their parts, the caret
+    /// Say what the pane shows, the one place its content leaves: its rows, their parts, the caret
     /// standing in them and what a press on them means (`press_meaning`), drawn in its area.
     void say_rows(loom::Mail& mail, std::vector<pane::TextRow> shown,
                   std::vector<pane::RowPart> parts = {}, const pane::RowsCaret& caret = {},
@@ -141,9 +141,9 @@ private:
 // Loaded: the Kernel's loaded() map
 // =============================================================================
 
-/// THE LOADED PANE: the Manager's map, asked at every grant, every scroll and every change of its
-/// search, projected into the room and spent. What it keeps is the presentation, bounded by the
-/// room and emptied at every grant, its search, and the weaver's selection, by the library name
+/// The loaded pane: the Manager's map, asked at every grant, every scroll and every change of its
+/// search, projected into the area and spent. What it keeps is the presentation, bounded by the
+/// area and emptied at every grant, its search, and the weaver's selection, by the library name
 /// the row showed -- a name survives a resize, a row does not. Nothing else in the process has one.
 class LoadedSeat : public PaneSeat {
 public:
@@ -153,7 +153,7 @@ public:
         return pane::v2::PaneOffered{kLoadedPane, kLoadedPaneName, kLoadedPaneSummary, 7, 54};
     }
 
-    /// A ROOM GRANTED: the projection goes with the old room, so no press is read against rows no
+    /// An area granted: the projection goes with the old area, so no press is read against rows no
     /// longer shown; the selected identity stays, and the Manager is asked again.
     void grant(Voice voice) {
         view_ = LoadedView{};
@@ -183,14 +183,14 @@ public:
         return true;
     }
 
-    /// A WEAVER PRESSED A ROW: a gesture becomes a fact, read against the projection on screen with
+    /// A weaver pressed a row: a gesture becomes a fact, read against the projection on screen with
     /// nothing re-asked -- re-reading the Manager here could select something the weaver was never
     /// shown. A row naming no entry selects nothing and clears nothing. The same row pressed twice
     /// publishes twice (a selection is an occurrence) and re-sends no picture. Published, not
     /// addressed: who ought to care is not this pane's decision; as this role, because a fact
     /// about a weaver's gesture is worth what its role is. True when it published.
     bool press(std::int64_t pressed_row, loom::Mail& mail, std::int64_t pressed_column = -1) {
-        // THE SEARCH'S BOX, pressed anywhere in it, its blank room and border included: the caret
+        // The search's box, pressed anywhere in it, its blank space and border included: the caret
         // goes where the press names, and nothing is selected.
         const pane::RowBox& box = view_.search;
         if (pressed_row == 0 && box.present() && pressed_column >= box.column &&
@@ -216,7 +216,7 @@ public:
         return true;
     }
 
-    /// SCROLLING CHANGES THE VIEWPORT, never the selected identity: the owner is read again rather
+    /// Scrolling changes the viewport, never the selected identity: the owner is read again rather
     /// than an independently authoritative population retained here.
     void wheel(Voice voice, double dy) {
         if (awaiting() || !std::isfinite(dy)) {
@@ -245,7 +245,7 @@ public:
         return true;
     }
 
-    /// A KEY WHILE LOADED HOLDS THE KEYBOARD: its search's editing vocabulary. The clipboard's
+    /// A key while loaded holds the keyboard: its search's editing vocabulary. The clipboard's
     /// chords are left alone, since nothing here reads or writes the clipboard.
     void on_key(Voice voice, const pane::PaneKey& key) {
         if ((key.modifiers & input::mod::kCtrl) != 0 &&
@@ -271,7 +271,7 @@ public:
         after_search(voice, searched);
     }
 
-    /// WHAT LOADED CALLS ITS ROWS: a loaded weave's row by its name, `weave:<name>`.
+    /// What loaded calls its rows: a loaded weave's row by its name, `weave:<name>`.
     std::vector<pane::RowPart> loaded_parts() const {
         pane::PartNames<pane::RowPart> named;
         for (std::size_t row = 0; row < view_.rows.size(); ++row) {
@@ -284,7 +284,7 @@ public:
     }
 
 private:
-    /// A SEARCH CHANGED starts the list at its first row and asks the Manager again; a caret moved
+    /// A search changed starts the list at its first row and asks the Manager again; a caret moved
     /// alone is drawn where it stands now.
     void after_search(Voice voice, const std::string& before) {
         if (search_.text() == before) {
@@ -311,7 +311,7 @@ private:
     std::string selected_;
     std::int64_t origin_ = 0, total_ = 0;
     double wheel_ = 0;
-    /// THE SEARCH, presentation only: kept across a room granted, never across a reload. Its
+    /// The search, presentation only: kept across an area granted, never across a reload. Its
     /// clipboard is its own and is never said.
     component::TextBox search_;
     component::Clipboard clip_;
@@ -321,7 +321,7 @@ private:
 // Project: the realization owner's plan and rows
 // =============================================================================
 
-/// THE PROJECT PANE: the host's arrangement, asked at every grant and every scroll, spent and
+/// The project pane: the host's arrangement, asked at every grant and every scroll, spent and
 /// dropped -- nothing retains a row. What it keeps is where its window starts, presentation held
 /// within each reading. Read-only: a press there gives it the keys and says nothing.
 class ArrangementSeat : public PaneSeat {
@@ -346,7 +346,7 @@ public:
         return declared;
     }
 
-    /// A ROOM GRANTED: the door asked again; the window keeps its start, held within the reading.
+    /// An area granted: the door asked again; the window keeps its start, held within the reading.
     void grant(Voice voice) {
         ask(voice, workshop::kArrangementRole, workshop::ArrangementRequested{});
     }
@@ -354,7 +354,7 @@ public:
     /// The host's answer about its arrangement, in either version -- version 2 carries every row's
     /// state, and for a row that is not running its reason and the next step. `answers_ask()`
     /// first, provenance the bus attaches and no payload can write, then the correlation, so a late
-    /// answer to an older room is dropped. True when it was this pane's reading.
+    /// answer to an older area is dropped. True when it was this pane's reading.
     template <class Resolved>
     bool on_resolved(const Resolved& said, loom::Mail& mail) {
         if (!answering(mail)) {
@@ -367,7 +367,7 @@ public:
         return true;
     }
 
-    /// THE WHEEL MOVES THE WINDOW an artifact a notch; fractional notches wait until they are
+    /// The wheel moves the window an artifact a notch; fractional notches wait until they are
     /// worth one.
     void wheel(Voice voice, double dy) {
         if (!std::isfinite(dy)) {
@@ -376,7 +376,7 @@ public:
         step(voice, -component::take_wheel_notches(wheel_, std::clamp(dy, -1000.0, 1000.0)));
     }
 
-    /// ONE OF ITS DECLARED ACTIONS, BY ITS RESOLVED ID: the window an artifact up or down. False
+    /// One of its declared actions, by its resolved id: the window an artifact up or down. False
     /// for an id this pane never declared.
     bool on_action(Voice voice, const std::string& id) {
         if (id == kProjectActionUp) {
@@ -414,7 +414,7 @@ private:
 // Powers: the host's operator catalog, as a weaver uses it
 // =============================================================================
 
-/// THE POWERS PANE: the weaver's side of it (`PowersUi`, whose members powers.hpp states the law
+/// The powers pane: the weaver's side of it (`PowersUi`, whose members powers.hpp states the law
 /// of), what it shows and what each place means, its one outstanding sample and describe, a press
 /// a drag may yet carry, and the clipboard its query reads. All of it transient; the reading is the
 /// host's only words in here, replaced whole at every grant.
@@ -426,7 +426,7 @@ public:
         return pane::v2::PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58};
     }
 
-    /// WHAT POWERS ANSWERS TO: its actions with their shipped defaults (`input::scan` and
+    /// What powers answers to: its actions with their shipped defaults (`input::scan` and
     /// `input::mod` numbers), each with what its press may ask the door or the sampler -- what
     /// `on_action` reads. Applying a weaver's keymap is Workshop's.
     static pane::v3::PaneActions actions() {
@@ -452,9 +452,9 @@ public:
         return declared;
     }
 
-    /// THE LAYOUT'S CHROME WIDTHS, as the pane's row was handed: its row is said again where it
+    /// The layout's chrome widths, as the pane's row was handed: its row is said again where it
     /// shows, since its controls move. Until the first row is held the pane draws nothing; that
-    /// row draws what the room has.
+    /// row draws what the area has.
     void take_widths(const ChromeWidths& widths, loom::Mail& mail) {
         const bool first = !held_;
         held_ = true;
@@ -465,7 +465,7 @@ public:
         say_powers(mail);
     }
 
-    /// A ROOM GRANTED: the reading goes with the projection, since until the door answers there is
+    /// An area granted: the reading goes with the projection, since until the door answers there is
     /// nothing to derive a view from or read a press against. What the weaver authored survives --
     /// the view, the query, the filter, both selections and the retained sample -- and the search
     /// they make is asked again, with the selected power's description.
@@ -537,7 +537,7 @@ public:
         }
     }
 
-    /// A KEY WHILE POWERS HOLDS THE KEYBOARD: only the query field's editing vocabulary acts here;
+    /// A key while powers holds the keyboard: only the query field's editing vocabulary acts here;
     /// what the pane commands arrives as a resolved id (`on_action`). A copy is said once; a paste
     /// is asked of the role that holds the platform (`begin_clipboard_paste`), since only an
     /// owner can read the clipboard's current value.
@@ -571,7 +571,7 @@ public:
         return true;
     }
 
-    /// ONE OF THE PANE'S DECLARED ACTIONS, BY ITS RESOLVED ID: Workshop matched the keystroke
+    /// One of the pane's declared actions, by its resolved id: Workshop matched the keystroke
     /// against the weaver's keymap, so nothing here knows the key. True when it asked for a sample.
     bool on_action(Voice voice, const std::string& id) {
         if (id == kPowersActionView) {
@@ -669,7 +669,7 @@ public:
         say_powers(voice.mail);
     }
 
-    /// A PRESS ON THE PANE'S PICTURE, resolved against what is on screen through the spans the
+    /// A press on the pane's picture, resolved against what is on screen through the spans the
     /// projection returned. A row selects and never samples, so a cold pane's first press is one
     /// act; a press that changes nothing republishes nothing. True when it asked for a sample.
     bool press(Voice voice, std::int64_t pressed_row, std::int64_t pressed_column) {
@@ -711,7 +711,7 @@ public:
         return false;
     }
 
-    /// THE HAND MOVED WITH THE BUTTON DOWN after a press on a power, onto another cell: its
+    /// The hand moved with the button down after a press on a power, onto another cell: its
     /// reference -- the identity and the two content ids the door's row carried -- is acquired
     /// under that press as a typed value, `zengine.OperatorRef`, for Workshop to carry. A form is
     /// no operator and carries none.
@@ -772,7 +772,7 @@ public:
     /// Carried or refused, the press is spent.
     void carried() { carry_ = Carry{}; }
 
-    /// AN ASK OF THIS PANE'S OWN ENDED WITH NO ANSWER, by the correlation and shape it carried:
+    /// An ask of this pane's own ended with no answer, by the correlation and shape it carried:
     /// a description, a sample, a carry or a paste waits no more, and nothing is said.
     void ended(std::uint64_t c, const std::string& shape) {
         for (Outstanding* o : {&describing_, &sampling_}) {
@@ -789,7 +789,7 @@ public:
         }
     }
 
-    /// WHAT POWERS CALLS ITS PARTS: a power's row by its identity, `power:<identity>`, and each
+    /// What powers calls its parts: a power's row by its identity, `power:<identity>`, and each
     /// control by the action it performs, `control:<id>`.
     std::vector<pane::RowPart> powers_parts() const {
         pane::PartNames<pane::RowPart> named;
@@ -811,9 +811,9 @@ public:
     }
 
 private:
-    /// SAY WHAT POWERS SHOWS, the one place its projection is rebuilt: the caret's window is
+    /// Say what powers shows, the one place its projection is rebuilt: the caret's window is
     /// reconciled first against the capacity the chrome row cuts the query with. Silent with no
-    /// room in force, or between a grant and its answer.
+    /// area in force, or between a grant and its answer.
     void say_powers(loom::Mail& mail) {
         if (!held_ || !ui_.read || rows() <= 0 || columns() <= 0) {
             return;
@@ -826,7 +826,7 @@ private:
         say_rows(mail, shown_.rows, powers_parts(), caret, press_meaning(shown_));
     }
 
-    /// SHOW ONE VIEW, Sources or Operators, as its control and its action ask: false when it is
+    /// Show one view, Sources or Operators, as its control and its action ask: false when it is
     /// shown already, which asks nothing.
     bool show_view(Voice voice, std::int64_t want) {
         if (ui_.view == want) {
@@ -838,7 +838,7 @@ private:
         return true;
     }
 
-    /// ...AND TURN THE COMPOSITE FILTER over, as its control and its action ask.
+    /// ...And turn the composite filter over, as its control and its action ask.
     void toggle_composite(Voice voice) {
         ui_.composite_only = !ui_.composite_only;
         ask_powers(voice);
@@ -904,8 +904,8 @@ private:
             .ask_role(role, graphics::ClipboardTextRequested{}, opened.correlation);
     }
 
-    /// ONE OUTSTANDING QUESTION OF ITS OWN, and the identity it asked about: a sample or a
-    /// describe belongs to no room, and giving it rows and columns it would never spend would
+    /// One outstanding question of its own, and the identity it asked about: a sample or a
+    /// describe belongs to no area, and giving it rows and columns it would never spend would
     /// invite one of them to be read. Its answer is kept as being about that identity, never
     /// whatever is selected when it lands.
     struct Outstanding {
@@ -925,7 +925,7 @@ private:
     };
 
     PowersUi ui_;
-    /// Whether this life holds its row: until it does, Powers draws no room.
+    /// Whether this life holds its row: until it does, Powers draws nothing.
     bool held_ = false;
     /// What Powers shows and what its places mean: presentation, emptied at every grant.
     PowersView shown_;
@@ -934,7 +934,7 @@ private:
     Outstanding sampling_;
     Outstanding describing_;
     Carry carry_;
-    /// THE PROCESS'S COPIED TEXT AS THIS PANE LAST HEARD IT, and the book for the one paste
+    /// The process's copied text as this pane last heard it, and the book for the one paste
     /// conversation it can hold open. Two, because a clipboard is a mirror and an ask is a
     /// question -- the Composer's shipped pair, for its reasons.
     component::Clipboard clip_;

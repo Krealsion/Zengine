@@ -11,7 +11,7 @@
 // population is the Kernel's loaded() map -- dynamically loaded weaves only -- said first.
 // Pane law: agents/panes.md
 
-// The provider keeps what this pane shows, never an inventory: bounded by the room, dropped at
+// The provider keeps what this pane shows, never an inventory: bounded by the area, dropped at
 // every grant, replaced whole by the next reading. No mirror of what is loaded, no diff, no
 // arrival or departure, no timestamp.
 
@@ -47,12 +47,12 @@ inline std::string roles_text(const LoadedWeave& w) {
     return out;
 }
 
-/// WHAT THIS LIST DOES NOT CONTAIN. Workshop's own header already says whose pane
+/// What this list does not contain. Workshop's own header already says whose pane
 /// this is; this says whose facts these are NOT.
 inline constexpr const char* kNotInProcess = "in-process weaves are not in the kernel's map";
 
 /// Where it came from and how old it is: `snapshot` first, since the map is re-read only on a
-/// room grant or a wheel move -- Loom offers no arrival or departure event.
+/// area grant or a wheel move -- Loom offers no arrival or departure event.
 inline constexpr const char* kSnapshotSource = "snapshot from zen.ListLoaded";
 
 /// The mark this view leaves where it could not show everything: the panes' own three dots.
@@ -157,9 +157,9 @@ inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name)
 
 /// The pane's content and the map back from it: `rows` go to Workshop, `shown` are the entries
 /// that reached a row, and `entry_of_row` indexes `shown` or is `kNoEntry`. The omission marker
-/// is `kNoEntry`: a count, not a hidden entry. Bounded by the room, never by the population.
+/// is `kNoEntry`: a count, not a hidden entry. Bounded by the area, never by the population.
 /// `listed` is how many weaves the search keeps, and `search` the search's box on the heading,
-/// typed in or empty, none where the heading has no room for one.
+/// typed in or empty, none where the heading has no space for one.
 struct LoadedView {
     std::vector<pane::TextRow> rows;
     std::vector<LoadedWeave> shown;
@@ -168,7 +168,7 @@ struct LoadedView {
     pane::RowBox search;
 };
 
-/// The fewest columns the search's box takes on the heading, room allowing: a search a few
+/// The fewest columns the search's box takes on the heading, space allowing: a search a few
 /// characters long still reads as a box to type in.
 inline constexpr std::int64_t kSearchBoxLeast = 16;
 
@@ -203,12 +203,12 @@ inline const LoadedWeave* entry_at_row(const LoadedView& view, std::int64_t row)
     return &view.shown[static_cast<std::size_t>(which)];
 }
 
-/// A NAME SAID BY ITS LENGTH FIRST, so names said one after another are never read as others.
+/// A name said by its length first, so names said one after another are never read as others.
 inline std::string length_said(const std::string& name) {
     return std::to_string(name.size()) + ':' + name;
 }
 
-/// WHAT A PRESS ON THE LOADED PANE MEANS: each row by the weave it names, its name and its role,
+/// What a press on the loaded pane means: each row by the weave it names, its name and its role,
 /// as a press publishes both; `-` for a row naming none. Two lists are never one meaning, whatever
 /// their names and roles hold.
 inline std::string press_meaning(const LoadedView& view) {
@@ -221,7 +221,7 @@ inline std::string press_meaning(const LoadedView& view) {
     return said;
 }
 
-/// A PRESS MEANING AS A DRAWING'S NUMBER (`graphics::Sketch::number`): the same meaning, the same
+/// A press meaning as a drawing's number (`graphics::Sketch::number`): the same meaning, the same
 /// number.
 inline std::int64_t meaning_number(const std::string& said) {
     std::uint64_t h = 1469598103934665603ULL;
@@ -233,7 +233,7 @@ inline std::int64_t meaning_number(const std::string& said) {
 
 /// Mark the row naming `selected` and unmark every other entry row -- nothing else moves, so a
 /// press re-decides nothing. A name no shown row carries leaves all unmarked, and the mark
-/// returns with the entry. `columns` is the room the view was projected for.
+/// returns with the entry. `columns` is the area the view was projected for.
 inline void mark_selected(LoadedView& view, std::string_view selected, std::int64_t columns) {
     for (std::size_t i = 0; i < view.rows.size() && i < view.entry_of_row.size(); ++i) {
         const std::int64_t which = view.entry_of_row[i];
@@ -248,12 +248,12 @@ inline void mark_selected(LoadedView& view, std::string_view selected, std::int6
     }
 }
 
-/// The whole view, spent against the room its area holds, most-protected first: the heading and count
+/// The whole view, spent against the rows and columns its area holds, most-protected first: the heading and count
 /// (with a search, how many of the population it keeps), `kNotInProcess`, the list of the weaves
 /// the search keeps (windowed, omissions counted), `kSnapshotSource`, one blank. The caveat is
 /// reserved before the list gets more than its first row, since a list read as the whole system is
 /// worse than one row short; an entry and its marker are one demand. Projected unmarked
-/// (`mark_selected` applies a selection), and inside the room, since a row past it is not drawn.
+/// (`mark_selected` applies a selection), and inside the area, since a row past it is not drawn.
 inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std::int64_t rows,
                                  std::int64_t columns, std::size_t origin = 0,
                                  component::TextBox* box = nullptr) {
@@ -274,8 +274,8 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
     if (rows <= 0 || columns <= 0) {
         return view;
     }
-    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it once one is typed; the
-    // search last, a box from the start wherever the heading has room for one.
+    // The heading states the population, and a search's narrowing beside it once one is typed; the
+    // search last, a box from the start wherever the heading has space for one.
     const std::string lead =
         search.empty() ? "loaded weaves -- " + std::to_string(population.size()) + "  "
                        : "loaded weaves -- " + std::to_string(weaves.size()) + " of " +

@@ -5,7 +5,7 @@
 // running system, each with its own owner -- `loaded` (the Kernel's loaded() map), `arrangement`
 // (the realization owner's plan and rows) and `powers` (the host's operator catalog). They
 // disagree on purpose: a provider is a row of `arrangement` and absent from `loaded`. Every fact
-// is asked for, spent and dropped; a room grant re-reads it, since nothing can be subscribed to.
+// is asked for, spent and dropped; an area grant re-reads it, since nothing can be subscribed to.
 // Pane law: agents/panes.md
 
 // It cannot load, unload, mount or evaluate: its sends are the pane protocol, `zen.ListLoaded`
@@ -63,7 +63,7 @@ using intro::kWorkshopRole;
 /// What this provider has done, and it is all counters: the loaded map, the resolved rows and
 /// the contribution stacks belong to their owners, and a copy here would be the answer that goes
 /// stale. The selection and the Powers pane's interaction are the seats', never snapshotted: a
-/// revived incarnation has no room, and nothing a selection could be of.
+/// revived incarnation has no area, and nothing a selection could be of.
 struct IntrospectionState {
     std::int64_t offers = 0;
     std::int64_t rooms = 0;
@@ -76,13 +76,13 @@ struct IntrospectionState {
               ZEN_FIELD(refused), ZEN_FIELD(selections), ZEN_FIELD(samples));
 };
 
-/// THE ROLE OF THE THREE PANES. First breath only if Loom says so: `ActivationCursor` requires
+/// The role of the three panes. The weave acts on an activation only when Loom attested it: `ActivationCursor` requires
 /// Loom's attestation and a sequence not yet acted on, so no weave can make a pane appear by
 /// sending `zen.Activated`. The manual is the one page this weave carries, for any of its three
 /// pane keys; any other key is refused.
 using Role = zengine::pane::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
                                   zengine::manual::pages::zengine_introspection::kManual>;
-/// Powers' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+/// Powers' row's settings, asked of the layouts' owner when it arrives; no area is drawn before.
 using Settings = zengine::pane::PaneSettingsFacet<kPowersPane, kIntrospectionRole>;
 
 class IntrospectionWeave
@@ -102,7 +102,7 @@ class IntrospectionWeave
 public:
     // ---- What its role calls --------------------------------------------------------------
 
-    /// THE THREE PANE KEYS THIS ROLE OFFERS.
+    /// The three pane keys this role offers.
     bool known_pane(std::string_view pane) { return seat_of(pane) != nullptr; }
 
     /// Is this Workshop's own word? `authored_from_role`, not `sender()`: a catalog request is a
@@ -133,7 +133,7 @@ public:
                           zengine::pane::v2::PaneSettingsDeclared{kPowersPane, setting_rows()});
     }
 
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR POWERS, as the layouts' owner handed them and its facet
+    /// The settings this layout keeps for powers, as the layouts' owner handed them and its facet
     /// took them whole: its chrome widths. Loaded and Project declare none, and are handed none.
     /// Held by the seat, never reload state.
     void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
@@ -143,7 +143,7 @@ public:
                             mail);
     }
 
-    /// THE SETTINGS POWERS TAKES, each with its default, how a weaver finds it and what it does: its
+    /// The settings powers takes, each with its default, how a weaver finds it and what it does: its
     /// chrome row's two control columns, each at least its label, and the gap between segments.
     static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
         namespace d = intro::detail;
@@ -175,7 +175,7 @@ public:
 
     // ---- Its panes in graphics windows (its role's `MultiPaneFacet` calls these) ------------
 
-    /// EACH PANE'S SEAT, where a window that shows the pane's area finds it.
+    /// Each pane's seat, where a window that shows the pane's area finds it.
     template <class F>
     void each_seat(F&& visit) {
         visit(loaded_.room());
@@ -183,10 +183,10 @@ public:
         visit(powers_.room());
     }
 
-    /// A pane granted the room a window gave it: its owner asked again.
+    /// A pane granted the area a window gave it: its owner asked again.
     void on_window_room(const std::string& pane, loom::Mail& mail) { grant(mail, pane); }
 
-    /// A HAND ON A PANE IN A WINDOW, read onto the rows shown there, the picture under the press
+    /// A hand on a pane in a window, read onto the rows shown there, the picture under the press
     /// map in force: as on Workshop's canvas, a primary press is the press a row was, its motion a
     /// drag, its release or a hold the window ended the drag's end, the wheel the wheel, and a
     /// right press is handed back under the window's number for it.
@@ -211,7 +211,7 @@ public:
         }
     }
 
-    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there,
+    /// A press on a part in a window is a primary press on its place in the picture shown there,
     /// and its release: a window carries no drag, so no carry stays armed.
     void on_window_press(const std::string& pane, std::int64_t row, std::int64_t column,
                          loom::Mail& mail) {
@@ -293,7 +293,7 @@ public:
 
     void on(const zengine::pane::PaneCarryAnswered&, loom::Mail&) { powers_.carried(); }
 
-    /// LOOM'S WORD THAT AN ASK OF THIS ROLE'S ENDED WITH NO ANSWER: retired as a refusal is, by the
+    /// Loom's word that an ask of this role's ended with no answer: retired as a refusal is, by the
     /// correlation it carries -- a pane's reading, or the Powers pane's own asks.
     void on(const loom::AskEnded& ended, loom::Mail& mail) {
         if (!mail.ask_ended()) {
@@ -324,7 +324,7 @@ private:
 
     intro::Voice speaking(loom::Mail& mail) { return intro::Voice{mail, self_, asked_}; }
 
-    /// A PRIMARY PRESS on a pane's row. `arrangement` is read-only: a press there gives it the keys
+    /// A primary press on a pane's row. `arrangement` is read-only: a press there gives it the keys
     /// and says nothing.
     void primary_press(std::string_view pane, std::int64_t row, std::int64_t column,
                        loom::Mail& mail) {
@@ -332,8 +332,8 @@ private:
         if (pane == kLoadedPane && loaded_.press(row, mail, column)) ++state_.selections;
     }
 
-    /// WORKSHOP GRANTING ONE PANE ITS BUDGET, from either room. Each pane keeps its own room and
-    /// outstanding question, or the last grant would decide how the others are drawn. The room is
+    /// Workshop granting one pane its budget, from either area. Each pane keeps its own area and
+    /// outstanding question, or the last grant would decide how the others are drawn. The area is
     /// kept and the owner asked; content goes when the owner answers, never from a previous
     /// reading -- Workshop clears its cache before every grant, and its `(waiting for the
     /// provider)` is the honest gap.

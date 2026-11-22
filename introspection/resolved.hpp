@@ -38,7 +38,7 @@ inline constexpr const char* kNotAuthored = "in-process participants are not aut
 inline constexpr const char* kHostResolution =
     "this pane describes this host's operator resolution only";
 
-/// Where the powers came from and how old they are: `snapshot` first, re-read on a room grant and
+/// Where the powers came from and how old they are: `snapshot` first, re-read on an area grant and
 /// on every change to the search, since nothing polls and no provider-mount event exists.
 inline constexpr const char* kPowersSource =
     "snapshot from zengine.powers, when the search is asked";
@@ -60,7 +60,7 @@ inline constexpr const char* kLoadingNow = "(loading)";
 /// at the first refusal -- and its own mount, if it made one, has been rolled back.
 inline constexpr const char* kRefusedRow = "(refused)";
 
-/// A ROW WHOSE ROLE A SWITCH MOVED to another authored choice: resolved, and not running. The
+/// A row whose role a switch moved to another authored choice: resolved, and not running. The
 /// choice that holds the role is its own row of the same view.
 inline constexpr const char* kSwitchedRow = "(switched: its role is held by another choice)";
 
@@ -170,7 +170,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         rows.push_back(pane::TextRow{
             fit("    " + std::string(said), columns),
             refused || unavailable ? graphics::colors::alert : graphics::colors::quiet});
-        // WHY, AND WHAT A WEAVER CAN DO -- the owner's own two fields, in its words, spelled. A
+        // Why, and what a weaver can do -- the owner's own two fields, in its words, spelled. A
         // version 1 answer has neither, and says only the state.
         if (!a.reason.empty()) {
             rows.push_back(pane::TextRow{fit("    why   " + spelled(a.reason), columns),
@@ -200,19 +200,19 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
     return rows;
 }
 
-/// THE ARRANGEMENT VIEW, AND WHERE ITS WINDOW STANDS: the rows; the artifact the first block shown
+/// The arrangement view, and where its window stands: the rows; the artifact the first block shown
 /// is, once the start asked for is held within the reading; and the furthest start a window can
-/// take while it still fills the room. A pane keeps the start; the reading is spent.
+/// take while it still fills the area. A pane keeps the start; the reading is spent.
 struct ArrangementView {
     std::vector<pane::TextRow> rows;
     std::size_t first = 0;
     std::size_t furthest = 0;
 };
 
-/// The whole arrangement view against the room its area holds, in `project_loaded`'s priority order:
+/// The whole arrangement view against the rows and columns its area holds, in `project_loaded`'s priority order:
 /// the heading and counts, `kNotAuthored`, the list (whole blocks from the artifact `origin` names,
 /// omissions above and below counted), the plan line from genuine slack only, one blank. A window
-/// past the reading's end is held at the furthest start that still fills the room, and a room
+/// past the reading's end is held at the furthest start that still fills the area, and an area
 /// that holds every block starts at the first. The counts are derived from the answer's rows, so
 /// the summary and the rows cannot disagree.
 inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArrangement& said,
@@ -233,7 +233,7 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
         providers += !a.provider.empty() ? 1u : 0u;
         weaves += a.weave != 0 ? 1u : 0u;
     }
-    // A PLAN THAT COMPLETED IS NOT A PLAN WHOSE EVERY ROW RAN: the unavailable count is said
+    // A plan that completed is not a plan whose every row ran: the unavailable count is said
     // beside the resolved one, never folded into it.
     out.push_back(pane::TextRow{
         fit(std::to_string(performed) + " of " + std::to_string(said.artifacts.size()) +
@@ -266,8 +266,8 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
         caveat == 1 && !said.plan.empty() && total < left ? 1 : 0;
     std::int64_t budget = left - source;
 
-    // THE WINDOW'S START: none to choose where every block fits; else no further than the start
-    // whose blocks, to the last, fill the room beside the row that counts what is above them.
+    // The window's start: none to choose where every block fits; else no further than the start
+    // whose blocks, to the last, fill the area beside the row that counts what is above them.
     if (total > budget && !blocks.empty()) {
         std::size_t furthest = blocks.size();
         for (std::int64_t used = 1; furthest > 0 && used + heights[furthest - 1] <= budget;) {
@@ -284,7 +284,7 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
     }
     Laid laid = lay_blocks(from, budget);
     if (view.first > 0 && !laid.marker) {
-        // WHAT IS ABOVE IS COUNTED TOO, on the row the blocks below would otherwise take.
+        // What is above is counted too, on the row the blocks below would otherwise take.
         laid = lay_blocks(from, budget - 1);
         laid.marker = true;
     }

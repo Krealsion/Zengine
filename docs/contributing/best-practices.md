@@ -325,7 +325,7 @@ Its law, pages and suites: [`editor/AGENTS.md`](../../editor/AGENTS.md).
 
 ### Loaded, Project and Powers (`introspection/`)
 
-Its law, pages and suites: [`introspection/AGENTS.md`](../../introspection/AGENTS.md).
+Its law, pages and suites: [the `introspection/` front page](../../introspection/README.md#working-on-it).
 
 - **Loaded and Project disagree on purpose.**
   [The system can show what it is](../../agents/panes.md#the-system-can-show-what-it-is)

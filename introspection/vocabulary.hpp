@@ -45,7 +45,7 @@ inline constexpr const char* kArrangementPaneSummary =
 inline constexpr const char* kPowersPaneName = "Powers";
 inline constexpr const char* kPowersPaneSummary = "which operators resolve, and who supplies each";
 
-/// THE SETTINGS THE POWERS PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp):
+/// The settings the powers pane declares (`v2::PaneSettingsDeclared`, pane/settings.hpp):
 /// the columns its chrome row draws the view control and the composite control in, and the spaces
 /// between two of the row's segments.
 inline constexpr const char* kSettingViewColumns = "view-columns";
@@ -70,7 +70,7 @@ inline constexpr const char* kPowersActionComposite = "powers.composite";
 inline constexpr const char* kProjectActionUp = "project.up";
 inline constexpr const char* kProjectActionDown = "project.down";
 
-/// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable
+/// The library stem a host boots. Not part of the pane protocol and not durable
 /// the way the two keys above are -- it is a file name, and it is here because the
 /// host's boot list and the suite's loader must agree on it.
 inline constexpr const char* kIntrospectionStem = "zengine-introspection";

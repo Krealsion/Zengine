@@ -13,3 +13,4 @@ manual
 ui
 composer
 input
+introspection

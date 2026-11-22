@@ -28,7 +28,7 @@ inline bool is_source_power(const workshop::PowerRow& row) noexcept {
     return row.kind == workshop::kSourceKind;
 }
 
-/// DOES THIS POWER'S ACTIVE CONTRIBUTION HAVE KNOWN COMPOSITE CONSTRUCTION? That is
+/// Does this power's active contribution have known composite construction? That is
 /// the whole claim. It is not openability, editability or safety, and no surface in
 /// this build can show the graph.
 inline bool is_composite_power(const workshop::PowerRow& row) noexcept {
@@ -182,7 +182,7 @@ inline std::int64_t find_fixed() {
 
 } // namespace detail
 
-/// THE CHROME ROW'S WIDTHS AS A LAYOUT KEEPS THEM: the columns the view control and the composite
+/// The chrome row's widths as a layout keeps them: the columns the view control and the composite
 /// control are drawn in, each padded past its label, and the spaces between two segments.
 struct ChromeWidths {
     std::int64_t view = detail::kViewWidth;
@@ -218,7 +218,7 @@ inline ChromeFit fit_chrome(const std::string& position, std::int64_t columns,
 
 namespace detail {
 
-/// HOW MUCH OF A ROW IS REAL. Everything, when the text fit; everything but the mark,
+/// How much of a row is real. Everything, when the text fit; everything but the mark,
 /// when `fit` had to cut.
 inline std::int64_t solid_columns(const std::string& drawn, std::size_t wanted) {
     std::int64_t solid = static_cast<std::int64_t>(drawn.size());
@@ -315,7 +315,7 @@ inline std::string sample_header(bool ok, const std::string& identity, std::size
     return fit(lead + fit(printable(identity), room) + tail, columns);
 }
 
-/// EVERY LINE A RETAINED SAMPLE WOULD SPEND, header excluded: the value's lines when it was
+/// Every line a retained sample would spend, header excluded: the value's lines when it was
 /// answered, else its refusal's sentence.
 inline const std::vector<std::string>& sample_body(bool ok, const std::vector<std::string>& lines,
                                                    const std::string& reason,

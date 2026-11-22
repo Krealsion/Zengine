@@ -1,4 +1,4 @@
-# The Introspection package: a view of the Loom it runs in, reaching Workshop as an ordinary
+# The Introspection package: a view of the Loom host it runs in, reaching Workshop as an ordinary
 # external pane provider. `zengine-introspection-view` is the header-only pure half -- the
 # durable names and the projections (vocabulary, loaded, resolved, powers) -- linking the
 # graphics vocabulary and the component (the query's TextBox). `zengine-introspection` is the
