@@ -4,12 +4,13 @@
 #ifndef ZENGINE_TALLY_BUS_TALLY_HPP
 #define ZENGINE_TALLY_BUS_TALLY_HPP
 
-// Where a running bus spends its time, off Loom's own stamps: each weave's handler time
-// (`BusEvent::handler_elapsed_ns`), and each input's way to its paint -- a key, text, press or
-// wheel a window gave an area, or the input role published, marks every weave its dispatch
-// ancestry reaches (`BusEvent::dispatch_parent`), and that weave's next painted drawing is the
-// input's paint, however many turns later. A host's observer: no weave reads the stamps, and it
-// changes nothing it observes.
+// The bus tally: where a running bus spends its time, read off the times Loom stamps on each
+// delivery. It keeps each weave's handler time (`BusEvent::handler_elapsed_ns`) and each input's
+// way to its paint. An input is a key, typed text, a press or a turn of the wheel, given to an area
+// by a window or published by the Input role. It marks every weave its dispatch ancestry reaches
+// (`BusEvent::dispatch_parent`), and that weave's next drawing the window paints is the input's
+// paint, however many turns later. The tally is a host's observer: no weave reads it, and it
+// changes nothing it observes. Its front page is tally/README.md.
 
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
@@ -29,8 +30,8 @@
 
 namespace zengine::tally {
 
-/// ONE WEAVE'S HANDLERS, as the bus timed them: named by the role it held when it was first
-/// seen, else by its weave id.
+/// One weave's handlers, as the bus timed them. The weave is named by the roles it held when the
+/// tally first saw it, or by its weave id when it held none.
 struct HandlerRow {
     std::string who;
     std::uint64_t deliveries = 0;
@@ -39,7 +40,7 @@ struct HandlerRow {
     std::string slowest; ///< the shape of its slowest delivery
 };
 
-/// ONE KIND OF INPUT REACHING ONE WEAVE'S PAINT: how many, and how long each took, from the start
+/// One kind of input reaching one weave's paint: how many, and how long each took, from the start
 /// of the input's delivery to the end of the delivery that painted the weave's next drawing.
 struct PaintRow {
     std::string kind; ///< `key`, `text`, `press` or `wheel`
@@ -53,7 +54,8 @@ class BusTally {
 public:
     /// An input not painted within this long is counted unpainted rather than measured.
     static constexpr std::uint64_t kPaintWithinNs = 1000ull * 1000ull * 1000ull;
-    /// The deliveries whose ancestry is remembered at once, and the samples a row keeps.
+    /// How many deliveries' ancestry is remembered at once (the oldest is forgotten first), and how
+    /// many samples a row keeps.
     static constexpr std::size_t kAncestry = 16384;
     static constexpr std::size_t kSamples = 4096;
 
@@ -102,7 +104,7 @@ public:
         return v[v.size() / 2];
     }
 
-    /// THE TALLY IN WORDS: the `top` weaves by time in all, then every input row.
+    /// The tally in words, a line each: the `top` weaves by time in all, then every input row.
     std::vector<std::string> lines(std::size_t top = 12) const {
         std::vector<std::string> out;
         out.push_back("bus tally over " + ms(observed_ns()) + " ms: " +
@@ -229,9 +231,11 @@ private:
         const Root kept = *root;
         remember(e.seq, kept);
         if (!painted) {
-            // A WEAVE THIS INPUT REACHED: its next painted drawing is the input's paint, unless an
-            // earlier input it reached is still waiting for one; one that waited past the bound is
-            // counted unpainted and this one waits instead.
+            // This input reached a weave, and the weave's next painted drawing is the input's
+            // paint, unless an earlier input that reached it is still waiting for one. Then the
+            // earlier one keeps waiting and this one is not measured, unless the earlier one has
+            // waited past the bound: it is counted unpainted, and this one waits in its place.
+
             const auto [waiting, first] = pending_.try_emplace(e.target.value, kept);
             if (!first && at - waiting->second.began_ns > kPaintWithinNs) {
                 ++unpainted_;

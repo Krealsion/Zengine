@@ -1,6 +1,6 @@
-# The bus tally (tally/README.md): where a running bus spends its time, off Loom's own stamps, by a
-# host's observer. Header-only; Workshop, the app host and the snake each keep one and say it at
-# the end.
+# The bus tally (tally/README.md): where a running bus spends its time, read off Loom's own stamps
+# by an observer a host adds. It is header-only; Workshop, the app and the snake example each keep
+# one and print it as they end.
 add_library(zengine-tally INTERFACE)
 target_include_directories(zengine-tally INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>

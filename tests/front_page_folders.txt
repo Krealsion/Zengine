@@ -6,3 +6,4 @@
 # shape. ASCII only.
 timer
 activation
+tally
