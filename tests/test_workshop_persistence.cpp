@@ -7674,3 +7674,24 @@ TEST_CASE("the owner's state cannot be reset by a poke: its counters are writabl
     CHECK(s.edits == 0);
     CHECK(std::holds_alternative<loom::Refused>(loom::poke_write(s, "revision", "0")));
 }
+
+TEST_CASE("a pane's settings in a layout's row and a role's settings are held back from a poke, "
+          "and the rest of what the owner keeps reads") {
+    // The settings doors judge each asker; a poke of the owner would hand every pane's settings to
+    // whoever may poke it. Read from each shape's own access model, the one a poke obeys.
+    const auto hidden = [](const std::vector<loom::FieldAccess>& fields, const std::string& name) {
+        for (const loom::FieldAccess& f : fields) {
+            if (f.name == name) {
+                return f.hidden;
+            }
+        }
+        FAIL("no field " << name);
+        return false;
+    };
+    CHECK(hidden(loom::access_of<setup_persist::WorkshopSetupPane>(), "settings"));
+    CHECK(hidden(loom::access_of<prefs_persist::RoleSettingsKept>(), "settings"));
+    CHECK_FALSE(hidden(loom::access_of<setup_persist::WorkshopSetupPane>(), "place"));
+    CHECK_FALSE(hidden(loom::access_of<prefs_persist::RoleSettingsKept>(), "role"));
+    CHECK_FALSE(hidden(loom::access_of<LayoutsOwnerState>(), "run"));
+    CHECK_FALSE(hidden(loom::access_of<WorkshopState>(), "bindings"));
+}
