@@ -40,14 +40,14 @@ using ws::v3::GuestConnections;
 using ws::v3::GuestConnectionsRequested;
 using zengine::pane::v2::PaneOffered;
 
-/// THE GUESTS FILE'S WORD for a host whose guests write and build as its weaver does.
+/// The guests file's word for a host whose guests write and build as its weaver does.
 constexpr const char* kDevelopmentHost = "development";
 
 using zengine::pane::pane_text::printable;
 using zengine::pane::pane_text::fit;
 using zengine::pane::pane_text::omitted_text;
 
-/// The pane's room and its one picture: in a graphics window, and in Workshop on its canvas while
+/// The pane's area and its one picture: in a graphics window, and in Workshop on its canvas while
 /// it holds one and as prose to a host granting none. Nothing in it is a part: a press is nothing
 /// here, and a right press in Workshop is handed back, so Workshop's own pane menu opens where it
 /// was made.
@@ -70,11 +70,11 @@ public:
         ask(mail);
     }
 
-    /// The room the window gave the pane's area: the pane says its rows in it. A refused drawing
+    /// The area the window gave the pane: the pane says its rows in it. A refused drawing
     /// leaves the last good one showing, and the next reading draws again.
     void on_room(loom::Mail& mail) { say(mail); }
 
-    /// THE INVENTORY, SAID BY THE DOOR. Replaced whole; an answer to this pane's own ask and
+    /// The inventory, said by the door. Replaced whole; an answer to this pane's own ask and
     /// the door's publication are the same reading and are treated the same.
     void on(const GuestConnections& said, loom::Mail& mail) {
         if (!mail.authored_from_role(ws::kGuestsRole) && !mail.answers_ask()) {
@@ -85,7 +85,7 @@ public:
         say(mail);
     }
 
-    /// ...OR LOOM'S WORD THAT THE ASK ENDED WITH NO ANSWER: what the pane waits for says why,
+    /// ...Or Loom's word that the ask ended with no answer: what the pane waits for says why,
     /// until the door's next publication.
     void on(const loom::AskEnded& ended, loom::Mail& mail) {
         if (mail.ask_ended() && !heard_) {
@@ -105,7 +105,7 @@ private:
     Drawing& room() { return this->template facet<Drawing>(); }
     const Drawing& room() const { return this->template facet<Drawing>(); }
 
-    /// The picture shown, wherever the pane stands, once it holds a room.
+    /// The picture shown, wherever the pane stands, once it holds an area.
     void say(loom::Mail& mail) {
         if (!room().granted() || room().rows() <= 0 || room().columns() <= 0) {
             return;
@@ -115,8 +115,8 @@ private:
     }
 
 public:
-    /// WHAT THE PANE SHOWS, a line of the room's text each, named for what it says; a connection's
-    /// lines stand under `rows/<n>`, the n-th connection said. A row past the room is not drawn.
+    /// What the pane shows, a line of the area's text each, named for what it says; a connection's
+    /// lines stand under `rows/<n>`, the n-th connection said. A row past the area is not drawn.
     void picture(gfx::Sketch& f) const {
         const std::int64_t rows = room().rows(), columns = room().columns();
         const std::int64_t height = room().text().line;
@@ -151,7 +151,7 @@ public:
         if (known_.rows.empty() && budget > 0) {
             line("nobody", "  nobody is connected", gfx::colors::quiet);
         }
-        // A CONNECTION IS SAID WHOLE OR COUNTED: one a guests-file row admitted brings its
+        // A connection is said whole or counted: one a guests-file row admitted brings its
         // version line, and its reach line when it names a role or doors; they stand together
         // or not at all.
         std::size_t shown = 0; // connections said
@@ -215,7 +215,7 @@ private:
         return s;
     }
 
-    /// BENEATH A CONNECTION A GUESTS-FILE ROW ADMITTED: the file's version, and what the row's
+    /// Beneath a connection a guests-file row admitted: the file's version, and what the row's
     /// powers do not reach on this host, in the door's own words.
     static std::string version_text(const GuestConnection& c) {
         std::string s = "version " + std::to_string(c.version) + " -- ";
@@ -229,7 +229,7 @@ private:
         return s;
     }
 
-    /// ...AND WHERE IT READS AND POINTS, its role and doors, in the door's own words.
+    /// ...And where it reads and points, its role and doors, in the door's own words.
     static std::string scopes_text(const GuestConnection& c) {
         std::string s;
         for (const std::string& scope : c.scopes) s += (s.empty() ? "" : "; ") + scope;

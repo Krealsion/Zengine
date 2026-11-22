@@ -393,7 +393,7 @@ def follow(ctx, words, record, ask):
             superseded(ctx, record, "the Builder took ask %d before ask %d's ending was seen"
                        % (s["builds"], number), number, op)
         if s["outcome"] == 5 and build is None:
-            # ANOTHER ASK'S REFUSAL, NOT THIS BUILD'S ENDING: with no build running, the Builder
+            # Another ask's refusal, not this build's ending: with no build running, the Builder
             # says an unknown recipe in the one outcome field, over the picture of the build before
             # it. A taken ask's recipe was known, so its build never ends this way. Once this
             # build has ended, the picture's realization is still its own and is read below.
@@ -507,7 +507,7 @@ def look(ctx, words, record, op, relay, link):
             return True
         return record["build"] is not None and record["realization"] is not None
 
-    # THE JOIN COMES BEFORE ANY DECISION: the answer, and every word that arrived with it.
+    # The join comes before any decision: the answer, and every word that arrived with it.
     heard, ended = [], None
     for item in words.arrived():  # said before the answer, or just after it
         if item.kind == "gap":
@@ -524,7 +524,7 @@ def look(ctx, words, record, op, relay, link):
     if place(base_s) == "own":
         judge(base_s, None, None, "the Builder's answer to this look")
     elif not base_s["op"] and base_s["outcome"] in STILL_GOING:
-        # AHEAD OF ITS WORDS: an ask the runner has not answered can be answered here while what
+        # Ahead of its words: an ask the runner has not answered can be answered here while what
         # the Builder said just before it is still on its way, so it decides nothing about op N.
         judged["unnumbered"] = base_s["builds"]
     elif place(base_s) == "later":
@@ -614,7 +614,7 @@ def realization_answered(ctx, words, record, what, a):
         if item.shape != answer:
             continue
         if item["ask"] != number or (item.producer, item.incarnation) != (a.producer, a.incarnation):
-            # ANOTHER ASK'S ANSWER, whatever it says about the same artifact.
+            # Another ask's answer, whatever it says about the same artifact.
             record.setdefault("set_aside", []).append({"seq": item.seq, "ask": item["ask"],
                                                        "detail": item["detail"]})
             continue
@@ -709,7 +709,7 @@ def perform(ctx, inputs, name="builder"):
     record = Record(act=what, build=None, realization=None)
     if name != "builder":
         record.file, record.output = name + ".json", name + "-output.txt"
-    # SUBSCRIBED BEFORE ANYTHING IS PRESSED: every word the Builder says from here on is kept.
+    # Subscribed before anything is pressed: every word the Builder says from here on is kept.
     sub = ctx.observe(PRODUCER, WATCHED, via=link, latest=["BuildStatus"],
                       label="workshop/builder %s (run %s)" % (what, ctx.name))
     words = Words(ctx, sub, record, seconds)
@@ -717,13 +717,13 @@ def perform(ctx, inputs, name="builder"):
                               "holder": sub.holder, "incarnation": sub.incarnation,
                               "window": sub.window, "link": link}
     if what == "look":
-        # NO HAND AND NO PANE: coming back to an operation is observation and one read.
+        # No hand and no pane: coming back to an operation is observation and one read.
         look(ctx, words, record, op, inputs.get("relay", ""), link)
         return conclude(ctx, record, sub, started, link, expect, realize, what, True, "",
                         failed_words=False)
     owner_words = None
     if what in ("promote", "revert"):
-        # ...AND THE REALIZATION OWNER'S, whose word about this press's ask the press will cause.
+        # ...And the realization owner's, whose word about this press's ask the press will cause.
         try:
             owner = ctx.observe(REALIZER, REALIZER_WATCHED, via=link,
                                 label="workshop/builder %s (run %s)" % (what, ctx.name))
@@ -793,7 +793,7 @@ def perform(ctx, inputs, name="builder"):
             pressed = press(ctx, hand, KEYS[what])
             words.mark("press")
             ask = ask_made(ctx, hand, words, pressed, record)
-        # THE INPUT SESSION GOES BACK NOW: following needs no key, and the pane may be covered,
+        # The Input session goes back now: following needs no key, and the pane may be covered,
         # closed or resized from here on without this run noticing.
         hand.close()
         if ask is not None and ask["taken"]:

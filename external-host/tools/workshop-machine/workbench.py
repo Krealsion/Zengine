@@ -211,7 +211,7 @@ def run(ctx):
     started = time.monotonic()
     report = {"phase": phase, "path": path}
     if phase == "restore":
-        # ONE OWNER REQUEST AND NO INPUT SESSION: nothing here is a weaver's gesture.
+        # One owner request and no Input session: nothing here is a weaver's gesture.
         owner = Owners(measured, link)
         done, found, elapsed = restore(ctx, owner, path)
         report.update(restored=done.fields, restore_ms=elapsed, found=found,

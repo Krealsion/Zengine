@@ -49,7 +49,7 @@ with separate arrow runs and Enter, then focus the Files pane. Derive clicks fro
 picture, or from the desk's own numbers (`workshop/act`'s `desk` step): pixels use `x,y`, a
 terminal's cells `x,y@console` or `x,y@canvas`. Pane positions and menu coordinates are not
 universal.
-Files opens at the column's top when the column has no room left below the panes already
+Files opens at the column's top when the column has no space left below the panes already
 there. An open Files pane should show the fixture directory before you continue.
 
 Files must be browsing `<project>`, the **parent** of `build`. Use its parent-directory action

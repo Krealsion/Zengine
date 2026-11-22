@@ -40,7 +40,7 @@ from workshop_steps import (capture_role, chord, chord_moments, clear_moments, c
 
 
 def run(ctx):
-    # THE LINK'S OWN WORD is a verdict here, never an unexplained error: `lost` is an UNKNOWN
+    # The link's own word is a verdict here, never an unexplained error: `lost` is an UNKNOWN
     # outcome -- the request may or may not have acted -- and nothing is resent.
     try:
         return journey(ctx)
@@ -60,14 +60,14 @@ def journey(ctx):
     text = ctx.inputs.get("text", "")
     repeat = int(ctx.inputs.get("repeat", 1))
 
-    # SPELLING ERRORS END THE RUN BEFORE ANY WORK, same as before: a chord or a point this tool
+    # Spelling errors end the run before any work, same as before: a chord or a point this tool
     # cannot spell is refused here, whether or not it will end up in this batch.
     if click:
         point(click)
     if chord_spelling:
         chord(chord_spelling)
 
-    # A CLICK ALONE IS A WHOLE, VALID BATCH -- `chord` is optional precisely so a click that may
+    # A click alone is a whole, valid batch -- `chord` is optional precisely so a click that may
     # open a menu can settle on its own terms, unfollowed by any later gesture that would make
     # it late (`click_moments`'s own doc has the mechanism: `workshop/weave_handlers.cpp`'s
     # `gestures_` counts every key, and a menu opened by a now-superseded gesture is refused
@@ -82,7 +82,7 @@ def journey(ctx):
                             "`chord`, or drop `text` for a click-only batch")
         ctx.check(repeat == 1, "`repeat` presses a chord -- name one, or drop `repeat`")
 
-    # THE INTENDED BATCH SIZE, COMPUTED BEFORE ANY WORKSHOP CONTACT -- not after opening an
+    # The intended batch size, computed before any Workshop contact -- not after opening an
     # input session and taking the "before" picture, and not by building the real moment list
     # first and discovering its length. This mirrors the construction below exactly (click,
     # then EITHER clear's own fixed four moments plus an optional type, OR a repeated chord
@@ -174,8 +174,8 @@ def journey(ctx):
     else:
         step_words = "%s%s" % (("clear, type, then " if clearing else ""), chord_spelling)
     ctx.step("inject %s%s" % (step_words, (" x%d" % repeat) if repeat != 1 else ""))
-    # ONE ORDERED BATCH, in the order a hand would make it: a click that points at a pane,
-    # POSSIBLY THE WHOLE BATCH (see `click_moments`'s own doc for why a click that may open a
+    # One ordered batch, in the order a hand would make it: a click that points at a pane,
+    # Possibly the whole batch (see `click_moments`'s own doc for why a click that may open a
     # menu is often better left unfollowed by any chord in the same batch); otherwise EITHER a
     # typed field's own order (Ctrl+A selecting the field's whole content regardless of its
     # length or the caret's position, then Backspace erasing that selection whether or not any
@@ -196,7 +196,7 @@ def journey(ctx):
             chord_moments(ctx, chord_spelling)
     else:
         events = click_events + chord_moments(ctx, chord_spelling, text, repeat)
-    # AN INTERNAL CONSISTENCY CHECK, NOT A REFUSAL OPPORTUNITY -- the real refusal already
+    # An internal consistency check, not a refusal opportunity -- the real refusal already
     # happened above, before any Workshop contact, computed by the same arithmetic this
     # construction follows. If the two ever disagreed, sending the mismatched batch anyway
     # would be the wrong failure to have; this says so plainly instead.

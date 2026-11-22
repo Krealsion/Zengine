@@ -302,7 +302,7 @@ class Hand:
             except Refused as refused:
                 if not no_settled_picture(refused) or time.monotonic() >= end:
                     raise
-                # ...UNTIL ITS NUMBER IS AIMED AT, which moves the pane's aimed picture.
+                # ...Until its number is aimed at, which moves the pane's aimed picture.
                 self.wait(end - time.monotonic(), (provider, pane), unsettled=True)
                 continue
             if not takes_no_press(view):
@@ -311,7 +311,7 @@ class Hand:
                 self.last_view(view)
                 raise ValueError("%s/%s's picture took no press within %gs: %s"
                                  % (provider, pane, seconds, NO_PRESS))
-            # THE PICTURE THAT FIRST TAKES A PRESS MOVES THE PANE'S STAMP, so it is waited for.
+            # The picture that first takes a press moves the pane's stamp, so it is waited for.
             self.wait(end - time.monotonic(), (provider, pane))
 
     def word_point(self, provider, pane, word, column, fingerprint):

@@ -48,7 +48,7 @@ GUESTS = "zengine.guests"
 #: A pane's restarts from item 0 after a page found its picture moved.
 STALE_RESTARTS = 3
 #: A pane's asks alone while its newest picture is in flight, and the wait before each next one,
-#: in seconds: a room just granted is answered by its role's next picture.
+#: in seconds: an area just granted is answered by its role's next picture.
 IN_FLIGHT_ASKS = 3
 IN_FLIGHT_WAIT = 0.1
 #: The desk read again when its number moved before the last page ("Consistency is per pane").
@@ -222,7 +222,7 @@ def rest_of(asker, first):
             return None, "not read: page from item %d %s" % (upto, words_said)
         if page.get("in_flight"):
             return None, "in flight"
-        # A COVER THAT MOVED shifts the items a page counts without moving the stamp: the pane
+        # A cover that moved shifts the items a page counts without moving the stamp: the pane
         # is read again from its first item, as for a picture that moved.
         if not same_stamp(stamp_of(page), stamp) or \
                 page.get("total", 0) != total or page.get("covered") != first.get("covered"):

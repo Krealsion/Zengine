@@ -34,7 +34,7 @@ EXAMPLES = HERE.parent / "examples"
 # Where a checkout's setups are found beside the tool package's own: each example's, and each
 # feature's tutorials (`<feature>/docs/tutorials/<name>/`), which an install gathers into the package.
 ROOTS = [EXAMPLES] + sorted(HERE.parent.glob("*/docs/tutorials"))
-# THE PACKAGES ARE READ, NEVER WRITTEN: their modules are imported where they stand, so no
+# The packages are read, never written: their modules are imported where they stand, so no
 # bytecode is written beside them, in a checkout or an installed package.
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(PACKAGE))
@@ -280,7 +280,7 @@ def launch(args, source, root):
         return row
     plan["fields"]["artifacts"].append(weave_row("zengine-demo-control", "zengine.demo"))
     if args.neovim:
-        # THE PLAN'S OWN SECOND CHOICE for the Editor's role holds it from the start.
+        # The plan's own second choice for the Editor's role holds it from the start.
         for row in plan["fields"]["artifacts"]:
             if row["artifact"] == "zengine-editor-pane":
                 row["artifact"] = "zengine-neovim-editor"
@@ -294,7 +294,7 @@ def launch(args, source, root):
     if authority.get("observe"):
         guest["observe"] = authority["observe"]
     guest = formats.following_the_desk(guest)
-    # A SETUP'S WORKSHOP IS ITS OWN, started for this root alone: a development host, where its
+    # A setup's Workshop is its own, started for this root alone: a development host, where its
     # guest types, writes and builds as a weaver would (external-host/docs/external-host.md).
     save_json(wdir / "guests.json", formats.guests([guest], formats.DEVELOPMENT_HOST,
                                                    port_file=wdir / "guests.port"))
@@ -311,7 +311,7 @@ def launch(args, source, root):
                 stderr=subprocess.STDOUT, stdin=subprocess.PIPE if approvals else subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         children.append(child)
-        # WRITTEN BEFORE ANYTHING WAITS: an interrupted start leaves which processes it began.
+        # Written before anything waits: an interrupted start leaves which processes it began.
         custody[label + "_pid"] = child.pid
         save_json(root / "launch.json", custody)
         if approvals:

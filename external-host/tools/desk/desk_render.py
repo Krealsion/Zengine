@@ -254,7 +254,7 @@ def pane_file(reading, dp, read):
     return "\n".join(lines) + "\n"
 
 
-#: A pane file's name before `.txt`, at most: room for `~N` and `-N` within a portable name.
+#: A pane file's name before `.txt`, at most: space for `~N` and `-N` within a portable name.
 NAME_CHARS = 160
 
 
@@ -642,7 +642,7 @@ def pages(text, name, limit=SECTION_BYTES, max_lines=None, again=None):
             if fence:
                 current.append(fence + "\n")
             else:
-                # A BLOCK'S ATTRIBUTION STAYS WITH ITS BLOCK: a line naming who said what follows,
+                # A block's attribution stays with its block: a line naming who said what follows,
                 # and the blanks after it, open the next page rather than end this one.
                 k = len(current)
                 while k and not current[k - 1].strip():

@@ -27,7 +27,7 @@ def run(ctx):
             read["pair"] == entry["pair"]):
         written(ctx, entry)
         ctx.fail("the captured entry changed; pair.bin still contains this operation's own capture")
-    # THE LABEL AS INVENTORY KEEPS IT: the read answers no label, so its listing says it.
+    # The label as inventory keeps it: the read answers no label, so its listing says it.
     ctx.step("its label")
     listed = ctx.ask("zengine.inventory", "InventoryList", {}, via=link, version=2)
     mine = [e for e in listed["entries"] if e["reference"] == entry["reference"]]

@@ -316,7 +316,7 @@ def run(ctx):
         capture_command()
         open_source(beat)
         hand.click(status_row(hand))
-        # NEOVIM WILL WAIT FOR INPUT when the choice is made: a callback it runs by itself enters an
+        # Neovim will wait for Input when the choice is made: a callback it runs by itself enters an
         # unfinished `g` after the menu opens, and leaves the buffer as it is. The drop must come
         # first -- a drop on a Neovim already waiting is refused before any menu, nothing sent.
         typed(":lua vim.defer_fn(function() vim.api.nvim_feedkeys('g', 'n', false) end, 4000)")

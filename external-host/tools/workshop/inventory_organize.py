@@ -27,7 +27,7 @@ def run(ctx):
     def ask(shape, fields, **kw):
         return ctx.ask("zengine.inventory", shape, fields, via=link, **kw)
 
-    # EVERY RULE IS JUDGED BEFORE THE FIRST ASK: a rule finds its entry by label first.
+    # Every rule is judged before the first ask: a rule finds its entry by label first.
     for i, rule in enumerate(plan["entries"]):
         find = rule.get("find") if isinstance(rule, dict) else None
         ctx.check(isinstance(find, dict) and isinstance(find.get("label"), str) and find["label"],

@@ -69,7 +69,7 @@ def run(ctx):
     mismatches = []
 
     def want(field, container, key, expected):
-        # ABSENT IS NOT BLANK. `workshop/recipe_persist.hpp` requires an explicit string for
+        # Absent is not blank. `workshop/recipe_persist.hpp` requires an explicit string for
         # every field this checker can be asked about; a key missing from the file entirely is
         # a malformed or incomplete row, never the same fact as a key present with an empty
         # string. `container.get(key, "")` would read the two identically -- this checks

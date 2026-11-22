@@ -69,7 +69,7 @@ def choose(ctx, hand, name):
     step(ctx, hand, "into", {"into": list(INFO) + [subject]})
 
 
-# A text box as a terminal spells it, `[text___]`: what it holds is the text before its blank room.
+# A text box as a terminal spells it, `[text___]`: what it holds is the text before its blank space.
 BOX = re.compile(r"\[([^\]]*?)_*\]")
 
 
@@ -125,8 +125,8 @@ def run(ctx):
             for key, label in FIELDS:
                 if key in p:
                     if key == "y" and p["pane"] == INFO_ROW and int(str(p["y"]).rstrip("px")) > 0:
-                        # INFO PLACES ITSELF LAST, FROM THE ROOM'S TOP. Moving it down before it is
-                        # resized can run its old height past the room's bottom, and Workshop stops
+                        # Info places itself last, from the desk's top. Moving it down before it is
+                        # resized can run its old height past the desk's bottom, and Workshop stops
                         # describing the very pane these keys are typed into.
                         write(ctx, hand, "Y", "0")
                         continue

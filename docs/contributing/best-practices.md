@@ -210,7 +210,7 @@ Its law, pages and suites: [`builder/AGENTS.md`](../../builder/AGENTS.md).
 
 ### Connections (`external-host/connections-pane/`)
 
-Its law, pages and suites: [`external-host/AGENTS.md`](../../external-host/AGENTS.md).
+Its law, pages and suites: [the `external-host/` front page](../../external-host/README.md#working-on-it).
 
 - **A row's losses are one function's**, said at launch, in Attention and here.
   [WL-GUEST-08](../../agents/workshop/guests.md#wl-guest-08--what-a-rows-powers-do-not-reach-is-said-beside-it)
@@ -357,7 +357,7 @@ Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 ## The external host (`external-host/`, `external-host/demo-control/`)
 
-Its law, pages and suites: [`external-host/AGENTS.md`](../../external-host/AGENTS.md).
+Its law, pages and suites: [the `external-host/` front page](../../external-host/README.md#working-on-it).
 
 - **A tool's capability and its help change together.**
   [Journeys as Python tools](../../external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools)
