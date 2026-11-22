@@ -8,3 +8,4 @@ timer
 activation
 tally
 property
+persist
