@@ -384,14 +384,14 @@ Page<View> page_of(const View& whole, std::int64_t from, std::int64_t cells, std
     page.view.parts.clear();
     page.view.from = from;
     const loom::Value shell = loom::to_value(page.view);
-    page.cells = decoded_cells(shell);
+    page.cells = zengine::workshop::decoded_cells(shell);
     page.bytes = reply_bytes(shell);
     const auto nwords = static_cast<std::int64_t>(whole.words.size());
     for (std::int64_t i = from; i < whole.total; ++i) {
         const loom::Value item =
             i < nwords ? loom::to_value(whole.words[static_cast<std::size_t>(i)])
                        : loom::to_value(whole.parts[static_cast<std::size_t>(i - nwords)]);
-        const std::int64_t cost = 1 + decoded_cells(item);
+        const std::int64_t cost = 1 + zengine::workshop::decoded_cells(item);
         const std::int64_t size = 1 + reply_bytes(item);
         if (page.cells + cost > cells || page.bytes + size > bytes) break;
         page.cells += cost;

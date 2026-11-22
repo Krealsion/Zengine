@@ -25,13 +25,13 @@ inline std::int64_t decoded_cells(const loom::Value& value) {
         const loom::Cell* cell = value.at(i);
         if (cell == nullptr) continue;
         if (cell->is(loom::Kind::Message) || cell->is(loom::Kind::Union)) {
-            cells += decoded_cells(*cell->as_message());
+            cells += zengine::workshop::decoded_cells(*cell->as_message());
         } else if (cell->is(loom::Kind::List)) {
             const loom::Cell::Array& list = cell->as_list();
             cells += static_cast<std::int64_t>(list.size());
             for (const loom::Cell& element : list) {
                 if (element.is(loom::Kind::Message) || element.is(loom::Kind::Union))
-                    cells += decoded_cells(*element.as_message());
+                    cells += zengine::workshop::decoded_cells(*element.as_message());
             }
         }
     }

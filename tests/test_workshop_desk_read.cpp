@@ -568,10 +568,10 @@ TEST_CASE("the decode budget a reading is filled to is Loom's own: a value of ex
                                       input::space::kCells});
     }
     pane.total = 4096;
-    const std::int64_t short_of = kDecodedCellBudget - decoded_cells(loom::to_value(full));
+    const std::int64_t short_of = kDecodedCellBudget - zengine::workshop::decoded_cells(loom::to_value(full));
     REQUIRE(short_of > 0);
     pane.covered.by.assign(static_cast<std::size_t>(short_of), std::string("pane"));
-    REQUIRE(decoded_cells(loom::to_value(full)) == kDecodedCellBudget);
+    REQUIRE(zengine::workshop::decoded_cells(loom::to_value(full)) == kDecodedCellBudget);
 
     // LOOM DECODES IT, every cell of it, and the value it gives back is the one sent.
     const std::string bytes = loom::serialize(loom::to_value(full));
@@ -584,7 +584,7 @@ TEST_CASE("the decode budget a reading is filled to is Loom's own: a value of ex
 
     // ...AND ONE CELL MORE IS REFUSED before it is built, as past Loom's materialization budget.
     pane.covered.by.push_back("pane");
-    REQUIRE(decoded_cells(loom::to_value(full)) == kDecodedCellBudget + 1);
+    REQUIRE(zengine::workshop::decoded_cells(loom::to_value(full)) == kDecodedCellBudget + 1);
     const loom::Admission over = loom::admit(loom::parse(loom::serialize(loom::to_value(full))),
                                              loom::schema_of<DeskRead>());
     REQUIRE_FALSE(over.ok());
@@ -615,7 +615,7 @@ TEST_CASE("a desk past one value's budget reads whole: the panes past it are nam
     const std::string refused = d.read(desk_read);
     REQUIRE_MESSAGE(refused.empty(), refused);
     // ONE DECODED VALUE: the desk read spends no more cells than a reader's decoder allows.
-    const std::int64_t cells = decoded_cells(loom::to_value(desk_read));
+    const std::int64_t cells = zengine::workshop::decoded_cells(loom::to_value(desk_read));
     CHECK_MESSAGE(cells <= kDecodedCellBudget, "the desk read is " << cells << " cells");
 
     // EVERY PRESENTED PANE'S STAMP, FRONT TO BACK, by the rank the desk gives it.
@@ -663,7 +663,7 @@ TEST_CASE("a desk past one value's budget reads whole: the panes past it are nam
         CHECK(stands_on(whole, desk_read.stamps[i]));
         CHECK(item_count(whole) == whole.total);
         if (alone == 0) {
-            const std::int64_t with = cells + 1 + decoded_cells(loom::to_value(whole));
+            const std::int64_t with = cells + 1 + zengine::workshop::decoded_cells(loom::to_value(whole));
             CHECK_MESSAGE(with > kDecodedCellBudget,
                           whole.stamp.provider << "/" << whole.stamp.pane << " would have fit: " << with
                                                << " cells");
@@ -714,7 +714,7 @@ TEST_CASE("a pane at a window's budgets reads whole under one stamp, and from an
     CHECK(first.from == 0);
     CHECK(first.stamp.fingerprint != 0);
     CHECK(item_count(first) == first.total);
-    CHECK(decoded_cells(loom::to_value(first)) <= kDecodedCellBudget);
+    CHECK(zengine::workshop::decoded_cells(loom::to_value(first)) <= kDecodedCellBudget);
     const PaneStamp stamp = view_stamp(first);
 
     // FROM AN INDEX, under its stamp: the rest of it.
@@ -967,7 +967,7 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
     d.draw(0, high_text_picture());
     REQUIRE(d.read(desk).empty());
     CHECK(reply_bytes(loom::to_value(desk)) <= kReplyByteBudget);
-    CHECK(decoded_cells(loom::to_value(desk)) <= kDecodedCellBudget);
+    CHECK(zengine::workshop::decoded_cells(loom::to_value(desk)) <= kDecodedCellBudget);
     const auto stamp = std::find_if(desk.stamps.begin(), desk.stamps.end(), [&](const PaneStamp& s) {
         return s.provider == role && s.pane == kReadPane;
     });
@@ -986,7 +986,7 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
                       "the page from " << p.from << " is " << native << " bytes");
         CHECK_MESSAGE(json <= static_cast<std::size_t>(kReplyByteBudget),
                       "the page from " << p.from << " is " << json << " bytes of JSON");
-        CHECK(decoded_cells(page) <= kDecodedCellBudget);
+        CHECK(zengine::workshop::decoded_cells(page) <= kDecodedCellBudget);
         CHECK(stands_on(p, view_stamp(pages.front())));
     }
     // TOGETHER THE PAGES ARE THE WHOLE PICTURE, every word and every part with every word's text.
@@ -999,7 +999,7 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
     DeskRead second;
     REQUIRE(d.read(second).empty());
     CHECK(reply_bytes(loom::to_value(second)) <= kReplyByteBudget);
-    CHECK(decoded_cells(loom::to_value(second)) <= kDecodedCellBudget);
+    CHECK(zengine::workshop::decoded_cells(loom::to_value(second)) <= kDecodedCellBudget);
     const auto named = std::find_if(second.stamps.begin(), second.stamps.end(),
                                     [&](const PaneStamp& s) { return s.provider == role; });
     REQUIRE(named != second.stamps.end());
@@ -1009,7 +1009,7 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
         const std::string refused = d.page(PaneViewRequested{role, kReadPane, from, *named}, one);
         REQUIRE_MESSAGE(refused.empty(), refused);
         CHECK(reply_bytes(loom::to_value(one)) <= kReplyByteBudget);
-        CHECK(decoded_cells(loom::to_value(one)) <= kDecodedCellBudget);
+        CHECK(zengine::workshop::decoded_cells(loom::to_value(one)) <= kDecodedCellBudget);
         fifth.push_back(one);
         from += item_count(one);
         if (item_count(one) == 0 || from >= one.total) break;

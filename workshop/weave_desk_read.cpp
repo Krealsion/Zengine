@@ -819,7 +819,7 @@ Said<DeskRead> WorkshopWeave::desk_read_now(loom::Mail& mail, loom::WeaveId aske
         }
     }
     const loom::Value shell = loom::to_value(out);
-    std::int64_t cells = decoded_cells(shell);
+    std::int64_t cells = zengine::workshop::decoded_cells(shell);
     std::int64_t bytes = reply_bytes(shell);
     for (const std::optional<PaneView>& reading : readings) {
         if (!reading) continue;
