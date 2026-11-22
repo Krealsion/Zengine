@@ -425,6 +425,11 @@ inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Gr
 using TerminalDoorFacet = TerminalDoor<HostContext>;
 
 /// The Workshop weave: its own doors, the terminal door and its page's answers composed beside them.
+/// WHAT WORKSHOP'S STATE DECLARES, as the session holds it now: the bindings as authored and the
+/// window's room, each its file's own value (`workshop/vocabulary.hpp`). `window_name` is the
+/// window the desk is shown in, which says whose room the GUI window's own is.
+WorkshopState declared_state(const Session& s, std::string_view window_name);
+
 class WorkshopWeave
     : public zengine::With<TerminalDoorFacet,
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
@@ -1234,8 +1239,14 @@ public:
     /// presentation this desk did not prepare or could not seat is Declined and re-claimed at its
     /// next delivery. It runs inside the host's showing boundary, so a throw is Failed.
     loom::Weave::PublishedClaim on_claim_published(const PanePresentation& published);
-    /// THE END OF EVERY DELIVERY: a repaint the hook owed, then the claim if it moved.
+    /// THE END OF EVERY DELIVERY: a repaint the hook owed, then the claim if it moved; and the
+    /// declared state made to say the bindings and the room as they stand (`declared_state`).
     void after_delivery(loom::Mail& mail);
+    /// A RELOAD'S STATE PUT BACK: the bindings, from which the effective keymap is derived again,
+    /// and the window's room. The files are not read again: the life before read them. Nothing in
+    /// `Session` is carried: the presenter's copies arrive again from their owners, and a gesture,
+    /// a menu or a lease the life before held ended with it.
+    void revive(const loom::Value& v) override;
 
     // ---- The desk in a graphics window: Workshop the arranger, and its own area's drawer ----
 
@@ -1457,9 +1468,6 @@ private:
     /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE WEAVER'S ORDER.
     void shift_layout(std::size_t at, std::int64_t by, loom::Mail& mail);
 
-    /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
-    /// there are none, and the first one BY NAME when there are.
-    std::string unresolved_note(const Setup& s) const;
 
     // ---- THE LAST SESSION: the desk that comes back on its own ----------------
 
@@ -1467,6 +1475,7 @@ private:
     void restore_last_session(loom::Mail& mail);
     /// THE WINDOW'S FACTS, as its file or an older session kept them: the room, the placement.
     void restore_window(const window_persist::LoadedWindow& window, loom::Mail& mail);
+
     /// THE RESTORE'S SENTENCE, said when the owner's first picture brings the run back.
     void say_restored(const LiveLayout& live, loom::Mail& mail);
     /// The GUI window shaped to the room the restore held for it, then placed, once.

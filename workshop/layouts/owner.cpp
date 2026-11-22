@@ -169,6 +169,29 @@ void LayoutsOwner::on(const LayoutEditRequested& asked, loom::Mail& mail) {
     (void)mail.answer(std::move(out));
 }
 
+// ---- The declared state ------------------------------------------------------------------
+
+void LayoutsOwner::after_delivery(loom::Mail&) {
+    const session_persist::WorkshopSession run = store_.declared_run();
+    state_.run = LayoutRun{run.layouts, run.active, run.next_id};
+    state_.settings = store_.declared_settings();
+    state_.revision = store_.revision();
+    state_.put_live = static_cast<std::int64_t>(store_.run().put_live);
+}
+
+void LayoutsOwner::revive(const loom::Value& v) {
+    state_ = loom::from_value<LayoutsOwnerState>(v);
+    if (state_.run.layouts.empty()) {
+        return; // the life before declared no run: nothing to put back, and the files are read
+    }
+    session_persist::WorkshopSession run;
+    run.layouts = state_.run.layouts;
+    run.active = state_.run.active;
+    run.next_id = state_.run.next_id;
+    (void)store_.revive(run, state_.settings, state_.revision,
+                        static_cast<std::uint64_t>(state_.put_live < 0 ? 0 : state_.put_live));
+}
+
 // WL-SESSION-13 -- agents/workshop/session.md
 void LayoutsOwner::on(const SessionSaveRequested&, loom::Mail& mail) {
     read_host();
@@ -189,7 +212,13 @@ void LayoutsOwner::on(const SessionSaveRequested&, loom::Mail& mail) {
             }
         }
     }
-    const std::string refused = store_.save_session(chosen);
+    // WRITTEN FROM THE STATE: the run as this delivery leaves it declared, and the choices.
+    after_delivery(mail);
+    session_persist::WorkshopSession session = session_persist::to_session({}, 0, 0, chosen);
+    session.layouts = state_.run.layouts;
+    session.active = state_.run.active;
+    session.next_id = state_.run.next_id;
+    const std::string refused = store_.save_session(session);
     if (refused.empty()) {
         ++state_.saves;
     }

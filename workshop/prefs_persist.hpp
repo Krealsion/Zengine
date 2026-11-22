@@ -207,7 +207,9 @@ struct Presentation {
 struct RoleSettingsKept {
     std::string role;
     std::vector<PaneSetting> settings;
-    ZEN_SHAPE(RoleSettingsKept, 1, ZEN_FIELD(role), ZEN_FIELD(settings));
+    // A role's settings are held back from a poke of whoever keeps them, as a pane's are: the
+    // settings doors tell them to an asker they judge. The tag is no part of the content id.
+    ZEN_SHAPE(RoleSettingsKept, 1, ZEN_FIELD(role), ZEN_HIDE(settings));
     friend bool operator==(const RoleSettingsKept&, const RoleSettingsKept&) = default;
 };
 

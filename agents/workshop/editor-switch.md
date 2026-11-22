@@ -164,7 +164,7 @@ at the Terminal is said"
 `workshop/layouts/owner.cpp` realization::ChoicesHeld
 `realization/owner.hpp` Owner::choices_claimed
 `workshop/workshop.cpp` remember_choices
-`workshop/layouts/store.hpp` chosen
+`workshop/layouts/store.hpp` save_session
 `tests/test_workshop_persistence.cpp` "a start loads the remembered choice in its role's row,
 while the plan authors it" "a session keeps the choices it was given, and refuses more than a
 role's worth" "a quit saves which choice holds each role, and a start says a choice no longer

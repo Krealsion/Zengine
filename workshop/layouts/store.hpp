@@ -214,10 +214,25 @@ public:
     RestoredRun restore();
     /// Whether the last session could not be read, and why; held all run.
     const std::string& session_refusal() const noexcept { return session_refusal_; }
-    /// WRITE THE SESSION, at an orderly close: the run and the choices. Empty when written, else
-    /// why not. Once a session holds what the settings file kept for layouts, the file drops it.
-    /// Write the session, with `chosen`: which authored choice holds each switchable role now.
-    std::string save_session(const std::vector<session_persist::WorkshopChoice>& chosen);
+    /// WRITE THE SESSION, at an orderly close: `session`, the run as its holder declares it and
+    /// which authored choice holds each switchable role now. Empty when written, else why not.
+    /// Once a session holds what the settings file kept for layouts, the file drops it.
+    std::string save_session(const session_persist::WorkshopSession& session);
+
+    // ---- The declared state ---------------------------------------------------------------
+
+    /// THE RUN AS THE SESSION FILE'S SHAPES KEEP IT: every layout, the live one's place, the next
+    /// id; the session's other fields empty.
+    session_persist::WorkshopSession declared_run() const;
+    /// THE SETTINGS AS THE SETTINGS FILE'S SHAPE KEEPS THEM.
+    prefs_persist::WorkshopPrefs declared_settings() const;
+    /// A RELOAD'S RUN AND SETTINGS PUT IN PLACE, with the revisions the life before reached, so no
+    /// revision is handed out twice. The files are not read again: the life before read them. A
+    /// run that is not one (no layout, an id held twice, a desk its checks refuse) is refused, said,
+    /// and the store keeps what it holds. Empty when put in place, else why not.
+    std::string revive(const session_persist::WorkshopSession& run,
+                       const prefs_persist::WorkshopPrefs& settings, std::int64_t revision,
+                       std::uint64_t put_live);
     /// Whether the settings file still carries layouts' entries no written session holds.
     bool carries_layout_entries() const;
 

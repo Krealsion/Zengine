@@ -152,7 +152,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::view::ViewIntentWiring>(), // ViewIntentWiring v1
         shape<::zengine::view::ViewWiring>(), // ViewWiring v1
         shape<::zengine::view::ViewWiringRequested>(), // ViewWiringRequested v1
-        shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v1
+        shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v2
         shape<::zengine::workshop::LiveTab>(), // LiveTab v1
         shape<::zengine::workshop::RowSettingUnused>(), // RowSettingUnused v1
         shape<::zengine::workshop::LiveLayout>(), // LiveLayout v4
@@ -305,7 +305,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::manual::ShapeDocumentShown>(), // ShapeDocumentShown v1
         shape<zengine::pane::PaneSettings>(), // PaneSettings v1
         shape<::zengine::workshop::TerminalCaptureFacts>(), // TerminalCaptureFacts v1
-        shape<::zengine::workshop::WorkshopState>(), // WorkshopState v1
+        shape<::zengine::workshop::WorkshopState>(), // WorkshopState v2
         // ...and the declarations only Workshop still accepts, from a desktop built before causes.
         shape<::zengine::workshop::AppActionRow>(), // AppActionRow v1
         shape<::zengine::workshop::AppActions>(), // AppActions v1

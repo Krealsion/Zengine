@@ -411,18 +411,32 @@ void WorkshopWeave::shift_layout(std::size_t at, std::int64_t by, loom::Mail& ma
     ask_layout({move}, nullptr, mail);
 }
 
-std::string WorkshopWeave::unresolved_note(const Setup& s) const {
-    const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panes);
-    if (waiting.empty()) {
-        return {};
-    }
-    std::string note = " -- " + std::to_string(waiting.size()) +
-                       (waiting.size() == 1 ? " pane" : " panes") + " unresolved: " +
-                       ref_text(waiting.front());
-    if (waiting.size() > 1) {
-        note += ", ...";
-    }
-    return note;
+// ---- THE DECLARED STATE: the bindings and the room, each its file's own value ----------
+
+namespace {
+
+/// THE WINDOW'S PLACEMENT AS THE WINDOW FILE KEEPS IT: as last reported, or as the file carried it,
+/// and the GUI window's own room, this run's where the desk is in the GUI window.
+window_persist::Placement window_placement(const Session& s, std::string_view window_name) {
+    window_persist::Placement place;
+    place.known = s.placement_known;
+    place.x = s.place_x;
+    place.y = s.place_y;
+    place.maximized = s.place_maximized;
+    const bool gui_window = window_name == graphics::kGuiWindow;
+    place.room_w = gui_window ? s.normal_w : s.window_room_w;
+    place.room_h = gui_window ? s.normal_h : s.window_room_h;
+    return place;
+}
+
+} // namespace
+
+/// THE STATE AS THE SESSION HOLDS IT NOW: the bindings as authored and the room, so a file is its
+/// field written whole.
+WorkshopState declared_state(const Session& s, std::string_view window_name) {
+    return WorkshopState{keymap_persist::to_keymap(s.keymap),
+                         window_persist::to_window(s.normal_w, s.normal_h,
+                                                   window_placement(s, window_name))};
 }
 
 // ---- THE LAST SESSION: the desk that comes back on its own ----------------
@@ -511,9 +525,36 @@ void WorkshopWeave::restore_window(const window_persist::LoadedWindow& window, l
             mail.send_to_role(role, place);
         }
     }
+    // READ INTO THE STATE: the room as the file carried it and this run took it.
+    state_ = declared_state(session_, window_name_);
     // THE ROOM IS ASKED OF THE WINDOW NOW, before the window's own offer is taken: the desk comes
     // into it once its owner presents it.
     repaint(mail);
+}
+
+void WorkshopWeave::revive(const loom::Value& v) {
+    state_ = loom::from_value<WorkshopState>(v);
+    // A STATE THE LIFE BEFORE NEVER DECLARED, its formats empty, puts nothing back.
+    if (!state_.bindings.format.empty()) {
+        Keymap authored;
+        if (keymap_persist::keymap_in(state_.bindings, authored).accepted) {
+            session_.keymap.legend = authored.legend;
+            session_.keymap.authored = std::move(authored.authored);
+            session_.keymap.overrides = std::move(authored.overrides);
+            keymap_loaded_ = true;
+        }
+    }
+    if (!state_.room.format.empty()) {
+        const window_persist::WorkshopWindow& room = state_.room;
+        session_.normal_w = room.viewport.width;
+        session_.normal_h = room.viewport.height;
+        session_.placement_known = room.placement.mode == window_persist::kPlacementDesktop;
+        session_.place_x = room.placement.x;
+        session_.place_y = room.placement.y;
+        session_.place_maximized = room.placement.window == window_persist::kWindowMaximized;
+        session_.window_room_w = room.window_room.width;
+        session_.window_room_h = room.window_room.height;
+    }
 }
 
 void WorkshopWeave::say_restored(const LiveLayout& live, loom::Mail&) {
@@ -581,20 +622,14 @@ bool WorkshopWeave::save_last_session(loom::Mail& mail) {
     // weaver chose, with the maximized state beside it. The placement rides along as last reported,
     // or as the file carried it; and the GUI window's own room is this run's where the desk is in
     // the GUI window, else the one the file carried.
-    window_persist::Placement place;
-    place.known = session_.placement_known;
-    place.x = session_.place_x;
-    place.y = session_.place_y;
-    place.maximized = session_.place_maximized;
-    const bool gui_window = window_name_ == graphics::kGuiWindow;
-    place.room_w = gui_window ? session_.normal_w : session_.window_room_w;
-    place.room_h = gui_window ? session_.normal_h : session_.window_room_h;
     // THE WINDOW FILE FIRST, Workshop's own; then the owner is asked to save the run. Neither is
     // written where the session could not be read: the window's facts belong to that session.
     const std::string window_path = window_persist::path_beside(host_->session_path);
     if (!window_path.empty() && !session_refusal_said_) {
-        if (const Written w = window_persist::save_file(window_path, session_.normal_w,
-                                                        session_.normal_h, place);
+        // WRITTEN FROM THE STATE: the room as it stands, the file's own value.
+        state_ = declared_state(session_, window_name_);
+        if (const Written w = persist::write_file_making_room(
+                window_path, loom::compat::serialize(loom::to_value(state_.room)));
             !w.accepted) {
             say("the window file was not written -- " + w.refusal, true);
             std::fprintf(stderr, "zengine-workshop: the window file was not written -- %s\n",

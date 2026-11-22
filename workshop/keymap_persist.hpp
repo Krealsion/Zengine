@@ -10,6 +10,7 @@
 #include "keymap.hpp"
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
+#include "workshop/vocabulary.hpp" // the file's current shapes
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -53,29 +54,8 @@ inline constexpr const char* kLegendWords = "default, full, compact or hidden";
 
 // ---- The file's own shapes --------------------------------------------------------------
 
-/// One override row AS WRITTEN: which action, and the gesture that now requests it. Two
-/// strings, deliberately -- the action id must be able to name an action this build has
-/// never heard of, and the gesture must survive that row unjudged.
-struct WorkshopKeymapRow {
-    std::string action;
-    std::string gesture;
-
-    ZEN_SHAPE(WorkshopKeymapRow, 1, ZEN_FIELD(action), ZEN_FIELD(gesture));
-};
-
-/// A whole saved keymap: what it is, which version of that it is, the legend preference,
-/// and the override rows IN AUTHORED ORDER. FORMAT VERSION 2: the same four fields as
-/// version 1, and an action may be authored on several rows -- one action, several keys
-/// (WL-KEY-08). A build that reads version 1 refuses this file by its number.
-struct WorkshopKeymap {
-    std::string format;
-    std::int64_t format_version = 0;
-    std::string legend;
-    std::vector<WorkshopKeymapRow> overrides;
-
-    ZEN_SHAPE(WorkshopKeymap, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(legend), ZEN_FIELD(overrides));
-};
+// The current version's two shapes, `WorkshopKeymapRow` and `WorkshopKeymap`, are Workshop's
+// declared state's too, in workshop/vocabulary.hpp.
 
 /// VERSION 1, KEPT VERBATIM UNDER ITS OWN WIRE IDENTITY (`WorkshopKeymap`, 1) so a file a
 /// weaver wrote before this build is READ, explicitly, rather than refused by a number: its rows

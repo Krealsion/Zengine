@@ -160,8 +160,11 @@ struct WorkshopSetupPane {
     std::string theme = {};
 
     /// Version 8: version 7's fields, and the theme laid over the layout's for this pane alone.
+    // A pane's settings are held back from a poke of whoever keeps this row: they may hold
+    // anything the pane declared, and the settings doors tell them to an asker they judge. The
+    // tag is no part of the shape's content id.
     ZEN_SHAPE(WorkshopSetupPane, 8, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
-              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front), ZEN_FIELD(settings),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front), ZEN_HIDE(settings),
               ZEN_FIELD(fold), ZEN_FIELD(dock), ZEN_FIELD(theme));
 };
 
