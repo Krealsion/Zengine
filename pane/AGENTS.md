@@ -31,9 +31,13 @@ root's router; what Workshop does as the host is its law, routed by
 
 ## Suites
 
-None of its own: the seam's suite is `workshop_panes_seam` (`tests/test_workshop_panes_seam.cpp`),
-and each pane's suite, `workshop_panes_<part>`, reads its half through these headers. The package's
-stranger panes build against the installed headers (`tests/package/`).
+The seam's suite is `workshop_panes_seam` (`tests/test_workshop_panes_seam.cpp`), and each pane's
+suite, `workshop_panes_<part>`, reads its half through these headers. The package's stranger panes
+build against the installed headers (`tests/package/`).
+
+- `panes_apart` — a pane's own cases with no Workshop in them: each loads the pane's built image
+  beside a stand-in holding Workshop's role (`tests/pane_stand_in.hpp`) and reads only what the
+  pane says on the bus and what it answers (`tests/test_panes_apart.cpp`).
 
 ## Host side
 

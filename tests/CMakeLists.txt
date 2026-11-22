@@ -1459,6 +1459,22 @@ zengine_workshop_suite(panes
                 # ...and the golden the C++ generator must write for a saved EnsureTimer, which a
                 # drop on a C++ document inserts (the `source_transfer` suite pins the same bytes).
                 "SOURCE_TRANSFER_GOLDEN_FOR_PANES=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
+# THE PANES APART FROM WORKSHOP: a pane's own cases, each loading its built image beside a
+# stand-in that holds Workshop's role (tests/pane_stand_in.hpp), so no Workshop is compiled in or
+# loaded. The stand-in is compiled once, from the pane contract's vocabularies, the manual's and
+# Loom alone.
+add_library(zengine-pane-stand-in STATIC pane_stand_in.cpp)
+target_link_libraries(zengine-pane-stand-in PUBLIC loom::kernel loom::switchboard loom::core
+                      zengine::pane zengine::manual zengine-warnings zengine-sanitize)
+target_include_directories(zengine-pane-stand-in PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+add_executable(zengine-panes-apart-tests test_panes_apart.cpp doctest_main.cpp)
+target_link_libraries(zengine-panes-apart-tests PRIVATE zengine-pane-stand-in)
+zengine_test_definitions(zengine-panes-apart-tests
+    "PANE_SO_VIEW_BUILDER=\"$<TARGET_FILE:zengine-view-builder>\""
+    "PANE_SO_ATTENTION=\"$<TARGET_FILE:zengine-attention-pane>\""
+    "PANE_SO_TERMINAL=\"$<TARGET_FILE:zengine-terminal-pane>\"")
+zengine_doctest_test(panes_apart zengine-panes-apart-tests)
+
 # ...and, under the `box` gate, the example pane built as a module, which the tally cases' twins
 # load by its stem.
 if(TARGET zengine-example-tally-wasm)

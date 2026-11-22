@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- the View Builder, as a loaded weave: the rows it declares, held to
-// its census (tests/actions/zengine.view.builder.txt), and the manual it answers, held to those
-// rows. Its edits, canvas and files are proved in `view_builder` (tests/test_view_builder.cpp).
+// The Workshop panes suite -- the View Builder, as a loaded weave: the rows Workshop holds of it,
+// held to its census (tests/actions/zengine.view.builder.txt). The manual it answers, held to
+// those rows, is proved beside a stand-in for Workshop in `panes_apart` (tests/test_panes_apart.cpp);
+// its edits, canvas and files in `view_builder` (tests/test_view_builder.cpp).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -12,7 +13,6 @@
 #include "census.hpp"
 #include "view/view-builder/vocabulary.hpp"
 
-#include <set>
 #include <string>
 
 namespace {
@@ -56,16 +56,3 @@ const PressDriverOf kViewBuilderPresses{vb::kRole, [](PressWitness& w) {
 ZEN_PRESS_WITNESS_CASE(vb::kRole, 0, "the View Builder's rows")
 
 } // namespace
-
-TEST_CASE("the View Builder answers the manual its build embedded, a section for every action it "
-          "declares and none for another") {
-    PaneRig r;
-    const RuntimePane* held = load_view_builder(r);
-    std::set<std::string> declared;
-    for (const zengine::pane::v4::PaneActionRow& a : held->actions) declared.insert(a.id);
-    ManualReader reader(r, vb::kRole);
-    check_answered_manual(reader, vb::kPane, declared);
-    const PaneDocumentShown other = reader.ask("elsewhere", "");
-    CHECK(other.refusal == "zengine.view.builder offers no pane `elsewhere`");
-    CHECK(other.sections.empty());
-}

@@ -242,19 +242,6 @@ TEST_CASE("the pane declares the three ids a weaver's keymap file already names"
     CHECK(row_of_id("workshop.attention") == nullptr);
 }
 
-TEST_CASE("the manual the Attention pane answers names exactly the commands it declares") {
-    AttentionRig f;
-    f.open();
-    const RuntimePane* held = f.row();
-    REQUIRE(held != nullptr);
-    std::set<std::string> declared;
-    for (const zengine::pane::v4::PaneActionRow& row : held->actions) {
-        declared.insert(row.id);
-    }
-    ManualReader reader(f.r, pane::kAttentionPaneRole);
-    check_answered_manual(reader, pane::kAttentionPane, declared);
-}
-
 TEST_CASE("the pane shows every current condition in its owner's own words") {
     AttentionRig f;
     f.open();
