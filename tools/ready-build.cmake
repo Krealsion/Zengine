@@ -19,9 +19,10 @@
 # It needs what building Zengine needs and nothing more: CMake, Git, a C++ compiler on PATH (in the
 # MSYS2 MinGW64 shell on Windows), and Ninja when it is there (CMake's default generator when not).
 # Nothing is written outside the build folder, the Loom checkout and this checkout's presets file.
-# `-DREADY_BUILD=OFF` before `-P` configures both and installs Loom, and builds nothing of Zengine;
-# `-DREADY_JOBS=<n>` builds at most n jobs at once, for a machine whose memory a Workshop suite's
-# units (up to 3 GB each) would fill at the build tool's own count.
+# It builds as many jobs at once as the memory available when it starts holds, at one heavy unit a
+# job, and no more than the cores, and says the count it chose. `-DREADY_JOBS=<n>` before `-P` sets
+# the count instead; `-DREADY_BUILD=OFF` configures both and installs Loom, and builds nothing of
+# Zengine.
 
 cmake_minimum_required(VERSION 3.21)
 
@@ -62,10 +63,41 @@ find_program(ready_git git)
 if(NOT ready_git)
     message(FATAL_ERROR "ready-build: no git on PATH; it fetches Loom and keeps both checkouts current")
 endif()
-set(ready_jobs "")
+# The job count: `-DREADY_JOBS=<n>` when given, else as many jobs as the memory available now holds
+# at one heavy unit a job, and no more than the cores. A build tool's own count is the cores and
+# more, and the Workshop suites' heaviest units take several GB each to compile, so at that count a
+# cold build outgrows the memory of most machines; a job is counted at 4 GB, above the heaviest
+# unit, with room for the rest of the machine.
+set(ready_job_mb 4096)
+cmake_host_system_information(RESULT ready_cores QUERY NUMBER_OF_LOGICAL_CORES)
+cmake_host_system_information(RESULT ready_avail_mb QUERY AVAILABLE_PHYSICAL_MEMORY)
 if(DEFINED READY_JOBS)
-    set(ready_jobs --parallel "${READY_JOBS}")
+    if(NOT READY_JOBS MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "ready-build: READY_JOBS is the number of jobs at once, 1 or more, not "
+                            "'${READY_JOBS}'")
+    endif()
+    set(ready_count "${READY_JOBS}")
+    message(STATUS "ready-build: ${ready_count} jobs at once, as -DREADY_JOBS asks")
+else()
+    if(NOT ready_avail_mb GREATER 0 OR NOT ready_cores GREATER 0)
+        set(ready_count 1)
+        message(STATUS "ready-build: the memory available or the cores could not be read, so it "
+                       "builds 1 job at once; -DREADY_JOBS=<n> sets the count")
+    else()
+        math(EXPR ready_count "${ready_avail_mb} / ${ready_job_mb}")
+        if(ready_count LESS 1)
+            set(ready_count 1)
+        elseif(ready_count GREATER ready_cores)
+            set(ready_count "${ready_cores}")
+        endif()
+        math(EXPR ready_avail_gb "${ready_avail_mb} / 1024")
+        math(EXPR ready_job_gb "${ready_job_mb} / 1024")
+        message(STATUS "ready-build: ${ready_count} jobs at once: ${ready_avail_gb} GB of memory "
+                       "available, ${ready_job_gb} GB a job, ${ready_cores} cores; -DREADY_JOBS=<n> "
+                       "sets the count")
+    endif()
 endif()
+set(ready_jobs --parallel "${ready_count}")
 find_program(ready_ninja ninja)
 set(ready_generator "")
 if(ready_ninja)

@@ -64,8 +64,9 @@ cmake -P tests/documentation_lane.cmake
   preset into `CMakeUserPresets.json`, so an IDE that reads CMake presets, CLion among them,
   opens the checkout ready to build. Run it again to move both checkouts forward to their upstream
   branches and rebuild only what changed; a checkout with uncommitted changes, or no upstream, is
-  left at what it holds. `-DREADY_JOBS=<n>` before `-P` bounds the build's jobs, for a machine with
-  less memory than one heavy unit a core needs.
+  left at what it holds. It builds as many jobs at once as the memory available when it starts
+  holds, at one heavy unit a job and no more than the cores, and says the count it chose;
+  `-DREADY_JOBS=<n>` before `-P` sets the count instead.
 - **Quote `tests/verify.cmake`, never a bare `ctest`.** A bare run cannot tell whether the tests
   that ran are the tests this repository meant to run. Add `-DZEN_CTEST_ARGS=-j<n>` to run it in
   parallel. The sanitizer lane, the installed-package and build witnesses, and which of them a
