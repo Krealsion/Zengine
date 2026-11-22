@@ -78,9 +78,11 @@ public:
     /// keymap moves none.
     void key(const std::string& role, const std::string& pane, std::int64_t scancode,
              std::int64_t modifiers = 0);
-    /// RELOADS THE WEAVE LOADED AS `name` IN PLACE from `path`, as the kernel's control door does,
-    /// and drains the bus, so the reloaded incarnation speaks and draws again.
-    loom::ReloadResult reload(const std::string& name, const std::string& path);
+    /// RELOADS THE WEAVE LOADED AS `name` IN PLACE from `path`, asked of the Weave Manager as a
+    /// host asks it, so the kernel's control door reloads it and announces the new incarnation, and
+    /// drains the bus, so that incarnation speaks and draws again: the refusal, or "" when the
+    /// manager acknowledged it.
+    std::string reload(const std::string& name, const std::string& path);
     /// The weave loaded as `name`, as the kernel holds it.
     loom::WeaveId weave_id(const std::string& name) const;
     /// A COPY OF `image` in a directory this rig owns and removes, named `prefix` and the image's
@@ -129,6 +131,7 @@ private:
     loom::WeaveId window_;
     loom::WeaveId directory_;
     std::vector<std::string> loaded_;
+    std::size_t acked_ = 0;
     loom::ObserverId tap_ = 0;
     /// The rows each pane declared last, by the role that spoke them and the pane's key.
     std::map<std::pair<std::string, std::string>, std::vector<DeclaredRow>> declared_;

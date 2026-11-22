@@ -115,19 +115,22 @@ struct BootState {
     ZEN_SHAPE(BootState, 1, ZEN_FIELD(n));
 };
 
-/// Commands the Weave Manager and hears its answers, as a host's boot does.
+/// Commands the Weave Manager and hears its answers, as a host's boot does: a load's weave, a
+/// reload's acknowledgement, or a refusal.
 class Booter : public loom::WeaveBase<Booter, BootState,
                                       loom::Accept<loom::Result, loom::Ack, loom::Refused>,
-                                      loom::Emit<loom::LoadWeave>> {
+                                      loom::Emit<loom::LoadWeave, loom::ReloadWeave>> {
 public:
-    Booter(std::vector<std::string>& ok, std::vector<std::string>& no) : ok_(&ok), no_(&no) {}
+    Booter(std::vector<std::string>& ok, std::vector<std::string>& no, std::size_t& acked)
+        : ok_(&ok), no_(&no), acked_(&acked) {}
     void on(const loom::Result& r, loom::Mail&) { ok_->push_back(r.value); }
-    void on(const loom::Ack&, loom::Mail&) {}
+    void on(const loom::Ack&, loom::Mail&) { ++*acked_; }
     void on(const loom::Refused& r, loom::Mail&) { no_->push_back(r.reason); }
 
 private:
     std::vector<std::string>* ok_;
     std::vector<std::string>* no_;
+    std::size_t* acked_;
 };
 
 struct AskerState {
@@ -214,7 +217,7 @@ loom::WeaveId PaneStandInRig::load(const std::string& name, const std::string& p
     loom::Grant reach;
     reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager_);
     const std::size_t before = loaded_.size();
-    const loom::WeaveId booter = loom::mount_granted<Booter>(bus, std::move(reach), loaded_, refusals);
+    const loom::WeaveId booter = loom::mount_granted<Booter>(bus, std::move(reach), loaded_, refusals, acked_);
     bus.send_as(booter, manager_,
                 loom::Message(loom::to_value(loom::LoadWeave{name, path, {role}}), booter, booter, 0));
     settle();
@@ -281,10 +284,18 @@ void PaneStandInRig::key(const std::string& role, const std::string& pane, std::
     settle();
 }
 
-loom::ReloadResult PaneStandInRig::reload(const std::string& name, const std::string& path) {
-    const loom::ReloadResult reloaded = kernel_.reload_from(name, path);
+std::string PaneStandInRig::reload(const std::string& name, const std::string& path) {
+    loom::Grant reach;
+    reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager_);
+    const std::size_t refused = refusals.size(), acked = acked_;
+    const loom::WeaveId booter = loom::mount_granted<Booter>(bus, std::move(reach), loaded_, refusals, acked_);
+    bus.send_as(booter, manager_,
+                loom::Message(loom::to_value(loom::ReloadWeave{name, path}), booter, booter, 0));
     settle();
-    return reloaded;
+    if (refusals.size() > refused) {
+        return refusals.back();
+    }
+    return acked_ > acked ? std::string() : std::string("the Weave Manager answered nothing");
 }
 
 loom::WeaveId PaneStandInRig::weave_id(const std::string& name) const { return kernel_.weave_id(name); }

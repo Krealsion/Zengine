@@ -133,8 +133,8 @@ void keeps_its_count_across_a_reload_in_place(const char* name, const char* imag
     REQUIRE(t.text().find("Tally: 2") != std::string::npos);
     // THE SAME IMAGE, REBUILT: its state rides the reload, and the reloaded pane draws it.
     const loom::WeaveId before = t.r.weave_id(t.stem);
-    const loom::ReloadResult reloaded = t.r.reload(t.stem, t.r.copy_of(image, "rebuilt-"));
-    REQUIRE_MESSAGE(reloaded.ok, reloaded.error);
+    const std::string refused = t.r.reload(t.stem, t.r.copy_of(image, "rebuilt-"));
+    REQUIRE_MESSAGE(refused.empty(), refused);
     CHECK(t.r.weave_id(t.stem) == before);
     CHECK_MESSAGE(t.text().find("Tally: 2") != std::string::npos, t.text());
     // ...AND IT GOES ON COUNTING FROM THERE.
