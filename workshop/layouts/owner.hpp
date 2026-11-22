@@ -38,7 +38,23 @@ using pane::PaneSettings;
 using pane::PaneSettingsAsked;
 using pane::PaneSettingsDeclared;
 
-/// WHAT THE OWNER HAS DONE: counters only.
+/// THE RUN AS THE SESSION FILE KEEPS IT: every layout with the id the owner minted it, its desk
+/// and its link to a setup file; which one is live; and the id the next one takes.
+struct LayoutRun {
+    std::vector<session_persist::WorkshopLayout> layouts;
+    std::int64_t active = 0;
+    std::int64_t next_id = 0;
+    ZEN_SHAPE(LayoutRun, 1, ZEN_FIELD(layouts), ZEN_FIELD(active), ZEN_FIELD(next_id));
+};
+
+/// WHAT THE OWNER KEEPS THAT MUST OUTLIVE A RELOAD, and what it has done. The run and the
+/// settings are its facts, each in its file's own shapes: a reload carries them, and the session
+/// and settings files are written from them. Each row's and each role's settings are held back
+/// from a poke by their shapes' own tags (`ZEN_HIDE`), and told by the settings doors. The
+/// revisions move into the state, so a reader that named a desk or a revision never meets another
+/// under that number after a reload. The counters are writable one by one, and nothing else is,
+/// so a `zen.PokeResetState`, which needs every field writable, is refused rather than putting
+/// the default desk live over every layout the weaver authored.
 struct LayoutsOwnerState {
     std::int64_t edits = 0;    ///< edits the presenter asked, an empty one included
     std::int64_t refused = 0;  ///< asks refused before they were judged: the wrong asker
@@ -46,9 +62,13 @@ struct LayoutsOwnerState {
     std::int64_t saves = 0;    ///< sessions written
     std::int64_t withheld = 0; ///< settings asks from an asker the doors do not serve
     std::int64_t questions = 0; ///< weaver's-act questions asked of the presenter
-    ZEN_EXPOSE();
-    ZEN_SHAPE(LayoutsOwnerState, 1, ZEN_FIELD(edits), ZEN_FIELD(refused), ZEN_FIELD(pictures),
-              ZEN_FIELD(saves), ZEN_FIELD(withheld), ZEN_FIELD(questions));
+    std::int64_t revision = 0; ///< moves on any change of the run or of the live layout
+    std::int64_t put_live = 0; ///< moves each time another desk is put live
+    LayoutRun run;
+    prefs_persist::WorkshopPrefs settings; ///< the settings file: every role's, the pins, the locks
+    ZEN_SHAPE(LayoutsOwnerState, 2, ZEN_EXPOSE(edits), ZEN_EXPOSE(refused), ZEN_EXPOSE(pictures),
+              ZEN_EXPOSE(saves), ZEN_EXPOSE(withheld), ZEN_EXPOSE(questions), ZEN_FIELD(revision),
+              ZEN_FIELD(put_live), ZEN_FIELD(run), ZEN_FIELD(settings));
 };
 
 /// WHAT THE HOST HANDS THE OWNER AT ITS MOUNT, each read at the ask and kept nowhere: the store's
@@ -136,6 +156,13 @@ public:
     void settle(loom::Mail& mail, bool picture = false);
     /// THE HOST'S READINGS, taken now: for a rig that reads the store between messages.
     void read_host_now() { read_host(); }
+
+    /// THE STATE MADE TO SAY WHAT THE STORE HOLDS, at the end of every delivery: the run, the
+    /// settings and the revisions.
+    void after_delivery(loom::Mail& mail);
+    /// A RELOAD'S STATE PUT BACK INTO THE STORE: the run, the settings and the revisions, and
+    /// nothing an asker held, whose asks end with `zen.AskEnded`.
+    void revive(const loom::Value& v) override;
 
 private:
     struct PendingUnlock {

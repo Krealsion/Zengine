@@ -723,7 +723,9 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
             answer.file_refusal = "the keymap file changed since this Workshop read it -- not "
                                   "written; relaunch to read the file, then edit again";
         } else {
-            const std::string text = keymap_persist::to_text(session_.keymap);
+            // WRITTEN FROM THE STATE: the bindings as the edit leaves them, the file's own value.
+            state_ = declared_state(session_, window_name_);
+            const std::string text = loom::compat::serialize(loom::to_value(state_.bindings));
             const Written wrote = persist::write_file(host_->keymap_path, text);
             if (wrote.accepted) {
                 answer.written = true;

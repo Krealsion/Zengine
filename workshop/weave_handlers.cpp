@@ -49,6 +49,8 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
         return;
     }
     session_.keymap = loaded.keymap;
+    // READ INTO THE STATE: the bindings as the file authored them, from which the keymap is derived.
+    state_.bindings = keymap_persist::to_keymap(session_.keymap);
     // And every pane that declared rows before the file loaded is joined again under it, so both
     // load orders end the same way: the file in force, and a colliding pane's rows refused in
     // words (WL-KEY-15).

@@ -11,6 +11,7 @@
 
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
+#include "workshop/vocabulary.hpp" // the file's current shapes
 #include "screen.hpp"
 
 #include <zen/admission.hpp>
@@ -57,15 +58,8 @@ inline constexpr std::uintmax_t kMaxWindowBytes = 4u << 10;
 
 // ---- The file's own shapes ----------------------------------------------------------------
 
-/// HOW MUCH ROOM THE SURFACE HAD, in canvas pixels.
-// WL-SESSION-07 -- agents/workshop/window-file.md
-struct WorkshopViewport {
-    std::int64_t width = 0;
-    std::int64_t height = 0;
-
-    /// Version 2: the room is canvas pixels. Same fields as version 1, which said it in cells.
-    ZEN_SHAPE(WorkshopViewport, 2, ZEN_FIELD(width), ZEN_FIELD(height));
-};
+// The file's current shapes, `WorkshopViewport`, `WorkshopPlacement` and `WorkshopWindow`, are
+// Workshop's declared state's too, in workshop/vocabulary.hpp.
 
 /// THE ROOM AS SESSIONS BEFORE VERSION 7 WROTE IT, in canvas cells, retained for reading them.
 namespace v1 {
@@ -87,30 +81,7 @@ inline constexpr const char* kWindowNormal = "normal";
 inline constexpr const char* kWindowMaximized = "maximized";
 inline constexpr const char* kWindowWords = "normal or maximized";
 
-/// WHERE THE WINDOW SAT ON ITS DESKTOP, as the last medium reported it.
-struct WorkshopPlacement {
-    std::string mode;   ///< none | desktop
-    std::int64_t x = 0; ///< the normal window's top-left, in the medium's desktop units
-    std::int64_t y = 0;
-    std::string window; ///< normal | maximized
 
-    ZEN_SHAPE(WorkshopPlacement, 1, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y),
-              ZEN_FIELD(window));
-};
-
-/// THE WINDOW FILE: what it is, which version, the normal window's room, where the window sat,
-/// and the GUI window's own normal room (0 by 0 where none was kept).
-// WL-SESSION-21 -- agents/workshop/window-file.md
-struct WorkshopWindow {
-    std::string format;
-    std::int64_t format_version = 0;
-    WorkshopViewport viewport;
-    WorkshopPlacement placement;
-    WorkshopViewport window_room;
-
-    ZEN_SHAPE(WorkshopWindow, 1, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(viewport), ZEN_FIELD(placement), ZEN_FIELD(window_room));
-};
 
 static_assert(WorkshopWindow::zen_version == static_cast<std::uint32_t>(kFormatVersion),
               "the window file's format version and its envelope's shape version are one number: a "

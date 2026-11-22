@@ -35,8 +35,9 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 ## Proven by
 
 ### WL-SESSION-21
-`workshop/window_persist.hpp` path_beside WorkshopWindow kFormatVersion from_text save_file
+`workshop/window_persist.hpp` path_beside kFormatVersion from_text save_file
 load_file import_from_session import_from_session_text kSessionPixelsVersion
+`workshop/vocabulary.hpp` WorkshopWindow
 `workshop/weave_session.cpp` restore_last_session save_last_session
 `tests/test_workshop_persistence.cpp` "an older session's room is Workshop's window file's once:
 read while none stands, and never again once one does" "a session file holds the run and nothing of
@@ -45,7 +46,8 @@ the window, and nothing runtime" "reading an old session does not rewrite it; th
 and a refused quit writes neither"
 
 ### WL-SESSION-07
-`workshop/window_persist.hpp` viewport_honoured declined_viewport WorkshopViewport LoadedWindow
+`workshop/window_persist.hpp` viewport_honoured declined_viewport LoadedWindow
+`workshop/vocabulary.hpp` WorkshopViewport
 `workshop/screen.hpp` kScreenMinW kScreenMaxW kScreenMinH kScreenMaxH
 `tests/test_workshop_persistence.cpp` "a hostile room is declined, and the desk still comes back"
 "the band a room is honoured in is the one the screen is honest at"

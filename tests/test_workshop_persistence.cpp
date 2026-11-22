@@ -18,6 +18,7 @@
 #include "workshop/decoded_cells.hpp"
 
 #include <algorithm>
+#include <variant>
 #include <functional>
 #include <limits>
 
@@ -7593,4 +7594,83 @@ TEST_CASE("a hidden pane keeps its row and comes back where it was after a save 
     CHECK(shown->height == left.height);
     CHECK_FALSE(back.session().arrange.open);
     CHECK(back.session().panes.has(stock::kKind));
+}
+
+// ---- What a reload carries: the declared state ------------------------------
+
+TEST_CASE("a reload carries the bindings, the room and the run: a Workshop and an owner made "
+          "anew and revived from the state the running ones declared hold all three") {
+    // THE REAL BOUNDARY, as a reload crosses it: each weave's snapshot, the value Loom keeps for a
+    // reload, put into a weave made anew (`revive`), with no file read again. A weave revived in
+    // place keeps its members whatever its state says, so it would prove nothing here.
+    TempDir dir("reload-carries");
+    const std::string session = dir.file("session.json");
+    const std::string keymap = dir.file("keymap.json");
+    window_persist::Placement place;
+    place.known = true;
+    place.x = 40;
+    place.y = 30;
+    REQUIRE(save_last_run(session,
+                          plain_run({setup_of("Write", {stock::kKind}),
+                                     setup_of("Read", {second::kKind})}),
+                          1, cells_px(100), cells_px(40), place)
+                .accepted);
+    write_keymap_file(keymap, keymap_file_text("full", {{"hello.up", "ctrl+u"}}));
+    Live t;
+    t.host.session_path = session;
+    t.host.keymap_path = keymap;
+    t.ready();
+    INFO(t.notice());
+    REQUIRE(t.session().keymap.authored.size() == 1);
+    REQUIRE(layout_count(t.run()) == 2);
+    REQUIRE(t.session().placement_known);
+
+    const loom::Value workshop_state = t.w->snapshot();
+    const loom::Value owner_state = t.owner->snapshot();
+
+    WorkshopWeave workshop(t.host);
+    workshop.revive(workshop_state);
+    // THE BINDINGS, as authored, and the keymap derived from them.
+    const auto rows = [](const Keymap& k) {
+        std::vector<std::string> out;
+        for (const AuthoredOverride& o : k.authored) {
+            out.push_back(o.action + "=" + o.gesture);
+        }
+        return out;
+    };
+    CHECK(rows(workshop.session().keymap) == rows(t.session().keymap));
+    CHECK(rows(workshop.session().keymap) == std::vector<std::string>{"hello.up=ctrl+u"});
+    CHECK(workshop.session().keymap.legend == t.session().keymap.legend);
+    CHECK(workshop.session().keymap.overrides == t.session().keymap.overrides);
+    // THE ROOM: the normal window's, and where the window sat.
+    CHECK(workshop.session().normal_w == t.session().normal_w);
+    CHECK(workshop.session().normal_h == t.session().normal_h);
+    CHECK(workshop.session().placement_known);
+    CHECK(workshop.session().place_x == 40);
+    CHECK(workshop.session().place_y == 30);
+
+    LayoutsOwner owner(layouts_owner_host(t.host));
+    owner.revive(owner_state);
+    // THE RUN: every layout, the live one, and no revision handed out twice.
+    CHECK(layout_run(owner.layouts().run()) == layout_run(t.owner->layouts().run()));
+    CHECK(live_at(owner.layouts().run()) == live_at(t.owner->layouts().run()));
+    CHECK(owner.layouts().run().next_id == t.owner->layouts().run().next_id);
+    CHECK(owner.layouts().revision() > t.owner->layouts().revision());
+}
+
+TEST_CASE("the owner's state cannot be reset by a poke: its counters are writable one by one, "
+          "and the run and the settings are not") {
+    // A reset rewrites every field; with the run in the state, a reset would put the default desk
+    // live over every layout the weaver authored. So it is refused, naming the first field that is
+    // not writable, and a counter is still written alone.
+    LayoutsOwnerState s;
+    s.edits = 3;
+    s.run.next_id = 7;
+    const std::variant<loom::Ack, loom::Refused> reset = loom::poke_reset(s);
+    REQUIRE(std::holds_alternative<loom::Refused>(reset));
+    CHECK(std::get<loom::Refused>(reset).reason.find("'revision'") != std::string::npos);
+    CHECK(s.run.next_id == 7);
+    CHECK(std::holds_alternative<loom::Ack>(loom::poke_write(s, "edits", "0")));
+    CHECK(s.edits == 0);
+    CHECK(std::holds_alternative<loom::Refused>(loom::poke_write(s, "revision", "0")));
 }

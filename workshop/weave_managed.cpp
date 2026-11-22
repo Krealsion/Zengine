@@ -165,6 +165,7 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
         publish_desk_stamps(mail);
     }
     claim_time(mail);
+    state_ = declared_state(session_, window_name_);
 }
 
 // ---- The trial: would it seat, and what room would it get? ---------------------------------

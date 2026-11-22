@@ -2334,15 +2334,15 @@ std::string LayoutStore::fold_layout_entries() {
 }
 
 // WL-SESSION-13, WL-SESSION-15 -- agents/workshop/session.md
-std::string LayoutStore::save_session(const std::vector<session_persist::WorkshopChoice>& chosen) {
+std::string LayoutStore::save_session(const session_persist::WorkshopSession& session) {
     if (host_->session_path.empty()) {
         return "isolated run -- no session file";
     }
     if (!session_refusal_.empty()) {
         return host_->session_path + " could not be read and will not be written over";
     }
-    const Written written = session_persist::save_file(
-        host_->session_path, layout_run(run_), live_at(run_), run_.next_id, chosen);
+    const Written written = persist::write_file_making_room(host_->session_path,
+                                                            session_persist::to_text(session));
     if (!written.accepted) {
         return written.refusal;
     }
@@ -2351,6 +2351,52 @@ std::string LayoutStore::save_session(const std::vector<session_persist::Worksho
     if (prefs_persist::has_layout_entries(prefs_) && !prefs_bad_) {
         (void)write_prefs();
     }
+    return std::string();
+}
+
+// ---- The declared state ------------------------------------------------------------------------
+
+session_persist::WorkshopSession LayoutStore::declared_run() const {
+    return session_persist::to_session(layout_run(run_), live_at(run_), run_.next_id);
+}
+
+prefs_persist::WorkshopPrefs LayoutStore::declared_settings() const {
+    return prefs_persist::to_prefs(prefs_);
+}
+
+std::string LayoutStore::revive(const session_persist::WorkshopSession& run,
+                                const prefs_persist::WorkshopPrefs& settings,
+                                std::int64_t revision, std::uint64_t put_live) {
+    std::vector<Layout> layouts;
+    std::size_t active = 0;
+    const Written read = session_persist::layouts_in(run, layouts, active);
+    if (!read.accepted) {
+        std::string why = "the reloaded run was not put in place -- " + read.refusal;
+        say(why, true);
+        return why;
+    }
+    SetupState next;
+    (void)install_layout_run(next, std::move(layouts), active);
+    next.next_id = std::max(next.next_id, run.next_id);
+    next.put_live = std::max(next.put_live, put_live);
+    run_ = std::move(next);
+    prefs_ = prefs_persist::Prefs{settings.roles, settings.pins, settings.locks};
+    // THE FILES WERE THE LIFE BEFORE'S TO READ: this one neither restores the session again nor
+    // reads the settings file again, and a write compares the file against what it holds now.
+    restored_ = true;
+    prefs_loaded_ = true;
+    if (!host_->prefs_path.empty()) {
+        std::error_code ec;
+        prefs_file_present_ = std::filesystem::exists(host_->prefs_path, ec);
+        if (prefs_file_present_) {
+            const persist::FileText now = persist::read_file(
+                host_->prefs_path, prefs_persist::kMaxPrefsBytes, "a Workshop prefs file");
+            prefs_bytes_ = now.outcome.accepted ? now.text : std::string();
+        }
+    }
+    revision_ = std::max(revision_, revision);
+    settle_live();
+    moved();
     return std::string();
 }
 
