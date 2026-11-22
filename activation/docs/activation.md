@@ -6,10 +6,10 @@ keeps a cursor for you ([timer binding](../../timer/docs/timed-weaves.md)); read
 `zen.Activated` itself.
 
 Source: [`activation/activation.hpp`](../activation.hpp). Link
-`zengine::activation`. Header-only over the Loom's lifecycle vocabulary and its `WeaveId`, so it
+`zengine::activation`. It is header-only over Loom's lifecycle vocabulary and its `WeaveId`, so it
 exists in every configuration, with or without a kernel.
 
-What an activation means is the Loom's, not this package's: `zen.Activated{sequence}` says that
+What an activation means is Loom's, not this package's: `zen.Activated{sequence}` says that
 a new incarnation committed at this address, and nothing else — not healthy, not ready, not
 "start a loop" ([lifecycle laws](https://github.com/Krealsion/Loom/blob/main/docs/laws/lifecycle-laws.md),
 LIFE-01). What a weave does with an accepted activation is the weave's own business. The cursor
@@ -22,9 +22,9 @@ once-per-activation work only when `accept` returns true.
 `ActivationCursor::accept` answers two different questions, and keeping them apart is the whole
 of the design.
 
-1. **Provenance: did the Loom itself attest a lifecycle commit for this incarnation?** The Loom
-   answers it, not the cursor. `Mail::lifecycle_attested()` is a delivery fact the bus sets and
-   no payload can carry; only host infrastructure holding the Loom's lifecycle authority can
+1. **Provenance: did Loom itself attest a lifecycle commit for this incarnation?** Loom answers
+   it, not the cursor. `Mail::lifecycle_attested()` is a delivery fact the bus sets and no payload
+   can carry; only host infrastructure holding Loom's lifecycle authority can
    attest (LIFE-04). The attested sequence (`Mail::attested_sequence()`) must also equal the
    payload's, so an attestation minted for one activation cannot authenticate another. An
    unattested `zen.Activated` — however well formed, however plausible its sequence, whoever
@@ -44,7 +44,7 @@ values read off a payload, and this one makes that mistake unrepresentable.
 ## Why a sender is never an identity on its own
 
 An activation's identity is never inferred from a stamped sender alone. Read that way, any weave
-granted the public shape could manufacture a first breath for someone else's incarnation, and the
+granted the public shape could manufacture an activation for someone else's incarnation, and the
 consumer could not tell: a different sender would simply read as a new lineage. That is why
 provenance comes first and an unattested activation is not a lineage at all.
 
@@ -65,7 +65,7 @@ arrives before this incarnation's own activation.
 A weave that tags its own traffic with the activation it was sent under carries two halves:
 `sender_text()` and `sequence()`. The sender travels as canonical decimal Text because a
 `WeaveId` is an unsigned 64-bit value and the wire's `Int` is signed, so an `Int` field would
-narrow the top half of the range silently. Decimal Text is lossless, and it is the spelling the
+narrow the top half of the range silently. Decimal Text is lossless, and it is the spelling
 Loom already uses for a `WeaveId` on the wire: the kernel's control door answers a load with the
 new weave's id as `zen.Result` text, and the Weave Manager parses it back. `matches(sender_text,
 sequence)` is true only when both halves name the current activation: a matching sequence under a
@@ -73,7 +73,7 @@ different sender is another lineage's traffic, not this one's.
 
 ## What it does not claim
 
-- **That the host's wiring is the right one.** An accepted activation proves the Loom authorized
+- **That the host's wiring is the right one.** An accepted activation proves Loom authorized
   the commit. Which infrastructure holds the lifecycle authority is the host's decision, and a
   host that hands it to two initiators has two lineages by its own choice.
 - **Anything across a process boundary.** An out-of-process weave receives no attestation, so a
@@ -83,7 +83,7 @@ different sender is another lineage's traffic, not this one's.
 
 The same header composes facets onto a weave (`zengine::With`), and a weave lists the shapes it
 accepts in `loom::Accept<...>`, where Loom reads each one's schema from its `ZEN_SHAPE`. A schema
-built by hand with `loom::SchemaBuilder` -- one whose fields are all optional, or one the Loom
+built by hand with `loom::SchemaBuilder` -- one whose fields are all optional, or one Loom
 owns, such as `zen.AcceptedShapes` -- has no `ZEN_SHAPE` to read. A type satisfying
 `zengine::ValueDoor` stands in its place: it names the schema (`static schema()`) and reads itself
 out of a value the gate admitted against it (`static from_value(value)`).
@@ -111,9 +111,6 @@ public:
 
 ## Tests
 
-Zengine suite `timer` exercises the cursor through the Timer and its binding: an unattested
-activation, a replay, a newer sequence and a second initiator's lineage. A value door is exercised
-where it is accepted: Compose's discovery in `workshop_panes_hand`
-(`tests/test_workshop_panes_input.cpp`) and the discovery door in `workshop_panes_terminal`
-(`tests/test_workshop_panes_powers.cpp`) and `workshop_load`; the installed-package witness compiles
-one from `tests/package/public_surface.cpp`.
+The suites that prove the cursor and the value door are listed on
+[the folder's front page](../README.md#working-on-it).
+

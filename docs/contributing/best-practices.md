@@ -409,7 +409,7 @@ Its law, pages and suites: [`ui/AGENTS.md`](../../ui/AGENTS.md).
 ## The Timer and activation (`timer/`, `activation/`)
 
 Its law, pages and suites: [the Timer's front page](../../timer/README.md#working-on-it) and
-[`activation/AGENTS.md`](../../activation/AGENTS.md).
+[the activation cursor's front page](../../activation/README.md#working-on-it).
 
 - **A host rests in its one wait**: its loop turns with `pump_pending()` and rests between turns
   in Loom's `loom::host::Reactor`, which wakes the Timer and every source it trusts at their time
