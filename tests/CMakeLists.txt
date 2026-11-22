@@ -1475,7 +1475,13 @@ zengine_test_definitions(zengine-panes-apart-tests
     "PANE_SO_VIEW_BUILDER=\"$<TARGET_FILE:zengine-view-builder>\""
     "PANE_SO_ATTENTION=\"$<TARGET_FILE:zengine-attention-pane>\""
     "PANE_SO_TERMINAL=\"$<TARGET_FILE:zengine-terminal-pane>\""
-    "PANE_SO_TALLY=\"$<TARGET_FILE:zengine-example-tally>\"")
+    "PANE_SO_TALLY=\"$<TARGET_FILE:zengine-example-tally>\""
+    "PANE_SO_INFO=\"$<TARGET_FILE:zengine-info-pane>\""
+    "PANE_SO_BUILDER_PANE=\"$<TARGET_FILE:zengine-builder-pane>\""
+    # ...and the Builder pane built with other words, the image a reload in place swaps in.
+    "PANE_SO_BUILDER_PANE_REWORDED=\"$<TARGET_FILE:zengine-builder-pane-reworded>\"")
+# ...and Info's page as its build embeds it, which the pane's answer is compared to.
+zengine_manual(zengine-panes-apart-tests PRIVATE ${PROJECT_SOURCE_DIR}/info/docs/zengine.info.md)
 zengine_doctest_test(panes_apart zengine-panes-apart-tests)
 
 # ...and, under the `box` gate, the example pane built as a module, which the tally cases' twins
@@ -1490,8 +1496,6 @@ if(TARGET zengine-example-tally-wasm)
 endif()
 # ...and the Builder pane's page as its build embeds it, which the pane's answer is compared to.
 zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/builder/docs/zengine.builder-pane.md)
-# ...and Info's, which it answers for each of its panes.
-zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/info/docs/zengine.info.md)
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""

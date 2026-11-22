@@ -11,15 +11,20 @@
 #include "pane_stand_in.hpp"
 
 #include "attention/vocabulary.hpp"
+#include "builder/builder-pane/vocabulary.hpp"
+#include "info/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "pane/drawing.hpp"
 #include "terminal/vocabulary.hpp"
 #include "view/view-builder/vocabulary.hpp"
 
+#include "manuals/zengine.info.hpp" // Info's page, as this tree's build embedded it
+
 #include <algorithm>
 #include <set>
 #include <string>
 
+using zengine::pane::PaneDocumentShown;
 using zengine::testing::PaneStandInRig;
 using zengine::testing::StandInManualReader;
 
@@ -162,3 +167,89 @@ TEST_CASE("boxed: Tally keeps its count across a reload in place and goes on cou
     keeps_its_count_across_a_reload_in_place(kTallyBoxedStem, PANE_WASM_TALLY);
 }
 #endif
+
+// ============================================================================
+// A pane's manual, asked of the pane alone: the page its build embedded, what it refuses, and what
+// a reload in place with other words answers
+// ============================================================================
+
+TEST_CASE("Info answers its manual for each pane it offers from the page its build embedded, and "
+          "refuses a pane or a section it does not have, naming what is missing") {
+    namespace manual = zengine::manual;
+    namespace pane = zengine::info_pane;
+    const manual::Manual& page = manual::pages::zengine_info::kManual;
+    PaneStandInRig r;
+    INFO("refusals: ", r.refusals.empty() ? std::string() : r.refusals.back());
+    REQUIRE(r.load(pane::kInfoPaneStem, PANE_SO_INFO, pane::kInfoPaneRole).valid());
+    StandInManualReader reader{r, pane::kInfoPaneRole};
+
+    // THE WHOLE PAGE, ASKED WITH NO SECTION: the page this tree's build embedded, in order.
+    const PaneDocumentShown whole = reader.ask(pane::kInfoPane, "");
+    CHECK(whole.refusal.empty());
+    CHECK(whole.content_id == std::string(page.content_id));
+    REQUIRE(whole.sections.size() == page.count);
+    for (std::size_t i = 0; i < page.count; ++i) {
+        CHECK(whole.sections[i].key == std::string(page.sections[i].key));
+        CHECK(whole.sections[i].text == std::string(page.sections[i].text));
+    }
+    // ...THE SAME PAGE FOR A VALUE VIEW'S PANE, one command at a time.
+    const PaneDocumentShown save = reader.ask(pane::view_key(2), pane::kActionSave);
+    CHECK(save.refusal.empty());
+    REQUIRE(save.sections.size() == 1);
+    CHECK(save.sections[0].key == pane::kActionSave);
+    CHECK(save.content_id == whole.content_id);
+
+    const PaneDocumentShown section = reader.ask(pane::kInfoPane, "info.fly");
+    CHECK(section.refusal == "the manual of zengine.info has no section `info.fly`");
+    CHECK(section.sections.empty());
+    const PaneDocumentShown other = reader.ask("info.5", "");
+    CHECK(other.refusal == "zengine.info offers no pane `info.5`");
+    CHECK(other.sections.empty());
+    CHECK(other.content_id.empty());
+}
+
+TEST_CASE("a section or a pane the Builder does not have is refused, naming what is missing") {
+    namespace pane = zengine::builder_pane;
+    PaneStandInRig r;
+    INFO("refusals: ", r.refusals.empty() ? std::string() : r.refusals.back());
+    REQUIRE(r.load(pane::kBuilderPaneStem, PANE_SO_BUILDER_PANE, pane::kBuilderPaneRole).valid());
+    StandInManualReader reader{r, pane::kBuilderPaneRole};
+
+    const PaneDocumentShown section = reader.ask(pane::kBuilderPane, "builder.fly");
+    CHECK(section.refusal == "the manual of zengine.builder-pane has no section `builder.fly`");
+    CHECK(section.sections.empty());
+    CHECK(section.section == "builder.fly");
+
+    const PaneDocumentShown other = reader.ask("elsewhere", "");
+    CHECK(other.refusal == "zengine.builder-pane offers no pane `elsewhere`");
+    CHECK(other.sections.empty());
+    CHECK(other.content_id.empty());
+}
+
+TEST_CASE("a Builder reloaded in place with other words answers only the new ones") {
+    namespace pane = zengine::builder_pane;
+    PaneStandInRig r;
+    INFO("refusals: ", r.refusals.empty() ? std::string() : r.refusals.back());
+    REQUIRE(r.load(pane::kBuilderPaneStem, PANE_SO_BUILDER_PANE, pane::kBuilderPaneRole).valid());
+    StandInManualReader reader{r, pane::kBuilderPaneRole};
+    const PaneDocumentShown before = reader.ask(pane::kBuilderPane, "");
+    REQUIRE(before.refusal.empty());
+    REQUIRE(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal.empty());
+
+    // THE SAME ROLE, ITS SAME SOURCE, BUILT WITH ANOTHER PAGE, reloaded in place through the
+    // real control door: the same weave id and its state, a new image, and its own words.
+    const loom::WeaveId held = r.weave_id(pane::kBuilderPaneStem);
+    const std::string refused = r.reload(pane::kBuilderPaneStem, PANE_SO_BUILDER_PANE_REWORDED);
+    REQUIRE_MESSAGE(refused.empty(), refused);
+    CHECK(r.weave_id(pane::kBuilderPaneStem) == held);
+    const PaneDocumentShown after = reader.ask(pane::kBuilderPane, "");
+    REQUIRE(after.refusal.empty());
+    CHECK(after.content_id != before.content_id);
+    CHECK(after.sections.size() < 10);
+    const PaneDocumentShown about = reader.ask(pane::kBuilderPane, "about");
+    REQUIRE(about.sections.size() == 1);
+    CHECK(about.sections[0].text.find("reworded") != std::string::npos);
+    // NOTHING OF THE OLD PAGE IS ANSWERED: its commands' sections went with its image.
+    CHECK(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal ==
+          "the manual of zengine.builder-pane has no section `builder.build`");
+}

@@ -3689,49 +3689,6 @@ TEST_CASE("the manual the Builder answers is the page its build embedded, and na
     CHECK(declared.size() >= 29);
 }
 
-TEST_CASE("a section or a pane the Builder does not have is refused, naming what is missing") {
-    BuilderRig b("bld-manual-refused");
-    b.tool->catalog = catalog_of({{"tally", "tally"}});
-    b.open();
-    ManualReader reader(b.r, pane::kBuilderPaneRole);
-
-    const PaneDocumentShown section = reader.ask(pane::kBuilderPane, "builder.fly");
-    CHECK(section.refusal == "the manual of zengine.builder-pane has no section `builder.fly`");
-    CHECK(section.sections.empty());
-    CHECK(section.section == "builder.fly");
-
-    const PaneDocumentShown other = reader.ask("elsewhere", "");
-    CHECK(other.refusal == "zengine.builder-pane offers no pane `elsewhere`");
-    CHECK(other.sections.empty());
-    CHECK(other.content_id.empty());
-}
-
-TEST_CASE("a Builder reloaded in place with other words answers only the new ones") {
-    BuilderRig b("bld-manual-reload");
-    b.tool->catalog = catalog_of({{"tally", "tally"}});
-    b.open();
-    ManualReader reader(b.r, pane::kBuilderPaneRole);
-    const PaneDocumentShown before = reader.ask(pane::kBuilderPane, "");
-    REQUIRE(before.refusal.empty());
-    REQUIRE(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal.empty());
-
-    // THE SAME ROLE, ITS SAME SOURCE, BUILT WITH ANOTHER PAGE, reloaded in place through the
-    // real control door: the same weave id and its state, a new image, and its own words.
-    b.r.enqueue_reload(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE_REWORDED);
-    b.r.bus.drain_until_idle();
-    REQUIRE(b.r.load_refusals.empty());
-    const PaneDocumentShown after = reader.ask(pane::kBuilderPane, "");
-    REQUIRE(after.refusal.empty());
-    CHECK(after.content_id != before.content_id);
-    CHECK(after.sections.size() < 10);
-    const PaneDocumentShown about = reader.ask(pane::kBuilderPane, "about");
-    REQUIRE(about.sections.size() == 1);
-    CHECK(about.sections[0].text.find("reworded") != std::string::npos);
-    // NOTHING OF THE OLD PAGE IS ANSWERED: its commands' sections went with its image.
-    CHECK(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal ==
-          "the manual of zengine.builder-pane has no section `builder.build`");
-}
-
 // ---- The `?`: a pane's manual shown by the desktop's Manual, with the keys in force -----------
 
 namespace {
