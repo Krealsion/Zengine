@@ -336,7 +336,7 @@ Its law, pages and suites: [`introspection/AGENTS.md`](../../introspection/AGENT
 
 ### Compose (`composer/`, `message-draft/`)
 
-Its law, pages and suites: [`composer/AGENTS.md`](../../composer/AGENTS.md) and
+Its law, pages and suites: [the `composer/` front page](../../composer/README.md#working-on-it) and
 [`message-draft/AGENTS.md`](../../message-draft/AGENTS.md).
 
 - **A drop never submits**, and submitting authorizes the exact destination and versioned shape.

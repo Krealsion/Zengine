@@ -11,3 +11,4 @@ property
 persist
 manual
 ui
+composer

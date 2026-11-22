@@ -31,7 +31,7 @@
 
 namespace zengine::composer {
 
-/// WHERE THIS PANE IS IN THE ONE CONVERSATION IT HAS. Five states, and every one
+/// Where this pane is in the one conversation it has. Five states, and every one
 /// of them is a fact about what this pane has OBSERVED rather than a phase of a
 /// workflow somebody designed.
 namespace stage {
@@ -49,7 +49,7 @@ inline constexpr std::int64_t kCatalog = 3;
 inline constexpr std::int64_t kForm = 4;
 } // namespace stage
 
-/// WHAT A ROW OF THIS PANE NAMES.
+/// What a row of this pane names.
 ///
 /// `kNothing` is NEGATIVE for `no_color()`'s and `kNoEntry`'s reason: every other
 /// meaning is a non-negative index into something, so an absence cannot collide
@@ -80,7 +80,7 @@ struct RenderedRow {
     RowMeaning meaning;
 };
 
-/// THE PANE, AS ROWS THAT KNOW WHAT THEY ARE. Bounded by the granted room and replaced
+/// The pane, as rows that know what they are. Bounded by the granted area and replaced
 /// whole on every projection; the meanings published with it are what a press is read
 /// back against. The caret is where the edited value's is, on its row, and none while no
 /// value is edited or its row was cut; the medium draws it.
@@ -90,7 +90,7 @@ struct ComposerView {
     std::int64_t caret_col = 0;
 };
 
-/// THE MARK AT THE HEAD OF EVERY SELECTABLE ROW, and the two characters cost no
+/// The mark at the head of every selectable row, and the two characters cost no
 /// columns: an unselected row is already indented by two, so selecting one exchanges
 /// two spaces for a mark and a space and no row changes width. `>` is the statement
 /// and the accent colour is the second signal, never the other way round -- a terminal
@@ -128,7 +128,7 @@ inline Window window_of(std::int64_t population, std::int64_t focus, std::int64_
         return w;
     }
     if (rows <= 0) {
-        // THE ACCOUNTING IS TOTAL EVEN WHERE NOBODY CAN SPEND IT. A zero-row budget
+        // The accounting is total even where nobody can spend it. A zero-row budget
         // hides the whole population, and this says so rather than answering with
         // three zeros that add up to nothing -- the caller has no row to write the
         // marker in, which is a fact about the caller and not about the arithmetic.
@@ -189,7 +189,7 @@ inline std::string omission_text(const Window& w) {
     return "  " + std::string(kElided) + " " + std::to_string(w.after) + " more below";
 }
 
-/// HOW MANY ITEMS A FORM'S CURSOR WALKS: every declared field, then Submit, then
+/// How many items a form's cursor walks: every declared field, then Submit, then
 /// Back. The two controls are items of the same ring so a keyboard reaches them
 /// without a second gesture, and they are PLACED separately (see `project`) so a
 /// pointer always finds them in the same place.
@@ -202,7 +202,7 @@ inline std::int64_t back_index(const MessageDraft& d) noexcept {
 inline std::int64_t form_items(const MessageDraft& d) noexcept { return back_index(d) + 1; }
 
 /// The columns a field's value gets, and there is exactly one answer: the row is `mark + name +
-/// ":" + type + "  " + [ value ]`, so the value's room is what the fixed part left, less two
+/// ":" + type + "  " + [ value ]`, so the value's space is what the fixed part left, less two
 /// brackets and the blank a caret after the value's last character stands on, floored at zero.
 /// The projector and the window reconciliation both call it, so `keep_caret_visible` gets the
 /// number the painter cuts with.
@@ -255,7 +255,7 @@ inline FieldRow field_row(const MessageDraft& draft, std::size_t which, bool cho
         return {fit(row + "  [" + fit(d.value.text(), room) + "]", columns)};
     }
     row += "  ";
-    // A column past the value's room, where a caret after its last character stands.
+    // A column past the value's area, where a caret after its last character stands.
     const zengine::pane::RowBox box = zengine::pane::row_box(
         d.value, zengine::pane::pane_text::columns_of(row),
         room + 1 + 2 * zengine::graphics::kTextBoxInset);
@@ -290,7 +290,7 @@ struct Composing {
     graphics::Color notice_ink = graphics::colors::quiet;
 };
 
-/// WHICH ITEM A ROW OF THIS VIEW NAMES, or nothing.
+/// Which item a row of this view names, or nothing.
 ///
 /// TOTAL over every row index, including ones no press can produce: a row outside the
 /// view means nothing, exactly as a heading does. A provider is handed a row off a
@@ -302,7 +302,7 @@ inline RowMeaning meaning_at_row(const ComposerView& view, std::int64_t row) {
     return view.rows[static_cast<std::size_t>(row)].meaning;
 }
 
-/// WHAT THE COMPOSER CALLS A ROW, by what it means: an accepted message by its identity,
+/// What the Composer calls a row, by what it means: an accepted message by its identity,
 /// `message:<name> v<version>`; a draft's field by its name, `field:<name>`; and its two
 /// controls by the action each performs, `control:compose.submit` and `control:compose.back`.
 /// "" for a row that means nothing.
@@ -342,7 +342,7 @@ inline std::string library_row_text(const Composing& c, std::int64_t columns) {
     return fit("from " + c.library, columns);
 }
 
-/// WHAT A ROW IS DRAWN UNDER: the target, the stage, and the form while one is open.
+/// What a row is drawn under: the target, the stage, and the form while one is open.
 inline std::string drawn_under(const Composing& c) {
     std::string out = c.role + '\n' + std::to_string(c.stage);
     if (c.draft.valid()) {
@@ -373,7 +373,7 @@ struct Sayer {
 
 } // namespace detail
 
-/// The whole view, spent against the room Workshop granted, most-protected first: the target
+/// The whole view, spent against the area Workshop granted, most-protected first: the target
 /// line, the notice (a refusal a weaver cannot see is worse than a list they can scroll), the
 /// heading stating the population, the list or form windowed with every omission counted, and
 /// the library line out of genuine slack. The form's two controls are a fixed demand, subtracted
@@ -401,7 +401,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
         say(fit("selected " + c.library, columns), graphics::colors::text);
         --left;
         if (left > 0) {
-            // AN OBSERVED ABSENCE, AND NOT A GUESS. The kernel binds a role at load
+            // An observed absence, and not a guess. The kernel binds a role at load
             // only when one was named, so an empty role is the kernel saying this
             // library holds none. Nothing here manufactures a WeaveId, addresses the
             // library by name, or sweeps for a participant that might answer.
@@ -449,7 +449,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
                 chosen ? graphics::colors::quiet : graphics::no_color());
         }
         left -= w.count;
-        // THE MARKER IS A ROW OF THE BUDGET, so a budget with no rows left has no
+        // The marker is a row of the budget, so a budget with no rows left has no
         // marker -- `window_of` accounts for the whole population whether or not
         // anybody can spend the accounting, and this is where that is spent. What
         // says the list is incomplete at that size is the HEADING, which stated the
@@ -484,7 +484,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             } else if (composability(f.type.kind) != Composability::kScalar) {
                 ink = graphics::colors::quiet;
             } else if (!d.present && f.required) {
-                // A REQUIRED FIELD NOBODY HAS AUTHORED IS SOMETHING THE WEAVER MUST
+                // A required field nobody has authored is something the weaver must
                 // SEE -- it is the one thing standing between this draft and a send.
                 ink = graphics::colors::alert;
             }
@@ -505,7 +505,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             --left;
         }
         if (controls > 0) {
-            // Anchored to the foot, so spare room falls between the fields and the controls,
+            // Anchored to the foot, so spare space falls between the fields and the controls,
             // and the two targets do not move as a weaver scrolls.
             while (left > controls) {
                 say(std::string(), graphics::colors::text);

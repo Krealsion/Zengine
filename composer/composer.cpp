@@ -74,7 +74,7 @@ using zengine::pane::pane_menu::kWorkshopRole;
 using zengine::composer::ComposerCommandContext;
 using AcceptedShapes = zengine::RawValueDoor<&loom::accepted_shapes_schema>;
 
-/// ONE FIELD OF THE OPEN FORM, at its place in the shape: whether it is present, and a typed
+/// One field of the open form, at its place in the shape: whether it is present, and a typed
 /// field's text as the weaver left it, valid or not.
 struct ComposerFieldState {
     bool present = false;
@@ -111,7 +111,7 @@ struct ComposerState {
               ZEN_FIELD(dropped));
 };
 
-/// The pane's offer, room, rows, presses and manual: each row's meaning is `RowMeaning`, which
+/// The pane's offer, area, rows, presses and manual: each row's meaning is `RowMeaning`, which
 /// names the target and form it was drawn under, so a press on a picture drawn for another
 /// target or form, whose rows stood where these stand, opens nothing.
 using Rows = zengine::pane::PaneRowsFacet<kComposePane, kComposerRole,
@@ -147,13 +147,13 @@ public:
         }
     }
 
-    /// THE ROOM THE WINDOW GAVE the pane's area: the pane draws its rows there.
+    /// The area the window gave the pane: the pane draws its rows there.
     void on_room(loom::Mail& mail) {
         ++state_.rooms;
         say(mail);
     }
 
-    /// A PRESS ON A ROW of the picture it was aimed at, read back to what that row meant: a
+    /// A press on a row of the picture it was aimed at, read back to what that row meant: a
     /// message opens its form, a field takes the cursor, and a control does its act.
     void press(const zengine::pane::RowPress& at, loom::Mail& mail) {
         if (busy()) return;
@@ -267,7 +267,7 @@ public:
         }
     }
 
-    /// LOOM'S WORD THAT AN ASK ENDED WITH NO ANSWER: the store's, the permission the submission
+    /// Loom's word that an ask ended with no answer: the store's, the permission the submission
     /// waits on, the discovery, or a paste -- each ended once.
     void on(const loom::AskEnded& ended, loom::Mail& mail) {
         if (storage_.hear(ended, mail)) { storage_notice(mail); return; }
@@ -351,14 +351,14 @@ public:
         composing_.cursor = 0;
         composing_.notice.clear();
         composing_.notice_ink = gfx::colors::quiet;
-        // EVERY PREVIOUS TARGET'S VOCABULARY AND DRAFT GO NOW, before anything is
+        // Every previous target's vocabulary and draft go now, before anything is
         // asked. A snapshot belongs to the target it was read from, and a draft
         // belongs to a shape out of that snapshot; carrying either across would put
         // one target's shapes in front of a weaver aiming at another.
         composing_.snapshot = Snapshot{};
         composing_.draft = MessageDraft{};
         if (composing_.role.empty()) {
-            // AN OBSERVED ABSENCE. `LoadedWeave`'s own rule, one layer further on:
+            // An observed absence. `LoadedWeave`'s own rule, one layer further on:
             // the kernel binds roles at load only when some were named, so no role
             // is the kernel saying this library holds none. There is nothing to
             // address, and nothing here manufactures an address.
@@ -509,7 +509,7 @@ public:
 private:
     Rows& room() { return this->template facet<Rows>(); }
 
-    /// A RELOAD IN PLACE KEEPS THE TARGET AND ITS FORM: the target is asked again what it
+    /// A reload in place keeps the target and its form: the target is asked again what it
     /// accepts, and the form opens again once it answers (`reopen`). What the old image was still
     /// waiting on is said as dropped.
     void restore(loom::Mail& mail) {
@@ -534,7 +534,7 @@ private:
         say(mail);
     }
 
-    /// THE FORM A RELOAD CARRIED, opened again on the target's fresh answer: its message by name
+    /// The form a reload carried, opened again on the target's fresh answer: its message by name
     /// and version among the shapes the target accepts now, its fields as they were left. A
     /// message the target no longer accepts drops the form, and says so.
     void reopen() {
@@ -815,7 +815,7 @@ private:
             storage_notice(mail);
         } catch (const std::exception& e) { complain(e.what()); say(mail); }
     }
-    /// A VALUE OR A REFERENCE PLACED ON THE PANE'S AREA: its place reads back to the row of the rows
+    /// A value or a reference placed on the pane's area: its place reads back to the row of the rows
     /// drawn there it fell on, and a field row takes it as that field's value while any other row
     /// takes it as the whole command.
     void on_drop(const std::string& pane, const std::string& area, std::int64_t x, std::int64_t y,
@@ -868,7 +868,7 @@ private:
         composing_.notice_ink = gfx::colors::alert;
     }
 
-    /// The rows as `project` composes them for the room, each with what it means, published by the
+    /// The rows as `project` composes them for the area, each with what it means, published by the
     /// facet to the window that shows the pane's area, the caret among them.
     void say(loom::Mail& mail) {
         Rows& rows = room();
