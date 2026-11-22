@@ -36,8 +36,9 @@ suite, `workshop_panes_<part>`, reads its half through these headers. The packag
 build against the installed headers (`tests/package/`).
 
 - `panes_apart` — a pane's own cases with no Workshop in them: each loads the pane's built image
-  beside a stand-in holding Workshop's role (`tests/pane_stand_in.hpp`) and reads only what the
-  pane says on the bus and what it answers (`tests/test_panes_apart.cpp`).
+  beside a stand-in holding Workshop's role and a window's (`tests/pane_stand_in.hpp`), which send
+  it what Workshop and a window send a pane, a key, an action, the area it draws in, and reads only
+  what the pane says on the bus, draws and answers (`tests/test_panes_apart.cpp`).
 
 ## Host side
 

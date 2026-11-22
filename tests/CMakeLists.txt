@@ -1405,7 +1405,6 @@ zengine_workshop_suite(panes
                  test_workshop_panes_files.cpp
                  test_workshop_panes_code.cpp
                  test_workshop_panes_output.cpp
-                 test_workshop_panes_tally.cpp
          PIECES 68 78 79 89 113 151 187
     # the Editor and its typed carry, and the opening manager.
     PART editor test_workshop_panes_editor.cpp
@@ -1475,13 +1474,16 @@ target_link_libraries(zengine-panes-apart-tests PRIVATE zengine-pane-stand-in)
 zengine_test_definitions(zengine-panes-apart-tests
     "PANE_SO_VIEW_BUILDER=\"$<TARGET_FILE:zengine-view-builder>\""
     "PANE_SO_ATTENTION=\"$<TARGET_FILE:zengine-attention-pane>\""
-    "PANE_SO_TERMINAL=\"$<TARGET_FILE:zengine-terminal-pane>\"")
+    "PANE_SO_TERMINAL=\"$<TARGET_FILE:zengine-terminal-pane>\""
+    "PANE_SO_TALLY=\"$<TARGET_FILE:zengine-example-tally>\"")
 zengine_doctest_test(panes_apart zengine-panes-apart-tests)
 
 # ...and, under the `box` gate, the example pane built as a module, which the tally cases' twins
-# load by its stem.
+# load: apart by its path, and in Workshop by its stem.
 if(TARGET zengine-example-tally-wasm)
     get_target_property(zengine_tally_module zengine-example-tally-wasm ZENGINE_WASM_MODULE)
+    zengine_test_definitions(zengine-panes-apart-tests "PANE_WASM_TALLY=\"${zengine_tally_module}\"")
+    add_dependencies(zengine-panes-apart-tests zengine-example-tally-wasm)
     zengine_test_definitions(zengine-workshop-panes-tests
         "WORKSHOP_WASM_TALLY=\"${zengine_tally_module}\"")
     add_dependencies(zengine-workshop-panes-tests zengine-example-tally-wasm)

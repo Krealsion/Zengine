@@ -67,14 +67,16 @@ workshop_panes_inspect            doctest           always  130
 # Tripwires in this part read info/pane.cpp as text (VM-WALL-11).
 workshop_panes_info               doctest           always  189
 # A pane beside a stand-in for Workshop, no Workshop compiled in or loaded.
-panes_apart                       doctest           always  3
+panes_apart                       doctest           always  5
+# The example pane's twins on its module, built where the Loom package builds them (the `box` gate).
+panes_apart                       doctest           box     2
 workshop_panes_settings           doctest           always  57
 # Tripwires in this part read the Terminal pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_terminal           doctest           always  77
 # Tripwires in this part read the Builder pane's source and CMake file as text (VM-WALL-11).
-workshop_panes_project            doctest           always  207
+workshop_panes_project            doctest           always  205
 # The example pane's twins on its module, built where the Loom package builds them (the `box` gate).
-workshop_panes_project            doctest           box     4
+workshop_panes_project            doctest           box     2
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp and the
 # Editor pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_editor             doctest           always  137

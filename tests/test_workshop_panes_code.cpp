@@ -7,6 +7,8 @@
 // recipe that source belongs to. All through the real Workshop, opening manager, Editor, Builder
 // and example pane (`examples/tally-pane/tally.cpp`); a case asserts what a weaver sees or what
 // crossed the bus, and the one pure case asks the host-side join, a WeaveId join and never a role.
+// And the example pane as a plan row loads it: the stem the host spells for its image, and the
+// words Workshop says of the row, native and boxed.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -23,6 +25,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -1394,3 +1397,156 @@ TEST_CASE("Edit Code asks class open for the guest's hand: a recipe whose source
     }
     CHECK(g.hand->refusals.empty()); // every moment the guest injected was taken
 }
+
+// ============================================================================
+// The example pane as a plan row loads it: the host's one rule that spells a module's stem as it
+// is, and Workshop's `loaded:` words for the row, said as the kernel holds the image. Each case
+// over the image a row names runs on the native build, and under the `box` gate on the module
+// built from the same source (`zengine_wasm_weave`). What Tally itself answers, native and boxed,
+// is proved beside a stand-in for Workshop in `panes_apart` (tests/test_panes_apart.cpp).
+// ============================================================================
+
+namespace {
+
+constexpr const char* kNativeStem = kTallyStem;
+/// The same pane as a module: a stem spelled with WebAssembly's suffix, which the host keeps.
+constexpr const char* kBoxedStem = "zengine-example-tally.wasm";
+
+/// A LIVE WORKSHOP WITH TALLY LOADED BY ONE PLAN ROW naming `stem`, its pane on the desk.
+struct TallyRig {
+    PaneRig r;
+    std::string stem;
+    load::Executed done;
+    TempDir dir;
+
+    explicit TallyRig(const char* image) : stem(image), dir("tally") {
+        r.mount_workshop();
+        load::LoadPlan plan;
+        load::ArtifactIntent row;
+        row.stem = stem;
+        row.weave = load::WeaveIntent{kTallyRole};
+        plan.artifacts.push_back(row);
+        done = r.run_plan(plan);
+        REQUIRE_MESSAGE(done.ok, done.refusal);
+        r.ready();
+        r.extent(120, 40);
+        REQUIRE_MESSAGE(r.session().panes.runtime.find(kTallyRole, "tally") != nullptr,
+                        std::string(stem + " offered no `tally` pane"));
+        r.pick(tally_ref());
+        REQUIRE(r.session().panes.has(kind()));
+    }
+
+    std::int64_t kind() {
+        const std::optional<std::int64_t> k = resolve_pane(tally_ref(), r.session().panes);
+        REQUIRE(k.has_value());
+        return *k;
+    }
+
+    std::string text() {
+        std::string all;
+        for (const std::string& one : pane_rows(r, kind())) {
+            all += one + "\n";
+        }
+        return all;
+    }
+
+    /// PRESSED INTO, then Space: the pane's declared action, reached from Workshop by name.
+    void add_one() {
+        press_pane(r, kind(), 0, 0);
+        REQUIRE(r.session().panes.keyboard == kind());
+        r.key(input::scan::kSpace);
+    }
+
+    /// A COPY OF `image` beside the case, its name behind `prefix`, so a reload opens a file of its
+    /// own as a rebuilt product would be. The copy keeps the image's suffix: Windows' loader adds
+    /// `.dll` to a name that has none.
+    std::string copy_of(const std::string& image, const std::string& prefix) {
+        const std::filesystem::path to =
+            dir.path() / (prefix + std::filesystem::path(image).filename().string());
+        std::filesystem::copy_file(image, to, std::filesystem::copy_options::overwrite_existing);
+        return to.generic_string();
+    }
+
+    /// RELOAD THE ROW'S RUNNING WEAVE IN PLACE from `path`, as the kernel's control door does, and
+    /// let the reloaded incarnation offer itself and draw again.
+    void reload_from(const std::string& path) {
+        const loom::WeaveId before = r.kernel.weave_id(stem);
+        const loom::ReloadResult reloaded = r.kernel.reload_from(stem, path);
+        REQUIRE_MESSAGE(reloaded.ok, reloaded.error);
+        CHECK(r.kernel.weave_id(stem) == before);
+        r.bus.drain_until_idle();
+    }
+
+    const load::ResolvedArtifact& row() {
+        REQUIRE(done.resolved.size() == 1);
+        return done.resolved[0];
+    }
+};
+
+/// What Workshop's `loaded:` line says of the row, given the kernel's word for it.
+void is_said_as_the_kernel_holds_it(const char* image, bool boxed) {
+    TallyRig t(image);
+    const std::string held = t.r.kernel.containment(t.stem);
+    const std::string said = load::loaded_words(t.row(), held);
+    CHECK(said.rfind(t.stem + " | weave #", 0) == 0);
+    CHECK(said.find(" as example.tally ") != std::string::npos);
+    CHECK_MESSAGE(said.find(" | held: " + held) != std::string::npos, said);
+    if (boxed) {
+        CHECK_MESSAGE(held.rfind("boxed (WebAssembly, in-process, Wasmtime ", 0) == 0, held);
+        CHECK(held.find("reach: no filesystem, no network, no clock, no process") !=
+              std::string::npos);
+    } else {
+        CHECK(held == loom::Kernel::containment_note());
+    }
+}
+
+} // namespace
+
+TEST_CASE("a stem spelled with WebAssembly's suffix names that file, and any other stem names "
+          "this platform's library") {
+    const std::string library =
+#if defined(_WIN32)
+        "/d/zengine-example-tally.dll";
+#else
+        "/d/zengine-example-tally.so";
+#endif
+    CHECK(HostContext::so_in("/d", kNativeStem) == library);
+    CHECK(HostContext::so_in("/d", kBoxedStem) == "/d/zengine-example-tally.wasm");
+    // The suffix is the stem's end, and a stem that is only the suffix names no module.
+    CHECK(HostContext::so_in("/d", "a.wasm.b") != "/d/a.wasm.b");
+    CHECK(HostContext::so_in("/d", ".wasm") != "/d/.wasm");
+}
+
+TEST_CASE("Workshop's loaded words say a native Tally is held as the kernel's note says") {
+    is_said_as_the_kernel_holds_it(kNativeStem, false);
+}
+
+#ifdef WORKSHOP_WASM_TALLY
+TEST_CASE("boxed: Workshop's loaded words say Tally is held in its box") {
+    is_said_as_the_kernel_holds_it(kBoxedStem, true);
+}
+
+TEST_CASE("boxed: a native Tally reloads into its boxed build and back, its count kept and its "
+          "holding said each time") {
+    TallyRig t(kNativeStem);
+    t.add_one();
+    REQUIRE(t.text().find("Tally: 1") != std::string::npos);
+    CHECK(t.r.kernel.containment(t.stem) == loom::Kernel::containment_note());
+
+    // INTO THE MODULE: the same role, the same weave, the count carried; the kernel now holds it
+    // in a box, and Workshop's words for the row say so.
+    t.reload_from(t.copy_of(WORKSHOP_WASM_TALLY, "boxed-"));
+    CHECK_MESSAGE(t.text().find("Tally: 1") != std::string::npos, t.text());
+    const std::string boxed = t.r.kernel.containment(t.stem);
+    CHECK_MESSAGE(boxed.rfind("boxed (WebAssembly", 0) == 0, boxed);
+    CHECK(load::loaded_words(t.row(), boxed).find(" | held: boxed (WebAssembly") !=
+          std::string::npos);
+    t.add_one();
+    CHECK_MESSAGE(t.text().find("Tally: 2") != std::string::npos, t.text());
+
+    // ...AND BACK TO A NATIVE BUILD: the count the box kept rides out of it.
+    t.reload_from(t.copy_of(WORKSHOP_SO_TALLY, "back-"));
+    CHECK_MESSAGE(t.text().find("Tally: 2") != std::string::npos, t.text());
+    CHECK(t.r.kernel.containment(t.stem) == loom::Kernel::containment_note());
+}
+#endif
