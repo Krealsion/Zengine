@@ -34,6 +34,7 @@ set(ZEN_DOC_EXCLUDE
     "^\\.idea/"              # editor state, gitignored: it holds this machine's paths by design
     "^\\.vscode/"
     "^\\.claude/"            # harness state, gitignored
+    "^CMakeUserPresets[.]json$"   # tools/ready-build.cmake's preset, gitignored: this machine's paths
     "^docs/history/"         # frozen: describes the tree at its source commit
     "third_party/")          # vendored
 
@@ -453,7 +454,8 @@ endfunction()
 
 # A build tree is excluded and a package named like one is not.
 foreach(excluded_case "build/x.md;1" "build-san/x.md;1" "cmake-build-debug/x.md;1"
-                      "builder/weave.hpp;0" "builder/builder-pane/pane.cpp;0" "tests/third_party/x.h;1")
+                      "builder/weave.hpp;0" "builder/builder-pane/pane.cpp;0" "tests/third_party/x.h;1"
+                      "CMakeUserPresets.json;1" "docs/CMakeUserPresets.json;0")
     list(GET excluded_case 0 excluded_rel)
     list(GET excluded_case 1 excluded_want)
     zen_doc_excluded("${excluded_rel}" excluded_got)
