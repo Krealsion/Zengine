@@ -96,8 +96,10 @@ places while it holds is the window's to judge"
 ### WL-ARR-06
 `workshop/setup.hpp` author_pane_window check_pane_place_coord PaneAxisProposal share_reaching share_placing
 WindowWritten
-`workshop/screen_gestures.cpp` pane_window_proposal pane_window_axes
-`workshop/screen.hpp` PaneWindowProposal pane_window_at
+`desk-gestures/gestures.cpp` pane_window_proposal
+`desk-gestures/gestures.hpp` PaneWindowProposal
+`workshop/screen_gestures.cpp` pane_window_axes
+`workshop/screen.hpp` pane_window_at
 `workshop/weave_arrange.cpp` arrange_place arrange_resize arrange_window write_window
 `tests/test_workshop_screen.cpp` "a refused anchored resize writes neither the place nor the size"
 "a move blocked at the left wall still follows the hand down" "a move past two walls at once writes

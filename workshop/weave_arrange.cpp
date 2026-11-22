@@ -696,52 +696,53 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
     if (!mine.open || mine.rect.w <= 0 || mine.rect.h <= 0) {
         return false;
     }
-    const std::int64_t edge = pane_edge_at(mine.rect, at.px.x, at.px.y, at.grain);
-    // ...THE TOP EDGE MOVES WHERE ASKED: a pane being placed is taken by its title, which in a
-    // window stands on that edge.
-    if (edge != kNoPaneEdge && !(top_moves && edge == pane_edge::kTop)) {
-        session_.pane_drag = PaneGesture{};
-        session_.pane_drag.active = true;
-        session_.pane_drag.pane = ref;
-        session_.pane_drag.sizing = true;
-        session_.pane_drag.edge = edge;
-        session_.pane_drag.from_x = at.px.x;
-        session_.pane_drag.from_y = at.px.y;
-        const SetupPane* row = pane_of(session_.setup.active, ref);
-        // The affordance is on the visible boundary and the base is the resolved window, in the
-        // room: an anchored top or left pull authors place and size from this one captured
-        // rectangle, as a key does.
-        const PixelRect in_room = room_of_canvas(mine.resolved, sc);
-        session_.pane_drag.base_x = row != nullptr && row->place.mode == pane_unit::kPixels
-                                        ? row->place.x
-                                        : in_room.x;
-        session_.pane_drag.base_y = row != nullptr && row->place.mode == pane_unit::kPixels
-                                        ? row->place.y
-                                        : in_room.y;
-        session_.pane_drag.base_w = row != nullptr && row->width.mode == pane_unit::kPixels
-                                        ? row->width.amount
-                                        : mine.resolved.w;
-        session_.pane_drag.base_h =
-            row != nullptr && row->height.mode == pane_unit::kPixels
-                ? row->height.amount
-                : mine.resolved.h;
-        say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(edge) +
+    // THE PRESS IS THE LIBRARY'S TO JUDGE (`desk_gestures::hold_at`): an edge sizes the pane from
+    // the window its row authors in pixels, else the one it resolved to in the room; the body
+    // moves it with the grab kept; the top edge moves where asked, since a pane being placed is
+    // taken by its title, which in a window stands on that edge.
+    const SetupPane* row = pane_of(session_.setup.active, ref);
+    desk_gestures::AuthoredPixels authored;
+    if (row != nullptr && row->place.mode == pane_unit::kPixels) {
+        authored.x = row->place.x;
+        authored.y = row->place.y;
+    }
+    if (row != nullptr && row->width.mode == pane_unit::kPixels) {
+        authored.w = row->width.amount;
+    }
+    if (row != nullptr && row->height.mode == pane_unit::kPixels) {
+        authored.h = row->height.amount;
+    }
+    PixelRect resolved = room_of_canvas(mine.resolved, sc);
+    resolved.w = mine.resolved.w;
+    resolved.h = mine.resolved.h;
+    const std::optional<desk_gestures::PaneHold> hold =
+        desk_gestures::hold_at(mine.rect, resolved, authored, at, top_moves);
+    if (!hold.has_value()) {
+        return false;
+    }
+    session_.pane_drag = PaneGesture{};
+    session_.pane_drag.active = true;
+    session_.pane_drag.pane = ref;
+    session_.pane_drag.sizing = hold->sizing;
+    session_.pane_drag.edge = hold->edge;
+    session_.pane_drag.grab_dx = hold->grab_dx;
+    session_.pane_drag.grab_dy = hold->grab_dy;
+    session_.pane_drag.from_x = hold->from_x;
+    session_.pane_drag.from_y = hold->from_y;
+    session_.pane_drag.base_x = hold->base_x;
+    session_.pane_drag.base_y = hold->base_y;
+    session_.pane_drag.base_w = hold->base_w;
+    session_.pane_drag.base_h = hold->base_h;
+    if (hold->sizing) {
+        say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(hold->edge) +
                 " -- its edges snap to edges near them unless alt is held",
             false);
-        return true;
-    }
-    if (mine.rect.contains_at(at.px.x, at.px.y, at.grain)) {
-        session_.pane_drag = PaneGesture{};
-        session_.pane_drag.active = true;
-        session_.pane_drag.pane = ref;
-        session_.pane_drag.grab_dx = detail::minus(at.px.x, mine.rect.x);
-        session_.pane_drag.grab_dy = detail::minus(at.px.y, mine.rect.y);
+    } else {
         say("moving " + ref_text(ref) +
                 " -- drag to place it; its edges snap to edges near them unless alt is held",
             false);
-        return true;
     }
-    return false;
+    return true;
 }
 
 // WL-FRONT-05 -- agents/workshop/planes.md
@@ -782,6 +783,26 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
     say("nothing to arrange there -- " + hotkey(Act::kManageClose) + " leaves", false);
 }
 
+namespace {
+
+/// What the hand holds of a gesture in flight, as the library's transitions take it.
+desk_gestures::PaneHold hold_of(const PaneGesture& g) noexcept {
+    desk_gestures::PaneHold hold;
+    hold.sizing = g.sizing;
+    hold.edge = g.edge;
+    hold.grab_dx = g.grab_dx;
+    hold.grab_dy = g.grab_dy;
+    hold.from_x = g.from_x;
+    hold.from_y = g.from_y;
+    hold.base_x = g.base_x;
+    hold.base_y = g.base_y;
+    hold.base_w = g.base_w;
+    hold.base_h = g.base_h;
+    return hold;
+}
+
+} // namespace
+
 void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool snap,
                                    loom::Mail& mail) {
     PaneGesture& g = session_.pane_drag;
@@ -816,9 +837,7 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
         return pane_snap_lines(session_.panes, after, sc, *kind);
     };
     if (g.sizing) {
-        const PaneWindowProposal want =
-            pane_window_proposal(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
-                                 detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y));
+        const PaneWindowProposal want = desk_gestures::sized_to(hold_of(g), px_x, px_y);
         const SnappedWindow got = snap_pane_window(
             want, g.edge, lines_after(want, PixelRect{g.base_x, g.base_y, g.base_w, g.base_h}),
             session_.snap_reach_px);
@@ -828,8 +847,8 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
     } else {
         // The hand is on the canvas and a place is in the room; the pane keeps its size, and the
         // place is measured from the window `arrange_place` writes against.
-        const PixelRect at = room_of_canvas(
-            PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0}, sc);
+        const CanvasPoint corner = desk_gestures::moved_to(hold_of(g), px_x, px_y);
+        const PixelRect at = room_of_canvas(PixelRect{corner.x, corner.y, 0, 0}, sc);
         const PixelRect base = managed_window_base();
         const PaneWindowProposal want{at.x, at.y, base.w, base.h, true, true};
         const SnappedWindow got =

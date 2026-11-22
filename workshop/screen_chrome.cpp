@@ -420,19 +420,6 @@ std::optional<StripMark> strip_mark_at(const Session& s, const Screen& sc, const
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 
-PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept {
-    if (space == input::space::kCells) {
-        return PointedAt{true, CanvasPoint{x, y},
-                         CanvasPoint{graphics::px_of_cells(x), graphics::px_of_cells(y)},
-                         graphics::kCellGrainPx};
-    }
-    if (space == input::space::kPixels) {
-        return PointedAt{true, CanvasPoint{graphics::cell_of_pixel(x), graphics::cell_of_pixel(y)},
-                         CanvasPoint{x, y}, graphics::kPixelGrainPx};
-    }
-    return PointedAt{};
-}
-
 // WL-FRONT-05 -- agents/workshop/planes.md
 // WL-PRESS-04 -- agents/workshop/press-chain.md
 Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,

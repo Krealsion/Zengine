@@ -13,6 +13,7 @@ builder           feature
 cmake             build
 component         library
 composer          feature
+desk-gestures     library
 docs              docs
 editor            feature
 examples          examples

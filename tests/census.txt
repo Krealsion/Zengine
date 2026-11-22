@@ -86,6 +86,7 @@ line workshop/first-run/setup.hpp info/vocabulary.hpp 1 falls
 line workshop/first-run/setup.hpp notices/notices-pane/vocabulary.hpp 1 falls
 line workshop/first-run/story.hpp view/view-builder/vocabulary.hpp 1 falls
 line workshop/guests.cpp composer/vocabulary.hpp 1 falls
+line workshop/screen.hpp desk-gestures/gestures.hpp 1
 line workshop/guests.cpp info/vocabulary.hpp 1 falls
 line workshop/guests.cpp notices/vocabulary.hpp 1 falls
 line workshop/keymap.hpp input/gesture_grammar.hpp 1 falls
@@ -200,6 +201,7 @@ kind builder/ weave
 kind builder/builder-pane/vocabulary.hpp vocabulary
 kind builder/vocabulary.hpp vocabulary
 kind component/ library
+kind desk-gestures/ library
 kind composer/ weave
 kind composer/vocabulary.hpp vocabulary
 kind editor/ weave

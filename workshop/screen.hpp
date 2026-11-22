@@ -27,6 +27,7 @@
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
 #include "workshop/screen_planes.hpp"
+#include "desk-gestures/gestures.hpp" // the desk's geometry and its gestures' arithmetic
 #include "pane/text_fit.hpp"
 
 #include <zen/terminal/session.hpp> // the participant this host holds, for the door
@@ -201,48 +202,8 @@ static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, graphics::kCellPx).band
 
 // ---- THE PIXEL LATTICE, AS A RECTANGLE --------------------------------------------------
 
-/// A rectangle on the canvas, in canvas pixels.
-struct PixelRect {
-    std::int64_t x = 0;
-    std::int64_t y = 0;
-    std::int64_t w = 0;
-    std::int64_t h = 0;
-
-    friend bool operator==(const PixelRect&, const PixelRect&) = default;
-
-    constexpr bool empty() const noexcept { return w <= 0 || h <= 0; }
-
-    /// DOES A POINTER AT THIS PIXEL, REPORTED AT THIS GRAIN, LAND ON THIS RECTANGLE.
-    // WL-GEO-07 -- agents/workshop/geometry.md
-    constexpr bool contains_at(std::int64_t sx, std::int64_t sy,
-                               std::int64_t grain) const noexcept {
-        return graphics::px_span_contains(x, w, sx, grain) &&
-               graphics::px_span_contains(y, h, sy, grain);
-    }
-};
-
-/// A rectangle of whole cells: what a terminal shows of a pixel rectangle, and what a cell-counted
-/// layout says before it becomes pixels. Workshop's own, distinct from the pixel rectangle.
-struct CellRect {
-    std::int64_t x = 0;
-    std::int64_t y = 0;
-    std::int64_t w = 0;
-    std::int64_t h = 0;
-
-    friend bool operator==(const CellRect&, const CellRect&) = default;
-
-    /// Whether the cell is inside. Total over every value: an empty or inverted rectangle
-    /// contains nothing, and the far edge is compared in unsigned arithmetic, so a rectangle whose
-    /// right edge is past the int64 range answers without signed overflow.
-    constexpr bool contains(std::int64_t cx, std::int64_t cy) const noexcept {
-        if (w <= 0 || h <= 0 || cx < x || cy < y) {
-            return false;
-        }
-        using U = std::uint64_t;
-        return (static_cast<U>(cx) - static_cast<U>(x)) < static_cast<U>(w) &&
-               (static_cast<U>(cy) - static_cast<U>(y)) < static_cast<U>(h);
-    }
-};
+using desk_gestures::CellRect;
+using desk_gestures::PixelRect;
 
 /// A cell rectangle in canvas pixels — exact, saturating, the one door a cell-counted layout
 /// walks through on its way to being arrangement truth.
@@ -554,29 +515,9 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 /// with a kind, and a consumer that forgot to test it falls outside every lookup.
 inline constexpr std::int64_t kNoKind = -1;
 
-/// A position on the canvas, in canvas pixels or in cells as the function that made it says. It
-/// may be outside the canvas: a projection, not a hit test.
-struct CanvasPoint {
-    std::int64_t x = 0;
-    std::int64_t y = 0;
-    friend bool operator==(const CanvasPoint&, const CanvasPoint&) = default;
-};
-
-/// The canvas pixel a reported pointer position lands on, in pixels or a window's cells, the canvas
-/// starting at the window's origin, and the cell that pixel is in -- or nothing, for a space this
-/// application cannot place.
-// WL-GEO-07 -- agents/workshop/geometry.md
-struct PointedAt {
-    bool understood = false;
-    CanvasPoint cell;
-    /// The same moment in canvas pixels, and the grain the reporting medium can honestly
-    /// distinguish (one window pixel or one terminal cell).
-    // WL-GEO-07 -- agents/workshop/geometry.md
-    CanvasPoint px;
-    std::int64_t grain = graphics::kCellGrainPx;
-};
-
-PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept;
+using desk_gestures::CanvasPoint;
+using desk_gestures::canvas_point_of;
+using desk_gestures::PointedAt;
 
 /// WHAT A WEAVER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
@@ -600,97 +541,18 @@ Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
 
 // ---- PANE MANAGEMENT: what a weaver is ARRANGING, and how ------------------------------
 
-/// THE EIGHT MANIPULATION AFFORDANCES of a rectangle, and there is not a ninth.
-namespace pane_edge {
-inline constexpr std::int64_t kLeft = 0;
-inline constexpr std::int64_t kRight = 1;
-inline constexpr std::int64_t kTop = 2;
-inline constexpr std::int64_t kBottom = 3;
-inline constexpr std::int64_t kTopLeft = 4;
-inline constexpr std::int64_t kTopRight = 5;
-inline constexpr std::int64_t kBottomLeft = 6;
-inline constexpr std::int64_t kBottomRight = 7;
-inline constexpr std::int64_t kCount = 8;
-} // namespace pane_edge
-
-/// NO EDGE. Negative, for `no_color()`'s reason: every edge is a non-negative index into a
-/// table, so an absence cannot collide with one.
-inline constexpr std::int64_t kNoPaneEdge = -1;
-
-/// The edge a weaver reads, and the mark they read it BY.
-inline constexpr const char* pane_edge_name(std::int64_t edge) noexcept {
-    switch (edge) {
-    case pane_edge::kLeft: return "left";
-    case pane_edge::kRight: return "right";
-    case pane_edge::kTop: return "top";
-    case pane_edge::kBottom: return "bottom";
-    case pane_edge::kTopLeft: return "top-left";
-    case pane_edge::kTopRight: return "top-right";
-    case pane_edge::kBottomLeft: return "bottom-left";
-    case pane_edge::kBottomRight: return "bottom-right";
-    default: return "none";
-    }
-}
-
-/// Plain ASCII, because this canvas is plain ASCII by contract and a glyph a medium cannot
-/// draw is a mark a weaver cannot read (`detail::kElided`'s reason).
-inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
-    switch (edge) {
-    case pane_edge::kLeft: return "<";
-    case pane_edge::kRight: return ">";
-    case pane_edge::kTop: return "^";
-    case pane_edge::kBottom: return "v";
-    case pane_edge::kTopLeft: return "<^";
-    case pane_edge::kTopRight: return "^>";
-    case pane_edge::kBottomLeft: return "<v";
-    case pane_edge::kBottomRight: return "v>";
-    default: return "-";
-    }
-}
-
-/// HOW DEEP AN EDGE'S GRAB BAND REACHES INTO THE PANE, in canvas pixels: one cell —
-/// exactly the ring the affordances have always occupied.
-inline constexpr std::int64_t kPaneEdgeBandPx = graphics::kCellPx;
-
-/// HOW NEAR A LINE AN EDGE THE HAND MOVES COMES TO MEET IT, in canvas pixels: under a cell, so a
-/// terminal hand a cell away is not pulled across it, and at least half a cell, so a terminal hand
-/// at the nearest cell meets a line that falls inside it. The reach is `workshop.snap-reach`, from
-/// `kMinSnapReachPx` to `kMaxSnapReachPx`; this is its default.
-inline constexpr std::int64_t kPaneSnapReachPx = 8;
-inline constexpr std::int64_t kMinSnapReachPx = 6;
-inline constexpr std::int64_t kMaxSnapReachPx = 11;
-
-static_assert(kMaxSnapReachPx < graphics::kCellPx &&
-                  2 * kMinSnapReachPx >= graphics::kCellPx &&
-                  kMinSnapReachPx <= kPaneSnapReachPx && kPaneSnapReachPx <= kMaxSnapReachPx,
-              "every reach the setting takes is under a cell, so a terminal hand is never pulled a "
-              "whole cell, and at least half one, so every line falls within reach of a terminal "
-              "hand's cell");
-
-/// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own
-/// edges.
-PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept;
-
-/// What "take hold here" looks like: one character, used by none of the medium's role glyphs
-/// (`.` room, `#` body, `*` ring, `!` alert).
-inline constexpr const char* kHandleGlyph = "+";
-
-/// One character for the cell an affordance is drawn on: `pane_edge_mark`'s two-character spelling
-/// is prose. The corners share `kHandleGlyph`; their positions tell them apart.
-inline constexpr const char* pane_edge_glyph(std::int64_t edge) noexcept {
-    switch (edge) {
-    case pane_edge::kLeft: return "<";
-    case pane_edge::kRight: return ">";
-    case pane_edge::kTop: return "^";
-    case pane_edge::kBottom: return "v";
-    default: return kHandleGlyph;
-    }
-}
-
-/// WHICH AFFORDANCE OF THIS RECTANGLE A POINTER IS ON, or `kNoPaneEdge` — at the
-/// pointer's own grain.
-std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
-                                 std::int64_t grain) noexcept;
+namespace pane_edge = desk_gestures::pane_edge;
+using desk_gestures::kHandleGlyph;
+using desk_gestures::kMaxSnapReachPx;
+using desk_gestures::kMinSnapReachPx;
+using desk_gestures::kNoPaneEdge;
+using desk_gestures::kPaneEdgeBandPx;
+using desk_gestures::kPaneSnapReachPx;
+using desk_gestures::pane_edge_at;
+using desk_gestures::pane_edge_cell;
+using desk_gestures::pane_edge_glyph;
+using desk_gestures::pane_edge_mark;
+using desk_gestures::pane_edge_name;
 
 /// THE ARRANGEMENT STATE: WHICH SCOPE A WEAVER IS ARRANGING, AND WHICH PANE THE
 /// VOCABULARY ADDRESSES.
@@ -742,18 +604,8 @@ struct PaneGesture {
     std::optional<std::int64_t> met_y;
 };
 
-/// WHAT THE LAST PRESS ON A LAYOUT TAB NAMED, so the next one can be a double.
-// WL-PTR-01 -- agents/workshop/pointer.md
-struct TabClickMemory {
-    bool armed = false;
-    std::size_t at = 0;      ///< the position the press landed on
-};
-
-/// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK ON THE SAME TAB? Pure, total, and the ONE
-/// place the question is decided: the window counted it 2 or more (`clicks`),
-/// and the last press armed on the same tab.
-bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
-                         std::int64_t clicks) noexcept;
+using desk_gestures::doubles_a_tab_click;
+using desk_gestures::TabClickMemory;
 
 /// WHICH LAYOUT TAB A REORDER DRAG IS CARRYING -- the third gesture record.
 struct LayoutTabDrag {
@@ -1044,25 +896,8 @@ std::vector<std::string> help_rows(const Keymap& k, KeySpelling spelling, KeyCon
                                           std::int64_t width, std::size_t rows,
                                           std::int64_t pane = kNoPaneKind);
 
-/// A PANE WINDOW PROPOSAL, IN CANVAS PIXELS: what one resize gesture asks the whole
-/// window to become.
-// WL-ARR-06 -- agents/workshop/arrangement.md
-struct PaneWindowProposal {
-    std::int64_t x = 0;
-    std::int64_t y = 0;
-    std::int64_t w = 0;
-    std::int64_t h = 0;
-    /// TRUE EXACTLY WHEN THE EDGE NAMES THE LEFT — the horizontal axis must author the
-    /// place's `x` for the right-edge anchor to hold. False keeps `x` unproposed.
-    bool place_moved_x = false;
-    /// TRUE EXACTLY WHEN THE EDGE NAMES THE TOP — the vertical twin, for `y`.
-    bool place_moved_y = false;
-};
-
-PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
-                                               std::int64_t base_y, std::int64_t base_w,
-                                               std::int64_t base_h, std::int64_t dx,
-                                               std::int64_t dy) noexcept;
+using desk_gestures::pane_window_proposal;
+using desk_gestures::PaneWindowProposal;
 
 /// WHAT A WINDOW PROPOSAL WRITES through the gesture door (`author_pane_window`), measured from the
 /// window it was proposed against: a place on an axis the proposal moved and changed, an extent on
@@ -1090,29 +925,21 @@ inline PaneWindowAxes pane_window_at(const PixelRect& base, const Screen& sc) {
     return out;
 }
 
-/// THE LINES AN EDGE THE HAND MOVES MAY MEET, in the room: the room's own edges and every edge
-/// of every other pane on the screen.
-struct PaneSnapLines {
-    std::vector<std::int64_t> xs;
-    std::vector<std::int64_t> ys;
-};
+using desk_gestures::PaneSnapLines;
 
 PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Screen& sc,
                               std::int64_t held);
 
-/// A HAND'S PROPOSAL, SNAPPED, and the line each axis met.
-struct SnappedWindow {
-    PaneWindowProposal want;
-    std::optional<std::int64_t> met_x;
-    std::optional<std::int64_t> met_y;
-};
+using desk_gestures::SnappedWindow;
 
-/// Each edge the hand moves -- both edges of both axes for a move (`kNoPaneEdge`), the pulled
-/// edges for a resize -- comes to the nearest line within `reach_px`, the opposite edge held; a
-/// snap that would leave the place or the extent outside a pane's rules is not taken.
-SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
-                               const PaneSnapLines& lines,
-                               std::int64_t reach_px = kPaneSnapReachPx) noexcept;
+/// A hand's proposal snapped to the lines in reach (`desk_gestures::snap_pane_window`), within
+/// the places and extents a pane's row may author.
+inline SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
+                                      const PaneSnapLines& lines,
+                                      std::int64_t reach_px = kPaneSnapReachPx) noexcept {
+    return desk_gestures::snap_pane_window(want, edge, lines, reach_px,
+                                           desk_gestures::WindowLimits{kPanePxMin, kMaxPanePixels});
+}
 
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 
@@ -1129,21 +956,9 @@ ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
 
-/// Which members of an ordered collection a bounded place is showing, and how
-/// many it is leaving out on each side of them.
-struct ListWindow {
-    std::size_t first = 0;  ///< the first member shown, as a position in the collection's order
-    std::size_t count = 0;  ///< how many are shown, contiguously, in that order
-    std::size_t before = 0; ///< how many the place left out ahead of them
-    std::size_t after = 0;  ///< how many it left out behind them
-};
-
-/// What `rows` lines can honestly show of `total` members while the
-/// `selected_at`'th is selected.
-ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows);
-
-/// What one omission marker says. `... 2 earlier` / `... 4 more`: a count and a direction.
-std::string omitted_text(std::size_t how_many, const char* which);
+using desk_gestures::list_window;
+using desk_gestures::ListWindow;
+using desk_gestures::omitted_text;
 
 // ---- The dynamic panes, painted -------------------------------------------------------
 

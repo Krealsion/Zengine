@@ -22,6 +22,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine::graphics
                                                             zengine::persist
                                                             zengine::property
                                                             zengine-theme-vocabulary
+                                                            zengine::desk-gestures
                                                             loom::core
                                                             loom::terminal)
 # ...and the manuals of the host's own roles compiled into it, each role answering a shape's

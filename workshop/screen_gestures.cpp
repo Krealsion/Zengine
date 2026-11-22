@@ -54,24 +54,11 @@ std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
 }
 
 std::int64_t step(std::int64_t v, std::int64_t by) noexcept {
-    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
-    if (by > 0) {
-        return v > kMax - by ? v : v + by;
-    }
-    if (by < 0) {
-        return v < kMin - by ? v : v + by;
-    }
-    return v;
+    return desk_gestures::saturating_step(v, by);
 }
 
 std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
-    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
-    if (b < 0) {
-        return a > kMax + b ? kMax : a - b;
-    }
-    return a < kMin + b ? kMin : a - b;
+    return desk_gestures::saturating_minus(a, b);
 }
 
 } // namespace detail
@@ -137,40 +124,6 @@ std::vector<std::string> help_rows(const Keymap& k, KeySpelling spelling, KeyCon
     return out;
 }
 
-PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
-                                        std::int64_t base_y, std::int64_t base_w,
-                                        std::int64_t base_h, std::int64_t dx,
-                                        std::int64_t dy) noexcept {
-    PaneWindowProposal out{base_x, base_y, base_w, base_h, false, false};
-    const bool wide = edge == pane_edge::kLeft || edge == pane_edge::kRight ||
-                      edge == pane_edge::kTopLeft || edge == pane_edge::kTopRight ||
-                      edge == pane_edge::kBottomLeft || edge == pane_edge::kBottomRight;
-    const bool tall = edge == pane_edge::kTop || edge == pane_edge::kBottom ||
-                      edge == pane_edge::kTopLeft || edge == pane_edge::kTopRight ||
-                      edge == pane_edge::kBottomLeft || edge == pane_edge::kBottomRight;
-    const bool leftwards = edge == pane_edge::kLeft || edge == pane_edge::kTopLeft ||
-                           edge == pane_edge::kBottomLeft;
-    const bool upwards = edge == pane_edge::kTop || edge == pane_edge::kTopLeft ||
-                         edge == pane_edge::kTopRight;
-    if (wide) {
-        out.w = detail::step(base_w, leftwards ? detail::minus(0, dx) : dx);
-        if (leftwards) {
-            // The RIGHT edge is the anchor: base_x + base_w == x' + w', rearranged.
-            out.x = detail::minus(detail::step(base_x, base_w), out.w);
-            out.place_moved_x = true;
-        }
-    }
-    if (tall) {
-        out.h = detail::step(base_h, upwards ? detail::minus(0, dy) : dy);
-        if (upwards) {
-            // The BOTTOM edge is the anchor.
-            out.y = detail::minus(detail::step(base_y, base_h), out.h);
-            out.place_moved_y = true;
-        }
-    }
-    return out;
-}
-
 PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base,
                                 const Screen& sc) {
     PaneWindowAxes out = pane_window_at(base, sc);
@@ -190,98 +143,6 @@ PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect&
 }
 
 // ---- A hand's proposal, snapped ---------------------------------------------------------
-
-namespace {
-
-/// Which edges of one axis the hand moves: both (a move), the low or the high one (a pull), or
-/// neither.
-enum class Moving { kNone, kLow, kHigh, kBoth };
-
-Moving moving_x(std::int64_t edge) noexcept {
-    switch (edge) {
-    case kNoPaneEdge: return Moving::kBoth;
-    case pane_edge::kLeft:
-    case pane_edge::kTopLeft:
-    case pane_edge::kBottomLeft: return Moving::kLow;
-    case pane_edge::kRight:
-    case pane_edge::kTopRight:
-    case pane_edge::kBottomRight: return Moving::kHigh;
-    default: return Moving::kNone;
-    }
-}
-
-Moving moving_y(std::int64_t edge) noexcept {
-    switch (edge) {
-    case kNoPaneEdge: return Moving::kBoth;
-    case pane_edge::kTop:
-    case pane_edge::kTopLeft:
-    case pane_edge::kTopRight: return Moving::kLow;
-    case pane_edge::kBottom:
-    case pane_edge::kBottomLeft:
-    case pane_edge::kBottomRight: return Moving::kHigh;
-    default: return Moving::kNone;
-    }
-}
-
-struct Axis {
-    std::int64_t at = 0;
-    std::int64_t size = 0;
-    std::optional<std::int64_t> met;
-};
-
-/// One axis: the edges `moving` names come to the nearest line within `reach_px`, and a travel
-/// that would author a place or an extent the gesture door refuses is not taken. What is not
-/// written is not judged: a high pull leaves the place as it stood.
-Axis snap_axis(std::int64_t at, std::int64_t size, Moving moving,
-               const std::vector<std::int64_t>& lines, std::int64_t reach_px) noexcept {
-    if (moving == Moving::kNone) {
-        return Axis{at, size, std::nullopt};
-    }
-    const std::int64_t end = detail::step(at, size);
-    const auto travelled = [&](std::int64_t travel) -> std::optional<Axis> {
-        Axis s{at, size, std::nullopt};
-        if (moving != Moving::kHigh) {
-            s.at = detail::step(at, travel);
-            if (s.at < 0 || s.at > kMaxPanePixels) {
-                return std::nullopt;
-            }
-        }
-        if (moving == Moving::kLow) {
-            s.size = detail::minus(end, s.at);
-        } else if (moving == Moving::kHigh) {
-            s.size = detail::step(size, travel);
-        }
-        if (moving != Moving::kBoth && (s.size < kPanePxMin || s.size > kMaxPanePixels)) {
-            return std::nullopt;
-        }
-        return s;
-    };
-    std::optional<Axis> best;
-    std::int64_t nearest = reach_px + 1;
-    const auto meet = [&](std::int64_t edge) {
-        for (const std::int64_t line : lines) {
-            const std::int64_t gap =
-                line > edge ? detail::minus(line, edge) : detail::minus(edge, line);
-            if (gap >= nearest) {
-                continue;
-            }
-            if (std::optional<Axis> s = travelled(detail::minus(line, edge))) {
-                nearest = gap;
-                s->met = line;
-                best = s;
-            }
-        }
-    };
-    if (moving != Moving::kHigh) {
-        meet(at);
-    }
-    if (moving != Moving::kLow) {
-        meet(end);
-    }
-    return best.has_value() ? *best : Axis{at, size, std::nullopt};
-}
-
-} // namespace
 
 PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Screen& sc,
                               std::int64_t held) {
@@ -304,20 +165,6 @@ PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Scre
     return out;
 }
 
-SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
-                               const PaneSnapLines& lines, std::int64_t reach_px) noexcept {
-    SnappedWindow out{want, std::nullopt, std::nullopt};
-    const Axis x = snap_axis(want.x, want.w, moving_x(edge), lines.xs, reach_px);
-    const Axis y = snap_axis(want.y, want.h, moving_y(edge), lines.ys, reach_px);
-    out.want.x = x.at;
-    out.want.w = x.size;
-    out.met_x = x.met;
-    out.want.y = y.at;
-    out.want.h = y.size;
-    out.met_y = y.met;
-    return out;
-}
-
 // ---- Where a pointer is, in a region's prose -------------------------------------------
 
 // WL-GEO-01 -- agents/workshop/geometry.md
@@ -337,58 +184,6 @@ ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
     }
     return ProseAt{true, prose_column_of_pixel(at.x, fit, grain),
                    prose_row_of_pixel(at.y, fit, grain)};
-}
-
-// ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
-
-ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows) {
-    ListWindow w;
-    if (total == 0 || rows == 0) {
-        w.after = total; // no room at all: everything there is, is missing
-        return w;
-    }
-    if (total <= rows) {
-        w.count = total; // rule 1
-        return w;
-    }
-    if (rows < 3) {
-        // Too few lines to seat an entry between two markers, so no window can obey rules 2 and 3
-        // together: it spends what it has on the omission, since a list never drops entries
-        // quietly.
-        w.after = total;
-        return w;
-    }
-    if (selected_at >= total) {
-        selected_at = 0; // nothing selected, or a selection that outlived its entry
-    }
-    // One marker's worth of room. Both single-marker windows are this wide, and
-    // both leave a non-empty count because `total > rows`.
-    const std::size_t one_marker = rows - 1;
-    if (selected_at < one_marker) {
-        w.count = one_marker;
-        w.after = total - w.count;
-        return w;
-    }
-    const std::size_t tail = total - one_marker;
-    if (selected_at >= tail) {
-        w.first = tail;
-        w.count = one_marker;
-        w.before = tail;
-        return w;
-    }
-    // The selection is far enough from both ends that both walls are real, so
-    // both are said. `first` is the earliest run that reaches the selection,
-    // which is at least 2 here (selected_at >= rows - 1 and count == rows - 2),
-    // so neither subtraction can leave the number line.
-    w.count = rows - 2;
-    w.first = selected_at + 1 - w.count;
-    w.before = w.first;
-    w.after = total - w.first - w.count;
-    return w;
-}
-
-std::string omitted_text(std::size_t how_many, const char* which) {
-    return "... " + std::to_string(how_many) + " " + which;
 }
 
 } // namespace zengine::workshop
