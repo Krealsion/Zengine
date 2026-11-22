@@ -539,7 +539,9 @@ foreach(folder IN LISTS ZEN_NAMES_TOP)
 endforeach()
 file(GLOB root_files RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/*" "${ZEN_REPO}/.*")
 foreach(entry IN LISTS root_files)
-    if(NOT IS_DIRECTORY "${ZEN_REPO}/${entry}")
+    # tools/ready-build.cmake writes the presets file into a checkout, so it is no file of the tree:
+    # its row in tests/doc_names.txt holds the name whether or not this checkout has one.
+    if(NOT IS_DIRECTORY "${ZEN_REPO}/${entry}" AND NOT entry STREQUAL "CMakeUserPresets.json")
         list(APPEND tree_files "${entry}")
     endif()
 endforeach()
