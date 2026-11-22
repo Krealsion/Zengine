@@ -81,12 +81,12 @@ BECAUSE — `panes` is many sources under one program because one MinGW Debug ob
 longer name all of its instantiations; a source dropped from a list builds and links green, and
 only a floor says it is gone.
 
-## VM-POP-13 — The shared support header costs emission
+## VM-POP-13 — The shared support is compiled once
 
-METHOD — `tests/workshop_support.hpp` holds what more than one suite needs; a helper costs ~0.4 s of parse to read and 5–8 s of emission per suite that uses it, so moving one in is a decision.
-BECAUSE — a suite pays for what it uses, not what it reads: the includes alone cost 0.4 s more
-to parse, and the emission of the helpers a suite calls cost five to eight seconds per unit, so
-splitting the header buys nothing and out-of-lining does.
+METHOD — `tests/workshop_support.hpp` declares what several suites need; `tests/workshop_support.cpp` defines it once, in the library every Workshop suite links; a template stays in the header.
+BECAUSE — a suite pays for what it emits, not what it reads: the includes alone cost 0.4 s more to
+parse, and a helper defined in the header was emitted again in every unit that called it, five to
+eight seconds a unit, so out-of-lining buys what splitting the header does not.
 
 ## VM-POP-14 — A temporary directory belongs to its suite and its process
 
@@ -197,10 +197,11 @@ nowhere yet
 
 ### VM-POP-13
 `tests/workshop_support.hpp`
+`tests/workshop_support.cpp`
 
 ### VM-POP-14
 `tests/test_workshop_persistence.cpp` "a temporary directory belongs to the suite that made it"
-`tests/workshop_support.hpp` ZENGINE_WORKSHOP_SUITE
+`tests/workshop_suite.cpp` ZENGINE_WORKSHOP_SUITE
 
 ### VM-POP-15
 `tests/workshop_support.hpp` remove_tree sweep_leaves_the_tree

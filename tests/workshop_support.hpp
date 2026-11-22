@@ -6,10 +6,11 @@
 
 // Shared support for the Workshop suites: what more than one of them needs, and nothing a single
 // suite uses (VM-POP-13). Fixture placement, actor grants and delayed replies:
-// docs/contributing/testing-workshop-panes.md. The helpers are `inline` at namespace scope: a
-// namespace would change unqualified lookup inside each of them, and `inline` rather than
-// `static` keeps one a suite does not use silent under -Wunused-function. It includes doctest.h
-// because the fixtures assert.
+// docs/contributing/testing-workshop-panes.md. Its functions and its rigs' members are declared
+// here and defined once, in tests/workshop_support.cpp, the zengine-workshop-support library
+// every Workshop suite links, so no suite compiles their bodies; a template or a constexpr
+// function is defined here. They stand at namespace scope, since a namespace would change
+// unqualified lookup inside each of them. It includes doctest.h because the fixtures assert.
 
 #include "role_set.hpp"
 #include "doctest.h"
@@ -120,6 +121,18 @@
 #include <utility>
 #include <vector>
 
+namespace zengine::testing {
+
+/// The entry name CMake gave this suite, `ZENGINE_WORKSHOP_SUITE`, answered by the suite's own unit
+/// (tests/workshop_suite.cpp), which is compiled with the suite's definitions.
+const char* workshop_suite();
+
+/// The image file `stem` names when only some suites are given one and this suite is, else null;
+/// answered by the suite's own unit as `workshop_suite` is.
+const char* workshop_suite_artifact(const std::string& stem);
+
+} // namespace zengine::testing
+
 using namespace zengine::workshop;
 
 using namespace zengine::pane;
@@ -140,54 +153,18 @@ using DeskShown = zengine::testing::rig_windows::Shown;
 /// the window gave it -- never from Workshop, which holds none of it.
 class DrawnMirror {
 public:
-    explicit DrawnMirror(loom::Switchboard& bus) : bus_(bus) {
-        tap_ = bus_.add_observer([this](const loom::BusEvent& ev) { take(ev); });
-    }
-    ~DrawnMirror() { bus_.remove_observer(tap_); }
+    explicit DrawnMirror(loom::Switchboard& bus);
+    ~DrawnMirror();
     DrawnMirror(const DrawnMirror&) = delete;
     DrawnMirror& operator=(const DrawnMirror&) = delete;
 
     /// The area as the windows hold it, or none before anything was drawn or given there.
-    const zengine::graphics::window::WinArea* area(const std::string& name) const {
-        const auto at = areas_.find(name);
-        return at == areas_.end() ? nullptr : &at->second;
-    }
+    const zengine::graphics::window::WinArea* area(const std::string& name) const;
     /// How the window that gave the area its room sets text there.
-    gfx::TextMeasure measure(const std::string& name) const {
-        const auto at = measures_.find(name);
-        return at == measures_.end() ? gfx::TextMeasure{} : at->second;
-    }
+    gfx::TextMeasure measure(const std::string& name) const;
 
 private:
-    void take(const loom::BusEvent& ev) {
-        if (ev.kind != loom::EventKind::Delivered || ev.payload == nullptr) return;
-        const std::string_view prefix = gfx::kWindowRolePrefix;
-        if (ev.schema_name == gfx::Drawn::zen_name) {
-            const std::vector<std::string> held = bus_.roles_of(ev.target);
-            if (std::none_of(held.begin(), held.end(), [&prefix](const std::string& r) {
-                    return r.rfind(prefix, 0) == 0;
-                })) {
-                return;
-            }
-            const gfx::Drawn d = loom::from_value<gfx::Drawn>(*ev.payload);
-            zengine::graphics::window::WinArea& a = areas_[d.area];
-            a.area = d.area;
-            a.owner = ev.authored_role;
-            (void)zengine::graphics::window::apply(a, zengine::graphics::window::Drawer{}, d);
-        } else if (ev.schema_name == gfx::AreaRoom::zen_name) {
-            if (ev.authored_role.rfind(prefix, 0) != 0) return;
-            const gfx::AreaRoom r = loom::from_value<gfx::AreaRoom>(*ev.payload);
-            zengine::graphics::window::WinArea& a = areas_[r.area];
-            a.area = r.area;
-            a.w = r.w;
-            a.h = r.h;
-            if (r.empty) {
-                a.nodes.clear();
-                a.records.clear();
-            }
-            measures_[r.area] = r.measure();
-        }
-    }
+    void take(const loom::BusEvent& ev);
 
     loom::Switchboard& bus_;
     loom::ObserverId tap_{};
@@ -201,25 +178,11 @@ struct HeldDesk {
     const DrawnMirror* mirror = nullptr;
     std::function<const Session&()> session;
 };
-inline std::vector<HeldDesk>& held_desks() {
-    static std::vector<HeldDesk> desks;
-    return desks;
-}
+std::vector<HeldDesk>& held_desks();
 class HeldDeskEntry {
 public:
-    HeldDeskEntry(const DrawnMirror& mirror, std::function<const Session&()> session) {
-        held_desks().push_back(HeldDesk{&mirror, std::move(session)});
-        mirror_ = &mirror;
-    }
-    ~HeldDeskEntry() {
-        auto& desks = held_desks();
-        for (std::size_t i = desks.size(); i-- > 0;) {
-            if (desks[i].mirror == mirror_) {
-                desks.erase(desks.begin() + static_cast<std::ptrdiff_t>(i));
-                break;
-            }
-        }
-    }
+    HeldDeskEntry(const DrawnMirror& mirror, std::function<const Session&()> session);
+    ~HeldDeskEntry();
     HeldDeskEntry(const HeldDeskEntry&) = delete;
     HeldDeskEntry& operator=(const HeldDeskEntry&) = delete;
 
@@ -234,40 +197,17 @@ private:
 /// `keep_caret_visible(caret - first)` lands exactly on `first` for every value a case can ask for
 /// (its rule 1 caps the window at `size - room`, which is `first` here, and rule 3 pulls it up to
 /// the same place). A window past the end of the text (`first > length`) collapses to the end.
-inline component::TextBox box_of(std::size_t length, std::size_t caret, std::size_t first) {
-    component::TextBox b;
-    b.set(std::string(length, 'x'), caret);
-    b.keep_caret_visible(caret > first ? static_cast<std::int64_t>(caret - first) : 0);
-    return b;
-}
+component::TextBox box_of(std::size_t length, std::size_t caret, std::size_t first);
 
 /// A canvas is a list of planes. These concatenate one KIND across them, in the order a medium
 /// walks them -- the right shape for "was this drawn" and "which of two same-kind primitives is
 /// later" -- and none is a visibility oracle: what is SEEN at a cell is `cell_text_of` below
 /// (text) and `rasterized` (the whole picture), which run the planes' own two-level order.
-inline std::vector<ScreenRect> all_rects(const ScreenCanvas& c) {
-    std::vector<ScreenRect> out;
-    for (const ScreenPlane& l : c.layers) {
-        out.insert(out.end(), l.rects.begin(), l.rects.end());
-    }
-    return out;
-}
+std::vector<ScreenRect> all_rects(const ScreenCanvas& c);
 
-inline std::vector<ScreenLabel> all_labels(const ScreenCanvas& c) {
-    std::vector<ScreenLabel> out;
-    for (const ScreenPlane& l : c.layers) {
-        out.insert(out.end(), l.labels.begin(), l.labels.end());
-    }
-    return out;
-}
+std::vector<ScreenLabel> all_labels(const ScreenCanvas& c);
 
-inline std::vector<ScreenRegion> all_texts(const ScreenCanvas& c) {
-    std::vector<ScreenRegion> out;
-    for (const ScreenPlane& l : c.layers) {
-        out.insert(out.end(), l.texts.begin(), l.texts.end());
-    }
-    return out;
-}
+std::vector<ScreenRegion> all_texts(const ScreenCanvas& c);
 
 /// THE SAME CANVAS WITHOUT THE WORKSPACE'S OWN PLANE -- what the screen's panes, panes and
 /// overlays published, and nothing the DOCUMENT published. The workspace plane carries a text
@@ -275,29 +215,14 @@ inline std::vector<ScreenRegion> all_texts(const ScreenCanvas& c) {
 /// chrome's regions or indexing a pane's projected rows asks about the planes after it. A plane
 /// and not a predicate, because `paint` writes the workspace whole into `layers.front()` before
 /// any pane exists; cases about the names themselves read `object_names`.
-inline ScreenCanvas without_workspace(const ScreenCanvas& c) {
-    ScreenCanvas out = c;
-    if (!out.layers.empty()) {
-        out.layers.erase(out.layers.begin());
-    }
-    return out;
-}
+ScreenCanvas without_workspace(const ScreenCanvas& c);
 
 /// THE AUTHORED OBJECTS' NAMES, as the workspace plane published them.
-inline std::vector<ScreenRegion> object_names(const ScreenCanvas& c) {
-    return c.layers.empty() ? std::vector<ScreenRegion>{} : c.layers.front().texts;
-}
+std::vector<ScreenRegion> object_names(const ScreenCanvas& c);
 
 /// WHAT WORKSHOP'S PLANES SHOW AS CELLS, no ink: each row of the canvas's cells, ended as a
 /// terminal's lines are (`screen_cells::rows_of`).
-inline std::string plain_cells(const ScreenCanvas& c) {
-    std::string out;
-    for (const std::string& row : zengine::testing::screen_cells::rows_of(c)) {
-        out += row;
-        out += "\r\n";
-    }
-    return out;
-}
+std::string plain_cells(const ScreenCanvas& c);
 
 /// A CELL COUNT IN CANVAS PIXELS -- the one multiply a case that thinks in whole cells performs
 /// to author or compare pane geometry, which is in pixels. Short because it appears wherever a
@@ -328,100 +253,44 @@ inline constexpr std::int64_t kStripCols = 28;
 struct ScreenCells {
     std::int64_t w = 0, h = 0, strip_x = 0, room_y = 0, room_w = 0, room_h = 0, band_y = 0;
 };
-inline ScreenCells cells_of(const Screen& sc) {
-    const auto c = [](std::int64_t px) { return gfx::cell_of_pixel(px); };
-    return ScreenCells{c(sc.w),      c(sc.h),
-                       c(sc.room_w - cells_px(kStripCols)), c(sc.room_y),
-                       c(sc.room_w), c(sc.room_y + sc.room_h) - c(sc.room_y), c(sc.band_y)};
-}
+ScreenCells cells_of(const Screen& sc);
 
 /// THE BOTTOM BAND'S FIRST LEGEND ROW, in cells: the band's first row.
-inline std::int64_t help_row(const Screen& sc) { return gfx::cell_of_pixel(sc.band_y); }
+std::int64_t help_row(const Screen& sc);
 
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
 /// A case exercising ONE painter is asking about one presentation, which is one plane.
-inline ScreenPlane& plane(ScreenCanvas& c) {
-    if (c.layers.empty()) {
-        c.layers.emplace_back();
-    }
-    return c.layers.back();
-}
+ScreenPlane& plane(ScreenCanvas& c);
 
 /// ONE REGION ON A CANVAS OF ITS OWN, at the same extent -- the plan for exactly this
 /// presentation and nothing else on the screen. A fresh canvas, not the published one with a
 /// plane overwritten: a Workshop canvas carries a plane per presentation, so replacing one
 /// plane's regions would leave every other plane's on it.
-inline ScreenCanvas canvas_of_region(const ScreenCanvas& like,
-                                     const ScreenRegion& r) {
-    ScreenCanvas out;
-    out.width = like.width;
-    out.height = like.height;
-    out.layers.emplace_back();
-    out.layers.back().texts.push_back(r);
-    return out;
-}
+ScreenCanvas canvas_of_region(const ScreenCanvas& like,
+                                     const ScreenRegion& r);
 
 /// EVERY REGION'S ROWS AS CELLS, across the planes in their order (`screen_cells::region_rows`).
-inline std::vector<zengine::testing::screen_cells::CellRow> projected_of(const ScreenCanvas& c) {
-    std::vector<zengine::testing::screen_cells::CellRow> out;
-    for (const ScreenPlane& l : c.layers) {
-        for (auto& r : zengine::testing::screen_cells::region_rows(l)) {
-            out.push_back(std::move(r));
-        }
-    }
-    return out;
-}
+std::vector<zengine::testing::screen_cells::CellRow> projected_of(const ScreenCanvas& c);
 
 /// EVERYTHING ON A CANVAS SHOWN AS TEXT IN CELLS, in painter's order: per plane, its labels and
 /// then its regions' rows as cells, so the LAST entry at a cell is the topmost text there. Text
 /// only: a later plane's rect over a label is a question for `rasterized`.
-inline std::vector<ScreenLabel> cell_text_of(const ScreenCanvas& c) {
-    std::vector<ScreenLabel> out;
-    for (const ScreenPlane& l : c.layers) {
-        out.insert(out.end(), l.labels.begin(), l.labels.end());
-        for (auto& p : zengine::testing::screen_cells::region_rows(l)) {
-            out.push_back(std::move(p.label));
-        }
-    }
-    return out;
-}
+std::vector<ScreenLabel> cell_text_of(const ScreenCanvas& c);
 
 /// Find a label's text at a canvas cell, or "" -- how the screen tier asks what
 /// a weaver would see at a place: a label's pixel anchor lands on the cell a terminal floors it to.
-inline std::string label_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
-    for (const ScreenLabel& l : cell_text_of(c)) {
-        if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
-            return l.text;
-        }
-    }
-    return {};
-}
+std::string label_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y);
 
 /// The byte of the row at a canvas cell that a region's caret stands on, or -1, read through the
 /// cell projection as `label_at` reads the row's text.
-inline std::int64_t caret_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
-    for (const ScreenPlane& l : c.layers) {
-        for (const auto& p : zengine::testing::screen_cells::region_rows(l)) {
-            if (gfx::cell_of_pixel(p.label.x) == x && gfx::cell_of_pixel(p.label.y) == y) {
-                return p.caret;
-            }
-        }
-    }
-    return -1;
-}
+std::int64_t caret_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y);
 
 /// ONE PROSE ROW OF THE INSPECTOR'S PROPERTY BODY, as a weaver reads it. The body is a bounded
 /// region, which owns what is inside its bounds, so its cell projection pads every row to the
 /// region's full width; that padding erases what was underneath and is noise in an assertion
 /// about what a row SAYS, so this trims it. Through `label_at` and the real cell projection, so a
 /// row cut at the body's width is still cut.
-inline std::string inspector_row(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
-    std::string text = label_at(c, x, y);
-    while (!text.empty() && text.back() == ' ') {
-        text.pop_back();
-    }
-    return text;
-}
+std::string inspector_row(const ScreenCanvas& c, std::int64_t x, std::int64_t y);
 
 
 /// What is actually SEEN at a cell where several labels landed: the LAST one
@@ -429,15 +298,7 @@ inline std::string inspector_row(const ScreenCanvas& c, std::int64_t x, std::int
 /// way. `label_at` above answers with the first, which is the bottom of the
 /// stack -- fine everywhere nothing overlaps, and exactly wrong for asking
 /// whether an overlay covered what is under it.
-inline std::string topmost_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
-    std::string seen;
-    for (const ScreenLabel& l : cell_text_of(c)) {
-        if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
-            seen = l.text;
-        }
-    }
-    return seen;
-}
+std::string topmost_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y);
 
 // ---- The same questions, asked of the window that shows the desk -------------------------------
 // What a weaver sees is what the window shows: its rows, front areas over the ones behind, read at
@@ -446,186 +307,87 @@ inline std::string topmost_at(const ScreenCanvas& c, std::int64_t x, std::int64_
 // from the row it stands on, so "the label at a cell" is the row from there.
 
 /// What the window shows at a canvas cell, to the end of its row.
-inline std::string label_at(const DeskShown& s, std::int64_t x, std::int64_t y) {
-    return s.text_at_px(gfx::px_of_cells(x), gfx::px_of_cells(y));
-}
+std::string label_at(const DeskShown& s, std::int64_t x, std::int64_t y);
 
 /// ...the same, read as one row of the Inspector's body is read.
-inline std::string inspector_row(const DeskShown& s, std::int64_t x, std::int64_t y) {
-    return label_at(s, x, y);
-}
+std::string inspector_row(const DeskShown& s, std::int64_t x, std::int64_t y);
 
 /// What is seen at a cell: the window shows only the front-most, so the row is the answer.
-inline std::string topmost_at(const DeskShown& s, std::int64_t x, std::int64_t y) {
-    return label_at(s, x, y);
-}
+std::string topmost_at(const DeskShown& s, std::int64_t x, std::int64_t y);
 
 /// The window's rows, one string a row.
-inline std::vector<std::string> rasterized(const DeskShown& s) { return s.rows; }
+std::vector<std::string> rasterized(const DeskShown& s);
 
 /// Every row the window shows, the rows joined as a terminal's lines are.
-inline std::string plain_cells(const DeskShown& s) {
-    std::string out;
-    for (const std::string& row : s.rows) {
-        out += row;
-        out += "\r\n";
-    }
-    return out;
-}
+std::string plain_cells(const DeskShown& s);
 
 /// THE SETUP A CASE THAT BUILT ITS `Panes` BY HAND IS IMPLICITLY WORKING UNDER: one authored row
 /// per open pane, in open order, with no override on any axis and the identity front ranks --
 /// exactly what `reconcile` would have produced from that setup -- so such a case still asks the
 /// ONE resolver the question the application asks, not a second one with a defaulted argument.
-inline Setup setup_for(const Panes& panes) {
-    Setup s;
-    s.name = "case";
-    for (const OpenPane& p : panes.open) {
-        if (is_runtime_kind(p.kind)) {
-            if (const RuntimePane* row = panes.runtime.of_kind(p.kind)) {
-                (void)add_pane(s, PaneRef{row->provider, row->pane});
-            }
-            continue;
-        }
-        (void)add_pane(s, pane_ref_of(p.kind));
-    }
-    return s;
-}
+Setup setup_for(const Panes& panes);
 
 /// ONE DESK AS A WHOLE LAYOUT RUN -- what a case means when it says something about a session and
 /// nothing about the plural. The session format carries the weaver's run and the position that was
 /// live, so a case that means "one desk" says so once, here, not `{desk}, 0` at sixty call sites.
 /// Its association is `none`: the layout is durable and related to no standalone Setup file.
-inline std::vector<Layout> one_layout(Setup desk) {
-    std::vector<Layout> run;
-    run.push_back(Layout{std::move(desk), SetupLink{}, 1});
-    return run;
-}
+std::vector<Layout> one_layout(Setup desk);
 
 /// A RUN OF PLAIN DESKS, EACH WITH NO ASSOCIATION -- the same convenience for the cases
 /// that mean several layouts and nothing about their Setup relationships.
-inline std::vector<Layout> plain_run(std::vector<Setup> desks) {
-    std::vector<Layout> run;
-    run.reserve(desks.size());
-    for (Setup& desk : desks) {
-        run.push_back(Layout{std::move(desk), SetupLink{}, static_cast<std::int64_t>(run.size()) + 1});
-    }
-    return run;
-}
+std::vector<Layout> plain_run(std::vector<Setup> desks);
 
 /// ONE LAYOUT ASSOCIATED WITH AN ARTIFACT WHOSE KNOWN VALUE IS `known`.
-inline Layout linked_layout(Setup desk, std::string path, Setup known) {
-    return Layout{std::move(desk), SetupLink{std::move(path), std::move(known)}};
-}
+Layout linked_layout(Setup desk, std::string path, Setup known);
 
 /// THE DESKS OF A RUN, in order -- for the cases that compare arrangements and mean nothing
 /// about associations.
-inline std::vector<Setup> desks_of(const std::vector<Layout>& run) {
-    std::vector<Setup> out;
-    out.reserve(run.size());
-    for (const Layout& layout : run) {
-        out.push_back(layout.desk);
-    }
-    return out;
-}
+std::vector<Setup> desks_of(const std::vector<Layout>& run);
 
 /// A RUN AS A SESSION KEEPS IT: every layout a positive id of its own -- the one it has, else its
 /// place in the run counted from 1.
-inline std::vector<Layout> numbered(std::vector<Layout> run) {
-    for (std::size_t i = 0; i < run.size(); ++i) {
-        if (run[i].id <= 0) {
-            run[i].id = static_cast<std::int64_t>(i) + 1;
-        }
-    }
-    return run;
-}
+std::vector<Layout> numbered(std::vector<Layout> run);
 
 /// ...AND THE ID THE NEXT NEW LAYOUT OF IT TAKES: one above every id it holds.
-inline std::int64_t next_id_of(const std::vector<Layout>& run) {
-    std::int64_t top = 0;
-    for (const Layout& l : numbered(run)) {
-        top = std::max(top, l.id);
-    }
-    return top + 1;
-}
+std::int64_t next_id_of(const std::vector<Layout>& run);
 
 /// THE SESSION A RUN IS SAVED AS, as its value and as its file's text.
-inline session_persist::WorkshopSession
+session_persist::WorkshopSession
 session_value(const std::vector<Layout>& run, std::size_t active,
-              const std::vector<session_persist::WorkshopChoice>& choices = {}) {
-    return session_persist::to_session(numbered(run), active, next_id_of(run), choices);
-}
-inline std::string session_text(const std::vector<Layout>& run, std::size_t active,
-                                const std::vector<session_persist::WorkshopChoice>& choices = {}) {
-    return session_persist::to_text(numbered(run), active, next_id_of(run), choices);
-}
+              const std::vector<session_persist::WorkshopChoice>& choices = {});
+std::string session_text(const std::vector<Layout>& run, std::size_t active,
+                                const std::vector<session_persist::WorkshopChoice>& choices = {});
 
 /// THE LAST RUN AS A QUIT LEAVES IT: the session at `path`, and the window file beside it holding
 /// the room and the placement.
-inline Written save_last_run(const std::string& path, const std::vector<Layout>& run,
+Written save_last_run(const std::string& path, const std::vector<Layout>& run,
                              std::size_t active, std::int64_t w, std::int64_t h,
                              const window_persist::Placement& place = {},
-                             const std::vector<session_persist::WorkshopChoice>& choices = {}) {
-    const Written session =
-        session_persist::save_file(path, numbered(run), active, next_id_of(run), choices);
-    if (!session.accepted) {
-        return session;
-    }
-    return window_persist::save_file(window_persist::path_beside(path), w, h, place);
-}
+                             const std::vector<session_persist::WorkshopChoice>& choices = {});
 
 /// THE LAYOUT A LOADED SESSION WAS STANDING ON. `at()` rather than `[]` deliberately: a
 /// case that reads this off a session that was NOT admitted has asked the wrong question,
 /// and an exception says so where a default-constructed desk would quietly pass.
-inline const Setup& live_layout(const session_persist::LoadedSession& loaded) {
-    return loaded.layouts.at(loaded.active).desk;
-}
+const Setup& live_layout(const session_persist::LoadedSession& loaded);
 
 /// ...AND THE SETUP ASSOCIATION IT WAS STANDING ON, by the same rule.
-inline const SetupLink& live_link(const session_persist::LoadedSession& loaded) {
-    return loaded.layouts.at(loaded.active).link;
-}
+const SetupLink& live_link(const session_persist::LoadedSession& loaded);
 
 /// THE LIVE LAYOUT'S SETUP-ASSOCIATION VERDICT -- `none`, `current` or `modified` -- asked of the
 /// layout that owns it: a fresh desk is `none`, related to no artifact, and two layouts can give
 /// two different answers.
-inline std::int64_t live_status(const SetupState& s) {
-    return link_status(s.active, s.active_link);
-}
+std::int64_t live_status(const SetupState& s);
 
 /// ...AS THE LIVE COPY A SESSION PRESENTS SAYS IT.
-inline std::int64_t live_status(const LiveDesk& d) { return d.link; }
+std::int64_t live_status(const LiveDesk& d);
 
 /// THE COPY A SESSION PRESENTS OF `run`, as the layouts' store would send it: for the cases that
 /// paint a session of several layouts and stage no store.
-inline LiveDesk live_copy_of(const SetupState& run) {
-    LiveDesk d;
-    // EACH ROW WITH WORKSHOP'S OWN KEYS ALONE, as the owner's picture carries it.
-    d.active = run.active;
-    for (SetupPane& row : d.active.panes) {
-        std::erase_if(row.settings,
-                      [](const PaneSetting& s) { return !is_desk_setting_key(s.key); });
-    }
-    d.owned = d.active;
-    d.id = run.active_id;
-    d.active_at = run.active_at;
-    d.tabs.clear();
-    for (const Layout& l : layout_run(run)) {
-        d.tabs.push_back(LiveTab{l.id, l.desk.name, link_status(l.desk, l.link)});
-    }
-    d.link_path = run.active_link.path;
-    d.link = link_status(run.active, run.active_link);
-    d.put_live = run.put_live;
-    return d;
-}
+LiveDesk live_copy_of(const SetupState& run);
 
 /// THE TAB RUN AND ONE TAB OF A RUN, as the copy a session presents of it paints them.
-inline LayoutTabRun layout_tab_run(const SetupState& run, std::int64_t columns) {
-    return layout_tab_run(live_copy_of(run), columns);
-}
-inline std::string layout_tab_text(const SetupState& run, std::size_t at) {
-    return layout_tab_text(live_copy_of(run), at);
-}
+LayoutTabRun layout_tab_run(const SetupState& run, std::int64_t columns);
+std::string layout_tab_text(const SetupState& run, std::size_t at);
 
 /// WHICH ROLE A SHAPE IS ASKED OF: the layouts' owner for every door it keeps -- a declaration,
 /// a pane's row asked and what it cannot use, a settings door, a desk put live -- and Workshop for
@@ -662,10 +424,8 @@ class StageHand
     : public loom::WeaveBase<StageHand, StageHandState, loom::Accept<StageNudge, LayoutSettingsAnswered>,
                              loom::Emit<LayoutSettingsRequested>> {
 public:
-    void on(const StageNudge&, loom::Mail& mail) {
-        (void)mail.as_role(kStageRole).send_to_role(kLayoutsRole, LayoutSettingsRequested{});
-    }
-    void on(const LayoutSettingsAnswered&, loom::Mail&) {}
+    void on(const StageNudge&, loom::Mail& mail);
+    void on(const LayoutSettingsAnswered&, loom::Mail&);
 };
 
 /// STAGE THE RUN THE LAYOUTS' OWNER HOLDS, changed by `f`: Workshop's copy is the store's at once,
@@ -726,35 +486,20 @@ template <class Rig> bool staged_reset_pane_place(Rig& r, const PaneRef& ref) {
 /// RELATE THE LIVE LAYOUT TO `path`, WITH ITS CURRENT DESK AS THE KNOWN VALUE -- the state a
 /// successful `s` leaves behind, staged directly for the cases that are about something
 /// else.
-inline void link_live_setup(SetupState& s, std::string path) {
-    s.active_link = SetupLink{std::move(path), s.active};
-}
+void link_live_setup(SetupState& s, std::string path);
 
 /// THE CELLS A PUBLISHED RECTANGLE COVERS, as a terminal floors it -- what a case that thinks in
 /// cells compares a picture's rectangles by.
-inline CellRect covered_cells(const ScreenRect& r) {
-    return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
-}
-inline CellRect covered_cells(const ScreenRegion& r) {
-    return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
-}
+CellRect covered_cells(const ScreenRect& r);
+CellRect covered_cells(const ScreenRegion& r);
 
 /// IS THERE A RECTANGLE IN THIS COLOUR COVERING EXACTLY THESE CELLS?
-inline bool has_rect(const ScreenCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
-                     std::int64_t h, gfx::Color ink) {
-    for (const ScreenRect& r : all_rects(c)) {
-        if (covered_cells(r) == CellRect{x, y, w, h} && r.ink == ink) {
-            return true;
-        }
-    }
-    return false;
-}
+bool has_rect(const ScreenCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
+                     std::int64_t h, gfx::Color ink);
 
 /// One canvas as cells, one string per screen row: the glyphs Workshop's planes put on the cells
 /// they cover, a rectangle's ink told by its glyph.
-inline std::vector<std::string> rasterized(const ScreenCanvas& canvas) {
-    return zengine::testing::screen_cells::rows_of(canvas);
-}
+std::vector<std::string> rasterized(const ScreenCanvas& canvas);
 
 struct SeenState {
     std::int64_t frames = 0;
@@ -773,11 +518,10 @@ class Painter : public loom::WeaveBase<Painter, SeenState,
 public:
     Painter(std::vector<StandingConditions>& conditions,
             std::vector<TranscriptShown>& transcripts,
-            std::vector<PaneSubjectShown>& subjects)
-        : conditions_(&conditions), transcripts_(&transcripts), subjects_(&subjects) {}
-    void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
-    void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
-    void on(const PaneSubjectShown& s, loom::Mail&) { subjects_->push_back(s); }
+            std::vector<PaneSubjectShown>& subjects);
+    void on(const StandingConditions& c, loom::Mail&);
+    void on(const TranscriptShown& t, loom::Mail&);
+    void on(const PaneSubjectShown& s, loom::Mail&);
 
 private:
     std::vector<StandingConditions>* conditions_;
@@ -798,27 +542,12 @@ inline constexpr const char* kRigBoard = "zengine.test.board";
 /// each ask's fate on the bus: delivered to the rig's own directory, or refused while none holds
 /// its role yet.
 struct RoomAsks {
-    explicit RoomAsks(loom::Switchboard& bus) : bus_(bus) {
-        tap_ = bus_.add_observer([this](const loom::BusEvent& ev) {
-            if ((ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused) &&
-                ev.payload != nullptr &&
-                ev.schema_name == gfx::RoomAsked::zen_name) {
-                asked_.emplace_back(loom::from_value<gfx::RoomAsked>(*ev.payload).area,
-                                    std::string(ev.authored_role));
-            }
-        });
-    }
-    ~RoomAsks() { bus_.remove_observer(tap_); }
+    explicit RoomAsks(loom::Switchboard& bus);
+    ~RoomAsks();
     RoomAsks(const RoomAsks&) = delete;
     RoomAsks& operator=(const RoomAsks&) = delete;
     /// How many times `role` asked the room of `area`.
-    std::size_t times(const std::string& area, const std::string& role) const {
-        std::size_t n = 0;
-        for (const auto& [a, o] : asked_) {
-            n += a == area && o == role ? std::size_t{1} : std::size_t{0};
-        }
-        return n;
-    }
+    std::size_t times(const std::string& area, const std::string& role) const;
 
 private:
     loom::Switchboard& bus_;
@@ -828,46 +557,19 @@ private:
 
 /// HOW MANY PASTES WERE ASKED of the role `window` names, counted on `bus` from the delivery of
 /// each to its holder: the TUI window reads no clipboard and keeps no count of its own.
-inline loom::ObserverId count_paste_asks(loom::Switchboard& bus, std::string window,
-                                         std::int64_t& asks) {
-    return bus.add_observer([&bus, window = std::move(window), &asks](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Delivered &&
-            ev.schema_name == gfx::ClipboardTextRequested::zen_name &&
-            ev.target == bus.role_holder(window)) {
-            ++asks;
-        }
-    });
-}
+loom::ObserverId count_paste_asks(loom::Switchboard& bus, std::string window,
+                                         std::int64_t& asks);
 
 /// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window that shows it, counted on `bus` from
 /// the delivery of each: a repaint that moved nothing on the desk sends none.
-inline loom::ObserverId count_desk_drawings(loom::Switchboard& bus, const loom::WeaveId& workshop,
-                                            std::size_t& drawings) {
-    return bus.add_observer([&bus, &workshop, &drawings](const loom::BusEvent& ev) {
-        (void)bus;
-        if (ev.kind != loom::EventKind::Delivered || ev.sender != workshop || ev.payload == nullptr ||
-            ev.schema_name != gfx::Drawn::zen_name) {
-            return;
-        }
-        if (loom::from_value<gfx::Drawn>(*ev.payload).area == kWorkshopProvider) {
-            ++drawings;
-        }
-    });
-}
+loom::ObserverId count_desk_drawings(loom::Switchboard& bus, const loom::WeaveId& workshop,
+                                            std::size_t& drawings);
 
 
 /// One participant's own record, filtered -- the transcript is a MODEL, so a test asks it
 /// structured questions rather than grepping rendered prose.
-inline std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& me,
-                                                  loom::TranscriptKind kind) {
-    std::vector<loom::TranscriptEntry> out;
-    for (const loom::TranscriptEntry& e : me.transcript().entries()) {
-        if (e.kind == kind) {
-            out.push_back(e);
-        }
-    }
-    return out;
-}
+std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& me,
+                                                  loom::TranscriptKind kind);
 
 
 /// ONE CONDITION OUT OF A PROJECTION, BY KEY -- or nothing, which is the answer a resolved
@@ -875,14 +577,7 @@ inline std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& m
 /// one spelling, and it deliberately reads the PROJECTION rather than `Session::conditions`:
 /// a derived condition is never in the held set, and a case that looked there would be
 /// asserting about the wrong half of the model.
-inline const Condition* condition_by_key(const std::vector<Condition>& all, const std::string& key) {
-    for (const Condition& c : all) {
-        if (c.key == key) {
-            return &c;
-        }
-    }
-    return nullptr;
-}
+const Condition* condition_by_key(const std::vector<Condition>& all, const std::string& key);
 
 /// THE MONOTONIC READING A CASE OWNS -- what the windows count the weaver's clicks by, and what
 /// a rig keeping Workshop's own times runs its wait on (`HubTime`), so "how long ago was the last
@@ -892,32 +587,19 @@ inline const Condition* condition_by_key(const std::vector<Condition>& all, cons
 struct InteractionClock {
     std::int64_t now = 0;
     std::int64_t step = input::kMostDoubleClickMs + 1;
-    std::int64_t read() {
-        const std::int64_t at = now;
-        now += step;
-        return at;
-    }
+    std::int64_t read();
     /// PRESSES FROM HERE ON ARE CLOSE ENOUGH TO BE ONE GESTURE...
-    void together() { step = 1; }
+    void together();
     /// ...and far enough apart to be two again.
-    void apart() { step = input::kMostDoubleClickMs + 1; }
+    void apart();
     /// ...or exactly this far apart, for the two cases that pin the boundary itself.
-    void spaced(std::int64_t ms) { step = ms; }
+    void spaced(std::int64_t ms);
 };
 
 /// THE HOST'S OWN WORD TO A SOURCE OF ITS WAIT, as a rig gives it: what the source claimed is
 /// ready and its time came, on the machine's clock -- a source over a real child process keeps
 /// real time. It has no sender, as only the host's has.
-inline loom::Message host_wake() {
-    loom::host::Waited w;
-    w.held = true;
-    w.ready = true;
-    w.due = true;
-    w.now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::steady_clock::now().time_since_epoch())
-                   .count();
-    return loom::Message(loom::to_value(w), loom::WeaveId{}, loom::WeaveId{}, 0);
-}
+loom::Message host_wake();
 
 /// THE HOST'S ONE WAIT FOR WORKSHOP'S OWN TIMES, AS A RIG KEEPS IT: a `loom::host::Reactor` on the
 /// case's reading, trusting Workshop's role, so Workshop is handed the time as its host hands it --
@@ -927,34 +609,18 @@ inline loom::Message host_wake() {
 struct HubTime {
     struct OnReading final : loom::host::Clock {
         InteractionClock* clock = nullptr;
-        std::int64_t now_ms() const override { return clock->now; }
-        bool moves_on_its_own() const noexcept override { return false; }
-        void arrive(std::int64_t ms) override {
-            if (ms > clock->now) clock->now = ms;
-        }
+        std::int64_t now_ms() const override;
+        bool moves_on_its_own() const noexcept override;
+        void arrive(std::int64_t ms) override;
     };
     loom::Switchboard& bus;
     OnReading reading;
     loom::host::Reactor wait;
-    HubTime(loom::Switchboard& b, InteractionClock& clock) : bus(b), reading(on(clock)), wait(b, reading) {
-        wait.trust(kWorkshopProvider);
-        settle();
-    }
-    static OnReading on(InteractionClock& clock) {
-        OnReading r;
-        r.clock = &clock;
-        return r;
-    }
+    HubTime(loom::Switchboard& b, InteractionClock& clock);
+    static OnReading on(InteractionClock& clock);
     /// THE BUS TURNED UNTIL IDLE, the case's pace of time passing at each turn and the wait looking
     /// after it: what was due by then is handed to Workshop before the case's next step.
-    void settle() {
-        for (int turn = 0; turn < 64; ++turn) {
-            bus.drain_until_idle();
-            reading.clock->now += reading.clock->step;
-            (void)wait.after_turn(0);
-            if (bus.pending() == 0) return;
-        }
-    }
+    void settle();
 };
 
 // ---- The stack's stand-in: a runtime pane every `Live` admits first --------------------------
@@ -973,7 +639,7 @@ inline constexpr const char* kSummary = "a stack pane with nobody behind it";
 inline constexpr std::int64_t kKind = kFirstRuntimeKind;
 } // namespace stock
 
-inline PaneRef stock_ref() { return PaneRef{stock::kRole, stock::kPane}; }
+PaneRef stock_ref();
 
 /// THE SECOND STAND-IN, admitted right after the first under the same role: the other ordinary
 /// stack pane a case seats, overlaps, orders and persists.
@@ -984,30 +650,14 @@ inline constexpr const char* kSummary = "a second stack pane with nobody behind 
 inline constexpr std::int64_t kKind = kFirstRuntimeKind + 1;
 } // namespace second
 
-inline PaneRef second_ref() { return PaneRef{stock::kRole, second::kPane}; }
+PaneRef second_ref();
 
 /// ADMIT THE STAND-IN INTO A CATALOG, first -- and prove it took the handle every case
 /// spells. Idempotent: a refreshed offer keeps the handle it already had.
-inline void admit_stock(Panes& panes) {
-    const Admission took = admit_pane_offer(panes.runtime, stock::kRole,
-                                            PaneOffered{stock::kPane, stock::kName, stock::kSummary});
-    REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
-    const RuntimePane* row = panes.runtime.find(stock::kRole, stock::kPane);
-    REQUIRE(row != nullptr);
-    REQUIRE_MESSAGE(row->kind == stock::kKind,
-                    "the stand-in must be the first pane this catalog admits");
-}
+void admit_stock(Panes& panes);
 
 /// ...AND THE SECOND, right after it, proving it took the handle every case spells.
-inline void admit_second(Panes& panes) {
-    const Admission took = admit_pane_offer(
-        panes.runtime, stock::kRole, PaneOffered{second::kPane, second::kName, second::kSummary});
-    REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
-    const RuntimePane* row = panes.runtime.find(stock::kRole, second::kPane);
-    REQUIRE(row != nullptr);
-    REQUIRE_MESSAGE(row->kind == second::kKind,
-                    "the second stand-in must be the second pane this catalog admits");
-}
+void admit_second(Panes& panes);
 
 class DoorHand;
 
@@ -1058,270 +708,96 @@ struct Live {
     LayoutsOwner* owner = nullptr;
     loom::WeaveId owner_id{};
     loom::WeaveId stage_id{};
-    void mount_owner() {
-        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
-        owner = weave.get();
-        owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
-        owner->zen_set_self(owner_id);
-    }
+    void mount_owner();
     /// ...AND THE OWNER ASKED SOMETHING, so the picture it owes is sent: delivered at the next drain.
-    void nudge_owner() {
-        if (!stage_id.valid()) {
-            auto stage = std::make_unique<StageHand>();
-            StageHand* raw = stage.get();
-            loom::Grant grant;
-            grant.allow_to_role(LayoutSettingsRequested::zen_name,
-                                LayoutSettingsRequested::zen_version, kLayoutsRole);
-            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageRole));
-            raw->zen_set_self(stage_id);
-        }
-        (void)bus.send(stage_id,
-                       loom::Message(loom::to_value(StageNudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
-    }
+    void nudge_owner();
 
-    Live() {
-        // The windows' clock, which they count the weaver's clicks by.
-        windows.clock([this] { return clock.read(); });
-        // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
-        host.dir = WORKSHOP_SKINS_DIR;
-#ifdef WORKSHOP_THEMES_DIR
-        host.shipped_themes_path = WORKSHOP_THEMES_DIR; // the shipped themes, as the build has them
-#endif
-        // THE HOST'S VERSION ANSWER, as workshop.cpp wires it (the grant is the Emit set's) --
-        // with ONE fixture statement: the stack's stand-in (`stock`) is answered as present for
-        // a ROOM, so the launch door (which asks exactly that) seats it as it seats any offered
-        // pane. Nothing holds its role, so everything actually sent to it is still refused on
-        // the tap; the statement is about the one question and nothing else.
-        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
-            if (role == stock::kRole && shape.name() == gfx::AreaRoom::zen_name) {
-                return true;
-            }
-            return holder_accepts_on(bus, role, shape);
-        };
-        host.holder_emits = [this](std::string_view role, const loom::Schema& shape) {
-            return holder_emits_on(bus, role, shape);
-        };
-        host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
-        host.incarnation_of = [this](loom::WeaveId id) {
-            return static_cast<std::int64_t>(bus.participant(id).incarnation);
-        };
-        host.destinations = [this] {
-            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
-                                                                  : loom::WeaveId{});
-        };
-        mount_owner();
-        auto weave = std::make_unique<WorkshopWeave>(host);
-        w = weave.get();
-        loom::Grant grant = loom::emit_default_grant(*w);
-        loom::allow_poke_answers(grant);
-        // ...AND WHERE THE PLAN IS, the realization owner's claim, as the host grants it.
-        grant.allow_observe(zengine::realization::PlanStatus::zen_name,
-                            zengine::realization::PlanStatus::zen_version);
-        // IN THE ROLE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
-        // the pane protocol is authored AS that role: mounted anonymously, its asks and room
-        // grants would be refused at the bus. The three-argument `register_weave` is the Loom's
-        // own way to bind one, which is what `mount_in_role` spells in the host.
-        const loom::WeaveId id =
-            bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
-        w->zen_set_self(id);
-        workshop_id = id;
-        quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
-        (void)loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
-        (void)count_desk_drawings(bus, workshop_id, pictures);
-        // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
-        // spends, before any offer a case might make, so its handle is the constant.
-        admit_stock(const_cast<Session&>(w->session()).panes);
-        admit_second(const_cast<Session&>(w->session()).panes);
-    }
+    Live();
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
     /// handed over as `request_stop` is -- with this rig's one rule, `RigNote` to whoever holds
     /// `kRigBoard`. `widen` is the canary lever, Workshop's own `to_any` rule, without which "a
     /// pane's publication reaches nobody" measures nothing. `shapes` mounts extra declared shapes,
     /// so a completion list can outgrow its room.
-    loom::TerminalSession* mount_terminal(bool widen = false, int shapes = 0) {
-        loom::TerminalVocabulary vocab;
-        vocab.knows(loom::schema_of<RigNote>())
-            .accepts(loom::schema_of<loom::Ack>())
-            .accepts(loom::schema_of<loom::Refused>());
-        for (int i = 0; i < shapes; ++i) {
-            vocab.knows(loom::SchemaBuilder("Extra" + std::to_string(i), 1)
-                            .field("seq", loom::Kind::Int)
-                            .build());
-        }
-        loom::Grant grant;
-        grant.allow_to_role(RigNote::zen_name, RigNote::zen_version, kRigBoard);
-        if (widen) {
-            grant.allow_to_any(RigNote::zen_name, RigNote::zen_version);
-        }
-        const loom::MountedTerminal mounted = loom::host_mount_terminal(
-            bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
-            std::move(grant));
-        host.terminal = mounted.session;
-        terminal_id = mounted.id;
-        return mounted.session;
-    }
+    loom::TerminalSession* mount_terminal(bool widen = false, int shapes = 0);
 
     /// THE DESK STARTED: the window brought up at the room Workshop holds, so it offers itself
     /// and Workshop starts on that offer, as a run's first showing starts it. A case that seated a
     /// window of its own (`own_medium`) is started by that window's offer.
-    void ready() {
-        if (own_medium()) {
-            return; // the case's own window starts the desk by its offer
-        }
-        come_up();
-    }
+    void ready();
 
     /// A ROOM OF `width` BY `height` CANVAS CELLS, the window sized to it as a weaver sizes it: a
     /// cell medium (the TUI window) unless a face is given, `adv` by `line` canvas pixels a
     /// character (the GUI window). The window says its device unit itself, so `cell` is kept only
     /// for the spelling of a medium the rig no longer reports.
     void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
-                std::int64_t line = 0, std::int64_t cell = 0) {
-        extent_px(cells_px(width), cells_px(height), adv, line, cell);
-    }
+                std::int64_t line = 0, std::int64_t cell = 0);
     /// ...and a room in canvas pixels, which a cell medium holds in whole cells.
     void extent_px(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
-                   std::int64_t line = 0, std::int64_t cell = 0) {
-        REQUIRE_MESSAGE(!own_medium(), "a case that seated a window of its own sizes it there");
-        (void)cell;
-        const auto [a, l] = face_for(adv, line);
-        windows.room(width, height, a, l);
-    }
+                   std::int64_t line = 0, std::int64_t cell = 0);
     /// THE SHIPPED GRAPHICAL FACE, at a room in canvas cells: the GUI window with its face.
-    void extent_on_window(std::int64_t width, std::int64_t height) {
-        extent(width, height, 8, 18, gfx::kCellPx);
-    }
+    void extent_on_window(std::int64_t width, std::int64_t height);
 
     /// WHAT THE WINDOW SHOWING THE DESK SHOWS NOW.
-    DeskShown shown() {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        return windows.shown();
-    }
+    DeskShown shown();
 
     /// THE WEAVER'S OWN BUTTON THROUGH THE WINDOW SHOWING THE DESK, at a canvas cell: landed by the
     /// window in whatever area stands there -- a pane's menu its presenter draws among them --
     /// where a bare moment goes to Workshop alone. `pressed` false is its release.
-    void window_button(std::int64_t cx, std::int64_t cy, bool pressed, std::int64_t button = 1) {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        windows.hand({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
-                                           input::mod::kNone}});
-        bus.drain_until_idle();
-    }
+    void window_button(std::int64_t cx, std::int64_t cy, bool pressed, std::int64_t button = 1);
     /// ...a press and its release there.
-    void window_click(std::int64_t cx, std::int64_t cy, std::int64_t button = 1) {
-        window_button(cx, cy, true, button);
-        window_button(cx, cy, false, button);
-    }
+    void window_click(std::int64_t cx, std::int64_t cy, std::int64_t button = 1);
     /// ...AT A POINT IN THE MEDIUM'S OWN SPACE, as a reading names one: the TUI window's cell,
     /// its rows above the desk counted, or the GUI window's pixel.
     void hand_button(std::int64_t x, std::int64_t y, std::int64_t space, bool pressed,
-                     std::int64_t button = 1) {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        windows.hand({input::PointerButton{button, pressed, x, y, space, input::mod::kNone}});
-        bus.drain_until_idle();
-    }
+                     std::int64_t button = 1);
     /// ...OR QUEUED ON THE WINDOW'S PLATFORM, a button or a key, and read together on its next
     /// beat (`window_beat`), as one batch of the weaver's.
     void window_queue_button(std::int64_t cx, std::int64_t cy, bool pressed,
-                             std::int64_t button = 1) {
-        come_up();
-        windows.queue({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
-                                            input::mod::kNone}});
-    }
-    void window_queue_key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
-        come_up();
-        windows.queue({input::KeyPressed{scan, "", mods}});
-    }
-    void window_beat() {
-        windows.pump();
-        bus.drain_until_idle();
-    }
+                             std::int64_t button = 1);
+    void window_queue_key(std::int64_t scan, std::int64_t mods = input::mod::kNone);
+    void window_beat();
 
     /// THE GUI WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
     /// in cells too: the medium whose platform clipboard a paste can read (`windows.set_clipboard`).
     /// The TUI window reads none. A window up already is moved to it now.
-    void on_gui_window() {
-        gui_window = true;
-        if (windows.up()) {
-            const Session& s = w->session();
-            windows.room(s.screen_w, s.screen_h, 8, 18);
-        }
-    }
+    void on_gui_window();
     bool gui_window = false;
     /// The face a room is shown with: the one asked, or the GUI window's own once this rig is on it.
-    std::pair<std::int64_t, std::int64_t> face_for(std::int64_t adv, std::int64_t line) const {
-        if (gui_window && (adv <= 0 || line <= 0)) {
-            return {8, 18};
-        }
-        return {adv, line};
-    }
+    std::pair<std::int64_t, std::int64_t> face_for(std::int64_t adv, std::int64_t line) const;
 
     /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its role --
     /// before the rig's came up: then the rig's never does, and the case's own window offers the
     /// room and starts the desk.
-    bool own_medium() {
-        if (in_window && !windows.up() &&
-            (bus.role_holder(gfx::kGraphicsRole).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow).valid())) {
-            in_window = false;
-        }
-        return !in_window;
-    }
+    bool own_medium();
 
 
     /// The window comes up, if it is not up, at the room and face Workshop holds now.
-    void come_up() {
-        if (own_medium() || windows.up() || w == nullptr) {
-            return;
-        }
-        const Session& s = w->session();
-        const auto [a, l] = face_for(s.text_advance_px, s.text_line_px);
-        windows.room(s.screen_w, s.screen_h, a, l);
-    }
+    void come_up();
 
     /// Type a whole line into whatever is taking text, then press Return.
-    void type_line(const std::string& line) {
-        for (const char c : line) {
-            text(std::string(1, c));
-        }
-        key(input::scan::kReturn);
-    }
+    void type_line(const std::string& line);
 
     /// A GESTURE OR A WORD, published as a medium publishes it -- the window up first, so the
     /// desk it lands on is the one a weaver sees.
-    void publish(const loom::Value& v) {
-        come_up();
-        (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.drain_until_idle();
-    }
+    void publish(const loom::Value& v);
 
-    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
-        publish(loom::to_value(input::KeyPressed{sc, "", mods}));
-    }
-    void text(const std::string& s) { publish(loom::to_value(input::TextEntered{s})); }
+    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone);
+    void text(const std::string& s);
 
     /// A pointer event AT A WORKSPACE CELL: `wx` cells from the room's left and `wy` cells below
     /// its top, which is where this screen's top band ends. The translation to the cell a window
     /// reports -- its own cell, with no console row above the canvas -- is the inverse of the
     /// weave's own, done here so every case below reads in the coordinates a weaver thinks in.
-    std::int64_t term_x(std::int64_t wx) const { return wx; }
-    std::int64_t term_y(std::int64_t wy) {
-        return wy + gfx::cell_of_pixel(screen_of(w->session()).room_y);
-    }
+    std::int64_t term_x(std::int64_t wx) const;
+    std::int64_t term_y(std::int64_t wy);
 
     /// The same workspace cell, as the WINDOW would report it: the pixel at the
     /// cell's top-left corner. Deliberately the inverse of the GUI window's
     /// own layout and not of the terminal's -- the two media report different
     /// numbers for one place (workshop/docs/pointer-spaces.md).
-    std::int64_t px_x(std::int64_t wx) const { return wx * gfx::kCellPx; }
-    std::int64_t px_y(std::int64_t wy) const {
-        return screen_of(w->session()).room_y + wy * gfx::kCellPx;
-    }
+    std::int64_t px_x(std::int64_t wx) const;
+    std::int64_t px_y(std::int64_t wy) const;
 
     /// THE WEAVER'S OWN POINTER MOMENT, through the window showing the desk, landed in whatever
     /// area stands there as a weaver's hand is.
@@ -1337,116 +813,56 @@ struct Live {
     /// cell, untranslated. Every other helper speaks the WORKSPACE cells a weaver thinks in for
     /// the document; the Terminal's interior is finer than a cell, so its cases must say a pixel.
     void press_at(std::int64_t x, std::int64_t y, std::int64_t space,
-                  std::int64_t mods = input::mod::kNone) {
-        hand_moment(input::PointerButton{1, true, x, y, space, mods});
-    }
+                  std::int64_t mods = input::mod::kNone);
     /// A MOTION at a raw position -- the one gesture hover reveal is about.
-    void motion_at(std::int64_t x, std::int64_t y, std::int64_t space) {
-        hand_moment(input::PointerMoved{x, y, 0, 0, space, input::mod::kNone});
-    }
+    void motion_at(std::int64_t x, std::int64_t y, std::int64_t space);
 
-    void press(std::int64_t wx, std::int64_t wy, std::int64_t mods = input::mod::kNone) {
-        hand_moment(input::PointerButton{1, true, term_x(wx), term_y(wy),
-                                                    input::space::kCells, mods});
-    }
-    void release(std::int64_t wx, std::int64_t wy) {
-        hand_moment(input::PointerButton{1, false, term_x(wx), term_y(wy),
-                                                    input::space::kCells, input::mod::kNone});
-    }
+    void press(std::int64_t wx, std::int64_t wy, std::int64_t mods = input::mod::kNone);
+    void release(std::int64_t wx, std::int64_t wy);
     /// A SECOND-BUTTON press at a workspace cell -- the same translation `press` uses, for the
     /// button that asks a question instead of taking hold.
-    void right_press(std::int64_t wx, std::int64_t wy) {
-        hand_moment(input::PointerButton{3, true, term_x(wx), term_y(wy),
-                                                    input::space::kCells, input::mod::kNone});
-    }
+    void right_press(std::int64_t wx, std::int64_t wy);
     /// The same two gestures at a CANVAS cell -- for presses on Workshop's own furniture
     /// (a pane's slot, the contextual surface), which is placed on the canvas and never
     /// in the document's room.
-    void press_canvas(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{1, true, cx, cy,
-                                                    input::space::kCells, input::mod::kNone});
-    }
-    void release_canvas(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{1, false, cx, cy,
-                                                    input::space::kCells, input::mod::kNone});
-    }
-    void motion_canvas(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerMoved{cx, cy, 0, 0,
-                                                   input::space::kCells, input::mod::kNone});
-    }
-    void right_press_canvas(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{3, true, cx, cy,
-                                                    input::space::kCells, input::mod::kNone});
-    }
+    void press_canvas(std::int64_t cx, std::int64_t cy);
+    void release_canvas(std::int64_t cx, std::int64_t cy);
+    void motion_canvas(std::int64_t cx, std::int64_t cy);
+    void right_press_canvas(std::int64_t cx, std::int64_t cy);
     /// The contextual-action surface's state, as every contextual-menu case reads it.
-    const ContextMenu& menu() const { return w->session().context; }
-    void motion(std::int64_t wx, std::int64_t wy) {
-        hand_moment(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
-                                                   input::space::kCells, input::mod::kNone});
-    }
+    const ContextMenu& menu() const;
+    void motion(std::int64_t wx, std::int64_t wy);
     /// THE WHEEL, AT A CANVAS CELL -- `press_canvas`'s translation for the one event the
     /// editor's viewport consumes. `dy` is notches, +1 away from the weaver (the wire's
     /// own convention), fractional exactly as a high-resolution wheel reports.
-    void wheel_canvas(double dy, std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerWheel{0.0, dy, cx, cy,
-                                                   input::space::kCells, input::mod::kNone});
-    }
+    void wheel_canvas(double dy, std::int64_t cx, std::int64_t cy);
 
     /// The same three gestures, arriving from the GUI window. The
     /// `+ cell/2` puts the event in the MIDDLE of the cell rather than on its
     /// corner, which is where a weaver's pointer actually is and is what makes a
     /// truncating (rather than flooring) projection visible.
-    static std::int64_t mid(std::int64_t p) { return p + gfx::kCellPx / 2; }
-    void press_px(std::int64_t wx, std::int64_t wy) {
-        hand_moment(input::PointerButton{1, true, mid(px_x(wx)), mid(px_y(wy)),
-                                                    input::space::kPixels, input::mod::kNone});
-    }
-    void release_px(std::int64_t wx, std::int64_t wy) {
-        hand_moment(input::PointerButton{1, false, mid(px_x(wx)), mid(px_y(wy)),
-                                                    input::space::kPixels, input::mod::kNone});
-    }
-    void motion_px(std::int64_t wx, std::int64_t wy) {
-        hand_moment(input::PointerMoved{mid(px_x(wx)), mid(px_y(wy)), 0, 0,
-                                                   input::space::kPixels, input::mod::kNone});
-    }
+    static std::int64_t mid(std::int64_t p);
+    void press_px(std::int64_t wx, std::int64_t wy);
+    void release_px(std::int64_t wx, std::int64_t wy);
+    void motion_px(std::int64_t wx, std::int64_t wy);
 
     /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the GUI window grows to the reach of the areas it
     /// shows on one beat and offers its new room on the next.
-    void window_settles() {
-        for (int beat = 0; beat < 4; ++beat) {
-            const std::int64_t was_w = session().screen_w, was_h = session().screen_h;
-            windows.pump();
-            windows.pump();
-            if (session().screen_w == was_w && session().screen_h == was_h) {
-                return;
-            }
-        }
-    }
+    void window_settles();
     /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's role.
-    void close_requested() {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        (void)bus.role_publish_as(windows.id(), windows.role(),
-                                    loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
-        bus.drain_until_idle();
-    }
+    void close_requested();
 
-    const Session& session() const { return w->session(); }
+    const Session& session() const;
     /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
-    const SetupState& run() const { return owner->layouts().run(); }
-    std::string notice() const { return w->session().notice; }
+    const SetupState& run() const;
+    std::string notice() const;
 
     /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said
     /// (`attention_glance`). Empty is the honest answer: nothing is true.
-    std::string glance() const {
-        return said_conditions.empty() ? std::string()
-                                       : attention_glance(said_conditions.back().rows);
-    }
+    std::string glance() const;
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the one projection the
     /// screen and the view both spend.
-    std::vector<Condition> conditions() const {
-        return attention_conditions(w->session(), frontier_claimed(bus));
-    }
+    std::vector<Condition> conditions() const;
 };
 
 /// A long value that cannot fit an Inspector row at any extent this composition has.
@@ -1454,76 +870,32 @@ inline const std::string kLongValue = "the quick brown fox jumps over the lazy d
 
 /// THIS PROCESS, AS A NAME: the one thing two processes of one suite running at once are
 /// guaranteed not to share.
-inline std::string this_process_id() {
-#if defined(_WIN32)
-    return std::to_string(::GetCurrentProcessId());
-#else
-    return std::to_string(static_cast<long long>(::getpid()));
-#endif
-}
+std::string this_process_id();
 
 /// THE TEMPORARY ROOT THIS SUITE OWNS IN THIS PROCESS, and nothing else does (VM-POP-14): the
 /// suites run at once, each `TempDir` counter starts at zero, and `TempDir` removes what it finds
 /// before it creates, so a shared name would be one case deleting another's files. The suite is
-/// `ZENGINE_WORKSHOP_SUITE`, the entry name CMake gave this binary, and the process id is the
+/// `zengine::testing::workshop_suite()`, the entry name CMake gave this binary, and the process id is the
 /// rest, so two runs of one suite cannot collide either. A process sweeps only the root it made:
 /// a crashed run's root stays, since a global sweep would be the deleting this name prevents.
-inline std::filesystem::path workshop_temp_root() {
-    static const std::filesystem::path root =
-        std::filesystem::temp_directory_path() /
-        ("zengine-workshop-" ZENGINE_WORKSHOP_SUITE "-" + this_process_id());
-    return root;
-}
+std::filesystem::path workshop_temp_root();
 
 /// DOES THIS ENTRY LEAVE THE TREE? The sweep's own predicate: the host's reparse attribute on
 /// Windows, `symlink_status` elsewhere. A failure marks the row, which is what makes a dangling
 /// junction removable BY NAME.
-inline bool sweep_leaves_the_tree(const std::filesystem::directory_entry& entry) {
-#if defined(_WIN32)
-    const DWORD attributes = ::GetFileAttributesW(entry.path().c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES) {
-        return true;
-    }
-    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-#else
-    std::error_code link_ec;
-    const std::filesystem::file_status own = entry.symlink_status(link_ec);
-    return link_ec ? true : !std::filesystem::is_directory(own);
-#endif
-}
+bool sweep_leaves_the_tree(const std::filesystem::directory_entry& entry);
 
 /// REMOVE `p` AND EVERYTHING BENEATH IT, entering only what is really a directory (VM-POP-15):
 /// libstdc++ on Windows walks a directory junction as one, so `std::filesystem::remove_all` would
 /// empty a directory outside the tree through a junction. An entry that leaves the tree is
 /// removed BY NAME and never entered -- `std::filesystem::remove` takes a junction, live or
 /// dangling, and unlinks a symbolic link. Failures are swallowed: a destructor cannot report.
-inline void remove_tree(const std::filesystem::path& p) {
-    std::error_code ec;
-    const std::filesystem::directory_entry entry(p, ec);
-    bool enter = !sweep_leaves_the_tree(entry);
-    if (enter) {
-        std::error_code kind_ec;
-        enter = entry.is_directory(kind_ec) && !kind_ec;
-    }
-    if (enter) {
-        std::error_code walk_ec;
-        const std::filesystem::directory_iterator done;
-        for (std::filesystem::directory_iterator it(p, walk_ec); !walk_ec && it != done;
-             it.increment(walk_ec)) {
-            remove_tree(it->path());
-        }
-    }
-    std::filesystem::remove(p, ec);
-}
+void remove_tree(const std::filesystem::path& p);
 
 /// WHICH KIND OF LINK A CASE MADE, so it can say what a lane exercised.
 enum class LinkArm { none, symbolic_link, junction };
 
-inline const char* link_arm_name(LinkArm arm) {
-    return arm == LinkArm::junction        ? "junction"
-           : arm == LinkArm::symbolic_link ? "symbolic link"
-                                           : "nothing";
-}
+const char* link_arm_name(LinkArm arm);
 
 /// THE LINK THIS PLATFORM'S CASES MAKE: a junction on Windows, a directory symlink elsewhere.
 inline constexpr LinkArm kPlatformLinkArm =
@@ -1537,51 +909,21 @@ inline constexpr LinkArm kPlatformLinkArm =
 /// privilege: a junction answers `is_symlink()` FALSE while still leaving the tree, so it is the
 /// entry that tells the host's attribute from `is_symlink()`, and a symbolic link, which a
 /// privileged runner could make, is not. Elsewhere a directory symlink. `none` when nothing was.
-inline LinkArm make_linked_directory(const std::filesystem::path& link,
-                                     const std::filesystem::path& target) {
-#if defined(_WIN32)
-    const std::string command = "cmd /c mklink /J \"" + link.string() + "\" \"" +
-                                target.string() + "\" >nul 2>&1";
-    std::error_code exists_ec;
-    if (std::system(command.c_str()) == 0 && std::filesystem::exists(link, exists_ec) &&
-        !exists_ec) {
-        return LinkArm::junction;
-    }
-    return LinkArm::none;
-#else
-    std::error_code ec;
-    std::filesystem::create_directory_symlink(target, link, ec);
-    return ec ? LinkArm::none : LinkArm::symbolic_link;
-#endif
-}
+LinkArm make_linked_directory(const std::filesystem::path& link,
+                                     const std::filesystem::path& target);
 
 /// A directory of this run's own, removed when the case ends. Tests never write
 /// into the source tree and never share a path with each other.
 class TempDir {
 public:
-    explicit TempDir(const char* tag) {
-        static int counter = 0;
-        path_ = workshop_temp_root() / (std::string(tag) + "-" + std::to_string(++counter));
-        // Whatever is already there is an earlier life of this process id's -- a run that
-        // crashed, whose id the system handed out again -- and it goes the way of everything
-        // this fixture removes: by the sweep that never enters a link.
-        remove_tree(path_);
-        std::filesystem::create_directories(path_);
-    }
-    ~TempDir() {
-        remove_tree(path_);
-        // ...and this process's root once the last case in it has gone. `remove` takes an
-        // EMPTY directory only, so this is the whole cleanup: it succeeds for whoever
-        // happens to be last and does nothing, quietly, for everyone before them.
-        std::error_code ec;
-        std::filesystem::remove(workshop_temp_root(), ec);
-    }
+    explicit TempDir(const char* tag);
+    ~TempDir();
     TempDir(const TempDir&) = delete;
     TempDir& operator=(const TempDir&) = delete;
 
-    std::string file(const char* name) const { return (path_ / name).string(); }
-    std::string document() const { return file("document.json"); }
-    const std::filesystem::path& path() const { return path_; }
+    std::string file(const char* name) const;
+    std::string document() const;
+    const std::filesystem::path& path() const;
 
 private:
     std::filesystem::path path_;
@@ -1589,17 +931,11 @@ private:
 
 /// Read a whole file as bytes, for a case that wants to look at what was
 /// actually written rather than at what the writer said it wrote.
-inline std::string slurp(const std::string& path) {
-    std::ifstream in(path, std::ios::binary);
-    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-}
+std::string slurp(const std::string& path);
 
 /// Put bytes at a path -- how a case forges a file that Workshop then meets as
 /// an ordinary weaver would.
-inline void spillout(const std::string& path, const std::string& text) {
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    out.write(text.data(), static_cast<std::streamsize>(text.size()));
-}
+void spillout(const std::string& path, const std::string& text);
 
 /// A RETIRED OBJECT DOCUMENT, BYTE FOR BYTE -- what the object document's own writer
 /// (`persist::save_file`) wrote for the boot document, two objects called `panel`, before the
@@ -1625,18 +961,8 @@ public:
     /// TWO SHAPES ON ONE ASK, exactly as the real tool answers: what can be built here, and where
     /// the one it last built stands. The catalog first, because a pane that heard a status about
     /// a recipe it had never been told existed would be showing a choice nobody offered it.
-    void on(const zengine::builder::StatusRequested&, loom::Mail& mail) {
-        ++described;
-        (void)mail.publish(catalog);
-        (void)mail.publish(next);
-    }
-    void on(const zengine::builder::BuildRequested& ask, loom::Mail& mail) {
-        asked.push_back(ask.recipe);
-        realize_asked.push_back(ask.realize);
-        if (answers_builds) {
-            (void)mail.publish(next);
-        }
-    }
+    void on(const zengine::builder::StatusRequested&, loom::Mail& mail);
+    void on(const zengine::builder::BuildRequested& ask, loom::Mail& mail);
 
     /// What this tool will say next time it is asked anything.
     zengine::builder::BuildStatus next{};
@@ -1655,41 +981,13 @@ public:
 };
 
 /// Mount the stand-in into the Builder role on this Workshop's bus.
-inline ToolSeat* mount_tool(Live& t, const std::string& recipe) {
-    auto seat = std::make_unique<ToolSeat>();
-    ToolSeat* raw = seat.get();
-    loom::Grant grant;
-    grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
-                       zengine::builder::BuildStatus::zen_version);
-    grant.allow_to_any(zengine::builder::RecipeCatalog::zen_name,
-                       zengine::builder::RecipeCatalog::zen_version);
-    const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
-                                                  std::string(zengine::builder::kBuilderRole));
-    raw->zen_set_self(id);
-    raw->next.recipe = recipe;
-    raw->next.artifact = recipe;
-    raw->catalog.recipes.push_back(zengine::builder::RecipeSummary{recipe, recipe});
-    return raw;
-}
+ToolSeat* mount_tool(Live& t, const std::string& recipe);
 
 /// EVERYTHING AT A PANE'S BOUNDS, top to bottom -- one question about a rectangle of canvas cells,
 /// for every kind, asked of the window: each line of its face inside the rectangle, cut to the
 /// rectangle's width, a line that shows nothing there left out. The window composes front areas
 /// over the ones behind, so what a row says is what a weaver reads there.
-inline std::string rect_text(const DeskShown& s, const CellRect& b) {
-    std::string out;
-    const std::int64_t top = gfx::px_of_cells(b.y);
-    const std::int64_t bottom = gfx::px_of_cells(b.y + b.h);
-    const std::int64_t columns = s.advance > 0 ? gfx::px_of_cells(b.w) / s.advance : 0;
-    for (std::int64_t y = top; s.line > 0 && y < bottom; y += s.line) {
-        const std::string row = s.text_at_px(gfx::px_of_cells(b.x), y, columns);
-        if (!row.empty()) {
-            out += row;
-            out += '\n';
-        }
-    }
-    return out;
-}
+std::string rect_text(const DeskShown& s, const CellRect& b);
 
 /// THE CELLS INSIDE A SURFACE'S OWN CHROME -- where every row a pane, popup or overlay draws
 /// lands: `pane_interior` at the cell grain, so "what does this pane SAY" and the painter that
@@ -1697,396 +995,129 @@ inline std::string rect_text(const DeskShown& s, const CellRect& b) {
 /// coverage) wants the outer rectangle `bounds_of` answers. It asks the character medium's
 /// question, in canvas CELLS, subtracting the chrome a cell-projected interior leaves
 /// (`kChromePx`); a case about a FACE's own boundary takes the overload below with its screen.
-inline CellRect pane_body_cells(const PixelRect& outer) {
-    return cells_covered(pane_interior(outer, kChromePx));
-}
-inline CellRect pane_body_cells(const CellRect& outer) {
-    return pane_body_cells(pixels_of_cells(outer));
-}
-inline CellRect pane_body_cells(const PixelRect& outer, const Screen& sc) {
-    return cells_covered(pane_interior(outer, sc));
-}
+CellRect pane_body_cells(const PixelRect& outer);
+CellRect pane_body_cells(const CellRect& outer);
+CellRect pane_body_cells(const PixelRect& outer, const Screen& sc);
 
 /// What the overlay stack's first slot is showing, whatever is in it. The stack is anchored to
 /// the canvas's top-left and its ROWS are the same on every screen -- only its width follows the
 /// room -- and `rect_text` reads one column and a run of rows, so the minimum screen's rectangle
 /// names the right rows on any of them. It reads the slot's INTERIOR, where the rows are.
-inline std::string stack_text(const DeskShown& s) {
-    return rect_text(s, pane_body_cells(placement_bounds(placement::kOverlayStack, 0,
-                                                          kMinScreen)));
-}
+std::string stack_text(const DeskShown& s);
 
 /// Where a kind sits in the combined population, so a case names a KIND rather than a row
 /// number that a later catalog entry would silently invalidate. The population is the
 /// combined one -- built-ins, then the weaver's pane, then the admitted runtime panes --
 /// because that is the one list every consumer walks (WL-CAT-05).
-inline std::size_t catalog_at(const Panes& panes, std::int64_t kind) {
-    const std::vector<CatalogRow> rows = combined_catalog(panes);
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].kind == kind) {
-            return i;
-        }
-    }
-    return rows.size(); // walked off the end: the case that used it will fail loudly
-}
+std::size_t catalog_at(const Panes& panes, std::int64_t kind);
 
 /// OPEN A CLOSED KIND, OR CLOSE AN OPEN ONE -- through the host's launch and close doors, the two
 /// the Pane Manager spends (defined below, once the hand that asks exists), for the cases that
 /// only need a pane on or off the desk.
-inline void pick(Live& t, std::int64_t kind);
+void pick(Live& t, std::int64_t kind);
 
 /// Open the stack's stand-in pane the way a weaver does (see `stock`).
-inline void open_stock_pane(Live& t);
+void open_stock_pane(Live& t);
 
 /// TAKE THE KEYS BACK FROM WHATEVER PANE HOLDS THEM, without a gesture. A runtime pane holds the
 /// keyboard from the press that pointed at it until a press elsewhere, so a case
 /// that pressed into the stand-in and then wants COMMAND letters answered would otherwise be
 /// typing into a pane nobody is behind.
-inline void release_keys(Live& t) {
-    const_cast<Session&>(t.session()).panes.keyboard = kNoPaneKind;
-}
+void release_keys(Live& t);
 
 /// THE STAND-IN IS IN THE STACK'S FIRST SLOT, asked through the placement path and read off
 /// the window at the answer -- so the case cannot agree with the screen by both of them
 /// holding the same constant. What the slot shows is the host's own header for a runtime
 /// pane, which names the pane.
-inline bool first_slot_shows_stock(Live& t) {
-    const Screen sc = screen_of(t.session());
-    const PaneBounds at = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
-    const CellRect cells = pane_body_cells(at.rect);
-    return at.open && at.rect == placement_bounds(placement::kOverlayStack, 0, sc) &&
-           label_at(t.shown(), cells.x, cells.y).find(stock::kName) != std::string::npos;
-}
+bool first_slot_shows_stock(Live& t);
 
 /// EVERYTHING A PANE IS SHOWING, top to bottom, ASKED BY KIND: the placement path says where the
 /// pane IS, as it told the painter, so no case can agree with the screen by both of them holding
 /// the same constant.
-inline std::string pane_shown(const DeskShown& shown, const Session& s, std::int64_t kind) {
-    const PaneBounds at = bounds_of(s.panes, s.setup.active, kind, screen_of(s));
-    if (!at.open) {
-        return {}; // a closed pane says nothing, which is the answer a case wants
-    }
-    return rect_text(shown, pane_body_cells(at.rect, screen_of(s)));
-}
+std::string pane_shown(const DeskShown& shown, const Session& s, std::int64_t kind);
 
 /// The reference a built-in kind is spelled with, as a case says it -- through
 /// the catalog, never as a literal, so a case cannot agree with a typo.
-inline PaneRef ref_of(std::int64_t kind) {
-    if (kind == stock::kKind) {
-        return stock_ref(); // the stand-in has no catalog row to derive one from
-    }
-    if (kind == second::kKind) {
-        return second_ref(); // ...and neither has the second
-    }
-    return pane_ref_of(kind);
-}
+PaneRef ref_of(std::int64_t kind);
 
 /// A reference to a pane no build of this Workshop has ever had. The
 /// third-party entry every unresolved case is built on.
-inline PaneRef stranger() { return PaneRef{"third.party.tools", "history"}; }
+PaneRef stranger();
 
 /// NOBODY HAS OFFERED ANYTHING -- said out loud, because the resolution door takes the whole
 /// `Panes` rather than something a caller could forget. A default-constructed one has an empty
 /// runtime catalog and a closed weaver pane, so a case passing it asks what the BUILT-IN half
 /// answers with no provider in the process.
-inline const Panes& no_providers() {
-    static const Panes empty;
-    return empty;
-}
+const Panes& no_providers();
 
 /// A setup, spelled the way a case reads: a name and the kinds it means.
-inline Setup setup_of(const std::string& name, const std::vector<std::int64_t>& kinds) {
-    Setup s;
-    s.name = name;
-    for (const std::int64_t k : kinds) {
-        // THROUGH THE DOOR, so every candidate a case builds carries the identity permutation
-        // `add_pane` assigns. A `push_back` would build setups whose ranks are all zero, valid for
-        // one row and refused by `check_setup` for two -- measuring the fixture, not the law.
-        REQUIRE(add_pane(s, ref_of(k)));
-    }
-    return s;
-}
+Setup setup_of(const std::string& name, const std::vector<std::int64_t>& kinds);
 
 /// The kinds a session currently has open, in open order -- what the authored
 /// order is supposed to have produced.
-inline std::vector<std::int64_t> open_kinds(const Panes& panes) {
-    std::vector<std::int64_t> out;
-    for (const OpenPane& p : panes.open) {
-        out.push_back(p.kind);
-    }
-    return out;
-}
+std::vector<std::int64_t> open_kinds(const Panes& panes);
 
 /// A desk as a version-3 Workshop wrote it: every pixel amount in sub-units, four to a pixel,
 /// and a place measured from the canvas, whose room began `kCanvasRoomTopPx` down.
 /// The place word a version-3 to 5 Workshop wrote for a place as written today: those versions had
 /// three words, and the room's top-right at no offset was their `right-column`.
-inline std::string old_place_word(const setup_persist::WorkshopPanePlace& p) {
-    const bool corner = p.mode == "top-right" && p.x.value_or(0) == 0 && p.y.value_or(0) == 0;
-    return corner ? std::string(setup_persist::kUnitRightColumn) : p.mode;
-}
+std::string old_place_word(const setup_persist::WorkshopPanePlace& p);
 
-inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
-    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
-    setup_persist::v3::WorkshopSetup out;
-    out.format = now.format;
-    out.format_version = setup_persist::v3::kRetainedVersion;
-    out.name = now.name;
-    const auto word = [](const std::string& mode) {
-        return mode == setup_persist::kUnitPixels ? std::string(setup_persist::v3::kUnitSubcells)
-                                                  : mode;
-    };
-    const auto subs = [](const std::string& mode, std::int64_t v) {
-        return mode == setup_persist::kUnitPixels ? v * setup_persist::v3::kSubsPerPixel : v;
-    };
-    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
-        setup_persist::v3::WorkshopSetupPane row;
-        row.provider = p.provider;
-        row.pane = p.pane;
-        row.front = p.front;
-        const std::int64_t canvas_y = p.place.mode == setup_persist::kUnitPixels
-                                          ? p.place.y.value_or(0) + setup_persist::kCanvasRoomTopPx
-                                          : p.place.y.value_or(0);
-        row.place = setup_persist::v3::WorkshopPanePlace{word(old_place_word(p.place)),
-                                                         subs(p.place.mode, p.place.x.value_or(0)),
-                                                         subs(p.place.mode, canvas_y)};
-        row.width = setup_persist::v3::WorkshopPaneSize{
-            word(p.width.mode), subs(p.width.mode, p.width.amount.value_or(0))};
-        row.height = setup_persist::v3::WorkshopPaneSize{
-            word(p.height.mode), subs(p.height.mode, p.height.amount.value_or(0))};
-        out.panes.push_back(std::move(row));
-    }
-    return out;
-}
+setup_persist::v3::WorkshopSetup v3_desk(const Setup& s);
 
 /// A version-3 desk read as its own reader would: landed on pixels as version 4, then on the
 /// current shape, then the setup law.
-inline Written v3_setup_in(const setup_persist::v3::WorkshopSetup& old, Setup& out) {
-    setup_persist::v4::WorkshopSetup four;
-    Written landed = setup_persist::v3::to_v4(old, four);
-    if (!landed.accepted) {
-        return landed;
-    }
-    setup_persist::WorkshopSetup now;
-    landed = setup_persist::v4::to_current(four, now);
-    return landed.accepted ? setup_persist::setup_in(now, out) : landed;
-}
+Written v3_setup_in(const setup_persist::v3::WorkshopSetup& old, Setup& out);
 
 /// A desk as a version-4 Workshop wrote it: today's rows without their settings.
-inline setup_persist::v4::WorkshopSetup v4_desk(const Setup& s) {
-    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
-    setup_persist::v4::WorkshopSetup out;
-    out.format = now.format;
-    out.format_version = setup_persist::v4::kRetainedVersion;
-    out.name = now.name;
-    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
-        out.panes.push_back(setup_persist::v4::WorkshopSetupPane{
-            p.provider, p.pane,
-            setup_persist::v5::WorkshopPanePlace{old_place_word(p.place), p.place.x.value_or(0),
-                                                 p.place.y.value_or(0)},
-            setup_persist::v5::WorkshopPaneSize{p.width.mode, p.width.amount.value_or(0)},
-            setup_persist::v5::WorkshopPaneSize{p.height.mode, p.height.amount.value_or(0)},
-            p.front});
-    }
-    return out;
-}
+setup_persist::v4::WorkshopSetup v4_desk(const Setup& s);
 
 /// A desk as a version-5 Workshop wrote it: every coordinate and amount written, zero where its
 /// word reads none.
-inline setup_persist::v5::WorkshopSetup v5_desk(const Setup& s) {
-    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
-    setup_persist::v5::WorkshopSetup out;
-    out.format = now.format;
-    out.format_version = setup_persist::v5::kRetainedVersion;
-    out.name = now.name;
-    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
-        out.panes.push_back(setup_persist::v5::WorkshopSetupPane{
-            p.provider, p.pane,
-            setup_persist::v5::WorkshopPanePlace{old_place_word(p.place), p.place.x.value_or(0),
-                                                 p.place.y.value_or(0)},
-            setup_persist::v5::WorkshopPaneSize{p.width.mode, p.width.amount.value_or(0)},
-            setup_persist::v5::WorkshopPaneSize{p.height.mode, p.height.amount.value_or(0)},
-            p.front, p.settings});
-    }
-    return out;
-}
+setup_persist::v5::WorkshopSetup v5_desk(const Setup& s);
 
 /// A RUN AS WORKSHOP KEPT IT AT VERSION 11: each layout's desk and remembered value at setup
 /// version 5, with no id.
-inline std::vector<session_history::v11::WorkshopLayout> v11_run(const std::vector<Layout>& run) {
-    std::vector<session_history::v11::WorkshopLayout> out;
-    for (const Layout& l : run) {
-        session_history::v11::WorkshopLayout layout;
-        layout.desk = v5_desk(l.desk);
-        layout.link.path = l.link.path;
-        layout.link.known = v5_desk(l.link.known);
-        out.push_back(std::move(layout));
-    }
-    return out;
-}
+std::vector<session_history::v11::WorkshopLayout> v11_run(const std::vector<Layout>& run);
 
 /// A SESSION AS WORKSHOP WROTE ITS FILE AT VERSION 11: the header's line, then a layout a line.
-inline std::string v11_lines(const session_history::v11::WorkshopSession& s) {
-    const session_history::v11::WorkshopSessionHeader head{
-        s.format,    s.format_version, s.viewport, static_cast<std::int64_t>(s.layouts.size()),
-        s.active,    s.placement,      s.choices,  s.window_room};
-    std::string out = loom::compat::serialize(loom::to_value(head)) + '\n';
-    for (const session_history::v11::WorkshopLayout& l : s.layouts) {
-        out += loom::compat::serialize(loom::to_value(l)) + '\n';
-    }
-    return out;
-}
+std::string v11_lines(const session_history::v11::WorkshopSession& s);
 
 /// A version-11 session of `run`, standing on `active`, in the room `w` by `h` placed by `place`.
-inline session_history::v11::WorkshopSession
+session_history::v11::WorkshopSession
 v11_session(const std::vector<Layout>& run, std::size_t active, std::int64_t w, std::int64_t h,
             const window_persist::Placement& place = {},
-            const std::vector<session_persist::WorkshopChoice>& choices = {}) {
-    const window_persist::WorkshopWindow window = window_persist::to_window(w, h, place);
-    session_history::v11::WorkshopSession out;
-    out.format = session_persist::kFormat;
-    out.format_version = session_history::kV11FormatVersion;
-    out.viewport = window.viewport;
-    out.layouts = v11_run(run);
-    out.active = static_cast<std::int64_t>(active);
-    out.placement = window.placement;
-    out.choices = choices;
-    out.window_room = window.window_room;
-    return out;
-}
+            const std::vector<session_persist::WorkshopChoice>& choices = {});
 
 /// A DESK AS WORKSHOP WROTE IT AT SETUP VERSION 6: every field of version 7's but each row's fold
 /// and dock.
-inline setup_persist::v6::WorkshopSetup v6_desk(const Setup& s) {
-    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
-    setup_persist::v6::WorkshopSetup out;
-    out.format = now.format;
-    out.format_version = setup_persist::v6::kRetainedVersion;
-    out.name = now.name;
-    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
-        out.panes.push_back(setup_persist::v6::WorkshopSetupPane{
-            p.provider, p.pane, p.place, p.width, p.height, p.front, p.settings});
-    }
-    out.theme = LayoutTheme{now.themes.empty() ? std::string() : now.themes.front(), 0};
-    out.locks = now.locks;
-    out.pins = now.pins;
-    return out;
-}
+setup_persist::v6::WorkshopSetup v6_desk(const Setup& s);
 
 /// A version-12 session of `run`, standing on `active`: each layout's id, its desk and remembered
 /// value at setup version 6, and the next id after them.
-inline session_history::v12::WorkshopSession
+session_history::v12::WorkshopSession
 v12_session(const std::vector<Layout>& run, std::size_t active,
-            const std::vector<session_persist::WorkshopChoice>& choices = {}) {
-    session_history::v12::WorkshopSession out;
-    out.format = session_persist::kFormat;
-    out.format_version = session_history::kV12FormatVersion;
-    std::int64_t top = 0;
-    for (const Layout& l : run) {
-        session_history::v12::WorkshopLayout layout;
-        layout.id = l.id;
-        layout.desk = v6_desk(l.desk);
-        layout.link.path = l.link.path;
-        layout.link.known = v6_desk(l.link.known);
-        out.layouts.push_back(std::move(layout));
-        top = l.id > top ? l.id : top;
-    }
-    out.active = static_cast<std::int64_t>(active);
-    out.next_id = top + 1;
-    out.choices = choices;
-    return out;
-}
+            const std::vector<session_persist::WorkshopChoice>& choices = {});
 
 /// ...AS WORKSHOP WROTE ITS FILE AT VERSION 12: the header's line, then a layout a line.
 /// A setup of version 7 of `s`: its rows without their theme, its themes' bottom as its baseline.
-inline setup_persist::v7::WorkshopSetup v7_desk(const Setup& s) {
-    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
-    setup_persist::v7::WorkshopSetup out;
-    out.format = now.format;
-    out.format_version = setup_persist::v7::kRetainedVersion;
-    out.name = now.name;
-    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
-        out.panes.push_back(setup_persist::v7::WorkshopSetupPane{
-            p.provider, p.pane, p.place, p.width, p.height, p.front, p.settings, p.fold, p.dock});
-    }
-    out.theme = LayoutTheme{now.themes.empty() ? std::string() : now.themes.front(), 0};
-    out.locks = now.locks;
-    out.pins = now.pins;
-    return out;
-}
+setup_persist::v7::WorkshopSetup v7_desk(const Setup& s);
 
 /// A version-13 session of `run`, standing on `active`: each layout's id, its desk and remembered
 /// value at setup version 7, and the next id after them.
-inline session_history::v13::WorkshopSession v13_session(const std::vector<Layout>& run,
-                                                         std::size_t active) {
-    session_history::v13::WorkshopSession out;
-    out.format = session_persist::kFormat;
-    out.format_version = session_history::kV13FormatVersion;
-    std::int64_t top = 0;
-    for (const Layout& l : run) {
-        session_history::v13::WorkshopLayout layout;
-        layout.id = l.id;
-        layout.desk = v7_desk(l.desk);
-        layout.link.path = l.link.path;
-        layout.link.known = v7_desk(l.link.known);
-        out.layouts.push_back(std::move(layout));
-        top = std::max(top, l.id);
-    }
-    out.active = static_cast<std::int64_t>(active);
-    out.next_id = top + 1;
-    return out;
-}
+session_history::v13::WorkshopSession v13_session(const std::vector<Layout>& run,
+                                                         std::size_t active);
 
 /// ...as its file's lines.
-inline std::string v13_lines(const session_history::v13::WorkshopSession& s) {
-    const session_history::v13::WorkshopSessionHeader head{
-        s.format, s.format_version, static_cast<std::int64_t>(s.layouts.size()), s.active,
-        s.next_id, s.choices};
-    std::string out = loom::compat::serialize(loom::to_value(head)) + '\n';
-    for (const session_history::v13::WorkshopLayout& l : s.layouts) {
-        out += loom::compat::serialize(loom::to_value(l)) + '\n';
-    }
-    return out;
-}
+std::string v13_lines(const session_history::v13::WorkshopSession& s);
 
-inline std::string v12_lines(const session_history::v12::WorkshopSession& s) {
-    const session_history::v12::WorkshopSessionHeader head{
-        s.format, s.format_version, static_cast<std::int64_t>(s.layouts.size()), s.active,
-        s.next_id, s.choices};
-    std::string out = loom::compat::serialize(loom::to_value(head)) + '\n';
-    for (const session_history::v12::WorkshopLayout& l : s.layouts) {
-        out += loom::compat::serialize(loom::to_value(l)) + '\n';
-    }
-    return out;
-}
+std::string v12_lines(const session_history::v12::WorkshopSession& s);
 
 /// A DESK AT EVERY BOUND A FILE CAN MEET: `kMaxSetupPanes` rows whose keys are
 /// `kMaxPaneKeyLen` bytes a writer escapes, every place and extent at `kMaxPanePixels`, and
 /// `kMaxPaneSettingsPerDesk` settings with keys at their bound and texts escaped whole -- the
 /// largest file the setup law lets a weaver write.
-inline void fill_to_every_bound(Setup& s) {
-    while (s.panes.size() < kMaxSetupPanes) {
-        const std::string tail = std::to_string(s.panes.size());
-        const std::string key = std::string(kMaxPaneKeyLen - tail.size(), '"') + tail;
-        REQUIRE(add_pane(s, PaneRef{key, key}));
-    }
-    std::size_t left = kMaxPaneSettingsPerDesk;
-    for (SetupPane& row : s.panes) {
-        row.place = PanePlace{pane_unit::kPixels, kMaxPanePixels, kMaxPanePixels};
-        row.width = PaneSize{pane_unit::kPixels, kMaxPanePixels};
-        row.height = PaneSize{pane_unit::kPixels, kMaxPanePixels};
-        row.settings.clear();
-        for (std::size_t i = 0; i < kMaxPaneSettingsPerRow && left > 0; ++i, --left) {
-            const std::string n = std::to_string(100 + i);
-            PaneSetting one;
-            one.key = std::string(kMaxPaneSettingKeyLen - n.size(), 'k') + n;
-            one.text = std::string(kMaxPaneSettingTextLen, '"');
-            row.settings.push_back(std::move(one));
-        }
-    }
-    REQUIRE(desk_setting_count(s.panes) == kMaxPaneSettingsPerDesk);
-    REQUIRE_MESSAGE(check_setup(s).accepted, check_setup(s).refusal);
-}
+void fill_to_every_bound(Setup& s);
 
 /// PRESS THE KEY THE KEYMAP BINDS TO A LAYOUT ACT, as a weaver does -- read from the keymap, so a
 /// remap re-measures the case.
@@ -2098,14 +1129,7 @@ template <class Rig> inline void layout_key(Rig& r, Act act) {
 /// A setup file's text with one substring replaced -- how the refusal cases
 /// forge a file the honest writer could never produce. The document tier's own
 /// `forged`, asked about the other artifact.
-inline std::string forged_setup(const Setup& s, const std::string& from, const std::string& to) {
-    std::string text = setup_persist::to_text(s);
-    const std::size_t at = text.find(from);
-    INFO("looking for `", from, "` in: ", text);
-    REQUIRE(at != std::string::npos);
-    text.replace(at, from.size(), to);
-    return text;
-}
+std::string forged_setup(const Setup& s, const std::string& from, const std::string& to);
 
 /// The keys the shipped catalog binds to the four layout gestures, read from the keymap rather
 /// than spelled here: a case that hard-coded `.` would keep passing after a remap, measuring its
@@ -2118,112 +1142,29 @@ struct LayoutKeys {
     Gesture drop;
 };
 
-inline LayoutKeys layout_keys(const Live& t) {
-    return LayoutKeys{t.session().keymap.gesture_of(Act::kLayoutNext),
-                      t.session().keymap.gesture_of(Act::kLayoutPrevious),
-                      t.session().keymap.gesture_of(Act::kLayoutNew),
-                      t.session().keymap.gesture_of(Act::kLayoutRemove)};
-}
+LayoutKeys layout_keys(const Live& t);
 
-inline void press_gesture(Live& t, const Gesture& g) { t.key(g.scancode, g.modifiers); }
+void press_gesture(Live& t, const Gesture& g);
 
 /// WHERE A PAINTED TAB'S FIRST CELL IS, out of the SAME composition the painter wrote -- never a
 /// column a case computed.
-inline std::int64_t tab_column(Live& t, std::size_t at) {
-    const BandStatus band = band_status(t.session(), screen_of(t.session()));
-    for (const LayoutTab& tab : band.tabs) {
-        if (tab.at == at) {
-            return tab.column;
-        }
-    }
-    return -1;
-}
+std::int64_t tab_column(Live& t, std::size_t at);
 
 /// PRESS A PAINTED LAYOUT TAB. The band is the canvas's first row.
-inline void press_tab(Live& t, std::size_t at) {
-    const std::int64_t column = tab_column(t, at);
-    REQUIRE(column >= 0);
-    t.press_canvas(column, 0);
-    t.release_canvas(column, 0);
-}
+void press_tab(Live& t, std::size_t at);
 
 /// ...AND ASK IT WHAT CAN BE DONE WITH IT.
-inline void right_press_tab(Live& t, std::size_t at) {
-    const std::int64_t column = tab_column(t, at);
-    REQUIRE(column >= 0);
-    t.right_press_canvas(column, 0);
-}
+void right_press_tab(Live& t, std::size_t at);
 
 /// CHOOSE A CONTEXTUAL ROW BY ITS ACTION ID, driving the open surface with its own keys --
 /// so a case names the operation it means and never a cursor index. A row inside a
 /// presentation group is reached by descending into that group, exactly as a weaver reaches
 /// it, and which group that is comes from the declaration table rather than from a guess.
-inline bool choose_context_action(Live& t, const char* id) {
-    std::string group;
-    bool declared = false;
-    for (const ContextRow& row : kContextCatalog) {
-        if (std::string(row.action) == id &&
-            (row.subjects & context_bit(t.menu().subject)) != 0) {
-            group = row.group;
-            declared = true;
-            break;
-        }
-    }
-    if (!declared) {
-        return false;
-    }
-    const auto step_to = [&t](std::size_t at) {
-        for (int guard = 0; guard < 32 && t.menu().cursor < at; ++guard) {
-            t.key(input::scan::kDown);
-        }
-        for (int guard = 0; guard < 32 && t.menu().cursor > at; ++guard) {
-            t.key(input::scan::kUp);
-        }
-        return t.menu().cursor == at;
-    };
-    if (!group.empty()) {
-        const std::vector<ContextEntry> top = context_population(t.menu().subject, "");
-        bool entered = false;
-        for (std::size_t at = 0; at < top.size(); ++at) {
-            if (top[at].is_group && group == top[at].group) {
-                if (!step_to(at)) {
-                    return false;
-                }
-                t.key(input::scan::kReturn);
-                entered = t.menu().group == group;
-                break;
-            }
-        }
-        if (!entered) {
-            return false;
-        }
-    }
-    const std::vector<ContextEntry> rows =
-        context_population(t.menu().subject, t.menu().group);
-    for (std::size_t at = 0; at < rows.size(); ++at) {
-        if (!rows[at].is_group && rows[at].row != nullptr &&
-            std::string(rows[at].row->id) == id) {
-            if (!step_to(at)) {
-                return false;
-            }
-            t.key(input::scan::kReturn);
-            return true;
-        }
-    }
-    return false;
-}
+bool choose_context_action(Live& t, const char* id);
 
 /// OPEN THE RENAME EDITOR ON A TAB THE WAY A WEAVER DOES: two presses, close enough together to be
 /// one gesture.
-inline void open_rename_on_tab(Live& t, std::size_t at) {
-    // THE PACE IS SET BEFORE THE FIRST PRESS, because `InteractionClock::read` hands out
-    // the current instant and THEN advances by the step -- so a `together()` between the
-    // two presses would set the pace for the gesture after this one.
-    t.clock.together();
-    press_tab(t, at);
-    press_tab(t, at);
-    t.clock.apart();
-}
+void open_rename_on_tab(Live& t, std::size_t at);
 
 /// THE SAME GESTURE ON THE LIVE LAYOUT'S TAB, FOR ANY RIG that publishes raw input --
 /// written against `publish` rather than against a workspace translation, because the pane
@@ -2299,76 +1240,42 @@ template <typename Rig> inline void duplicate_live_layout(Rig& r) {
 }
 
 /// TYPE A WHOLE NAME INTO THE OPEN EDITOR AND COMMIT IT.
-inline void type_name(Live& t, const std::string& name) {
-    REQUIRE(t.session().setup.naming.open);
-    for (int guard = 0; guard < 64 && !t.session().setup.naming.line.empty(); ++guard) {
-        t.key(input::scan::kBackspace);
-    }
-    REQUIRE(t.session().setup.naming.line.empty());
-    for (const char c : name) {
-        t.text(std::string(1, c));
-    }
-    t.key(input::scan::kReturn);
-}
+void type_name(Live& t, const std::string& name);
 
 /// RENAME THE LIVE LAYOUT, THROUGH THE GESTURE A WEAVER USES -- a double-click on its own tab, then
 /// the name. NO FILE IS WRITTEN by any part of this.
-inline void rename_live_layout(Live& t, const std::string& name) {
-    open_rename_on_tab(t, t.session().setup.active_at);
-    type_name(t, name);
-}
+void rename_live_layout(Live& t, const std::string& name);
 
 /// SAVE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT -- `s`, and only that.
-inline void save_setup(Live& t) { t.key(input::scan::kS); }
+void save_setup(Live& t);
 
 /// NAME THE LIVE LAYOUT AND WRITE IT TO THE SETUP FILE -- two gestures, because renaming is a
 /// layout operation and saving a file operation: a case that means "a named desk that matches its
 /// file" says both, and one that means only one of them says only that one.
-inline void name_setup(Live& t, const std::string& name) {
-    rename_live_layout(t, name);
-    save_setup(t);
-}
+void name_setup(Live& t, const std::string& name);
 
 /// The identity row as a weaver reads it, off the canvas at the place the painter put it -- never
 /// rebuilt here, so a case cannot pass while the screen says something else. That place is the
 /// Layouts pane's first interior row, which at the developer default is Workshop's first row.
-inline std::string setup_row(const DeskShown& c, const Screen& sc) {
-    (void)sc;
-    return label_at(c, 0, 0);
-}
+std::string setup_row(const DeskShown& c, const Screen& sc);
 
 /// The workspace-extent fact as a weaver reads it -- the Layouts pane's SECOND row where the medium
 /// fits one, folded into the identity row where it does not. It takes the SESSION, because how
 /// many rows that surface has is a fact about a pane a weaver can resize, not about the screen.
-inline std::string workspace_row(const DeskShown& c, const Session& s, const Screen& sc) {
-    return layouts_body(s, sc).rows >= 2 ? inspector_row(c, 0, 1) : inspector_row(c, 0, 0);
-}
+std::string workspace_row(const DeskShown& c, const Session& s, const Screen& sc);
 
 /// THE LAYOUTS PANE'S PUBLISHED REGION on a canvas, found the way the painter published it --
 /// `layouts_body`'s own answer, so a case cannot pass while reading a region the painter did not
 /// write. Not the top band's whole rectangle: the pane's interior is inset by one device unit on
 /// a face that can draw one.
-inline const ScreenRegion* layouts_region_on(const ScreenCanvas& c,
+const ScreenRegion* layouts_region_on(const ScreenCanvas& c,
                                              const Session& s,
-                                             const Screen& sc) {
-    const ExternalBodyPlace place = layouts_body(s, sc);
-    for (const ScreenPlane& layer : c.layers) {
-        for (const ScreenRegion& r : layer.texts) {
-            if (r.x == place.region_x && r.y == place.region_y && r.h == place.region_h) {
-                return &r;
-            }
-        }
-    }
-    return nullptr;
-}
+                                             const Screen& sc);
 
 /// THE FIRST SHOWING OF THIS WORKSHOP: the window brought up, so Workshop starts on its offer and
 /// draws its desk there -- a weave runs only on message, so a desk no window offered itself to
 /// shows nothing at all.
-inline DeskShown first_frame(Live& t) {
-    t.ready();
-    return t.shown();
-}
+DeskShown first_frame(Live& t);
 
 /// The Hello fixture's identity, spelled as a STRANGER would have to spell it --
 /// by string. Nothing here includes the fixture's source, because a provider is a
@@ -2376,7 +1283,7 @@ inline DeskShown first_frame(Live& t) {
 inline constexpr const char* kHelloRole = "zengine.test.workshop-hello";
 inline constexpr const char* kHelloPane = "hello";
 
-inline PaneRef hello_ref() { return PaneRef{kHelloRole, kHelloPane}; }
+PaneRef hello_ref();
 
 /// A SECOND ROLE, for the cases about two providers and one pane key.
 inline constexpr const char* kOtherRole = "zengine.test.other-provider";
@@ -2419,7 +1326,7 @@ class DoorAsker
                                         ManagedOpenSettled, zengine::workshop::v3::SourcePrepared, PresentationAdmitted,
                                         loom::DispatchRefused>> {
 public:
-    explicit DoorAsker(std::string role) : role_(std::move(role)) {}
+    explicit DoorAsker(std::string role);
 
     /// What this asker should say next, run INSIDE its own delivery so `as_role` has a real
     /// authorship moment for Loom to verify.
@@ -2440,55 +1347,20 @@ public:
     /// This asker's own id on the bus, so a case can nudge it the way `drive` nudges a seat.
     loom::WeaveId id{};
 
-    void on(const SeatDo&, loom::Mail& mail) {
-        if (next) {
-            auto what = next;
-            next = nullptr;
-            what(*this, mail);
-        }
-    }
+    void on(const SeatDo&, loom::Mail& mail);
     /// ONE MORE THING TO SAY, ON THE BEAT THE PROJECT DOOR ANSWERS: a statement TWO deliveries
     /// behind an ask made in the same handler. The bus is FIFO, so a case that queues an ask and a
     /// nudge together cannot land the nudge inside the ask's own conversation, and this is the
     /// shortest honest way to reach that instant with real messages (VM-FIX-24, one hop further).
     std::function<void(DoorAsker&, loom::Mail&)> then_root;
 
-    void on(const ProjectRoot& said, loom::Mail& mail) {
-        ++state_.answers;
-        roots.push_back(said);
-        if (then_root) {
-            auto what = then_root;
-            then_root = nullptr;
-            what(*this, mail);
-        }
-    }
-    void on(const ProjectFrontierSaid& said, loom::Mail&) {
-        ++state_.answers;
-        frontiers.push_back(said);
-    }
-    void on(const PlanNames& said, loom::Mail&) {
-        ++state_.answers;
-        names.push_back(said);
-    }
-    void on(const RecipeOutcome& said, loom::Mail&) {
-        ++state_.answers;
-        outcomes.push_back(said);
-    }
-    void on(const PlanRowWritten& said, loom::Mail&) {
-        ++state_.answers;
-        rows.push_back(said);
-    }
-    void on(const SourceOpened& said, loom::Mail& mail) {
-        ++state_.answers;
-        opens.push_back(said);
-        // WHETHER LOOM SAYS THIS ANSWERS AN ASK OF THIS WEAVE'S -- the provenance a relayed
-        // answer must still carry for the ORIGINAL requester (WL-OPEN-07): the Editor spends the requester's own kept right, so this is true.
-        opens_authentic.push_back(mail.answers_ask());
-    }
-    void on(const RecipeSourceSaid& said, loom::Mail&) {
-        ++state_.answers;
-        sources.push_back(said);
-    }
+    void on(const ProjectRoot& said, loom::Mail& mail);
+    void on(const ProjectFrontierSaid& said, loom::Mail&);
+    void on(const PlanNames& said, loom::Mail&);
+    void on(const RecipeOutcome& said, loom::Mail&);
+    void on(const PlanRowWritten& said, loom::Mail&);
+    void on(const SourceOpened& said, loom::Mail& mail);
+    void on(const RecipeSourceSaid& said, loom::Mail&);
 
     template <class Shape>
     void ask(loom::Mail& mail, const char* role, const Shape& shape) {
@@ -2512,63 +1384,26 @@ inline constexpr const char* kDoorAskerRole = "zengine.test.door-asker";
 /// Seat an asker on this bus, granted exactly the eight asks and nothing else. It hears the
 /// three answers the way any weave does -- through Loom's own answer route -- so nothing
 /// here has to be granted for it to be told.
-inline DoorAsker* mount_door_asker(Live& t, const char* role = kDoorAskerRole) {
-    auto asker = std::make_unique<DoorAsker>(std::string(role));
-    DoorAsker* raw = asker.get();
-    loom::Grant grant;
-    grant.allow_to_any(ProjectRootRequested::zen_name, ProjectRootRequested::zen_version);
-    grant.allow_to_any(RecipeUseRequested::zen_name, RecipeUseRequested::zen_version);
-    grant.allow_to_any(RecipeAuthorRequested::zen_name, RecipeAuthorRequested::zen_version);
-    grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
-    grant.allow_to_any(ProjectFrontierRequested::zen_name,
-                       ProjectFrontierRequested::zen_version);
-    grant.allow_to_any(PlanNamesRequested::zen_name, PlanNamesRequested::zen_version);
-    grant.allow_to_any(PlanRowRequested::zen_name, PlanRowRequested::zen_version);
-    grant.allow_to_any(RecipeSourceRequested::zen_name, RecipeSourceRequested::zen_version);
-    const loom::WeaveId id =
-        t.bus.register_weave(std::move(asker), std::move(grant), std::string(role));
-    raw->zen_set_self(id);
-    raw->id = id;
-    return raw;
-}
+DoorAsker* mount_door_asker(Live& t, const char* role = kDoorAskerRole);
 
 /// Make an asker say one sentence INSIDE ITS OWN DELIVERY -- `drive`'s reason exactly, and
 /// the only way `mail.as_role(...)` has an authorship moment Loom can verify.
-inline void asker_do(Live& t, DoorAsker* asker,
-                     std::function<void(DoorAsker&, loom::Mail&)> what) {
-    asker->next = std::move(what);
-    (void)t.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                             loom::WeaveId{}, 0));
-    t.bus.drain_until_idle();
-}
+void asker_do(Live& t, DoorAsker* asker,
+                     std::function<void(DoorAsker&, loom::Mail&)> what);
 
 /// ASK THE EDITOR'S DOOR TO OPEN ONE PATH, and hand back what it answered: the whole of what a
 /// Return on a source row in the Files pane crosses as (WL-EDIT-05's asker half). The door is at
 /// `zengine.editor`, so a rig that holds no Editor weave gets no answer -- the ask is refused on
 /// the tap, and this helper fails loudly rather than inventing one; a case about the document
 /// goes to `test_workshop_panes_editor.cpp`, over the real image.
-inline SourceOpened open_through_door(Live& t, DoorAsker* asker, const std::string& path) {
-    const std::size_t before = asker->opens.size();
-    asker_do(t, asker, [path](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kEditorRole, OpenSourceRequested{path});
-    });
-    REQUIRE(asker->opens.size() == before + 1);
-    return asker->opens.back();
-}
+SourceOpened open_through_door(Live& t, DoorAsker* asker, const std::string& path);
 
 /// ASK THE PROJECT DOOR WHICH FILE A RECIPE NAMES, and hand back what it answered. This is
 /// the first of the two doors the Builder pane's `builder.edit-source` walks: the pane holds a
 /// recipe name and never a path, the host's read-only role resolves it against the catalog
 /// IT owns (`RecipeSourceSaid`), and the pane then asks the Editor's own door to open it.
-inline RecipeSourceSaid edit_source_through_door(Live& t, DoorAsker* asker,
-                                                 const std::string& recipe) {
-    const std::size_t before = asker->sources.size();
-    asker_do(t, asker, [recipe](DoorAsker& a, loom::Mail& mail) {
-        a.ask(mail, kProjectRole, RecipeSourceRequested{recipe});
-    });
-    REQUIRE(asker->sources.size() == before + 1);
-    return asker->sources.back();
-}
+RecipeSourceSaid edit_source_through_door(Live& t, DoorAsker* asker,
+                                                 const std::string& recipe);
 
 struct SeatState {
     std::int64_t said = 0;
@@ -2588,18 +1423,12 @@ class DoorHand
                                         PaneToggleRequested, InspectPaneRequested,
                                         PaneCommitRequested>> {
 public:
-    void on(const PaneLaunchAnswered& a, loom::Mail&) { launched.push_back(a); }
-    void on(const PaneCloseAnswered& a, loom::Mail&) { closed.push_back(a); }
-    void on(const PaneToggleAnswered& a, loom::Mail&) { toggled.push_back(a); }
+    void on(const PaneLaunchAnswered& a, loom::Mail&);
+    void on(const PaneCloseAnswered& a, loom::Mail&);
+    void on(const PaneToggleAnswered& a, loom::Mail&);
     /// ...AND, ASKED AS AN INSPECTOR (Info's path), what naming a subject or writing a row came to.
-    void on(const PaneSubjectActed& a, loom::Mail&) { acted.push_back(a); }
-    void on(const SeatDo&, loom::Mail& mail) {
-        if (next) {
-            std::function<void(DoorHand&, loom::Mail&)> once;
-            once.swap(next);
-            once(*this, mail);
-        }
-    }
+    void on(const PaneSubjectActed& a, loom::Mail&);
+    void on(const SeatDo&, loom::Mail& mail);
     std::vector<PaneLaunchAnswered> launched;
     std::vector<PaneCloseAnswered> closed;
     std::vector<PaneToggleAnswered> toggled;
@@ -2736,39 +1565,14 @@ inline PaneSubjectActed hand_inspect_in_info(Rig& t, const PaneRef& ref) {
 
 /// WHERE THE INSPECTED PANE'S ROW WITH THIS LABEL IS -- the first such after the section named
 /// `after` (the start when empty), so a weaver pane's region `X` is told from its AUTHORED `X`.
-inline std::size_t subject_row_index(const Session& s, const std::string& label,
-                                     const std::string& after = std::string()) {
-    const std::vector<Row>& rows = s.inspected.rows;
-    std::size_t from = 0;
-    if (!after.empty()) {
-        from = rows.size();
-        for (std::size_t i = 0; i < rows.size(); ++i) {
-            if (rows[i].section() && rows[i].label() == after) {
-                from = i + 1;
-                break;
-            }
-        }
-    }
-    for (std::size_t i = from; i < rows.size(); ++i) {
-        if (rows[i].label() == label) {
-            return i;
-        }
-    }
-    return rows.size();
-}
+std::size_t subject_row_index(const Session& s, const std::string& label,
+                                     const std::string& after = std::string());
 
 /// ...ITS ROW, AND ITS VALUE READ NOW.
-inline const Row* subject_row(const Session& s, const std::string& label,
-                              const std::string& after = std::string()) {
-    const std::size_t at = subject_row_index(s, label, after);
-    return at < s.inspected.rows.size() ? &s.inspected.rows[at] : nullptr;
-}
-inline std::string subject_value(const Session& s, const std::string& label,
-                                 const std::string& after = std::string()) {
-    const Row* row = subject_row(s, label, after);
-    REQUIRE_MESSAGE(row != nullptr, "the inspected pane has no row labelled ", label);
-    return row->value();
-}
+const Row* subject_row(const Session& s, const std::string& label,
+                              const std::string& after = std::string());
+std::string subject_value(const Session& s, const std::string& label,
+                                 const std::string& after = std::string());
 
 /// WRITE THE INSPECTED PANE'S ROW WITH THIS LABEL THROUGH THE COMMIT DOOR -- the subject's name as
 /// the host gave it, the row's index and the text, exactly as Info sends a finished draft -- and
@@ -2938,14 +1742,9 @@ inline void toggle_pane(Rig& t, const PaneRef& ref) {
     }
 }
 
-inline void pick(Live& t, std::int64_t kind) {
-    const std::vector<CatalogRow> rows = combined_catalog(t.session().panes);
-    const std::size_t at = catalog_at(t.session().panes, kind);
-    REQUIRE(at < rows.size());
-    toggle_pane(t, rows[at].ref);
-}
+void pick(Live& t, std::int64_t kind);
 
-inline void open_stock_pane(Live& t) { pick(t, stock::kKind); }
+void open_stock_pane(Live& t);
 
 /// THE ROWS A SEAT DRAWS for one of its panes, and the parts of them it names.
 struct SeatRows {
@@ -2953,8 +1752,7 @@ struct SeatRows {
     std::vector<TextRow> rows;
     std::vector<RowPart> parts;
     SeatRows() = default;
-    SeatRows(std::string p, std::vector<TextRow> r, std::vector<RowPart> named = {})
-        : pane(std::move(p)), rows(std::move(r)), parts(std::move(named)) {}
+    SeatRows(std::string p, std::vector<TextRow> r, std::vector<RowPart> named = {});
 };
 
 /// A ROOM A WINDOW GAVE ONE OF A SEAT'S AREAS: the pane it draws there and the rows and columns of
@@ -2998,197 +1796,80 @@ class ProviderSeat
                                         gfx::Drawn,
                                         gfx::AreaButtonChanged>> {
 public:
-    explicit ProviderSeat(std::string role) : role_(std::move(role)) {}
+    explicit ProviderSeat(std::string role);
 
     /// A RESOLVED ACTION THIS SEAT WAS ASKED FOR (WL-KEY-15), recorded and never
     /// interpreted, for the key's reason exactly: a case asserts what WORKSHOP resolved.
-    void on(const PaneActionRequested& a, loom::Mail& mail) {
-        ++state_.said;
-        ++said;
-        actions.push_back(a);
-        action_authors.push_back(std::string(mail.authored_role()));
-    }
+    void on(const PaneActionRequested& a, loom::Mail& mail);
 
-    void on(const PaneCatalogRequested&, loom::Mail& mail) {
-        ++state_.said;
-        ++said;
-        asks.push_back(std::string(mail.authored_role()));
-    }
+    void on(const PaneCatalogRequested&, loom::Mail& mail);
     /// THE ROOM A WINDOW GIVES ONE OF ITS AREAS, recorded with its author, and the rows last said
     /// for that pane drawn there whole. A room another role gives draws nothing.
-    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        ++state_.said;
-        ++said;
-        room_authors.push_back(std::string(mail.authored_role()));
-        const std::string pane = pane_of(r.area);
-        WindowDrawing& drawing = drawing_of(r.area);
-        if (!drawing.room(r, mail)) {
-            return;
-        }
-        const RowsRoom room = drawing.rows_room();
-        rooms.push_back(SeatRoom{pane, r.area, room.rows(), room.columns()});
-        draw(mail, pane);
-    }
-    void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
-        refusals.push_back(refused.reason);
-        (void)drawing_of(refused.area).refused(refused, mail);
-    }
+    void on(const gfx::AreaRoom& r, loom::Mail& mail);
+    void on(const gfx::DrawnRefused& refused, loom::Mail& mail);
     /// A PRESS THE WINDOW GAVE ONE OF ITS AREAS, and its author beside it, read onto the rows last
     /// drawn there. The seat interprets nothing -- it is a recorder, so a case can assert exactly
     /// what the window said -- except that a third-button press is handed back, as a pane hands
     /// back a press that means nothing to it, so Workshop's own pane menu opens where it was made.
-    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
-        ++state_.said;
-        ++said;
-        const std::string pane = pane_of(b.area);
-        WindowDrawing& drawing = drawing_of(b.area);
-        const std::optional<WindowPointer> p =
-            drawing.pointer(b, mail, drawing.rows_room().rows(), columns_of(b.area));
-        press_authors.push_back(std::string(mail.authored_role()));
-        if (!p || p->phase != canvas_pointer::kPress) {
-            return;
-        }
-        const SeatPress press{pane, p->button, p->at.row, p->at.column, p->at.shown, keys_here_};
-        any_presses.push_back(press);
-        if (p->button == 1 && p->at.shown) presses.push_back(press);
-        if (p->button == 3 && pass_right) {
-            (void)pane_menu::pass_back(mail, role_.c_str(), pane);
-        }
-    }
-    void on(const gfx::AreaWheelTurned& w, loom::Mail& mail) {
-        ++state_.said;
-        ++said;
-        if (drawing_of(w.area).pointer(w, mail, 0, 0)) {
-            wheels.push_back(SeatWheel{pane_of(w.area), w.dy});
-            wheel_authors.push_back(std::string(mail.authored_role()));
-        }
-    }
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail);
+    void on(const gfx::AreaWheelTurned& w, loom::Mail& mail);
     /// A VALUE PLACED ON ONE OF ITS AREAS, kept as Workshop said it.
-    void on(const PaneCanvasValueDrop& d, loom::Mail&) { value_drops.push_back(d); }
+    void on(const PaneCanvasValueDrop& d, loom::Mail&);
     std::vector<PaneCanvasValueDrop> value_drops;
     /// Whether the keys reach the pane now, as Workshop last said.
-    void on(const PaneKeys& k, loom::Mail& mail) {
-        if (mail.authored_from_role(kWorkshopProvider)) {
-            keys_here_ = k.here;
-        }
-    }
+    void on(const PaneKeys& k, loom::Mail& mail);
     /// A KEY AND THE TEXT IT PRODUCED, recorded and never interpreted, for the press's reason
     /// exactly: a case asserts what WORKSHOP said, and a seat that made something of one would be
     /// asserting a provider's opinion instead.
-    void on(const PaneKey& k, loom::Mail& mail) {
-        ++state_.said;
-        ++said;
-        keys.push_back(k);
-        key_authors.push_back(std::string(mail.authored_role()));
-        key_asks.push_back(mail.correlation());
-    }
-    void on(const PaneTextInput& t, loom::Mail& mail) {
-        ++state_.said;
-        ++said;
-        typed.push_back(t);
-        text_authors.push_back(std::string(mail.authored_role()));
-    }
-    void on(const SeatDo&, loom::Mail& mail) {
-        if (next) {
-            std::function<void(ProviderSeat&, loom::Mail&)> once;
-            once.swap(next);
-            once(*this, mail);
-        }
-    }
+    void on(const PaneKey& k, loom::Mail& mail);
+    void on(const PaneTextInput& t, loom::Mail& mail);
+    void on(const SeatDo&, loom::Mail& mail);
 
     /// Offer, deliberately AS this role -- the ordinary, correct spelling.
-    void offer(loom::Mail& mail, const PaneOffered& o) {
-        offered(o.pane);
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
-    }
-    void offer(loom::Mail& mail, const zengine::pane::v2::PaneOffered& o) {
-        offered(o.pane);
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
-    }
+    void offer(loom::Mail& mail, const PaneOffered& o);
+    void offer(loom::Mail& mail, const zengine::pane::v2::PaneOffered& o);
     /// Offer PERSONALLY, from the very weave that holds the role. Holding is not
     /// speaking-for (MSG-07), and this is the sentence that says so.
-    void offer_personally(loom::Mail& mail, const PaneOffered& o) {
-        (void)mail.send_to_role(kWorkshopProvider, o);
-    }
+    void offer_personally(loom::Mail& mail, const PaneOffered& o);
     /// THE ROWS OF ONE OF ITS PANES, drawn in that pane's area while a window shows it, and kept,
     /// so a room given later draws them there.
-    void say(loom::Mail& mail, const SeatRows& c) {
-        said_rows_[c.pane] = c;
-        draw(mail, c.pane);
-    }
+    void say(loom::Mail& mail, const SeatRows& c);
     /// ...and where its caret and selection stand in them.
-    void caret(loom::Mail& mail, const std::string& pane, const RowsCaret& c) {
-        carets_[pane] = c;
-        draw(mail, pane);
-    }
+    void caret(loom::Mail& mail, const std::string& pane, const RowsCaret& c);
     /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the role, and personally for
     /// the case about authorship rather than about the gesture. Echoed under the number the
     /// LATEST Escape arrived on, which is what a pane answering the key it was just handed
     /// does; `unspent_answering` is for a case that answers an older one on purpose, and
     /// `unspent_anonymously` for one that echoes nothing at all.
-    void unspent(loom::Mail& mail, const std::string& pane) {
-        unspent_answering(mail, pane, latest_escape_ask());
-    }
-    void unspent_answering(loom::Mail& mail, const std::string& pane, std::uint64_t answering) {
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane},
-                                                 answering);
-    }
-    void unspent_anonymously(loom::Mail& mail, const std::string& pane) {
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, 0);
-    }
-    void unspent_personally(loom::Mail& mail, const std::string& pane) {
-        (void)mail.send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, latest_escape_ask());
-    }
+    void unspent(loom::Mail& mail, const std::string& pane);
+    void unspent_answering(loom::Mail& mail, const std::string& pane, std::uint64_t answering);
+    void unspent_anonymously(loom::Mail& mail, const std::string& pane);
+    void unspent_personally(loom::Mail& mail, const std::string& pane);
     /// THE NUMBER THE LAST ESCAPE THIS SEAT WAS SENT CAME UNDER, or zero if it was sent none.
-    std::uint64_t latest_escape_ask() const {
-        for (std::size_t i = keys.size(); i-- > 0;) {
-            if (keys[i].scancode == zengine::input::scan::kEscape && i < key_asks.size()) {
-                return key_asks[i];
-            }
-        }
-        return 0;
-    }
+    std::uint64_t latest_escape_ask() const;
     /// Declare a pane's actions, deliberately AS this role -- and personally, from the
     /// very weave that holds it, which Workshop must drop for the offer's reason.
-    void declare(loom::Mail& mail, const PaneActions& a) {
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
-    }
-    void declare_personally(loom::Mail& mail, const PaneActions& a) {
-        (void)mail.send_to_role(kWorkshopProvider, a);
-    }
+    void declare(loom::Mail& mail, const PaneActions& a);
+    void declare_personally(loom::Mail& mail, const PaneActions& a);
     /// The SECOND published version of the declaration -- the one that can name an action this
     /// pane owns. A provider built before it existed sends the shape above.
-    void declare_v2(loom::Mail& mail, const zengine::pane::v2::PaneActions& a) {
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
-    }
+    void declare_v2(loom::Mail& mail, const zengine::pane::v2::PaneActions& a);
     /// ...and the THIRD, which says what each press may cause and the modes.
-    void declare_v3(loom::Mail& mail, const zengine::pane::v3::PaneActions& a) {
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
-    }
+    void declare_v3(loom::Mail& mail, const zengine::pane::v3::PaneActions& a);
     /// ...and the FOURTH, whose rows may name a key for a POSIX terminal.
-    void declare_v4(loom::Mail& mail, const zengine::pane::v4::PaneActions& a) {
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
-    }
+    void declare_v4(loom::Mail& mail, const zengine::pane::v4::PaneActions& a);
     /// FORGE A PRESS AT SOMEBODY ELSE'S AREA -- deliberately authored, and deliberately by a
     /// role that is no window's: the sentence a pane must refuse, a stranger telling it a weaver
     /// clicked in its area.
-    void press_at(loom::Mail& mail, const char* role, const gfx::AreaButtonChanged& b) {
-        (void)mail.as_role(role_).send_to_role(role, b);
-    }
+    void press_at(loom::Mail& mail, const char* role, const gfx::AreaButtonChanged& b);
 
     /// The area one of its panes draws in.
-    std::string area_for(const std::string& pane) const { return pane_area(role_, pane); }
+    std::string area_for(const std::string& pane) const;
     /// The face the window last set that pane's area in, a cell before one.
-    gfx::TextMeasure room_text(const std::string& pane) const {
-        const auto d = drawings_.find(area_for(pane));
-        return d == drawings_.end() ? gfx::TextMeasure{} : d->second.rows_room().text;
-    }
+    gfx::TextMeasure room_text(const std::string& pane) const;
     /// The rows and columns the room last given that pane's area holds, 0 by 0 before one.
-    std::int64_t room_rows(const std::string& pane) const {
-        const auto d = drawings_.find(area_for(pane));
-        return d == drawings_.end() ? 0 : d->second.rows_room().rows();
-    }
-    std::int64_t room_columns(const std::string& pane) const { return columns_of(area_for(pane)); }
+    std::int64_t room_rows(const std::string& pane) const;
+    std::int64_t room_columns(const std::string& pane) const;
 
     /// EVERYTHING THIS SEAT WAS EVER TOLD, counted. It is what lets a case say
     /// "closing a presentation reached the provider not at all" as a number rather
@@ -3220,45 +1901,14 @@ public:
     std::function<void(ProviderSeat&, loom::Mail&)> next;
 
 private:
-    void offered(const std::string& pane) {
-        if (std::find(offered_.begin(), offered_.end(), pane) == offered_.end()) {
-            offered_.push_back(pane);
-        }
-    }
+    void offered(const std::string& pane);
     /// The pane an area of its own shows: `<role>.<pane>`.
-    std::string pane_of(const std::string& area) const {
-        const std::string prefix = role_ + ".";
-        return area.rfind(prefix, 0) == 0 ? area.substr(prefix.size()) : std::string();
-    }
-    WindowDrawing& drawing_of(const std::string& area) {
-        return drawings_.try_emplace(area, role_, area).first->second;
-    }
-    std::int64_t columns_of(const std::string& area) const {
-        const auto d = drawings_.find(area);
-        return d == drawings_.end() ? 0 : d->second.rows_room().columns();
-    }
+    std::string pane_of(const std::string& area) const;
+    WindowDrawing& drawing_of(const std::string& area);
+    std::int64_t columns_of(const std::string& area) const;
     /// The rows last said for `pane`, drawn in its area as many as its room holds, the caret in
     /// them: what changed there, or the whole after a new room.
-    void draw(loom::Mail& mail, const std::string& pane) {
-        const std::string area = area_for(pane);
-        WindowDrawing& drawing = drawing_of(area);
-        // A PANE THAT SAID NO ROWS YET DRAWS NOTHING: it waits, and its frame says so.
-        const auto last = said_rows_.find(pane);
-        if (!drawing.shown() || last == said_rows_.end()) {
-            return;
-        }
-        const RowsRoom room = drawing.rows_room();
-        if (room.rows() <= 0 || room.columns() <= 0) {
-            return;
-        }
-        const auto caret = carets_.find(pane);
-        const RowsDrawing drawn =
-            rows_drawing(last->second.rows, last->second.parts, room, room.columns(),
-                         caret == carets_.end() ? RowsCaret{} : caret->second, room.rows());
-        drawn_rows_[area] = std::min<std::int64_t>(
-            room.rows(), static_cast<std::int64_t>(last->second.rows.size()));
-        drawing.draw(drawn.sketch, mail);
-    }
+    void draw(loom::Mail& mail, const std::string& pane);
 
     std::string role_;
     std::vector<std::string> offered_;
@@ -3280,50 +1930,21 @@ class SettingsSeat
                              loom::Emit<PaneOffered, PaneSettingsDeclared, PaneSettingsAsked,
                                         PaneSettingUnused, gfx::RoomAsked>> {
 public:
-    explicit SettingsSeat(std::string role) : role_(std::move(role)) {}
+    explicit SettingsSeat(std::string role);
 
-    void on(const PaneCatalogRequested&, loom::Mail&) { ++asks; }
-    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        heard.push_back("room");
-        authors.push_back(std::string(mail.authored_role()));
-        const gfx::TextMeasure text = r.measure();
-        rooms.push_back(SeatRoom{std::string(), r.area, text.line > 0 ? r.h / text.line : 0,
-                                 text.advance > 0 ? r.w / text.advance : 0});
-    }
-    void on(const PaneSettings& s, loom::Mail& mail) {
-        heard.push_back("settings");
-        handed.push_back(s);
-        authors.push_back(std::string(mail.authored_role()));
-    }
-    void on(const SeatDo&, loom::Mail& mail) {
-        if (next) {
-            std::function<void(SettingsSeat&, loom::Mail&)> once;
-            once.swap(next);
-            once(*this, mail);
-        }
-    }
+    void on(const PaneCatalogRequested&, loom::Mail&);
+    void on(const gfx::AreaRoom& r, loom::Mail& mail);
+    void on(const PaneSettings& s, loom::Mail& mail);
+    void on(const SeatDo&, loom::Mail& mail);
 
     /// THE OFFER, its row asked of the layouts' owner, and the room of an area it was given before
     /// asked again, as an image that arrives holding nothing asks them.
-    void offer(loom::Mail& mail, const PaneOffered& o) {
-        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
-        (void)mail.as_role(role_).send_to_role(kLayoutsRole, PaneSettingsAsked{o.pane});
-        if (!rooms.empty()) {
-            (void)mail.as_role(role_).send_to_role(gfx::kGraphicsRole,
-                                                    gfx::RoomAsked{rooms.back().area});
-        }
-    }
-    void declare(loom::Mail& mail, const PaneSettingsDeclared& d) {
-        (void)mail.as_role(role_).send_to_role(kLayoutsRole, d);
-    }
+    void offer(loom::Mail& mail, const PaneOffered& o);
+    void declare(loom::Mail& mail, const PaneSettingsDeclared& d);
     /// A SETTING IT WAS HANDED AND CANNOT USE, said to the layouts' owner as its role.
-    void unused(loom::Mail& mail, const PaneSettingUnused& u) {
-        (void)mail.as_role(role_).send_to_role(kLayoutsRole, u);
-    }
+    void unused(loom::Mail& mail, const PaneSettingUnused& u);
     /// ...and PERSONALLY, from the weave that holds the role, which declares nothing.
-    void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d) {
-        (void)mail.send_to_role(kLayoutsRole, d);
-    }
+    void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d);
 
     std::function<void(SettingsSeat&, loom::Mail&)> next;
     std::vector<std::string> heard;    ///< "room" or "settings", in the order they arrived
@@ -3346,24 +1967,11 @@ class PaneWatcher
                              loom::Accept<PaneOffered, zengine::pane::v2::PaneOffered, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneKeys, gfx::AreaButtonChanged>> {
 public:
-    void on(const zengine::pane::v2::PaneOffered& o, loom::Mail& mail) {
-        on(PaneOffered{o.pane, o.name, o.summary}, mail);
-    }
-    void on(const PaneOffered& o, loom::Mail& mail) {
-        offers.push_back(o);
-        offer_authors.push_back(std::string(mail.authored_role()));
-    }
-    void on(const SeatDo&, loom::Mail& mail) {
-        if (next) {
-            std::function<void(PaneWatcher&, loom::Mail&)> once;
-            once.swap(next);
-            once(*this, mail);
-        }
-    }
-    void ask(loom::Mail& mail) {
-        (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
-    }
-    void ask_personally(loom::Mail& mail) { (void)mail.publish(PaneCatalogRequested{}); }
+    void on(const zengine::pane::v2::PaneOffered& o, loom::Mail& mail);
+    void on(const PaneOffered& o, loom::Mail& mail);
+    void on(const SeatDo&, loom::Mail& mail);
+    void ask(loom::Mail& mail);
+    void ask_personally(loom::Mail& mail);
 
     std::vector<PaneOffered> offers;
     std::vector<std::string> offer_authors;
@@ -3385,10 +1993,10 @@ class Booter : public loom::WeaveBase<Booter, RigBootState,
                                       loom::Accept<loom::Result, loom::Ack, loom::Refused>,
                                       loom::Emit<loom::LoadWeave, loom::UnloadLibrary>> {
 public:
-    Booter(std::vector<std::string>& ok, std::vector<std::string>& no) : ok_(&ok), no_(&no) {}
-    void on(const loom::Result& r, loom::Mail&) { ok_->push_back(r.value); }
-    void on(const loom::Ack&, loom::Mail&) { ++acks; }
-    void on(const loom::Refused& r, loom::Mail&) { no_->push_back(r.reason); }
+    Booter(std::vector<std::string>& ok, std::vector<std::string>& no);
+    void on(const loom::Result& r, loom::Mail&);
+    void on(const loom::Ack&, loom::Mail&);
+    void on(const loom::Refused& r, loom::Mail&);
 
     std::int64_t acks = 0;
 
@@ -3409,11 +2017,10 @@ class ControlSeat
                              loom::Accept<loom::Result, loom::Ack, loom::Refused>,
                              loom::Emit<loom::ReloadLibrary, loom::UnloadLibrary>> {
 public:
-    ControlSeat(std::vector<std::string>& ok, std::vector<std::string>& no)
-        : ok_(&ok), no_(&no) {}
-    void on(const loom::Result& r, loom::Mail&) { ok_->push_back(r.value); }
-    void on(const loom::Ack&, loom::Mail&) {}
-    void on(const loom::Refused& r, loom::Mail&) { no_->push_back(r.reason); }
+    ControlSeat(std::vector<std::string>& ok, std::vector<std::string>& no);
+    void on(const loom::Result& r, loom::Mail&);
+    void on(const loom::Ack&, loom::Mail&);
+    void on(const loom::Refused& r, loom::Mail&);
 
 private:
     std::vector<std::string>* ok_;
@@ -3483,86 +2090,24 @@ struct PaneRig {
     LayoutsOwner* owner = nullptr;
     loom::WeaveId owner_id{};
     loom::WeaveId stage_id{};
-    void mount_owner() {
-        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
-        owner = weave.get();
-        owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
-        owner->zen_set_self(owner_id);
-    }
+    void mount_owner();
     /// ...AND THE OWNER ASKED SOMETHING, so the picture it owes is sent: delivered at the next drain.
-    void nudge_owner() {
-        if (!stage_id.valid()) {
-            auto stage = std::make_unique<StageHand>();
-            StageHand* raw = stage.get();
-            loom::Grant grant;
-            grant.allow_to_role(LayoutSettingsRequested::zen_name,
-                                LayoutSettingsRequested::zen_version, kLayoutsRole);
-            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageRole));
-            raw->zen_set_self(stage_id);
-        }
-        (void)bus.send(stage_id,
-                       loom::Message(loom::to_value(StageNudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
-    }
+    void nudge_owner();
 
-    PaneRig() {
-        // The windows' clock, which they count the weaver's clicks by.
-        windows.clock([this] { return clock.read(); });
-        // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
-        host.dir = WORKSHOP_SKINS_DIR;
-#ifdef WORKSHOP_THEMES_DIR
-        host.shipped_themes_path = WORKSHOP_THEMES_DIR; // the shipped themes, as the build has them
-#endif
-        painter_id = loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
-        (void)count_desk_drawings(bus, workshop_id, pictures);
-    }
+    PaneRig();
 
 
     /// MOUNT WORKSHOP THE WAY THE HOST DOES: in the `zengine.workshop` role, with the host's own
     /// compiled grant, not one minted from the Emit set -- `emit_default_grant` gives `to_any` for
     /// everything declared, wider than the host writes, and the two Builder sentences are
     /// ROLE-SCOPED. Independent denial witnesses check the policy acquires no unintended authority.
-    WorkshopWeave* mount_workshop() {
-        auto weave = std::make_unique<WorkshopWeave>(host);
-        w = weave.get();
-        // The press's second version is chosen by the host's answer about the role's holder,
-        // wired as workshop.cpp wires it; a case that wants an OLDER host -- one that answers
-        // nothing, so every press crosses as v1 -- empties `host.holder_accepts`. With `Live`'s
-        // one fixture statement: the stack's stand-in, if a case admits it, is answered present
-        // for a ROOM, so the launch door seats it; a case that never admits it gets the host's.
-        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
-            if (role == stock::kRole && shape.name() == gfx::AreaRoom::zen_name) {
-                return true;
-            }
-            return holder_accepts_on(bus, role, shape);
-        };
-        host.holder_emits = [this](std::string_view role, const loom::Schema& shape) {
-            return holder_emits_on(bus, role, shape);
-        };
-        host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
-        host.incarnation_of = [this](loom::WeaveId id) {
-            return static_cast<std::int64_t>(bus.participant(id).incarnation);
-        };
-        // ...and where a terminal line can go, read off the same bus at the ask, as workshop.cpp
-        // wires it. A case that wants a host listing nothing empties `host.destinations`.
-        host.destinations = [this] {
-            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
-                                                                  : loom::WeaveId{});
-        };
-        mount_owner();
-        register_workshop(std::move(weave));
-        return w;
-    }
+    WorkshopWeave* mount_workshop();
 
     /// Use the native host's policy; policy denials are also exercised independently.
-    static loom::Grant workshop_grant() { return zengine::workshop::workshop_grant(); }
+    static loom::Grant workshop_grant();
 
     /// REGISTER WORKSHOP'S WEAVE IN ITS ROLE, with the production grant and the quit's watch.
-    void register_workshop(std::unique_ptr<loom::Weave> weave) {
-        workshop_id =
-            bus.register_weave(std::move(weave), workshop_grant(), std::string(kWorkshopProvider));
-        w->zen_set_self(workshop_id);
-        quit_watch = std::make_unique<QuitDeliveryWatch>(bus, workshop_id, host.undelivered_quits);
-    }
+    void register_workshop(std::unique_ptr<loom::Weave> weave);
 
     /// TAKE WORKSHOP'S WEAVE OFF THIS BUS FOR AN INTERVAL, AND PUT IT BACK. The weave itself --
     /// its document, its session, the panes it seated -- is the same object throughout; what leaves
@@ -3570,17 +2115,8 @@ struct PaneRig {
     /// a shape only Workshop accepts is one this bus has never heard of. Put back, it holds the
     /// role again under a new id (`workshop_id`), with the grant it was mounted with. Host root
     /// authority, for an interval no gesture can make.
-    std::unique_ptr<loom::Weave> take_workshop_off() {
-        quit_watch.reset();
-        std::unique_ptr<loom::Weave> off = bus.unregister_weave(workshop_id);
-        REQUIRE(off != nullptr);
-        workshop_id = loom::WeaveId{};
-        return off;
-    }
-    void put_workshop_back(std::unique_ptr<loom::Weave> weave) {
-        REQUIRE(weave != nullptr);
-        register_workshop(std::move(weave));
-    }
+    std::unique_ptr<loom::Weave> take_workshop_off();
+    void put_workshop_back(std::unique_ptr<loom::Weave> weave);
 
     /// THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT -- its production grant spelled by
     /// hand, since one minted from the Emit set could not notice the host widening it, and the
@@ -3590,71 +2126,14 @@ struct PaneRig {
     OpeningManager* opening = nullptr;
     loom::WeaveId opening_id{};
 
-    OpeningManager* mount_opening() {
-        auto opener = std::make_unique<OpeningManager>(
-            std::string(kEditorRole), std::string(kWorkshopProvider), host.managed_pane);
-        opening = opener.get();
-        loom::Grant arrange;
-        arrange.allow_to_role(PresentationTrialRequested::zen_name,
-                              PresentationTrialRequested::zen_version, kWorkshopProvider);
-        arrange.allow_to_role(zengine::workshop::v3::PresentationAdmitRequested::zen_name,
-                              zengine::workshop::v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
-        arrange.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
-                              kWorkshopProvider);
-        arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
-                              kWorkshopProvider);
-        arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
-                              kEditorRole);
-        arrange.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
-                              kEditorRole); // the `apply` word, as workshop.cpp grants it
-        arrange.allow_to_role(zengine::workshop::v3::PrepareSourceRequested::zen_name,
-                              zengine::workshop::v3::PrepareSourceRequested::zen_version, kEditorRole);
-        arrange.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
-        // ...and what a shape it accepts does, from its own page, as workshop.cpp grants it.
-        arrange.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
-                             zengine::manual::ShapeDocumentShown::zen_version);
-        loom::allow_poke_answers(arrange); // inspectable, as the host mounts it
-        opening_id = bus.register_weave(std::move(opener), std::move(arrange),
-                                        std::string(kOpeningRole));
-        opening->zen_set_self(opening_id);
-        opening->set_authority(bus.mint_joint_authority(
-            opening_id, {std::string(kEditorRole), std::string(kWorkshopProvider)}));
-        return opening;
-    }
+    OpeningManager* mount_opening();
 
     /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- owned by the bus, handed to
     /// Workshop as a non-owning pointer, and out of the pane's reach, so every case drives the pane
     /// and asks THIS object what it heard. Its grant is this rig's, `RigNote` to whoever holds
     /// `kRigBoard`; `widen` lets it say that to any target, so a case can address a weave by id
     /// and measure what the BUS says about the target rather than what the grant does.
-    loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false) {
-        loom::TerminalVocabulary vocab;
-        vocab.knows(loom::schema_of<RigNote>())
-            .accepts(loom::schema_of<loom::Ack>())
-            .accepts(loom::schema_of<loom::Refused>());
-        for (int i = 0; i < shapes; ++i) {
-            vocab.knows(loom::SchemaBuilder("Extra" + std::to_string(i), 1)
-                            .field("seq", loom::Kind::Int)
-                            .build());
-        }
-        loom::Grant grant;
-        grant.allow_to_role(RigNote::zen_name, RigNote::zen_version, kRigBoard);
-        if (widen) {
-            grant.allow_to_any(RigNote::zen_name, RigNote::zen_version);
-        }
-        // ...ITS ORDINARY VERB, the discovery door's find, by the host's own grant (WL-TERM-18)...
-        let_terminal_find_powers(vocab, grant);
-        // ...AND, WHEN A CASE ASKS, A PANE'S SETTINGS, by the host's own widening.
-        if (terminal_edits_settings) {
-            let_terminal_edit_settings(vocab, grant);
-        }
-        const loom::MountedTerminal mounted = loom::host_mount_terminal(
-            bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
-            std::move(grant));
-        host.terminal = mounted.session;
-        terminal_id = mounted.id;
-        return mounted.session;
-    }
+    loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false);
     loom::WeaveId terminal_id{};
     bool terminal_edits_settings = false;
 
@@ -3662,91 +2141,18 @@ struct PaneRig {
     /// offer, both declarations, unspent Escape, a press handed back -- its drawing to the window
     /// that shows its area, and a press to forge. The role is a view, so a case can seat a weave
     /// in a role longer than Workshop's own key bound.
-    ProviderSeat* mount_provider(std::string_view role) {
-        auto seat = std::make_unique<ProviderSeat>(std::string(role));
-        ProviderSeat* raw = seat.get();
-        loom::Grant grant;
-        grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-        grant.allow_to_any(zengine::pane::v2::PaneOffered::zen_name, zengine::pane::v2::PaneOffered::zen_version);
-        grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
-        grant.allow_to_any(zengine::pane::v2::PaneActions::zen_name, zengine::pane::v2::PaneActions::zen_version);
-        grant.allow_to_any(zengine::pane::v3::PaneActions::zen_name, zengine::pane::v3::PaneActions::zen_version);
-        grant.allow_to_any(zengine::pane::v4::PaneActions::zen_name, zengine::pane::v4::PaneActions::zen_version);
-        // ...and that an Escape it was sent was unspent, which is how a pane asks to be put down,
-        // and that a press was not its own.
-        grant.allow_to_any(PaneEscapeUnspent::zen_name, PaneEscapeUnspent::zen_version);
-        grant.allow_to_any(PanePassRequested::zen_name, PanePassRequested::zen_version);
-        // ...its rows, drawn in its area.
-        grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
-        // A SEAT MAY FORGE A PRESS, deliberately: the claim under test is that a PANE refuses a
-        // press it did not get from the window that shows its area, and a refusal the bus made
-        // unreachable proves nothing.
-        grant.allow_to_any(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version);
-        const loom::WeaveId id =
-            bus.register_weave(std::move(seat), std::move(grant), std::string(role));
-        raw->zen_set_self(id);
-        seat_ids.push_back(id);
-        seats_.push_back(raw);
-        return raw;
-    }
+    ProviderSeat* mount_provider(std::string_view role);
 
     /// A SEAT THAT TAKES ITS SETTINGS in `role`, granted only what it says.
-    SettingsSeat* mount_settings_seat(std::string_view role) {
-        auto seat = std::make_unique<SettingsSeat>(std::string(role));
-        SettingsSeat* raw = seat.get();
-        loom::Grant grant;
-        grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-        grant.allow_to_any(PaneSettingsDeclared::zen_name, PaneSettingsDeclared::zen_version);
-        grant.allow_to_role(PaneSettingsAsked::zen_name, PaneSettingsAsked::zen_version,
-                            kLayoutsRole);
-        grant.allow_to_role(PaneSettingUnused::zen_name, PaneSettingUnused::zen_version,
-                            kLayoutsRole);
-        grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
-        const loom::WeaveId id =
-            bus.register_weave(std::move(seat), std::move(grant), std::string(role));
-        raw->zen_set_self(id);
-        settings_seats_.emplace_back(raw, id);
-        return raw;
-    }
+    SettingsSeat* mount_settings_seat(std::string_view role);
     /// ...AND TAKE IT OFF THE BUS, role and all, so another weave may hold that role.
-    void unmount_settings_seat(SettingsSeat* seat) {
-        for (std::size_t i = 0; i < settings_seats_.size(); ++i) {
-            if (settings_seats_[i].first == seat) {
-                (void)bus.unregister_weave(settings_seats_[i].second);
-                settings_seats_.erase(settings_seats_.begin() + static_cast<std::ptrdiff_t>(i));
-                return;
-            }
-        }
-    }
-    loom::WeaveId settings_seat_id(const SettingsSeat* seat) const {
-        for (const auto& [s, id] : settings_seats_) {
-            if (s == seat) {
-                return id;
-            }
-        }
-        return loom::WeaveId{};
-    }
+    void unmount_settings_seat(SettingsSeat* seat);
+    loom::WeaveId settings_seat_id(const SettingsSeat* seat) const;
     /// Make a seat perform one sentence INSIDE ITS OWN DELIVERY, which is what gives
     /// `mail.as_role(...)` a real authorship moment for Loom to verify.
-    void drive(SettingsSeat* seat, std::function<void(SettingsSeat&, loom::Mail&)> what) {
-        seat->next = std::move(what);
-        (void)bus.send(settings_seat_id(seat), loom::Message(loom::to_value(SeatDo{}),
-                                                             loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.drain_until_idle();
-    }
+    void drive(SettingsSeat* seat, std::function<void(SettingsSeat&, loom::Mail&)> what);
 
-    void drive(ProviderSeat* seat, std::function<void(ProviderSeat&, loom::Mail&)> what) {
-        seat->next = std::move(what);
-        loom::WeaveId id{};
-        for (std::size_t i = 0; i < seats_.size(); ++i) {
-            if (seats_[i] == seat) {
-                id = seat_ids[i];
-            }
-        }
-        (void)bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                         loom::WeaveId{}, 0));
-        bus.drain_until_idle();
-    }
+    void drive(ProviderSeat* seat, std::function<void(ProviderSeat&, loom::Mail&)> what);
 
     /// LOAD A REAL SHARED LIBRARY THROUGH THE REAL KERNEL AND MANAGER, exactly as a
     /// host does: an ordinary `LoadWeave` command sent as a weave that can hear the
@@ -3757,92 +2163,33 @@ struct PaneRig {
     /// LOAD A PRESENTER INTO `zengine.presenter` THROUGH THE REAL MANAGER -- the shipped one by
     /// default, the replacement example when a case asks -- under the plan's own stem, so a later
     /// reload through the control door names the library the plan names.
-    loom::WeaveId load_presenter(const char* path = WORKSHOP_SO_MENU_PRESENTER) {
-        const loom::WeaveId id = load("zengine-menu-presenter", path, kPresenterRole);
-        REQUIRE(id.valid());
-        REQUIRE(load_refusals.empty());
-        return id;
-    }
+    loom::WeaveId load_presenter(const char* path = WORKSHOP_SO_MENU_PRESENTER);
 #endif
 
-    loom::WeaveId load(const char* name, const char* path, const char* role) {
-        return load(name, path, zengine::testing::role_set(role));
-    }
-    loom::WeaveId load(const char* name, const char* path, std::vector<std::string> roles) {
-        loom::Grant reach;
-        reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-        const std::size_t before = loaded.size();
-        const loom::WeaveId booter =
-            loom::mount_granted<Booter>(bus, std::move(reach), loaded, load_refusals);
-        bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{name, path, std::move(roles)}),
-                                  booter, booter, 0));
-        bus.drain_until_idle();
-        if (loaded.size() <= before) {
-            return loom::WeaveId{};
-        }
-        return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(loaded.back()))};
-    }
+    loom::WeaveId load(const char* name, const char* path, const char* role);
+    loom::WeaveId load(const char* name, const char* path, std::vector<std::string> roles);
 
     /// UNLOAD A REAL LIBRARY THROUGH THE REAL CONTROL DOOR. The Weave Manager has no unload op --
     /// its four are load, swap, reload and list -- so this addresses `zen.UnloadLibrary` to the
     /// door itself, under Loom's own `load_capability` grant rather than a hand-written subset: a
     /// case that quietly narrowed the dangerous grant would be testing its own idea of it.
-    bool unload(const char* name) {
-        const loom::WeaveId booter = loom::mount_granted<Booter>(
-            bus, loom::load_capability(control), loaded, load_refusals);
-        const std::size_t before = load_refusals.size();
-        bus.send_as(booter, control,
-                    loom::Message(loom::to_value(loom::UnloadLibrary{name}), booter, booter, 0));
-        bus.drain_until_idle();
-        return load_refusals.size() == before;
-    }
+    bool unload(const char* name);
 
     /// RELOAD A REAL LIBRARY IN PLACE THROUGH THE REAL CONTROL DOOR -- `zen.ReloadLibrary`, the op
     /// the Weave Manager spends when a weaver's rebuilt product is offered: the Kernel snapshots
     /// the live weave, opens the new image and revives it at the same id. QUEUED, NOT DRAINED, so a
     /// reload lands at an exact interval of an operation in flight; the case pumps, and
     /// `load_refusals` says whether it was refused.
-    void enqueue_reload(const char* name, const std::string& path) {
-        const loom::WeaveId seat = loom::mount_granted<ControlSeat>(
-            bus, loom::load_capability(control), loaded, load_refusals);
-        bus.send_as(seat, control,
-                    loom::Message(loom::to_value(loom::ReloadLibrary{name, path}), seat, seat,
-                                  0));
-    }
+    void enqueue_reload(const char* name, const std::string& path);
     /// ...and the same, queued: the unload lands at its place in the burst.
-    void enqueue_unload(const char* name) {
-        const loom::WeaveId seat = loom::mount_granted<ControlSeat>(
-            bus, loom::load_capability(control), loaded, load_refusals);
-        bus.send_as(seat, control,
-                    loom::Message(loom::to_value(loom::UnloadLibrary{name}), seat, seat, 0));
-    }
+    void enqueue_unload(const char* name);
 
 
     /// A watcher in the `zengine.workshop` role, INSTEAD of Workshop. Only one weave
     /// may hold a role, so a case uses this OR `mount_workshop`, never both.
-    PaneWatcher* mount_watcher() {
-        auto seat = std::make_unique<PaneWatcher>();
-        PaneWatcher* raw = seat.get();
-        loom::Grant grant;
-        grant.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
-        grant.allow_to_any(PaneKeys::zen_name, PaneKeys::zen_version);
-        grant.allow_to_any(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version);
-        const loom::WeaveId id =
-            bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
-        raw->zen_set_self(id);
-        watcher_id = id;
-        // ...AND THE LAYOUTS' ROLE BESIDE IT, so a pane that asks for its row holds one.
-        (void)zengine::testing::mount_layouts_stand_in(bus);
-        return raw;
-    }
+    PaneWatcher* mount_watcher();
 
-    void drive_watcher(PaneWatcher* watch, std::function<void(PaneWatcher&, loom::Mail&)> what) {
-        watch->next = std::move(what);
-        (void)bus.send(watcher_id,
-                       loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.drain_until_idle();
-    }
+    void drive_watcher(PaneWatcher* watch, std::function<void(PaneWatcher&, loom::Mail&)> what);
 
     loom::WeaveId watcher_id{};
 
@@ -3860,43 +2207,16 @@ struct PaneRig {
     /// accepts; a case pairs it with a declared id through the same door to show provenance was
     /// never the reason. Drained.
     RoleAction workshop_action(std::string_view role, const std::string& pane,
-                                 const std::string& id) {
-        RoleAction said;
-        const loom::WeaveId holder = bus.role_holder(role);
-        const loom::ObserverId tap = bus.add_observer([&said, holder](const loom::BusEvent& ev) {
-            if (ev.kind == loom::EventKind::Delivered && ev.target == holder &&
-                ev.schema_name == PaneActionRequested::zen_name) {
-                said.delivered = true;
-                said.author = ev.authored_role;
-            }
-        });
-        const loom::Ticket sent = bus.role_send_to_role_as(
-            workshop_id, kWorkshopProvider, role,
-            loom::Message(loom::to_value(PaneActionRequested{pane, id}), workshop_id, workshop_id,
-                          0));
-        said.authored = sent.valid();
-        bus.drain_until_idle();
-        bus.remove_observer(tap);
-        return said;
-    }
+                                 const std::string& id);
 
     /// A GESTURE OR A WORD, published as a medium publishes it -- the window up first, once
     /// Workshop is mounted, so the desk it lands on is the one a weaver sees.
-    void publish(const loom::Value& v) {
-        come_up();
-        (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.drain_until_idle();
-    }
+    void publish(const loom::Value& v);
 
     /// THE DESK STARTED: the window brought up at the room Workshop holds, so it offers itself
     /// and Workshop starts on that offer -- where it asks the room who has panes. A case that
     /// seated a window of its own (`own_medium`) is started by that window's offer.
-    void ready() {
-        if (own_medium()) {
-            return; // the case's own window starts the desk by its offer
-        }
-        come_up();
-    }
+    void ready();
 
     /// A ROOM OF `width` BY `height` CANVAS CELLS, the window sized to it as a weaver sizes it: a
     /// cell medium -- the TUI window, its device unit the cell -- unless a face is given, `adv`
@@ -3904,126 +2224,61 @@ struct PaneRig {
     /// The window says its device unit itself, so `cell` is kept only for the spelling of a
     /// medium the rig no longer reports.
     void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
-                std::int64_t line = 0, std::int64_t cell = 0) {
-        extent_px(cells_px(width), cells_px(height), adv, line, cell);
-    }
+                std::int64_t line = 0, std::int64_t cell = 0);
 
     /// ...and a room in canvas pixels, for the cases about a window whose size is not a whole
     /// number of cells; a cell medium holds it in whole cells.
     void extent_px(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
-                   std::int64_t line = 0, std::int64_t cell = 0) {
-        REQUIRE_MESSAGE(!own_medium(), "a case that seated a window of its own sizes it there");
-        (void)cell;
-        const auto [a, l] = face_for(adv, line);
-        windows.room(width, height, a, l);
-    }
+                   std::int64_t line = 0, std::int64_t cell = 0);
 
     /// THE SHIPPED GRAPHICAL FACE, at whatever room a case wants -- the GUI window with the face
     /// it measures. Named, so a case reads as "the weaver is on the window" rather than as numbers.
-    void extent_on_window(std::int64_t width, std::int64_t height) {
-        extent(width, height, 8, 18, gfx::kCellPx);
-    }
+    void extent_on_window(std::int64_t width, std::int64_t height);
 
     /// WHAT THE WINDOW SHOWING THE DESK SHOWS NOW.
-    DeskShown shown() {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        return windows.shown();
-    }
+    DeskShown shown();
 
     /// THE WEAVER'S OWN BUTTON THROUGH THE WINDOW SHOWING THE DESK, at a canvas cell: landed by the
     /// window in whatever area stands there -- a pane's menu its presenter draws among them --
     /// where a bare moment goes to Workshop alone. `pressed` false is its release.
-    void window_button(std::int64_t cx, std::int64_t cy, bool pressed, std::int64_t button = 1) {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        windows.hand({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
-                                           input::mod::kNone}});
-        bus.drain_until_idle();
-    }
+    void window_button(std::int64_t cx, std::int64_t cy, bool pressed, std::int64_t button = 1);
     /// ...a press and its release there.
-    void window_click(std::int64_t cx, std::int64_t cy, std::int64_t button = 1) {
-        window_button(cx, cy, true, button);
-        window_button(cx, cy, false, button);
-    }
+    void window_click(std::int64_t cx, std::int64_t cy, std::int64_t button = 1);
     /// ...AT A POINT IN THE MEDIUM'S OWN SPACE, as a reading names one: the TUI window's cell,
     /// its rows above the desk counted, or the GUI window's pixel.
     void hand_button(std::int64_t x, std::int64_t y, std::int64_t space, bool pressed,
-                     std::int64_t button = 1) {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        windows.hand({input::PointerButton{button, pressed, x, y, space, input::mod::kNone}});
-        bus.drain_until_idle();
-    }
+                     std::int64_t button = 1);
     /// ...OR QUEUED ON THE WINDOW'S PLATFORM, a button or a key, and read together on its next
     /// beat (`window_beat`), as one batch of the weaver's.
     void window_queue_button(std::int64_t cx, std::int64_t cy, bool pressed,
-                             std::int64_t button = 1) {
-        come_up();
-        windows.queue({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
-                                            input::mod::kNone}});
-    }
-    void window_queue_key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
-        come_up();
-        windows.queue({input::KeyPressed{scan, "", mods}});
-    }
-    void window_beat() {
-        windows.pump();
-        bus.drain_until_idle();
-    }
+                             std::int64_t button = 1);
+    void window_queue_key(std::int64_t scan, std::int64_t mods = input::mod::kNone);
+    void window_beat();
 
     /// THE GUI WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
     /// in cells too: the medium whose platform clipboard a paste can read (`windows.set_clipboard`).
     /// The TUI window reads none. A window up already is moved to it now.
-    void on_gui_window() {
-        gui_window = true;
-        if (windows.up()) {
-            const Session& s = w->session();
-            windows.room(s.screen_w, s.screen_h, 8, 18);
-        }
-    }
+    void on_gui_window();
     bool gui_window = false;
     /// The face a room is shown with: the one asked, or the GUI window's own once this rig is on it.
-    std::pair<std::int64_t, std::int64_t> face_for(std::int64_t adv, std::int64_t line) const {
-        if (gui_window && (adv <= 0 || line <= 0)) {
-            return {8, 18};
-        }
-        return {adv, line};
-    }
+    std::pair<std::int64_t, std::int64_t> face_for(std::int64_t adv, std::int64_t line) const;
 
     /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its role --
     /// before the rig's came up: then the rig's never does, and the case's own window offers the
     /// room and starts the desk.
-    bool own_medium() {
-        if (in_window && !windows.up() &&
-            (bus.role_holder(gfx::kGraphicsRole).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow).valid())) {
-            in_window = false;
-        }
-        return !in_window;
-    }
+    bool own_medium();
 
 
     /// The window comes up, if it is not up and Workshop is mounted, at the room and face
     /// Workshop holds now.
-    void come_up() {
-        if (own_medium() || windows.up() || w == nullptr || !workshop_id.valid()) {
-            return;
-        }
-        const Session& s = w->session();
-        const auto [a, l] = face_for(s.text_advance_px, s.text_line_px);
-        windows.room(s.screen_w, s.screen_h, a, l);
-    }
+    void come_up();
 
-    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
-        publish(loom::to_value(input::KeyPressed{sc, "", mods}));
-    }
+    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone);
 
     /// THE CHARACTER A PRINTABLE TRIGGER ALSO PRODUCES -- `Live`'s own door, here because a
     /// case that enters pane management has to pay the `swallow_text_` rule the way a real
     /// backend makes it pay: the key transition AND the text, in the order they arrive.
-    void text(const std::string& s) { publish(loom::to_value(input::TextEntered{s})); }
+    void text(const std::string& s);
 
     /// THE WEAVER'S OWN POINTER MOMENT, through the window showing the desk, landed in whatever
     /// area stands there as a weaver's hand is -- or, where a case seated a window of its own, a
@@ -4046,61 +2301,29 @@ struct PaneRig {
     std::function<void(const input::PointerButton&)> own_hand;
     /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the GUI window grows to the reach of the areas it
     /// shows on one beat and offers its new room on the next.
-    void window_settles() {
-        for (int beat = 0; beat < 4; ++beat) {
-            const std::int64_t was_w = session().screen_w, was_h = session().screen_h;
-            windows.pump();
-            windows.pump();
-            if (session().screen_w == was_w && session().screen_h == was_h) {
-                return;
-            }
-        }
-    }
+    void window_settles();
     /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's role.
-    void close_requested() {
-        come_up();
-        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        (void)bus.role_publish_as(windows.id(), windows.role(),
-                                    loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
-        bus.drain_until_idle();
-    }
+    void close_requested();
     /// A PRIMARY PRESS AT A CANVAS CELL, as the TUI window reports it. These cases speak
     /// canvas cells, not workspace cells, because a pane is placed on the canvas and never in the
     /// document's room -- `Live::term_x/y` is the other conversation's inverse.
-    void press_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{1, true, cx, cy, input::space::kCells,
-                                         input::mod::kNone});
-    }
+    void press_cell(std::int64_t cx, std::int64_t cy);
     /// THE WHEEL AT A CANVAS CELL, as the TUI window reports it. `dy` is notches, +1 away
     /// from the weaver, fractional as a precise wheel reports.
-    void wheel_cell(double dy, std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerWheel{0.0, dy, cx, cy, input::space::kCells,
-                                        input::mod::kNone});
-    }
+    void wheel_cell(double dy, std::int64_t cx, std::int64_t cy);
     /// The same gesture as the WINDOW reports it: an exact device pixel, untranslated.
     /// A graphical press is finer than a cell, so its cases have to be able to say one.
-    void press_pixel(std::int64_t px, std::int64_t py) {
-        hand_moment(input::PointerButton{1, true, px, py, input::space::kPixels, input::mod::kNone});
-    }
+    void press_pixel(std::int64_t px, std::int64_t py);
     /// A SECOND-BUTTON press at a canvas cell, `press_cell`'s own translation.
-    void right_press_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{3, true, cx, cy, input::space::kCells,
-                                         input::mod::kNone});
-    }
-    void release_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{1, false, cx, cy, input::space::kCells,
-                                         input::mod::kNone});
-    }
+    void right_press_cell(std::int64_t cx, std::int64_t cy);
+    void release_cell(std::int64_t cx, std::int64_t cy);
     /// THE HAND MOVING AT A CANVAS CELL, as the TUI window reports it -- what a sweep is
     /// made of between its press and its release.
-    void motion_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerMoved{cx, cy, 0, 0, input::space::kCells,
-                                        input::mod::kNone});
-    }
+    void motion_cell(std::int64_t cx, std::int64_t cy);
 
     /// OPEN THIS PANE, OR CLOSE IT IF THE DESK NAMES IT -- through the host's two doors, the ones
     /// the Pane Manager spends (`toggle_pane`).
-    void pick(const PaneRef& ref) { toggle_pane(*this, ref); }
+    void pick(const PaneRef& ref);
 
     // ---- A real authored arrangement, and the door that answers for it ----------------------
     // NO TIMER IN THIS RIG, EVER: `PaneRig` pumps to EMPTY and a live Timer service re-arms its
@@ -4108,255 +2331,50 @@ struct PaneRig {
     // arrangement facts that need one are proved in `test_workshop_load.cpp`, whose rigs drain in
     // bounded turns. The artifacts resolve from the suite's own `_SO` paths, not a staging
     // directory: where a host finds a file is the load suite's question.
-    static std::string artifact_path(const std::string& stem) {
-        if (stem == "zengine-operators-basic") {
-            return PROVIDER_BASIC_SO;
-        }
-        if (stem == "zengine-provider-min") {
-            return PROVIDER_MIN_SO;
-        }
-        if (stem == "zengine-provider-a") {
-            return PROVIDER_A_SO;
-        }
-        if (stem == "zengine-plain-weave") {
-            return WORKSHOP_SO_HELLO;
-        }
-        if (stem == zengine::introspection::kIntrospectionStem) {
-            return WORKSHOP_SO_INTROSPECTION;
-        }
-        if (stem == "zengine-files") {
-            return WORKSHOP_SO_FILES;
-        }
-        if (stem == "zengine-builder-pane") {
-            return WORKSHOP_SO_BUILDER_PANE;
-        }
-        if (stem == "zengine-attention-pane") {
-            return WORKSHOP_SO_ATTENTION_PANE;
-        }
-        if (stem == "zengine-notices") {
-            return WORKSHOP_SO_NOTICES;
-        }
-        if (stem == "zengine-notices-pane") {
-            return WORKSHOP_SO_NOTICES_PANE;
-        }
-#ifdef WORKSHOP_SO_COMPOSER
-        if (stem == "zengine-composer") return WORKSHOP_SO_COMPOSER;
-#endif
-#ifdef WORKSHOP_SO_INVENTORY_PANE
-        if (stem == "zengine-inventory-pane") return WORKSHOP_SO_INVENTORY_PANE;
-        if (stem == "zengine-inventory") return WORKSHOP_SO_INVENTORY;
-#endif
-        if (stem == "zengine-info-pane") {
-            return WORKSHOP_SO_INFO_PANE;
-        }
-        if (stem == "zengine-desktop-pane") {
-            return WORKSHOP_SO_DESKTOP_PANE;
-        }
-#ifdef WORKSHOP_SO_MENU_PRESENTER
-        if (stem == "zengine-menu-presenter") {
-            return WORKSHOP_SO_MENU_PRESENTER;
-        }
-#endif
-#ifdef WORKSHOP_SO_CONNECTIONS_PANE
-        if (stem == "zengine-connections-pane") {
-            return WORKSHOP_SO_CONNECTIONS_PANE;
-        }
-#endif
-#ifdef WORKSHOP_SO_TERMINAL_PANE
-        if (stem == "zengine-terminal-pane") {
-            return WORKSHOP_SO_TERMINAL_PANE;
-        }
-#endif
-#ifdef WORKSHOP_SO_FLOW_PANE
-        if (stem == "zengine-flow-pane") {
-            return WORKSHOP_SO_FLOW_PANE;
-        }
-#endif
-#ifdef WORKSHOP_SO_VIEW_BUILDER
-        if (stem == "zengine-view-builder") {
-            return WORKSHOP_SO_VIEW_BUILDER;
-        }
-#endif
-#ifdef WORKSHOP_SO_EDITOR_PANE
-        if (stem == "zengine-editor-pane") {
-            return WORKSHOP_SO_EDITOR_PANE;
-        }
-#endif
-#ifdef WORKSHOP_SO_THEME
-        if (stem == "zengine-theme") {
-            return WORKSHOP_SO_THEME;
-        }
-#endif
-#ifdef WORKSHOP_SO_LEGACY_PANE
-        if (stem == "zengine-legacy-pane") {
-            return WORKSHOP_SO_LEGACY_PANE;
-        }
-#endif
-#ifdef WORKSHOP_SO_TALLY
-        if (stem == "zengine-example-tally") {
-            return WORKSHOP_SO_TALLY;
-        }
-#endif
-#ifdef WORKSHOP_WASM_TALLY
-        // ...AND THE SAME PANE AS A MODULE, named by a stem the host spells as it is.
-        if (stem == "zengine-example-tally.wasm") {
-            return WORKSHOP_WASM_TALLY;
-        }
-#endif
-#ifdef WORKSHOP_SO_FAILING_EDITOR
-        if (stem == "zengine-failing-editor") {
-            return WORKSHOP_SO_FAILING_EDITOR;
-        }
-#endif
-#ifdef WORKSHOP_SO_EDITOR_THROWING
-        if (stem == "zengine-editor-throwing") {
-            return WORKSHOP_SO_EDITOR_THROWING;
-        }
-#endif
-#ifdef WORKSHOP_SO_EDITOR_SWITCH_B
-        // THE EDITOR SWITCH SUITE'S OTHER CHOICES: the standard Editor built under other stems.
-        if (stem == "zengine-editor-pane-b") {
-            return WORKSHOP_SO_EDITOR_SWITCH_B;
-        }
-        if (stem == "zengine-editor-pane-silent") {
-            return WORKSHOP_SO_EDITOR_SWITCH_SILENT;
-        }
-        if (stem == "zengine-editor-pane-refusing") {
-            return WORKSHOP_SO_EDITOR_SWITCH_REFUSING;
-        }
-        if (stem == "zengine-editor-pane-not-live") {
-            return WORKSHOP_SO_EDITOR_SWITCH_NOT_LIVE;
-        }
-        if (stem == "zengine-editor-pane-losing") {
-            return WORKSHOP_SO_EDITOR_SWITCH_LOSING;
-        }
-#endif
-#ifdef WORKSHOP_SO_NEOVIM_EDITOR
-        // THE NEOVIM-BACKED EDITOR, for suite `workshop_neovim`.
-        if (stem == "zengine-neovim-editor") {
-            return WORKSHOP_SO_NEOVIM_EDITOR;
-        }
-#endif
-        return stem; // a stem this rig cannot spell refuses at the loader, by name
-    }
+    static std::string artifact_path(const std::string& stem);
 
     /// REALIZE AN AUTHORED PLAN ON THIS RIG'S BUS, the way the host does: the host writes the
     /// owner's grant and mounts it, the owner realizes the rows, and the owner RETAINS the plan
     /// because the projection pairs authored intent with resolved state. The turns are the caller's: `begin`
     /// issues what it can and returns with a row in flight, and a rig with no host loop turns the
     /// crank itself -- `Owner` never does (`test_workshop_load.cpp` owns that claim).
-    load::Executed run_plan(load::LoadPlan plan) {
-        loom::Grant operate;
-        operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-        // A SECOND PLAN ON THIS RIG REPLACES THE FIRST'S OWNER: one holds the role at a time.
-        plan_ = nullptr;
-        mounted_plan_.reset();
-        mounted_plan_ = std::make_unique<load::Mounted>(load::mount(
-            bus, std::move(operate), catalog, operator_host, manager, &artifact_path));
-        plan_ = &mounted_plan_->owner();
-        plan_->begin(std::move(plan));
-        for (int turn = 0; turn < 32; ++turn) {
-            bus.pump_pending();
-        }
-        return plan_->outcome();
-    }
+    load::Executed run_plan(load::LoadPlan plan);
 
     /// WIRE WHAT STANDS BEHIND A ROLE'S CODE the way `workshop.cpp` wires it: the bus's holder,
     /// this rig's realization owner's rows (none before `run_plan`), and the catalog it holds --
     /// each read at the moment a pane's Edit Code asks.
-    void wire_code_source() {
-        host.code_source = [this](const std::string& role) {
-            if (plan_ != nullptr) {
-                return provenance::code_source_of(role, bus, *plan_, host_recipes);
-            }
-            return provenance::code_source_of(role, bus.role_holder(role), {},
-                                              host_recipes.all());
-        };
-    }
+    void wire_code_source();
 
     /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out: a rig that minted
     /// the grant from the Emit set could not notice the host quietly widening it.
-    loom::WeaveId mount_arrangement(std::string plan_path = std::string()) {
-        REQUIRE(plan_ != nullptr); // a door with no owner would describe nothing
-        auto door = std::make_unique<ArrangementDoor>(
-            *plan_, std::move(plan_path),
-            [this](std::string_view role, const loom::Schema& shape) {
-                return holder_accepts_on(bus, role, shape);
-            });
-        ArrangementDoor* raw = door.get();
-        loom::Grant say;
-        say.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
-        say.allow_to_any(zengine::workshop::v2::ResolvedArrangement::zen_name,
-                         zengine::workshop::v2::ResolvedArrangement::zen_version);
-        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
-                         zengine::manual::ShapeDocumentShown::zen_version);
-        const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
-                                                    std::string(kArrangementRole));
-        raw->zen_set_self(id);
-        bus.drain_until_idle();
-        return id;
-    }
+    loom::WeaveId mount_arrangement(std::string plan_path = std::string());
 
     /// MOUNT THE HOST'S DISCOVERY DOOR over this rig's catalog, with the production grant spelled
     /// out for `mount_arrangement`'s reason: its two answers and its page's sections, to any.
-    loom::WeaveId mount_powers() {
-        auto door = std::make_unique<PowersDoor>(catalog);
-        PowersDoor* raw = door.get();
-        loom::Grant say;
-        say.allow_to_any(PowersFound::zen_name, PowersFound::zen_version);
-        say.allow_to_any(PowerDescribed::zen_name, PowerDescribed::zen_version);
-        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
-                         zengine::manual::ShapeDocumentShown::zen_version);
-        const loom::WeaveId id =
-            bus.register_weave(std::move(door), std::move(say), std::string(kPowersRole));
-        raw->zen_set_self(id);
-        bus.drain_until_idle();
-        return id;
-    }
+    loom::WeaveId mount_powers();
 
     /// EXPOSE THE HOST'S OWN TWO SOURCES, through the one door the host uses.
     ///
     /// ⚠ BEFORE THE PLAN RUNS, deliberately, exactly as `workshop.cpp` does it: the
     /// ordinary collision law then answers a provider that would supply one of these
     /// identities, in words, rather than letting load order decide.
-    void expose_host_sources() {
-        const op::MountReport done =
-            mount_host_sources(catalog, host_sources(project_anchor, host_recipes));
-        REQUIRE_MESSAGE(done.ok, done.reason);
-    }
+    void expose_host_sources();
 
     /// MOUNT THE HOST'S SAMPLE DOOR, with the production grant spelled out, for
     /// `mount_arrangement`'s reason.
-    loom::WeaveId mount_sampler() {
-        auto door = std::make_unique<SampleDoor>(catalog);
-        SampleDoor* raw = door.get();
-        loom::Grant say;
-        say.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
-        say.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
-                         zengine::manual::ShapeDocumentShown::zen_version);
-        const loom::WeaveId id =
-            bus.register_weave(std::move(door), std::move(say), std::string(kSampleRole));
-        raw->zen_set_self(id);
-        bus.drain_until_idle();
-        return id;
-    }
+    loom::WeaveId mount_sampler();
 
-    Session& session() { return const_cast<Session&>(w->session()); }
+    Session& session();
     /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
-    const SetupState& run() const { return owner->layouts().run(); }
+    const SetupState& run() const;
     /// THE LAST THING WORKSHOP SAID, as the session holds it (`Session::notice`).
-    const std::string& last_notice() const { return w->session().notice; }
+    const std::string& last_notice() const;
 
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
     /// screen and the view both spend -- never a second walk of the owners.
-    std::vector<Condition> conditions() const {
-        return attention_conditions(w->session(), frontier_claimed(bus));
-    }
+    std::vector<Condition> conditions() const;
     /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said.
-    std::string glance() const {
-        return said_conditions.empty() ? std::string()
-                                       : attention_glance(said_conditions.back().rows);
-    }
+    std::string glance() const;
 
     std::vector<loom::WeaveId> seat_ids;
     std::vector<ProviderSeat*> seats_;
@@ -4373,72 +2391,43 @@ struct PaneRig {
 /// 0: each line of the window's face inside the body's cells, cut to its width, "" where a line
 /// shows nothing, as far as the last line that shows something. The window composes front areas
 /// over the ones behind, so a row is what a weaver reads there, whatever covers the pane.
-inline std::vector<std::string> external_region_rows(const DeskShown& s, const CellRect& body) {
-    std::vector<std::string> out;
-    const std::int64_t columns = s.advance > 0 ? gfx::px_of_cells(body.w) / s.advance : 0;
-    const std::int64_t bottom = gfx::px_of_cells(body.y + body.h);
-    for (std::int64_t y = gfx::px_of_cells(body.y); s.line > 0 && y < bottom; y += s.line) {
-        out.push_back(s.text_at_px(gfx::px_of_cells(body.x), y, columns));
-    }
-    while (!out.empty() && out.back().empty()) out.pop_back();
-    return out;
-}
+std::vector<std::string> external_region_rows(const DeskShown& s, const CellRect& body);
 
 /// The rows an external pane's PROVIDER is currently showing, read off the window at the pane's
 /// body -- never off the session, so a case reads what a weaver sees. Workshop's own header, row 0
 /// of the body, is dropped: it is Workshop's sentence, and every case here asks what the PROVIDER
 /// said.
-inline std::vector<std::string> external_rows(const DeskShown& s, const CellRect& body) {
-    std::vector<std::string> out = external_region_rows(s, body);
-    const std::size_t header = static_cast<std::size_t>(kExternalHeaderRows);
-    out.erase(out.begin(), out.begin() + static_cast<std::ptrdiff_t>(
-                                             out.size() < header ? out.size() : header));
-    return out;
-}
+std::vector<std::string> external_rows(const DeskShown& s, const CellRect& body);
 
-inline PaneOffered good_offer() { return PaneOffered{"hello", "Hello", "a bounded external greeting"}; }
+PaneOffered good_offer();
 
-inline std::string bytes(std::size_t n, char c) { return std::string(n, c); }
+std::string bytes(std::size_t n, char c);
 
 /// The body bounds an open external pane resolves to, in the cells they cover -- read through
 /// the very functions the painter and the pointer use, so a case cannot measure a rectangle
 /// nothing draws in.
-inline CellRect external_body_rect(const Session& s, std::int64_t kind) {
-    const Screen sc = screen_of(s);
-    const ExternalBodyPlace body =
-        external_body_place(bounds_of(s.panes, s.setup.active, kind, sc).rect, sc,
-                            external_title_rows(s.panes, kind, s.pane_titles));
-    return cells_covered(PixelRect{body.region_x, body.region_y, body.region_w, body.region_h});
-}
+CellRect external_body_rect(const Session& s, std::int64_t kind);
 
 /// THE DURABLE REFERENCE THE INFO PANE IS OFFERED UNDER, as a case spells it: a weave's name
 /// (`info/vocabulary.hpp`), not a built-in kind's. A case in the panes suite checks this
 /// literal against the weave's own constant, which is where a divergence would be caught.
-inline PaneRef info_ref() { return PaneRef{"zengine.info", "info"}; }
+PaneRef info_ref();
 /// ...and the Notices pane's, the shipped desk's other loaded pane, spelled as a stranger would.
-inline PaneRef notices_pane_ref() { return PaneRef{"zengine.notices-pane", "notices"}; }
+PaneRef notices_pane_ref();
 
 /// The setup a two-pane ordering case starts from: two overlay panes, at a screen with room for
 /// two stack slots, built through the doors so the ranks are the identity permutation `add_pane`
 /// assigns. The two are the stack's stand-ins (`stock` and `second`, both admitted by every
 /// `Live`), so no case built on it is about an unresolved row.
-inline Setup two_overlays() {
-    Setup s;
-    s.name = "Arranged";
-    REQUIRE(add_pane(s, stock_ref()));
-    REQUIRE(add_pane(s, second_ref()));
-    return s;
-}
+Setup two_overlays();
 
 /// A `Live`'s session, mutably -- the same door `PaneRig::session` already opens, so a case
 /// that has to arrange a setup DIRECTLY (rather than through the keys it is measuring) can.
-inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
+Session& live(Live& t);
 
 /// AUTHOR A PLACE AT A CANVAS POSITION: what a case measured on the canvas, said in the room an
 /// authored place is measured from.
-inline Written place_at_canvas(Session& s, const PaneRef& ref, std::int64_t x, std::int64_t y) {
-    return author_pane_place(s.setup.active, ref, x, y - screen_of(s).room_y);
-}
+Written place_at_canvas(Session& s, const PaneRef& ref, std::int64_t x, std::int64_t y);
 
 /// ...ON A LIVE WORKSHOP'S STORE, staged as a case writes past the doors.
 template <class Rig>
@@ -4451,55 +2440,25 @@ inline Written place_at_canvas(Rig& r, const PaneRef& ref, std::int64_t x, std::
 
 /// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a weaver sees
 /// -- `painted_order` below is the effective one.
-inline std::vector<std::int64_t> authored_order(const Session& s) {
-    return presentation_order(s.setup.active, s.panes);
-}
+std::vector<std::int64_t> authored_order(const Session& s);
 
 /// WHERE A KIND SITS IN AN ORDER, or -1 -- so a case can state a RELATION between two panes
 /// ("this one is ahead of that one") rather than a position ("this one is last"). A position
 /// is a claim about every other pane on the desk as well, which is how a case about two
 /// panes comes to go red when a third arrives that has nothing to do with it.
-inline std::int64_t index_of(const std::vector<std::int64_t>& order, std::int64_t kind) {
-    for (std::size_t i = 0; i < order.size(); ++i) {
-        if (order[i] == kind) {
-            return static_cast<std::int64_t>(i);
-        }
-    }
-    return -1;
-}
+std::int64_t index_of(const std::vector<std::int64_t>& order, std::int64_t kind);
 
 /// The kinds a setup resolves to, in the order they would be PAINTED -- the authored order with
 /// the selected pane lifted. The same call paint, hit testing and coverage spend, so a case
 /// reading it is reading the picture.
-inline std::vector<std::int64_t> painted_order(const Session& s) {
-    return effective_pane_order(s.setup.active, s.panes);
-}
+std::vector<std::int64_t> painted_order(const Session& s);
 
 /// The front ranks of a setup, in list order -- what every ordering case reads.
-inline std::vector<std::int64_t> ranks_of(const Setup& s) {
-    std::vector<std::int64_t> out;
-    for (const SetupPane& row : s.panes) {
-        out.push_back(row.front);
-    }
-    return out;
-}
+std::vector<std::int64_t> ranks_of(const Setup& s);
 
 /// Is this set of ranks exactly `{0 .. n-1}`? The invariant, spelled once so every ordering
 /// case asks it the same way and none of them can weaken it by accident.
-inline bool is_permutation(const Setup& s) {
-    const std::size_t n = s.panes.size();
-    std::vector<bool> seen(n, false);
-    for (const SetupPane& row : s.panes) {
-        if (row.front < 0 || row.front >= static_cast<std::int64_t>(n)) {
-            return false;
-        }
-        if (seen[static_cast<std::size_t>(row.front)]) {
-            return false;
-        }
-        seen[static_cast<std::size_t>(row.front)] = true;
-    }
-    return true;
-}
+bool is_permutation(const Setup& s);
 
 /// THE POPUP UNDER THE HAND, in canvas cells on a CELL medium: a pane's menu while its presenter
 /// shows one, the host's own otherwise (at most one is open) -- through the same `context_bounds`
@@ -4507,38 +2466,18 @@ inline bool is_permutation(const Setup& s) {
 /// canvas row while the window shows the population from its top with no `earlier` marker, which
 /// every case using it arranges; the surface reserves no heading rows, so row `index` is the
 /// `index`'th row of the interior.
-inline PixelRect menu_bounds(const Session& s) {
-    return s.presented.open ? presented_bounds(s, screen_of(s)) : context_bounds(s, screen_of(s));
-}
-inline std::int64_t context_cell_x(const Session& s) {
-    return gfx::cell_of_pixel(menu_bounds(s).x) + kChromeCells + 1;
-}
-inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
-    return gfx::cell_of_pixel(menu_bounds(s).y) + kChromeCells +
-           static_cast<std::int64_t>(index);
-}
+PixelRect menu_bounds(const Session& s);
+std::int64_t context_cell_x(const Session& s);
+std::int64_t context_entry_cell_y(const Session& s, std::size_t index);
 
 /// IS A PANE'S MENU OPEN AND SHOWN -- granted to the presenter, which said how much of its area
 /// the menu takes?
-inline bool menu_shown(const Session& s) {
-    return s.presented.open && s.presented.rows > 0;
-}
+bool menu_shown(const Session& s);
 
 /// The contextual surface's rows, as the window shows them at exactly its region: each line of
 /// the window's face there, cut to the region, its trailing blanks left off, as far as the last
 /// line that shows something. The surface paints over every pane, so the window shows it whole.
-inline std::vector<std::string> context_rows_on(const DeskShown& shown, const Session& s) {
-    const Screen sc = screen_of(s);
-    const PixelRect popup = menu_bounds(s);
-    const ScreenRegion want = prose_region(prose_place(popup, sc));
-    std::vector<std::string> out;
-    const std::int64_t columns = shown.advance > 0 ? want.w / shown.advance : 0;
-    for (std::int64_t y = want.y; shown.line > 0 && y < want.y + want.h; y += shown.line) {
-        out.push_back(shown.text_at_px(want.x, y, columns));
-    }
-    while (!out.empty() && out.back().empty()) out.pop_back();
-    return out;
-}
+std::vector<std::string> context_rows_on(const DeskShown& shown, const Session& s);
 
 /// THE LINES OF THE OPEN PANE'S MENU, AS THE WINDOW SHOWS THEM: its presenter draws them in an
 /// area of its own inside the popup's frame (empty when none is shown).
@@ -4572,64 +2511,29 @@ std::int64_t presented_line_of(Rig& r, const std::string& label) {
 }
 
 /// OPEN A PANE THROUGH THE LAUNCH DOOR, AS SCAFFOLDING (`seat_pane`), and require that it opened.
-inline void open_pane(Live& t, const PaneRef& ref) {
-    const PaneLaunchAnswered said = seat_pane(t, ref);
-    REQUIRE_MESSAGE(said.refusal.empty(), said.refusal);
-    REQUIRE(has_pane(t.session().setup.active, ref));
-}
+void open_pane(Live& t, const PaneRef& ref);
 
 /// OPEN A PANE AND STAND IT IN THE STRIP AT THE ROOM'S RIGHT EDGE: `top-right` at no offset,
 /// `kStripCols` cells wide and the room's height (`fill`), written as a desk row says it, so a case
 /// can have a pane there without a role behind it. A key or a hand could reach the same row;
 /// writing it says the words exactly.
-inline void open_at_top_right(Live& t, std::int64_t kind) {
-    pick(t, kind);
-    REQUIRE(t.session().panes.has(kind));
-    stage_desk(t, [&](Setup& desk) {
-        for (SetupPane& row : desk.panes) {
-            if (row.ref == ref_of(kind)) {
-                row.place = PanePlace{ui::kPlaceTopRight, 0, 0};
-                row.width = PaneSize{pane_unit::kPixels, cells_px(kStripCols)};
-                row.height = PaneSize{ui::kSizeFill, 0};
-            }
-        }
-    });
-    const Screen sc = screen_of(t.session());
-    const PaneBounds at = bounds_of(t.session().panes, t.session().setup.active, kind, sc);
-    REQUIRE(at.resolved.x + at.resolved.w == sc.room_w);
-    REQUIRE(at.resolved.y == sc.room_y);
-    REQUIRE(at.resolved.h == sc.room_h);
-}
+void open_at_top_right(Live& t, std::int64_t kind);
 
 /// Put the desk's keyboard address on a setup-named pane, by the key a weaver presses.
 /// Bounded for `open_pane`'s reason.
-inline void select_pane(Live& t, const PaneRef& ref) {
-    REQUIRE(t.session().arrange.open);
-    for (std::size_t guard = 0; guard <= t.session().setup.active.panes.size() + 1; ++guard) {
-        if (t.session().arrange.pane == ref) {
-            return;
-        }
-        t.key(input::scan::kTab);
-    }
-    FAIL("no arrangeable row for ", ref_text(ref));
-}
+void select_pane(Live& t, const PaneRef& ref);
 
 /// A `Live` driven into the desk arrangement scope. Every keyboard case begins here, through the
 /// REAL input path -- the `w` transition and the character the platform's layout made of it,
 /// both, in the order the backends report them.
-inline void enter_arrange_desk(Live& t) {
-    t.key(input::scan::kW);
-    t.text("w");
-    REQUIRE(t.session().arrange.open);
-    REQUIRE(t.session().arrange.desk);
-}
+void enter_arrange_desk(Live& t);
 
 namespace intro = zengine::introspection;
 
 inline constexpr const char* kIntroRole = intro::kIntrospectionRole;
 inline constexpr const char* kIntroPane = intro::kLoadedPane;
 
-inline PaneRef intro_ref() { return PaneRef{kIntroRole, kIntroPane}; }
+PaneRef intro_ref();
 
 /// HOW MANY PANES THIS ONE ROLE OFFERS. Cases say the number rather than assume it: "one
 /// provider is not one pane" is what `PaneOffered` was shaped for, and a case that indexed
@@ -4639,81 +2543,39 @@ inline constexpr std::size_t kIntroPaneCount = 3;
 /// THE RUNTIME HANDLE WORKSHOP MINTED FOR ONE OF THIS ROLE'S PANES -- BY `PaneRef`
 /// AND NEVER BY INDEX. Catalog order is first-accepted-offer order, which is a fact
 /// about a boot sequence and not an identity; a case that meant `loaded` says so.
-inline const RuntimePane* intro_row(PaneRig& r, const char* pane) {
-    return r.session().panes.runtime.find(kIntroRole, pane);
-}
+const RuntimePane* intro_row(PaneRig& r, const char* pane);
 
 /// Does any row of this projection contain `needle`?
-inline bool any_row(const std::vector<TextRow>& rows, const std::string& needle) {
-    for (const TextRow& r : rows) {
-        if (r.text.find(needle) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
+bool any_row(const std::vector<TextRow>& rows, const std::string& needle);
 
-inline bool any_row(const std::vector<std::string>& rows, const std::string& needle) {
-    for (const std::string& r : rows) {
-        if (r.find(needle) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
+bool any_row(const std::vector<std::string>& rows, const std::string& needle);
 
 /// A population of `n` distinct weaves, each with a role -- the input the density
 /// sweep varies, so that what changes between budgets is only the budget.
-inline std::vector<intro::LoadedWeave> loaded_population(std::size_t n) {
-    std::vector<intro::LoadedWeave> out;
-    for (std::size_t i = 0; i < n; ++i) {
-        out.push_back(intro::LoadedWeave{"weave-" + std::to_string(i), {"role." + std::to_string(i)}});
-    }
-    return out;
-}
+std::vector<intro::LoadedWeave> loaded_population(std::size_t n);
 
 /// Every region on a canvas whose upper-left corner is in this cell.
-inline std::vector<ScreenRegion> regions_at(const ScreenCanvas& c,
-                                            std::int64_t x, std::int64_t y) {
-    std::vector<ScreenRegion> out;
-    for (const ScreenRegion& r : all_texts(c)) {
-        if (gfx::cell_of_pixel(r.x) == x && gfx::cell_of_pixel(r.y) == y) {
-            out.push_back(r);
-        }
-    }
-    return out;
-}
+std::vector<ScreenRegion> regions_at(const ScreenCanvas& c,
+                                            std::int64_t x, std::int64_t y);
 
 /// A session with a screen extent and a text metric.
-inline Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advance,
-                              std::int64_t line, std::int64_t cell_px = 0) {
-    Session s;
-    s.screen_w = w;
-    s.screen_h = h;
-    s.text_advance_px = advance;
-    s.text_line_px = line;
-    s.cell_px = cell_px;
-    return s;
-}
+Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advance,
+                              std::int64_t line, std::int64_t cell_px = 0);
 
 /// A PRESS AT A CANVAS CELL AS THE GRAPHICAL MEDIUM REPORTS IT -- the pixel at the
 /// middle of that cell, which is where a weaver's pointer actually is.
 ///
 /// It is the inverse of `plan_canvas`'s layout and NOT of the terminal's, because the
 /// two media report different numbers for one place (workshop/docs/pointer-spaces.md).
-inline std::int64_t cell_mid_px(std::int64_t cell) {
-    return cell * gfx::kCellPx + gfx::kCellPx / 2;
-}
+std::int64_t cell_mid_px(std::int64_t cell);
 
 /// THE PANE RECTANGLE AN EXTERNAL PANE OCCUPIES -- the painter's own, through the one
 /// `bounds_of` path, so a case never spells a placement of its own.
-inline PixelRect external_pane_rect(const Session& s, std::int64_t kind) {
-    return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
-}
+PixelRect external_pane_rect(const Session& s, std::int64_t kind);
 
 /// WHETHER A PANE DRAWS IN AN AREA OF ITS OWN: a participant holds its role, and draws in a
 /// graphics window.
-inline bool shows_canvas(const ExternalPane& pane) { return pane.held && pane.in_window; }
+bool shows_canvas(const ExternalPane& pane);
 
 /// THE LATTICE A PANE'S AREA SETS ITS ROWS ON, in the desk's pixels: where the area was last
 /// placed, the window's text there, and the rows and columns its room holds. Empty while the area
@@ -4724,62 +2586,21 @@ struct CanvasRows {
     std::int64_t columns = 0, rows = 0;
     std::int64_t width = 0, height = 0; ///< the room's
 
-    bool empty() const noexcept { return columns <= 0 || rows <= 0; }
+    bool empty() const noexcept;
     /// Where row `row` stands.
-    std::int64_t row_y(std::int64_t row) const noexcept { return y + row * line; }
+    std::int64_t row_y(std::int64_t row) const noexcept;
     /// Where column `column` stands.
-    std::int64_t column_x(std::int64_t column) const noexcept { return x + column * advance; }
+    std::int64_t column_x(std::int64_t column) const noexcept;
 };
 
 /// The area a pane draws in, while the rig's Workshop knows the pane; else "".
-inline std::string held_area_of(std::int64_t kind) {
-    if (held_desks().empty()) return std::string();
-    const Session& s = held_desks().back().session();
-    const RuntimePane* row = s.panes.runtime.of_kind(kind);
-    return row == nullptr ? std::string() : pane_window_area(s.panes, *row);
-}
+std::string held_area_of(std::int64_t kind);
 
-inline CanvasRows held_canvas_rows(const ExternalPane& pane) {
-    CanvasRows out;
-    if (held_desks().empty()) return out;
-    const std::string area = held_area_of(pane.kind);
-    const zengine::graphics::window::WinArea* a = held_desks().back().mirror->area(area);
-    if (a == nullptr) return out;
-    const gfx::TextMeasure face = held_desks().back().mirror->measure(area);
-    out.x = pane.placed_x;
-    out.y = pane.placed_y;
-    out.advance = face.advance;
-    out.line = face.line;
-    out.width = a->w;
-    out.height = a->h;
-    out.columns = face.advance > 0 ? a->w / face.advance : 0;
-    out.rows = face.line > 0 ? a->h / face.line : 0;
-    return out;
-}
+CanvasRows held_canvas_rows(const ExternalPane& pane);
 
 /// ONE ROW OF A PANE'S AREA AS ITS DRAWING SAYS IT, blanks and all: the runs of text
 /// `rows_drawing` sets on that row, in order across it.
-inline std::string held_row_raw(std::int64_t kind, std::int64_t row) {
-    if (held_desks().empty()) return std::string();
-    const std::string area = held_area_of(kind);
-    const zengine::graphics::window::WinArea* a = held_desks().back().mirror->area(area);
-    if (a == nullptr) return std::string();
-    std::vector<std::pair<std::int64_t, std::string>> runs;
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-        const std::string& p = k.node.path;
-        const std::string row_at = "row" + std::to_string(row) + ".";
-        const std::string lit_at = "lit" + std::to_string(row) + ".";
-        if (p.rfind(row_at, 0) != 0 && p.rfind(lit_at, 0) != 0) continue;
-        if (const auto run = gfx::operands<gfx::TextArgs>(k.node)) {
-            runs.emplace_back(run->x, run->text);
-        }
-    }
-    std::stable_sort(runs.begin(), runs.end(),
-                     [](const auto& x, const auto& y) { return x.first < y.first; });
-    std::string out;
-    for (const auto& [x, text] : runs) out += text;
-    return out;
-}
+std::string held_row_raw(std::int64_t kind, std::int64_t row);
 
 /// ONE ROW OF TEXT A PANE DREW IN ITS AREA: what it says, the blanks after its last character
 /// left off, and the colour its first run is set in.
@@ -4791,93 +2612,9 @@ struct HeldRun {
 
 /// EVERY ROW OF A PANE'S AREA ITS DRAWING SETS TEXT ON, top to bottom.
 /// The rows a pane drew, read as the window reads them (`held_reading`).
-inline std::vector<std::string> held_read_rows(std::int64_t kind);
+std::vector<std::string> held_read_rows(std::int64_t kind);
 
-inline std::vector<HeldRun> held_runs(std::int64_t kind) {
-    std::vector<HeldRun> out;
-    if (held_desks().empty()) return out;
-    const std::string area = held_area_of(kind);
-    const zengine::graphics::window::WinArea* a = held_desks().back().mirror->area(area);
-    const gfx::TextMeasure face = held_desks().back().mirror->measure(area);
-    if (a == nullptr || face.line <= 0) return out;
-    std::map<std::int64_t, std::pair<std::int64_t, gfx::Color>> first; // row: x, colour
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-        // ...a rows drawing's runs (`workshop::rows_drawing`), `row<n>.` or `lit<n>.`
-        const std::string& p = k.node.path;
-        if ((p.rfind("row", 0) != 0 && p.rfind("lit", 0) != 0) || p.size() < 4 ||
-            !std::isdigit(static_cast<unsigned char>(p[3]))) {
-            continue;
-        }
-        const auto run = gfx::operands<gfx::TextArgs>(k.node);
-        if (!run) continue;
-        const std::int64_t row = gfx::floor_div_px(run->y, face.line);
-        const auto at = first.find(row);
-        if (at == first.end() || run->x < at->second.first) first[row] = {run->x, zengine::graphics::pool_color_of(
-                zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
-    }
-    for (const auto& [row, said] : first) {
-        std::string text = held_row_raw(kind, row);
-        text.erase(text.find_last_not_of(' ') + 1);
-        out.push_back(HeldRun{row, text, said.second});
-    }
-    if (!out.empty() || face.advance <= 0) return out;
-    // A CANVAS PICTURE'S RUNS (`workshop::canvas_sketch`): each row its runs set at their columns,
-    // in the colour of the first.
-    std::map<std::int64_t, std::pair<std::string, std::pair<std::int64_t, gfx::Color>>> rows;
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-        if (k.node.path.rfind("picture/", 0) != 0) continue;
-        const auto run = gfx::operands<gfx::TextArgs>(k.node);
-        if (!run) continue;
-        const std::int64_t row = gfx::floor_div_px(run->y, face.line);
-        const auto col = static_cast<std::size_t>((std::max)(std::int64_t{0}, run->x / face.advance));
-        auto& [text, first_run] = rows[row];
-        if (text.empty() && first_run.first == 0 && first_run.second.none()) {
-            first_run = {run->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a,
-                    k.node)->ink)};
-        } else if (run->x < first_run.first) {
-            first_run = {run->x, zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a,
-                    k.node)->ink)};
-        }
-        if (text.size() < col + run->text.size()) text.resize(col + run->text.size(), ' ');
-        text.replace(col, run->text.size(), run->text);
-    }
-    for (auto& [row, said] : rows) {
-        std::string text = said.first;
-        text.erase(text.find_last_not_of(' ') + 1);
-        out.push_back(HeldRun{row, text, said.second.second});
-    }
-    if (!out.empty()) return out;
-    // ANY OTHER DRAWING: its rows as the window reads them, each in the colour of the leftmost text
-    // drawn on it, a group's place carried to what it holds.
-    std::map<std::string, std::pair<std::int64_t, std::int64_t>> origin;
-    std::map<std::int64_t, std::pair<std::int64_t, gfx::Color>> role_at; // row: x, colour
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-        const std::string& p = k.node.path;
-        const std::string parent = gfx::parent_of(p);
-        const auto from = origin.find(parent);
-        const std::int64_t ox = from == origin.end() ? 0 : from->second.first;
-        const std::int64_t oy = from == origin.end() ? 0 : from->second.second;
-        if (const auto g = gfx::operands<gfx::GroupArgs>(k.node)) {
-            origin[p] = {ox + g->x, oy + g->y};
-            continue;
-        }
-        if (p.rfind("parts/", 0) == 0 || p.rfind("marks/", 0) == 0 || p.rfind("sel", 0) == 0 ||
-            p == "caret" || gfx::operands<gfx::TextArgs>(k.node) == nullptr)
-            continue;
-        const auto t = gfx::operands<gfx::TextArgs>(k.node);
-        if (!t) continue;
-        const std::int64_t row = gfx::floor_div_px(oy + t->y, face.line);
-        const auto at = role_at.find(row);
-        if (at == role_at.end() || ox + t->x < at->second.first) role_at[row] = {ox + t->x,
-                zengine::graphics::pool_color_of(zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)};
-    }
-    const std::vector<std::string> said = held_read_rows(kind);
-    for (const auto& [row, leftmost] : role_at) {
-        if (row < 0 || row >= static_cast<std::int64_t>(said.size())) continue;
-        out.push_back(HeldRun{row, said[static_cast<std::size_t>(row)], leftmost.second});
-    }
-    return out;
-}
+std::vector<HeldRun> held_runs(std::int64_t kind);
 
 /// ONE RUN OF TEXT, OR ONE RECTANGLE, A PANE DREW IN ITS AREA, in the area's pixels: its place,
 /// what it says, and the colour it is drawn in -- what the drawing shows, its parts' places drawn
@@ -4892,59 +2629,17 @@ struct HeldRect {
     gfx::Color ink = gfx::no_color();
 };
 
-inline const zengine::graphics::window::WinArea* held_area(std::int64_t kind) {
-    if (held_desks().empty()) return nullptr;
-    return held_desks().back().mirror->area(held_area_of(kind));
-}
+const zengine::graphics::window::WinArea* held_area(std::int64_t kind);
 
-inline bool held_shown_node(const std::string& path) {
-    return path.rfind("parts/", 0) != 0 && path.rfind("marks/", 0) != 0 &&
-           path.rfind("sel", 0) != 0 && path != "caret";
-}
+bool held_shown_node(const std::string& path);
 
-inline std::vector<HeldText> held_texts(std::int64_t kind) {
-    std::vector<HeldText> out;
-    if (const zengine::graphics::window::WinArea* a = held_area(kind)) {
-        for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-            if (!held_shown_node(k.node.path)) continue;
-            if (const auto t = gfx::operands<gfx::TextArgs>(k.node)) {
-                out.push_back(HeldText{t->x, t->y, t->text, zengine::graphics::pool_color_of(
-                        zengine::graphics::window::worn<gfx::TextLook>(*a, k.node)->ink)});
-            }
-        }
-    }
-    return out;
-}
+std::vector<HeldText> held_texts(std::int64_t kind);
 
-inline std::vector<HeldRect> held_rects(std::int64_t kind) {
-    std::vector<HeldRect> out;
-    if (const zengine::graphics::window::WinArea* a = held_area(kind)) {
-        for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-            if (!held_shown_node(k.node.path) || gfx::operands<gfx::RectArgs>(k.node) == nullptr) continue;
-            if (const auto r = gfx::operands<gfx::RectArgs>(k.node)) {
-                out.push_back(HeldRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(
-                        zengine::graphics::window::worn<gfx::Paint>(*a, k.node)->fill)});
-            }
-        }
-    }
-    return out;
-}
+std::vector<HeldRect> held_rects(std::int64_t kind);
 
 /// WHETHER THE WINDOW HOLDS A GROUND UNDER ALL OF A PANE'S AREA: a rectangle its drawing lays
 /// first, over the whole room, so nothing behind the area shows through its rows.
-inline bool wears_ground(const ExternalPane& pane) {
-    if (held_desks().empty()) return false;
-    const std::string area = held_area_of(pane.kind);
-    const zengine::graphics::window::WinArea* a = held_desks().back().mirror->area(area);
-    if (a == nullptr) return false;
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-        if (k.node.path != "room" && k.node.path != "ground") continue;
-        const auto rect = gfx::operands<gfx::RectArgs>(k.node);
-        return rect && rect->x <= 0 && rect->y <= 0 && rect->x + rect->w >= a->w &&
-               rect->y + rect->h >= a->h && !zengine::graphics::window::worn<gfx::Paint>(*a, k.node)->fill.none();
-    }
-    return false;
-}
+bool wears_ground(const ExternalPane& pane);
 
 /// ONE LIT ROW THE WINDOW HOLDS FOR A PANE'S AREA, as `rows_drawing` draws one: its row, the colour
 /// of the ground laid under it, and the colour its words are set in.
@@ -4954,29 +2649,7 @@ struct HeldLitRow {
     gfx::Color ink = gfx::no_color();
 };
 
-inline std::vector<HeldLitRow> held_lit_rows(std::int64_t kind) {
-    std::vector<HeldLitRow> out;
-    if (held_desks().empty()) return out;
-    const std::string area = held_area_of(kind);
-    const zengine::graphics::window::WinArea* a = held_desks().back().mirror->area(area);
-    const gfx::TextMeasure face = held_desks().back().mirror->measure(area);
-    if (a == nullptr || face.line <= 0) return out;
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-        if (k.node.path.rfind("ground", 0) != 0 || k.node.path == "ground") continue;
-        const auto rect = gfx::operands<gfx::RectArgs>(k.node);
-        if (!rect) continue;
-        HeldLitRow lit{gfx::floor_div_px(rect->y, face.line), zengine::graphics::pool_color_of(
-                zengine::graphics::window::worn<gfx::Paint>(*a, k.node)->fill), gfx::no_color()};
-        const std::string words = "lit" + k.node.path.substr(6) + ".0";
-        for (const zengine::graphics::window::KeptNode& t : a->nodes) {
-            if (t.node.path != words) continue;
-            if (const auto run = gfx::operands<gfx::TextArgs>(t.node)) lit.ink = zengine::graphics::pool_color_of(
-                    zengine::graphics::window::worn<gfx::TextLook>(*a, t.node)->ink);
-        }
-        out.push_back(lit);
-    }
-    return out;
-}
+std::vector<HeldLitRow> held_lit_rows(std::int64_t kind);
 
 /// A PRESS AND ITS RELEASE AT A ROW AND COLUMN OF A PANE'S AREA, told its role as the window
 /// showing the desk tells one, queued and not drained: the press a weaver's hand makes there once
@@ -5016,14 +2689,7 @@ inline void as_window(Rig& r, std::int64_t kind, const Moment& moment, std::uint
 }
 
 /// The cell of the lattice a point of the desk falls on.
-inline RowCell row_cell_at(const CanvasRows& rows, std::int64_t x, std::int64_t y) {
-    RowCell out;
-    if (rows.advance <= 0 || rows.line <= 0) return out;
-    out.row = gfx::floor_div_px(y - rows.y, rows.line);
-    out.column = gfx::floor_div_px(x - rows.x, rows.advance);
-    out.shown = out.row >= 0 && out.row < rows.rows && out.column >= 0 && out.column < rows.columns;
-    return out;
-}
+RowCell row_cell_at(const CanvasRows& rows, std::int64_t x, std::int64_t y);
 
 /// WHAT A PANE DREW IN ITS AREA, as the window holds it: its rows, each its text with the blanks
 /// after the last character left off, "" where a row shows none; the parts its records name, each
@@ -5036,155 +2702,32 @@ struct HeldReading {
     RowsCaret caret;
 };
 
-inline HeldReading held_reading(std::int64_t kind) {
-    HeldReading out;
-    if (held_desks().empty()) return out;
-    const std::string area = held_area_of(kind);
-    const DrawnMirror& mirror = *held_desks().back().mirror;
-    const zengine::graphics::window::WinArea* a = mirror.area(area);
-    if (a == nullptr) return out;
-    const gfx::TextMeasure face = mirror.measure(area);
-    if (face.advance <= 0 || face.line <= 0) return out;
-    const auto at = zengine::graphics::window::index_of(*a);
-    std::vector<const zengine::graphics::window::KeptNode*> order;
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) order.push_back(&k);
-    std::stable_sort(order.begin(), order.end(), [&](const auto* x, const auto* y) {
-        return zengine::graphics::window::key_of(at, x->node.path) <
-               zengine::graphics::window::key_of(at, y->node.path);
-    });
-    gfx::Sketch sketch;
-    for (const auto* k : order) sketch.put(k->node, zengine::graphics::window::look_of(*a, k->node));
-    for (const gfx::ElementRecord& r : a->records) sketch.say(r);
-    const std::int64_t columns = a->w / face.advance;
-    component::RowMap<DrawnPart> map;
-    map.begin();
-    for (const TextRow& row : drawn_rows(sketch, a->h / face.line, columns, map, face)) {
-        const std::size_t end = row.text.find_last_not_of(' ');
-        out.rows.push_back(end == std::string::npos ? std::string() : row.text.substr(0, end + 1));
-        out.inks.push_back(row.ink);
-    }
-    while (!out.rows.empty() && out.rows.back().empty()) {
-        out.rows.pop_back();
-        out.inks.pop_back();
-    }
-    (void)map.settle();
-    const auto available = [&](const DrawnPart& p) {
-        for (const gfx::ElementRecord& r : a->records) {
-            if (r.path == p.path) return zengine::graphics::window::record_available(r);
-        }
-        return true;
-    };
-    for (RowPart& p : row_parts(map, columns, [](const DrawnPart& p) { return p.action; }, available)) {
-        // A RUN'S BLANKS ARE ITS OWN: the part's place on its row runs from the first column a run
-        // it asks stands at, blanks and all, to the last such run's end.
-        std::int64_t first = p.column, end = p.column + p.columns;
-        for (const gfx::ElementRecord& r : a->records) {
-            if (r.action != p.name) continue;
-            for (const auto* k : order) {
-                // ...a top-level run's, whose place is the area's (a part's group draws its own)
-                if (!gfx::under(k->node.path, r.path) || k->node.path.find('/') != std::string::npos)
-                    continue;
-                const auto t = gfx::operands<gfx::TextArgs>(k->node);
-                if (!t || gfx::floor_div_px(t->y, face.line) != p.row) continue;
-                const std::int64_t from = gfx::floor_div_px(t->x, face.advance);
-                first = (std::min)(first, from);
-                end = (std::max)(end, from + static_cast<std::int64_t>(t->text.size()));
-            }
-        }
-        p.column = first;
-        p.columns = (std::min)(end, columns) - first;
-        out.parts.emplace(p.name, p);
-    }
-    // THE MARKS: the caret a bar at the left of the cell it stands before, or in a room of cells
-    // the character it stands before drawn again, the selection its columns again, a run a row.
-    bool selected = false;
-    for (const zengine::graphics::window::KeptNode& k : a->nodes) {
-        if (k.node.path == "caret") {
-            if (const auto line = gfx::operands<gfx::LineArgs>(k.node)) {
-                out.caret.row = gfx::floor_div_px(line->y1, face.line);
-                out.caret.column = gfx::floor_div_px(line->x1, face.advance);
-            } else if (const auto mark = gfx::operands<gfx::TextArgs>(k.node)) {
-                // in a room of cells, the character the caret stands before, drawn again
-                out.caret.row = gfx::floor_div_px(mark->y, face.line);
-                out.caret.column = gfx::floor_div_px(mark->x, face.advance);
-            }
-        } else if (k.node.path.rfind("sel", 0) == 0) {
-            if (const auto run = gfx::operands<gfx::TextArgs>(k.node)) {
-                const std::int64_t row = gfx::floor_div_px(run->y, face.line);
-                const std::int64_t column = gfx::floor_div_px(run->x, face.advance);
-                const std::int64_t end = column + static_cast<std::int64_t>(run->text.size());
-                if (!selected || row < out.caret.sel_begin_row ||
-                    (row == out.caret.sel_begin_row && column < out.caret.sel_begin_col)) {
-                    out.caret.sel_begin_row = row;
-                    out.caret.sel_begin_col = column;
-                }
-                if (!selected || row > out.caret.sel_end_row ||
-                    (row == out.caret.sel_end_row && end > out.caret.sel_end_col)) {
-                    out.caret.sel_end_row = row;
-                    out.caret.sel_end_col = end;
-                }
-                selected = true;
-            }
-        }
-    }
-    return out;
-}
+HeldReading held_reading(std::int64_t kind);
 
-inline std::vector<std::string> held_read_rows(std::int64_t kind) { return held_reading(kind).rows; }
+std::vector<std::string> held_read_rows(std::int64_t kind);
 
 /// WHERE A PANE'S CARET AND SELECTION STAND in the rows it drew.
-inline RowsCaret held_caret(const ExternalPane& pane) { return held_reading(pane.kind).caret; }
+RowsCaret held_caret(const ExternalPane& pane);
 
 /// THE ROWS A PANE DREW, each its text, "" where a row has none.
-inline std::vector<std::string> held_canvas_text(const ExternalPane& pane) {
-    return held_reading(pane.kind).rows;
-}
-inline std::vector<std::string> held_row_texts(const ExternalPane& pane) {
-    return held_canvas_text(pane);
-}
+std::vector<std::string> held_canvas_text(const ExternalPane& pane);
+std::vector<std::string> held_row_texts(const ExternalPane& pane);
 
 /// THE ADDRESS LAW AGAINST WHAT A PANE DREW (`control_parts_problem`, tests/control_parts.hpp):
 /// the parts its drawing names, and the rows its keymap has in force for it.
-inline std::string held_control_parts_problem(const Session& s, std::int64_t kind) {
-    std::vector<std::string> names;
-    for (const auto& [name, part] : held_reading(kind).parts) names.push_back(name);
-    std::vector<std::string> rows;
-    for (const PaneRows& declared : s.keymap.panes) {
-        if (declared.pane != kind) continue;
-        for (const PaneRow& row : declared.rows) rows.push_back(row.id);
-    }
-    const RuntimePane* offered = s.panes.runtime.of_kind(kind);
-    return control_parts_problem(offered ? offered->provider + "/" + offered->pane
-                                         : "pane " + std::to_string(kind),
-                                 names, rows);
-}
+std::string held_control_parts_problem(const Session& s, std::int64_t kind);
 
 /// THE PARTS A PANE NAMED in what it drew, by name, each on the row and columns of its rows it
 /// covers, saying whether its operation applies now. Every read holds the drawing to the address
 /// law (`held_control_parts_problem`).
-inline std::map<std::string, RowPart> held_parts(const Session& s, std::int64_t kind) {
-    const std::string problem = held_control_parts_problem(s, kind);
-    CHECK_MESSAGE(problem.empty(), problem);
-    return held_reading(kind).parts;
-}
+std::map<std::string, RowPart> held_parts(const Session& s, std::int64_t kind);
 
 /// ...and what the named part's columns of its row say, as the pane drew them.
-inline std::string held_part_text(const Session& s, std::int64_t kind, const RowPart& part) {
-    (void)s;
-    if (part.row < 0) return std::string();
-    const std::vector<std::string> rows = held_reading(kind).rows;
-    if (part.row >= static_cast<std::int64_t>(rows.size())) return std::string();
-    const std::string& row = rows[static_cast<std::size_t>(part.row)];
-    const auto from = static_cast<std::size_t>(part.column);
-    return from >= row.size() ? std::string() : row.substr(from, static_cast<std::size_t>(part.columns));
-}
+std::string held_part_text(const Session& s, std::int64_t kind, const RowPart& part);
 
 /// The place Workshop resolved for that pane's body, read from the same function that places its
 /// area.
-inline ExternalBodyPlace external_body_of(const Session& s, std::int64_t kind) {
-    return external_body_place(external_pane_rect(s, kind), screen_of(s),
-                               external_title_rows(s.panes, kind, s.pane_titles));
-}
+ExternalBodyPlace external_body_of(const Session& s, std::int64_t kind);
 
 /// WHAT AN INDEPENDENT LISTENER HEARD -- kept outside the weave so a case can outlive
 /// the bus that delivered it, which is the same shape `Painter` uses for canvases.
@@ -5201,12 +2744,8 @@ class SelectionListener
     : public loom::WeaveBase<SelectionListener, SeenState, loom::Accept<intro::LoadedSelected>,
                              loom::Emit<>> {
 public:
-    explicit SelectionListener(Ears& ears) : ears_(&ears) {}
-    void on(const intro::LoadedSelected& s, loom::Mail& mail) {
-        ++state_.frames;
-        ears_->heard.push_back(s);
-        ears_->authors.push_back(std::string(mail.authored_role()));
-    }
+    explicit SelectionListener(Ears& ears);
+    void on(const intro::LoadedSelected& s, loom::Mail& mail);
 
 private:
     Ears* ears_;
@@ -5216,55 +2755,29 @@ private:
 /// line of the window's face inside the pane's picture body, cut to the body's width, its blanks
 /// after the last character left off, "" where a line shows none, as far as the last line that
 /// shows something.
-inline std::vector<std::string> canvas_rows_shown(const Session& s, const DeskShown& shown,
-                                                  std::int64_t kind) {
-    std::vector<std::string> out;
-    const ExternalPane* pane = s.panes.external_pane(kind);
-    if (pane == nullptr || !shows_canvas(*pane)) return out;
-    const std::int64_t columns = shown.advance > 0 ? pane->placed_w / shown.advance : 0;
-    for (std::int64_t y = pane->placed_y; shown.line > 0 && y < pane->placed_y + pane->placed_h;
-         y += shown.line) {
-        out.push_back(shown.text_at_px(pane->placed_x, y, columns));
-    }
-    while (!out.empty() && out.back().empty()) out.pop_back();
-    return out;
-}
+std::vector<std::string> canvas_rows_shown(const Session& s, const DeskShown& shown,
+                                                  std::int64_t kind);
 
 /// The prose rows the Loaded pane is currently showing, with Workshop's header dropped
 /// -- said once here so a case below reads as a gesture and an assertion. Off its picture when
 /// it draws one.
 /// LOADED'S HEADING with no search typed: the count, then the search's empty box.
-inline std::string loaded_heading(const std::string& count) {
-    return "loaded weaves -- " + count + "  [" +
-           std::string(static_cast<std::size_t>(intro::kSearchBoxLeast - 2), '_') + "]";
-}
+std::string loaded_heading(const std::string& count);
 
-inline std::vector<std::string> loaded_rows(PaneRig& r, std::int64_t kind) {
-    if (const ExternalPane* pane = r.session().panes.external_pane(kind); pane && shows_canvas(*pane)) {
-        return canvas_rows_shown(r.session(), r.shown(), kind);
-    }
-    return external_rows(r.shown(), external_body_rect(r.session(), kind));
-}
+std::vector<std::string> loaded_rows(PaneRig& r, std::int64_t kind);
 
 /// The library name an entry row shows, read off the canvas: `  name @role` without
 /// its two-character mark. A case must never assume WHICH weave a row holds -- the
 /// kernel's map decides that -- so it reads the row a weaver would have aimed at.
-inline std::string named_by(const std::string& row) {
-    const std::size_t at = row.find(" @");
-    return at == std::string::npos ? std::string() : row.substr(2, at - 2);
-}
+std::string named_by(const std::string& row);
 
-inline bool is_entry_row(const std::string& row) {
-    return row.size() > 2 && row.find(" @") != std::string::npos &&
-           (row.rfind(intro::kUnselectedMark, 0) == 0 || row.rfind(intro::kSelectedMark, 0) == 0) &&
-           row.find(intro::kElided) == std::string::npos;
-}
+bool is_entry_row(const std::string& row);
 
 inline constexpr const char* kComposerRole = zengine::composer::kComposerRole;
 inline constexpr const char* kComposePane = zengine::composer::kComposePane;
 inline constexpr const char* kTimerRole = zengine::timer::kTimerRole;
 
-inline PaneRef composer_ref() { return PaneRef{kComposerRole, kComposePane}; }
+PaneRef composer_ref();
 
 // ---- A stand-in desktop: the participating owner of the application's defaults ------------
 // Escape-to-deselect is a DECLARED application row (WL-DESK-02), so a Workshop with no desktop
@@ -5285,88 +2798,40 @@ class DesktopSeat
                                         zengine::workshop::v1::PaneCloseRequested,
                                         zengine::workshop::v1::PaneToggleRequested>> {
 public:
-    void on(const AppActionRequested& asked, loom::Mail& mail) {
-        asked_.push_back(asked.id);
-        last_ask_ = mail.correlation();
-        if (asked.id == kDeselectId && autoanswer) {
-            // ECHOED UNDER THE NUMBER IT ARRIVED ON, which is what makes this answer about
-            // THIS keystroke and no other.
-            (void)mail.as_role(kDesktopRole)
-                .send_to_role(kWorkshopProvider, DeselectRequested{}, mail.correlation());
-        }
-    }
+    void on(const AppActionRequested& asked, loom::Mail& mail);
     /// WORKSHOP'S VERDICT ON ONE OF THIS PARTY'S DECLARATIONS, with the number Loom says it
     /// answers and whether Loom says it IS an answer. Kept, never acted on: a declarer's recovery
     /// is its own, and this one's is to remember.
-    void on(const ActionsJudged& said, loom::Mail& mail) {
-        verdicts_.push_back(Verdict{mail.correlation(), mail.answers_ask(), said});
-        if (!said.accepted) {
-            refusals_.push_back(said.refusal);
-        }
-    }
+    void on(const ActionsJudged& said, loom::Mail& mail);
     /// ...AND A DECLARATION IT HAD IN FORCE LEAVING THE KEYMAP LATER.
-    void on(const ActionsWithdrawn& said, loom::Mail&) {
-        withdrawals_.push_back(said);
-        refusals_.push_back(said.refusal);
-    }
+    void on(const ActionsWithdrawn& said, loom::Mail&);
     /// WHAT ITS LAUNCHES AND CLOSES CAME TO, kept in arrival order.
-    void on(const PaneLaunchAnswered& said, loom::Mail&) { launched_.push_back(said); }
-    void on(const PaneCloseAnswered& said, loom::Mail&) { closed_.push_back(said); }
+    void on(const PaneLaunchAnswered& said, loom::Mail&);
+    void on(const PaneCloseAnswered& said, loom::Mail&);
     /// ...AND AS A PANE BUILT ON AN EARLIER VOCABULARY HEARS THEM, the role named `office`.
-    void on(const zengine::workshop::v1::PaneLaunchAnswered& said, loom::Mail&) { launched_v1_.push_back(said); }
-    void on(const zengine::workshop::v2::PaneCloseAnswered& said, loom::Mail&) { closed_v2_.push_back(said); }
-    void on(const zengine::workshop::v1::PaneToggleAnswered& said, loom::Mail&) { toggled_v1_.push_back(said); }
+    void on(const zengine::workshop::v1::PaneLaunchAnswered& said, loom::Mail&);
+    void on(const zengine::workshop::v2::PaneCloseAnswered& said, loom::Mail&);
+    void on(const zengine::workshop::v1::PaneToggleAnswered& said, loom::Mail&);
 
-    void on(const SeatDo&, loom::Mail& mail) {
-        if (next) {
-            std::function<void(DesktopSeat&, loom::Mail&)> once;
-            once.swap(next);
-            once(*this, mail);
-        }
-    }
+    void on(const SeatDo&, loom::Mail& mail);
 
-    void declare(loom::Mail& mail, const AppActions& a, std::uint64_t attempt = 0) {
-        (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopProvider, a, attempt);
-    }
+    void declare(loom::Mail& mail, const AppActions& a, std::uint64_t attempt = 0);
     /// Declared PERSONALLY, from the very weave holding the role. Holding is not
     /// speaking-for (MSG-07), and Workshop drops it for the offer's reason.
-    void declare_personally(loom::Mail& mail, const AppActions& a) {
-        (void)mail.send_to_role(kWorkshopProvider, a);
-    }
-    void launch(loom::Mail& mail, const std::string& role, const std::string& pane) {
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, PaneLaunchRequested{role, pane});
-    }
-    void close(loom::Mail& mail, const std::string& role, const std::string& pane) {
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kLayoutsRole, PaneCloseRequested{role, pane});
-    }
+    void declare_personally(loom::Mail& mail, const AppActions& a);
+    void launch(loom::Mail& mail, const std::string& role, const std::string& pane);
+    void close(loom::Mail& mail, const std::string& role, const std::string& pane);
     /// The same asks in an earlier vocabulary's versions.
-    void launch_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, zengine::workshop::v1::PaneLaunchRequested{office, pane});
-    }
-    void launch_v2(loom::Mail& mail, const std::string& office, const std::string& pane, bool keys) {
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, zengine::workshop::v2::PaneLaunchRequested{office, pane, keys});
-    }
-    void close_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kLayoutsRole, zengine::workshop::v1::PaneCloseRequested{office, pane});
-    }
-    void toggle_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, zengine::workshop::v1::PaneToggleRequested{office, pane});
-    }
+    void launch_v1(loom::Mail& mail, const std::string& office, const std::string& pane);
+    void launch_v2(loom::Mail& mail, const std::string& office, const std::string& pane, bool keys);
+    void close_v1(loom::Mail& mail, const std::string& office, const std::string& pane);
+    void toggle_v1(loom::Mail& mail, const std::string& office, const std::string& pane);
     /// A DESELECT ANSWER THAT ECHOES A NUMBER OF ITS OWN CHOOSING -- for the cases about an
     /// answer to an ask that is over, and about one that echoes nothing at all.
-    void deselect_answering(loom::Mail& mail, std::uint64_t answering) {
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, DeselectRequested{}, answering);
-    }
+    void deselect_answering(loom::Mail& mail, std::uint64_t answering);
 
-    const std::vector<std::string>& asked() const { return asked_; }
-    const std::vector<std::string>& refusals() const { return refusals_; }
+    const std::vector<std::string>& asked() const;
+    const std::vector<std::string>& refusals() const;
     /// ONE VERDICT AS IT ARRIVED: the correlation it echoes, Loom's word that it answers an ask,
     /// and what it said.
     struct Verdict {
@@ -5374,16 +2839,16 @@ public:
         bool answer = false;
         ActionsJudged said;
     };
-    const std::vector<Verdict>& verdicts() const { return verdicts_; }
-    const std::vector<ActionsWithdrawn>& withdrawals() const { return withdrawals_; }
-    const std::vector<PaneLaunchAnswered>& launched() const { return launched_; }
-    const std::vector<PaneCloseAnswered>& closed() const { return closed_; }
-    const std::vector<zengine::workshop::v1::PaneLaunchAnswered>& launched_v1() const { return launched_v1_; }
-    const std::vector<zengine::workshop::v2::PaneCloseAnswered>& closed_v2() const { return closed_v2_; }
-    const std::vector<zengine::workshop::v1::PaneToggleAnswered>& toggled_v1() const { return toggled_v1_; }
+    const std::vector<Verdict>& verdicts() const;
+    const std::vector<ActionsWithdrawn>& withdrawals() const;
+    const std::vector<PaneLaunchAnswered>& launched() const;
+    const std::vector<PaneCloseAnswered>& closed() const;
+    const std::vector<zengine::workshop::v1::PaneLaunchAnswered>& launched_v1() const;
+    const std::vector<zengine::workshop::v2::PaneCloseAnswered>& closed_v2() const;
+    const std::vector<zengine::workshop::v1::PaneToggleAnswered>& toggled_v1() const;
     /// THE NUMBER THE LAST ASK ARRIVED UNDER -- what an honest answer echoes, and what a case
     /// about a DISHONEST one has to be able to miss on purpose.
-    std::uint64_t last_ask() const { return last_ask_; }
+    std::uint64_t last_ask() const;
 
     /// WHETHER THIS STAND-IN ANSWERS ITS DESELECT ROW BY ITSELF. Off for the case that has to
     /// leave an ask outstanding at a known gesture and then answer it wrongly: with the
@@ -5413,31 +2878,12 @@ private:
 
 /// THE FOUR ROWS THE SHIPPED DESKTOP DECLARES, spelled once so a case and the product cannot
 /// come to disagree about what the defaults are.
-inline AppActions shipped_app_actions() {
-    AppActions a;
-    a.rows.push_back(AppActionRow{DesktopSeat::kTerminalId, "terminal", zengine::input::scan::kT,
-                                  zengine::input::mod::kCtrl, app_precedence::kAboveModes});
-    a.rows.push_back(AppActionRow{DesktopSeat::kPanesId, "panes", zengine::input::scan::kP,
-                                  zengine::input::mod::kCtrl, app_precedence::kAboveModes});
-    a.rows.push_back(AppActionRow{DesktopSeat::kHotkeysId, "hotkeys", zengine::input::scan::kK,
-                                  zengine::input::mod::kCtrl, app_precedence::kAboveModes});
-    a.rows.push_back(AppActionRow{DesktopSeat::kDeselectId, "put down",
-                                  zengine::input::scan::kEscape, zengine::input::mod::kNone,
-                                  app_precedence::kDefault});
-    return a;
-}
+AppActions shipped_app_actions();
 
 /// THE EFFECTIVE KEYMAP AS TEXT, one binding per line -- `group | gesture | label | id`, with
 /// ` *` where the weaver's file moved it -- the value a presenter of keys is given
 /// (`keymap_shown`), read by a case the way the Hotkeys pane reads it.
-inline std::string keymap_text(const Session& s) {
-    std::string out;
-    for (const ShownBinding& b : keymap_shown(s, std::string(), std::string()).rows) {
-        out += b.group + " | " + b.gesture + " | " + b.label + " | " + b.id +
-               (b.authored ? " *" : "") + (b.remappable ? "" : " (not remappable)") + "\n";
-    }
-    return out;
-}
+std::string keymap_text(const Session& s);
 
 /// SEAT A STAND-IN DESKTOP AND LET IT DECLARE. Returns the seat, so a case can read what it
 /// was asked for and what Workshop refused it.
@@ -5490,156 +2936,60 @@ inline void desktop_does(Rig& t, DesktopSeat* seat,
 /// kind Workshop minted, or `kNoPaneKind`. `PaneRig` has its own for the seam's cases; a `Live`
 /// case uses this when it needs another entry in a pane population, which comes from where every
 /// pane comes from: a role that offered one.
-inline std::int64_t live_offer_pane(Live& t, const char* role, const char* pane,
-                                    const char* name) {
-    auto seat = std::make_unique<ProviderSeat>(std::string(role));
-    ProviderSeat* raw = seat.get();
-    loom::Grant grant;
-    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-    grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
-    grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
-    grant.allow_to_any(zengine::pane::v2::PaneActions::zen_name, zengine::pane::v2::PaneActions::zen_version);
-    const loom::WeaveId id =
-        t.bus.register_weave(std::move(seat), std::move(grant), std::string(role));
-    raw->zen_set_self(id);
-    raw->next = [pane, name](ProviderSeat& p, loom::Mail& m) {
-        p.offer(m, PaneOffered{pane, name, "a seated provider"});
-    };
-    (void)t.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                       loom::WeaveId{}, 0));
-    t.bus.drain_until_idle();
-    for (const RuntimePane& row : t.w->session().panes.runtime.entries) {
-        if (row.provider == std::string(role) && row.pane == std::string(pane)) {
-            return row.kind;
-        }
-    }
-    return kNoPaneKind;
-}
+std::int64_t live_offer_pane(Live& t, const char* role, const char* pane,
+                                    const char* name);
 
 /// Open an external pane belonging to a seat in `role`, and answer with its kind: the seat
 /// offers, Workshop admits, the launch door opens it and the room is granted -- four beats a case
 /// would otherwise spell every time.
-inline std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* role,
-                                   const char* pane) {
-    r.drive(seat, [pane](ProviderSeat& s, loom::Mail& m) {
-        s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
-    });
-    r.pick(PaneRef{role, pane});
-    for (const RuntimePane& row : r.session().panes.runtime.entries) {
-        if (row.provider == std::string(role) && row.pane == std::string(pane)) {
-            return row.kind;
-        }
-    }
-    return kNoPaneKind;
-}
+std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* role,
+                                   const char* pane);
 
 /// Press the first prose row of an external pane's body, in cells.
-inline void press_body(PaneRig& r, std::int64_t kind) {
-    const CellRect body = external_body_rect(r.session(), kind);
-    r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
-}
+void press_body(PaneRig& r, std::int64_t kind);
 /// ...AND LET GO THERE: the press ended, so the area a held press kept where it was aimed
 /// is placed under the title rows the keys brought.
-inline void click_body(PaneRig& r, std::int64_t kind) {
-    const CellRect body = external_body_rect(r.session(), kind);
-    r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
-    r.release_cell(body.x + 1, body.y + kExternalHeaderRows);
-}
+void click_body(PaneRig& r, std::int64_t kind);
 
 /// Press somewhere this pane is NOT -- the gesture that hands the keyboard back to Workshop,
 /// which a case must perform before it can use a command key. The cell is derived from the
 /// pane's own rectangle: an overlay slot starts at the canvas's top-left, so a literal `(1, 1)`
 /// is inside the pane it was meant to be outside of, a mistake that reads as a routing defect.
-inline void press_outside(PaneRig& r, std::int64_t kind) {
-    const CellRect pane_rect = cells_covered(external_pane_rect(r.session(), kind));
-    r.press_cell(pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
-}
+void press_outside(PaneRig& r, std::int64_t kind);
 
 namespace ws = zengine::workshop;
 
 /// AN ARRANGEMENT BUILT AS A VALUE, so a projection can be asked what it means without
 /// a bus, a Kernel or an artifact anywhere near it.
-inline ws::ArtifactParticipation participation(const char* stem, const char* mode, const char* role) {
-    ws::ArtifactParticipation a;
-    a.artifact = stem;
-    a.authored_provider = mode;
-    a.authored_role = role;
-    a.state = ws::kResolvedToken;
-    return a;
-}
+ws::ArtifactParticipation participation(const char* stem, const char* mode, const char* role);
 
-inline ws::ArtifactParticipation resolved_provider(ws::ArtifactParticipation a, const char* identity,
-                                                   std::int64_t powers) {
-    a.provider = identity;
-    a.powers = powers;
-    return a;
-}
+ws::ArtifactParticipation resolved_provider(ws::ArtifactParticipation a, const char* identity,
+                                                   std::int64_t powers);
 
-inline ws::ArtifactParticipation resolved_weave(ws::ArtifactParticipation a, std::int64_t id,
-                                                const char* offer) {
-    a.weave = id;
-    a.offer = offer;
-    return a;
-}
+ws::ArtifactParticipation resolved_weave(ws::ArtifactParticipation a, std::int64_t id,
+                                                const char* offer);
 
 
 /// The production-shaped arrangement, as a value: a provider-only artifact, two
 /// weave-only artifacts, and one artifact that is BOTH.
-inline ws::ResolvedArrangement shaped_arrangement() {
-    ws::ResolvedArrangement said;
-    said.plan = "default-load-plan.json";
-    said.artifacts.push_back(resolved_provider(
-        participation("zengine-operators-basic", "normal", ""), "zengine.operators.basic", 2));
-    said.artifacts.push_back(resolved_weave(
-        participation("zengine-window-tui", "", "zengine.window.tui"), 4,
-        "not-a-consumer"));
-    said.artifacts.push_back(resolved_weave(
-        resolved_provider(participation("zengine-timer", "normal", "zengine.timer"),
-                          "zengine.timer", 1),
-        7, "offered"));
-    said.artifacts.push_back(resolved_weave(
-        participation("zengine-composer", "", "zengine.composer"), 9, "not-a-consumer"));
-    return said;
-}
+ws::ResolvedArrangement shaped_arrangement();
 
 /// ---- Door rows, built as values ---------------------------------------------------------
 /// One row as the discovery door would say it of a real definition: `kind` is the door's
 /// derivation (`op::is_source`, `op::declares_migration`) and the output identity the definition's
 /// own output schema. The provider, the construction and the contract are separate arguments
 /// because the claim under test is that they are separate facts.
-inline ws::PowerRow row_from(const char* identity, const char* kind, const char* provider,
-                             bool composite = false, const char* yields = "zengine.Fixture") {
-    ws::PowerRow row;
-    row.identity = identity;
-    row.kind = kind;
-    row.provider = provider;
-    row.construction = composite ? ws::kCompositeConstruction : ws::kNativeConstruction;
-    row.outputs.name = yields;
-    row.outputs.version = 1;
-    row.signature = std::string("() -> value: ") + yields;
-    return row;
-}
+ws::PowerRow row_from(const char* identity, const char* kind, const char* provider,
+                             bool composite = false, const char* yields = "zengine.Fixture");
 
-inline ws::PowerRow source_from(const char* identity, const char* provider,
-                                bool composite = false, const char* yields = "zengine.Fixture") {
-    return row_from(identity, ws::kSourceKind, provider, composite, yields);
-}
+ws::PowerRow source_from(const char* identity, const char* provider,
+                                bool composite = false, const char* yields = "zengine.Fixture");
 
-inline ws::PowerRow operator_from(const char* identity, const char* provider,
-                                  bool composite = false, const char* yields = "zengine.Fixture") {
-    return row_from(identity, ws::kOperatorKind, provider, composite, yields);
-}
+ws::PowerRow operator_from(const char* identity, const char* provider,
+                                  bool composite = false, const char* yields = "zengine.Fixture");
 
 /// An answer carrying these rows, whole: no page beyond them, and the census given.
-inline ws::PowersFound found_of(std::vector<ws::PowerRow> rows, std::int64_t providers) {
-    ws::PowersFound said;
-    said.ok = true;
-    said.total = static_cast<std::int64_t>(rows.size());
-    said.powers = static_cast<std::int64_t>(rows.size());
-    said.providers = providers;
-    said.rows = std::move(rows);
-    return said;
-}
+ws::PowersFound found_of(std::vector<ws::PowerRow> rows, std::int64_t providers);
 
 /// ALL FOUR `Source x Composite` CELLS, WITH DELIBERATELY MISLEADING NAMES.
 ///
@@ -5647,52 +2997,20 @@ inline ws::PowersFound found_of(std::vector<ws::PowerRow> rows, std::int64_t pro
 /// falsifier for any implementation tempted to read a view membership off an
 /// identity's spelling: a pane that classified by name would put both in the wrong
 /// list and every other case here would stay green.
-inline ws::PowersFound four_cells() {
-    return found_of({operator_from("logic.select_int", "zengine.operators.basic"),
-                     source_from("math.max", "zengine.workshop.host", false, "zengine.MaxSoFar"),
-                     operator_from("source.looks.like.one", "zengine.timer", /*composite=*/true),
-                     source_from("zengine.recipes.catalog", "zengine.workshop.host",
-                                 /*composite=*/true, "zengine.RecipeCatalog")},
-                    3);
-}
+ws::PowersFound four_cells();
 
 /// A population big enough that a pane has to window it, in catalog (name) order.
-inline ws::PowersFound many_sources(std::size_t n) {
-    std::vector<ws::PowerRow> rows;
-    for (std::size_t i = 0; i < n; ++i) {
-        const std::string id = "src." + std::string(i < 10 ? "0" : "") + std::to_string(i);
-        rows.push_back(source_from(id.c_str(), "zengine.fixture"));
-    }
-    return found_of(std::move(rows), 1);
-}
+ws::PowersFound many_sources(std::size_t n);
 
 /// What the door would say of one row's identity: the row, and its stack bottom to top.
-inline ws::PowerDescribed described_as(const ws::PowerRow& row,
-                                       std::vector<ws::PowerLayer> stack) {
-    ws::PowerDescribed said;
-    said.ok = true;
-    said.identity = row.identity;
-    said.row = row;
-    said.stack = std::move(stack);
-    return said;
-}
+ws::PowerDescribed described_as(const ws::PowerRow& row,
+                                       std::vector<ws::PowerLayer> stack);
 
-inline ws::PowerLayer layer_from(const char* provider, bool composite = false,
-                                 const char* about = "") {
-    ws::PowerLayer layer;
-    layer.provider = provider;
-    layer.construction = composite ? ws::kCompositeConstruction : ws::kNativeConstruction;
-    layer.about = about;
-    return layer;
-}
+ws::PowerLayer layer_from(const char* provider, bool composite = false,
+                                 const char* about = "");
 
 /// A Powers pane state holding one answer, with nothing else authored.
-inline intro::PowersUi showing(ws::PowersFound said) {
-    intro::PowersUi ui;
-    ui.reading = std::move(said);
-    ui.read = true;
-    return ui;
-}
+intro::PowersUi showing(ws::PowersFound said);
 
 /// The text of each row, a row of Workshop's own or one a pane draws.
 template <class Row>
@@ -5716,174 +3034,49 @@ inline std::int64_t row_with(const std::vector<Row>& rows, const std::string& ne
 }
 
 /// The same question of rows already read off a published canvas.
-inline std::int64_t row_with_text(const std::vector<std::string>& rows, const std::string& needle) {
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].find(needle) != std::string::npos) {
-            return static_cast<std::int64_t>(i);
-        }
-    }
-    return -1;
-}
+std::int64_t row_with_text(const std::vector<std::string>& rows, const std::string& needle);
 
 /// The arrangement this tier performs, and it is deliberately Timer-free (see the
 /// section header). It still carries a PROVIDER-ONLY artifact and two weave-only ones,
 /// which is what the pane claims must be distinguishable.
-inline load::LoadPlan pane_plan() {
-    load::LoadPlan plan;
-    load::ArtifactIntent basic;
-    basic.stem = "zengine-operators-basic";
-    basic.provider = load::ProviderIntent{op::MountMode::Ordinary};
-    plan.artifacts.push_back(basic);
-    load::ArtifactIntent hello;
-    hello.stem = "zengine-plain-weave";
-    hello.weave = load::WeaveIntent{"test.plain"};
-    plan.artifacts.push_back(hello);
-    load::ArtifactIntent tool;
-    tool.stem = intro::kIntrospectionStem;
-    tool.weave = load::WeaveIntent{kIntroRole};
-    plan.artifacts.push_back(tool);
-    return plan;
-}
+load::LoadPlan pane_plan();
 
 /// Stand a live Workshop up over that arrangement, with the host's observation door
 /// mounted, and open one of the tool's panes.
-inline std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
-    r.mount_workshop();
-    const load::Executed done = r.run_plan(pane_plan());
-    REQUIRE_MESSAGE(done.ok, done.refusal);
-    r.mount_arrangement("default-load-plan.json");
-    (void)r.mount_powers();
-    r.ready();
-    r.extent(160, 48);
-    REQUIRE(intro_row(r, pane) != nullptr);
-    r.pick(PaneRef{kIntroRole, pane});
-    return intro_row(r, pane)->kind;
-}
+std::int64_t open_intro_pane(PaneRig& r, const char* pane);
 
 /// THE SAME LIVE WORKSHOP, WITH THE POWERS PANE OPEN AND THE HOST'S DOORS MOUNTED -- and with
 /// the host's own two Sources really in the catalog, so the Sources view has the population a
 /// weaver meets. The order is the host's: sources exposed before the plan runs, the observation,
 /// discovery and sample doors mounted before realization can grant a pane room.
-inline std::int64_t open_powers(PaneRig& r) {
-    r.expose_host_sources();
-    r.mount_workshop();
-    const load::Executed done = r.run_plan(pane_plan());
-    REQUIRE_MESSAGE(done.ok, done.refusal);
-    r.mount_arrangement("default-load-plan.json");
-    (void)r.mount_powers();
-    (void)r.mount_sampler();
-    r.ready();
-    r.extent(160, 48);
-    REQUIRE(intro_row(r, intro::kPowersPane) != nullptr);
-    r.pick(PaneRef{kIntroRole, intro::kPowersPane});
-    return intro_row(r, intro::kPowersPane)->kind;
-}
+std::int64_t open_powers(PaneRig& r);
 
 /// THE ROWS A PANE SHOWS, read off the window as `external_rows` and `canvas_rows_shown` read them;
 /// on a rig whose case seated a medium of its own (`own_medium`), which shows no desk here, the
 /// rows Workshop holds for the pane. A TUI window draws the caret as a bar over the cell it
 /// stands before, so a row read for its text reads that one cell as the pane holds it, and a bar
 /// past the row's end as nothing.
-inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    // A PANE WINDOW OF THE CASE'S OWN (`pane_window.hpp`, in `zengine.window.panes` or `.other`)
-    // takes a pane's drawing from the rig's window once it tells the pane a room, so the rig's
-    // shows that pane no longer: its rows are read as Workshop holds them.
-    const bool drawn_elsewhere =
-        r.bus.role_holder(std::string(gfx::kWindowRolePrefix) + "panes").valid() ||
-        r.bus.role_holder(std::string(gfx::kWindowRolePrefix) + "other").valid();
-    // ...AND A MENU OPEN STANDS OVER THE PANE IT NAMES, so the window shows its lines there: what
-    // the pane says under it is read as Workshop holds it.
-    const bool covered = r.session().context.open || r.session().presented.open;
-    if (r.own_medium() || drawn_elsewhere || covered) {
-        REQUIRE(pane != nullptr);
-        return held_row_texts(*pane);
-    }
-    const DeskShown shown = r.shown();
-    std::vector<std::string> out = pane != nullptr && shows_canvas(*pane)
-                                       ? canvas_rows_shown(r.session(), shown, kind)
-                                       : external_rows(shown, external_body_rect(r.session(), kind));
-    if (pane == nullptr || shown.window != gfx::kTuiWindow) {
-        return out;
-    }
-    const RowsCaret caret = held_caret(*pane);
-    const std::vector<std::string> held = held_row_texts(*pane);
-    if (caret.row < 0 || caret.column < 0 || static_cast<std::size_t>(caret.row) >= out.size()) {
-        return out;
-    }
-    std::string& row = out[static_cast<std::size_t>(caret.row)];
-    const auto column = static_cast<std::size_t>(caret.column);
-    if (column >= row.size() || row[column] != '|') {
-        return out;
-    }
-    const std::string under = static_cast<std::size_t>(caret.row) < held.size()
-                                   ? held[static_cast<std::size_t>(caret.row)]
-                                   : std::string();
-    if (column < under.size()) {
-        row[column] = under[column];
-    } else {
-        row.erase(column, 1);
-        row.erase(row.find_last_not_of(' ') + 1);
-    }
-    return out;
-}
+std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind);
 
 /// The band's legend rows, padding trimmed, read in one place.
-inline std::vector<std::string> band_lines(PaneRig& r) {
-    std::vector<std::string> out;
-    const Screen sc = screen_of(r.session());
-    const std::int64_t help_y = gfx::cell_of_pixel(sc.band_y);
-    for (const std::int64_t y : {help_y, help_y + 1}) {
-        const std::string row = inspector_row(r.shown(), 0, y);
-        if (!row.empty()) {
-            out.push_back(row);
-        }
-    }
-    return out;
-}
+std::vector<std::string> band_lines(PaneRig& r);
 
 /// THE CELL SHOWING COLUMN `column` OF BODY ROW `row`, counted from the body's first cell: the
 /// column's own, since a caret moves no character from its cell.
-inline std::int64_t pane_cell_of(const Session&, std::int64_t, std::int64_t, std::int64_t column) {
-    return column;
-}
+std::int64_t pane_cell_of(const Session&, std::int64_t, std::int64_t, std::int64_t column);
 
 /// PRESS A PLACE IN AN EXTERNAL PANE'S OWN ROOM -- the provider's row and column,
 /// which is exactly the pair `PanePressed` carries. Cases speak the provider's lattice
 /// so the arithmetic that turns it into a canvas cell lives in one place. On a face, the
 /// window's pixel at the middle of that glyph of the body's fit, where the window draws it.
-inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column) {
-    if (const ExternalBodyPlace place = external_body_of(r.session(), kind); place.fit.graphical()) {
-        const RegionFit& fit = place.fit;
-        r.press_pixel(fit.view.x + fit.origin_x + column * fit.advance_px + fit.advance_px / 2,
-                      fit.view.y + fit.origin_y + (place.header_rows + row) * fit.line_px +
-                          fit.line_px / 2);
-        return;
-    }
-    const CellRect body = external_body_rect(r.session(), kind);
-    r.press_cell(body.x + pane_cell_of(r.session(), kind, row, column),
-                 body.y + kExternalHeaderRows + row);
-}
+void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column);
 
 /// THE PART THE WINDOW SHOWS A PANE DRAWING AT A CELL of its rows ("" for none): what a press there
 /// lands on, by the name the pane gave it -- the narrowest that holds the cell, as a control inside
 /// a row answers before the row.
-inline std::string part_drawn_at(const std::map<std::string, RowPart>& parts, std::int64_t row,
-                                 std::int64_t column) {
-    std::string found;
-    std::int64_t width = 0;
-    for (const auto& [name, part] : parts) {
-        if (part.row == row && column >= part.column && column < part.column + part.columns &&
-            (found.empty() || part.columns < width)) {
-            found = name;
-            width = part.columns;
-        }
-    }
-    return found;
-}
-inline std::string part_drawn_at(std::int64_t kind, std::int64_t row, std::int64_t column) {
-    return part_drawn_at(held_reading(kind).parts, row, column);
-}
+std::string part_drawn_at(const std::map<std::string, RowPart>& parts, std::int64_t row,
+                                 std::int64_t column);
+std::string part_drawn_at(std::int64_t kind, std::int64_t row, std::int64_t column);
 
 /// THE NUMBER EACH AREA'S LATEST DRAWING WAS SENT WITH (`Drawn::number`), heard as the bus delivers
 /// it: what the window holds of an area's drawing, by its drawer's number.
@@ -5891,107 +3084,40 @@ struct DrawnNumbers {
     loom::Switchboard& bus;
     loom::ObserverId id{};
     std::map<std::string, std::int64_t> number;
-    explicit DrawnNumbers(loom::Switchboard& b) : bus(b) {
-        id = bus.add_observer([this](const loom::BusEvent& ev) {
-            if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
-                ev.schema_name == gfx::Drawn::zen_name) {
-                const gfx::Drawn d = loom::from_value<gfx::Drawn>(*ev.payload);
-                number[d.area] = d.number;
-            }
-        });
-    }
-    ~DrawnNumbers() { bus.remove_observer(id); }
+    explicit DrawnNumbers(loom::Switchboard& b);
+    ~DrawnNumbers();
     DrawnNumbers(const DrawnNumbers&) = delete;
     DrawnNumbers& operator=(const DrawnNumbers&) = delete;
     /// The number of the drawing the window holds of a pane's area.
-    std::int64_t of(const Session& s, std::int64_t kind) const {
-        const RuntimePane* pane = s.panes.runtime.of_kind(kind);
-        if (pane == nullptr) return 0;
-        const auto at = number.find(pane_window_area(s.panes, *pane));
-        return at == number.end() ? 0 : at->second;
-    }
+    std::int64_t of(const Session& s, std::int64_t kind) const;
 };
 
 /// A PRESS AND ITS RELEASE THE WINDOW LANDED ON AN EARLIER DRAWING of a pane's area, told the
 /// pane's role as the window that shows the desk tells it: at the cell `row`, `column` of the
 /// pane's rows in a window of cells, `part` the part drawn under the hand then and `drawing` that
 /// drawing's number. What a case says here is what the window said when the press landed.
-inline void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column,
+void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column,
                            const std::string& part, std::int64_t drawing = 0,
-                           std::int64_t button = 1) {
-    const RuntimePane* pane = r.session().panes.runtime.of_kind(kind);
-    REQUIRE(pane != nullptr);
-    const std::string area = pane_window_area(r.session().panes, *pane);
-    const CellRect body = external_body_rect(r.session(), kind);
-    gfx::AreaButtonChanged b{area, button, true, column * gfx::kCellPx + gfx::kCellPx / 2,
-                             row * gfx::kCellPx + gfx::kCellPx / 2, 0, true, 0, area, part, drawing};
-    // ONE NUMBER FOR THE PRESS AND ITS RELEASE, past any the window mints, told the owner and, as
-    // the area's arranger, Workshop.
-    static std::uint64_t presses = std::uint64_t{1} << 48;
-    const std::uint64_t press = ++presses;
-    for (const bool pressed : {true, false}) {
-        b.pressed = pressed;
-        REQUIRE(r.bus.role_send_to_role_as(r.windows.id(), r.windows.role(), pane->provider,
-                                             loom::Message(loom::to_value(b), {}, {}, press))
-                    .valid());
-        const gfx::AreaPressed told{std::string(gfx::kTuiWindow), area, button, pressed,
-                                    body.x * gfx::kCellPx + b.x,
-                                    (body.y + kExternalHeaderRows) * gfx::kCellPx + b.y, true, 0,
-                                    area, part, drawing};
-        REQUIRE(r.bus.role_send_to_role_as(r.windows.id(), r.windows.role(), kWorkshopProvider,
-                                             loom::Message(loom::to_value(told), {}, {}, press))
-                    .valid());
-    }
-    r.bus.drain_until_idle();
-}
+                           std::int64_t button = 1);
 
 /// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE. The keyboard goes to the pane a
 /// weaver last pressed into and there is no shape for asking, so this spends a press
 /// on a row whose provider-side meaning is NOTHING -- the bound sentence where there is one, the
 /// last row otherwise -- possible only because every target in this pane means exactly one thing.
-inline void focus_pane(PaneRig& r, std::int64_t kind) {
-    const std::vector<std::string> shown = pane_rows(r, kind);
-    REQUIRE_FALSE(shown.empty());
-    std::int64_t row = static_cast<std::int64_t>(shown.size()) - 1;
-    const std::int64_t bound = row_with_text(shown, intro::kHostResolution);
-    if (bound >= 0) {
-        row = bound;
-    }
-    press_pane(r, kind, row, 0);
-}
+void focus_pane(PaneRig& r, std::int64_t kind);
 
 /// Which column of the Powers chrome row carries a given word, or -1 -- how a case
 /// aims at the `Operators` control without knowing the composition's arithmetic.
-inline std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::string& word) {
-    const std::vector<std::string> shown = pane_rows(r, kind);
-    if (shown.empty()) {
-        return -1;
-    }
-    const std::size_t at = shown[0].find(word);
-    return at == std::string::npos ? -1 : static_cast<std::int64_t>(at);
-}
+std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::string& word);
 
 /// MAKE ONE PANE TALLER, the way a weaver can: an authored height in canvas cells, written into
 /// the setup the screen resolves its bounds from. Not a test door: `kStackRows` (nine -- eight
 /// prose rows under one header) is the developer's default, not a law, and a projection whose
 /// entries are several rows tall does not fit six artifacts in eight rows; it counts what it
 /// could not show and gives the weaver a pane that grows.
-inline void make_taller(PaneRig& r, const char* pane, std::int64_t cells) {
-    const Written wrote =
-        staged_author_pane_size(r, PaneRef{kIntroRole, pane}, PaneSize{},
-                         PaneSize{pane_unit::kPixels, cells_px(cells)});
-    REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
-    // A REPAINT, WHICH IS A ROOM GRANT, WHICH IS THIS TOOL'S ONE BEAT.
-    r.extent(200, 60);
-}
+void make_taller(PaneRig& r, const char* pane, std::int64_t cells);
 
-inline std::string file_source(const char* path) {
-    std::ifstream in(path);
-    REQUIRE_MESSAGE(in.good(), "cannot read ", path);
-    std::ostringstream all;
-    all << in.rdbuf();
-    return all.str();
-}
+std::string file_source(const char* path);
 
 /// THE PRESENTATION, AS A POPULATION OF SOURCE FILES, for the tripwires that read Workshop as
 /// text: every `.hpp` and `.cpp` directly in `WORKSHOP_SOURCE_DIR` but the host's side of the seam,
@@ -6001,65 +3127,18 @@ inline std::string file_source(const char* path) {
 /// fewer than the floor is a red, never a smaller claim; it goes down only with the files moved.
 inline constexpr std::size_t kPresentationSourceFloor = 62;
 
-inline std::vector<std::string> presentation_sources() {
-    // The host's side of the seam, by name -- the host, the
-    // observation door, the rules and doors it wires (`staging`, `provenance`, `pane_doors` and
-    // their shapes) -- and `pane_migration.hpp`, for another reason: it is the one file that may
-    // spell the reference saved files wrote for a retired browser, and the tripwire forbidding
-    // every other file that spelling would otherwise forbid it too.
-    static constexpr const char* kHostSide[] = {"workshop.cpp",
-                                                "arrangement.hpp", "arrangement_vocabulary.hpp",
-                                                "staging.hpp", "authoring.hpp", "pane_doors.hpp",
-                                                "pane_seam_vocabulary.hpp",
-                                                "pane_migration.hpp", "provenance.hpp"};
-    std::vector<std::string> out;
-    for (const std::filesystem::directory_entry& entry :
-         std::filesystem::directory_iterator(WORKSHOP_SOURCE_DIR)) {
-        const std::string name = entry.path().filename().string();
-        const std::string ext = entry.path().extension().string();
-        if (ext != ".hpp" && ext != ".cpp") {
-            continue;
-        }
-        bool host_side = false;
-        for (const char* h : kHostSide) {
-            host_side = host_side || name == h;
-        }
-        if (!host_side) {
-            out.push_back(entry.path().generic_string());
-        }
-    }
-    std::sort(out.begin(), out.end());
-    REQUIRE_MESSAGE(out.size() >= kPresentationSourceFloor, "the walk of ", WORKSHOP_SOURCE_DIR,
-                    " found ", out.size(), " presentation sources, below the floor of ",
-                    kPresentationSourceFloor);
-    return out;
-}
+std::vector<std::string> presentation_sources();
 
 /// A keymap file's bytes, composed through the format's own serializer -- which is also what
 /// makes the round-trip cases byte-exact rather than approximately so.
-inline std::string keymap_file_text(const std::string& legend,
-                                    const std::vector<std::pair<std::string, std::string>>& rows) {
-    keymap_persist::WorkshopKeymap f;
-    f.format = keymap_persist::kFormat;
-    f.format_version = keymap_persist::kFormatVersion;
-    f.legend = legend;
-    for (const std::pair<std::string, std::string>& r : rows) {
-        f.overrides.push_back(keymap_persist::WorkshopKeymapRow{r.first, r.second});
-    }
-    return loom::compat::serialize(loom::to_value(f));
-}
+std::string keymap_file_text(const std::string& legend,
+                                    const std::vector<std::pair<std::string, std::string>>& rows);
 
-inline void write_keymap_file(const std::string& path, const std::string& text) {
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    out.write(text.data(), static_cast<std::streamsize>(text.size()));
-}
+void write_keymap_file(const std::string& path, const std::string& text);
 
 /// A Live Workshop that read the given keymap file on its first surface.
 struct Keyed : Live {
-    explicit Keyed(const std::string& path) {
-        host.keymap_path = path;
-        ready();
-    }
+    explicit Keyed(const std::string& path);
 };
 
 // Author an explicit TUI body budget for a behavior fixture. Preferences remain the

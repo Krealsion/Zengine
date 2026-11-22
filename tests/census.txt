@@ -19,6 +19,15 @@
 # marked to fall: a class past the threshold only shrinks, and a class keeps its row below the
 # threshold, held to it, until a change removes the row.
 #
+# The built-apart law (docs/architecture/README.md, "Every unit is one of five kinds"): `kind
+# <folder>/ <kind>` gives a package its kind, a weave, host, library, vocabulary or test, and `kind
+# <file> vocabulary` a vocabulary its own, the file's row deciding before the longest folder's;
+# every top-level code folder, tests/, and each weave folder under a host's has one, and a package
+# without one is red. `reach <file> <header> <count> falls` is an include the law refuses: a file
+# including, <count> times, a header its kind may not (a Loom header by its path under include/).
+# The rows were written from the tree, and every change that drains a reach lowers or removes its
+# row in the same change.
+#
 # `cmake -DZEN_CENSUS_WRITE=<file> -P tests/check_census.cmake` writes the rows as the tree stands,
 # to diff. ASCII only.
 
@@ -103,12 +112,12 @@ doors examples/snake/play.cpp ConsoleWeave 6
 doors examples/snake/score.cpp ScoreWeave 1
 doors examples/snake/world.cpp SnakeWorld 7
 doors examples/snake/world.cpp SnakeWorld.2 4
+doors examples/tally-pane/tally.cpp Tally 8
 doors examples/tile-defense/bench.cpp BenchDoor 1
 doors examples/tile-defense/bench.cpp BenchEars 3
 doors examples/tile-defense/game.hpp TileDefense 4
 doors examples/tile-defense/play.cpp Door 4
 doors examples/tile-defense/stage.cpp TileDefenseStage 4
-doors examples/tally-pane/tally.cpp Tally 8
 doors examples/tower-defense/td.cpp Game 7
 doors examples/workshop-probe/probe.hpp ProbeWeave 11
 doors external-host/connections-pane/pane.cpp ConnectionsPaneWeave 2
@@ -143,8 +152,8 @@ doors pane/facets.hpp Room.3 11
 doors pane/facets.hpp Room.4 10
 doors pane/seat.hpp MultiPaneFacet 12
 doors pane/seat.hpp MultiPaneFacet.2 11
-doors realization/owner.hpp Owner 7
 doors pane/settings_taken.hpp PaneSettingsFacet 1
+doors realization/owner.hpp Owner 7
 doors terminal/pane.cpp TerminalPaneWeave 10
 doors theme/weave.cpp Base 9
 doors theme/weave.cpp ThemeWeave 9
@@ -181,3 +190,628 @@ lines info/value_view.hpp ValueView 1166 falls
 lines realization/owner.hpp Owner 837 falls
 lines view/view-builder/pane.cpp ViewBuilderPane 1163 falls
 lines workshop/weave.hpp WorkshopWeave 912 falls
+
+kind activation/ library
+kind app/ host
+kind app/vocabulary.hpp vocabulary
+kind attention/ weave
+kind attention/vocabulary.hpp vocabulary
+kind builder/ weave
+kind builder/builder-pane/vocabulary.hpp vocabulary
+kind builder/vocabulary.hpp vocabulary
+kind component/ library
+kind composer/ weave
+kind composer/vocabulary.hpp vocabulary
+kind editor/ weave
+kind editor/editor-pane/vocabulary.hpp vocabulary
+kind editor/neovim-editor/vocabulary.hpp vocabulary
+kind editor/source-transfer/vocabulary.hpp vocabulary
+kind examples/ host
+kind examples/snake/ weave
+kind examples/snake/vocabulary.hpp vocabulary
+kind examples/tile-defense/ weave
+kind examples/tile-defense/vocabulary.hpp vocabulary
+kind external-host/ weave
+kind external-host/connections-pane/vocabulary.hpp vocabulary
+kind external-host/demo-control/vocabulary.hpp vocabulary
+kind external-host/vocabulary_weave.hpp vocabulary
+kind files/ weave
+kind files/vocabulary.hpp vocabulary
+kind flow/ weave
+kind flow/flow-host/vocabulary.hpp vocabulary
+kind flow/flow-pane/vocabulary.hpp vocabulary
+kind graphics/ library
+kind graphics/vocabulary.hpp vocabulary
+kind info/ weave
+kind info/vocabulary.hpp vocabulary
+kind input/ library
+kind input/vocabulary.hpp vocabulary
+kind introspection/ weave
+kind introspection/vocabulary.hpp vocabulary
+kind inventory/ weave
+kind inventory/inventory-pane/vocabulary.hpp vocabulary
+kind inventory/vocabulary.hpp vocabulary
+kind launcher/ weave
+kind launcher/vocabulary.hpp vocabulary
+kind maker/ library
+kind maker/vocabulary.hpp vocabulary
+kind manual/ library
+kind manual/vocabulary.hpp vocabulary
+kind message-draft/ library
+kind notices/ weave
+kind notices/notices-pane/vocabulary.hpp vocabulary
+kind notices/vocabulary.hpp vocabulary
+kind operator/ library
+kind pane/ library
+kind pane/presenter_vocabulary.hpp vocabulary
+kind pane/vocabulary.hpp vocabulary
+kind persist/ library
+kind property/ library
+kind realization/ library
+kind realization/vocabulary.hpp vocabulary
+kind tally/ library
+kind terminal/ weave
+kind terminal/vocabulary.hpp vocabulary
+kind tests/ test
+kind theme/ weave
+kind theme/vocabulary.hpp vocabulary
+kind timer/ library
+kind timer/vocabulary.hpp vocabulary
+kind ui/ library
+kind ui/vocabulary.hpp vocabulary
+kind view/ weave
+kind view/view-builder/vocabulary.hpp vocabulary
+kind view/vocabulary.hpp vocabulary
+kind workshop/ host
+kind workshop/arrangement_vocabulary.hpp vocabulary
+kind workshop/attention_seam_vocabulary.hpp vocabulary
+kind workshop/builder_seam_vocabulary.hpp vocabulary
+kind workshop/command_vocabulary.hpp vocabulary
+kind workshop/desktop-pane/ weave
+kind workshop/desktop-pane/vocabulary.hpp vocabulary
+kind workshop/desktop_seam_vocabulary.hpp vocabulary
+kind workshop/editor_handoff_vocabulary.hpp vocabulary
+kind workshop/editor_switch_vocabulary.hpp vocabulary
+kind workshop/first-run/ weave
+kind workshop/guest_seam_vocabulary.hpp vocabulary
+kind workshop/guide_vocabulary.hpp vocabulary
+kind workshop/inspection_seam_vocabulary.hpp vocabulary
+kind workshop/layouts/vocabulary.hpp vocabulary
+kind workshop/menu-presenter/ weave
+kind workshop/notice_seam_vocabulary.hpp vocabulary
+kind workshop/open_seam_vocabulary.hpp vocabulary
+kind workshop/palette/ weave
+kind workshop/pane_seam_vocabulary.hpp vocabulary
+kind workshop/pane_shortcuts.hpp vocabulary
+kind workshop/pane_view.hpp vocabulary
+kind workshop/powers_vocabulary.hpp vocabulary
+kind workshop/project_seam_vocabulary.hpp vocabulary
+kind workshop/recipe-example/ weave
+kind workshop/sample_vocabulary.hpp vocabulary
+kind workshop/settings_seam_vocabulary.hpp vocabulary
+kind workshop/setup_control.hpp vocabulary
+kind workshop/terminal_seam_vocabulary.hpp vocabulary
+kind workshop/vocabulary.hpp vocabulary
+
+reach app/folder.hpp flow/project.hpp 1 falls
+reach app/folder.hpp view/description.hpp 1 falls
+reach app/host.hpp flow/flow-host/runtime.hpp 1 falls
+reach app/host.hpp view/host.hpp 1 falls
+reach app/weave.cpp view/description.hpp 1 falls
+reach attention/pane.cpp workshop/attention_seam_vocabulary.hpp 1 falls
+reach builder/builder-pane/modes.hpp workshop/builder_seam_vocabulary.hpp 1 falls
+reach builder/builder-pane/modes.hpp workshop/project_seam_vocabulary.hpp 1 falls
+reach builder/builder-pane/pane.cpp workshop/builder_seam_vocabulary.hpp 1 falls
+reach builder/builder-pane/pane.cpp workshop/notice_seam_vocabulary.hpp 1 falls
+reach builder/builder-pane/pane.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach builder/builder-pane/pane.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach composer/composer.cpp inventory/codec.hpp 1 falls
+reach composer/composer.cpp inventory/pane_client.hpp 1 falls
+reach composer/composer.cpp workshop/setup_control.hpp 1 falls
+reach editor/editor-pane/common.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach editor/editor-pane/common.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/editor-pane/common.hpp workshop/project_seam_vocabulary.hpp 1 falls
+reach editor/editor-pane/opening_switch.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach editor/editor-pane/opening_switch.hpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach editor/editor-pane/opening_switch.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/editor-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach editor/editor-pane/pane.cpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach editor/editor-pane/pane.cpp workshop/keymap.hpp 1 falls
+reach editor/editor-pane/pane.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/editor-pane/pane.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach editor/editor-pane/transfers.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/neovim-editor/common.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach editor/neovim-editor/common.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/neovim-editor/opening_switch.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach editor/neovim-editor/opening_switch.hpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach editor/neovim-editor/opening_switch.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/neovim-editor/pane.cpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach editor/neovim-editor/pane.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/neovim-editor/pane.cpp workshop/pane_seam_vocabulary.hpp 1 falls
+reach editor/neovim-editor/pane.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach editor/neovim-editor/transfers.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/neovim/child.hpp zen/host/wait_set.hpp 1 falls
+reach editor/role_seam.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach editor/source-transfer/material.hpp inventory/codec.hpp 1 falls
+reach editor/source-transfer/material.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach examples/snake/play.cpp zen/host/reactor.hpp 1 falls
+reach examples/snake/play.cpp zen/kernel/admission.hpp 1 falls
+reach examples/snake/play.cpp zen/kernel/control.hpp 1 falls
+reach examples/snake/play.cpp zen/kernel/kernel.hpp 1 falls
+reach examples/snake/play.cpp zen/kernel/manager.hpp 1 falls
+reach examples/snake/play.cpp zen/switchboard.hpp 1 falls
+reach examples/tally-app/tally.hpp flow/project.hpp 1 falls
+reach examples/tally-app/tally.hpp flow/shape.hpp 1 falls
+reach examples/tally-app/tally.hpp view/description.hpp 1 falls
+reach examples/tile-defense/bench.cpp zen/host/lifecycle_wiring.hpp 1 falls
+reach examples/tile-defense/bench.cpp zen/kernel/admission.hpp 1 falls
+reach examples/tile-defense/bench.cpp zen/kernel/control.hpp 1 falls
+reach examples/tile-defense/bench.cpp zen/kernel/kernel.hpp 1 falls
+reach examples/tile-defense/bench.cpp zen/kernel/manager.hpp 1 falls
+reach examples/tile-defense/bench.cpp zen/switchboard.hpp 1 falls
+reach examples/tile-defense/play.cpp zen/host/reactor.hpp 1 falls
+reach examples/tile-defense/play.cpp zen/kernel/admission.hpp 1 falls
+reach examples/tile-defense/play.cpp zen/kernel/control.hpp 1 falls
+reach examples/tile-defense/play.cpp zen/kernel/kernel.hpp 1 falls
+reach examples/tile-defense/play.cpp zen/kernel/manager.hpp 1 falls
+reach examples/tile-defense/play.cpp zen/switchboard.hpp 1 falls
+reach external-host/connections-pane/pane.cpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach external-host/vocabulary_weave.hpp pane/document.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/guide_vocabulary.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/notice_seam_vocabulary.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/pane_view.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach external-host/vocabulary_weave.hpp workshop/setup_control.hpp 1 falls
+reach files/files.cpp app/vocabulary.hpp 1 falls
+reach files/files.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach files/files.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach files/files.cpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach files/recipe_authoring.hpp builder/recipe.hpp 1 falls
+reach files/recipe_authoring.hpp workshop/project_seam_vocabulary.hpp 1 falls
+reach flow/flow-pane/find.hpp workshop/powers_vocabulary.hpp 1 falls
+reach flow/flow-pane/model.hpp workshop/powers_vocabulary.hpp 1 falls
+reach flow/flow-pane/pane.cpp inventory/codec.hpp 1 falls
+reach flow/flow-pane/pane.cpp workshop/powers_vocabulary.hpp 1 falls
+reach flow/main.cpp zen/kernel/kernel.hpp 1 falls
+reach flow/shape.hpp zen/kernel/schema_codec.hpp 1 falls
+reach graphics/window/window.cpp zen/host/wait_set.hpp 1 falls
+reach info/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach info/pane.cpp workshop/inspection_seam_vocabulary.hpp 1 falls
+reach info/pane.cpp workshop/setup_control.hpp 1 falls
+reach info/property_view.hpp workshop/inspection_seam_vocabulary.hpp 1 falls
+reach info/settings_rows.hpp workshop/inspection_seam_vocabulary.hpp 1 falls
+reach info/settings_rows.hpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach info/value_view.hpp inventory/codec.hpp 1 falls
+reach info/value_view.hpp inventory/observation.hpp 1 falls
+reach info/value_view.hpp inventory/pane_client.hpp 1 falls
+reach info/value_view.hpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach input/double_click_setting.hpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach input/terminal_reader.hpp zen/host/wait_set.hpp 1 falls
+reach introspection/introspection.cpp workshop/arrangement_vocabulary.hpp 1 falls
+reach introspection/introspection.cpp workshop/powers_vocabulary.hpp 1 falls
+reach introspection/introspection.cpp workshop/sample_vocabulary.hpp 1 falls
+reach introspection/introspection.cpp zen/kernel/manager.hpp 1 falls
+reach introspection/powers.hpp workshop/powers_vocabulary.hpp 1 falls
+reach introspection/powers_detail.hpp workshop/powers_vocabulary.hpp 1 falls
+reach introspection/resolved.hpp workshop/arrangement_vocabulary.hpp 1 falls
+reach introspection/seats.hpp inventory/codec.hpp 1 falls
+reach introspection/seats.hpp workshop/arrangement_vocabulary.hpp 1 falls
+reach introspection/seats.hpp workshop/powers_vocabulary.hpp 1 falls
+reach introspection/seats.hpp workshop/sample_vocabulary.hpp 1 falls
+reach introspection/seats.hpp zen/kernel/manager.hpp 1 falls
+reach inventory/inventory-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach inventory/inventory-pane/pane.cpp workshop/setup_control.hpp 1 falls
+reach inventory/inventory-pane/presentation.hpp workshop/keymap.hpp 1 falls
+reach inventory/inventory-pane/slots.hpp workshop/pane_shortcuts.hpp 1 falls
+reach inventory/inventory-pane/toolbox.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach inventory/inventory-pane/toolbox.hpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach inventory/inventory-pane/toolbox_file.hpp workshop/keymap.hpp 1 falls
+reach launcher/catalog.hpp app/folder.hpp 1 falls
+reach launcher/catalog.hpp app/session_file.hpp 1 falls
+reach launcher/catalog.hpp app/vocabulary.hpp 1 falls
+reach launcher/configured.hpp.in app/program.hpp 1 falls
+reach launcher/weave.cpp app/program.hpp 1 falls
+reach launcher/weave.cpp workshop/command_vocabulary.hpp 1 falls
+reach launcher/weave.cpp workshop/first-run/setup.hpp 1 falls
+reach launcher/weave.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach maker/definition.hpp zen/kernel/schema_codec.hpp 1 falls
+reach maker/runtime.hpp zen/switchboard/bus.hpp 1 falls
+reach maker/runtime.hpp zen/switchboard/switchboard.hpp 1 falls
+reach maker/succession.hpp zen/host/prepared_replacement.hpp 1 falls
+reach maker/succession.hpp zen/switchboard/bus.hpp 1 falls
+reach maker/succession.hpp zen/switchboard/switchboard.hpp 1 falls
+reach maker/weave.hpp zen/switchboard/bus.hpp 1 falls
+reach maker/weave.hpp zen/switchboard/switchboard.hpp 1 falls
+reach notices/notices.cpp workshop/notice_seam_vocabulary.hpp 1 falls
+reach notices/notices.cpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach operator/host.hpp zen/kernel/schema_codec.hpp 1 falls
+reach operator/provider.hpp zen/kernel/schema_codec.hpp 1 falls
+reach pane/presenter_vocabulary.hpp component/text.hpp 1 falls
+reach pane/presenter_vocabulary.hpp graphics/canvas.hpp 1 falls
+reach pane/presenter_vocabulary.hpp graphics/pixels.hpp 1 falls
+reach realization/owner.hpp zen/kernel/manager.hpp 1 falls
+reach realization/owner.hpp zen/switchboard.hpp 1 falls
+reach tally/bus_tally.hpp zen/switchboard/switchboard.hpp 1 falls
+reach terminal/history_and_completion.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach terminal/pane.cpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach terminal/pane.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach terminal/view.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/build/witness.cpp builder/runner.hpp 1 falls
+reach tests/build/witness.cpp builder/weave.hpp 1 falls
+reach tests/build/witness.cpp workshop/recipe_persist.hpp 1 falls
+reach tests/build/witness.cpp workshop/recipes.hpp 1 falls
+reach tests/build/witness.cpp workshop/staging.hpp 1 falls
+reach tests/builder_rig.hpp workshop/authoring.hpp 1 falls
+reach tests/builder_rig.hpp workshop/builder_seam_vocabulary.hpp 1 falls
+reach tests/builder_rig.hpp workshop/pane_doors.hpp 1 falls
+reach tests/census_headers.hpp app/host.hpp 1 falls
+reach tests/census_headers.hpp app/vocabulary.hpp 1 falls
+reach tests/census_headers.hpp builder/runner.hpp 1 falls
+reach tests/census_headers.hpp builder/weave.hpp 1 falls
+reach tests/census_headers.hpp composer/command_context.hpp 1 falls
+reach tests/census_headers.hpp examples/snake/board.hpp 1 falls
+reach tests/census_headers.hpp examples/snake/play_state.hpp 1 falls
+reach tests/census_headers.hpp examples/tally-app/tally.hpp 1 falls
+reach tests/census_headers.hpp examples/tile-defense/host_shapes.hpp 1 falls
+reach tests/census_headers.hpp files/marks_persist.hpp 1 falls
+reach tests/census_headers.hpp flow/flow-host/runtime.hpp 1 falls
+reach tests/census_headers.hpp flow/graph_edit.hpp 1 falls
+reach tests/census_headers.hpp flow/project.hpp 1 falls
+reach tests/census_headers.hpp flow/shape.hpp 1 falls
+reach tests/census_headers.hpp flow/workspace.hpp 1 falls
+reach tests/census_headers.hpp inventory/codec.hpp 1 falls
+reach tests/census_headers.hpp inventory/inventory-pane/toolbox_file.hpp 1 falls
+reach tests/census_headers.hpp view/description.hpp 1 falls
+reach tests/census_headers.hpp view/host.hpp 1 falls
+reach tests/census_headers.hpp view/view.hpp 1 falls
+reach tests/census_headers.hpp workshop/arrangement.hpp 1 falls
+reach tests/census_headers.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach tests/census_headers.hpp workshop/editor_switch.hpp 1 falls
+reach tests/census_headers.hpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach tests/census_headers.hpp workshop/guest_door.hpp 1 falls
+reach tests/census_headers.hpp workshop/guests.hpp 1 falls
+reach tests/census_headers.hpp workshop/guide_vocabulary.hpp 1 falls
+reach tests/census_headers.hpp workshop/host_sources.hpp 1 falls
+reach tests/census_headers.hpp workshop/keymap_persist.hpp 1 falls
+reach tests/census_headers.hpp workshop/layouts/owner.hpp 1 falls
+reach tests/census_headers.hpp workshop/layouts/session_history.hpp 1 falls
+reach tests/census_headers.hpp workshop/layouts/session_persist.hpp 1 falls
+reach tests/census_headers.hpp workshop/layouts/vocabulary.hpp 1 falls
+reach tests/census_headers.hpp workshop/open_seam_vocabulary.hpp 1 falls
+reach tests/census_headers.hpp workshop/opening.hpp 1 falls
+reach tests/census_headers.hpp workshop/pane_doors.hpp 1 falls
+reach tests/census_headers.hpp workshop/pane_view.hpp 1 falls
+reach tests/census_headers.hpp workshop/powers_door.hpp 1 falls
+reach tests/census_headers.hpp workshop/prefs_persist.hpp 1 falls
+reach tests/census_headers.hpp workshop/quit_delivery.hpp 1 falls
+reach tests/census_headers.hpp workshop/recipe_persist.hpp 1 falls
+reach tests/census_headers.hpp workshop/sample_door.hpp 1 falls
+reach tests/census_headers.hpp workshop/setup_persist.hpp 1 falls
+reach tests/census_headers.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/census_headers.hpp workshop/vocabulary.hpp 1 falls
+reach tests/census_headers.hpp workshop/window_persist.hpp 1 falls
+reach tests/editor_transfer_story.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach tests/editor_transfer_story.hpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach tests/editor_transfer_story.hpp workshop/pane_doors.hpp 1 falls
+reach tests/flow_fixture.hpp flow/example.hpp 1 falls
+reach tests/flow_generate.cpp flow/generate.hpp 1 falls
+reach tests/guest_hand.hpp workshop/actor_scope.hpp 1 falls
+reach tests/guest_journey.cpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach tests/guest_journey.cpp workshop/setup_control.hpp 1 falls
+reach tests/inventory_story.hpp inventory/codec.hpp 1 falls
+reach tests/inventory_story.hpp inventory/inventory-pane/presentation.hpp 1 falls
+reach tests/inventory_story.hpp inventory/inventory-pane/slots.hpp 1 falls
+reach tests/inventory_story.hpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/launch_fixture_driver.cpp workshop/develop.hpp 1 falls
+reach tests/neovim_fixture.cpp editor/neovim/msgpack.hpp 1 falls
+reach tests/neovim_fixture.cpp editor/neovim/rpc.hpp 1 falls
+reach tests/neovim_time.hpp editor/neovim/host.hpp 1 falls
+reach tests/package/flow_author.cpp flow/example.hpp 1 falls
+reach tests/package/flow_author.cpp flow/generate.hpp 1 falls
+reach tests/package/flow_host.cpp flow/compiled.hpp 1 falls
+reach tests/package/flow_host.cpp flow/example.hpp 1 falls
+reach tests/package/message_draft_consumer.cpp flow/workspace.hpp 1 falls
+reach tests/package/public_surface.cpp builder/recipe.hpp 1 falls
+reach tests/package/public_surface.cpp flow/flow-host/runtime.hpp 1 falls
+reach tests/package/public_surface.cpp flow/graph.hpp 1 falls
+reach tests/package/public_surface.cpp flow/shape.hpp 1 falls
+reach tests/package/public_surface.cpp inventory/codec.hpp 1 falls
+reach tests/package/public_surface.cpp inventory/grant.hpp 1 falls
+reach tests/package/public_surface.cpp view/description.hpp 1 falls
+reach tests/package/public_surface.cpp view/host.hpp 1 falls
+reach tests/package/public_surface.cpp view/view.hpp 1 falls
+reach tests/package/public_surface.cpp workshop/pane_shortcuts.hpp 1 falls
+reach tests/package/public_surface.cpp workshop/pane_view.hpp 1 falls
+reach tests/package/public_surface.cpp workshop/setup_control.hpp 1 falls
+reach tests/realization_claims.hpp workshop/panes.hpp 1 falls
+reach tests/screen_cells.hpp workshop/screen_planes.hpp 1 falls
+reach tests/test_app_host.cpp app/files.hpp 1 falls
+reach tests/test_app_host.cpp app/host.hpp 1 falls
+reach tests/test_app_host.cpp examples/tally-app/tally.hpp 1 falls
+reach tests/test_builder.cpp builder/run.hpp 1 falls
+reach tests/test_builder.cpp builder/runner.hpp 1 falls
+reach tests/test_builder.cpp builder/weave.hpp 1 falls
+reach tests/test_builder.cpp workshop/log_selection.hpp 1 falls
+reach tests/test_composer.cpp composer/draft.hpp 1 falls
+reach tests/test_composer.cpp composer/view.hpp 1 falls
+reach tests/test_editor.cpp editor/editor-pane/editor.hpp 1 falls
+reach tests/test_files.cpp files/files.hpp 1 falls
+reach tests/test_files.cpp files/filesystem_roots.hpp 1 falls
+reach tests/test_files.cpp files/marks_persist.hpp 1 falls
+reach tests/test_files.cpp workshop/prefs_persist.hpp 1 falls
+reach tests/test_flow.cpp flow/compiled.hpp 1 falls
+reach tests/test_flow.cpp flow/generate.hpp 1 falls
+reach tests/test_flow.cpp flow/graph.hpp 1 falls
+reach tests/test_flow_graph.cpp flow/flow-pane/model.hpp 1 falls
+reach tests/test_flow_pane.cpp flow/flow-host/runtime.hpp 1 falls
+reach tests/test_flow_pane.cpp flow/flow-pane/view.hpp 1 falls
+reach tests/test_flow_pane.cpp flow/shape.hpp 1 falls
+reach tests/test_flow_pane.cpp flow/workspace.hpp 1 falls
+reach tests/test_flow_pane.cpp inventory/codec.hpp 1 falls
+reach tests/test_flow_pane.cpp workshop/powers_door.hpp 1 falls
+reach tests/test_flow_runtime.cpp flow/example.hpp 1 falls
+reach tests/test_flow_runtime.cpp flow/flow-host/runtime.hpp 1 falls
+reach tests/test_flow_view.cpp flow/flow-pane/gesture.hpp 1 falls
+reach tests/test_flow_view.cpp flow/flow-pane/view.hpp 1 falls
+reach tests/test_flow_view.cpp workshop/screen_canvas.hpp 1 falls
+reach tests/test_graphics.cpp workshop/attention_seam_vocabulary.hpp 1 falls
+reach tests/test_graphics.cpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach tests/test_guest_vocabulary.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach tests/test_guest_vocabulary.cpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach tests/test_guest_vocabulary.cpp workshop/guide_vocabulary.hpp 1 falls
+reach tests/test_guest_vocabulary.cpp workshop/pane_view.hpp 1 falls
+reach tests/test_inventory.cpp inventory/codec.hpp 1 falls
+reach tests/test_inventory.cpp inventory/inventory-pane/toolbox_file.hpp 1 falls
+reach tests/test_inventory.cpp inventory/weave.hpp 1 falls
+reach tests/test_inventory.cpp workshop/admission.hpp 1 falls
+reach tests/test_launcher.cpp app/vocabulary.hpp 1 falls
+reach tests/test_launcher.cpp launcher/catalog.hpp 1 falls
+reach tests/test_launcher.cpp launcher/start.hpp 1 falls
+reach tests/test_launcher.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach tests/test_neovim.cpp builder/run.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/child.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/document.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/grid.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/host.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/keys.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/launch.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/msgpack.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/projection.hpp 1 falls
+reach tests/test_neovim.cpp editor/neovim/rpc.hpp 1 falls
+reach tests/test_neovim_live.cpp editor/neovim/document.hpp 1 falls
+reach tests/test_neovim_live.cpp editor/neovim/host.hpp 1 falls
+reach tests/test_neovim_live.cpp editor/neovim/keys.hpp 1 falls
+reach tests/test_neovim_live.cpp editor/neovim/launch.hpp 1 falls
+reach tests/test_neovim_live.cpp editor/neovim/lua.hpp 1 falls
+reach tests/test_neovim_live.cpp editor/neovim/projection.hpp 1 falls
+reach tests/test_source_transfer.cpp editor/source-transfer/command_line.hpp 1 falls
+reach tests/test_source_transfer.cpp editor/source-transfer/cpp.hpp 1 falls
+reach tests/test_source_transfer.cpp editor/source-transfer/material.hpp 1 falls
+reach tests/test_source_transfer.cpp editor/source-transfer/text.hpp 1 falls
+reach tests/test_source_transfer.cpp inventory/codec.hpp 1 falls
+reach tests/test_source_transfer.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/test_theme.cpp theme/stack.hpp 1 falls
+reach tests/test_theme.cpp theme/theme_persist.hpp 1 falls
+reach tests/test_tile_defense.cpp examples/tile-defense/art.hpp 1 falls
+reach tests/test_tile_defense.cpp examples/tile-defense/picture.hpp 1 falls
+reach tests/test_tile_defense.cpp examples/tile-defense/rules.hpp 1 falls
+reach tests/test_view.cpp flow/shape.hpp 1 falls
+reach tests/test_view.cpp view/host.hpp 1 falls
+reach tests/test_view_builder.cpp app/folder.hpp 1 falls
+reach tests/test_view_builder.cpp app/program.hpp 1 falls
+reach tests/test_view_builder.cpp flow/shape.hpp 1 falls
+reach tests/test_view_builder.cpp inventory/codec.hpp 1 falls
+reach tests/test_view_builder.cpp view/host.hpp 1 falls
+reach tests/test_view_builder.cpp view/view-builder/model.hpp 1 falls
+reach tests/test_view_builder.cpp view/view-builder/picture.hpp 1 falls
+reach tests/test_view_builder.cpp workshop/actor_scope.hpp 1 falls
+reach tests/test_view_builder.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach tests/test_view_builder.cpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_demo.cpp external-host/demo-control/control.hpp 1 falls
+reach tests/test_workshop_desk.cpp view/view-builder/picture.hpp 1 falls
+reach tests/test_workshop_desk.cpp view/view.hpp 1 falls
+reach tests/test_workshop_desk.cpp workshop/desk_read.hpp 1 falls
+reach tests/test_workshop_desk.cpp workshop/screen_canvas.hpp 1 falls
+reach tests/test_workshop_desk.cpp workshop/screen_planes.hpp 1 falls
+reach tests/test_workshop_desk_read.cpp workshop/decoded_cells.hpp 1 falls
+reach tests/test_workshop_desk_read.cpp workshop/guest_door.hpp 1 falls
+reach tests/test_workshop_desk_read.cpp workshop/guests.hpp 1 falls
+reach tests/test_workshop_desk_read.cpp workshop/reply_bytes.hpp 1 falls
+reach tests/test_workshop_editor_switch.cpp workshop/first-run/setup.hpp 1 falls
+reach tests/test_workshop_files.cpp builder/generate.hpp 1 falls
+reach tests/test_workshop_files.cpp builder/run.hpp 1 falls
+reach tests/test_workshop_files.cpp builder/weave.hpp 1 falls
+reach tests/test_workshop_files.cpp editor/editor-pane/editor.hpp 1 falls
+reach tests/test_workshop_files.cpp workshop/authoring.hpp 1 falls
+reach tests/test_workshop_files.cpp workshop/develop.hpp 1 falls
+reach tests/test_workshop_files.cpp workshop/host_sources.hpp 1 falls
+reach tests/test_workshop_files.cpp workshop/pane_doors.hpp 1 falls
+reach tests/test_workshop_files.cpp workshop/recipe_persist.hpp 1 falls
+reach tests/test_workshop_files.cpp workshop/recipes.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/actor_scope.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/attention_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/guest_door.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/guests.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/guide_vocabulary.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/inspection_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/notice_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/pane_view.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/setup_control.hpp 1 falls
+reach tests/test_workshop_guests.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_host.cpp workshop/guests.hpp 1 falls
+reach tests/test_workshop_info_views.cpp inventory/observation.hpp 1 falls
+reach tests/test_workshop_info_views.cpp workshop/setup_control.hpp 1 falls
+reach tests/test_workshop_inventory_folders.cpp inventory/inventory-pane/toolbox_file.hpp 1 falls
+reach tests/test_workshop_inventory_info.cpp inventory/codec.hpp 1 falls
+reach tests/test_workshop_inventory_info.cpp inventory/inventory-pane/presentation.hpp 1 falls
+reach tests/test_workshop_inventory_info.cpp inventory/inventory-pane/slots.hpp 1 falls
+reach tests/test_workshop_inventory_info.cpp view/view-builder/picture.hpp 1 falls
+reach tests/test_workshop_inventory_info.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_load.cpp builder/recipe.hpp 1 falls
+reach tests/test_workshop_load.cpp editor/editor-pane/editor.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/arrangement.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/arrangement_vocabulary.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/authoring.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/opening.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/pane_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/powers_door.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/provenance.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/recipes.hpp 1 falls
+reach tests/test_workshop_load.cpp workshop/staging.hpp 1 falls
+reach tests/test_workshop_neovim.cpp editor/neovim/child.hpp 1 falls
+reach tests/test_workshop_panes_attention.cpp workshop/attention_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_attention.cpp workshop/guest_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_builder.cpp workshop/actor_scope.hpp 1 falls
+reach tests/test_workshop_panes_builder.cpp workshop/authoring.hpp 1 falls
+reach tests/test_workshop_panes_builder.cpp workshop/builder_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_builder.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_builder.cpp workshop/pane_doors.hpp 1 falls
+reach tests/test_workshop_panes_builder.cpp workshop/pane_migration.hpp 1 falls
+reach tests/test_workshop_panes_builder.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_canvas.cpp flow/shape.hpp 1 falls
+reach tests/test_workshop_panes_canvas.cpp view/host.hpp 1 falls
+reach tests/test_workshop_panes_code.cpp builder/recipe.hpp 1 falls
+reach tests/test_workshop_panes_code.cpp workshop/builder_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_code.cpp workshop/pane_doors.hpp 1 falls
+reach tests/test_workshop_panes_code.cpp workshop/provenance.hpp 1 falls
+reach tests/test_workshop_panes_editor.cpp editor/editor-pane/editor.hpp 1 falls
+reach tests/test_workshop_panes_editor.cpp workshop/builder_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_editor.cpp workshop/pane_doors.hpp 1 falls
+reach tests/test_workshop_panes_editor.cpp workshop/pane_migration.hpp 1 falls
+reach tests/test_workshop_panes_files.cpp files/files.hpp 1 falls
+reach tests/test_workshop_panes_files.cpp files/marks_persist.hpp 1 falls
+reach tests/test_workshop_panes_files.cpp workshop/authoring.hpp 1 falls
+reach tests/test_workshop_panes_files.cpp workshop/pane_doors.hpp 1 falls
+reach tests/test_workshop_panes_files.cpp workshop/recipe_persist.hpp 1 falls
+reach tests/test_workshop_panes_files.cpp workshop/recipes.hpp 1 falls
+reach tests/test_workshop_panes_first_run.cpp workshop/admission.hpp 1 falls
+reach tests/test_workshop_panes_first_run.cpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_first_run.cpp workshop/first-run/setup.hpp 1 falls
+reach tests/test_workshop_panes_first_run.cpp workshop/first-run/story.hpp 1 falls
+reach tests/test_workshop_panes_guests.cpp workshop/actor_scope.hpp 1 falls
+reach tests/test_workshop_panes_guests.cpp workshop/editor_switch.hpp 1 falls
+reach tests/test_workshop_panes_guests.cpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_guests.cpp workshop/guest_door.hpp 1 falls
+reach tests/test_workshop_panes_guests.cpp workshop/guests.hpp 1 falls
+reach tests/test_workshop_panes_guests.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_guide.cpp workshop/guests.hpp 1 falls
+reach tests/test_workshop_panes_guide.cpp workshop/guide_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_info.cpp workshop/inspection_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_notices.cpp workshop/notice_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_opening.cpp workshop/host_pump.hpp 1 falls
+reach tests/test_workshop_panes_opening.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_opening.cpp workshop/opening.hpp 1 falls
+reach tests/test_workshop_panes_opening.cpp workshop/pane_view.hpp 1 falls
+reach tests/test_workshop_panes_output.cpp builder/recipe.hpp 1 falls
+reach tests/test_workshop_panes_output.cpp builder/weave.hpp 1 falls
+reach tests/test_workshop_panes_output.cpp workshop/builder_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_output.cpp workshop/pane_doors.hpp 1 falls
+reach tests/test_workshop_panes_palette.cpp workshop/command_vocabulary.hpp 1 falls
+reach tests/test_workshop_panes_palette.cpp workshop/palette/entries.hpp 1 falls
+reach tests/test_workshop_panes_powers.cpp workshop/terminal_speech.hpp 1 falls
+reach tests/test_workshop_panes_terminal.cpp workshop/terminal_seam_vocabulary.hpp 1 falls
+reach tests/test_workshop_persistence.cpp workshop/decoded_cells.hpp 1 falls
+reach tests/test_workshop_persistence.cpp workshop/layouts/session_history.hpp 1 falls
+reach tests/test_workshop_probe.cpp examples/workshop-probe/probe.hpp 1 falls
+reach tests/test_workshop_screen.cpp workshop/layouts/session_history.hpp 1 falls
+reach tests/test_workshop_screen.cpp workshop/screen_canvas.hpp 1 falls
+reach tests/test_workshop_shapes.cpp builder/weave.hpp 1 falls
+reach tests/test_workshop_shapes.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach tests/weavelib/failing_editor.cpp workshop/open_seam_vocabulary.hpp 1 falls
+reach tests/workshop_file_read.cpp workshop/layouts/session_history.hpp 1 falls
+reach tests/workshop_file_read.cpp workshop/layouts/session_persist.hpp 1 falls
+reach tests/workshop_file_read.cpp workshop/setup_persist.hpp 1 falls
+reach tests/workshop_file_read.cpp workshop/window_persist.hpp 1 falls
+reach tests/workshop_support.hpp info/settings_rows.hpp 1 falls
+reach tests/workshop_support.hpp introspection/loaded.hpp 1 falls
+reach tests/workshop_support.hpp introspection/powers.hpp 1 falls
+reach tests/workshop_support.hpp introspection/resolved.hpp 1 falls
+reach tests/workshop_support.hpp workshop/arrangement.hpp 1 falls
+reach tests/workshop_support.hpp workshop/arrangement_vocabulary.hpp 1 falls
+reach tests/workshop_support.hpp workshop/grant.hpp 1 falls
+reach tests/workshop_support.hpp workshop/host_sources.hpp 1 falls
+reach tests/workshop_support.hpp workshop/keymap.hpp 1 falls
+reach tests/workshop_support.hpp workshop/keymap_persist.hpp 1 falls
+reach tests/workshop_support.hpp workshop/layouts/session_history.hpp 1 falls
+reach tests/workshop_support.hpp workshop/opening.hpp 1 falls
+reach tests/workshop_support.hpp workshop/powers_door.hpp 1 falls
+reach tests/workshop_support.hpp workshop/prefs_persist.hpp 1 falls
+reach tests/workshop_support.hpp workshop/project_seam_vocabulary.hpp 1 falls
+reach tests/workshop_support.hpp workshop/provenance.hpp 1 falls
+reach tests/workshop_support.hpp workshop/recipes.hpp 1 falls
+reach tests/workshop_support.hpp workshop/sample_door.hpp 1 falls
+reach tests/workshop_support.hpp workshop/sample_presentation.hpp 1 falls
+reach tests/workshop_support.hpp workshop/sample_vocabulary.hpp 1 falls
+reach tests/workshop_support.hpp workshop/screen.hpp 1 falls
+reach tests/workshop_support.hpp workshop/screen_planes.hpp 1 falls
+reach tests/workshop_support.hpp workshop/setup.hpp 1 falls
+reach tests/workshop_support.hpp workshop/setup_persist.hpp 1 falls
+reach tests/workshop_support.hpp workshop/user_paths.hpp 1 falls
+reach tests/workshop_support.hpp workshop/vocabulary.hpp 1 falls
+reach tests/workshop_support.hpp workshop/weave.hpp 1 falls
+reach tests/workshop_support.hpp workshop/window_persist.hpp 1 falls
+reach tests/workshop_switch_rig.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
+reach tests/workshop_switch_rig.hpp workshop/editor_switch.hpp 1 falls
+reach tests/workshop_switch_rig.hpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach tests/workshop_switch_rig.hpp workshop/pane_doors.hpp 1 falls
+reach timer/source_wait.hpp zen/host/wait_set.hpp 1 falls
+reach timer/timer_weave.hpp zen/host/wait_set.hpp 1 falls
+reach view/description.hpp zen/kernel/schema_codec.hpp 1 falls
+reach view/host.hpp zen/switchboard/switchboard.hpp 1 falls
+reach view/view-builder/model.hpp flow/shape.hpp 1 falls
+reach view/view-builder/pane.cpp app/folder.hpp 1 falls
+reach view/view-builder/pane.cpp app/program.hpp 1 falls
+reach view/view-builder/pane.cpp inventory/codec.hpp 1 falls
+reach view/view-builder/pane.cpp workshop/project_seam_vocabulary.hpp 1 falls
+reach view/view-builder/pane.cpp zen/kernel/schema_codec.hpp 1 falls
+reach view/view.hpp zen/switchboard/bus.hpp 1 falls
+reach workshop/admission.hpp inventory/grant.hpp 1 falls
+reach workshop/admission.hpp workshop/first-run/setup.hpp 1 falls
+reach workshop/authoring.hpp builder/recipe.hpp 1 falls
+reach workshop/desktop-pane/desktop_common.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/desktop_common.hpp workshop/pane_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/hotkeys_view.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/launcher_view.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/launcher_view.hpp workshop/inspection_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/manual_reader.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/manual_reader.hpp workshop/keymap.hpp 1 falls
+reach workshop/desktop-pane/manual_view.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/pane.cpp workshop/command_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/pane.cpp workshop/inspection_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/shortcuts.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop-pane/shortcuts.hpp workshop/pane_shortcuts.hpp 1 falls
+reach workshop/desktop-pane/vocabulary.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/desktop_seam_vocabulary.hpp pane/settings.hpp 1 falls
+reach workshop/develop.hpp builder/recipe.hpp 1 falls
+reach workshop/develop.hpp builder/run.hpp 1 falls
+reach workshop/first-run/first_run.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/first-run/first_run.cpp workshop/editor_switch_vocabulary.hpp 1 falls
+reach workshop/first-run/first_run.cpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach workshop/layouts/vocabulary.hpp pane/settings.hpp 1 falls
+reach workshop/palette/entries.hpp workshop/command_vocabulary.hpp 1 falls
+reach workshop/palette/entries.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/palette/entries.hpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach workshop/palette/palette.cpp workshop/command_vocabulary.hpp 1 falls
+reach workshop/palette/palette.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
+reach workshop/palette/palette.cpp workshop/settings_seam_vocabulary.hpp 1 falls
+reach workshop/provenance.hpp builder/recipe.hpp 1 falls
+reach workshop/recipe_persist.hpp builder/recipe.hpp 1 falls
+reach workshop/recipes.hpp builder/recipe.hpp 1 falls
+reach workshop/settings_seam_vocabulary.hpp pane/settings.hpp 1 falls
+reach workshop/setup.hpp theme/stack_name.hpp 1 falls
+reach workshop/staging.hpp builder/recipe.hpp 1 falls
+reach workshop/weave_operation.cpp inventory/codec.hpp 1 falls
+reach workshop/weave_operation.cpp workshop/first-run/setup.hpp 1 falls
+reach workshop/weave_run.cpp theme/stack_name.hpp 1 falls
+reach workshop/workshop.cpp builder/runner.hpp 1 falls
+reach workshop/workshop.cpp builder/weave.hpp 1 falls
+reach workshop/workshop.cpp flow/flow-host/runtime.hpp 1 falls
+reach workshop/workshop.cpp view/host.hpp 1 falls

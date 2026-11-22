@@ -50,21 +50,26 @@ endif()
 # `zengine_write_tree_paths`, called last, writes the paths into one generated unit per target,
 # `tree_paths/<config>/<target>.cpp`. compile_commands.json is check_test_definitions.cmake's.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# A definition's name and value when it is a path of this checkout or build tree, else nothing.
+function(zengine_tree_path_of def out_name out_value)
+    set(${out_name} "" PARENT_SCOPE)
+    if(def MATCHES "^([A-Za-z_][A-Za-z0-9_]*)=\"(.*)\"$")
+        set(name "${CMAKE_MATCH_1}")
+        set(value "${CMAKE_MATCH_2}")
+        string(FIND "${value}" "${CMAKE_SOURCE_DIR}/" in_source)
+        string(FIND "${value}" "${CMAKE_BINARY_DIR}/" in_build)
+        if(value MATCHES "^\\$<TARGET_FILE" OR in_source EQUAL 0 OR in_build EQUAL 0
+           OR value STREQUAL CMAKE_SOURCE_DIR OR value STREQUAL CMAKE_BINARY_DIR)
+            set(${out_name} "${name}" PARENT_SCOPE)
+            set(${out_value} "${value}" PARENT_SCOPE)
+        endif()
+    endif()
+endfunction()
 function(zengine_test_definitions target)
     set(defs "")
     foreach(def IN LISTS ARGN)
-        set(path FALSE)
-        if(def MATCHES "^([A-Za-z_][A-Za-z0-9_]*)=\"(.*)\"$")
-            set(name "${CMAKE_MATCH_1}")
-            set(value "${CMAKE_MATCH_2}")
-            string(FIND "${value}" "${CMAKE_SOURCE_DIR}/" in_source)
-            string(FIND "${value}" "${CMAKE_BINARY_DIR}/" in_build)
-            if(value MATCHES "^\\$<TARGET_FILE" OR in_source EQUAL 0 OR in_build EQUAL 0
-               OR value STREQUAL CMAKE_SOURCE_DIR OR value STREQUAL CMAKE_BINARY_DIR)
-                set(path TRUE)
-            endif()
-        endif()
-        if(NOT path)
+        zengine_tree_path_of("${def}" name value)
+        if(NOT name)
             list(APPEND defs "${def}")
             continue()
         endif()
@@ -93,6 +98,25 @@ function(zengine_test_definitions target)
         endif()
         list(APPEND defs "${name}=::zengine::testing::tree_path(\"${name}\")")
     endforeach()
+    target_compile_definitions(${target} PRIVATE ${defs})
+endfunction()
+
+# A library whose sources reach the paths of the suites that link it: the same definitions, each
+# path a call to `tree_path`, answered by each suite's own generated unit, so the library holds no
+# path and no table of its own and one compiled library serves every suite.
+function(zengine_test_path_names target)
+    set(defs "")
+    foreach(def IN LISTS ARGN)
+        zengine_tree_path_of("${def}" name value)
+        if(name)
+            list(APPEND defs "${name}=::zengine::testing::tree_path(\"${name}\")")
+        else()
+            list(APPEND defs "${def}")
+        endif()
+    endforeach()
+    target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_options(${target} PRIVATE
+        "$<IF:$<CXX_COMPILER_ID:MSVC>,/FItree_path.hpp,SHELL:-include tree_path.hpp>")
     target_compile_definitions(${target} PRIVATE ${defs})
 endfunction()
 
@@ -1050,6 +1074,15 @@ set(ZENGINE_WORKSHOP_FIXTURES
     zengine-menu-presenter zengine-example-numbered-presenter zengine-palette
     zengine-first-run)
 
+# THE FIXTURE'S BODIES, COMPILED ONCE: tests/workshop_support.hpp declares what several suites need,
+# and tests/workshop_support.cpp defines it in this library, which every Workshop suite links, so
+# no suite compiles the rigs again. Its paths are the suites' own (`zengine_test_path_names`), and
+# what only some suites are given comes from each suite's own unit, tests/workshop_suite.cpp.
+add_library(zengine-workshop-support STATIC workshop_support.cpp)
+target_link_libraries(zengine-workshop-support PUBLIC ${ZENGINE_WORKSHOP_LIBS})
+target_include_directories(zengine-workshop-support PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_test_path_names(zengine-workshop-support ${ZENGINE_WORKSHOP_DEFS})
+
 # One Workshop suite: the shared link line, artifact paths and includes plus what this one alone
 # needs, so the suites agree by construction (a second copy of a link line is a second answer).
 # `SOURCES` is a list because a suite is not a file (VM-POP-12); `PART <name> <sources...>` groups
@@ -1160,8 +1193,8 @@ function(zengine_workshop_suite entry)
             "would not be compiled and its cases would vanish from the population.")
     endif()
     set(target zengine-workshop-${entry}-tests)
-    add_executable(${target} ${sources} doctest_main.cpp)
-    target_link_libraries(${target} PRIVATE ${ZENGINE_WORKSHOP_LIBS} ${WS_LINKS})
+    add_executable(${target} ${sources} doctest_main.cpp workshop_suite.cpp)
+    target_link_libraries(${target} PRIVATE zengine-workshop-support ${ZENGINE_WORKSHOP_LIBS} ${WS_LINKS})
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
     # The suite's own name: the suites run at once, and a temporary directory belongs to one
     # of them (VM-POP-14).

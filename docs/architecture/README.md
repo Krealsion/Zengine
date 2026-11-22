@@ -73,6 +73,43 @@ share is clamped there and an absurd span divides before it multiplies.
 a written expectation knows what is *missing*. See
 [build and test](../contributing/build-and-test.md#verification).
 
+## Every unit is one of five kinds
+
+The build has one direction, so that a part can be built, tested and replaced apart from the
+rest. **Every compile unit is a weave, a host, a library, a vocabulary or a test, and it includes
+only its own package or what its kind may:**
+
+| a unit of… | may include | never |
+|---|---|---|
+| a **weave**: an image the kernel loads (a pane, a tool, an operator, a provider), or any part that holds state or answers others | its own package; vocabularies; libraries; Loom's weave surface | a host's folder; another weave's package; Loom's host surface |
+| a **host**: a weave with more grants (Workshop, the app host, an example's program) | what a weave may, Loom's host surface, and its own host's folders | a weave's code: a weave a host runs is loaded, never compiled in |
+| a **library**: a function of its arguments that holds no state and no authority (drawing, codecs, formats) | libraries, vocabularies and Loom's weave surface | a weave's or a host's package |
+| a **vocabulary**: the shapes two parties speak, and nothing else | vocabularies and Loom's weave surface; it stands in the folder of the contract it belongs to, never a host's | anything else |
+| a **test** | what a host may, and its own helpers | a weave's or a host's implementation: what it tests is loaded, as the running program loads it |
+
+**Loom's two surfaces, by file**, under its installed `include/`:
+
+- **The weave surface** is every header but the host surface: the weave SDK (`zen/weave.hpp` and
+  `zen/weave/`), values and schemas (`zen/value.hpp`, `zen/schema.hpp`, `zen/serialize.hpp`), an
+  image's export (`zen/kernel/export.hpp` and the ABI it declares, `zen/kernel/abi.h`), and the
+  bus's message, grant and contract headers (`zen/switchboard/message.hpp`, `grant.hpp`,
+  `weave_contract.hpp` and the rest of `zen/switchboard/`).
+- **The host surface** is the kernel (`zen/kernel/` beyond its export and ABI headers), the
+  in-process Switchboard (`zen/switchboard.hpp`, `zen/switchboard/switchboard.hpp`, `bus.hpp` and
+  `turn.hpp`), and `zen/host/`.
+
+A part worth a unit test of its own is a library, or is tested through the weave that owns it. A
+file format two weaves share is a vocabulary or a library, not a host's file. A weave a host runs
+in process today is loaded through the kernel as the law's direction is reached.
+
+**How it is held.** [`tests/census.txt`](../../tests/census.txt) gives every package its kind
+(`kind` rows) and pins every include the law refuses today as a `reach` row that only falls, each
+written from the tree by its check, `tests/check_census.cmake`, which the documentation lane runs:
+a new refused include is red, and so is a row that rises against the base, and a change that
+drains a reach lowers or removes its row. The targets in the tree hand out the repository's root
+as an include path, so a breach still compiles and the census is what refuses it; the installed
+package hands out only what it installs.
+
 ## Cross-pane interaction
 
 > This section exists because a cross-pane semantic gesture — dragging an object out of one pane
