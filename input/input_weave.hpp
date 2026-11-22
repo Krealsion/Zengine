@@ -188,7 +188,7 @@ public:
 
     void on(const InputSessionRequested& asked, loom::Mail& mail) {
         if (session_.open) {
-            // THE SENDER THE BUS NAMES is a connection, and every run on one link is that one
+            // The sender the bus names is a connection, and every run on one link is that one
             // sender: the words say the connection, and the purpose its holder gave.
             (void)mail.answer(loom::Refused{
                 "busy: input session " + std::to_string(session_.id) + " is held by " +
@@ -206,7 +206,7 @@ public:
     }
 
     void on(const InputSessionClosed& closed, loom::Mail& mail) {
-        // THE HOLDER, PERSONALLY; OR A ROLE, DELIBERATELY, ON THE HOLDER'S BEHALF. A
+        // The holder, personally; or a role, deliberately, on the holder's behalf. A
         // stranger's personal word naming the holder is refused: role speech is the one
         // fact Loom verified at authorship, and a guest's proxy holds no role. A role
         // may say session 0 -- "whatever this holder holds" -- because the door that closes
@@ -256,7 +256,7 @@ public:
                                             std::to_string(batch.events.size())});
             return;
         }
-        // JUDGED WHOLE BEFORE ANYTHING IS PUBLISHED: a batch with one bad moment publishes
+        // Judged whole before anything is published: a batch with one bad moment publishes
         // nothing, so an agent never has to guess how far a refused batch got. Each moment is
         // judged on its own and against the keys the session WOULD hold down after the moments
         // before it -- so a batch that passes the held-key bound at any moment is refused whole,
@@ -304,16 +304,16 @@ public:
         motion_.first = session_.seq + 1;
     }
 
-    /// THE DOUBLE-CLICK TIME, to the asker alone, as the role.
+    /// The double-click time, to the asker alone, as the role.
     void on(const PointerTimingAsked&, loom::Mail& mail) {
         (void)mail.as_role(kInputRole).send(mail.sender(), PointerTimingSaid{double_click_ms_},
                                             mail.correlation());
     }
 
-    /// THE DOUBLE-CLICK TIME THE ROLE HOLDS NOW, `kDefaultDoubleClickMs` until it is set.
+    /// The double-click time the role holds now, `kDefaultDoubleClickMs` until it is set.
     std::int64_t double_click_ms() const noexcept { return double_click_ms_; }
 
-    /// THE DOUBLE-CLICK TIME SET, held to `kLeastDoubleClickMs`..`kMostDoubleClickMs`, and
+    /// The double-click time set, held to `kLeastDoubleClickMs`..`kMostDoubleClickMs`, and
     /// published as the role when it changed.
     void set_double_click_ms(std::int64_t ms, loom::Mail& mail) {
         ms = std::clamp(ms, kLeastDoubleClickMs, kMostDoubleClickMs);
@@ -345,7 +345,7 @@ private:
         std::int64_t last_space = space::kUnknown;
     };
 
-    /// A MOMENT THE ROLE CAN PUBLISH: its case is one of the six, which the gate already held it
+    /// A moment the role can publish: its case is one of the six, which the gate already held it
     /// to; here its fields are judged, as its shape's reference says.
     static bool well_formed(const Moment& m, std::string* why) {
         return std::visit([why](const auto& e) {
@@ -377,7 +377,7 @@ private:
         }, m.is);
     }
 
-    /// WHAT THE SESSION WOULD HOLD after this moment, carried forward in `held`: a press of a
+    /// What the session would hold after this moment, carried forward in `held`: a press of a
     /// key already down holds nothing new (an auto-repeat), a release lets one go, and a press
     /// past `kMaxHeldKeys` is refused -- the whole batch with it.
     static bool holds(const Moment& m, std::vector<std::int64_t>& held, std::string* why) {
@@ -443,7 +443,7 @@ private:
         }, m.is);
     }
 
-    /// EVERYTHING THE SESSION STILL HELD DOWN COMES UP, as ordinary published moments, before
+    /// Everything the session still held down comes up, as ordinary published moments, before
     /// the session is gone -- so a consumer that saw the press sees the release from the same
     /// producer, and no held button quietly survives into unrelated work.
     void release_held(loom::Mail& mail) {

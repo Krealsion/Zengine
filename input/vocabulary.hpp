@@ -221,12 +221,12 @@ inline constexpr std::int64_t kDefaultDoubleClickMs = 400;
 inline constexpr std::int64_t kLeastDoubleClickMs = 200;
 inline constexpr std::int64_t kMostDoubleClickMs = 2000;
 
-/// ASK THE DOUBLE-CLICK TIME: anyone -> `kInputRole`, answered `PointerTimingSaid` to the asker.
+/// Ask the double-click time: anyone -> `kInputRole`, answered `PointerTimingSaid` to the asker.
 struct PointerTimingAsked {
     ZEN_SHAPE(PointerTimingAsked, 1);
 };
 
-/// THE DOUBLE-CLICK TIME, said as `kInputRole`: to an asker, and published whenever it changes. Two
+/// The double-click time, said as `kInputRole`: to an asker, and published whenever it changes. Two
 /// presses of one button by one hand, the second within `double_click_ms` after the first, are one
 /// double click. A reader believes it only from the role (`mail.authored_from_role`).
 struct PointerTimingSaid {
@@ -247,7 +247,7 @@ struct PointerTimingSaid {
 // by moment, and refused whole if it would pass the bound. Nothing expires. A session is not
 // focus: a person at the keyboard is still heard, interleaved in arrival order.
 
-/// OPEN A SESSION. Answered `InputSessionOpened`, or `zen.Refused` naming the session that
+/// Open a session. Answered `InputSessionOpened`, or `zen.Refused` naming the session that
 /// stands in the way.
 struct InputSessionRequested {
     std::string purpose; ///< one line, for a person reading the inventory
@@ -259,7 +259,7 @@ struct InputSessionOpened {
     ZEN_SHAPE(InputSessionOpened, 1, ZEN_FIELD(session));
 };
 
-/// CLOSE A SESSION. By its holder, personally; or by an ROLE speaking deliberately, naming
+/// Close a session. By its holder, personally; or by a role speaking deliberately, naming
 /// the holder it closes on behalf of (`holder` is that holder's WeaveId as a number, read only
 /// when the closer is not the holder). A role may say `session` 0 for "whatever that holder
 /// holds" -- the door closing a dead guest's session knows the guest, not the number. Answered
@@ -286,7 +286,7 @@ struct Moment {
     Moment(E&& e) : is(std::forward<E>(e)) {}
 };
 
-/// PUBLISH THESE MOMENTS, IN THIS ORDER, through the session. Judged whole: a batch with an
+/// Publish these moments, in this order, through the session. Judged whole: a batch with an
 /// unknown pointer space, a key outside 1..`kMaxScancode`, a button outside 1..3, empty text, a
 /// moment that would hold more than `kMaxHeldKeys` keys down, or more than `kMaxInjectedEvents`
 /// moments publishes nothing and is refused with the offending index. Answered `InputInjected`.
@@ -308,7 +308,7 @@ struct PointerMotionRequested {
               ZEN_FIELD(duration_ms), ZEN_FIELD(bend));
 };
 
-/// EVERY MOMENT THE ROLE PUBLISHES, SAID AGAIN WITH WHOSE IT IS, beside the moment itself.
+/// Every moment the role publishes, said again with whose it is, beside the moment itself.
 /// Consumers that authorize UI operations use this statement only with authenticated
 /// zengine.input authorship. Local platform input has local=true and actor=0; injected input
 /// names its actual holder.
@@ -319,7 +319,7 @@ struct AttributedInput {
     ZEN_SHAPE(AttributedInput, 2, ZEN_FIELD(local), ZEN_FIELD(actor), ZEN_FIELD(event));
 };
 
-/// WHAT THE WEAVE DID WITH A BATCH: the session's own sequence numbers of the first and last
+/// What the weave did with a batch: the session's own sequence numbers of the first and last
 /// moment it published. `admitted` is the count, and it equals the batch or the batch was
 /// refused. ADMITTED IS NOT PROCESSED: a moment published here is on the bus in order, and
 /// what a consumer makes of it is that consumer's, later, on its own delivery.

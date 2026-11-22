@@ -12,3 +12,4 @@ persist
 manual
 ui
 composer
+input

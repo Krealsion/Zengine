@@ -385,7 +385,7 @@ Its law, pages and suites: [`graphics/AGENTS.md`](../../graphics/AGENTS.md).
 
 ## Input (`input/`)
 
-Its law, pages and suites: [`input/AGENTS.md`](../../input/AGENTS.md).
+Its law, pages and suites: [the `input/` front page](../../input/README.md#working-on-it).
 
 - **An SDL scancode is the key's identity**; its name is a convenience.
   [The Input package](../../input/docs/input.md)
