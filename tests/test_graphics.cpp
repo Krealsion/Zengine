@@ -3218,7 +3218,7 @@ public:
         loom::Registry deps;
         loom::decode_accepted_referenced(in.payload, deps);
         for (const auto& s : loom::decode_accepted_roots(in.payload, deps)) {
-            roots.push_back(s->name());
+            roots.push_back(s->name() + " v" + std::to_string(s->version()));
         }
     }
     loom::Value snapshot() const override { return loom::to_value(GraphicsTestDrawer{}); }
@@ -3330,20 +3330,23 @@ TEST_CASE("zen.DescribeAccepted on a weave with facets reports the exact union o
     FacetedRig f;
     std::vector<std::string> accepted;
     for (const auto& s : f.r.bus.accepted_schemas(f.drawer)) {
-        accepted.push_back(s->name());
+        accepted.push_back(s->name() + " v" + std::to_string(s->version()));
     }
     std::sort(accepted.begin(), accepted.end());
+    // Each door by its name and version: `zen.PokeRead` is two doors, a field by name and a
+    // place by its path.
     const std::vector<std::string> expected{
-        "AreaRoom",
-        "DrawnRefused",
-        "GraphicsTestBeat",
-        "ShapeDocumentRequested",
-        "zen.DescribeAccepted",
-        "zen.DispatchRefused",
-        "zen.PokeDescribe",
-        "zen.PokeRead",
-        "zen.PokeResetState",
-        "zen.PokeWrite",
+        "AreaRoom v6",
+        "DrawnRefused v1",
+        "GraphicsTestBeat v1",
+        "ShapeDocumentRequested v1",
+        "zen.DescribeAccepted v1",
+        "zen.DispatchRefused v1",
+        "zen.PokeDescribe v1",
+        "zen.PokeRead v1",
+        "zen.PokeRead v2",
+        "zen.PokeResetState v1",
+        "zen.PokeWrite v1",
     };
     CHECK(accepted == expected);
 

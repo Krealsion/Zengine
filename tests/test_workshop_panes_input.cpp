@@ -2259,9 +2259,9 @@ TEST_CASE("the catalog is the Timer's own accept-set, substrate doors included")
     r.with_timer();
     r.select(kTimerRole, "zengine-timer");
 
-    // THE COUNT IS THE POPULATION AND IT IS ON THE FIRST FRAME. Eleven: six declared
-    // doors and the five universal substrate ones.
-    CHECK(r.shows("accepted messages -- 11"));
+    // THE COUNT IS THE POPULATION AND IT IS ON THE FIRST FRAME. Twelve: six declared
+    // doors and the six universal substrate ones, `zen.PokeRead` at both its versions.
+    CHECK(r.shows("accepted messages -- 12"));
     // The Timer's own declared doors, every one of them REACHABLE...
     CHECK(r.reach("StartTimer v1"));
     CHECK(r.reach("StartRoleTimer v1"));
@@ -2273,6 +2273,7 @@ TEST_CASE("the catalog is the Timer's own accept-set, substrate doors included")
     // command, an answer, a notification or a door, so it hides none of them.
     CHECK(r.reach("zen.DescribeAccepted v1"));
     CHECK(r.reach("zen.PokeRead v1"));
+    CHECK(r.reach("zen.PokeRead v2"));
     CHECK(r.reach("zen.PokeWrite v1"));
     CHECK(r.reach("zen.PokeDescribe v1"));
     CHECK(r.reach("zen.PokeResetState v1"));
@@ -3207,13 +3208,13 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
 }
 
 TEST_CASE("the Composer's windowed catalog is reached by the wheel") {
-    // THE REAL COMPOSER, through the real seam. The Timer's catalog is eleven rows and the
+    // THE REAL COMPOSER, through the real seam. The Timer's catalog is twelve rows and the
     // pane's room does not hold them: the last is hidden behind `...` until a wheel over the
     // body walks the cursor to it -- through `move_cursor`, the same step Down takes.
     ComposeRig r;
     r.with_timer();
     r.select(kTimerRole, "zengine-timer");
-    REQUIRE(r.shows("accepted messages -- 11"));
+    REQUIRE(r.shows("accepted messages -- 12"));
     REQUIRE(r.shows("..."));
     REQUIRE_FALSE(r.shows("zen.PokeResetState v1")); // the last root, hidden below
 
