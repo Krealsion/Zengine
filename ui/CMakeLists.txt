@@ -1,14 +1,14 @@
-# The UI package: authored intent in, whole-pixel geometry out, and the answer to "which authored
-# part is under this pixel". It owns one distinction: what a weaver authored (vocabulary.hpp,
-# which holds no solved number) versus what a room makes of it (layout.hpp). Not a relocation of
-# the Loom's `loom::Widget` / px_layout, a different model (relational stack layout for an
-# weaver's console) that fences out the authored placement this package needs.
-# Reference: ui/docs/ui.md.
+# The UI package (ui/README.md): authored intent in, whole-pixel geometry out, and the answer to
+# "which authored part is under this pixel". It owns one distinction: what a weaver authored
+# (vocabulary.hpp, which holds no solved number) and what solving it in given bounds makes of it
+# (layout.hpp). It is not Loom's `loom::Widget` and px_layout moved here: those are a different
+# model, a relational stack layout for a weaver's console, which leaves out the authored placement
+# this package needs.
 
-# No kernel dependency and no weave: vocabulary and pure functions, present in every
-# configuration. It links loom::core for zen/weave/shape.hpp alone -- the authored side is
-# ordinary Zen content; the solved side deliberately is not (layout.hpp's wire-form
-# assertion). Header-only; consumers spell `#include "ui/vocabulary.hpp"` / `"ui/layout.hpp"`.
+# It has no kernel dependency and no weave: a vocabulary and pure functions, present in every
+# configuration. It links loom::core for zen/weave/shape.hpp alone: the authored side is ordinary
+# Zen content, and the solved side deliberately is not (layout.hpp's wire-form assertion). It is
+# header-only; a program writes `#include "ui/vocabulary.hpp"` and `#include "ui/layout.hpp"`.
 add_library(zengine-ui-vocabulary INTERFACE)
 target_include_directories(zengine-ui-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
