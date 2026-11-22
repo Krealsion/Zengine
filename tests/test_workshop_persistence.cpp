@@ -2506,7 +2506,7 @@ TEST_CASE("every place and size word survives the setup file and the session byt
     // in pixels, and inside the budget.
     Setup full = setup_of("Full", {});
     fill_to_every_bound(full);
-    const std::int64_t in_pixels = decoded_cells(loom::to_value(setup_persist::to_setup(full)));
+    const std::int64_t in_pixels = zengine::workshop::decoded_cells(loom::to_value(setup_persist::to_setup(full)));
     for (std::size_t i = 0; i < full.panes.size(); ++i) {
         const auto mode = static_cast<std::int64_t>(i % ui::kPlaceWords.size());
         const std::int64_t most = ui::place_reads_share(mode) ? ui::kShareWhole : kMaxPanePixels;
@@ -2517,10 +2517,10 @@ TEST_CASE("every place and size word survives the setup file and the session byt
                                              : (size == ui::kSizePixels ? kMaxPanePixels : 0)};
     }
     REQUIRE_MESSAGE(check_setup(full).accepted, check_setup(full).refusal);
-    const std::int64_t in_words = decoded_cells(loom::to_value(setup_persist::to_setup(full)));
+    const std::int64_t in_words = zengine::workshop::decoded_cells(loom::to_value(setup_persist::to_setup(full)));
     CHECK(in_words <= in_pixels);
     CHECK(in_words <= kDecodedCellBudget);
-    CHECK(decoded_cells(loom::to_value(setup_persist::to_setup(desk))) <= kDecodedCellBudget);
+    CHECK(zengine::workshop::decoded_cells(loom::to_value(setup_persist::to_setup(desk))) <= kDecodedCellBudget);
 }
 
 TEST_CASE("a word's numbers out of its range are refused in the weaver's words, by the file and by the owner") {
@@ -5962,7 +5962,7 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
                         loom::Report::FirstError);
         // A message reads the error only where there is one: doctest's `-s` says it on success too.
         REQUIRE_MESSAGE(header.ok(), (header.ok() ? std::string() : header.first_error().message()));
-        const std::int64_t header_cells = decoded_cells(header.value());
+        const std::int64_t header_cells = zengine::workshop::decoded_cells(header.value());
         CHECK(header_cells <= kDecodedCellBudget);
         std::int64_t layout_cells = 0;
         for (std::size_t at = 1; at < lines.size(); ++at) {
@@ -5974,13 +5974,14 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
                             loom::Report::FirstError);
             REQUIRE_MESSAGE(layout.ok(),
                             (layout.ok() ? std::string() : layout.first_error().message()));
-            layout_cells = std::max(layout_cells, decoded_cells(layout.value()));
+            layout_cells = std::max(layout_cells, zengine::workshop::decoded_cells(layout.value()));
             // ONE FIELD MORE ON EVERY ROW of both its desks still decodes.
-            CHECK(decoded_cells(layout.value()) + 2 * static_cast<std::int64_t>(kMaxSetupPanes) <=
+            CHECK(zengine::workshop::decoded_cells(layout.value()) + 2 * static_cast<std::int64_t>(kMaxSetupPanes) <=
                   kDecodedCellBudget);
         }
         // ...WHICH THE SAME SESSION AS ONE VALUE HAS NO ROOM FOR, measured.
-        const std::int64_t whole = decoded_cells(loom::to_value(session_value(run, kMaxLayouts - 1, chose)));
+        const std::int64_t whole = zengine::workshop::decoded_cells(
+            loom::to_value(session_value(run, kMaxLayouts - 1, chose)));
         CHECK(whole + 2 * static_cast<std::int64_t>(kMaxSetupPanes * kMaxLayouts) >
               kDecodedCellBudget);
         MESSAGE("the header line: ", lines[0].size(), " bytes, ", header_cells,
@@ -7500,7 +7501,7 @@ TEST_CASE("the live layout's picture, the largest edit, the window file and a fu
     SetupState state;
     REQUIRE(install_layout_run(state, numbered(run), kMaxLayouts - 1));
     store.put_run(state);
-    const std::int64_t live = decoded_cells(loom::to_value(store.live_layout()));
+    const std::int64_t live = zengine::workshop::decoded_cells(loom::to_value(store.live_layout()));
     CHECK(live <= kDecodedCellBudget);
     // THE LARGEST EDIT THE PRESENTER ASKS: every edit a window at every bound.
     LayoutEditRequested edit;
@@ -7519,17 +7520,17 @@ TEST_CASE("the live layout's picture, the largest edit, the window file and a fu
         e.name = std::string(kMaxSetupNameLen, '"');
         edit.edits.push_back(std::move(e));
     }
-    const std::int64_t asked = decoded_cells(loom::to_value(edit));
+    const std::int64_t asked = zengine::workshop::decoded_cells(loom::to_value(edit));
     CHECK(asked <= kDecodedCellBudget);
     // THE WINDOW FILE, every field present, and A FULL DESK at this version.
     window_persist::Placement place;
     place.known = true;
     place.maximized = true;
     place.x = place.y = place.room_w = place.room_h = std::numeric_limits<std::int64_t>::min();
-    const std::int64_t window = decoded_cells(loom::to_value(
+    const std::int64_t window = zengine::workshop::decoded_cells(loom::to_value(
         window_persist::to_window(kScreenMaxW, kScreenMaxH, place)));
     CHECK(window <= kDecodedCellBudget);
-    const std::int64_t desk = decoded_cells(loom::to_value(setup_persist::to_setup(run.back().desk)));
+    const std::int64_t desk = zengine::workshop::decoded_cells(loom::to_value(setup_persist::to_setup(run.back().desk)));
     CHECK(desk <= kDecodedCellBudget);
     MESSAGE("LiveLayout: ", live, " cells; the largest LayoutEditRequested: ", asked,
             " cells; the window file: ", window, " cells; a full desk: ", desk, " cells");
