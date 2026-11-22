@@ -7,3 +7,4 @@
 timer
 activation
 tally
+property
