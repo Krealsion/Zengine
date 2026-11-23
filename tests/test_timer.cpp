@@ -2309,7 +2309,7 @@ TEST_CASE("binding: a weave with no activation hook is untouched — the extensi
     // the hook adds nothing to a manifest, for anybody.
     std::vector<std::string> accepted;
     for (const auto& s : r.bus.accepted_schemas(r.weave)) {
-        accepted.push_back(s->name());
+        accepted.push_back(s->name() + " v" + std::to_string(s->version()));
     }
     std::sort(accepted.begin(), accepted.end());
     std::string joined;
@@ -2317,16 +2317,17 @@ TEST_CASE("binding: a weave with no activation hook is untouched — the extensi
         joined += n + ";";
     }
     INFO("accepted: " << joined);
-    // The Timer protocol, this weave's own two doors, and the FIVE universal substrate doors
+    // The Timer protocol, this weave's own two doors, and the SIX universal substrate doors
     // every woven weave carries (`WeaveBase::accepted_schemas` appends the poke and describe
-    // doors) -- nothing else, no trace of the hook's shape. The SET is asserted rather than a
-    // handful of memberships because a door appearing in every weave in the process is exactly
-    // the change a membership check cannot see; this list once went red on a Loom that added one.
+    // doors, `zen.PokeRead` at both its versions) -- nothing else, no trace of the hook's shape.
+    // The SET is asserted, each door by its name and version, rather than a handful of
+    // memberships, because a door appearing in every weave in the process is exactly the change
+    // a membership check cannot see; this list once went red on a Loom that added one.
     CHECK(accepted == std::vector<std::string>{
-                          "CancelTick", "RestartTick", "TimerFired", "TimerReady",
-                          "TimerResolution", "zen.Activated", "zen.DescribeAccepted",
-                          "zen.PokeDescribe", "zen.PokeRead", "zen.PokeResetState",
-                          "zen.PokeWrite"});
+                          "CancelTick v1", "RestartTick v1", "TimerFired v1", "TimerReady v1",
+                          "TimerResolution v1", "zen.Activated v1", "zen.DescribeAccepted v1",
+                          "zen.PokeDescribe v1", "zen.PokeRead v1", "zen.PokeRead v2",
+                          "zen.PokeResetState v1", "zen.PokeWrite v1"});
 }
 
 TEST_CASE("binding: an accepted activation reconciles every desired binding exactly once — "

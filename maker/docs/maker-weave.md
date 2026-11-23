@@ -77,11 +77,13 @@ constructs the weave at its default state, mints a grant from the emits, and reg
 to the name as its role. The first snapshot claims the data-built state schema, and emitted schemas join admission
 even without listeners. The registry
 resolves `hw.State v1` by name. The accept-set is the definition's shapes plus the doors every
-maker weave answers: the four poke doors, `zen.Activated`, and the package's own ceremony shapes.
+maker weave answers: Loom's poke doors (`loom::poke_door_schemas()`), `zen.Activated`, and the
+package's own ceremony shapes.
 
-`zen.PokeDescribe` names the state schema and every field; `zen.PokeRead` reads a scalar;
-`zen.PokeWrite` and `zen.PokeResetState` are refused by name — a maker weave's state is written by
-its triggers.
+`zen.PokeDescribe` names the state schema and every field; `zen.PokeRead` reads a scalar, and at
+version 2 a place inside the state by its path, every leaf below it, by Loom's walk of a value
+(`loom::poke_read_tree`), with nothing hidden; `zen.PokeWrite` and `zen.PokeResetState` are
+refused by name — a maker weave's state is written by its triggers.
 
 ## The two edits
 

@@ -122,6 +122,14 @@ public:
             std::visit([&](const auto& a) { answer(in, bus, loom::to_value(a)); }, read(req.field));
             return;
         }
+        if (loom::same_identity(*loom::schema_of<loom::PokeReadPath>(), shape)) {
+            const loom::PokeReadPath req = loom::from_value<loom::PokeReadPath>(in.payload);
+            // Read by Loom's walk of a value, under an access model that holds nothing back: a
+            // maker weave hides no field of its state.
+            std::visit([&](const auto& a) { answer(in, bus, loom::to_value(a)); },
+                       loom::poke_read_tree(state_, req.path, loom::PokeAccess{}));
+            return;
+        }
         if (loom::same_identity(*loom::schema_of<loom::PokeWrite>(), shape) ||
             loom::same_identity(*loom::schema_of<loom::PokeResetState>(), shape)) {
             refuse(in, bus,

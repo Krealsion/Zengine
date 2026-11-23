@@ -9,9 +9,10 @@ Retired: MW-WEAVE-01, MW-WEAVE-05, MW-WEAVE-11
 
 ## MW-WEAVE-02 — The accept-set is the definition's, plus the doors
 
-LAW — The accept-set is the definition's accepted shapes, the four poke doors, `zen.Activated` and the package's `Quiesce`, `Resume` and `Adopt`; an unlisted shape is refused `NotAccepted` at delivery.
+LAW — The accept-set is the definition's accepted shapes, Loom's poke doors, `zen.Activated` and the package's `Quiesce`, `Resume` and `Adopt`; an unlisted shape is refused `NotAccepted` at delivery.
 
 MEANS
+- Loom's poke doors are `loom::poke_door_schemas()`, every one of them, whatever their count;
 - `zen.Activated` is on every maker weave so a candidate passes prevalidation at commit;
 - the accept-set is fixed at registration, as the substrate says; an edit never widens it.
 
@@ -58,11 +59,13 @@ MEANS
 
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
-## MW-WEAVE-08 — Inspection: every field named, scalars read, nothing written
+## MW-WEAVE-08 — Inspection: every field named, fields read, nothing written
 
-LAW — `zen.PokeDescribe` answers the state schema and every field, none hidden, none writable; `zen.PokeRead` answers a scalar as text; `zen.PokeWrite` and `zen.PokeResetState` are refused by name.
+LAW — `zen.PokeDescribe` names the state schema and every field, none hidden, none writable; `zen.PokeRead` reads a field, or a path at version 2; `zen.PokeWrite` and `zen.PokeResetState` are refused by name.
 
 MEANS
+- version 1 answers a scalar as text, and version 2 a place by its path as a `zen.PokeTree`;
+- version 2 is Loom's walk of the state's value (`loom::poke_read_tree`) under an access model that hides nothing;
 - a maker weave's state is written by its triggers, and the refusal says so.
 
 WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
@@ -140,7 +143,8 @@ under its own grant; ungranted, the publication is CapabilityDenied on the tap"
 ### MW-WEAVE-08
 `maker/runtime.hpp` Runtime::structure Runtime::read Runtime::handle
 `tests/test_maker.cpp` "zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead reads high;
-write and reset are refused by name"
+write and reset are refused by name" "zen.PokeRead version 2 reads a maker weave's state by its path:
+every leaf below the place, nested and listed, and a refusal naming the step"
 
 ### MW-WEAVE-09
 `maker/weave.hpp` apply_behaviour_edit Weave::adopt_definition Edited

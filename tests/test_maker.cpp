@@ -900,6 +900,89 @@ TEST_CASE("zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead read
     CHECK(high_of(*r.weave) == 7);
 }
 
+TEST_CASE("zen.PokeRead version 2 reads a maker weave's state by its path: every leaf below the "
+          "place, nested and listed, and a refusal naming the step") {
+    Host h;
+    Probe* reader = nullptr;
+    const WeaveId reader_id =
+        h.add_probe(reader, {loom::schema_of<loom::PokeTree>(), loom::schema_of<loom::Refused>(),
+                             loom::schema_of<loom::Result>()});
+    const auto mark = loom::SchemaBuilder("deep.Mark", 1).field("value", loom::Kind::Int).build();
+    const auto state = loom::SchemaBuilder("deep.State", 1)
+                           .message("last", mark)
+                           .list("history", loom::type_message(mark))
+                           .field("high", loom::Kind::Int)
+                           .field("note", loom::Kind::Text, /*required=*/false)
+                           .build();
+    maker::Definition d;
+    d.name = "deep";
+    d.state = state;
+    d.accepts = {mark};
+    maker::On on;
+    on.message = mark;
+    on.body = hwfix::two_arg_body(h.catalog, d.trigger_identity(on), *state, *mark, op::kMaxInt);
+    on.output = "high";
+    d.on.push_back(std::move(on));
+    const maker::Registered r = maker::register_definition(h.bus, h.catalog, d);
+    REQUIRE_MESSAGE(r.ok, r.reason);
+    loom::Value sample(mark);
+    sample.set("value", loom::Cell::integer(4));
+    h.bus.send(r.id, Message(std::move(sample)));
+    h.pump();
+
+    // The door is advertised at both versions, and version 2 is answered, not refused as unknown.
+    bool v2 = false;
+    for (const auto& s : r.weave->accepted_schemas()) {
+        v2 = v2 || (s->name() == "zen.PokeRead" && s->version() == 2);
+    }
+    CHECK(v2);
+
+    const auto ask = [&](std::vector<std::string> path, std::uint64_t correlation) {
+        (void)h.bus.send_as(reader_id, r.id,
+                            Message(loom::to_value(loom::PokeReadPath{std::move(path)}), reader_id,
+                                    reader_id, correlation));
+        h.pump();
+        REQUIRE_FALSE(reader->got.empty());
+        const Message got = reader->got.back();
+        CHECK(got.correlation == correlation);
+        return got;
+    };
+
+    const Message whole = ask({}, 41);
+    REQUIRE(whole.payload.schema().name() == "zen.PokeTree");
+    const loom::PokeTree t = loom::from_value<loom::PokeTree>(whole.payload);
+    CHECK(t.type == "deep.State");
+    std::vector<std::string> said;
+    for (const loom::PokeEntry& e : t.entries) {
+        said.push_back(e.path + " " + e.type + " = " + e.value + (e.present ? "" : " (absent)"));
+    }
+    CHECK(said == std::vector<std::string>{"last.value Int = 0", "history List<deep.Mark> = 0",
+                                           "high Int = 4", "note Text =  (absent)"});
+    CHECK(t.withheld.empty());
+
+    const Message leaf = ask({"last", "value"}, 42);
+    REQUIRE(leaf.payload.schema().name() == "zen.PokeTree");
+    const loom::PokeTree one = loom::from_value<loom::PokeTree>(leaf.payload);
+    REQUIRE(one.entries.size() == 1);
+    CHECK(one.entries[0].path == "last.value");
+    CHECK(one.entries[0].value == "0");
+
+    CHECK(reason_of(ask({"history", "0"}, 43)) == "'history' holds 0 elements: index 0 is past "
+                                                  "its end");
+    CHECK(reason_of(ask({"high", "x"}, 44)) == "'high' is Int: nothing is below it");
+    CHECK(reason_of(ask({"low"}, 45)) ==
+          "no field 'low' in 'the state' — zen.PokeDescribe lists the structure");
+
+    // Version 1 still reads one scalar field by name.
+    (void)h.bus.send_as(reader_id, r.id,
+                        Message(loom::to_value(loom::PokeRead{"high"}), reader_id, reader_id, 46));
+    h.pump();
+    const Message* read = reader->last("zen.Result");
+    REQUIRE(read != nullptr);
+    CHECK(read->correlation == 46);
+    CHECK(loom::from_value<loom::Result>(read->payload).value == "4");
+}
+
 TEST_CASE("the definition and the state are two native files written by one process, and a fresh "
           "process reads them back with high == 7") {
     // The directory belongs to this suite and this process (VM-POP-14).
