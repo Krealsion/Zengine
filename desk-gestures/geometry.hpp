@@ -10,6 +10,7 @@
 
 #include "graphics/pixels.hpp" // the cell lattice: `kCellPx`, `px_span_contains`, `add_cells`
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 
@@ -81,6 +82,14 @@ struct CellRect {
                (static_cast<U>(cy) - static_cast<U>(y)) < static_cast<U>(h);
     }
 };
+
+/// The canvas pixels both rectangles hold, or an empty rectangle when they share none: two
+/// rectangles that only touch along an edge share no pixel.
+constexpr PixelRect overlap(const PixelRect& a, const PixelRect& b) noexcept {
+    const std::int64_t x0 = (std::max)(a.x, b.x), y0 = (std::max)(a.y, b.y);
+    const std::int64_t x1 = (std::min)(a.x + a.w, b.x + b.w), y1 = (std::min)(a.y + a.h, b.y + b.h);
+    return x1 > x0 && y1 > y0 ? PixelRect{x0, y0, x1 - x0, y1 - y0} : PixelRect{};
+}
 
 /// A position on the canvas, in canvas pixels or in cells as the function that made it says. It
 /// may be outside the canvas: a projection, not a hit test.

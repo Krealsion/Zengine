@@ -27,6 +27,7 @@
 #include "pane/vocabulary.hpp"
 
 #include "component/text_box.hpp"
+#include "desk-gestures/gestures.hpp" // `list_window`: which rows a bounded list shows
 #include "graphics/colors.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
@@ -473,55 +474,6 @@ private:
         return label + " is not authored -- it is what the screen makes of the authored value";
     }
 
-    /// WHAT A WINDOW OVER A LIST LOOKS LIKE -- `screen.hpp`'s `ListWindow`, carried byte-for-byte
-    /// from the host's presentation, since `screen.hpp` is not a header a loaded image may include.
-    struct ListWindow {
-        std::size_t first = 0;
-        std::size_t count = 0;
-        std::size_t before = 0;
-        std::size_t after = 0;
-    };
-
-    /// THE THREE RULES, CARRIED (`screen_gestures.cpp`): a population that fits is shown whole,
-    /// the focused row is always in the window, and every omission is counted on its own side
-    /// and spends a row of the same budget.
-    static ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows) {
-        ListWindow w;
-        if (total == 0 || rows == 0) {
-            w.after = total;
-            return w;
-        }
-        if (total <= rows) {
-            w.count = total;
-            return w;
-        }
-        if (rows < 3) {
-            w.after = total;
-            return w;
-        }
-        if (selected_at >= total) {
-            selected_at = 0;
-        }
-        const std::size_t one_marker = rows - 1;
-        if (selected_at < one_marker) {
-            w.count = one_marker;
-            w.after = total - w.count;
-            return w;
-        }
-        const std::size_t tail = total - one_marker;
-        if (selected_at >= tail) {
-            w.first = tail;
-            w.count = one_marker;
-            w.before = tail;
-            return w;
-        }
-        w.count = rows - 2;
-        w.first = selected_at + 1 - w.count;
-        w.before = w.first;
-        w.after = total - w.first - w.count;
-        return w;
-    }
-
     // ---- The cursor ---------------------------------------------------------------------------
 
     /// THE CURSOR MOVES OVER ROWS AND STEPS OVER SECTION HEADINGS, which hold no value.
@@ -877,7 +829,8 @@ private:
         const std::size_t focus =
             draft_.open ? static_cast<std::size_t>(draft_.row)
                         : static_cast<std::size_t>(cursor_ < 0 ? 0 : cursor_);
-        const ListWindow win = list_window(known_.properties.size(), focus, share);
+        const desk_gestures::ListWindow win =
+            desk_gestures::list_window(known_.properties.size(), focus, share);
         if (win.before > 0) {
             push(pane::pane_text::omitted_text(win.before, "earlier"), graphics::colors::quiet);
         }

@@ -232,6 +232,19 @@ TEST_CASE("a bounded list shows what fits around its selection and says what it 
     CHECK(omitted_text(4, "more") == "... 4 more");
 }
 
+TEST_CASE("two rectangles overlap in the pixels both hold, and rectangles that only touch or lie "
+          "apart share none") {
+    const PixelRect wide{0, 0, 100, 50};
+    const PixelRect tall{60, 20, 100, 100};
+    CHECK(overlap(wide, tall) == PixelRect{60, 20, 40, 30});
+    CHECK(overlap(tall, wide) == PixelRect{60, 20, 40, 30}); // either order
+    CHECK(overlap(kDrawn, PixelRect{130, 70, 10, 10}) == PixelRect{130, 70, 10, 10}); // one inside
+    CHECK(overlap(PixelRect{0, 0, 10, 10}, PixelRect{10, 0, 10, 10}) == PixelRect{}); // an edge
+    CHECK(overlap(PixelRect{0, 0, 10, 10}, PixelRect{0, 10, 10, 10}) == PixelRect{});
+    CHECK(overlap(wide, PixelRect{300, 300, 5, 5}) == PixelRect{}); // apart
+    CHECK(overlap(PixelRect{0, 0, 0, 10}, wide) == PixelRect{}); // an empty one holds no pixel
+}
+
 TEST_CASE("a press on the tabs: a miss is not the tabs', the + makes a layout and arms nothing, "
           "a double on one tab renames it and spends the arming, any other press switches and "
           "holds") {

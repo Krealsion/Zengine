@@ -14,7 +14,7 @@ and sends what it asks. Workshop is that host for the desk. A program links the
 
 | | |
 |---|---|
-| `geometry.hpp` | `PixelRect`, `CellRect`, `CanvasPoint`, `PointedAt` and `canvas_point_of`; a pane's eight edges, their names and marks, and which one a pointer is on; the saturating arithmetic every gesture computes with |
+| `geometry.hpp` | `PixelRect`, `CellRect`, the pixels two rectangles share (`overlap`), `CanvasPoint`, `PointedAt` and `canvas_point_of`; a pane's eight edges, their names and marks, and which one a pointer is on; the saturating arithmetic every gesture computes with |
 | `gestures.hpp` | a pane taken by an edge or by its body (`hold_at`), sized (`sized_to`) or moved (`moved_to`), and snapped to the lines in reach (`snap_pane_window`); a press on the layout tabs (`tab_press`), a double among them, and a held tab carried (`tab_drag_to`); a name line's commit (`naming_commit`); the keyboard's nudge, grow and step (`nudged`, `grown`, `arrange_step_to`); the selection walked in reading order and moved in a direction (`reading_order`, `cycle_from`, `neighbour`); what a bounded list shows of its members |
 | `keys.hpp` | where the keys go: `KeyContext`, the facts the routing chain reads (`KeyModes`), and the chain (`keyboard_context`) |
 | `menus.hpp` | a menu walked and chosen (`menu_cursor_moved`, `menu_back`, `cursor_on_group`, `menu_choice`); a pane's menu in custody: the presses it keeps, whose refusal is whose, and which withdrawn menu a refusal is about |

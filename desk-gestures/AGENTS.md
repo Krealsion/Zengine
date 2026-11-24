@@ -8,7 +8,7 @@ its practices are. It states no law. The repository's own rules are [the guide](
 | | |
 |---|---|
 | `CMakeLists.txt` | `zengine-desk-gestures` (`zengine::desk-gestures`): a static library linking `zengine::graphics` and `zengine::input` |
-| `geometry.hpp` | `PixelRect`, `CellRect`, `CanvasPoint`, `PointedAt`, `canvas_point_of`, `pane_edge`, `pane_edge_at`, `pane_edge_cell`, the snap reach's bounds, `saturating_step`, `saturating_minus` |
+| `geometry.hpp` | `PixelRect`, `CellRect`, `overlap`, `CanvasPoint`, `PointedAt`, `canvas_point_of`, `pane_edge`, `pane_edge_at`, `pane_edge_cell`, the snap reach's bounds, `saturating_step`, `saturating_minus` |
 | `gestures.hpp`, `gestures.cpp` | `PaneHold`, `hold_at`, `sized_to`, `moved_to`, `pane_window_proposal`, `snap_pane_window`, `TabClickMemory`, `doubles_a_tab_click`, `LayoutTabPress`, `TabPressAsk`, `tab_press`, `tab_drag_to`, `NamingCommit`, `naming_commit`, `nudged`, `grown`, `arrange_step_to`, `Selectable`, `reading_order`, `cycle_from`, `Toward`, `neighbour`, `ListWindow`, `list_window` |
 | `keys.hpp` | `KeyContext`, `KeyModes`, `keyboard_context`, `keyboard_context_beneath_menu`, `default_row_context` |
 | `menus.hpp` | `context_cursor_bound`, `menu_cursor_moved`, `MenuBack`, `menu_back`, `cursor_on_group`, `MenuChoice`, `menu_choice`, `MenuPress`, `kMaxMenuPresses`, `kept_presses`, `menu_refusal_is_ours`, `WithdrawnMenu`, `withdrawn_refused` |
