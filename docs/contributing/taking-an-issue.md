@@ -263,8 +263,8 @@ A check's link ends in its job's id.
 
 - **The change's kind decides what runs.** A documentation-only change runs the attribution,
   change-kind and documentation jobs, and its build jobs show as skipped. A compiled change runs
-  every job, and the sanitizer and MinGW-w64 jobs take longest. The MSVC job is not among them:
-  it runs only in the nightly run on `main`.
+  every job but the MSVC one, which runs only in the nightly run on `main`, and the sanitizer and
+  MinGW-w64 jobs take longest.
 - **The merge waits only for the checks `gh pr checks <n> --required` lists**, and one skipped
   for a documentation-only change counts as passed.
 - **CI builds against Loom's current `main`**, resolved once when the run starts, so a red can
