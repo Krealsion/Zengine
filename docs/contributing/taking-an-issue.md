@@ -251,7 +251,7 @@ push to `main` gets a run of its own, which judges and builds that push. Read th
 until every job has finished:
 
 ```sh
-gh pr checks <n> --watch            # until none is pending; fails if any check failed, advisory too
+gh pr checks <n> --watch            # until none is pending; fails if any check failed
 gh pr checks <n> --required         # the checks the merge waits for; exits 8 while one is pending
 gh run list --branch <area>/<what> --limit 1
 gh run view <run-id>                # the jobs, each with its conclusion
@@ -263,14 +263,15 @@ A check's link ends in its job's id.
 
 - **The change's kind decides what runs.** A documentation-only change runs the attribution,
   change-kind and documentation jobs, and its build jobs show as skipped. A compiled change runs
-  every job, and the sanitizer and MinGW-w64 jobs take longest.
+  every job, and the sanitizer and MinGW-w64 jobs take longest. The MSVC job is not among them:
+  it runs only in the nightly run on `main`.
 - **The merge waits only for the checks `gh pr checks <n> --required` lists**, and one skipped
   for a documentation-only change counts as passed.
 - **CI builds against Loom's current `main`**, resolved once when the run starts, so a red can
   come from Loom moving; the run names the Loom commit it built, and a red from Loom is reported
   as Loom's ([ownership and dependency direction](../../CONTRIBUTING.md#ownership)).
-- **An advisory job is red only in the job list.** The MSVC job says in its name that it is
-  advisory: its red does not fail the run, and it is still reported
+- **An advisory job is red only in the job list.** The MSVC job, the nightly run's, says in its
+  name that it is advisory: its red does not fail the run, and it is still reported
   ([VM-LANE-05](../../agents/verification/lanes.md#vm-lane-05--a-job-under-continue-on-error-is-red-only-in-the-jobs-list)).
 - **A new push cancels the run in progress.** Push once, and read that run to its end before the
   next push.

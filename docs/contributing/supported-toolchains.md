@@ -12,14 +12,15 @@ Every row below is classified from measurement on lanes that exist, not from a f
 | **Linux (incl. WSL) / GCC 11.4+** | **fully supported.** The canonical lane | The Loom's OS sandbox exists only here |
 | Linux / Clang | builds | Not a routine lane; the sanitizer flags are the same |
 | **Windows / MinGW-w64 GCC 13.1+** (libstdc++) x64 | **supported.** The required Windows lane, and the build this project is developed on day to day | A program's runtime DLLs must be on `PATH` or beside it; every weave carries its own. Loom's weave build contract refuses a libstdc++ built without the C runtime's `__cxa_thread_atexit`, so CLion 2025.2's bundled GCC 13.1 builds no weave, and no Zengine. Binutils 2.40 (that bundled MinGW's) assembles the Workshop application's translation units since Workshop's bodies were split out of its headers and compiled once (measured 2026-09-03: the host translation unit into a 28.6 MB object); before that it refused the application target with `file too big` while 2.45 assembled it, and the test suites built either way |
-| **Windows / MSVC 19.50** (Visual Studio 2026) x64 | **supported.** The advisory Windows lane, and the toolchain released Windows users are expected to build with | clang-cl and ARM64 are **unverified** |
+| **Windows / MSVC 19.50** (Visual Studio 2026) x64 | **supported.** The advisory Windows lane, run nightly, and the toolchain released Windows users are expected to build with | clang-cl and ARM64 are **unverified** |
 | macOS / Apple Clang | **never built.** Unclassified | Not the same as "unsupported" |
 
 Both Windows toolchains are meant to be supported, and neither is evidence for the other: they
 are two standard libraries, and a Windows answer in this documentation names the one it was
 measured on. The MinGW-w64 lane is **required** — its red is the run's red — and the MSVC
-lane is **advisory** — its red is reported in the run's job list and does not fail the run —
-until MSVC can be proven routinely outside hosted CI.
+lane is **advisory** — it runs only in the nightly run on `main`, not in a pull request's, and
+its red is reported in that run's job list without failing the run — until MSVC can be proven
+routinely outside hosted CI.
 
 Target the **C++20** floor. Avoid features needing GCC 12 or newer.
 
