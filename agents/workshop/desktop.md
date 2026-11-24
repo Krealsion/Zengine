@@ -177,7 +177,7 @@ else"
 
 ### WL-DESK-02
 `workshop/desktop_seam_vocabulary.hpp` DeselectRequested
-`workshop/screen_arrange.cpp` default_row_context
+`desk-gestures/keys.hpp` default_row_context
 `workshop/screen.hpp` default_row_context
 `workshop/weave.hpp` request_app_action on(DeselectRequested)
 `workshop/weave_desktop.cpp` request_app_action on(DeselectRequested)

@@ -59,7 +59,8 @@ WHY — `agents/decisions/the-editors-right-press-offers-its-acts.md`
 PaneKeyboardRequested kPresenterRole
 `pane/presenter_vocabulary.hpp` MenuGranted MenuShown MenuInput MenuClosed MenuWithdrawn
 MenuGranted::standard MenuGranted::pane_name MenuGranted::area MenuClosed::standard
-`workshop/context.hpp` PresentedMenu MenuPress kMaxMenuPresses context_population
+`workshop/context.hpp` PresentedMenu context_population
+`desk-gestures/menus.hpp` MenuPress kMaxMenuPresses kept_presses menu_refusal_is_ours
 `workshop/weave.hpp` grant_menu Hand::press_sent withdraw_menu end_menu_unanswered
 spend_standard_row cell_of_body_place ChoiceAnswered Hand::action_sent menu_pressed
 act_of_menu_press
@@ -133,7 +134,8 @@ NumberedPresenter::give_back NumberedPresenter::row_of
 `workshop/desktop-pane/hotkeys_view.hpp` keys_asked_
 `workshop/weave_external.cpp` on(PresenterReady) on(MenuShown) answer_withdrawn end_refused_menu
 withdraw_menu on(MenuReturned) forget_withdrawn
-`workshop/context.hpp` WithdrawnMenu PresentedMenu::first_attempt
+`desk-gestures/menus.hpp` WithdrawnMenu withdrawn_refused menu_refusal_is_ours
+`workshop/context.hpp` PresentedMenu::first_attempt
 `workshop/weave_code.cpp` on(AskEnded)
 `pane/presenter_vocabulary.hpp` settle_menu_withdrawn
 `workshop/weave.hpp` withdrawn_

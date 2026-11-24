@@ -111,7 +111,7 @@ SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge
                                const PaneSnapLines& lines, std::int64_t reach_px,
                                const WindowLimits& limits) noexcept;
 
-// ---- a layout tab: pressed, pressed twice ---------------------------------------------------
+// ---- a layout tab: pressed, pressed twice, dragged ------------------------------------------
 
 /// WHAT THE LAST PRESS ON A LAYOUT TAB NAMED, so the next one can be a double.
 // WL-PTR-01 -- agents/workshop/pointer.md
@@ -125,6 +125,93 @@ struct TabClickMemory {
 /// and the last press armed on the same tab.
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                          std::int64_t clicks) noexcept;
+
+/// WHAT A PRESS ON THE LAYOUT TABS LANDED ON: a tab, by its position, or the `+` beside them.
+struct LayoutTabPress {
+    bool hit = false;    ///< this press was answered by the run
+    std::size_t at = 0;  ///< the layout it landed on, when `create` is false
+    bool create = false; ///< it landed on the `+` affordance instead
+};
+
+/// WHAT A PRESS ON THE TABS ASKS, and what the tabs remember of it for the next press.
+struct TabPressAsk {
+    enum class Kind : std::uint8_t {
+        kNone,   ///< it landed on no tab: the press is not the tabs'
+        kNew,    ///< the `+`: a new layout, arming no double and beginning no drag
+        kRename, ///< the second press of a double on one tab: its name line opens
+        kSwitch, ///< any other press on a tab: that layout goes live and the hand holds its tab
+    };
+    Kind kind = Kind::kNone;
+    std::size_t at = 0;  ///< the tab a rename or a switch is about
+    TabClickMemory next; ///< what the next press is judged against
+};
+
+/// A PRESS ON THE TABS, from what the last one left and what the window counted (`clicks`). A
+/// double spends the arming, so a third press is a first again.
+TabPressAsk tab_press(const TabClickMemory& prior, const LayoutTabPress& tab,
+                      std::int64_t clicks) noexcept;
+
+/// WHERE A HELD TAB IS CARRIED with the hand over `over`: the position of another tab of the run's
+/// `count`, or none. Over its own place, the `+`, no tab or past the run's end nothing moves, so a
+/// drag past the end rests rather than wraps. The release asks nothing: each step was asked as the
+/// hand reached it.
+std::optional<std::size_t> tab_drag_to(const LayoutTabPress& over, std::size_t live_at,
+                                       std::size_t count) noexcept;
+
+// ---- the layout's name, typed and committed -------------------------------------------------
+
+/// WHAT A COMMITTED NAME LINE ASKS: a refusal while the name is not legal, the line kept open;
+/// nothing once the layout it opened on has gone, the line closed; else the rename of that layout.
+enum class NamingCommit : std::uint8_t { kRefused, kGone, kRename };
+
+/// The commit of a name line opened on the layout at `at`, of the run's `count`, whose name the
+/// setup's own judge found legal or not.
+NamingCommit naming_commit(bool name_legal, std::size_t at, std::size_t count) noexcept;
+
+// ---- the keyboard's arrangement: a pane nudged, grown and stepped to ------------------------
+
+/// WHERE A NUDGE PUTS THE PANE'S PLACE: `dx_cells`, `dy_cells` cells from the window it measures
+/// from, saturating, so a proposal past the number line meets the ordinary refusal.
+CanvasPoint nudged(const PixelRect& base, std::int64_t dx_cells, std::int64_t dy_cells) noexcept;
+
+/// THE WINDOW A KEY'S GROW OR SHRINK PROPOSES: the bottom-right corner pulled by `dx_cells`,
+/// `dy_cells` cells, so the place is anchored and no pane moves.
+PaneWindowProposal grown(const PixelRect& base, std::int64_t dx_cells,
+                         std::int64_t dy_cells) noexcept;
+
+/// THE ROW THE ARRANGEMENT'S STEP ADDRESSES among `count`, at least one: from `at`, one forward
+/// (`by` > 0) or back, wrapping; with nothing addressed, the first forward and the last back.
+std::size_t arrange_step_to(std::size_t count, std::optional<std::size_t> at,
+                            std::int64_t by) noexcept;
+
+// ---- the keyboard's selection moved ---------------------------------------------------------
+
+/// ONE PANE THE SELECTION MAY STAND ON: its kind, its rectangle as the desk laid it out, and how
+/// far front it is authored.
+struct Selectable {
+    std::int64_t kind = 0;
+    PixelRect rect{};
+    std::size_t depth = 0; ///< its place in the presentation order, back to front
+};
+
+/// THE SELECTABLE PANES IN READING ORDER: top to bottom by rectangle, then left to right, then
+/// front to back.
+std::vector<Selectable> reading_order(std::vector<Selectable> panes);
+
+/// The pane `step` places after `from` among `order`, wrapping; from a pane not in it, the first
+/// (a step forward) or the last. None while `order` is empty.
+std::optional<std::int64_t> cycle_from(const std::vector<std::int64_t>& order, std::int64_t from,
+                                       std::int64_t step) noexcept;
+
+/// A DIRECTION THE SELECTION MOVES IN.
+enum class Toward : std::uint8_t { kLeft, kRight, kUp, kDown };
+
+/// THE NEAREST PANE BEYOND `from` TOWARD `dir`, among `panes` in reading order: candidates whose
+/// centre lies past `from`'s edge, else past its centre where panes overlap; the lowest gap along
+/// the direction plus twice the misalignment across it wins, a tie the front-most. From a pane not
+/// among them, the first; none when nothing lies that way.
+std::optional<std::int64_t> neighbour(const std::vector<Selectable>& panes, std::int64_t from,
+                                      Toward dir);
 
 // ---- a bounded list: what it shows, and what it must say it cannot --------------------------
 

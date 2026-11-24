@@ -100,7 +100,8 @@ WindowWritten
 `desk-gestures/gestures.hpp` PaneWindowProposal
 `workshop/screen_gestures.cpp` pane_window_axes
 `workshop/screen.hpp` pane_window_at
-`workshop/weave_arrange.cpp` arrange_place arrange_resize arrange_window write_window
+`desk-gestures/gestures.cpp` nudged grown
+`workshop/weave_arrange.cpp` arrange_place arrange_window write_window
 `tests/test_workshop_screen.cpp` "a refused anchored resize writes neither the place nor the size"
 "a move blocked at the left wall still follows the hand down" "a move past two walls at once writes
 nothing" "a refused nudge does not author a reactive place" "a corner resize blocked on one axis
@@ -111,14 +112,14 @@ in its word, a centred one into pixels, and pulls a fitted size into pixels, eac
 
 ### WL-ARR-13
 `workshop/weave_external.cpp` unselect_pane
-`workshop/screen_arrange.cpp` default_row_context
+`desk-gestures/keys.hpp` default_row_context
 `tests/test_workshop_host.cpp` "Escape clears the ordinary selection last, and the inspected subject
 stands" "every more-specific Escape meaning answers first, and deselection waits" "a desk with no
 unoccupied cell still reaches selection = none"
 
 ### WL-ARR-14
 `workshop/weave_external.cpp` unselect_pane
-`workshop/screen_arrange.cpp` default_row_context keyboard_context
+`desk-gestures/keys.hpp` default_row_context keyboard_context
 `tests/test_workshop_panes_input.cpp` "a focused external pane keeps Escape; a press on a pane that
 takes no text, then Escape, puts the selection down"
 `tests/test_workshop_panes_editor.cpp` "Escape means nothing in the Editor -- no mode closes, no
