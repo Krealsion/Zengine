@@ -320,7 +320,7 @@ class Monitor(object):
         ctx.check(expect in (FINISHED, ATTENTION, "any"), "expect is finished, needs-attention or any")
         build = getattr(p, "build", None)
         if build:
-            # FIRST THE BUILD, followed through the Builder's own words (workshop/builder): the
+            # First the build, followed through the Builder's own words (workshop/builder): the
             # application's shapes exist on Workshop's bus only once it is loaded, and a relay
             # refuses a shape nobody declares. Nothing is asked of the application before the
             # subscription below.
@@ -328,7 +328,7 @@ class Monitor(object):
             import builder
             self.record["build"] = builder.perform(ctx, dict(build, link=self.link), name="build")
         self.phase("subscribe")
-        # SUBSCRIBED BEFORE ANYTHING IS ASKED OF THE APPLICATION: every word from here on is kept.
+        # Subscribed before anything is asked of the application: every word from here on is kept.
         try:
             self.sub = ctx.observe(p.producer, p.shapes, via=self.link,
                                    latest=getattr(p, "latest", ()),

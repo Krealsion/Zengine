@@ -11,3 +11,7 @@ property
 persist
 manual
 ui
+composer
+input
+introspection
+external-host

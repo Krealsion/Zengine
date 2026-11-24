@@ -201,7 +201,7 @@ def run(ctx):
             ctx.check(step["clicks"] in (1, 2), "step %d: clicks is 1 or 2" % i)
     pace = max(0, int(ctx.inputs.get("pace_ms", 0))) / 1000.0
     presses = any(v in GESTURES for step in steps for v in step)
-    # FOLLOWED BEFORE THE FIRST PRESS: whatever a press makes Workshop say is heard.
+    # Followed before the first press: whatever a press makes Workshop say is heard.
     heard = Heard(ctx, ctx.inputs["link"]) if presses else None
     hand = HeardHand(ctx, ctx.inputs["link"], heard) if heard is not None else Hand(
         ctx, ctx.inputs["link"])
@@ -468,7 +468,7 @@ def act(ctx, hand, verb, step):
 
         def read():
             view, words = wait_words(hand, provider, pane, text, seconds, pressing=True)
-            # A PANE STILL IN FLIGHT when the seconds ran out held nothing settled to look in.
+            # A pane still in flight when the seconds ran out held nothing settled to look in.
             ctx.check(words or not hand.unsettled, "%s: %s/%s held no settled picture to aim at "
                       "within %gs" % (verb, provider, pane, seconds))
             ctx.check(words, "%s: %s/%s paints no word holding %r" % (verb, provider, pane, text))
@@ -484,7 +484,7 @@ def act(ctx, hand, verb, step):
         press_at(ctx, hand, where, step.get("button", "left"), step.get("clicks", 1))
         return {"word": at["text"], "x": where["x"], "y": where["y"]}
     if verb == "part":
-        # A PART BY ITS PANE AND ITS NAME, pressed at the point Workshop gives it now: wherever the
+        # A part by its pane and its name, pressed at the point Workshop gives it now: wherever the
         # pane's last redraw put it, in a text pane or a canvas pane alike.
         provider, pane, name = spelled(arg, verb, 3)[:3]
         seconds = float(step.get("seconds", 10))
@@ -501,7 +501,7 @@ def act(ctx, hand, verb, step):
     if verb == "carry":
         return carry(ctx, hand, step)
     if verb == "rest":
-        # THE POINTER RESTS where it is put, with no button held -- a window pixel "x,y" or a
+        # The pointer rests where it is put, with no button held -- a window pixel "x,y" or a
         # terminal cell that names its cells. A canvas pane that asks for its hover is told where.
         x, y, space = cells_point(ctx, ctx.inputs["link"], arg)
         hand.inject([moment(ctx, "PointerMoved", x=x, y=y, space=space)])
@@ -509,7 +509,7 @@ def act(ctx, hand, verb, step):
     if verb == "wheel":
         return turn_wheel(ctx, hand, step)
     if verb == "at":
-        # ONE CELL OF A PANE'S TEXT LATTICE by its row and column, counted from 0 (`hand.point`): a
+        # One cell of a pane's text lattice by its row and column, counted from 0 (`hand.point`): a
         # text pane's painted cell, or the cell of the lattice a canvas pane sets its text on -- a
         # blank row's, or the one after a row's last character, too -- for panes whose meaning is
         # a grid rather than a labelled row. A pane that redrew between the reading and the point
@@ -906,7 +906,7 @@ def settings_step(ctx, hand, arg):
     if key is None:
         return record
     ctx.check(int(shown["revision"]) > 0, "settings: %s/%s -- %s" % (provider, pane, shown["said"]))
-    # EVERY FIELD THE SHAPE REQUIRES IS SENT, `clear` among them: only the value fields are optional.
+    # Every field the shape requires is sent, `clear` among them: only the value fields are optional.
     fields = dict(where, revision=int(shown["revision"]), key=key, clear=value == "-")
     if value != "-":
         rows = [r for r in shown["rows"] if r["key"] == key]
@@ -949,7 +949,7 @@ def open_pane(ctx, hand, name, seconds):
     view, part = manager_row(ctx, hand, name, seconds)
     presses = 1
     if not marked(hand, view, part):
-        # THE FIRST PRESS CHOOSES THE ROW and brings the keys; the second, once the Pane Manager
+        # The first press chooses the row and brings the keys; the second, once the Pane Manager
         # shows both, opens it -- never a second press read against the picture the first changed.
         press_at(ctx, hand, part)
         presses += 1
@@ -998,7 +998,7 @@ def manager_row(ctx, hand, name, seconds, verb="open"):
         ctx.check(words, "the Pane Manager did not open")
     seen = set(names(view))
     if part_of(view, name) is None:
-        # THE ROW IS OUT OF THE LIST'S WINDOW: the keys to the Pane Manager by a press on its top
+        # The row is out of the list's window: the keys to the Pane Manager by a press on its top
         # line's first word, then Down to the list's end and Up, until the window draws it. Bounded.
         # A Pane Manager that redrew between the reading and the point is read again, and a
         # redraw that brought the row into the window needs no press here.

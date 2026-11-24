@@ -17,7 +17,7 @@ def run(ctx):
                 raise
     ctx.on_cleanup(release, "release input if the demo is still connected")
     try:
-        # A PRESENTED INTERACTION -- a menu a failed run left open -- is answered first by Escape,
+        # A presented interaction -- a menu a failed run left open -- is answered first by Escape,
         # as a weaver would.
         ctx.ask("zengine.input", "InjectInput", {"session": opened["session"],
                 "events": chord_moments(ctx, "escape")}, version=2, via=link, settle=True)

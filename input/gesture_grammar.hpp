@@ -28,7 +28,7 @@ struct Gesture {
     }
 };
 
-/// IS THIS A GESTURE A WEAVER CAN PRESS?
+/// Is this a gesture a weaver can press?
 inline constexpr bool is_bound(const Gesture& g) noexcept {
     return g.scancode != scan::kUnknown;
 }
@@ -66,7 +66,8 @@ inline constexpr bool is_modifier_scan(std::int64_t sc) noexcept {
 }
 
 /// The written name of a named scancode, or nullptr for a value this grammar cannot say.
-// WL-KEY-14 -- agents/workshop/key-spelling.md
+// A written gesture is modifier words joined to one key name by `+`, written in one order and
+// read in any (WL-KEY-14, Workshop's key-spelling law).
 inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
     switch (scancode) {
     case kDoubleShift: return "double-shift";
@@ -134,7 +135,8 @@ inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
 }
 
 /// The scancode a written key name means, or 0 for a name outside the grammar.
-// WL-KEY-14 -- agents/workshop/key-spelling.md
+// A written gesture is modifier words joined to one key name by `+`, written in one order and
+// read in any (WL-KEY-14, Workshop's key-spelling law).
 inline std::int64_t scancode_of_name(std::string_view name) noexcept {
     if (name == key_name_of(kDoubleShift)) {
         return kDoubleShift;
@@ -150,7 +152,8 @@ inline std::int64_t scancode_of_name(std::string_view name) noexcept {
 
 /// A gesture as the file spells it (`ctrl+shift+z`); total over every nameable scancode, and
 /// admission refuses the rest on the way in.
-// WL-KEY-14 -- agents/workshop/key-spelling.md
+// A written gesture is modifier words joined to one key name by `+`, written in one order and
+// read in any (WL-KEY-14, Workshop's key-spelling law).
 inline std::string gesture_word(const Gesture& g) {
     std::string out;
     if ((g.modifiers & mod::kCtrl) != 0) {
@@ -176,7 +179,7 @@ inline constexpr bool is_letter_scan(std::int64_t sc) noexcept {
 }
 
 /// A gesture as the SCREEN spells it -- the band's own compact voice.
-// WL-KEY-02 -- agents/workshop/keyboard.md
+// Every surface spells a key through these functions, never as a literal (WL-KEY-02).
 inline std::string gesture_text(const Gesture& g) {
     // An action that answers to no key says so: `?` would read as a key a weaver cannot find, and
     // `-` is a real binding.
@@ -217,7 +220,7 @@ inline std::string gesture_text(const Gesture& g) {
     return out;
 }
 
-/// HOW A SURFACE SPELLS A KEY, the weaver's to choose for each surface apart: short, the band's
+/// How a surface spells a key, the weaver's to choose for each surface apart: short, the band's
 /// compact voice (`B`, `^p`, `enter`), or full, as a keymap file writes it (`shift+b`, `ctrl+p`,
 /// `return`).
 enum class KeySpelling : std::uint8_t { kShort, kFull };
@@ -251,8 +254,9 @@ struct ParsedGesture {
     std::string refusal;
 };
 
-// WL-KEY-14 -- agents/workshop/key-spelling.md
-// WL-DESK-08 -- agents/workshop/desktop.md
+// A written gesture is modifier words joined to one key name by `+`, written in one order and
+// read in any (WL-KEY-14, Workshop's key-spelling law).
+// The gesture `none` leaves an action declared and nameable with no key at all (WL-DESK-08).
 inline ParsedGesture parse_gesture(std::string_view text) {
     ParsedGesture out;
     if (text.empty()) {
@@ -322,7 +326,7 @@ inline constexpr bool is_posix_editing_scan(std::int64_t sc) noexcept {
 
 /// The measured reason a gesture cannot arrive from the POSIX terminal backend, or
 /// nullptr when no such gap is known.
-// WL-KEY-08 -- agents/workshop/keyboard.md
+// A gesture admission refuses is refused in words that name what a weaver can fix (WL-KEY-08).
 inline const char* posix_gap(const Gesture& g) noexcept {
     if (g.scancode == kDoubleShift) {
         return "a terminal reports no Shift alone; double-shift is the GUI window's";
@@ -367,12 +371,12 @@ inline const char* posix_gap(const Gesture& g) noexcept {
 
 /// The sentence a known gap is said in: the gesture as spelled, the action it moves, and the gap.
 /// The file's overrides at load and a pane's rows at admission say it alike.
-// WL-KEY-08 -- agents/workshop/keyboard.md
+// A gesture admission refuses is refused in words that name what a weaver can fix (WL-KEY-08).
 inline std::string gap_sentence(std::string_view spelled, std::string_view id, const char* gap) {
     return "`" + std::string(spelled) + "` (" + std::string(id) + "): " + gap;
 }
 
-/// THE TEXT A CONSUMED PRINTABLE GESTURE'S OWN KEYSTROKE PRODUCES, or "" when none is
+/// The text a consumed printable gesture's own keystroke produces, or "" when none is
 /// expected.
 inline std::string expected_text_of(std::int64_t scancode, std::int64_t modifiers) {
     // Ctrl+Space is the one chord a window may also type, as a space: the Windows console does.

@@ -15,7 +15,7 @@
 #include <zen/weave.hpp>
 
 namespace zengine::demo {
-/// The controls' room and their one picture, in Workshop and in a graphics window: the reset row
+/// The controls' area and their one picture, in Workshop and in a graphics window: the reset row
 /// is the part `control:reset`, whose press asks `reset`, and the state beneath it the part
 /// `status`, which asks nothing. A right press in Workshop is handed back, so its own pane menu
 /// opens there.
@@ -44,12 +44,12 @@ public:
             m, {{"reset", "reset the demo", input::scan::kUnknown, input::mod::kNone, {},
                  {pane::cause_of<DemoWork>()}}});
     }
-    /// THE PANE DRAWS ITS PICTURE in the room the window gave its area. A refused drawing leaves
+    /// The pane draws its picture in the area the window gave it. A refused drawing leaves
     /// the last good one showing; a later paint draws again.
     void on_room(loom::Mail& m) { paint(m); }
-    /// WHAT THE CONTROLS SHOW, a line of the room's text each: the setup's name, the reset button
+    /// What the controls show, a line of the area's text each: the setup's name, the reset button
     /// and where the demo stands, each part recorded with what a press on it asks. A line past the
-    /// room is neither drawn nor recorded.
+    /// area is neither drawn nor recorded.
     void picture(graphics::Sketch& f) const {
         const ControlDrawing& room = drawing();
         const auto line = [&](const std::string& path, std::int64_t row, const std::string& text) {
@@ -68,7 +68,7 @@ public:
         state_ = loom::from_value<DemoStatus>(v);
         unserved();
     }
-    /// ITS ONE ACTION, `reset`: what a press on the reset button asks, in Workshop or a window.
+    /// Its one action, `reset`: what a press on the reset button asks, in Workshop or a window.
     void on_action(const std::string& id, loom::Mail& m) {
         if (id == "reset") reset(m, false);
     }
@@ -130,7 +130,7 @@ public:
         (void)m.answer(loom::Ack{}); paint(m);
     }
 private:
-    /// WITH NO SERVICE ATTACHED TO THIS IMAGE, THE DEMO IS UNAVAILABLE, whatever a revived state
+    /// With no service attached to this image, the demo is unavailable, whatever a revived state
     /// said: a service attached to the image before a reload is not this one's, its waits and its
     /// work end with that image, and it must start again. The generation carries on.
     void unserved() {

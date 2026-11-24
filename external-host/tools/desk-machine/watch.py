@@ -272,7 +272,7 @@ def run(ctx):
         else:
             new = None
         if new is not None and new.get("desk") is None:
-            # A DESK READ REFUSED -- its rate, or the row -- is no change: the reading stands, and
+            # A desk read refused -- its rate, or the row -- is no change: the reading stands, and
             # the next notice asks again.
             refused += 1
             new = None

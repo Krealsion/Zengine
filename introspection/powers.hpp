@@ -66,7 +66,7 @@ struct PowersSpan {
     std::string identity; ///< for `kEntry`: the power this row named
 };
 
-/// WHAT A PRESS RESOLVED TO. An empty identity with `kEntry` is unreachable by
+/// What a press resolved to. An empty identity with `kEntry` is unreachable by
 /// construction; every other control ignores the identity.
 struct PowersTarget {
     std::int64_t control = powers_control::kNone;
@@ -105,7 +105,7 @@ struct PowersUi {
     std::string selected_source;
     std::string selected_operator;
 
-    /// THE LAST ADMITTED ANSWER to this pane's search: one page of the door's rows, replaced
+    /// The last admitted answer to this pane's search: one page of the door's rows, replaced
     /// whole by the next answer, dropped at every grant, never evidence about the catalog now.
     workshop::PowersFound reading;
     bool read = false; ///< has any answer been admitted into this pane at all
@@ -127,7 +127,7 @@ struct PowersUi {
 
 // ---- The question, and what its answer shows -------------------------------------
 
-/// THE SEARCH THIS PANE ASKS THE DOOR: the view as a kind (a conversion is an operator, so the
+/// The search this pane asks the door: the view as a kind (a conversion is an operator, so the
 /// Operators view finds both), the query as text, the filter as a construction, and the most
 /// rows an answer carries. Matching is the door's; nothing here re-matches what it said.
 inline workshop::FindPowers powers_question(const PowersUi& ui) {
@@ -245,9 +245,9 @@ inline void take_described(PowersUi& ui, workshop::PowerDescribed said) {
     ui.described = std::move(said);
 }
 
-// ---- The query's room in the chrome row ------------------------------------------
+// ---- The query's area in the chrome row ------------------------------------------
 
-/// THE COLUMNS THE QUERY TEXT GETS -- the caret's own column subtracted, because a
+/// The columns the query text gets -- the caret's own column subtracted, because a
 /// caret sitting after the last character needs somewhere to sit.
 inline std::int64_t query_capacity(const PowersUi& ui, std::int64_t columns) {
     const std::vector<const workshop::PowerRow*> list = filtered_of(ui);
@@ -260,7 +260,7 @@ inline std::int64_t query_capacity(const PowersUi& ui, std::int64_t columns) {
 
 // ---- The projection ---------------------------------------------------------------
 
-/// WHAT THE PANE SHOWS, AND WHAT EACH PLACE IN IT MEANS.
+/// What the pane shows, and what each place in it means.
 struct PowersView {
     std::vector<pane::TextRow> rows;
     std::vector<PowersSpan> spans;
@@ -273,7 +273,7 @@ struct PowersView {
 };
 
 
-/// WHAT A PRESS ON THE POWERS PANE MEANS: each place by the row and columns it covers and the
+/// What a press on the powers pane means: each place by the row and columns it covers and the
 /// control or power it is. Two lists are never one meaning, whatever their identities hold.
 inline std::string press_meaning(const PowersView& view) {
     std::string said;
@@ -322,11 +322,11 @@ struct Sayer {
 
 } // namespace detail
 
-/// The whole Powers pane, spent against the room its area holds. Most-protected first: the
+/// The whole Powers pane, spent against the rows and columns its area holds. Most-protected first: the
 /// chrome row (never dropped), the list (up to three rows before anything else takes any), the
 /// selected detail, the retained sample, `kHostResolution`, then `kPowersSource` from slack
 /// only -- measured against the shipped four-row graphical and eight-row terminal defaults.
-/// Nothing past the room is drawn.
+/// Nothing past the area is drawn.
 inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
                                     std::int64_t columns) {
     PowersView view;
@@ -348,7 +348,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             sources ? "[" + std::string(kSourcesWord) + "]" : std::string(kSourcesWord);
         const std::string b =
             sources ? std::string(kOperatorsWord) : "[" + std::string(kOperatorsWord) + "]";
-        // EACH CONTROL IN ITS COLUMN, padded to the width the layout keeps, and every segment
+        // Each control in its column, padded to the width the layout keeps, and every segment
         // after the gap it keeps.
         const auto column_of = [](std::string& text, std::int64_t from, std::int64_t width) {
             if (static_cast<std::int64_t>(text.size()) < from + width) {

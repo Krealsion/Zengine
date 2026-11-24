@@ -73,7 +73,7 @@ def run(ctx):
     ctx.step('lay the Terminal out beside Inventory and Info, and open a second Info view')
     desk(False)
     # Info offers a value view the first time one is opened, so the desk can name it only then;
-    # the new view opens in front, wherever Workshop finds it room, until the desk places it.
+    # the new view opens in front, wherever Workshop finds it space, until the desk places it.
     hand.click(hand.first(*info)); hand.key('ctrl+n')
     hand.row(*preset, 'New view')
     desk(True)

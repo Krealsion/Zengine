@@ -36,10 +36,10 @@ LAYOUT_VERSION = 6
 WEAVER_HOST = "weaver"
 DEVELOPMENT_HOST = "development"
 
-# WORKSHOP'S NOTICE THAT ITS DESK MOVED, as a row's `observe` names it: what `desk-machine/watch` follows
+# Workshop's notice that its desk moved, as a row's `observe` names it: what `desk-machine/watch` follows
 # and the walk tools wait on (hand.py), observed only by a row holding `capture`.
 DESK_NOTICE = {"producer": "zengine.workshop", "shape": "DeskStamps", "version": "3"}
-# WHAT WORKSHOP SAYS, each thing once as it says it, as a row's `observe` names it: what
+# What Workshop says, each thing once as it says it, as a row's `observe` names it: what
 # `workshop/act` hears a refusal of its press by, observed only by a row holding `capture`.
 WORKSHOP_SAID = {"producer": "zengine.workshop", "shape": "NoticeSaid", "version": "1"}
 

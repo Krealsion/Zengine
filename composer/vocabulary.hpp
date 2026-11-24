@@ -5,22 +5,22 @@
 #define ZENGINE_COMPOSER_VOCABULARY_HPP
 
 // The Message Composer's durable names: five constants, and no shape of its own. This tool
-// learns nothing -- it hears somebody else's fact, asks the Loom's question
-// (`zen.DescribeAccepted`), reads the Loom's answer, speaks Workshop's pane sentences and sends
+// learns nothing -- it hears somebody else's fact, asks Loom's question
+// (`zen.DescribeAccepted`), reads Loom's answer, speaks Workshop's pane sentences and sends
 // a message in its target's shape -- so a consumer needs only the two halves of one durable
 // `PaneRef` (a promise to a weaver's saved setup) and the two lines a weaver reads about the pane.
 // Pane law: agents/panes.md
 
 namespace zengine::composer {
 
-/// THE ROLE THIS TOOL HOLDS -- the durable half of its `PaneRef`, and the only
+/// The role this tool holds -- the durable half of its `PaneRef`, and the only
 /// address by which anything reaches it.
 ///
-/// A ROLE, so the window's room and pointer, and Workshop's `PaneKey` and `PaneTextInput`,
+/// A ROLE, so the window's area and pointer, and Workshop's `PaneKey` and `PaneTextInput`,
 /// find whoever holds it rather than the incarnation that happened to offer first.
 inline constexpr const char* kComposerRole = "zengine.composer";
 
-/// THE PANE KEY, in this role's namespace and nobody else's.
+/// The pane key, in this role's namespace and nobody else's.
 ///
 /// It names the ACT rather than the tool, for `loaded`'s reason: a second Composer
 /// pane (a reply inspector, a history of what this pane submitted) is plausible,
@@ -35,7 +35,7 @@ inline constexpr const char* kComposePaneName = "Compose";
 inline constexpr const char* kComposePaneSummary =
     "write a message from a target's own accepted shapes";
 
-/// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable
+/// The library stem a host boots. Not part of the pane protocol and not durable
 /// the way the two keys above are -- it is a file name, and it is here because the
 /// host's boot list and the suite's loader must agree on it.
 inline constexpr const char* kComposerStem = "zengine-composer";

@@ -133,12 +133,12 @@ def pane_files(reading):
             ref = (dp.get("provider", ""), dp.get("pane", ""))
             name = render.pane_file_name(*ref)
             text = render.pane_file(reading, dp, read)
-            # EVERY PAGE OPENS WITH ITS PANE'S HEADER, so a page names its pane whatever its file is
+            # Every page opens with its pane's header, so a page names its pane whatever its file is
             # called.
             head = next((l for l in text.splitlines() if l.startswith("== ")), None)
             stem, n = name[:-len(".txt")], 2
             paged = render.pages(text, name, again=head)
-            # A FILE NAME IS ONE PANE'S: two references that read as one name, or one pane's
+            # A file name is one pane's: two references that read as one name, or one pane's
             # name another's later page already has, are told apart.
             while any(page.lower() in taken for page, _ in paged):
                 name, n = "%s~%d.txt" % (stem, n), n + 1

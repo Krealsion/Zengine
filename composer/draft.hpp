@@ -152,7 +152,7 @@ inline std::vector<loom::Arg> args_of(const MessageDraft& draft) {
         }
         loom::Arg a;
         a.name = f.name;
-        // THE ONE DECISION THIS FILE MAKES. See the header comment: a Text field
+        // The one decision this file makes. See the header comment: a Text field
         // says "these bytes are text" with a schema, which is what the command
         // grammar's quote says with a keyboard.
         a.value = loom::lex_value(draft.fields[i].value.text(),

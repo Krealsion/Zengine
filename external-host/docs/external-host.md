@@ -428,7 +428,7 @@ locked open by the OS, not merely "in use" by Workshop's own bookkeeping. A rebu
 step (copying a freshly linked DLL beside the host) fails outright against a locked file, on
 Windows with an explicit "Error copying file"; the fix is never to work around the lock, only to
 stop what is holding it — **by identity, not by every process sharing a name.** A machine this
-task does not own exclusively can have another Workshop already running (the founder's own, a
+task does not own exclusively can have another Workshop already running (a person's own, a
 parallel task's) that a name-wide stop would kill without warning. Identify the specific process
 this task itself launched — its pid, recorded when you started it, or looked up from the port your
 own `guests.json` names (on Windows, `Get-NetTCPConnection -LocalPort <port> | Select
@@ -967,7 +967,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   whose reading Workshop refused -- names a pane to ask alone. `DeskView` says every pane on the
   desk, in the desk's order, with its state (`open`, `covered`, `off-room`, `unresolved`), its rank
   from the front (0 in front), the place its authored intent resolves to and the part of it the
-  canvas has, and whether it is selected or holds the keys; the room; whether arranging is open;
+  canvas has, and whether it is selected or holds the keys; the part of the desk no pane covers; whether arranging is open;
   the menu on the screen, if one is -- Workshop's own or a pane's -- with each line where it is
   drawn and the lines it names; the band's legend, each a word with its place and no point, since
   the band takes no press; and `desk`, a number that moves whenever what the desk says
@@ -1277,7 +1277,7 @@ loom-session run work desk/guide --name guide-1 --input pane=zengine.builder-pan
 - **`desk/guide` names what a press names**: the pane as `<role>/<pane>` and the control by its
   action id, which the pane draws as the part `control:<id>`, or `part:<name>` for a subject part (a
   Pane Manager row is `part:pane:<role>/<pane>`); an empty `control` clears the mark. Its result is
-  Workshop's answer, written as `guide.json`: where the mark stands and whether its label found room,
+  Workshop's answer, written as `guide.json`: where the mark stands and whether its label found space,
   the weaver's key for a control drawn as no part, or why not. A mark refused or not shown fails the
   run in Workshop's words, a refusal for want of the row's `guide` power saying so; a clear passes
   whenever Workshop answers. A mark ends when the weaver presses inside it, when its part

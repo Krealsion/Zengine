@@ -210,7 +210,7 @@ Its law, pages and suites: [`builder/AGENTS.md`](../../builder/AGENTS.md).
 
 ### Connections (`external-host/connections-pane/`)
 
-Its law, pages and suites: [`external-host/AGENTS.md`](../../external-host/AGENTS.md).
+Its law, pages and suites: [the `external-host/` front page](../../external-host/README.md#working-on-it).
 
 - **A row's losses are one function's**, said at launch, in Attention and here.
   [WL-GUEST-08](../../agents/workshop/guests.md#wl-guest-08--what-a-rows-powers-do-not-reach-is-said-beside-it)
@@ -325,7 +325,7 @@ Its law, pages and suites: [`editor/AGENTS.md`](../../editor/AGENTS.md).
 
 ### Loaded, Project and Powers (`introspection/`)
 
-Its law, pages and suites: [`introspection/AGENTS.md`](../../introspection/AGENTS.md).
+Its law, pages and suites: [the `introspection/` front page](../../introspection/README.md#working-on-it).
 
 - **Loaded and Project disagree on purpose.**
   [The system can show what it is](../../agents/panes.md#the-system-can-show-what-it-is)
@@ -336,7 +336,7 @@ Its law, pages and suites: [`introspection/AGENTS.md`](../../introspection/AGENT
 
 ### Compose (`composer/`, `message-draft/`)
 
-Its law, pages and suites: [`composer/AGENTS.md`](../../composer/AGENTS.md) and
+Its law, pages and suites: [the `composer/` front page](../../composer/README.md#working-on-it) and
 [`message-draft/AGENTS.md`](../../message-draft/AGENTS.md).
 
 - **A drop never submits**, and submitting authorizes the exact destination and versioned shape.
@@ -357,7 +357,7 @@ Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 ## The external host (`external-host/`, `external-host/demo-control/`)
 
-Its law, pages and suites: [`external-host/AGENTS.md`](../../external-host/AGENTS.md).
+Its law, pages and suites: [the `external-host/` front page](../../external-host/README.md#working-on-it).
 
 - **A tool's capability and its help change together.**
   [Journeys as Python tools](../../external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools)
@@ -385,7 +385,7 @@ Its law, pages and suites: [`graphics/AGENTS.md`](../../graphics/AGENTS.md).
 
 ## Input (`input/`)
 
-Its law, pages and suites: [`input/AGENTS.md`](../../input/AGENTS.md).
+Its law, pages and suites: [the `input/` front page](../../input/README.md#working-on-it).
 
 - **An SDL scancode is the key's identity**; its name is a convenience.
   [The Input package](../../input/docs/input.md)

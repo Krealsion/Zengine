@@ -38,7 +38,7 @@ struct DoubleClickSetting {
             .send_to_role(pane::kLayoutsRole, workshop::RoleSettingsDeclared{{row}});
     }
 
-    /// THE SETTING AS THE LAYOUTS' OWNER KEEPS IT, from that role alone: a default is kept as
+    /// The setting as the layouts' owner keeps it, from that role alone: a default is kept as
     /// its absence, so none is `kDefaultDoubleClickMs`.
     template <class Self>
     void on(Self& self, const workshop::RoleSettings& kept, loom::Mail& mail) {
