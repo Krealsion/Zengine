@@ -35,8 +35,8 @@ that can falsify its behavioral claims. Both judgments matter.
 CI runs on pull requests, on pushes to `main` and nightly on `main`, and the mutants weekly on
 `main` in a workflow of their own; a run is read job by job, because a job under
 `continue-on-error` is red only in the jobs list. Windows is two standard libraries:
-MinGW-w64/libstdc++ is REQUIRED, MSVC's STL is ADVISORY, and a Windows claim names the one it was
-measured on.
+MinGW-w64/libstdc++ is REQUIRED, MSVC's STL is ADVISORY and built only in the nightly run
+(VM-LANE-25), and a Windows claim names the one it was measured on.
 
 ## What a green means
 
