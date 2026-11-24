@@ -114,6 +114,7 @@ spelling"
 chrome"
 
 ### WL-KEY-03
+`desk-gestures/keys.hpp` KeyContext KeyModes keyboard_context keyboard_context_beneath_menu
 `workshop/screen_arrange.cpp` keyboard_context keyboard_context_beneath_menu
 `workshop/keymap.hpp` context_takes_text KeyContext
 `workshop/weave_seam.cpp` paste_owner_now

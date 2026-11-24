@@ -279,16 +279,17 @@ void WorkshopWeave::commit_layout_rename(loom::Mail& mail) {
     const std::size_t at = naming.at;
     const std::string wanted = naming.line.text();
     const Written legal = check_setup_name(wanted);
-    if (!legal.accepted) {
+    switch (desk_gestures::naming_commit(legal.accepted, at, layout_count(session_.setup))) {
+    case desk_gestures::NamingCommit::kRefused:
         say(legal.refusal + " -- " + hotkey(Act::kNamingCommit) + " tries again, " +
                 hotkey(Act::kNamingCancel) + " cancels",
             true);
         return;
-    }
-    if (at >= layout_count(session_.setup)) {
+    case desk_gestures::NamingCommit::kGone:
         close_naming();
         say("that layout is no longer here -- nothing was renamed", true);
         return;
+    case desk_gestures::NamingCommit::kRename: break;
     }
     LayoutEdit rename;
     rename.op = layout_op::kRename;

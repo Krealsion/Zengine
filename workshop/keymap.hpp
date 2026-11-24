@@ -10,6 +10,7 @@
 
 #include "pane/vocabulary.hpp" // ActionCause and an action id's bound
 
+#include "desk-gestures/keys.hpp" // where the keys go: the routing chain's values
 #include "input/gesture_grammar.hpp"
 #include "input/vocabulary.hpp"
 
@@ -25,23 +26,9 @@ using pane::ActionCause;
 using pane::kMaxPaneActionIdLen;
 using pane::kMaxPaneMenuIdLen;
 
-/// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values.
-// WL-KEY-03 -- agents/workshop/keyboard.md
-enum class KeyContext : std::uint8_t {
-    kCommand,
-    kNaming,
-    kContext,
-    kPane,
-    kArrangePane,
-    kArrangeDesk,
-    kArrangeReset,
-    kGlobal,
-    kNoText,
-    /// Everywhere, unless the pane holding the keyboard declared it owns this action
-    /// (`PaneActionRow::supersedes`): declared by the pane, so it survives a weaver moving either
-    /// row's key.
-    kUnlessOwned,
-};
+/// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values, which the
+/// desk's gestures resolve (`desk_gestures::keyboard_context`).
+using desk_gestures::KeyContext;
 
 /// Does this context hand ordinary keys to something that takes text?
 // WL-KEY-03 -- agents/workshop/keyboard.md

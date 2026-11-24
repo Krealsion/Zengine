@@ -697,7 +697,7 @@ Red in `zengine-workshop-screen-tests`:
 
 Two presses on two different tabs count as one double-click.
 
-In `workshop/screen_arrange.cpp`:
+In `desk-gestures/gestures.cpp`:
 
 ```diff
 -    return clicks >= 2 && prior.armed && prior.at == at;
@@ -880,11 +880,11 @@ Red in `zengine-workshop-screen-tests`:
 
 The keyboard's selection walks the panes in the order they were authored.
 
-In `workshop/screen_arrange.cpp`:
+In `desk-gestures/gestures.cpp`:
 
 ```diff
--    std::stable_sort(out.begin(), out.end(), [](const Selectable& a, const Selectable& b) {
-+    std::stable_sort(out.begin(), out.begin(), [](const Selectable& a, const Selectable& b) {
+-    std::stable_sort(panes.begin(), panes.end(), [](const Selectable& a, const Selectable& b) {
++    std::stable_sort(panes.begin(), panes.begin(), [](const Selectable& a, const Selectable& b) {
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -894,13 +894,13 @@ Red in `zengine-workshop-screen-tests`:
 
 ## left-and-right-swapped
 
-`spatial_neighbour`'s filter reads left as right.
+The selection's direction filter (`desk_gestures::neighbour`) reads left as right.
 
-In `workshop/screen_arrange.cpp`:
+In `desk-gestures/gestures.cpp`:
 
 ```diff
--        case Act::kFocusLeft: return edge ? cx <= f.x : cx < fcx;
-+        case Act::kFocusLeft: return edge ? cx >= f.x + f.w : cx > fcx;
+-        case Toward::kLeft: return edge ? cx <= f.x : cx < fcx;
++        case Toward::kLeft: return edge ? cx >= f.x + f.w : cx > fcx;
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -911,7 +911,7 @@ Red in `zengine-workshop-screen-tests`:
 
 A neighbour's misalignment across the direction counts once.
 
-In `workshop/screen_arrange.cpp`:
+In `desk-gestures/gestures.cpp`:
 
 ```diff
 -        return (gap > 0 ? gap : 0) + 2 * across;
@@ -926,7 +926,7 @@ Red in `zengine-workshop-screen-tests`:
 
 Two neighbours scored alike go to the one behind.
 
-In `workshop/screen_arrange.cpp`:
+In `desk-gestures/gestures.cpp`:
 
 ```diff
 -                (points == best_score && p.depth > best->depth)) {
@@ -941,7 +941,7 @@ Red in `zengine-workshop-screen-tests`:
 
 A direction reaches only a pane past the selected pane's edge.
 
-In `workshop/screen_arrange.cpp`:
+In `desk-gestures/gestures.cpp`:
 
 ```diff
 -    for (const bool edge : {true, false}) {

@@ -22,7 +22,7 @@ tile_defense                      doctest           always  2
 tile_defense                      doctest           sdl     1
 ui                                doctest           always  30
 component                         doctest           always  69
-desk_gestures                     doctest           always  9
+desk_gestures                     doctest           always  23
 editor                            doctest           always  20
 bus_tally                         doctest           always  2
 # Tripwires in this suite read workshop/workshop.cpp, realization/owner.hpp,

@@ -83,20 +83,19 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
     menu.cursor = context_cursor_bound(menu.cursor, rows.size());
     switch (session_.keymap.action_for(KeyContext::kContext, k.scancode, k.modifiers)) {
     case Act::kContextUp:
-        if (menu.cursor > 0) {
-            --menu.cursor;
-        }
+        menu.cursor = desk_gestures::menu_cursor_moved(menu.cursor, rows.size(), -1);
         break;
     case Act::kContextDown:
-        if (menu.cursor + 1 < rows.size()) {
-            ++menu.cursor;
-        }
+        menu.cursor = desk_gestures::menu_cursor_moved(menu.cursor, rows.size(), +1);
         break;
     case Act::kContextChoose: choose_context_row(mail); break;
     case Act::kContextBack:
-        // Escape does the smaller thing: out of an open group, else out of the surface.
-        if (!menu.group.empty()) {
-            leave_context_group();
+        // Escape does the smaller thing: out of an open group, its cursor landing on the group it
+        // left so backing out reads as returning, else out of the surface.
+        if (desk_gestures::menu_back(menu.group) == desk_gestures::MenuBack::kLeaveGroup) {
+            const std::string was = menu.group;
+            menu.group.clear();
+            menu.cursor = desk_gestures::cursor_on_group(context_population(menu), was);
         } else {
             close_context();
         }
@@ -111,29 +110,16 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
     }
 }
 
-void WorkshopWeave::leave_context_group() {
-    ContextMenu& menu = session_.context;
-    const std::string was = menu.group;
-    menu.group.clear();
-    menu.cursor = 0;
-    const std::vector<ContextEntry> rows = context_population(menu);
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].is_group && was == rows[i].group) {
-            menu.cursor = i;
-            break;
-        }
-    }
-}
-
 void WorkshopWeave::choose_context_row(loom::Mail& mail) {
     ContextMenu& menu = session_.context;
     const std::vector<ContextEntry> rows = context_population(menu);
-    if (menu.cursor >= rows.size()) {
+    const desk_gestures::MenuChoice choice = desk_gestures::menu_choice(rows, menu.cursor);
+    if (choice.kind == desk_gestures::MenuChoice::Kind::kNothing) {
         return; // the belt, not the door
     }
-    const ContextEntry chosen = rows[menu.cursor];
+    const ContextEntry chosen = rows[choice.at];
     // The host's own menu: every row it chooses is one of the host's own operations.
-    if (chosen.is_group) {
+    if (choice.kind == desk_gestures::MenuChoice::Kind::kGroup) {
         menu.group = chosen.group;
         menu.cursor = 0;
         return;
@@ -576,13 +562,13 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
     // nothing moves, so dragging past the end rests rather than wraps.
     if (session_.tab_drag.active) {
         leave_carry_hover(mail);
-        const LayoutTabPress over =
-            band_tab_at(session_, screen_of(session_), m.space, m.x, m.y);
-        if (over.hit && !over.create && over.at != session_.setup.active_at &&
-            over.at < layout_count(session_.setup)) {
+        const std::optional<std::size_t> to = desk_gestures::tab_drag_to(
+            band_tab_at(session_, screen_of(session_), m.space, m.x, m.y),
+            session_.setup.active_at, layout_count(session_.setup));
+        if (to.has_value()) {
             LayoutEdit move;
             move.op = layout_op::kMove;
-            move.by = static_cast<std::int64_t>(over.at);
+            move.by = static_cast<std::int64_t>(*to);
             ask_layout({move},
                        [this](const LayoutEditAnswered& answered, loom::Mail& later) {
                            if (answered.accepted) {
@@ -647,33 +633,29 @@ void WorkshopWeave::pointer_wheel(const zengine::input::PointerWheel& w, loom::M
 
 bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, std::int64_t clicks,
                                   loom::Mail& mail) {
-    const LayoutTabPress tab =
-        band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
-    if (!tab.hit) {
-        return false;
-    }
-    if (tab.create) {
+    const desk_gestures::TabPressAsk ask = desk_gestures::tab_press(
+        session_.tab_click, band_tab_at(session_, screen_of(session_), b.space, b.x, b.y), clicks);
+    session_.tab_click = ask.next;
+    switch (ask.kind) {
+    case desk_gestures::TabPressAsk::Kind::kNone: return false;
+    case desk_gestures::TabPressAsk::Kind::kNew:
         // THE `+` IS THE POINTER'S SPELLING OF `layout.new` AND NOTHING MORE:
-        // the same door, the same ceiling, the same refusal in the same words. It arms
-        // no double-click and begins no drag -- it is not a tab.
-        session_.tab_click = TabClickMemory{};
+        // the same door, the same ceiling, the same refusal in the same words.
         new_layout(mail);
         return true;
-    }
-    // A second press on the same tab, counted a double click's by the window, renames it; the
-    // first already made it live, so the editor's subject and the switch agree. The completing
-    // press spends the arming: no triple-click.
-    if (doubles_a_tab_click(session_.tab_click, tab.at, clicks)) {
-        session_.tab_click = TabClickMemory{};
-        open_layout_rename(tab.at);
+    case desk_gestures::TabPressAsk::Kind::kRename:
+        // The first press of the double already made the tab live, so the editor's subject and
+        // the switch agree.
+        open_layout_rename(ask.at);
+        return true;
+    case desk_gestures::TabPressAsk::Kind::kSwitch:
+        // And the press takes hold of the tab: a press that never moves is the plain switch. The
+        // record holds no position; what is carried is always `setup.active_at`.
+        session_.tab_drag.active = true;
+        switch_layout(ask.at, mail);
         return true;
     }
-    session_.tab_click = TabClickMemory{true, tab.at};
-    // And the press takes hold of the tab: a press that never moves is the plain switch. The record
-    // holds no position; what is carried is always `setup.active_at`.
-    session_.tab_drag.active = true;
-    switch_layout(tab.at, mail);
-    return true;
+    return false;
 }
 
 } // namespace zengine::workshop

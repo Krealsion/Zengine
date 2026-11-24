@@ -8,12 +8,16 @@
 // these is Workshop's suites' claim.
 
 #include "desk-gestures/gestures.hpp"
+#include "desk-gestures/keys.hpp"
+#include "desk-gestures/menus.hpp"
 
 #include "input/vocabulary.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <utility>
 #include <vector>
 
 using namespace zengine::desk_gestures;
@@ -35,6 +39,12 @@ constexpr PixelRect kDrawn{120, 60, 240, 120};
 constexpr PixelRect kResolved{108, 48, 240, 120};
 
 const WindowLimits kLimits{kCell, 65536};
+
+/// A menu row as a host's population gives one: a group to enter, or an action.
+struct MenuRow {
+    bool is_group = false;
+    const char* group = "";
+};
 
 } // namespace
 
@@ -220,6 +230,245 @@ TEST_CASE("a bounded list shows what fits around its selection and says what it 
     CHECK(tail.first + tail.count == 20);
     CHECK(list_window(9, 0, 2).after == 9); // too few lines to seat an entry: all said omitted
     CHECK(omitted_text(4, "more") == "... 4 more");
+}
+
+TEST_CASE("a press on the tabs: a miss is not the tabs', the + makes a layout and arms nothing, "
+          "a double on one tab renames it and spends the arming, any other press switches and "
+          "holds") {
+    const TabClickMemory armed{true, 1};
+    const TabPressAsk none = tab_press(armed, LayoutTabPress{}, 2);
+    CHECK(none.kind == TabPressAsk::Kind::kNone);
+    CHECK(none.next.armed); // a press elsewhere leaves the arming as it was
+    CHECK(none.next.at == 1);
+
+    const TabPressAsk plus = tab_press(armed, LayoutTabPress{true, 0, true}, 2);
+    CHECK(plus.kind == TabPressAsk::Kind::kNew);
+    CHECK_FALSE(plus.next.armed);
+
+    const TabPressAsk first = tab_press(TabClickMemory{}, LayoutTabPress{true, 1, false}, 1);
+    CHECK(first.kind == TabPressAsk::Kind::kSwitch);
+    CHECK(first.at == 1);
+    CHECK(first.next.armed);
+    CHECK(first.next.at == 1);
+
+    const TabPressAsk second = tab_press(first.next, LayoutTabPress{true, 1, false}, 2);
+    CHECK(second.kind == TabPressAsk::Kind::kRename);
+    CHECK(second.at == 1);
+    CHECK_FALSE(second.next.armed);
+    // The third press of a triple is a first again: a switch, not a second rename.
+    CHECK(tab_press(second.next, LayoutTabPress{true, 1, false}, 3).kind ==
+          TabPressAsk::Kind::kSwitch);
+    // A second press on another tab switches to it.
+    const TabPressAsk other = tab_press(first.next, LayoutTabPress{true, 2, false}, 2);
+    CHECK(other.kind == TabPressAsk::Kind::kSwitch);
+    CHECK(other.at == 2);
+}
+
+TEST_CASE("a held tab is carried to the tab the hand is over, and over its own place, the +, no "
+          "tab or past the run nothing moves") {
+    CHECK(tab_drag_to(LayoutTabPress{true, 3, false}, 1, 5) == std::optional<std::size_t>{3});
+    CHECK(tab_drag_to(LayoutTabPress{true, 0, false}, 1, 5) == std::optional<std::size_t>{0});
+    CHECK_FALSE(tab_drag_to(LayoutTabPress{true, 1, false}, 1, 5).has_value()); // its own place
+    CHECK_FALSE(tab_drag_to(LayoutTabPress{true, 3, true}, 1, 5).has_value());  // the +
+    CHECK_FALSE(tab_drag_to(LayoutTabPress{}, 1, 5).has_value());               // no tab
+    CHECK_FALSE(tab_drag_to(LayoutTabPress{true, 5, false}, 1, 5).has_value()); // past the run
+}
+
+TEST_CASE("a committed name asks the rename of the layout its line opened on, a name the setup's "
+          "judge refuses is refused first, and a layout that has gone asks nothing") {
+    CHECK(naming_commit(true, 2, 3) == NamingCommit::kRename);
+    CHECK(naming_commit(false, 2, 3) == NamingCommit::kRefused);
+    CHECK(naming_commit(false, 3, 3) == NamingCommit::kRefused); // the line stays open to retry
+    CHECK(naming_commit(true, 3, 3) == NamingCommit::kGone);
+}
+
+TEST_CASE("a nudge moves the place by whole cells from the window it measures from, and saturates "
+          "at the number line's ends") {
+    const PixelRect base{100, 60, 240, 120};
+    CHECK(nudged(base, 1, 0) == CanvasPoint{100 + kCell, 60});
+    CHECK(nudged(base, 0, -1) == CanvasPoint{100, 60 - kCell});
+    CHECK(nudged(base, -4, 4) == CanvasPoint{100 - 4 * kCell, 60 + 4 * kCell});
+    CHECK(nudged(PixelRect{kMax, kMin, 1, 1}, 1, -1) == CanvasPoint{kMax, kMin});
+}
+
+TEST_CASE("a key's grow pulls the bottom-right corner by whole cells, the place anchored and no "
+          "pane moved") {
+    const PixelRect base{100, 60, 240, 120};
+    const PaneWindowProposal one = grown(base, 1, 0);
+    CHECK(one.x == 100);
+    CHECK(one.y == 60);
+    CHECK(one.w == 240 + kCell);
+    CHECK(one.h == 120);
+    CHECK_FALSE(one.place_moved_x);
+    CHECK_FALSE(one.place_moved_y);
+    const PaneWindowProposal coarse = grown(base, -4, -4);
+    CHECK(coarse.w == 240 - 4 * kCell);
+    CHECK(coarse.h == 120 - 4 * kCell);
+    CHECK(coarse.x == 100);
+    CHECK(coarse.y == 60);
+}
+
+TEST_CASE("the arrangement's step addresses the next row or the one before, wrapping, and from "
+          "nothing addressed the first forward and the last back") {
+    CHECK(arrange_step_to(3, std::nullopt, +1) == 0);
+    CHECK(arrange_step_to(3, std::nullopt, -1) == 2);
+    CHECK(arrange_step_to(3, 0, +1) == 1);
+    CHECK(arrange_step_to(3, 2, +1) == 0);
+    CHECK(arrange_step_to(3, 0, -1) == 2);
+    CHECK(arrange_step_to(3, 1, -1) == 0);
+    CHECK(arrange_step_to(1, 0, +1) == 0);
+}
+
+TEST_CASE("the keyboard's selection walks the panes in reading order and wraps both ways") {
+    // Laid out of order: a pane low on the desk, two on its top row, and a small one in front of
+    // the first at the same corner.
+    const std::vector<Selectable> laid = reading_order({
+        Selectable{3, PixelRect{0, 200, 100, 100}, 0},
+        Selectable{1, PixelRect{0, 0, 100, 100}, 1},
+        Selectable{2, PixelRect{200, 0, 100, 100}, 2},
+        Selectable{4, PixelRect{0, 0, 50, 50}, 3},
+    });
+    REQUIRE(laid.size() == 4);
+    CHECK(laid[0].kind == 4); // the same corner as 1, and in front of it
+    CHECK(laid[1].kind == 1);
+    CHECK(laid[2].kind == 2);
+    CHECK(laid[3].kind == 3);
+    const std::vector<std::int64_t> order{4, 1, 2, 3};
+    CHECK(cycle_from(order, 1, +1) == std::optional<std::int64_t>{2});
+    CHECK(cycle_from(order, 3, +1) == std::optional<std::int64_t>{4});
+    CHECK(cycle_from(order, 4, -1) == std::optional<std::int64_t>{3});
+    CHECK(cycle_from(order, 99, +1) == std::optional<std::int64_t>{4});
+    CHECK(cycle_from(order, 99, -1) == std::optional<std::int64_t>{3});
+    CHECK_FALSE(cycle_from({}, 1, +1).has_value());
+}
+
+TEST_CASE("a direction selects the nearest pane past the selected one's edge by its gap and twice "
+          "its misalignment, past its centre where panes overlap, a tie the front-most") {
+    const PixelRect here{200, 200, 100, 100};
+    // To the right: one level with it and far, one near and well off its row.
+    const std::vector<Selectable> right{
+        Selectable{1, here, 0},
+        Selectable{2, PixelRect{500, 200, 100, 100}, 1}, // gap 200, misaligned 0: 200
+        Selectable{3, PixelRect{320, 330, 100, 100}, 2}, // gap 20, misaligned 130: 280
+    };
+    CHECK(neighbour(right, 1, Toward::kRight) == std::optional<std::int64_t>{2});
+    CHECK_FALSE(neighbour(right, 1, Toward::kLeft).has_value()); // nothing that way
+    CHECK(neighbour(right, 2, Toward::kLeft) == std::optional<std::int64_t>{1});
+    CHECK(neighbour(right, 99, Toward::kUp) == std::optional<std::int64_t>{1}); // from no pane
+    CHECK_FALSE(neighbour({}, 1, Toward::kUp).has_value());
+    // A pane over the selected one's right half: past its centre, not past its edge.
+    const std::vector<Selectable> over{
+        Selectable{1, here, 0},
+        Selectable{2, PixelRect{260, 200, 100, 100}, 1},
+    };
+    CHECK(neighbour(over, 1, Toward::kRight) == std::optional<std::int64_t>{2});
+    CHECK(neighbour(over, 2, Toward::kLeft) == std::optional<std::int64_t>{1});
+    // Two scored alike: the one in front.
+    const std::vector<Selectable> tie{
+        Selectable{1, here, 0},
+        Selectable{2, PixelRect{200, 400, 100, 100}, 1},
+        Selectable{3, PixelRect{200, 400, 100, 100}, 2},
+    };
+    CHECK(neighbour(tie, 1, Toward::kDown) == std::optional<std::int64_t>{3});
+}
+
+TEST_CASE("where the keys go: each mode above the next, and a mode closed stops being the answer") {
+    KeyModes m;
+    CHECK(keyboard_context(m) == KeyContext::kCommand);
+    m.pane_keys = true;
+    CHECK(keyboard_context(m) == KeyContext::kPane);
+    m.naming = true;
+    CHECK(keyboard_context(m) == KeyContext::kNaming);
+    m.menu = true;
+    CHECK(keyboard_context(m) == KeyContext::kContext);
+    CHECK(keyboard_context_beneath_menu(m) == KeyContext::kNaming);
+    m.arranging = true;
+    CHECK(keyboard_context(m) == KeyContext::kArrangePane);
+    m.desk = true;
+    CHECK(keyboard_context(m) == KeyContext::kArrangeDesk);
+    m.resetting = true;
+    CHECK(keyboard_context(m) == KeyContext::kArrangeReset);
+    m.arranging = false;
+    CHECK(keyboard_context(m) == KeyContext::kContext);
+    m.menu = false;
+    m.naming = false;
+    CHECK(keyboard_context(m) == KeyContext::kPane);
+    CHECK(default_row_context(KeyContext::kCommand));
+    CHECK_FALSE(default_row_context(KeyContext::kPane));
+    CHECK_FALSE(default_row_context(KeyContext::kContext));
+}
+
+TEST_CASE("a menu's cursor moves a row at a time and stops at either end, from where it stands "
+          "bounded") {
+    CHECK(menu_cursor_moved(0, 3, +1) == 1);
+    CHECK(menu_cursor_moved(2, 3, +1) == 2);
+    CHECK(menu_cursor_moved(1, 3, -1) == 0);
+    CHECK(menu_cursor_moved(0, 3, -1) == 0);
+    CHECK(menu_cursor_moved(7, 3, -1) == 1); // a cursor the rows outgrew is bounded first
+    CHECK(menu_cursor_moved(0, 0, +1) == 0);
+    CHECK(context_cursor_bound(5, 2) == 1);
+    CHECK(context_cursor_bound(1, 2) == 1);
+}
+
+TEST_CASE("a menu's back key leaves an open group onto that group's row, else closes the menu, "
+          "and a choice names a group to enter or an action by its row") {
+    CHECK(menu_back("Order") == MenuBack::kLeaveGroup);
+    CHECK(menu_back("") == MenuBack::kClose);
+    const std::vector<MenuRow> top{MenuRow{false, ""}, MenuRow{true, "Order"},
+                                   MenuRow{true, "Reset"}, MenuRow{}};
+    CHECK(cursor_on_group(top, "Reset") == 2);
+    CHECK(cursor_on_group(top, "Order") == 1);
+    CHECK(cursor_on_group(top, "Dock") == 0);
+    CHECK(menu_choice(top, 1).kind == MenuChoice::Kind::kGroup);
+    CHECK(menu_choice(top, 1).at == 1);
+    CHECK(menu_choice(top, 3).kind == MenuChoice::Kind::kAction);
+    CHECK(menu_choice(top, 3).at == 3);
+    CHECK(menu_choice(top, 4).kind == MenuChoice::Kind::kNothing);
+}
+
+TEST_CASE("a refusal naming an attempt at or after a menu's grant is that menu's, one before it an "
+          "older menu's, and a grant not yet queued owns none") {
+    CHECK(menu_refusal_is_ours(10, 10));
+    CHECK(menu_refusal_is_ours(10, 11));
+    CHECK_FALSE(menu_refusal_is_ours(10, 9));
+    CHECK_FALSE(menu_refusal_is_ours(0, 5));
+}
+
+TEST_CASE("a presented menu keeps its newest presses, newest last, and past its bound the oldest "
+          "goes") {
+    std::vector<MenuPress> kept;
+    for (std::uint64_t i = 1; i <= kMaxMenuPresses; ++i) {
+        kept = kept_presses(std::move(kept), MenuPress{i, 100 + i});
+    }
+    REQUIRE(kept.size() == kMaxMenuPresses);
+    CHECK(kept.front().press == 1);
+    kept = kept_presses(std::move(kept), MenuPress{99, 7});
+    REQUIRE(kept.size() == kMaxMenuPresses);
+    CHECK(kept.front().press == 2);
+    CHECK(kept.back().press == 99);
+    CHECK(kept.back().act == 7);
+}
+
+TEST_CASE("a refusal is about the withdrawn menu whose sentences include its attempt, and once "
+          "that menu is answered and forgotten no second answer is found") {
+    WithdrawnMenu a;
+    a.menu = 1;
+    a.first_attempt = 10;
+    a.last_attempt = 14;
+    WithdrawnMenu b;
+    b.menu = 2;
+    b.first_attempt = 20;
+    b.last_attempt = 21;
+    std::vector<WithdrawnMenu> kept{a, b};
+    CHECK(withdrawn_refused(kept, 10) == std::optional<std::size_t>{0});
+    CHECK(withdrawn_refused(kept, 14) == std::optional<std::size_t>{0});
+    CHECK(withdrawn_refused(kept, 21) == std::optional<std::size_t>{1});
+    CHECK_FALSE(withdrawn_refused(kept, 15).has_value());
+    CHECK_FALSE(withdrawn_refused(kept, 9).has_value());
+    const std::optional<std::size_t> answered = withdrawn_refused(kept, 12);
+    REQUIRE(answered.has_value());
+    kept.erase(kept.begin() + static_cast<std::ptrdiff_t>(*answered));
+    CHECK_FALSE(withdrawn_refused(kept, 12).has_value());
 }
 
 } // TEST_SUITE

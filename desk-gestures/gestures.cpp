@@ -5,6 +5,8 @@
 
 #include "input/vocabulary.hpp" // `space` -- which medium's numbers a pointer reported in
 
+#include <algorithm>
+#include <cstdlib>
 #include <string>
 
 namespace zengine::desk_gestures {
@@ -271,12 +273,150 @@ SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge
     return out;
 }
 
-// ---- a layout tab: pressed, pressed twice ---------------------------------------------------
+// ---- a layout tab: pressed, pressed twice, dragged; and its name committed ------------------
 
 // WL-PTR-01 -- agents/workshop/pointer.md
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                          std::int64_t clicks) noexcept {
     return clicks >= 2 && prior.armed && prior.at == at;
+}
+
+TabPressAsk tab_press(const TabClickMemory& prior, const LayoutTabPress& tab,
+                      std::int64_t clicks) noexcept {
+    if (!tab.hit) {
+        return TabPressAsk{TabPressAsk::Kind::kNone, 0, prior};
+    }
+    if (tab.create) {
+        return TabPressAsk{TabPressAsk::Kind::kNew, 0, TabClickMemory{}};
+    }
+    if (doubles_a_tab_click(prior, tab.at, clicks)) {
+        return TabPressAsk{TabPressAsk::Kind::kRename, tab.at, TabClickMemory{}};
+    }
+    return TabPressAsk{TabPressAsk::Kind::kSwitch, tab.at, TabClickMemory{true, tab.at}};
+}
+
+std::optional<std::size_t> tab_drag_to(const LayoutTabPress& over, std::size_t live_at,
+                                       std::size_t count) noexcept {
+    if (!over.hit || over.create || over.at == live_at || over.at >= count) {
+        return std::nullopt;
+    }
+    return over.at;
+}
+
+NamingCommit naming_commit(bool name_legal, std::size_t at, std::size_t count) noexcept {
+    if (!name_legal) {
+        return NamingCommit::kRefused;
+    }
+    return at < count ? NamingCommit::kRename : NamingCommit::kGone;
+}
+
+// ---- the keyboard's arrangement -------------------------------------------------------------
+
+CanvasPoint nudged(const PixelRect& base, std::int64_t dx_cells, std::int64_t dy_cells) noexcept {
+    return CanvasPoint{saturating_step(base.x, dx_cells * graphics::kCellPx),
+                       saturating_step(base.y, dy_cells * graphics::kCellPx)};
+}
+
+PaneWindowProposal grown(const PixelRect& base, std::int64_t dx_cells,
+                         std::int64_t dy_cells) noexcept {
+    return pane_window_proposal(pane_edge::kBottomRight, base.x, base.y, base.w, base.h,
+                                dx_cells * graphics::kCellPx, dy_cells * graphics::kCellPx);
+}
+
+std::size_t arrange_step_to(std::size_t count, std::optional<std::size_t> at,
+                            std::int64_t by) noexcept {
+    if (!at.has_value()) {
+        return by > 0 ? 0 : count - 1;
+    }
+    return by > 0 ? (*at + 1) % count : (*at + count - 1) % count;
+}
+
+// ---- the keyboard's selection moved ---------------------------------------------------------
+
+std::vector<Selectable> reading_order(std::vector<Selectable> panes) {
+    std::stable_sort(panes.begin(), panes.end(), [](const Selectable& a, const Selectable& b) {
+        if (a.rect.y != b.rect.y) {
+            return a.rect.y < b.rect.y;
+        }
+        if (a.rect.x != b.rect.x) {
+            return a.rect.x < b.rect.x;
+        }
+        return a.depth > b.depth;
+    });
+    return panes;
+}
+
+std::optional<std::int64_t> cycle_from(const std::vector<std::int64_t>& order, std::int64_t from,
+                                       std::int64_t step) noexcept {
+    if (order.empty()) {
+        return std::nullopt;
+    }
+    const auto n = static_cast<std::int64_t>(order.size());
+    const auto at = std::find(order.begin(), order.end(), from);
+    if (at == order.end()) {
+        return step >= 0 ? order.front() : order.back();
+    }
+    const std::int64_t i = static_cast<std::int64_t>(at - order.begin());
+    return order[static_cast<std::size_t>(((i + step) % n + n) % n)];
+}
+
+std::optional<std::int64_t> neighbour(const std::vector<Selectable>& panes, std::int64_t from,
+                                      Toward dir) {
+    const bool horizontal = dir == Toward::kLeft || dir == Toward::kRight;
+    const auto here = std::find_if(panes.begin(), panes.end(),
+                                   [from](const Selectable& p) { return p.kind == from; });
+    if (here == panes.end()) {
+        if (panes.empty()) {
+            return std::nullopt;
+        }
+        return panes.front().kind;
+    }
+    const PixelRect f = here->rect;
+    const std::int64_t fcx = f.x + f.w / 2;
+    const std::int64_t fcy = f.y + f.h / 2;
+    // Past the edge, as the W3C draft filters; where panes overlap or share a border, past the
+    // centre, so a pane half over another is still reachable.
+    const auto beyond = [&](const PixelRect& r, bool edge) {
+        const std::int64_t cx = r.x + r.w / 2;
+        const std::int64_t cy = r.y + r.h / 2;
+        switch (dir) {
+        case Toward::kLeft: return edge ? cx <= f.x : cx < fcx;
+        case Toward::kRight: return edge ? cx >= f.x + f.w : cx > fcx;
+        case Toward::kUp: return edge ? cy <= f.y : cy < fcy;
+        default: return edge ? cy >= f.y + f.h : cy > fcy;
+        }
+    };
+    const auto score = [&](const PixelRect& r) {
+        std::int64_t gap = 0;
+        switch (dir) {
+        case Toward::kLeft: gap = f.x - (r.x + r.w); break;
+        case Toward::kRight: gap = r.x - (f.x + f.w); break;
+        case Toward::kUp: gap = f.y - (r.y + r.h); break;
+        default: gap = r.y - (f.y + f.h); break;
+        }
+        const std::int64_t across =
+            horizontal ? std::abs(r.y + r.h / 2 - fcy) : std::abs(r.x + r.w / 2 - fcx);
+        return (gap > 0 ? gap : 0) + 2 * across;
+    };
+    for (const bool edge : {true, false}) {
+        const Selectable* best = nullptr;
+        std::int64_t best_score = 0;
+        for (const Selectable& p : panes) {
+            if (p.kind == from || !beyond(p.rect, edge)) {
+                continue;
+            }
+            const std::int64_t points = score(p.rect);
+            if (best == nullptr || points < best_score ||
+                (points == best_score && p.depth > best->depth)) {
+                best = &p;
+                best_score = points;
+            }
+        }
+        if (best != nullptr) {
+            return best->kind;
+        }
+    }
+    return std::nullopt;
 }
 
 // ---- a bounded list ---------------------------------------------------------------------------

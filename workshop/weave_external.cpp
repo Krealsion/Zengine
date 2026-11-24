@@ -502,18 +502,16 @@ bool WorkshopWeave::end_refused_menu(const loom::Ticket& refused_attempt,
     // THE MENU ON THE SCREEN, when the refused sentence was its own -- its grant or an act
     // forwarded to it: no presenter can answer it, so this host ends it and answers.
     const PresentedMenu& open = session_.presented;
-    if (open.open && open.first_attempt != 0 && attempt >= open.first_attempt) {
+    if (open.open && desk_gestures::menu_refusal_is_ours(open.first_attempt, attempt)) {
         end_menu_unanswered("the presenter left -- " + reason, mail);
         return true;
     }
     // ...OR ONE ALREADY WITHDRAWN, whose requester the presenter would have answered had it been
     // told: answered here, once, and forgotten.
-    for (std::size_t i = 0; i < withdrawn_.size(); ++i) {
-        if (attempt < withdrawn_[i].first_attempt || attempt > withdrawn_[i].last_attempt) {
-            continue;
-        }
-        const WithdrawnMenu refused = withdrawn_[i];
-        withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(i));
+    if (const std::optional<std::size_t> i =
+            desk_gestures::withdrawn_refused(withdrawn_, attempt)) {
+        const WithdrawnMenu refused = withdrawn_[*i];
+        withdrawn_.erase(withdrawn_.begin() + static_cast<std::ptrdiff_t>(*i));
         answer_withdrawn(refused, refused.why + " -- no presenter answered it (" + reason + ")",
                          mail);
         return true;
@@ -673,10 +671,8 @@ void WorkshopWeave::menu_pressed(const graphics::AreaPressed& p, std::uint64_t p
         return;
     }
     menu.last_input = gestures_;
-    menu.presses.push_back(MenuPress{press, hand().latest});
-    if (menu.presses.size() > kMaxMenuPresses) {
-        menu.presses.erase(menu.presses.begin());
-    }
+    menu.presses =
+        desk_gestures::kept_presses(std::move(menu.presses), MenuPress{press, hand().latest});
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md

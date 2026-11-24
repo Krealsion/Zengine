@@ -7,6 +7,8 @@
 #include "screen_canvas.hpp"
 #include "weave.hpp"
 
+#include <algorithm>
+
 namespace zengine::workshop {
 
 using zengine::persist::Written;
@@ -169,21 +171,13 @@ void WorkshopWeave::arrange_step(std::int64_t by) {
         return;
     }
     PaneArrange& a = session_.arrange;
-    if (!a.addressed()) {
-        a.pane = by > 0 ? rows.front() : rows.back();
-        say(arrange_status(), false);
-        return;
+    // An addressed pane the rows no longer hold steps from the first row.
+    std::optional<std::size_t> at;
+    if (a.addressed()) {
+        const auto found = std::find(rows.begin(), rows.end(), a.pane);
+        at = found != rows.end() ? static_cast<std::size_t>(found - rows.begin()) : 0;
     }
-    std::size_t at = 0;
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i] == a.pane) {
-            at = i;
-            break;
-        }
-    }
-    const std::size_t n = rows.size();
-    const std::size_t next = by > 0 ? (at + 1) % n : (at + n - 1) % n;
-    a.pane = rows[next];
+    a.pane = rows[desk_gestures::arrange_step_to(rows.size(), at, by)];
     say(arrange_status(), false);
 }
 
@@ -333,17 +327,8 @@ void WorkshopWeave::arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& 
         return;
     }
     // THE RESOLVED CORNER, NEVER THE CLIPPED ONE -- see `managed_bounds`.
-    const PixelRect from = managed_window_base();
-    arrange_place(detail::step(from.x, dx * graphics::kCellPx),
-                  detail::step(from.y, dy * graphics::kCellPx), mail);
-}
-
-// WL-ARR-06 -- agents/workshop/arrangement.md
-void WorkshopWeave::arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
-                                   std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
-                                   std::int64_t dy, loom::Mail& mail) {
-    arrange_window(pane_window_proposal(edge, base_x, base_y, base_w, base_h, dx, dy), base_x,
-                   base_y, base_w, base_h, mail);
+    const CanvasPoint to = desk_gestures::nudged(managed_window_base(), dx, dy);
+    arrange_place(to.x, to.y, mail);
 }
 
 // WL-ARR-06 -- agents/workshop/arrangement.md
@@ -368,8 +353,7 @@ void WorkshopWeave::arrange_grow(std::int64_t dx, std::int64_t dy, loom::Mail& m
     }
     // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE -- see `managed_bounds`.
     const PixelRect base = managed_window_base();
-    arrange_resize(pane_edge::kBottomRight, base.x, base.y, base.w, base.h,
-                   dx * graphics::kCellPx, dy * graphics::kCellPx, mail);
+    arrange_window(desk_gestures::grown(base, dx, dy), base.x, base.y, base.w, base.h, mail);
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md

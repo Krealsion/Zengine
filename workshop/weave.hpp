@@ -873,10 +873,6 @@ public:
     /// The surface's own four keys, plus the opener closing it.
     void context_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
-    /// Back out one level, with the cursor landing on the group the weaver just left --
-    /// what makes backtracking read as returning rather than starting over.
-    void leave_context_group();
-
     /// CHOOSE THE ROW THE CURSOR IS ON.
     void choose_context_row(loom::Mail& mail);
 
@@ -1555,13 +1551,8 @@ private:
     /// place yet, then the delta.
     void arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail);
 
-    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in pixels, split into its two axes.
-    void arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
-                        std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
-                        std::int64_t dy, loom::Mail& mail);
-
-    /// ...AND THE WINDOW SUCH A GESTURE PROPOSES, authored per axis against the window it began
-    /// from: what a key's resize and a hand's, snapped or not, both end at.
+    /// AUTHOR THE WINDOW ONE RESIZE GESTURE PROPOSES, in pixels, per axis against the window it
+    /// began from: what a key's resize and a hand's, snapped or not, both end at.
     void arrange_window(const PaneWindowProposal& want, std::int64_t base_x, std::int64_t base_y,
                         std::int64_t base_w, std::int64_t base_h, loom::Mail& mail);
 

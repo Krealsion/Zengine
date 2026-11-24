@@ -7,6 +7,7 @@
 // WHAT CAN I DO WITH THIS? -- the contextual-action surface.
 // Workshop law: agents/workshop/contextual.md (+1 registers; agents/workshop.md routes)
 
+#include "desk-gestures/menus.hpp" // a menu walked, and a pane's menu in custody
 #include "keymap.hpp"
 #include "pane/vocabulary.hpp"
 #include "pane/presenter_vocabulary.hpp"
@@ -61,15 +62,13 @@ struct ContextMenu {
     std::int64_t anchor_y = 0;
 };
 
-/// ONE PRESS THE WINDOW LANDED IN A PRESENTED MENU'S AREA: the window's number for it, which the
-/// presenter's word about it cites, and the weaver's act it was.
-struct MenuPress {
-    std::uint64_t press = 0;
-    std::uint64_t act = 0;
-};
-
-/// THE MOST PRESSES A PRESENTED MENU KEEPS, newest last: a choice cites one just made.
-inline constexpr std::size_t kMaxMenuPresses = 16;
+// A menu's walk and a pane's menu's custody are the desk's gestures (`desk-gestures/menus.hpp`):
+// the presses a presented menu keeps and how many, a withdrawn menu's record, and the cursor's
+// bound.
+using desk_gestures::context_cursor_bound;
+using desk_gestures::kMaxMenuPresses;
+using desk_gestures::MenuPress;
+using desk_gestures::WithdrawnMenu;
 
 /// A pane's own menu, presented by the presenter participant on a popup this host granted
 /// (`pane/presenter_vocabulary.hpp`), in an area of the presenter's own inside the popup's
@@ -100,21 +99,6 @@ struct PresentedMenu {
     /// time -- and Loom numbers attempts in the order they are queued, so a refusal naming an
     /// attempt at or after this one is about this menu, and one before it about an older one.
     std::uint64_t first_attempt = 0;
-};
-
-/// A menu the host took off the screen whose requester may still be owed an answer: kept until
-/// the withdrawal, an ask of the presenter's role, is answered or ends, and answered by this host,
-/// unchosen, once, when no presenter could answer it.
-// WL-CTX-10 -- agents/workshop/pane-menu.md
-struct WithdrawnMenu {
-    std::int64_t menu = 0;           ///< the grant's number
-    std::string role;              ///< the requester, as Loom authenticated it on the ask
-    std::string pane;
-    std::string subject;
-    std::uint64_t correlation = 0;   ///< the ask's number, which the answer echoes
-    std::string why;                 ///< the host's words for ending it
-    std::uint64_t first_attempt = 0; ///< its grant's queued attempt...
-    std::uint64_t last_attempt = 0;  ///< ...through its withdrawal's: every sentence about it
 };
 
 /// ONE DECLARATION: an action id, the subject kinds it is meaningful for, and the

@@ -53,14 +53,6 @@ std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
     }
 }
 
-std::int64_t step(std::int64_t v, std::int64_t by) noexcept {
-    return desk_gestures::saturating_step(v, by);
-}
-
-std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
-    return desk_gestures::saturating_minus(a, b);
-}
-
 } // namespace detail
 
 std::vector<std::string> help_rows(const Keymap& k, KeySpelling spelling, KeyContext ctx,

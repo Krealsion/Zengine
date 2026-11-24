@@ -86,6 +86,8 @@ line workshop/first-run/setup.hpp info/vocabulary.hpp 1 falls
 line workshop/first-run/setup.hpp notices/notices-pane/vocabulary.hpp 1 falls
 line workshop/first-run/story.hpp view/view-builder/vocabulary.hpp 1 falls
 line workshop/guests.cpp composer/vocabulary.hpp 1 falls
+line workshop/context.hpp desk-gestures/menus.hpp 1
+line workshop/keymap.hpp desk-gestures/keys.hpp 1
 line workshop/screen.hpp desk-gestures/gestures.hpp 1
 line workshop/guests.cpp info/vocabulary.hpp 1 falls
 line workshop/guests.cpp notices/vocabulary.hpp 1 falls
@@ -190,7 +192,7 @@ lines info/property_view.hpp PropertyView 732 falls
 lines info/value_view.hpp ValueView 1166 falls
 lines realization/owner.hpp Owner 837 falls
 lines view/view-builder/pane.cpp ViewBuilderPane 1163 falls
-lines workshop/weave.hpp WorkshopWeave 912 falls
+lines workshop/weave.hpp WorkshopWeave 908 falls
 
 kind activation/ library
 kind app/ host

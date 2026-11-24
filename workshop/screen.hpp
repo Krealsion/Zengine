@@ -803,7 +803,7 @@ KeyContext keyboard_context(const Session& s);
 std::int64_t typing_pane(const Session& s);
 
 /// MAY ESCAPE'S FINAL FALLTHROUGH SHED THE PANE SELECTION IN THIS CONTEXT?
-bool default_row_context(KeyContext c);
+using desk_gestures::default_row_context;
 
 // ---- Moving the keyboard's selection -----------------------------------------------------
 
@@ -879,14 +879,6 @@ std::string fit_path(const std::string& path, std::int64_t width);
 
 /// FIT `text` INTO AS MANY ROWS AS IT NEEDS, at most `width` cells each.
 std::vector<std::string> wrap(const std::string& text, std::int64_t width);
-
-/// One cell along, without leaving the number line: a nudge's proposal is computed, so the step
-/// saturates and the result meets the ordinary refusal.
-std::int64_t step(std::int64_t v, std::int64_t by) noexcept;
-
-/// `a - b` without leaving the number line: a resize's proposal is a difference of two values this
-/// weave does not own, so it saturates, far outside any workspace.
-std::int64_t minus(std::int64_t a, std::int64_t b) noexcept;
 
 } // namespace detail
 
@@ -1179,16 +1171,6 @@ std::string context_row_text(const Session& s, const ContextEntry& entry,
 /// it has to say.
 PixelRect context_bounds(const Session& s, const Screen& sc);
 
-
-/// The cursor, bounded by the population's size: the population is derived, so it can move
-/// between a keystroke and a repaint.
-inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
-                                                  std::size_t population) noexcept {
-    if (cursor < population) {
-        return cursor;
-    }
-    return population == 0 ? 0 : population - 1;
-}
 
 void paint_context(ScreenPlane& layer, const Session& s, const Screen& sc);
 
@@ -1568,11 +1550,7 @@ inline constexpr std::int64_t kNoBandRow = -1;
 std::int64_t band_tab_row(const Session& s, const Screen& sc);
 
 /// WHICH LAYOUT A PRESS LANDED ON, or none -- the exact inverse of what was painted.
-struct LayoutTabPress {
-    bool hit = false;      ///< this press was answered by the run
-    std::size_t at = 0;    ///< the layout it landed on, when `create` is false
-    bool create = false;   /// < it landed on the `+` affordance instead
-};
+using desk_gestures::LayoutTabPress;
 
 LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t space,
                                   std::int64_t x, std::int64_t y);
