@@ -6,7 +6,7 @@
 #include "browser.hpp"
 #include "pane/rows.hpp"
 #include "pane/text.hpp"
-#include "workshop/keymap.hpp"
+#include "input/gesture_grammar.hpp"
 #include "component/row_map.hpp"
 #include "component/list_window.hpp"
 namespace zengine::inventory_pane {
@@ -77,7 +77,7 @@ inline bool active(const InventoryViews& s, const std::string& id) {
 inline std::string caption(const InventoryViews& s, const inventory::InventorySummary& e) {
     auto text = e.label;
     if (const auto* b = binding(s, e.reference))
-        text = "[" + workshop::gesture_word({b->scancode, b->modifiers}) + (b->enabled ? "] " : " off] ") + text;
+        text = "[" + input::gesture_word({b->scancode, b->modifiers}) + (b->enabled ? "] " : " off] ") + text;
     return text;
 }
 // Five text rows high, with the wider text-cell aspect compensated horizontally.
@@ -101,7 +101,6 @@ inline std::pair<std::string,std::string> tile_name(const std::string& name) {
 inline std::vector<pane::TextRow> render(const InventoryViews& s, const std::string& id,
     View& v, const std::vector<inventory::InventorySummary>& entries, const std::string& notice,
     const std::string& edit_label = {}, const std::string& edit_text = {}, const Browse& browse = {}) {
-    namespace ws = workshop;
     namespace colors = graphics::colors;
     v.map.begin();
     std::vector<pane::TextRow> rows;
@@ -144,7 +143,7 @@ inline std::vector<pane::TextRow> render(const InventoryViews& s, const std::str
             bool selected=false;
             if(i<entries.size()) {
                 const auto& e=entries[i]; label=e.label; selected=key(e.reference)==v.selected;
-                if(const auto* b=binding(s,e.reference)) hint=workshop::gesture_word({b->scancode,b->modifiers})+(b->enabled?"":" x");
+                if(const auto* b=binding(s,e.reference)) hint=input::gesture_word({b->scancode,b->modifiers})+(b->enabled?"":" x");
                 for(std::int64_t dy=1;dy<kSlotRows-1;++dy)
                     v.map.span(y+dy+1,x+1,kSlotColumns-2,v.columns,key(e.reference));
             }

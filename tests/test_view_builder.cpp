@@ -27,7 +27,6 @@
 #include "pane/operation.hpp"
 #include "pane/settings.hpp"
 #include "pane/vocabulary.hpp"
-#include "workshop/settings_seam_vocabulary.hpp"
 
 #include <zen/kernel/kernel.hpp>
 

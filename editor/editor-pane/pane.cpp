@@ -27,7 +27,6 @@
 #include "editor/editor-pane/editor.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
-#include "workshop/keymap.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "pane/rows.hpp"
 #include "pane/carry.hpp"
@@ -46,6 +45,7 @@
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"
 #include "graphics/vocabulary.hpp"
+#include "input/gesture_grammar.hpp"
 #include "input/vocabulary.hpp"
 
 #include "manuals/zengine.editor.hpp" // the Editor's manual, compiled in from its page
@@ -703,8 +703,8 @@ private:
 
     /// A KEY OF THE BUFFER'S OWN, which no keymap moves, spelled as the weaver spells keys.
     std::string buffer_key(const BufferRow& row) const {
-        return ws::spell_gesture(ws::Gesture{row.scancode, row.modifiers},
-                                 ws::spelling_of(key_spelling_));
+        return input::spell_gesture(input::Gesture{row.scancode, row.modifiers},
+                                    input::spelling_of(key_spelling_));
     }
 
     /// THE ONE DELIBERATE DISCARD DOOR (WL-EDIT-03): the buffer back to the last saved state,

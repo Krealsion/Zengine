@@ -18,6 +18,7 @@
 #include "manuals/zengine.inventory-pane.hpp" // this pane's manual, compiled in from its page
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
+#include "input/gesture_grammar.hpp"
 #include "input/vocabulary.hpp"
 #include <zen/kernel/export.hpp>
 #include <cmath>
@@ -276,7 +277,7 @@ public:
             else if(choice=="duplicate-name") begin_edit(Editing::duplicate,slots::duplicate_name(target_.label,listing_.entries));
             else if(choice=="bind") {
                 const auto* b=slots::binding(state_.layout,target_.reference);
-                begin_edit(Editing::binding,b?b->target+" "+ws::gesture_word({b->scancode,b->modifiers}):"");
+                begin_edit(Editing::binding,b?b->target+" "+input::gesture_word({b->scancode,b->modifiers}):"");
                 notice_="Enter target-role then a key, e.g. zengine.input alt+1";
             } else if(choice=="remove") { remove_armed_=true; removing_folder_.reset(); notice_="Press Delete to confirm removing "+target_.label; }
             else if(choice=="folder-new") new_folder();
@@ -746,7 +747,7 @@ private:
         } else {
             const auto text=line_.text(); const auto at=text.find(' ');
             if(at==std::string::npos) {notice_="Use: target-role alt+1"; return;}
-            const auto parsed=ws::parse_gesture(text.substr(at+1));
+            const auto parsed=input::parse_gesture(text.substr(at+1));
             if(!parsed.accepted || !parsed.gesture.scancode) {notice_=parsed.refusal.empty()?"Choose a bound key":parsed.refusal; return;}
             slots::InventoryViewEdit op; op.operation="bind"; op.entry=target_.reference; op.text=text.substr(0,at);
             op.scancode=parsed.gesture.scancode; op.modifiers=parsed.gesture.modifiers; editing_=Editing::none; authorize(op,m);
@@ -798,7 +799,7 @@ private:
         try {
             if(!op.entry.entry.empty() && !summary(op.entry)) throw std::invalid_argument("The entry's owner or identity is unavailable");
             if((op.operation=="move" || op.operation=="bind" || op.operation=="enable") && op.entry.entry.empty()) throw std::invalid_argument("This operation needs an entry");
-            if(op.operation=="bind" && (ws::key_name_of(op.scancode)==nullptr ||
+            if(op.operation=="bind" && (input::key_name_of(op.scancode)==nullptr ||
                 (op.modifiers & ~(input::mod::kCtrl|input::mod::kShift|input::mod::kAlt|input::mod::kSuper))))
                 throw std::invalid_argument("Choose a key and modifiers the Workshop keymap can name");
             auto candidate=slots::edited(state_.layout,op);
