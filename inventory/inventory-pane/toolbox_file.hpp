@@ -5,7 +5,7 @@
 #include "slots.hpp"
 #include "inventory/archive.hpp"
 #include "maker/files.hpp"
-#include "workshop/keymap.hpp"
+#include "input/gesture_grammar.hpp"
 #include <array>
 #include <charconv>
 #include <limits>
@@ -75,7 +75,7 @@ inline void validate_toolbox(const v2::InventoryToolbox& file) {
         if (!entries.contains(b.entry) || !bound.insert(b.entry).second || b.target.empty() ||
             b.target.size() > 128 || std::any_of(b.target.begin(), b.target.end(),
                 [](unsigned char c) { return c <= 32 || c > 126; }) ||
-            workshop::key_name_of(b.scancode) == nullptr || !b.scancode ||
+            input::key_name_of(b.scancode) == nullptr || !b.scancode ||
             (b.modifiers & ~(input::mod::kCtrl | input::mod::kShift | input::mod::kAlt | input::mod::kSuper)))
             throw std::invalid_argument("toolbox has an invalid entry binding");
     }

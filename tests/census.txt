@@ -43,7 +43,6 @@ line editor/editor-pane/opening_switch.hpp workshop/editor_handoff_vocabulary.hp
 line editor/editor-pane/opening_switch.hpp workshop/editor_switch_vocabulary.hpp 1 falls
 line editor/editor-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
 line editor/editor-pane/pane.cpp workshop/editor_handoff_vocabulary.hpp 1 falls
-line editor/editor-pane/pane.cpp workshop/keymap.hpp 1 falls
 line editor/neovim-editor/common.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
 line editor/neovim-editor/opening_switch.hpp workshop/editor_handoff_vocabulary.hpp 1 falls
 line editor/neovim-editor/opening_switch.hpp workshop/editor_switch_vocabulary.hpp 1 falls
@@ -68,9 +67,7 @@ line introspection/seats.hpp workshop/arrangement_vocabulary.hpp 1 falls
 line introspection/seats.hpp workshop/powers_vocabulary.hpp 1 falls
 line introspection/seats.hpp workshop/sample_vocabulary.hpp 1 falls
 line inventory/inventory-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
-line inventory/inventory-pane/presentation.hpp workshop/keymap.hpp 1 falls
 line inventory/inventory-pane/toolbox.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
-line inventory/inventory-pane/toolbox_file.hpp workshop/keymap.hpp 1 falls
 line launcher/catalog.hpp app/folder.hpp 1 falls
 line launcher/catalog.hpp app/session_file.hpp 1 falls
 line launcher/catalog.hpp app/vocabulary.hpp 1 falls
@@ -320,7 +317,6 @@ reach editor/editor-pane/opening_switch.hpp workshop/editor_switch_vocabulary.hp
 reach editor/editor-pane/opening_switch.hpp workshop/open_seam_vocabulary.hpp 1 falls
 reach editor/editor-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
 reach editor/editor-pane/pane.cpp workshop/editor_handoff_vocabulary.hpp 1 falls
-reach editor/editor-pane/pane.cpp workshop/keymap.hpp 1 falls
 reach editor/editor-pane/pane.cpp workshop/open_seam_vocabulary.hpp 1 falls
 reach editor/editor-pane/pane.cpp workshop/project_seam_vocabulary.hpp 1 falls
 reach editor/editor-pane/transfers.hpp workshop/open_seam_vocabulary.hpp 1 falls
@@ -408,11 +404,9 @@ reach introspection/seats.hpp workshop/sample_vocabulary.hpp 1 falls
 reach introspection/seats.hpp zen/kernel/manager.hpp 1 falls
 reach inventory/inventory-pane/pane.cpp workshop/desktop_seam_vocabulary.hpp 1 falls
 reach inventory/inventory-pane/pane.cpp workshop/setup_control.hpp 1 falls
-reach inventory/inventory-pane/presentation.hpp workshop/keymap.hpp 1 falls
 reach inventory/inventory-pane/slots.hpp workshop/pane_shortcuts.hpp 1 falls
 reach inventory/inventory-pane/toolbox.hpp workshop/desktop_seam_vocabulary.hpp 1 falls
 reach inventory/inventory-pane/toolbox.hpp workshop/guest_seam_vocabulary.hpp 1 falls
-reach inventory/inventory-pane/toolbox_file.hpp workshop/keymap.hpp 1 falls
 reach launcher/catalog.hpp app/folder.hpp 1 falls
 reach launcher/catalog.hpp app/session_file.hpp 1 falls
 reach launcher/catalog.hpp app/vocabulary.hpp 1 falls
@@ -613,7 +607,6 @@ reach tests/test_view_builder.cpp view/view-builder/model.hpp 1 falls
 reach tests/test_view_builder.cpp view/view-builder/picture.hpp 1 falls
 reach tests/test_view_builder.cpp workshop/actor_scope.hpp 1 falls
 reach tests/test_view_builder.cpp workshop/project_seam_vocabulary.hpp 1 falls
-reach tests/test_view_builder.cpp workshop/settings_seam_vocabulary.hpp 1 falls
 reach tests/test_workshop_demo.cpp external-host/demo-control/control.hpp 1 falls
 reach tests/test_workshop_desk.cpp view/view-builder/picture.hpp 1 falls
 reach tests/test_workshop_desk.cpp view/view.hpp 1 falls
