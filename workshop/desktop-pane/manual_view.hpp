@@ -21,6 +21,7 @@
 #include "pane/document.hpp"
 #include "pane/vocabulary.hpp"
 
+#include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_area.hpp"
 #include "graphics/elements/text_face.hpp"
@@ -199,7 +200,7 @@ public:
             }
             return;
         }
-        const std::int64_t notches = take_notches(manual_.wheel, dy);
+        const std::int64_t notches = component::take_wheel_notches(manual_.wheel, dy);
         if (notches != 0) {
             manual_scroll(-notches);
             say_manual(keys_heard, keymap, mail);

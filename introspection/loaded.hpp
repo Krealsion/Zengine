@@ -31,6 +31,11 @@
 
 namespace zengine::introspection {
 
+/// The panes' shared text: these panes fit a row and make its words printable with
+/// `pane/text.hpp`, in columns and at whole characters, and never with Workshop's own composition,
+/// to which a provider is a stranger.
+namespace pane_text = pane::pane_text;
+
 /// One loaded weave as the kernel knows it: the library name and the roles it holds, in binding
 /// order. No role is an observed absence (the kernel bound none), so the row may say `(no role)`.
 struct LoadedWeave {
@@ -71,14 +76,6 @@ inline constexpr const char* kUnselectedMark = "  ";
 /// marker). Negative, so it cannot collide with an index into `shown`.
 inline constexpr std::int64_t kNoEntry = -1;
 
-/// Fit `text` into `columns`, and say so when it did not fit: the panes' shared fit, in columns,
-/// cut at whole characters (`pane/text.hpp`), not Workshop's private one -- a provider is
-/// a stranger to Workshop's own composition. Not a second measurer: `workshop::fit_region`
-/// measured, and this spends it.
-inline std::string fit(std::string text, std::int64_t columns) {
-    return pane::pane_text::fit(std::move(text), columns);
-}
-
 /// The Manager's answer, read: `name@r1+r2,name,...` from `Kernel::loaded()`, a weave's roles
 /// joined by `+`, which no role name holds. The wire form has no escaping, so a name with a comma
 /// or an at-sign cannot be read right; the split is on the last `@`, the ambiguity's better half.
@@ -117,18 +114,14 @@ inline std::vector<LoadedWeave> parse_loaded(std::string_view blob) {
     return out;
 }
 
-/// A plan's or a loader's words -- a stem, a role, a path, a refusal -- as a row shows them: every
-/// character as written, a control character a space (`pane_text::printable`).
-inline std::string spelled(const std::string& text) {
-    return pane::pane_text::printable(text);
-}
-
 /// One row per weave: the mark, the name and the role, fitted whole so marked and unmarked rows
 /// are one width. The only place an entry row is spelled (`project_loaded`, `mark_selected`).
 inline std::string entry_row(const LoadedWeave& w, bool chosen, std::int64_t columns) {
-    return fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + spelled(w.name) + " @" +
-                   (w.roles.empty() ? std::string(kNoRole) : spelled(roles_text(w))),
-               columns);
+    return pane_text::fit(std::string(chosen ? kSelectedMark : kUnselectedMark) +
+                              pane_text::printable(w.name) + " @" +
+                              (w.roles.empty() ? std::string(kNoRole)
+                                               : pane_text::printable(roles_text(w))),
+                          columns);
 }
 
 /// The colours an entry row carries, selected and not. Two lines, in one
@@ -281,7 +274,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
                        : "loaded weaves -- " + std::to_string(weaves.size()) + " of " +
                              std::to_string(population.size()) + " match ";
     std::string heading = search.empty() ? "loaded weaves -- " + std::to_string(population.size())
-                                         : lead + spelled(search);
+                                         : lead + pane_text::printable(search);
     const std::int64_t box_room = columns - static_cast<std::int64_t>(lead.size());
     if (box != nullptr && box_room >= 3) {
         const std::int64_t width = std::min<std::int64_t>(
@@ -290,7 +283,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
         view.search = pane::row_box(*box, static_cast<std::int64_t>(lead.size()), width);
         heading = lead + std::string(static_cast<std::size_t>(width), ' ');
     }
-    pane::TextRow top{fit(heading, columns), graphics::colors::accent};
+    pane::TextRow top{pane_text::fit(heading, columns), graphics::colors::accent};
     top.box = view.search;
     say(std::move(top), kNoEntry);
 
@@ -320,10 +313,10 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
         if (shown < weaves.size()) {
             // `kNoEntry`: a population fact, not a hidden entry. See `LoadedView`.
             say(pane::TextRow{
-                    fit("  " + std::string(kElided) + " " +
-                            (origin ? std::to_string(origin) + " earlier, " : "") +
-                            std::to_string(weaves.size() - origin - shown) + " more",
-                        columns),
+                    pane_text::fit("  " + std::string(kElided) + " " +
+                                       (origin ? std::to_string(origin) + " earlier, " : "") +
+                                       std::to_string(weaves.size() - origin - shown) + " more",
+                                   columns),
                     graphics::colors::quiet},
                 kNoEntry);
             --budget;
@@ -336,10 +329,11 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
         say(pane::TextRow{std::string(), graphics::colors::text}, kNoEntry);
     }
     if (caveat > 0) {
-        say(pane::TextRow{fit(kNotInProcess, columns), graphics::colors::quiet}, kNoEntry);
+        say(pane::TextRow{pane_text::fit(kNotInProcess, columns), graphics::colors::quiet},
+            kNoEntry);
     }
     if (source > 0) {
-        say(pane::TextRow{fit(kSnapshotSource, columns), graphics::colors::quiet},
+        say(pane::TextRow{pane_text::fit(kSnapshotSource, columns), graphics::colors::quiet},
             kNoEntry);
     }
     return view;

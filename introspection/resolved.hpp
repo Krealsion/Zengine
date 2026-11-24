@@ -14,7 +14,7 @@
 // Each pane reserves a row for the sentence bounding its count: `kNotAuthored` (in-process
 // participants were never authored artifacts) and `kHostResolution` (one host's resolution).
 
-#include "loaded.hpp" // `fit`, `kElided` -- one spelling of a cut, for all three panes
+#include "loaded.hpp" // `pane_text`, `kElided` -- one spelling of a cut, for all three panes
 
 #include "graphics/colors.hpp"
 #include "pane/rows.hpp"
@@ -105,7 +105,8 @@ inline Laid lay_blocks(const std::vector<std::int64_t>& heights, std::int64_t bu
 
 /// `n more`, in the one spelling all three panes share.
 inline std::string elision(std::size_t hidden, std::int64_t columns) {
-    return fit("  " + std::string(kElided) + " " + std::to_string(hidden) + " more", columns);
+    return pane_text::fit("  " + std::string(kElided) + " " + std::to_string(hidden) + " more",
+                          columns);
 }
 
 /// ...and a window that does not start at the first: `k earlier, n more`, as Loaded spells it.
@@ -113,9 +114,9 @@ inline std::string elision(std::size_t earlier, std::size_t hidden, std::int64_t
     if (earlier == 0) {
         return elision(hidden, columns);
     }
-    return fit("  " + std::string(kElided) + " " + std::to_string(earlier) + " earlier, " +
-                   std::to_string(hidden) + " more",
-               columns);
+    return pane_text::fit("  " + std::string(kElided) + " " + std::to_string(earlier) +
+                              " earlier, " + std::to_string(hidden) + " more",
+                          columns);
 }
 
 /// `1 power` / `2 powers`: a noun that disagrees with its number spends the reader on grammar.
@@ -137,8 +138,8 @@ inline std::string providers_said(std::int64_t n) { return counted(n, "provider"
 inline std::vector<pane::TextRow>
 artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns) {
     std::vector<pane::TextRow> rows;
-    rows.push_back(
-        pane::TextRow{fit("  " + spelled(a.artifact), columns), graphics::colors::text});
+    rows.push_back(pane::TextRow{pane_text::fit("  " + pane_text::printable(a.artifact), columns),
+                                 graphics::colors::text});
 
     std::string authored;
     if (!a.authored_provider.empty()) {
@@ -146,14 +147,14 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
     }
     if (!a.authored_role.empty()) {
         authored += (authored.empty() ? "" : ", ");
-        authored += "weave " + spelled(a.authored_role);
+        authored += "weave " + pane_text::printable(a.authored_role);
     }
     if (authored.empty()) {
         // Unreachable through `check_artifact`; handled because this view does not own that.
         authored = kNoIntent;
     }
-    rows.push_back(
-        pane::TextRow{fit("    authored  " + authored, columns), graphics::colors::quiet});
+    rows.push_back(pane::TextRow{pane_text::fit("    authored  " + authored, columns),
+                                 graphics::colors::quiet});
 
     if (a.state != workshop::kResolvedToken) {
         // Loading, refused, switched, unavailable or not reached. Only refused and unavailable
@@ -168,24 +169,27 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
                            : unavailable ? kUnavailableRow
                                          : kNotReached;
         rows.push_back(pane::TextRow{
-            fit("    " + std::string(said), columns),
+            pane_text::fit("    " + std::string(said), columns),
             refused || unavailable ? graphics::colors::alert : graphics::colors::quiet});
         // Why, and what a weaver can do -- the owner's own two fields, in its words, spelled. A
         // version 1 answer has neither, and says only the state.
         if (!a.reason.empty()) {
-            rows.push_back(pane::TextRow{fit("    why   " + spelled(a.reason), columns),
-                                                   graphics::colors::quiet});
+            rows.push_back(pane::TextRow{
+                pane_text::fit("    why   " + pane_text::printable(a.reason), columns),
+                graphics::colors::quiet});
         }
         if (!a.next.empty()) {
-            rows.push_back(pane::TextRow{fit("    next  " + spelled(a.next), columns),
-                                                   graphics::colors::quiet});
+            rows.push_back(pane::TextRow{
+                pane_text::fit("    next  " + pane_text::printable(a.next), columns),
+                graphics::colors::quiet});
         }
         return rows;
     }
     if (!a.provider.empty()) {
         rows.push_back(pane::TextRow{
-            fit("    resolved  provider " + spelled(a.provider) + ", " + powers_said(a.powers),
-                columns),
+            pane_text::fit("    resolved  provider " + pane_text::printable(a.provider) + ", " +
+                               powers_said(a.powers),
+                           columns),
             graphics::colors::quiet});
     }
     if (a.weave != 0) {
@@ -195,7 +199,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         if (!a.offer.empty()) {
             said += ", operator host " + a.offer;
         }
-        rows.push_back(pane::TextRow{fit(said, columns), graphics::colors::quiet});
+        rows.push_back(pane::TextRow{pane_text::fit(said, columns), graphics::colors::quiet});
     }
     return rows;
 }
@@ -236,7 +240,7 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
     // A plan that completed is not a plan whose every row ran: the unavailable count is said
     // beside the resolved one, never folded into it.
     out.push_back(pane::TextRow{
-        fit(std::to_string(performed) + " of " + std::to_string(said.artifacts.size()) +
+        pane_text::fit(std::to_string(performed) + " of " + std::to_string(said.artifacts.size()) +
                 " artifacts resolved" +
                 (unavailable > 0 ? ", " + std::to_string(unavailable) + " unavailable"
                                  : std::string()) +
@@ -306,11 +310,13 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
         out.push_back(pane::TextRow{std::string(), graphics::colors::text});
     }
     if (caveat > 0) {
-        out.push_back(pane::TextRow{fit(kNotAuthored, columns), graphics::colors::quiet});
+        out.push_back(
+            pane::TextRow{pane_text::fit(kNotAuthored, columns), graphics::colors::quiet});
     }
     if (source > 0) {
-        out.push_back(pane::TextRow{fit("plan: " + spelled(said.plan), columns),
-                                              graphics::colors::quiet});
+        out.push_back(
+            pane::TextRow{pane_text::fit("plan: " + pane_text::printable(said.plan), columns),
+                          graphics::colors::quiet});
     }
     return view;
 }

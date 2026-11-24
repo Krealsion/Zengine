@@ -10,7 +10,7 @@
 // header and body. `project_powers_ui` (powers.hpp) spends them; none of it reads the pane's state.
 // Pane law: agents/panes.md
 
-#include "loaded.hpp"   // `fit`, `kElided`, the marks
+#include "loaded.hpp"   // `pane_text`, `kElided`, the marks
 #include "resolved.hpp" // `kHostItself`
 
 #include "workshop/powers_vocabulary.hpp"
@@ -91,14 +91,14 @@ inline PowersWindow powers_window(std::int64_t population, std::int64_t cursor,
 inline std::string powers_omission(const PowersWindow& w, std::int64_t columns) {
     const std::string mark = "  " + std::string(kElided) + " ";
     if (w.before > 0 && w.after > 0) {
-        return fit(mark + std::to_string(w.before) + " above, " + std::to_string(w.after) +
-                       " below",
-                   columns);
+        return pane_text::fit(mark + std::to_string(w.before) + " above, " +
+                                  std::to_string(w.after) + " below",
+                              columns);
     }
     if (w.before > 0) {
-        return fit(mark + std::to_string(w.before) + " more above", columns);
+        return pane_text::fit(mark + std::to_string(w.before) + " more above", columns);
     }
-    return fit(mark + std::to_string(w.after) + " more below", columns);
+    return pane_text::fit(mark + std::to_string(w.after) + " more below", columns);
 }
 
 // ---- The words this pane owns ----------------------------------------------------
@@ -128,7 +128,8 @@ inline constexpr const char* kNoneMatch = "none here match the current search";
 /// `+ 12 more match -- narrow the search`: the rows past one answer's page are counted, never
 /// silently absent.
 inline std::string beyond_page(std::int64_t more, std::int64_t columns) {
-    return fit("  + " + std::to_string(more) + " more match -- narrow the search", columns);
+    return pane_text::fit("  + " + std::to_string(more) + " more match -- narrow the search",
+                          columns);
 }
 
 /// A row carries printable ASCII and a contributor's words may carry any byte, so another byte
@@ -243,7 +244,7 @@ inline std::string power_row_text(const workshop::PowerRow& row, bool chosen,
         badge.clear();
         room = columns - static_cast<std::int64_t>(mark.size());
     }
-    return fit(mark + fit(printable(row.identity), room) + badge, columns);
+    return pane_text::fit(mark + pane_text::fit(printable(row.identity), room) + badge, columns);
 }
 
 /// The selected detail rows, most-protected first: `yields <schema> v<N>` (what a sample would
@@ -261,7 +262,7 @@ inline Detail detail_rows(const workshop::PowerRow& row, const workshop::PowerDe
                           std::int64_t columns) {
     Detail d;
     const auto line = [&d, columns](std::string text, graphics::Color ink, bool control = false) {
-        d.texts.push_back(fit(std::move(text), columns));
+        d.texts.push_back(pane_text::fit(std::move(text), columns));
         d.inks.push_back(ink);
         d.is_control.push_back(control);
     };
@@ -312,7 +313,7 @@ inline std::string sample_header(bool ok, const std::string& identity, std::size
     const std::string tail =
         hidden > 0 ? ("  " + std::string(kElided) + " " + std::to_string(hidden) + " more") : "";
     const std::int64_t room = columns - static_cast<std::int64_t>(lead.size() + tail.size());
-    return fit(lead + fit(printable(identity), room) + tail, columns);
+    return pane_text::fit(lead + pane_text::fit(printable(identity), room) + tail, columns);
 }
 
 /// Every line a retained sample would spend, header excluded: the value's lines when it was

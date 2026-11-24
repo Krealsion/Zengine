@@ -445,7 +445,7 @@ public:
 
     /// THE WHEEL WALKS THE CURSOR, one binding per notch, fractions carried (Powers' convention).
     void wheel(double dy, const Declared& keys_rows_decl, loom::Mail& mail) {
-        const std::int64_t notches = take_notches(keys_wheel_, dy);
+        const std::int64_t notches = component::take_wheel_notches(keys_wheel_, dy);
         if (notches != 0) {
             keys_step(-notches);
             say_keys(keys_rows_decl, mail);
