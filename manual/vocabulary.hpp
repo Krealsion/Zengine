@@ -6,8 +6,8 @@
 
 // The door a role answers for the shapes it accepts: a caller names a shape, and the role
 // answers its page's section for it, from the manual compiled into it. Nothing keeps a table of
-// shape documents: the role that accepts a shape is the one that says what it does.
-// Reference: manual/docs/manual.md.
+// shape documents: the role that accepts a shape is the one that says what it does. The reference
+// is manual/docs/manual.md.
 
 #include "manual/manual.hpp"
 
@@ -21,10 +21,10 @@
 
 namespace zengine::manual {
 
-/// Caller -> a role: what does a shape you accept do? `content_id` is the shape's content id as
+/// A caller asks a role: what does a shape you accept do? `content_id` is the shape's content id as
 /// the caller holds it (`0x` and sixteen hex digits, as `tests/shapes.txt` spells one), or empty to
 /// ask for the role's own; the words describe one definition of the shape and are said against
-/// it. Answered to the caller alone.
+/// it. It is answered to the caller alone.
 struct ShapeDocumentRequested {
     std::string shape;
     std::int64_t version = 0;
@@ -33,7 +33,7 @@ struct ShapeDocumentRequested {
               ZEN_FIELD(content_id));
 };
 
-/// A role -> the caller: its page's section for the shape. `content_id` is the shape's content
+/// A role answers the caller with its page's section for the shape. `content_id` is the shape's content
 /// id as this role accepts it and `page` the content id of the page the words come from;
 /// `current` is false when the caller named another content id, whose shape these words do not
 /// describe, and `said` then says so. A shape the role does not accept, or one its page has no
@@ -60,7 +60,7 @@ inline std::string content_id_text(loom::ContentId id) {
     return std::string(out);
 }
 
-/// THE ANSWER TO `ask` FROM A ROLE whose gate is `accepted` and whose page is `page`: the
+/// The answer to `ask` from a role whose gate is `accepted` and whose page is `page`: the
 /// section for a shape the role accepts under that name and version, said against the content
 /// id the caller named. A shape outside `zen.` that the role accepts and its page does not
 /// describe is refused naming the page, as is one it does not accept.
@@ -116,7 +116,8 @@ struct With;
 
 namespace zengine::manual {
 
-/// The facet that answers `ShapeDocumentRequested` from `Page` against the weave's `accepted_schemas()`.
+/// The facet that answers `ShapeDocumentRequested` from `Page` against the weave's
+/// `accepted_schemas()`.
 template <const Manual& Page>
 struct ManualFacet {
     using Accept = loom::Accept<ShapeDocumentRequested>;

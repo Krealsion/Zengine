@@ -4,9 +4,9 @@
 #ifndef ZENGINE_PERSIST_FILE_HPP
 #define ZENGINE_PERSIST_FILE_HPP
 
-// The file doors every durable artifact shares: one safe write, one bounded read, and one way a
-// relative spelling is resolved -- Workshop's files and a theme's alike.
-// Workshop law: agents/workshop/document-file.md (+3 registers; agents/workshop.md routes)
+// The file doors every durable file shares, Workshop's and a theme's alike: one safe write, one
+// bounded read, and one way a relative spelling is resolved. The laws they keep are Workshop's,
+// and each declaration's comment names its own; the front page, persist/README.md, lists them.
 
 #include "persist/written.hpp"
 
@@ -27,8 +27,11 @@ namespace zengine::persist {
 
 // ---- The file itself -------------------------------------------------------
 
-/// ONE SPELLING OF A PATH, RESOLVED AGAINST THE PLACE IT WAS MEANT RELATIVE TO.
-// WL-EDIT-06 -- agents/workshop/editor.md; WL-PROJ-02 -- agents/workshop/project.md
+/// One spelling of a path, resolved against the place it was meant relative to: an absolute
+/// spelling is itself, normalized, and a relative one is joined to `base`. An empty base leaves a
+/// relative spelling as it is, never resolved against the process's directory. This is how a
+/// relative source names the project's file, in the editor (WL-EDIT-06) and in the build
+/// (WL-PROJ-02).
 inline std::string resolved_against(const std::string& base, const std::string& spelling) {
     if (spelling.empty()) {
         return spelling;
@@ -49,10 +52,10 @@ struct FileText {
     std::string text;
 };
 
-/// The whole file, or why not. Refusals are the ordinary ones a weaver meets:
-/// the file is not there, it cannot be opened, it is too big to be what it
-/// claims to be.
-// WL-DOC-15 -- agents/workshop/document-file.md
+/// The whole file, or why not. The refusals are the ordinary ones a weaver meets: the file is not
+/// there, it cannot be opened, it is larger than `most` bytes and so too big to be `what` it
+/// claims to be, or the read failed part way. A file past its bound is refused by its size, before
+/// any of it is read (WL-DOC-15).
 inline FileText read_file(const std::string& path, std::uintmax_t most, const char* what) {
     std::error_code ec;
     const std::uintmax_t size = std::filesystem::file_size(path, ec);
@@ -78,8 +81,11 @@ inline FileText read_file(const std::string& path, std::uintmax_t most, const ch
 /// Where the complete candidate is written before it becomes the document.
 inline std::string pending_path(const std::string& path) { return path + ".saving"; }
 
-/// Write text to a file WITHOUT putting the last good save at risk.
-// WL-SESSION-13 -- agents/workshop/session.md; WL-DOC-15 -- agents/workshop/document-file.md
+/// Writes text to a file without putting the last good save at risk: the text goes to
+/// `pending_path(path)`, which replaces the file only once it is whole. A candidate that cannot be
+/// finished, or cannot replace the file, is removed, and the write is refused with words that say
+/// the file is unchanged, so the last good save stays readable (WL-DOC-15). The session is
+/// written through it, on an orderly close only (WL-SESSION-13).
 inline Written write_file(const std::string& path, const std::string& text) {
     const std::string pending = pending_path(path);
     {
@@ -107,10 +113,10 @@ inline Written write_file(const std::string& path, const std::string& text) {
     return Written::ok();
 }
 
-/// The same safe write, into a directory that may not exist yet: the per-user roots are created on
-/// first write (the session, the prefs, the legacy import). Project files never are: a missing
-/// directory there is a weaver's typo, refused loudly.
-// WL-SESSION-18 -- agents/workshop/session.md
+/// The same safe write, into a folder that may not exist yet: it makes the folders on the way to
+/// `path` first. The per-user roots, where the session, the prefs and the window are kept, are
+/// made this way on their first write and never on a read. A project's folders are never made: a
+/// missing folder there is a weaver's typo, refused out loud (WL-SESSION-18).
 inline Written write_file_making_room(const std::string& path, const std::string& text) {
     const std::filesystem::path parent = std::filesystem::path(path).parent_path();
     if (!parent.empty()) {
@@ -124,8 +130,9 @@ inline Written write_file_making_room(const std::string& path, const std::string
 }
 
 // ---- JSON read as text ---------------------------------------------------------------------
-// For the few reads that meet a file before any shape can: an older file's header, and the members
-// a file of lines puts together. Nothing here judges a value; a shape's admission does that.
+// These are for the few reads that meet a file before any shape can: an older file's header, and
+// the members a file of lines puts together. Nothing here judges a value; a shape's admission does
+// that.
 
 namespace json {
 
@@ -184,8 +191,8 @@ inline std::size_t skip_space(std::string_view text, std::size_t at) {
     return at;
 }
 
-/// THE VALUE OF MEMBER `key` OF THE JSON OBJECT `object`, as its text, or nothing: read at the
-/// object's own level, never inside a nested value.
+/// The value of member `key` of the JSON object `object`, as its text, or nothing. It is read at
+/// the object's own level, never inside a nested value.
 inline std::optional<std::string_view> member(std::string_view object, std::string_view key) {
     std::size_t at = skip_space(object, 0);
     if (at >= object.size() || object[at] != '{') {
@@ -251,8 +258,9 @@ inline std::optional<std::string> word(std::optional<std::string_view> value) {
 }
 
 
-/// EVERY MEMBER OF THE JSON OBJECT `object`, its name and its value's text, in the order written;
-/// nothing when it is not an object this reader can walk.
+/// Every member of the JSON object `object`, its name and its value's text, in the order written,
+/// or nothing when it is not an object this reader can walk.
+
 inline std::optional<std::vector<std::pair<std::string_view, std::string_view>>>
 members(std::string_view object) {
     std::vector<std::pair<std::string_view, std::string_view>> out;

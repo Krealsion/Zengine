@@ -4,8 +4,9 @@
 #ifndef ZENGINE_PERSIST_PATH_ADMISSION_HPP
 #define ZENGINE_PERSIST_PATH_ADMISSION_HPP
 
-// GETTING A FILESYSTEM PATH INTO THE ONLY PATH VOCABULARY THIS APPLICATION HAS.
-// Workshop law: agents/workshop/files.md (+1 registers; agents/workshop.md routes)
+// Taking a filesystem path into the only path vocabulary this application has: a `std::string`
+// spelling. Asking a path for its bytes can throw, and this header alone asks (WL-FILES-11, in
+// Workshop's Files register): everything else holds the spelling it admitted.
 
 #include <exception>
 #include <filesystem>
@@ -15,8 +16,7 @@
 
 namespace zengine::persist {
 
-/// WHETHER A FILESYSTEM PATH COULD BE CARRIED, AND WHAT IT BECAME IF IT COULD.
-// WL-FILES-11 -- agents/workshop/files.md
+/// Whether a filesystem path could be carried, and what it became if it could.
 struct AdmittedPath {
     /// Did the platform spell this path in Workshop's narrow path vocabulary?
     bool carried = false;
@@ -25,8 +25,8 @@ struct AdmittedPath {
     std::string spelling;
 };
 
-/// THE ONE ANSWER TO "CAN THIS FILESYSTEM PATH ENTER WORKSHOP?".
-// WL-FILES-11 -- agents/workshop/files.md
+/// The one answer to "can this filesystem path enter Workshop?": carried, with its generic
+/// spelling, or not carried when the platform will not narrow it.
 inline AdmittedPath admit_path(const std::filesystem::path& p) noexcept {
     AdmittedPath out;
     try {
@@ -42,8 +42,9 @@ inline AdmittedPath admit_path(const std::filesystem::path& p) noexcept {
     return out;
 }
 
-/// A PATH SPELLING THIS APPLICATION WROTE DOWN EARLIER, COMING BACK IN.
-// WL-FILES-09 -- agents/workshop/files.md
+/// A path spelling this application wrote down earlier, coming back in. It returns the spelling
+/// absolute, lexically normal and carried, or empty when it is not absolute or cannot be carried;
+/// every durable spelling that comes back in goes through it (WL-FILES-09).
 inline std::string admit_location(const std::string& spelling) noexcept {
     if (spelling.empty()) {
         return std::string();
@@ -53,9 +54,10 @@ inline std::string admit_location(const std::string& spelling) noexcept {
         if (!p.is_absolute()) {
             return std::string();
         }
-        // One location, one spelling: `lexically_normal` keeps a trailing separator after a final
-        // `..`, and everything downstream compares locations by bytes, so it is dropped; a root
-        // keeps its separator, which there is the whole path.
+        // One location has one spelling. `lexically_normal` keeps a trailing separator, the
+        // spelling's own or one left where a final `..` was resolved, and everything downstream
+        // compares locations by bytes, so it is dropped. A root keeps its separator, which there
+        // is the whole path.
         if (p.filename().empty() && p != p.root_path()) {
             p = p.parent_path();
         }
@@ -67,20 +69,20 @@ inline std::string admit_location(const std::string& spelling) noexcept {
     }
 }
 
-/// ONE DIRECTORY ENTRY'S NAME, AND WHETHER THE BYTES ARE THE FILESYSTEM'S OWN.
-// WL-FILES-11 -- agents/workshop/files.md
+/// One directory entry's name, and whether the bytes are the filesystem's own.
 struct AdmittedName {
     /// The bytes this row holds: the filesystem's own UTF-8 when `exact`, and a
     /// `?`-per-unit projection of what the platform reported when not.
     std::string name;
-    /// True when `name` is the filesystem's own bytes. FALSE means the platform refused to
-    /// spell this name at all and these bytes are a PROJECTION -- they say that something
-    /// is there and roughly what it looks like, and they name no file.
+    /// True when `name` is the filesystem's own bytes. False means the platform refused to spell
+    /// this name at all, and these bytes are a projection: they say that something is there and
+    /// roughly what it looks like, and they name no file.
     bool exact = true;
 };
 
-/// TAKE ONE ENTRY'S FILENAME, DEFENSIVELY.
-// WL-FILES-10, WL-FILES-11 -- agents/workshop/files.md
+/// Takes one entry's file name: its UTF-8 bytes, exact, or when the platform will not convert it,
+/// a projection with one `?` for each unit that is not printable ASCII. A name is held as
+/// `std::string` bytes everywhere (WL-FILES-10).
 inline AdmittedName admit_filename(const std::filesystem::path& filename) noexcept {
     AdmittedName out;
     try {
@@ -92,8 +94,8 @@ inline AdmittedName admit_filename(const std::filesystem::path& filename) noexce
     }
     out.exact = false;
     try {
-        // `native()` is the stored string and cannot throw -- it is the CONVERSION that
-        // refuses, so what the platform reported is still readable one unit at a time.
+        // `native()` is the stored string and cannot throw: it is the conversion that refuses, so
+        // what the platform reported is still readable one unit at a time.
         using Unit = std::filesystem::path::value_type;
         const std::basic_string<Unit>& native = filename.native();
         out.name.reserve(native.size());
@@ -112,8 +114,9 @@ inline AdmittedName admit_filename(const std::filesystem::path& filename) noexce
     return out;
 }
 
-/// WHERE THE WEAVER IS STANDING, or the designed absence.
-// WL-FILES-11 -- agents/workshop/files.md; WL-PROJ-01 -- agents/workshop/project.md
+/// Where the weaver is standing: the process's directory at launch, captured once by the host as
+/// the project (WL-PROJ-01), or empty when it cannot be read or carried.
+
 inline std::string launch_project_dir() {
     std::error_code cwd_ec;
     const std::filesystem::path cwd = std::filesystem::current_path(cwd_ec);

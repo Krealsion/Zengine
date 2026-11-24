@@ -5,3 +5,9 @@
 # keeps an AGENTS.md router beside its front page. A folder joins in the change that gives it this
 # shape. ASCII only.
 timer
+activation
+tally
+property
+persist
+manual
+ui

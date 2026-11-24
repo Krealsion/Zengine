@@ -4,9 +4,9 @@
 #ifndef ZENGINE_UI_LAYOUT_HPP
 #define ZENGINE_UI_LAYOUT_HPP
 
-// The UI package's solved side: what a room makes of authored parts, in whole pixels, and which
-// part is under a pixel. Everything here is an observation, recomputed when wanted: never stored
-// on the parts, never cached, and without a wire form. Reference: ui/docs/ui.md.
+// The UI package's solved side: what given bounds make of authored parts, in whole pixels, and
+// which part is under a pixel. Everything here is an observation, recomputed when wanted: never
+// stored on the parts, never cached, and without a wire form. The reference is ui/docs/ui.md.
 
 #include "ui/vocabulary.hpp"
 
@@ -19,9 +19,9 @@
 
 namespace zengine::ui {
 
-/// The root frame and the window's step, in whole pixels: the room's width and height, and the
-/// smallest span the window can show -- 1 in a window of pixels, a cell in a terminal. Plain
-/// numbers, because a room is measured, not authored.
+/// The bounds a layout is solved in, in whole pixels: the root frame's width and height, and the
+/// window's step, the smallest span it can show (1 in a window of pixels, a cell in a terminal).
+/// They are plain numbers, because bounds are measured, not authored.
 struct Room {
     std::int64_t w = 0;
     std::int64_t h = 0;
@@ -48,7 +48,7 @@ struct Rect {
 
     friend bool operator==(const Rect&, const Rect&) = default;
 
-    /// Whether the pixel is inside. Total over every value: an empty or inverted rectangle
+    /// Whether the pixel is inside. It is total over every value: an empty or inverted rectangle
     /// contains nothing, and the far edge is compared in unsigned arithmetic, so a rectangle
     /// whose right edge `x + w` is past the int64 range, which poked content can solve to,
     /// answers without signed overflow.
@@ -71,7 +71,7 @@ struct Placed {
     friend bool operator==(const Placed&, const Placed&) = default;
 };
 
-/// A solved scene: the room it observes, and each placed part in authored order, which is paint
+/// A solved scene: the bounds it observes, and each placed part in authored order, which is paint
 /// order (later is in front) and hit order. The order `arrange` works in never reaches `items`.
 /// A part whose context does not reach the root is absent, so `items` can be shorter than the
 /// sequence it observes.
@@ -97,7 +97,7 @@ static_assert(loom::Shape<Element> && loom::Shape<Size> && loom::Shape<Place>,
 
 /// `a + b`, saturating at the ends of int64 instead of overflowing. A solved position is a
 /// frame's origin plus an authored offset, and either can come from poked content; a saturated
-/// position is outside every room.
+/// position is outside any bounds.
 inline constexpr std::int64_t add_px(std::int64_t a, std::int64_t b) noexcept {
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
@@ -131,7 +131,7 @@ inline constexpr std::int64_t floor_div(std::int64_t a, std::int64_t b) noexcept
     return (a % b != 0 && a < 0) ? q - 1 : q;
 }
 
-/// The step a room solves at: at least one pixel.
+/// The step a layout is solved at: at least one pixel.
 inline constexpr std::int64_t step_of(const Room& room) noexcept {
     return room.step > 0 ? room.step : 1;
 }
@@ -322,17 +322,17 @@ inline void read_as_fit(Axis& a, std::optional<std::int64_t> measure, std::int64
 
 } // namespace detail
 
-/// The root's frame: the whole room, at the origin. A part whose context is kRootContext stands
-/// in it.
+/// The root's frame: the whole of the bounds, at the origin. A part whose context is kRootContext
+/// stands in it.
 inline constexpr Rect root_frame(const Room& room) noexcept {
     return Rect{0, 0, room.w, room.h};
 }
 
-/// Solve a whole authored sequence in a room: the one place authored intent becomes geometry,
-/// so whatever paints, reads or hit-tests one Scene agrees. `measures[i]` is `parts[i]`'s own
-/// measure; a part past the end of `measures` has none.
+/// Solves a whole authored sequence in the given bounds: the one place authored intent becomes
+/// geometry, so whatever paints, reads or hit-tests one Scene agrees. `measures[i]` is `parts[i]`'s
+/// own measure; a part past the end of `measures` has none.
 ///
-/// Total over every value the types hold, validated or not. It works once, on the heap, in
+/// It is total over every value the types hold, validated or not. It works once, on the heap, in
 /// dependency order -- the reach of a frame that fits its parts after those parts, every frame's
 /// rectangle before the parts that stand in it -- and answers in authored order. A part whose
 /// chain does not reach the root, through a loop or a context no part carries, is not placed:
@@ -530,7 +530,8 @@ inline const Placed* placed_for(const Scene& scene, std::int64_t id) noexcept {
 /// its frame's placed rectangle. Ask it instead of reconstructing a frame's position, which would
 /// be a second copy of the geometry.
 ///
-/// Total: a frame this scene did not place gives an empty frame. The frame is found as
+/// It is total: a frame this scene did not place gives an empty frame. The frame is found as
+
 /// `placed_for` finds it, so with a repeated identity it can be a frame `arrange` did not use.
 inline Rect frame_in(const Scene& scene, const Element& e) noexcept {
     if (e.context == kRootContext) {

@@ -398,7 +398,7 @@ Its law, pages and suites: [`input/AGENTS.md`](../../input/AGENTS.md).
 
 ## UI (`ui/`)
 
-Its law, pages and suites: [`ui/AGENTS.md`](../../ui/AGENTS.md).
+Its law, pages and suites: [the UI front page](../../ui/README.md#working-on-it).
 
 - **The fence keeps solved numbers out of an authored type, by type and by name**, each half a
   compile entry beside its control, and the name half is not airtight. [The fence](../../ui/docs/ui.md#the-fence)
@@ -409,7 +409,7 @@ Its law, pages and suites: [`ui/AGENTS.md`](../../ui/AGENTS.md).
 ## The Timer and activation (`timer/`, `activation/`)
 
 Its law, pages and suites: [the Timer's front page](../../timer/README.md#working-on-it) and
-[`activation/AGENTS.md`](../../activation/AGENTS.md).
+[the activation cursor's front page](../../activation/README.md#working-on-it).
 
 - **A host rests in its one wait**: its loop turns with `pump_pending()` and rests between turns
   in Loom's `loom::host::Reactor`, which wakes the Timer and every source it trusts at their time

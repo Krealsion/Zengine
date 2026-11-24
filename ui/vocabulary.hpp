@@ -6,8 +6,8 @@
 
 // The UI package's authored side: a part's identity, the frame it stands in, and its place and
 // sizes as a weaver said them, in words and whole pixels. No solved number exists here;
-// ui/layout.hpp solves. What is wrong with the intent alone, with no room, is asked here
-// (`problem`). Not a widget set or a drawing vocabulary. Reference: ui/docs/ui.md.
+// ui/layout.hpp solves. What is wrong with the intent alone, before any bounds are known, is asked
+// here (`problem`). It is not a widget set or a drawing vocabulary. The reference is ui/docs/ui.md.
 
 #include <zen/weave/shape.hpp>
 
@@ -185,7 +185,8 @@ struct Place {
     ZEN_SHAPE(Place, 1, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
-/// The context that names no part: stand in the root frame, the whole room.
+/// The context that names no part: a part with it stands in the root frame, the whole of the
+/// bounds it is solved in.
 ///
 /// It is 0, so a default-constructed Element stands in the root. A part may carry identity 0 and
 /// still be placed, but nothing can stand in it.
@@ -224,7 +225,8 @@ struct Element {
 };
 
 // ---- Finding, and following, an authored relationship ----------------------------------
-// No room and no geometry: whether a chain reaches the root is a fact about what was authored.
+// These need no bounds and no geometry: whether a chain reaches the root is a fact about what was
+// authored.
 
 /// A by-identity index over an authored sequence: O(n log n) to build, O(log n) to look up.
 ///
@@ -286,9 +288,9 @@ struct ContextWalk {
     }
 };
 
-/// Follow a context chain from `start` toward the root, and say where it ends.
+/// Follows a context chain from `start` toward the root, and says where it ends.
 ///
-/// Iterative, with no depth ceiling: a walk that visits more elements than the sequence holds
+/// The walk is iterative, with no depth ceiling: a walk that visits more elements than the sequence holds
 /// has visited one twice, so a cycle is detected exactly, never by running out of stack. A cycle's
 /// `chain` is one lap, closed (`#7 -> #9 -> #7`), not the road into it; a missing identity's is
 /// what was visited before it. Starting at kRootContext reaches the root with an empty chain.
@@ -313,9 +315,9 @@ inline ContextWalk walk_context(const std::vector<Element>& elements, const ById
             break; // already proven to reach the root; so does everything behind us
         }
         if (walk.chain.size() > elements.size()) {
-            // The budget is spent, so a node has certainly been visited twice -- and a walk
-            // whose every step is determined by the element it is on is periodic from its first
-            // repeat, so `here` is inside the loop. Take exactly one lap from it.
+            // The budget is spent, so a node has certainly been visited twice. A walk whose every
+            // step is determined by the element it is on is periodic from its first repeat, so
+            // `here` is inside the loop, and the chain takes exactly one lap from it.
             walk.end = ContextEnd::Cycle;
             walk.at = here;
             walk.chain.clear();
@@ -383,7 +385,7 @@ inline std::string reads_of_frame(const Size& size, std::int64_t place, bool acr
 
 } // namespace detail
 
-/// The intent's own first problem, with no room and no measure, in authored order; empty when
+/// The intent's own first problem, with no bounds and no measure, in authored order; empty when
 /// there is none. The application that accepts a sequence of parts calls it and refuses on an
 /// answer; `arrange` is total and solves whatever it is given.
 ///
@@ -495,7 +497,8 @@ inline constexpr bool carries_no_resolved_geometry_v =
     !detail::has_pixels<T>::value;
 
 /// The fence as one question about a type: is every dimension on it something a weaver said,
-/// rather than something a room worked out? Both halves.
+/// rather than something solving worked out? It asks both halves.
+
 template <class T>
 inline constexpr bool authored_only_v =
     extents_are_authored_v<T> && carries_no_resolved_geometry_v<T>;

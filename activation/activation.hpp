@@ -4,11 +4,11 @@
 #ifndef ZENGINE_ACTIVATION_ACTIVATION_HPP
 #define ZENGINE_ACTIVATION_ACTIVATION_HPP
 
-// The activation cursor: whether a weave acts on an arriving `zen.Activated`. What an activation
-// means, and who may attest one, are the Loom's (its lifecycle laws); the cursor reads the Loom's
-// attestation and keeps one lineage. Not a lifecycle and not a scheduler: what a weave does with
-// an accepted activation is its own. Beside it, `zengine::With` composes facets onto a weave, and
-// a value door lets a hand-built schema stand in its accept list. Reference:
+// The activation cursor decides whether a weave acts on an arriving `zen.Activated`. What an
+// activation means, and who may attest one, are Loom's lifecycle laws; the cursor reads Loom's
+// attestation and keeps one lineage. It is not a lifecycle and not a scheduler: what a weave does
+// with an accepted activation is its own. Beside it, `zengine::With` composes facets onto a weave,
+// and a value door lets a schema built by hand stand in a weave's accept list. The reference is
 // activation/docs/activation.md.
 
 #include <zen/schema.hpp>
@@ -32,16 +32,17 @@ namespace zengine {
 /// earlier incarnation can make this one act, whichever arrives first.
 class ActivationCursor {
 public:
-    /// Offers an arriving activation. True iff it becomes the current one, which is when the weave
-    /// does its once-per-activation work. False, changing nothing, for:
-    /// - an activation the Loom did not attest (`Mail::lifecycle_attested`), whoever sent it;
+    /// Offers an arriving activation. It returns true only when the activation becomes the current
+    /// one, which is when the weave does its once-per-activation work. It returns false, and
+    /// changes nothing, for:
+    /// - an activation Loom did not attest (`Mail::lifecycle_attested`), whoever sent it;
     /// - one whose attested sequence (`Mail::attested_sequence`) is not the payload's;
     /// - an invalid sender, or a sequence below 1;
     /// - from the current sender, a sequence no newer than the current one: a duplicate or a
     ///   replay.
     /// An attested activation from a different sender begins a new lineage at any positive
-    /// sequence. It takes the whole `Mail` because both deciding facts are delivery facts, which
-    /// no payload field can carry.
+    /// sequence. It takes the whole `Mail` because the attestation and the sender are facts of the
+    /// delivery, which no payload field can carry.
     bool accept(const loom::Mail& mail, const loom::Activated& activated) {
         if (!mail.lifecycle_attested()) {
             return false;
@@ -63,17 +64,18 @@ public:
         return true;
     }
 
-    /// The current activation. Before the first accepted one: false, an invalid id and 0.
+    /// The current activation. Before the first one is accepted, these are false, an invalid id
+    /// and 0.
     bool activated() const { return activated_; }
     loom::WeaveId sender() const { return sender_; }
     std::int64_t sequence() const { return sequence_; }
 
     /// The current sender as it travels on a wire: canonical decimal Text, because a `WeaveId` is
-    /// unsigned 64-bit and a wire `Int` is signed. "0" before the first accepted activation.
+    /// unsigned 64-bit and a wire `Int` is signed. It is "0" before the first accepted activation.
     std::string sender_text() const { return std::to_string(sender_.value); }
 
     /// Whether a carried key, a `sender_text()` and a sequence, names the current activation.
-    /// Both halves must match; false before the first accepted activation.
+    /// Both halves must match, and it is false before the first accepted activation.
     bool matches(const std::string& sender_text_, std::int64_t sequence) const {
         return activated_ && sequence == sequence_ && sender_text_ == sender_text();
     }
@@ -176,8 +178,9 @@ struct SelectBase {
     using type = Base<Dispatch, State, AcceptList, EmitList, ClaimList>;
 };
 
-/// A base with Timer bindings (`timer::TimedWeave`), asked of the very type the weave derives from:
-/// naming another instantiation would make that one a class too, and MSVC builds its virtuals.
+/// A base with Timer bindings (`timer::TimedWeave`) takes its parameters in another order. It is
+/// detected on the very instantiation the weave derives from: naming any other instantiation would
+/// make that one a class too, and MSVC would build its virtual functions.
 template <template <class...> class Base, class Self, class Dispatch, class State, class AcceptList,
           class EmitList, class ClaimList>
 struct SelectBase<
@@ -186,8 +189,8 @@ struct SelectBase<
     using type = Base<Self, State, AcceptList, EmitList, Dispatch, ClaimList>;
 };
 
-/// The second, defaulted parameter of the facet's own publication hook: a weave's handler takes
-/// the claim alone, so asking for one never finds the facet's.
+/// The type of the second, defaulted parameter of the facet's own publication hook. A weave's own
+/// handler takes the claim alone, so a test for whether the weave has one never finds the facet's.
 struct ForwardedClaim {};
 
 template <class Tuple, class... Args>
@@ -215,11 +218,12 @@ decltype(auto) find_canvas(Tuple& t) {
     }
 }
 
-/// A weave composed with `Facets...` over `Base` (`loom::WeaveBase` or `timer::TimedWeave`).
-/// Unites the weave's and each facet's `Accept`/`Emit` sets, and over `loom::WeaveBase` its and
-/// each facet's `Claims` set, at mount; routes each facet's messages alongside the weave's own
-/// `on(...)`, and runs `self->after_delivery(mail)` before each facet's `after_delivery` in facet
-/// declaration order.
+/// A weave composed with `Facets...` over `Base` (`loom::WeaveBase` or `timer::TimedWeave`). It
+/// unites the weave's and each facet's `Accept` and `Emit` sets, and over `loom::WeaveBase` their
+/// `Claims` sets too; it routes each message a
+/// facet accepts to that facet as well as to the weave's own `on(...)`; and after a delivery it runs
+/// the weave's `after_delivery(mail)` first, then each facet's, in the order the facets are
+/// declared.
 template <class Self, class State, class AcceptList, class EmitList,
           template <class...> class Base, class ClaimList, class... Facets>
 class FacetWeave
@@ -288,9 +292,11 @@ public:
         }
     }
 
-    /// A claim the bus published, to the weave's own handler as Loom reads one: `void` applied,
-    /// `bool` applied or declined, or `loom::Weave::PublishedClaim`; with none, applied as it
-    /// stands. Unconstrained, so asking whether a weave has a handler never asks this one.
+    /// Hands a claim the bus published to the weave's own handler and reads its answer as Loom
+    /// does: a handler returning `void` applied it, one returning `bool` applied or declined it,
+    /// and one returning `loom::Weave::PublishedClaim` says which itself. A weave with no handler
+    /// has the claim applied as it stands. The template is unconstrained, so a test for whether a
+    /// weave has a handler never finds this one.
     template <class S>
     loom::Weave::PublishedClaim on_claim_published(const S& claim, ForwardedClaim = {}) {
         Self* self = static_cast<Self*>(this);
@@ -327,6 +333,9 @@ public:
         if constexpr (base_handles) {
             if constexpr (std::is_same_v<S, loom::Activated> &&
                           requires { this->activation(); }) {
+                // The base keeps the cursor. An activation it did not accept leaves the cursor as
+                // it was, and then goes no further: no facet hears a forged, duplicate or replayed
+                // activation.
                 const loom::WeaveId prev_sender = this->activation().sender();
                 const std::int64_t prev_seq = this->activation().sequence();
                 Handlers::on(std::as_const(msg), mail);
@@ -439,7 +448,7 @@ struct With<Self, State, loom::Accept<A...>, FirstFacet, RestFacets...>
     using Base::on;
 };
 
-/// A DOOR WHOSE SCHEMA IS BUILT BY HAND, not derived from a `ZEN_SHAPE`: it names its schema and
+/// A door whose schema is built by hand, not derived from a `ZEN_SHAPE`: it names its schema and
 /// reads itself out of a value the gate admitted against it. Registered once with
 /// `ZENGINE_VALUE_DOOR`, it stands in `loom::Accept<...>` on `loom::WeaveBase` or `zengine::With`
 /// as a shape does, and the weave's `on(const T&, loom::Mail&)` hears it.
@@ -449,8 +458,8 @@ concept ValueDoor = (!loom::Shape<T>) && requires(const loom::Value& v) {
     { T::from_value(v) } -> std::same_as<T>;
 };
 
-/// The admitted value itself, at the schema `SchemaFn()` builds, for a weave that reads its fields
-/// as they came.
+/// A value door that keeps the admitted value as it came, at the schema `SchemaFn()` builds, for a
+/// weave that reads its fields itself.
 template <auto SchemaFn>
 struct RawValueDoor {
     loom::Value value;
@@ -463,8 +472,8 @@ struct RawValueDoor {
 
 namespace loom {
 
-/// A value door's own reading, found where the Loom's dispatch reads an admitted value, by the
-/// value's namespace; a `ZEN_SHAPE` type is read by the Loom's own `from_value`.
+/// Reads a value door out of an admitted value. Loom's dispatch finds this overload where it reads
+/// an admitted value; a `ZEN_SHAPE` type is read by Loom's own `from_value`.
 template <zengine::ValueDoor T>
 T from_value(const loom::Value& v) {
     return T::from_value(v);
@@ -472,10 +481,11 @@ T from_value(const loom::Value& v) {
 
 } // namespace loom
 
-/// REGISTERS A VALUE DOOR, written once at global scope with the door's fully qualified name
+/// Registers a value door, written once at global scope with the door's fully qualified name
 /// (`::zengine::...`). `loom::schema_of<T>()`, which the accept list and the dispatch both read,
 /// asks `loom::build_schema<T>()` with no argument, so only a specialization of that template can
-/// answer for a door; it answers `T::schema()`.
+/// answer for a door, and this one answers `T::schema()`.
+
 #define ZENGINE_VALUE_DOOR(DOOR)                                                                   \
     template <>                                                                                    \
     inline std::shared_ptr<const ::loom::Schema> loom::build_schema<DOOR>() {                      \

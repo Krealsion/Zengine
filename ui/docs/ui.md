@@ -1,9 +1,9 @@
 # The UI package — authored and solved
 
 **Reference.** One distinction, held apart by a compile-time fence: what a weaver *authored* is
-not what a room *makes of it*. A part says where it stands and how big it is in words -- a share
+not what solving it in given bounds *makes of it*. A part says where it stands and how big it is in words -- a share
 of its frame, its own measure, what its frame leaves, a point of its frame -- and one solver turns
-those words into whole-pixel rectangles for a given room. If you are storing authored layout, this
+those words into whole-pixel rectangles for given bounds. If you are storing authored layout, this
 is the vocabulary; if you are painting or hit-testing it, this is what you solve it with.
 
 Source: [`ui/vocabulary.hpp`](../vocabulary.hpp) ·
@@ -25,7 +25,7 @@ ui/vocabulary.hpp   Size{mode, amount?}      a width or a height: its word, and 
                     size_word / place_word   the one table that spells the words,
                     size_named / place_named and reads a word back to its number
                     ById / walk_context      finding and following a relationship, with
-                                             no room and no number in sight
+                                             no bounds and no number in sight
                     problem                  what is wrong with the intent alone
                     authored_only_v<T>       the compile-time fence, as a question about
                                              ANY type, so an application can ask it too
@@ -39,12 +39,12 @@ ui/layout.hpp       Room{w, h, step}             the root frame, and the window'
                     hit / placed_for             what is under this pixel -> the AUTHORED id
 ```
 
-No kernel, no weave, no bus: the package is vocabulary and arithmetic, header-only over
+It needs no kernel, no weave and no bus: the package is vocabulary and arithmetic, header-only over
 `loom::core`, so it exists in every configuration.
 
 ## What it is not
 
-Not a widget set and not a drawing vocabulary. There are no widget kinds, no colour, no z and no
+It is not a widget set and not a drawing vocabulary. There are no widget kinds, no colour, no z and no
 style; paint order is authored order. It knows nothing about painting: `zengine::graphics` is the
 drawing vocabulary, and a solved scene is what you paint *from*. Its unit is the whole pixel; a
 cell is a TUI window's step and nothing more. A frame lays its parts freely, each by its own
@@ -99,7 +99,7 @@ that reads none is not read. The words are numbers in the shape and spelled by o
 
 **Nothing on the authored side validates.** What a legal size, place or relationship is belongs to
 the application that accepts one, because that is the only place that can also refuse. The
-package gives that application two things: `problem`, which asks the intent alone for what no room
+package gives that application two things: `problem`, which asks the intent alone for what no bounds
 could solve ([below](#a-size-that-depends-on-itself)), and a solve that is total over every value
 ([below](#solving-is-total)).
 
@@ -116,7 +116,7 @@ Every number a part carries is measured against something, and `context` says wh
 is the origin the offsets count from and the span the shares are shares *of*, as one `Rect`: the
 two are one measurement. A part whose context is `kRootContext`
 (<!-- value kRootContext -->0<!-- /value -->, the default) stands in the root frame, the whole
-room at the origin. A part whose context names another part stands in that part's solved
+of the bounds at the origin. A part whose context names another part stands in that part's solved
 rectangle.
 
 A context is an **identity, never a position**: not an index into the sequence, not a pointer,
@@ -162,7 +162,7 @@ sequence whose chains all reach the root costs one visit per part.
 
 ### A size that depends on itself
 
-`problem(parts)` answers the intent's first problem in authored order, with no room and no
+`problem(parts)` answers the intent's first problem in authored order, with no bounds and no
 measure, in a sentence that names the part and what would repair it; empty when there is none:
 
 - a context no part carries, and a context that loops;
@@ -172,20 +172,20 @@ measure, in a sentence that names the part and what would repair it; empty when 
 - a column that begins again at its floor and fits its own height to its parts.
 
 These are refused from the intent alone, by whoever accepts the sequence, before anything is
-solved. What depends on the room -- parts that overrun a small one, a share that rounds below a
+solved. What depends on the bounds -- parts that overrun small ones, a share that rounds below a
 step -- is not a problem: the solve answers it.
 
 ## Solved geometry
 
-**Solving needs a room.** `arrange(parts, room, measures)` takes one, so "how big is this?" is
+**Solving needs bounds.** `arrange(parts, room, measures)` takes them (a `Room`), so "how big is this?" is
 not a question a part can answer alone, which is why an inspector can show `50%` and `336 px` as
-two readings with neither wrong. The room carries the window's **step**: the smallest span its
+two readings with neither wrong. The bounds carry the window's **step**: the smallest span its
 window shows, 1 pixel in a window of pixels and a cell in a terminal. Each window solves the same
 intent at its own step; neither floors the other's answer.
 
 **Measures are values, said before the solve.** `measures[i]` is `parts[i]`'s own measure, per
 axis, from its owner: what `default` and `fit` read. The solve never asks a part anything, so
-nothing it answers can depend on the room it is solving.
+nothing it answers can depend on the bounds it is solving in.
 
 **Edges, not widths, are rounded.** A pixel offset and a pixel length are exact at every step: a
 terminal floors them when it shows them. An edge that a share or a centring computes is the exact
@@ -195,7 +195,7 @@ pixel, at every span and every step; rounding each width alone would leave a gap
 
 **The result is a separate value, cached nowhere.** A `Scene` is not stored on the parts it
 observes; the authored side has no field able to hold one, and the fence makes adding one a
-compile error. A solved number that outlived its room would be a stale answer, so the scene is
+compile error. A solved number that outlived its bounds would be a stale answer, so the scene is
 recomputed wherever it is wanted.
 
 **The solved side has no wire form.** `Rect`, `Placed`, `Scene`, `Room` and `Measure` are
@@ -245,7 +245,7 @@ a shape, so it arrives from the wire and from a poke as well as from a checked e
 package's arithmetic is exposed to every consumer's values. An out-of-range share is clamped to the
 whole. A span too large to multiply divides first (`span * amount` on unvalidated `int64` is
 signed overflow: undefined behaviour produced by data). A solved position is a frame's origin plus
-an authored offset and saturates at the ends of `int64`, far outside any room. A step of none, or
+an authored offset and saturates at the ends of `int64`, far outside any bounds. A step of none, or
 less, is one pixel. A word no word is reads as `default`. `Rect::contains` compares the far edge
 in unsigned arithmetic, so a rectangle whose right edge is not representable still answers.
 

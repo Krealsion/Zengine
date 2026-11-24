@@ -7,8 +7,8 @@
 // A weave's manual as the weave carries it: the page `cmake/ZengineManual.cmake` split at its
 // headings and compiled into the weave, one section per key, with the page's content id. The page
 // is the source; this is a read-only view of the bytes the build embedded from it, so the words a
-// running weave says are the words of the page at the commit it was built from.
-// Reference: manual/docs/manual.md.
+// running weave says are the words of the page at the commit it was built from. The reference is
+// manual/docs/manual.md.
 
 #include <cstddef>
 #include <string_view>
@@ -28,7 +28,7 @@ inline constexpr std::size_t kMaxManualSections = 128;
 /// The longest page, in bytes, and so the most words one answer carries.
 inline constexpr std::size_t kMaxManualBytes = 65536;
 
-/// ONE KEY MARKER IN A SECTION'S TEXT, as the build found it: the action id it names, the byte
+/// One key marker in a section's text, as the build found it: the action id it names, the byte
 /// offset and length of the whole marker in the text, and the default key written inside it (a view
 /// into that text). A reader puts a weaver's own key in the marker's place from these alone.
 struct KeyMark {
@@ -38,7 +38,7 @@ struct KeyMark {
     std::string_view key;
 };
 
-/// ONE SECTION OF A PAGE: its key (`about`, `use`, `follow`, a command id, a shape's name, a row's
+/// One section of a page: its key (`about`, `use`, `follow`, a command id, a shape's name, a row's
 /// key, or the slug of a group heading for the words that open that group), the `##` heading it
 /// stands under (empty for the lead), its Markdown text without its heading, and the key markers in
 /// that text, in order.
@@ -50,7 +50,7 @@ struct Section {
     std::size_t mark_count = 0;
 };
 
-/// A PAGE AS A WEAVE CARRIES IT: the role its title names, the name a weaver sees, the page's
+/// A page as a weave carries it: the role its title names, the name a weaver sees, the page's
 /// content id (the SHA-256 of its bytes, line endings as LF) and its sections in page order.
 struct Manual {
     std::string_view role;
@@ -70,14 +70,14 @@ struct Manual {
     }
 };
 
-/// Is this the group of a section describing a command? `Commands`, and `Commands in <mode>` or
-/// `Commands on <mode>`.
+/// Whether this is the group of a section describing a command: `Commands`, `Commands in <mode>`
+/// or `Commands on <mode>`.
 constexpr bool is_command_group(std::string_view group) noexcept {
     return group == "Commands" || group.substr(0, 12) == "Commands in " ||
            group.substr(0, 12) == "Commands on ";
 }
 
-/// Is this the group of a section describing a shape a role hears without being commanded?
+/// Whether this is the group of a section describing a shape a role hears without being commanded.
 constexpr bool is_heard_group(std::string_view group) noexcept { return group == "Hears"; }
 
 } // namespace zengine::manual

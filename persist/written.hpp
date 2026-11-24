@@ -11,8 +11,8 @@
 
 namespace zengine::persist {
 
-/// The outcome of an attempted write. A refusal carries its reason, in words a
-/// weaver can act on -- the reason IS the feature, so there is no bare `false`.
+/// The outcome of an attempted write. A refusal carries its reason, in words a weaver can act on:
+/// the reason is the point, so there is no bare `false`.
 struct Written {
     bool accepted = false;
     std::string refusal;

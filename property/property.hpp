@@ -4,8 +4,11 @@
 #ifndef ZENGINE_PROPERTY_PROPERTY_HPP
 #define ZENGINE_PROPERTY_PROPERTY_HPP
 
-// The typed connection between an editor and the property it presents.
-// Workshop law: agents/workshop/document.md (+1 register; agents/workshop.md routes)
+// The typed connection between an editor and the property it presents, the text form of each type,
+// and the inspector's row over a property. Together they keep Workshop's document law WL-DOC-02
+// (agents/workshop/document.md): unparseable text writes nothing, a refused value is a different
+// outcome with its reason, a shown row takes no write, and two properties of one type share one
+// conversion. Its front page is property/README.md.
 
 #include "persist/written.hpp"
 
@@ -23,7 +26,6 @@ namespace zengine::property {
 using persist::Written;
 
 /// A typed connection to one property of one thing: read it, or try to write it.
-// WL-DOC-02 -- agents/workshop/document.md
 template <class T>
 class Property {
 public:
@@ -38,16 +40,15 @@ private:
     std::function<Written(T)> write_;
 };
 
-/// How a semantic type becomes text and text becomes it again. One
-/// specialization per type, and every property of that type shares it.
-// WL-DOC-02 -- agents/workshop/document.md
+/// How a semantic type becomes text and text becomes it again. There is one specialization per
+/// type, and every property of that type shares it.
 template <class T> struct TextForm;
 
 template <> struct TextForm<std::string> {
     static std::string format(const std::string& v) { return v; }
     static std::optional<std::string> parse(std::string_view text) {
-        return std::string(text); // any text is a string; whether it is an
-                                  // ACCEPTABLE one is the property's to say
+        return std::string(text); // Any text is a string; whether it is an
+                                  // acceptable one is the property's to say.
     }
     static const char* expected() { return "any text"; }
 };
@@ -67,8 +68,8 @@ template <> struct TextForm<std::int64_t> {
                 return std::nullopt;
             }
         }
-        // THE MAGNITUDE, UNSIGNED, so the most negative number reads as itself: its magnitude is
-        // one past the most positive one's.
+        // The magnitude is read unsigned, so the most negative number reads as itself: its
+        // magnitude is one past the most positive one's.
         const std::uint64_t most = negative ? 9223372036854775808ULL : 9223372036854775807ULL;
         std::uint64_t magnitude = 0;
         for (; i < text.size(); ++i) {
@@ -78,7 +79,7 @@ template <> struct TextForm<std::int64_t> {
             }
             const auto digit = static_cast<std::uint64_t>(c - '0');
             if (magnitude > (most - digit) / 10) {
-                return std::nullopt; // a number too big to be one
+                return std::nullopt; // past the range of a 64-bit whole number
             }
             magnitude = magnitude * 10 + digit;
         }
@@ -101,14 +102,13 @@ enum class Commit {
 };
 
 
-/// One inspector line over one property: read fresh at every look, written by finished text (an
-/// inspector's draft lives in its own image).
-// WL-DOC-02 -- agents/workshop/document.md
+/// One inspector line over one property, read fresh at every look and written by finished text.
+/// The text a weaver is still typing is the inspector's own draft, never the row's.
 class Row {
 public:
-    /// An editable row over a typed property. The one generic factory: the
-    /// conversion plumbing comes from TextForm<T>, so a second property of the
-    /// same type costs this one call and nothing else.
+    /// An editable row over a typed property. It is the one generic factory: the conversion comes
+    /// from TextForm<T>, so a second property of the same type costs this one call and nothing
+    /// else.
     template <class T> static Row edit(std::string label, Property<T> property) {
         Row row;
         row.label_ = std::move(label);
@@ -129,9 +129,8 @@ public:
         return row;
     }
 
-    /// A read-only row: something true about the subject that is NOT one of its
-    /// properties -- a resolved size, a derived count.
-    // WL-DOC-02 -- agents/workshop/document.md
+    /// A read-only row: something true about the subject that is not one of its properties, such
+    /// as a resolved size or a derived count. It takes no write.
     static Row show(std::string label, std::function<std::string()> read) {
         Row row;
         row.label_ = std::move(label);
@@ -140,7 +139,7 @@ public:
         return row;
     }
 
-    /// A SECTION HEADING INSIDE A LIST OF ROWS: a label with no value, never editable.
+    /// A section heading inside a list of rows: a label with no value, never editable.
     static Row section(std::string label) {
         Row row;
         row.label_ = std::move(label);
@@ -156,17 +155,17 @@ public:
     const std::string& refusal() const { return refusal_; }
     const char* expected() const { return expected_; }
 
-    /// The committed value, as text. Always a fresh read through the property --
-    /// there is no cached copy to go stale, which is why nothing in this package has a
-    /// "refresh the inspector" call after a write.
+    /// The committed value, as text. It is always a fresh read through the property: there is no
+    /// cached copy to go stale, which is why nothing in this package has a "refresh the inspector"
+    /// call after a write.
     std::string value() const { return read_(); }
 
-    /// COMMIT FINISHED TEXT -- the one write door, where a weaver's draft lives in another image
+    /// Commits finished text. It is the one write door: a weaver's draft lives in the inspector,
     /// and only its finished text crosses. On anything but Accepted the property is untouched and
     /// `refusal()` says why in words: "not a whole number" for text that is not a value of the
     /// row's type, the setter's own sentence for a value it will not take, and "not authored" for
     /// a row with nothing to write to.
-    // WL-DOC-02 -- agents/workshop/document.md
+
     Commit commit_text(const std::string& text) {
         if (!editable_) {
             refusal_ = "not authored";

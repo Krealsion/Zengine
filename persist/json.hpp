@@ -4,7 +4,7 @@
 #ifndef ZENGINE_PERSIST_JSON_HPP
 #define ZENGINE_PERSIST_JSON_HPP
 
-// A PLAIN JSON DOCUMENT, read whole into a tree and written back: objects (their members in the
+// A plain JSON document, read whole into a tree and written back: objects (their members in the
 // order written, a name never twice), lists, strings, whole numbers and flags. For a file a weaver
 // writes by hand, which no shape's envelope wraps; what the tree means is its reader's to judge.
 // `null`, a fraction and an exponent are refused by name, as is anything nested past
@@ -25,7 +25,7 @@ namespace zengine::persist::json {
 inline constexpr std::size_t kMaxJsonDepth = 16;
 inline constexpr std::size_t kMaxJsonNodes = 1u << 16;
 
-/// ONE VALUE OF A DOCUMENT: its kind, and the part of it that kind holds.
+/// One value of a document: its kind, and the part of it that kind holds.
 struct Node {
     enum class Kind { kObject, kList, kText, kNumber, kFlag };
     Kind kind = Kind::kObject;
@@ -430,8 +430,9 @@ inline void write(std::string& out, const Node& n, std::size_t indent) {
 
 } // namespace detail
 
-/// READ `text` AS ONE PLAIN JSON DOCUMENT, whole: its root, or the first thing wrong with it and
-/// the line it stands on. Total: nothing here throws, and nothing past the document is ignored.
+/// Reads `text` as one plain JSON document, whole: its root, or the first thing wrong with it and
+/// the line it stands on. It is total: nothing here throws, and nothing past the document is
+/// ignored.
 inline Parsed parse(std::string_view text) {
     detail::Reader r{text, 0, 0, {}};
     Node root;
@@ -446,8 +447,8 @@ inline Parsed parse(std::string_view text) {
     return Parsed{std::move(root), {}};
 }
 
-/// `n` AS TEXT: an object's members in the order it holds them, two spaces a level, and an object
-/// or a list holding no other written on one line; a newline at the end.
+/// Writes `n` as text: an object's members in the order it holds them, two spaces a level, an
+/// object or a list that holds no other written on one line, and a newline at the end.
 inline std::string to_text(const Node& n) {
     std::string out;
     detail::write(out, n, 0);
