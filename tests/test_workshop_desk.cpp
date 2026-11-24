@@ -2329,16 +2329,9 @@ const PaneStamp* stamp_in(const DeskRead& read, const std::string& provider, con
 /// What a reading stands on, as a page that continues it names it.
 PaneStamp stamp_of_reading(const PaneView& v) { return v.stamp; }
 
-/// The canvas pixels two rectangles share, or an empty rectangle.
-PixelRect overlap_of(const PixelRect& a, const PixelRect& b) {
-    const std::int64_t x0 = (std::max)(a.x, b.x), y0 = (std::max)(a.y, b.y);
-    const std::int64_t x1 = (std::min)(a.x + a.w, b.x + b.w), y1 = (std::min)(a.y + a.h, b.y + b.h);
-    return x1 > x0 && y1 > y0 ? PixelRect{x0, y0, x1 - x0, y1 - y0} : PixelRect{};
-}
-
 /// Whether a place shares a canvas pixel with a rectangle.
 bool place_meets(const DeskRect& place, const PixelRect& r) {
-    return overlap_of(PixelRect{place.x, place.y, place.w, place.h}, r).w > 0;
+    return zengine::desk_gestures::overlap(PixelRect{place.x, place.y, place.w, place.h}, r).w > 0;
 }
 
 std::vector<std::string> texts_of(const std::vector<PaneWord>& words) {
@@ -2595,7 +2588,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     const ExternalPane& alpha_pane = *s.panes.external_pane(d.alpha_kind);
     const PixelRect alpha_area{alpha_pane.placed_x, alpha_pane.placed_y, alpha_pane.placed_w,
                                alpha_pane.placed_h};
-    CHECK(same(behind.covered.rect, overlap_of(alpha_area, front_at.rect)));
+    CHECK(same(behind.covered.rect, zengine::desk_gestures::overlap(alpha_area, front_at.rect)));
     CHECK(texts_of(behind.words) == shown_words);
     std::vector<std::string> said_parts;
     for (const PanePart& p : behind.parts) said_parts.push_back(p.name);
@@ -2617,7 +2610,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
                                                     input::space::kCells, input::mod::kNone});
     REQUIRE(s.context.open);
     const PixelRect menu = context_bounds(s, screen_of(s));
-    REQUIRE(overlap_of(menu, alpha_at.rect).w > 0);
+    REQUIRE(zengine::desk_gestures::overlap(menu, alpha_at.rect).w > 0);
     PaneView under_menu;
     REQUIRE(page(under_menu).empty());
     const std::vector<std::string>& by = under_menu.covered.by;

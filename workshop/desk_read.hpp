@@ -283,12 +283,6 @@ inline bool meets(const DeskRect& a, const PixelRect& b) {
            a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-inline PixelRect overlap(const PixelRect& a, const PixelRect& b) {
-    const std::int64_t x0 = (std::max)(a.x, b.x), y0 = (std::max)(a.y, b.y);
-    const std::int64_t x1 = (std::min)(a.x + a.w, b.x + b.w), y1 = (std::min)(a.y + a.h, b.y + b.h);
-    return x1 > x0 && y1 > y0 ? PixelRect{x0, y0, x1 - x0, y1 - y0} : PixelRect{};
-}
-
 /// A COVERED WORD IS NOT SAID: of `words` and `parts`, each whose place meets a cover is dropped,
 /// counted, and the covers over `rect` named once each, with the bounds of what they cover of it.
 /// A cover says what covers (`by`) and where (`rect`), as `WorkshopWeave::covers_of` names each.
@@ -299,7 +293,7 @@ void cover_reading(const std::vector<Cover>& covers, const PixelRect& rect,
     std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
     bool any = false;
     for (const Cover& c : covers) {
-        const PixelRect over = overlap(c.rect, rect);
+        const PixelRect over = desk_gestures::overlap(c.rect, rect);
         if (over.w <= 0 || over.h <= 0) continue;
         if (std::find(out.by.begin(), out.by.end(), c.by) == out.by.end()) out.by.push_back(c.by);
         x0 = any ? (std::min)(x0, over.x) : over.x;

@@ -15,4 +15,5 @@ endif()
 zengine_weave(zengine-info-pane pane.cpp MANUAL docs/zengine.info.md)
 target_link_libraries(zengine-info-pane PRIVATE zengine-workshop-vocabulary
                                                 zengine-component zengine-input-vocabulary
-                                                zengine-activation zengine::inventory zengine::message-draft)
+                                                zengine-activation zengine::inventory zengine::message-draft
+                                                zengine::desk-gestures)
