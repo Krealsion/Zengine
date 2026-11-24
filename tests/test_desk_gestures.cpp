@@ -359,7 +359,7 @@ TEST_CASE("a direction selects the nearest pane past the selected one's edge by 
     // A pane over the selected one's right half: past its centre, not past its edge.
     const std::vector<Selectable> over{
         Selectable{1, here, 0},
-        Selectable{2, PixelRect{260, 200, 100, 100}, 1},
+        Selectable{2, PixelRect{220, 200, 100, 100}, 1}, // its centre short of the edge
     };
     CHECK(neighbour(over, 1, Toward::kRight) == std::optional<std::int64_t>{2});
     CHECK(neighbour(over, 2, Toward::kLeft) == std::optional<std::int64_t>{1});
