@@ -78,19 +78,6 @@ std::shared_ptr<const loom::Schema> row_schema() {
     return s;
 }
 
-// Every version's words in one envelope; which of them a file may use is its own `version`'s,
-// judged after the gate.
-std::shared_ptr<const loom::Schema> file_schema() {
-    static const auto s = loom::SchemaBuilder("zen.WorkshopGuests", 1)
-                              .field("version", loom::Kind::Int, /*required=*/false)
-                              .field("host", loom::Kind::Text, /*required=*/false)
-                              .field("listen", loom::Kind::Text, /*required=*/false)
-                              .field("port_file", loom::Kind::Text, /*required=*/false)
-                              .list("guests", loom::type_message(row_schema()))
-                              .build();
-    return s;
-}
-
 std::string text_or(const loom::Value& v, const char* field, const char* fallback) {
     const loom::Cell* c = v.get(field);
     return (c == nullptr) ? std::string(fallback) : c->as_text();
@@ -178,7 +165,18 @@ bool within(const std::string& inner, const std::vector<std::string>& outer) {
 
 } // namespace
 
-std::shared_ptr<const loom::Schema> guests_file_schema() { return file_schema(); }
+// Every version's words in one envelope; which of them a file may use is its own `version`'s,
+// judged after the gate.
+std::shared_ptr<const loom::Schema> guests_file_schema() {
+    static const auto s = loom::SchemaBuilder("zen.WorkshopGuests", 1)
+                              .field("version", loom::Kind::Int, /*required=*/false)
+                              .field("host", loom::Kind::Text, /*required=*/false)
+                              .field("listen", loom::Kind::Text, /*required=*/false)
+                              .field("port_file", loom::Kind::Text, /*required=*/false)
+                              .list("guests", loom::type_message(row_schema()))
+                              .build();
+    return s;
+}
 
 bool split_listen(const std::string& listen, std::string* host, std::uint16_t* port) {
     const std::size_t colon = listen.rfind(':');
@@ -212,11 +210,12 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
     ss << in.rdbuf();
     // The bare form a person writes, wrapped in the envelope the host knows -- the same
     // courtesy the supplied host extends to its own two files.
-    const std::string wrapped = "{\"zen\":1,\"schema\":\"" + file_schema()->name() +
-                                "\",\"version\":" + std::to_string(file_schema()->version()) +
+    const std::shared_ptr<const loom::Schema> schema = guests_file_schema();
+    const std::string wrapped = "{\"zen\":1,\"schema\":\"" + schema->name() +
+                                "\",\"version\":" + std::to_string(schema->version()) +
                                 ",\"fields\":" + ss.str() + "}";
     loom::Unverified u = loom::compat::parse(wrapped);
-    loom::Admission a = loom::admit(u, file_schema());
+    loom::Admission a = loom::admit(u, schema);
     if (!a.ok()) {
         *error = "guests file '" + path + "' refused: " + a.first_error().message();
         return false;

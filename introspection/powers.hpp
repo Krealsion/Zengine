@@ -17,7 +17,7 @@
 // pane keeps the last answer between asks, replaced whole and dropped at every grant. A retained
 // sample is history: it never claims to be current, and its row leads with the tense.
 
-#include "loaded.hpp"        // `fit`, the entry colours
+#include "loaded.hpp"        // `pane_text`, the entry colours
 #include "powers_detail.hpp" // the words, the chrome row, the window, the detail rows
 #include "resolved.hpp"      // `kHostResolution`, `kPowersSource`, `elision`, the census words
 
@@ -308,8 +308,8 @@ struct Sayer {
         view.rows.push_back(pane::TextRow{std::move(text), ink, ground});
         return static_cast<std::int64_t>(view.rows.size()) - 1;
     }
-    /// `solid` is how many leading columns are genuine text: a control cut into `fit`'s `...` is
-    /// not a target, or a press could operate a control the weaver cannot see.
+    /// `solid` is how many leading columns are genuine text: a control cut into `pane_text::fit`'s
+    /// `...` is not a target, or a press could operate a control the weaver cannot see.
     void span(std::int64_t row, std::int64_t first, std::int64_t width, std::int64_t control,
               std::int64_t solid, std::string identity = std::string()) const {
         if (width <= 0 || first < 0 || first + width > solid) {
@@ -377,7 +377,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             caret_at = pane::box_caret(query_box, 0).column;
             text += std::string(static_cast<std::size_t>(query_box.columns), ' ');
         }
-        const std::string drawn = fit(text, columns);
+        const std::string drawn = pane_text::fit(text, columns);
         const std::int64_t solid = detail::solid_columns(drawn, text.size());
         const std::int64_t row = say.say(drawn, graphics::colors::accent);
         if (caret_at >= 0 && drawn.size() == text.size()) {
@@ -448,14 +448,15 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     if (view.population == 0) {
         if (list_budget > 0 && !ui.reading.ok && !ui.reading.reason.empty()) {
             // A search the door refused is not a search nothing matched: its sentence is the list.
-            say.say(fit(printable(ui.reading.reason), columns), graphics::colors::alert);
+            say.say(pane_text::fit(printable(ui.reading.reason), columns), graphics::colors::alert);
             --list_budget;
         } else if (list_budget > 0) {
             // An empty catalog view and a search nothing matched are different facts.
             const bool searching = !ui.query.text().empty() || ui.composite_only;
             const bool sources = ui.view == powers_view::kSources;
-            say.say(fit(searching ? kNoneMatch : (sources ? kNoSourcesHere : kNoOperatorsHere),
-                        columns),
+            say.say(pane_text::fit(searching ? kNoneMatch
+                                             : (sources ? kNoSourcesHere : kNoOperatorsHere),
+                                   columns),
                     graphics::colors::quiet);
             --list_budget;
         }
@@ -508,7 +509,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         say.say(detail::sample_header(ui.sample.ok, ui.sample.identity, hidden, columns),
                 ui.sample.ok ? graphics::colors::quiet : graphics::colors::alert);
         for (std::int64_t i = 0; i < shown; ++i) {
-            say.say(fit("  " + printable(body[static_cast<std::size_t>(i)]), columns),
+            say.say(pane_text::fit("  " + printable(body[static_cast<std::size_t>(i)]), columns),
                     ui.sample.ok ? graphics::colors::text : graphics::colors::alert);
         }
         if (hidden > 0 && shown < room) {
@@ -517,19 +518,20 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     }
 
     if (caveat > 0) {
-        say.say(fit(kHostResolution, columns), graphics::colors::quiet);
+        say.say(pane_text::fit(kHostResolution, columns), graphics::colors::quiet);
     }
     if (census > 0) {
         // The catalog census, a different question from the position marker: that counts the
         // list being navigated, this the whole catalog the door read. The verb agrees.
         const std::int64_t identities = ui.reading.powers;
-        say.say(fit(powers_said(identities) + (identities == 1 ? " resolves" : " resolve") +
-                        " here -- from " + providers_said(ui.reading.providers),
-                    columns),
+        say.say(pane_text::fit(powers_said(identities) +
+                                   (identities == 1 ? " resolves" : " resolve") + " here -- from " +
+                                   providers_said(ui.reading.providers),
+                               columns),
                 graphics::colors::quiet);
     }
     if (source > 0) {
-        say.say(fit(kPowersSource, columns), graphics::colors::quiet);
+        say.say(pane_text::fit(kPowersSource, columns), graphics::colors::quiet);
     }
     return view;
 }

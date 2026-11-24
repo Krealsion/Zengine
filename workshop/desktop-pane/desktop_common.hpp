@@ -17,7 +17,6 @@
 #include "pane/seat.hpp"
 #include "pane/text.hpp"
 
-#include "component/list_window.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -90,11 +89,6 @@ inline std::vector<std::string> split_subject(const std::string& subject) {
 /// role's holder at delivery could have given it.
 inline bool from_workshop(const loom::Mail& mail) {
     return mail.authored_from_role(kWorkshopRole) || mail.answers_ask();
-}
-
-/// WHOLE NOTCHES OUT OF AN ACCUMULATED WHEEL, the remainder carried.
-inline std::int64_t take_notches(double& carried, double dy) {
-    return zengine::component::take_wheel_notches(carried, dy);
 }
 
 /// DOES LOOM'S WORD THAT AN ASK ENDED NAME THE ASK A RECORD IS WAITING ON -- the same queued

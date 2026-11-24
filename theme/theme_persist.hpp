@@ -430,7 +430,6 @@ inline js::Node ink_node(const ThemeInk& i) {
     add_text(m, "fill", i.fill);
     return object_of(std::move(m));
 }
-inline js::Node word_node(const std::string& w) { return js::text_node(w); }
 
 } // namespace detail
 
@@ -442,7 +441,7 @@ inline std::string to_text(const ThemeFile& t) {
         {"format_version", js::number_node(kThemeFormatVersion)},
         {"name", js::text_node(t.name)}};
     detail::add_text(m, "summary", t.summary);
-    if (!t.includes.empty()) m.emplace_back("includes", detail::list_of(t.includes, detail::word_node));
+    if (!t.includes.empty()) m.emplace_back("includes", detail::list_of(t.includes, js::text_node));
     if (!t.colors.empty()) m.emplace_back("colors", detail::list_of(t.colors, detail::color_node));
     if (!t.fonts.empty()) m.emplace_back("fonts", detail::list_of(t.fonts, detail::font_node));
     if (!t.sizes.empty()) m.emplace_back("sizes", detail::list_of(t.sizes, detail::size_node));
@@ -459,7 +458,7 @@ inline std::string to_text(const TerminalFile& t) {
         {"format_version", js::number_node(kTerminalFormatVersion)},
         {"name", js::text_node(t.name)}};
     detail::add_text(m, "summary", t.summary);
-    if (!t.includes.empty()) m.emplace_back("includes", detail::list_of(t.includes, detail::word_node));
+    if (!t.includes.empty()) m.emplace_back("includes", detail::list_of(t.includes, js::text_node));
     detail::add_text(m, "borders", t.borders);
     if (!t.inks.empty()) m.emplace_back("inks", detail::list_of(t.inks, detail::ink_node));
     return js::to_text(detail::object_of(std::move(m)));

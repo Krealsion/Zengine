@@ -262,7 +262,7 @@ public:
     /// walks a row a notch once no row is hidden that way.
     void wheel(double dy, DesktopState& state, const Declared& pane_rows_decl, const Declared& app,
                loom::Mail& mail) {
-        const std::int64_t notches = take_notches(wheel_, dy);
+        const std::int64_t notches = component::take_wheel_notches(wheel_, dy);
         if (notches == 0) {
             return;
         }
