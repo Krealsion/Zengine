@@ -9,13 +9,23 @@ on:
   # and is the one run with the MSVC stranger (its job says why).
   schedule:
     - cron: '17 9 * * *'
+  # The hourly check (stores.yml) calls this workflow on `main` when a compiler cache's store is
+  # behind Loom's `main`: the build jobs run, rebuild and save their stores as a push's run does,
+  # and no other job runs (VM-LANE-23).
+  workflow_call:
+    inputs:
+      refresh:
+        description: Rebuild the compiler caches' stores on main, the build jobs alone
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 # A pull request's newer push cancels its run in progress. A push to `main` has a group of its own,
 # so no run on `main` waits behind another and is replaced before it starts: each judges and builds
-# its own push (VM-LANE-06).
+# its own push (VM-LANE-06). The hourly check's run calls this workflow under its own name
+# (stores.yml), so its group is none of these, and it holds or replaces no run of this workflow.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'push' && format('-{0}', github.sha) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -30,6 +40,7 @@ jobs:
   # the build lanes are red, and the stranger lane needs nothing but source and a Loom.
   zengine-commit-attribution:
     name: Zengine / commit attribution
+    if: ${{ !inputs.refresh }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -84,6 +95,7 @@ jobs:
   # The documentation lane's checks, on every change: they read the source tree, not a build.
   zengine-documentation:
     name: Zengine / documentation lane
+    if: ${{ !inputs.refresh }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -206,11 +218,15 @@ jobs:
       # THE COMPILER CACHE holds intermediates only: objects ccache keys by the compiler's bytes
       # (its `content` check, not the compiler's file time), its command line and every byte the
       # source read. One store per job and compiler, named by a digest of the bytes of the compilers
-      # the configure finds; the runner image is no part of the name, so a runner on a new image
-      # with the same compiler restores `main`'s newest store and rebuilds only what the image
-      # changed. Every run restores the newest store `main` saved for its job and compiler; only a
-      # run on `main` saves one, and a pull request's run never does. A product is never taken from
-      # it: the objects only feed this job's links, and Loom's build above has no launcher.
+      # the configure finds and by the Loom commit the run built against; the runner image is no
+      # part of the name, so a runner on a new image with the same compiler restores `main`'s newest
+      # store and rebuilds only what the image changed. Every run restores the newest store `main`
+      # saved for its job, compiler and Loom, else the newest for its job and compiler, and says
+      # which in its summary (tests/ci_store.py). Only a run on `main` saves one, and only while its
+      # commit is `main`'s tip and its Loom Loom's `main`, so the newest store is the newest pair; a
+      # pull request's run never saves. A Loom merge leaves every store behind, and the hourly check
+      # (stores.yml) runs these jobs on `main` again (VM-LANE-23). A product is never taken from it:
+      # the objects only feed this job's links, and Loom's build above has no launcher.
       - name: Fetch pinned ccache 4.13.6
         id: ccache
         run: |
@@ -234,11 +250,23 @@ jobs:
           echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
 
       - name: Restore the compiler cache
+        id: restore
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-
+          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-
+            ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-
+
+      - name: Say which store was restored
+        env:
+          ZEN_STORE: ${{ steps.restore.outputs.cache-matched-key }}
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          python3 tests/ci_store.py say --title 'Zengine / Linux / canonical Loom stranger' \
+            --family ccache-linux-debug- --loom "$LOOM_SHA" --key "$ZEN_STORE" > "$RUNNER_TEMP/store.md"
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/store.md"
 
       - name: Configure Zengine as a stranger
         run: |
@@ -336,26 +364,36 @@ jobs:
         run: |
           cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-build" -P tests/build/run.cmake
 
-      # Only `main` saves, and only what this run used: entries no compile read since the job began
-      # are dropped first, so the store follows `main`.
-      - name: Keep only what this run used
+      # Only `main` saves, only while this run's store would be the newest -- its commit `main`'s
+      # tip and its Loom Loom's `main`, else a newer run saves -- and only what this run used:
+      # entries no compile read since the job began are dropped first, so the store follows `main`.
+      - name: Ask whether this run's store would be the newest
+        id: newest
         if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: python3 tests/ci_store.py newest --zengine "$GITHUB_SHA" --loom "$LOOM_SHA"
+
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
         run: |
           "$ZEN_CCACHE" --evict-older-than "$(( $(date +%s) - ZEN_CCACHE_SINCE + 60 ))s"
           "$ZEN_CCACHE" --show-stats
 
       - name: Save the compiler cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE `box` GATE OPENS HERE: Loom built with its WebAssembly backend (Wasmtime, pinned) and a
   # wasi-sdk (pinned) named at configure, so the example pane is built as a module beside its
   # native build and the tally cases' twins load it through the same plan row. The official lane
-  # runs whole, so the gate's rows are counted with the rest. It restores the Linux job's compiler
-  # cache and saves none.
+  # runs whole, so the gate's rows are counted with the rest. Its compiler cache is a store of its
+  # own, kept as the Linux job's is, restored by every run and saved by `main` alone: its configure
+  # is not the Linux job's (Loom with the backend, the runner's CMake, the box gate open), and the
+  # Linux job's store left its build nearly whole.
   zengine-linux-boxed:
     name: Zengine / Linux / boxed pane
     needs: [zengine-change-kind, resolve-loom]
@@ -417,22 +455,37 @@ jobs:
             | sha256sum --check --strict -
           mkdir "$RUNNER_TEMP/ccache-bin"
           tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache-bin" --strip-components=1
+          "$RUNNER_TEMP/ccache-bin/ccache" --version | head -n 1
           compilers="$(readlink -f "$(command -v cc)") $(readlink -f "$(command -v c++)")"
           compiler="$(sha256sum $compilers | cut -d ' ' -f 1 | sha256sum | cut -c 1-16)"
+          echo "Runner image $ImageOS-$ImageVersion; compilers $compilers ($(c++ --version | head -n 1)); store compiler $compiler"
           {
             echo "ZEN_CCACHE=$RUNNER_TEMP/ccache-bin/ccache"
+            echo "ZEN_CCACHE_SINCE=$(date +%s)"
             echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
             echo "CCACHE_MAXSIZE=3G"
             echo "CCACHE_COMPILERCHECK=content"
           } >> "$GITHUB_ENV"
           echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
 
-      - name: Restore the Linux job's compiler cache
+      - name: Restore the compiler cache
+        id: restore
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-
+          key: ccache-linux-boxed-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ccache-linux-boxed-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-
+            ccache-linux-boxed-${{ steps.ccache.outputs.compiler }}-
+
+      - name: Say which store was restored
+        env:
+          ZEN_STORE: ${{ steps.restore.outputs.cache-matched-key }}
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          python3 tests/ci_store.py say --title 'Zengine / Linux / boxed pane' \
+            --family ccache-linux-boxed- --loom "$LOOM_SHA" --key "$ZEN_STORE" > "$RUNNER_TEMP/store.md"
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/store.md"
 
       - name: Configure Zengine as a stranger, the box gate open
         run: |
@@ -449,8 +502,14 @@ jobs:
 
       - name: Build Zengine and the boxed pane
         run: |
+          "$ZEN_CCACHE" --zero-stats
           cmake --build build --parallel "$(nproc)"
           ls -l build/tests/zengine-example-tally.wasm
+          {
+            printf '## Zengine / Linux / boxed pane: the compiler cache\n\n```text\n'
+            "$ZEN_CCACHE" --show-stats --verbose
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify the repository-owned population, the box gate's rows among it
         run: |
@@ -475,6 +534,27 @@ jobs:
       - name: Witness one recipe built native and boxed through the Builder
         run: |
           cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-build" -P tests/build/run.cmake
+
+      # As the Linux job's: `main` saves, while this run's store would be the newest.
+      - name: Ask whether this run's store would be the newest
+        id: newest
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: python3 tests/ci_store.py newest --zengine "$GITHUB_SHA" --loom "$LOOM_SHA"
+
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
+        run: |
+          "$ZEN_CCACHE" --evict-older-than "$(( $(date +%s) - ZEN_CCACHE_SINCE + 60 ))s"
+          "$ZEN_CCACHE" --show-stats
+
+      - name: Save the compiler cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-boxed-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE STANDING SANITIZER WITNESS, a separate job so the ordinary lane's result stays
   # readable on its own: `verify.cmake` asks whether the intended population ran and passed,
@@ -580,16 +660,26 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
 
-      # A store of each runner's own, which holds what its build compiles; the store of the job's
-      # one runner before it, while there is one, serves a runner that has none yet.
+      # A store of each runner's own, which holds what its build compiles.
       - name: Restore the compiler cache
+        id: restore
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-
             ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-
-            ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-
+
+      - name: Say which store was restored
+        env:
+          ZEN_STORE: ${{ steps.restore.outputs.cache-matched-key }}
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          python3 tests/ci_store.py say --title 'Zengine / Linux / ASan + UBSan / ${{ matrix.runner }}' \
+            --family ccache-linux-asan-${{ matrix.runner }}- --loom "$LOOM_SHA" --key "$ZEN_STORE" \
+            > "$RUNNER_TEMP/store.md"
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/store.md"
 
       - name: Configure Zengine as a stranger, instrumented
         run: |
@@ -693,18 +783,26 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Keep only what this run used
+      # As the Linux job's: `main` saves, while this run's store would be the newest.
+      - name: Ask whether this run's store would be the newest
+        id: newest
         if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: python3 tests/ci_store.py newest --zengine "$GITHUB_SHA" --loom "$LOOM_SHA"
+
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
         run: |
           "$ZEN_CCACHE" --evict-older-than "$(( $(date +%s) - ZEN_CCACHE_SINCE + 60 ))s"
           "$ZEN_CCACHE" --show-stats
 
       - name: Save the compiler cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE TWO WINDOWS LANES ARE TWO STANDARD LIBRARIES, and a claim about "Windows" names the
   # one it was measured on. MinGW-w64/libstdc++ is the maintainers' daily build, so this lane is
@@ -800,11 +898,26 @@ jobs:
           "compiler=$compiler" >> $env:GITHUB_OUTPUT
 
       - name: Restore the compiler cache
+        id: restore
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-
+          key: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-
+            ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-
+
+      - name: Say which store was restored
+        shell: pwsh
+        env:
+          ZEN_STORE: ${{ steps.restore.outputs.cache-matched-key }}
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          $said = python tests/ci_store.py say --title 'Zengine / Windows / MinGW-w64 Loom stranger' `
+            --family ccache-mingw-debug- --loom $env:LOOM_SHA "--key=$env:ZEN_STORE"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $said
+          $said >> $env:GITHUB_STEP_SUMMARY
 
       - name: Configure Zengine as a stranger with MinGW-w64
         shell: pwsh
@@ -842,8 +955,19 @@ jobs:
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake
 
-      - name: Keep only what this run used
+      # As the Linux job's: `main` saves, while this run's store would be the newest.
+      - name: Ask whether this run's store would be the newest
+        id: newest
         if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        shell: pwsh
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          python tests/ci_store.py newest --zengine $env:GITHUB_SHA --loom $env:LOOM_SHA
+          exit $LASTEXITCODE
+
+      - name: Keep only what this run used
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
         shell: pwsh
         run: |
           $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$env:ZEN_CCACHE_SINCE + 60
@@ -851,11 +975,11 @@ jobs:
           & $env:ZEN_CCACHE --show-stats
 
       - name: Save the compiler cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.newest.outputs.save == 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-${{ needs.resolve-loom.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # The MSVC stranger, ADVISORY: MSVC is the toolchain released Windows users build with, but
   # not the maintainers' daily build, so a red here cannot yet be proven or repaired locally as a
@@ -870,7 +994,7 @@ jobs:
   zengine-windows-msvc-stranger:
     name: Zengine / Windows / MSVC Loom stranger, nothing added (advisory -- the released toolchain, not the maintainers' local build)
     needs: [zengine-change-kind, resolve-loom]
-    if: ${{ !cancelled() && github.event_name == 'schedule' && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
+    if: ${{ !cancelled() && github.event_name == 'schedule' && !inputs.refresh && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: windows-2025
     continue-on-error: true
     # NINETY MINUTES, the sanitizer job's: with no compiler cache the job reaches the package
