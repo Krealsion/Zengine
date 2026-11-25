@@ -1,16 +1,17 @@
 name: Stores level
 
 # THE COMPILER CACHES KEPT LEVEL WITH LOOM (VM-LANE-23). Every run of CI builds against Loom's
-# `main` as it resolves it, and a store built against an older Loom misses every compile that
-# Loom's change reached. So every hour this asks, for each build job's store, whether `main`'s
-# newest was built against Loom's `main` now; when one was not, or a job has none, it runs CI's
-# build jobs on `main` again (ci.yml, called with `refresh`), which rebuild their stores and save
-# them as a push's run does. When every store is level it asks and does nothing more. It needs no
-# secret and no token: a lookup reads a store's key without restoring it. The jobs it calls run in
-# this workflow's run, under its name, so the run is none of ci.yml's: it never holds, replaces or
-# is replaced by a push's run or the nightly, and no reader of ci.yml's runs reads it (the status
-# board, package.yml). A pull request touching it runs the asks on its own head, a dry run that
-# rebuilds nothing.
+# `main` as it resolves it, and a store built against an older Loom misses every compile that Loom's
+# change reached. So every hour this asks, for each build job's store, whether `main`'s newest was
+# built against Loom's `main` now; when one was not, or a job has none, it runs CI's build jobs on
+# `main` again (ci.yml, called with `refresh`), which rebuild their stores and save them as a push's
+# run does. When every store is level it asks and does nothing more. The asks and the rebuild need
+# no secret and no token: a lookup reads a store's key without restoring it. Each hour it also
+# deletes every family's stores but its newest two (`prune`, below), the one job whose token may
+# write. The jobs it calls run in this workflow's run, under its name, so the run is none of
+# ci.yml's: it never holds, replaces or is replaced by a push's run or the nightly, and no reader of
+# ci.yml's runs reads it (the status board, package.yml). A pull request touching it runs the asks
+# on its own head, a dry run that rebuilds and deletes nothing.
 on:
   schedule:
     - cron: '43 * * * *'
@@ -139,3 +140,62 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       refresh: true
+
+  # THE REPLACED STORES DELETED. A restore reads its family's newest store, a family being a key
+  # less its Loom, run and attempt (ci.yml's keys), and in a run behind Loom's `main` the newest
+  # for its own Loom; so a replaced store is read by no run, and only crowds the repository's
+  # 10 GB, past which GitHub evicts the store least recently read: one read less often than a day,
+  # as package.yml's download cache is, before any replaced store. So every hour each family on
+  # `main` keeps its newest two, the second so that a store a run is still restoring is never
+  # deleted under it, and the rest go; never by age, since a quiet family's newest is old. A key
+  # this does not read as a compiler store is left alone, and named. Only the scheduled run on
+  # `main` deletes: this job's token alone may write Actions (`actions: write`, nothing more), and
+  # it checks out nothing and runs only `gh`, so no pull request's code reaches it.
+  prune:
+    name: Stores level / delete replaced stores
+    if: ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    steps:
+      - name: Delete each family's stores but its newest two
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          list="$RUNNER_TEMP/stores.tsv"
+          plan="$RUNNER_TEMP/delete.tsv"
+          # Newest first: created, id, bytes, key, and the family where the key reads as a store's.
+          gh api --paginate "repos/$REPO/actions/caches?ref=refs/heads/main&key=ccache-&per_page=100" \
+            --jq '.actions_caches[] | [.created_at, (.id | tostring), (.size_in_bytes | tostring), .key] | @tsv' \
+            | sort -r \
+            | sed -E 's/^(.*\t)((ccache(-[a-z]+)+-[0-9a-f]{16}-)([0-9a-f]{40}-)?[0-9]+-[0-9]+)$/\1\2\t\3/' \
+            > "$list"
+          : > "$plan"
+          awk -F '\t' -v plan="$plan" '
+            NF == 5 {
+              n[$5]++
+              if (n[$5] <= 2) { kept[$5] = kept[$5] " " $4 }
+              else { gone[$5]++; mb[$5] += $3 / 1000000; print $2 "\t" $4 > plan }
+              next
+            }
+            { print "left alone, a key not read as a compiler store: " $4 }
+            END {
+              for (f in n) printf "%s: %d stores; keeps%s; deletes %d, %.0f MB\n", f, n[f], kept[f], gone[f], mb[f]
+            }' "$list"
+          deleted=0
+          failed=0
+          while IFS=$'\t' read -r id key; do
+            if [ -n "${ZEN_PRUNE_DRY:-}" ]; then
+              echo "would delete $key"
+            elif gh api -X DELETE "repos/$REPO/actions/caches/$id" > /dev/null; then
+              echo "deleted $key"
+              deleted=$((deleted + 1))
+            else
+              echo "::warning title=Stores level::could not delete $key (it may be gone already)"
+              failed=$((failed + 1))
+            fi
+          done < "$plan"
+          echo "deleted $deleted of $(wc -l < "$plan") replaced stores; $failed could not be"

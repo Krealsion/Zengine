@@ -146,10 +146,9 @@ inheriting a cold dependency population; same code, same lock, two orders of mag
 
 ## VM-LANE-23 — CI's compiler cache is written by `main` alone
 
-METHOD — CI's compiler cache holds intermediates only, saved by `main` alone, never a pull request; a store is stale once Loom's `main` passes the Loom its key names, and an hourly check, `stores.yml`, rebuilds it.
-BECAUSE — a pull request's objects would feed `main`'s next build, and an object only feeds a link,
-so a hit is never provenance. Every run builds against Loom's `main`, so a stale store misses what a
-Loom change reached, and a run saves only while its commit and Loom are each `main`'s.
+METHOD — CI's compiler cache holds intermediates only, saved by `main` alone; an hourly check, `stores.yml`, rebuilds a store once Loom's `main` passes the Loom its key names, and keeps a family's newest two.
+BECAUSE — a pull request's objects would feed `main`'s next build, and an object only feeds a link, so a hit is never provenance. A run saves only while its commit and Loom are each `main`'s, so
+the newest store is the newest pair. A restore reads a family's newest, and GitHub evicts the least recently read first: with the rest deleted, what goes first is a store no run restores.
 
 ## VM-LANE-24 — The compiler cache comes in on CI's configure line alone
 
@@ -265,7 +264,7 @@ nowhere yet
 
 ### VM-LANE-23
 `.github/workflows/ci.yml` ZEN_CCACHE refresh cache-matched-key
-`.github/workflows/stores.yml` lookup-only refresh
+`.github/workflows/stores.yml` lookup-only refresh prune
 `tests/ci_store.py` read_key say_lines ask_verdict newest_verdict self_test
 
 ### VM-LANE-24
