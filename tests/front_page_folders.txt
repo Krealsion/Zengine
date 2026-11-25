@@ -17,3 +17,4 @@ introspection
 external-host
 launcher
 message-draft
+theme

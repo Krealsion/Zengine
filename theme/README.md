@@ -62,7 +62,17 @@ theme below it. A theme of the other medium alone is a normal link of the stack,
 place and converted as well as it can be -- a colour to its nearest ink, an ink to the colour xterm
 shows it in, `terminal default` falling through to the theme below -- and said with a warning as
 it is put in. A pane's own value a theme sets that the pane's role does not declare is left out and
-said. Where no theme weave runs (the snake, an app), the host offers its own palettes.
+said; a role that has not declared yet has its values laid as they are. Where no theme weave runs
+(the snake, an app), the host offers its own palettes.
+
+Each stack is laid from the files as they stand, read again each time it is laid, and a file with
+any fault is refused whole, naming the fault: an unknown member, a value of the wrong kind, a bound
+passed, a cycle of includes, or an include with no file of that medium.
+
+What a change to a worn theme reaches depends on what it changes. A colour changed is the window's
+own repaint, and no owner is told. A size, a font or a style changed tells each owner of an area
+wearing the palette its area again (`AreaRoom`, carrying the new measures), and the owner lays its
+text out again by it in its own handler, or ignores it. Nothing keeps a dirty flag.
 
 The shipped themes, `night`, `day` and `block`, stand in `themes/` beside the host, each with both
 files; the weaver's own stand in `themes/` under the host's per-user configuration root, and one of
@@ -88,16 +98,48 @@ areas wear at most <!-- value kMaxStacksWorn -->48<!-- /value --> stacks.
 A theme is written only by the safe write every durable file here shares (`persist/`), and a theme
 already on disk is overwritten only when asked to.
 
-## What is in this folder
+## Pages
 
-| | |
+- [`zengine.theme`](docs/zengine.theme.md): the role's manual, compiled in and answered.
+
+## Parts
+
+| file | what it holds |
 |---|---|
-| `theme_persist.hpp` | a theme's two files: their shapes, their form, reading and writing them, resolving a theme with its includes, and listing a folder of themes |
-| `stack.hpp` | how a stack is laid, as values: each link over the one below, the other medium's converted |
-| `stack_name.hpp` | the name of a stack's palette and a pane's theme laid over its layout's, and a stack's bounds, which a host names its areas' palettes by |
-| `vocabulary.hpp` | the `zengine.theme` role's messages |
-| `weave.cpp` | the `zengine-theme` weave, which holds the role |
+| `theme_persist.hpp` | a theme's two files: their shapes, `ThemeFile` (window, version 3) and `TerminalFile` (version 1); their form (`check_theme_file`, `check_terminal_file`); reading and writing them (`window_from_text`, `terminal_from_text`, `to_text`, `load_theme`, `save_theme`); resolving a theme with its includes (`resolve_theme_with`); listing a folder of themes (`list_themes`); and the words a version-1 or version-2 file is refused in |
+| `stack.hpp` | `lay_stack`, how a stack is laid, as values: each link over the one below, a link of the other medium converted with its warning, and own values judged against their roles' declarations |
+| `stack_name.hpp` | `stack_palette`, the name of a stack's palette, and `stack_over`, a pane's theme laid over its layout's stack; `kMaxStackThemes` and `kMaxStacksWorn`. A host names its areas' palettes by these, and nothing here reads a file |
+| `vocabulary.hpp` | the `zengine.theme` role (`kThemeRole`) and its messages |
+| `weave.cpp` | the loadable weave `zengine-theme`, which holds the role |
 | `docs/zengine.theme.md` | its manual |
-| `CMakeLists.txt` | the build: `zengine-theme-vocabulary`, header-only, and the weave |
+| `CMakeLists.txt` | `zengine-theme-vocabulary`, header-only over `loom::core`, `zengine-graphics-vocabulary` and `zengine-persist`, and the weave |
 
-Working on it: [AGENTS.md](AGENTS.md).
+## Working on it
+
+The repository's guide is [CONTRIBUTING.md](../CONTRIBUTING.md); this section is what a change in
+`theme/` adds to it.
+
+**Law.** The folder has no numbered law: what a theme is and how a stack is laid are this page's,
+the role's messages are its manual's, and a rule about one declaration is in that declaration's
+comment. A pane's own values and the terminal's look are the names graphics declares, and their law
+is graphics' ([`graphics/`](../graphics/README.md)).
+
+**Suites.** Each runs through the official lane, `tests/verify.cmake`.
+
+| suite | what it proves | where |
+|---|---|---|
+| `theme` | a theme's two files read, written and refused (a version-1 file, which held settings and keys; a version-2 one; an unknown member); resolution with its includes per medium (the later wins, cycles, bounds, a missing include); the folder's listing; a stack laid (over the pool's defaults, a link of the other medium converted and warned, own values judged); and the weave through the real kernel: the palette offered under the stack's name, laid again when a role declares, when the files change and are saved, and kept across a reload | `tests/test_theme.cpp` |
+
+Its shapes are pinned with every other shape the tree publishes (`tests/census_headers.hpp`,
+`tests/shapes.txt`).
+
+**The host's side.**
+
+- Workshop stages the weave and the shipped themes beside it (`workshop/CMakeLists.txt`), names the
+  folders and every stack its areas wear (`ThemesPlaced`, `ThemesWorn`), and chooses each area's
+  palette by its stack's name; its layouts' owner keeps each layout's stack and each row's theme.
+- The theme role keeps no stack of its own and names no host: a host is whoever says where the
+  themes are and what is worn, and nothing here assumes Workshop.
+- One owner offers each palette name: where the theme role runs it offers every stack's palette,
+  the shipped looks among them, and the host offers none; a host without it offers its own.
+- Its files are read and written through `persist/`.

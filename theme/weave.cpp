@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The loadable weave `zengine-theme`, holding the role `zengine.theme`: the one place a theme file
-// is read. It lays each stack a host's areas wear from the files as they stand -- its themes, bottom
-// first, a link of the other medium converted and said -- and offers each to graphics as the
+// The loadable weave `zengine-theme` holds the role `zengine.theme`, and is the one place a theme
+// file is read. It lays each stack a host's areas wear from the files as they stand -- its themes,
+// bottom first, a link of the other medium converted and said -- and offers each to graphics as the
 // palette named for the stack; it keeps each role's own values, and answers what the folders hold.
-// It names no host. Reference: theme/docs/zengine.theme.md, its manual, compiled in and answered.
+// It names no host. Its manual, theme/docs/zengine.theme.md, is compiled in and answered.
 
 #include "theme/stack.hpp"
 #include "theme/theme_persist.hpp"
@@ -39,21 +39,21 @@ namespace gfx = zengine::graphics;
 /// How many roles' own values the weave keeps.
 constexpr std::size_t kMaxOwnRoles = 64;
 
-/// ONE ROLE'S OWN VALUES, as it last declared them.
+/// One role's own values, as it last declared them.
 struct HeldOwn {
     std::string role;
     gfx::OwnValuesDeclared values;
     ZEN_SHAPE(HeldOwn, 1, ZEN_FIELD(role), ZEN_FIELD(values));
 };
 
-/// ONE STACK AS LAST LAID: what laying said and the palette offered.
+/// One stack as last laid: what laying said and the palette offered.
 struct HeldStack {
     th::StackLaid laid;
     gfx::PaletteOffered palette;
     ZEN_SHAPE(HeldStack, 1, ZEN_FIELD(laid), ZEN_FIELD(palette));
 };
 
-/// WHAT A RELOAD KEEPS: where the themes are, what is worn, the last revision offered, each stack
+/// What a reload keeps: where the themes are, what is worn, the last revision offered, each stack
 /// as laid, and each role's own values.
 struct ThemeState {
     th::ThemesPlaced placed;
@@ -89,8 +89,8 @@ class ThemeWeave
 public:
     using Base::on;
 
-    /// EVERY ACTIVATION: what a reload kept is offered again, and whoever hosts the role and every
-    /// pane with own values asked to say again what they said before it was held.
+    /// On every activation, what a reload kept is offered again, and whoever hosts the role and
+    /// every pane with own values is asked to say again what they said before it was held.
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) {
             return;
@@ -100,15 +100,15 @@ public:
         (void)mail.as_role(th::kThemeRole).publish(gfx::OwnValuesAsked{});
     }
 
-    /// WHERE THE THEMES ARE: every stack worn laid again from the files there.
+    /// Where the themes are: every stack worn is laid again from the files there.
     void on(const th::ThemesPlaced& placed, loom::Mail& mail) {
         state_.placed = placed;
         state_.placed_heard = true;
         lay_all(mail);
     }
 
-    /// WHAT THE HOST'S AREAS WEAR, whole: each stack laid from the files as they stand, and offered
-    /// where its palette changed. Past the bounds, the rest is not laid.
+    /// What the host's areas wear, whole: each stack is laid from the files as they stand, and
+    /// offered where its palette changed. Past the bounds, the rest is not laid.
     void on(const th::ThemesWorn& worn, loom::Mail& mail) {
         state_.worn.clear();
         std::set<std::string> seen;
@@ -128,7 +128,7 @@ public:
         lay_all(mail);
     }
 
-    /// A DIRECTORY STARTED AFRESH: every palette offered again.
+    /// A directory started afresh is offered every palette again.
     void on(const gfx::GraphicsReady&, loom::Mail& mail) {
         if (!mail.authored_from_role(gfx::kGraphicsRole)) {
             return;
@@ -136,8 +136,8 @@ public:
         offer_held(mail);
     }
 
-    /// A ROLE'S OWN VALUES, as that role: kept, and every stack laid again, its entries for that
-    /// role judged against them.
+    /// A role's own values, said as that role, are kept, and every stack is laid again with its
+    /// entries for that role judged against them.
     void on(const gfx::OwnValuesDeclared& declared, loom::Mail& mail) {
         const std::string role(mail.authored_role());
         if (role.empty() || declared.values.size() > gfx::kMaxOwnValues) {
@@ -158,7 +158,7 @@ public:
         lay_all(mail);
     }
 
-    /// EVERY STACK AS LAST LAID, to the asker.
+    /// Answers every stack as it was last laid, to the asker.
     void on(const th::StacksRequested&, loom::Mail& mail) {
         th::StacksShown shown;
         for (const HeldStack& h : state_.stacks) {
@@ -167,7 +167,8 @@ public:
         (void)mail.answer(shown);
     }
 
-    /// EVERY THEME IN THE FOLDERS, a weaver's own over a shipped one of its name, to the asker.
+    /// Answers every theme in the folders, a weaver's own over a shipped one of its name, to the
+    /// asker.
     void on(const th::ThemesRequested&, loom::Mail& mail) {
         std::map<std::string, th::ThemeSummary> found;
         for (const std::string& dir : {state_.placed.shipped, state_.placed.themes}) {
@@ -185,12 +186,12 @@ public:
         (void)mail.answer(shown);
     }
 
-    /// ONE THEME RESOLVED WITH ITS INCLUDES, laying nothing.
+    /// Answers one theme resolved with its includes, and lays nothing.
     void on(const th::ThemeResolveRequested& asked, loom::Mail& mail) {
         (void)mail.answer(resolve(asked.theme));
     }
 
-    /// A THEME SAVED AMONG THE WEAVER'S OWN, by the safe write; refused where the host names no
+    /// Saves a theme among the weaver's own, by the safe write, and refuses where the host names no
     /// folder of the weaver's. Every stack wearing it is laid again.
     void on(const th::ThemeSaveRequested& asked, loom::Mail& mail) {
         th::ThemeSaved saved;
@@ -237,8 +238,8 @@ private:
         return out;
     }
 
-    /// EVERY STACK WORN LAID AGAIN: a palette that changed is offered at the next revision, and a
-    /// laying with something to say said once; a stack no longer worn is let go.
+    /// Lays every stack worn again: a palette that changed is offered at the next revision, and a
+    /// laying with something to say is said once; a stack no longer worn is let go.
     void lay_all(loom::Mail& mail) {
         if (!state_.placed_heard) {
             return;
