@@ -34,7 +34,7 @@ using pane::kPresenterRole;
 
 // ---- THE EXTERNAL PANE'S CHROME AND KEYS --------------------------------------------------
 
-void WorkshopWeave::note_manuals() {
+void WorkshopWeave::note_manuals(loom::Mail& mail) {
     // THE APPLICATION SHOWS A MANUAL while it declares the row that does; a pane's holder answers
     // one while it takes the door. Both asked now, of the live keymap and the live holder -- and
     // whether that holder draws in a window, which the frame's body says.
@@ -51,14 +51,13 @@ void WorkshopWeave::note_manuals() {
         if (pane == nullptr) {
             continue;
         }
-        pane->manual = shown && row != nullptr && host_->holder_accepts &&
-                       host_->holder_accepts(row->provider,
-                                             *loom::schema_of<PaneDocumentRequested>());
-        pane->held = row != nullptr && host_->role_holder &&
-                     host_->role_holder(row->provider).valid();
-        pane->in_window = row != nullptr && host_->holder_accepts &&
-                          host_->holder_accepts(row->provider,
-                                                *loom::schema_of<graphics::AreaRoom>());
+        pane->manual =
+            shown && row != nullptr &&
+            bus_now_.holder_accepts(row->provider, *loom::schema_of<PaneDocumentRequested>(), mail);
+        pane->held = row != nullptr && bus_now_.holder_of(row->provider, mail).valid();
+        pane->in_window =
+            row != nullptr &&
+            bus_now_.holder_accepts(row->provider, *loom::schema_of<graphics::AreaRoom>(), mail);
     }
 }
 
@@ -119,7 +118,6 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
     return false;
 }
 
-// WL-ARR-16 -- agents/workshop/arrangement.md
 bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape) {
     const loom::WeaveId holder = bus.role_holder(role);
@@ -171,16 +169,14 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
     }
     const std::uint64_t answering = escape ? ++gesture_asks_ : 0;
     // An Escape nothing on the far side could spend: the holder accepts no key and the pane
-    // declared no row for it, so the key is this host's. A host that cannot ask sends it.
-    if (escape && host_->holder_accepts &&
-        !host_->holder_accepts(row->provider, *loom::schema_of<PaneKey>())) {
+    // declared no row for it, so the key is this host's.
+    if (escape && !bus_now_.holder_accepts(row->provider, *loom::schema_of<PaneKey>(), mail)) {
         return false;
     }
     // ...and one it could never hand back: a holder that does not declare `PaneEscapeUnspent`
     // among what it emits has no way to say the Escape meant nothing there, so Escape keeps its
     // default meaning and the key is this host's too (WL-ARR-16).
-    if (escape && host_->holder_emits &&
-        !host_->holder_emits(row->provider, *loom::schema_of<PaneEscapeUnspent>())) {
+    if (escape && !bus_now_.holder_emits(row->provider, *loom::schema_of<PaneEscapeUnspent>(), mail)) {
         return false;
     }
     (void)mail.as_role(kWorkshopProvider)
@@ -373,8 +369,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     // ...AND SOMEBODY TO PRESENT IT. The role's holder is read off the bus now; the role is
     // resolved again at delivery, and a presenter that left in between is Loom's refusal to
     // settle (`on(DispatchRefused)`), answered then.
-    if (!host_->holder_accepts ||
-        !host_->holder_accepts(kPresenterRole, *loom::schema_of<MenuGranted>())) {
+    if (!bus_now_.holder_accepts(kPresenterRole, *loom::schema_of<MenuGranted>(), mail)) {
         const std::string why = std::string("no presenter holds `") + kPresenterRole +
                                 "` -- nothing can present this menu";
         refuse(why);

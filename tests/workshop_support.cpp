@@ -524,6 +524,27 @@ namespace stock {
 
 auto stock_ref() -> PaneRef { return PaneRef{stock::kRole, stock::kPane}; }
 
+namespace {
+class StockHolder
+    : public loom::WeaveBase<StockHolder, SeatState, loom::Accept<gfx::AreaRoom>, loom::Emit<>> {
+public:
+    void on(const gfx::AreaRoom&, loom::Mail&) {}
+};
+} // namespace
+
+auto mount_stock_holder(loom::Switchboard& bus) -> loom::WeaveId {
+    if (const loom::WeaveId held = bus.role_holder(stock::kRole); held.valid()) {
+        return held; // a Workshop mounted again on the same bus finds it held
+    }
+    auto holder = std::make_unique<StockHolder>();
+    StockHolder* raw = holder.get();
+    const loom::WeaveId id =
+        bus.register_weave(std::move(holder), loom::Grant{}, std::string(stock::kRole));
+    raw->zen_set_self(id);
+    bus.kill(id);
+    return id;
+}
+
 namespace second {
 } // namespace second
 
@@ -550,7 +571,7 @@ auto admit_second(Panes& panes) -> void {
 }
 
 auto Live::mount_owner() -> void {
-        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
+        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host, bus));
         owner = weave.get();
         owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
         owner->zen_set_self(owner_id);
@@ -578,33 +599,16 @@ Live::Live() {
 #ifdef WORKSHOP_THEMES_DIR
         host.shipped_themes_path = WORKSHOP_THEMES_DIR; // the shipped themes, as the build has them
 #endif
-        // THE HOST'S VERSION ANSWER, as workshop.cpp wires it (the grant is the Emit set's) --
-        // with ONE fixture statement: the stack's stand-in (`stock`) is answered as present for
-        // a ROOM, so the launch door (which asks exactly that) seats it as it seats any offered
-        // pane. Nothing holds its role, so everything actually sent to it is still refused on
-        // the tap; the statement is about the one question and nothing else.
-        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
-            if (role == stock::kRole && shape.name() == gfx::AreaRoom::zen_name) {
-                return true;
-            }
-            return holder_accepts_on(bus, role, shape);
-        };
-        host.holder_emits = [this](std::string_view role, const loom::Schema& shape) {
-            return holder_emits_on(bus, role, shape);
-        };
-        host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
-        host.incarnation_of = [this](loom::WeaveId id) {
-            return static_cast<std::int64_t>(bus.participant(id).incarnation);
-        };
-        host.destinations = [this] {
-            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
-                                                                  : loom::WeaveId{});
-        };
+        // WHO IS ON THE BUS, Loom's participants claim, as workshop.cpp mounts it: who holds each
+        // role, at which incarnation and with what doors, read by Workshop inside its deliveries.
+        participants_id = loom::host::mount_participants(bus);
+        (void)mount_stock_holder(bus);
         mount_owner();
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
+        loom::host::allow_observe_participants(grant);
         // ...AND WHERE THE PLAN IS, the realization owner's claim, as the host grants it.
         grant.allow_observe(zengine::realization::PlanStatus::zen_name,
                             zengine::realization::PlanStatus::zen_version);
@@ -1998,7 +2002,7 @@ auto ControlSeat::on(const loom::Ack&, loom::Mail&) -> void {}
 auto ControlSeat::on(const loom::Refused& r, loom::Mail&) -> void { no_->push_back(r.reason); }
 
 auto PaneRig::mount_owner() -> void {
-        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
+        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host, bus));
         owner = weave.get();
         owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
         owner->zen_set_self(owner_id);
@@ -2028,35 +2032,17 @@ PaneRig::PaneRig() {
 #endif
         painter_id = loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
         (void)count_desk_drawings(bus, workshop_id, pictures);
+        // WHO IS ON THE BUS, Loom's participants claim, as workshop.cpp mounts it.
+        participants_id = loom::host::mount_participants(bus);
     }
 
 auto PaneRig::mount_workshop() -> WorkshopWeave* {
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
-        // The press's second version is chosen by the host's answer about the role's holder,
-        // wired as workshop.cpp wires it; a case that wants an OLDER host -- one that answers
-        // nothing, so every press crosses as v1 -- empties `host.holder_accepts`. With `Live`'s
-        // one fixture statement: the stack's stand-in, if a case admits it, is answered present
-        // for a ROOM, so the launch door seats it; a case that never admits it gets the host's.
-        host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
-            if (role == stock::kRole && shape.name() == gfx::AreaRoom::zen_name) {
-                return true;
-            }
-            return holder_accepts_on(bus, role, shape);
-        };
-        host.holder_emits = [this](std::string_view role, const loom::Schema& shape) {
-            return holder_emits_on(bus, role, shape);
-        };
-        host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
-        host.incarnation_of = [this](loom::WeaveId id) {
-            return static_cast<std::int64_t>(bus.participant(id).incarnation);
-        };
-        // ...and where a terminal line can go, read off the same bus at the ask, as workshop.cpp
-        // wires it. A case that wants a host listing nothing empties `host.destinations`.
-        host.destinations = [this] {
-            return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
-                                                                  : loom::WeaveId{});
-        };
+        // The press's second version is chosen by what the role's holder accepts, which Workshop
+        // reads from Loom's participants claim (the rig mounts it), and the stand-ins' role held
+        // dead, so a case that admits them has them seated.
+        (void)mount_stock_holder(bus);
         mount_owner();
         register_workshop(std::move(weave));
         return w;

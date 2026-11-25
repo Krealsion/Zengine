@@ -202,9 +202,9 @@ void WorkshopWeave::guide_requested(const GuideRequested& asked, loom::WeaveId s
             return;
         }
     }
-    const PaneStamp now = stamp_of(role, pane);
+    const PaneStamp now = stamp_of(role, pane, mail);
     GuideMark mark{role, pane, part, collapsed(asked.words), guest.name, now.holder, now.incarnation, {}, false};
-    const GuideDrawing drawing = guide_drawing(mark);
+    const GuideDrawing drawing = guide_drawing(mark, mail);
     if (!drawing.settled || !drawing.shown) {
         std::string said = "not shown: " + asked.pane + " shows no part " + part + " now";
         if (binding != nullptr) said += "; " + id + " is in force, and the weaver's key is " + key_of();
@@ -226,11 +226,12 @@ void WorkshopWeave::guide_requested(const GuideRequested& asked, loom::WeaveId s
 // WHAT ONE MARK DRAWS NOW, judged against the pane as it shows: nothing while the pane is not settled
 // and uncovered; else the part's outline in a window or its own cells in a terminal, clipped to the
 // body, and a label where it covers no word or part.
-WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) const {
+WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark,
+                                                         loom::Mail& mail) const {
     GuideDrawing out;
     // SETTLED AS A READING IS: what the pane shows now, by fingerprint, with nothing over it.
     PaneView view;
-    if (!pane_reading(mark.role, mark.pane, view).empty() || view.in_flight || !view.covered.by.empty()) {
+    if (!pane_reading(mark.role, mark.pane, view, mail).empty() || view.in_flight || !view.covered.by.empty()) {
         return out;
     }
     const RuntimePane* row = session_.panes.runtime.find(mark.role, mark.pane);
@@ -296,9 +297,9 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
     return out;
 }
 
-bool WorkshopWeave::guide_marks_moved() const {
+bool WorkshopWeave::guide_marks_moved(loom::Mail& mail) const {
     for (const auto& [session, mark] : guide_marks_) {
-        const GuideDrawing drawing = guide_drawing(mark);
+        const GuideDrawing drawing = guide_drawing(mark, mail);
         if (drawing.settled && (!drawing.shown || !(drawing.drawn == mark.drawn))) return true;
     }
     return false;
@@ -321,7 +322,7 @@ ScreenPlane WorkshopWeave::guide_layer(loom::Mail& mail) {
             ended.emplace_back(session, std::string());
             continue;
         }
-        const PaneStamp now = stamp_of(mark.role, mark.pane);
+        const PaneStamp now = stamp_of(mark.role, mark.pane, mail);
         if (now.holder != mark.holder || now.incarnation != mark.incarnation) {
             ended.emplace_back(session, "the pane's holder changed");
             continue;
@@ -333,7 +334,7 @@ ScreenPlane WorkshopWeave::guide_layer(loom::Mail& mail) {
             ended.emplace_back(session, "its pane left the desk");
             continue;
         }
-        const GuideDrawing drawing = guide_drawing(mark);
+        const GuideDrawing drawing = guide_drawing(mark, mail);
         mark.drawn = PixelRect{};
         if (!drawing.settled) continue;
         if (!drawing.shown) {

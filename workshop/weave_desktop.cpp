@@ -32,8 +32,7 @@ void WorkshopWeave::answer_declaration(const std::string& role, ActionsJudged ve
     // correlation back to the incarnation that sent it (ANS-03), so a verdict cannot land on a
     // successor after a reload. Only a holder that reads the shape is answered, and nothing is
     // retried; an older provider is told nothing, which is not acceptance.
-    if (role.empty() || !host_->holder_accepts ||
-        !host_->holder_accepts(role, *loom::schema_of<ActionsJudged>())) {
+    if (role.empty() || !bus_now_.holder_accepts(role, *loom::schema_of<ActionsJudged>(), mail)) {
         return;
     }
     (void)mail.answer(verdict);
@@ -44,8 +43,8 @@ void WorkshopWeave::say_withdrawn(const std::string& role, ActionsWithdrawn with
                                   loom::Mail& mail) {
     // ADDRESSED, NOT PUBLISHED: a fact about ONE party's declaration. Ordinary speech follows the
     // role, so the number is what tells a successor that this was its predecessor's rows.
-    if (role.empty() || withdrawn.declaration == 0 || !host_->holder_accepts ||
-        !host_->holder_accepts(role, *loom::schema_of<ActionsWithdrawn>())) {
+    if (role.empty() || withdrawn.declaration == 0 ||
+        !bus_now_.holder_accepts(role, *loom::schema_of<ActionsWithdrawn>(), mail)) {
         return;
     }
     (void)mail.as_role(kWorkshopProvider).send_to_role(role, withdrawn);
@@ -296,7 +295,7 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
         then(out, mail);
         return;
     }
-    if (!provider_present(kind, ref)) {
+    if (!provider_present(kind, ref, bus_now_.read(mail))) {
         // ⚠ A PAST OFFER IS NOT A PRESENT PROVIDER. The catalog keeps the row (its identity and
         // the desk rows that name it), but nobody holds the role now, so nobody could fill
         // the pane: it would open onto a room nothing answers. Asked of the bus at this
@@ -897,22 +896,21 @@ bool WorkshopWeave::covered_now(const PaneRef& ref) const {
 // ---- Whether anybody is there to fill a pane -----------------------------------------------
 
 // WL-DESK-04 -- agents/workshop/desktop.md
-bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref) const {
+bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref,
+                                     const loom::host::Participants* now) const {
     if (!is_runtime_kind(kind)) {
         return kind != kNoPaneKind; // this host's own panes, and the weaver's, are presented here
     }
-    // THE ROLE'S HOLDER AT THIS INSTANT, or the host's word that its holder takes an area's room
-    // -- the bus's facts, read and kept nowhere (`holder_accepts_on`). A host that wired no answer
-    // says no.
-    return (host_->role_holder && host_->role_holder(ref.provider).valid()) ||
-           (host_->holder_accepts &&
-            host_->holder_accepts(ref.provider, *loom::schema_of<graphics::AreaRoom>()));
+    // THE ROLE'S HOLDER AT THIS INSTANT, as Loom's participants claim says it in this delivery
+    // (`bus_now`), and kept nowhere. A claim this desk cannot read says no.
+    return now != nullptr && now->holder_of(ref.provider) != nullptr;
 }
 
 // ---- The one inventory, said out loud ------------------------------------------------------
 
 // WL-DESK-04 -- agents/workshop/desktop.md
-PaneInventory WorkshopWeave::inventory_reading(const realization::PlanStatus& plan) const {
+PaneInventory WorkshopWeave::inventory_reading(const loom::host::Participants* now,
+                                               const realization::PlanStatus& plan) const {
     PaneInventory said;
     for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         InventoryPane p;
@@ -927,7 +925,7 @@ PaneInventory WorkshopWeave::inventory_reading(const realization::PlanStatus& pl
         p.open = has_pane(session_.setup.active, row.ref);
         // AVAILABLE IS ASKED NOW, of the role's current holder -- not read off the catalog,
         // which remembers every pane ever offered this run and so cannot say who left.
-        p.available = row.kind != kNoPaneKind && provider_present(row.kind, row.ref);
+        p.available = row.kind != kNoPaneKind && provider_present(row.kind, row.ref, now);
         // ...AND WHETHER THE RUN STILL OWES IT, asked of the realization owner now. Absent and
         // still to come is not absent and settled: only the second is something to build.
         p.pending = !p.available && realization::to_come(plan, p.role);
@@ -944,13 +942,15 @@ void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
     // (Loom ANS-03). The publication's record of its own last utterance is not touched: other
     // presenters have heard what they heard, and the next change is said to all of them.
     (void)mail.answer(
-        inventory_reading(realization::latest<realization::PlanStatus>(mail).value_or(
-            realization::PlanStatus{})));
+        inventory_reading(bus_now_.read(mail),
+                          realization::latest<realization::PlanStatus>(mail).value_or(
+                              realization::PlanStatus{})));
 }
 
 // WL-DESK-04 -- agents/workshop/desktop.md
 void WorkshopWeave::publish_inventory(loom::Mail& mail) {
     PaneInventory said = inventory_reading(
+        bus_now_.read(mail),
         realization::latest<realization::PlanStatus>(mail).value_or(realization::PlanStatus{}));
     // COMPARED BEFORE IT IS PUBLISHED, for `StandingConditions`' reason: a presenter told the same
     // thing twice repaints for nothing, and the inventory is derived at every gesture. A

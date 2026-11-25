@@ -49,7 +49,7 @@ WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
 ### WL-READ-02
 `workshop/pane_view.hpp` PaneStamp PaneViewRequested PaneView
-`workshop/weave.hpp` HostContext::incarnation_of
+`workshop/bus_now.hpp` BusNow BusNow::read BusNow::incarnation_of
 `workshop/weave_desk_read.cpp` pane_reading unshown_reading stamp_of on(PaneViewRequested) pane_page
 `workshop/desk_read.hpp` page_of
 `workshop/reply_bytes.hpp` kReplyByteBudget

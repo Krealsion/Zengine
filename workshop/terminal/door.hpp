@@ -16,6 +16,7 @@
 #include "workshop/panes.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
+#include <zen/host/participants.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/terminal/input_lex.hpp>
 #include <zen/terminal/session.hpp>
@@ -29,25 +30,24 @@
 
 namespace zengine::workshop {
 
-/// The host's answer to `destinations`, read off `bus` at the call: every weave that is not a
-/// sealed candidate, its roles, accepted shapes and liveness, and `self` marked. A reading, not a
-/// registry.
+/// Where a line can be addressed, made of Loom's participants claim as a delivery read it
+/// (`loom::host::Participants`): every participant on the bus, its roles, the names of the shapes
+/// it accepts and whether it is alive, `self` marked. A reading, not a registry: a sealed
+/// candidate has no row, and a participant accepting any registered shape is shown by the shapes
+/// it lists, as the bus lists them.
 // WL-TERM-16 -- agents/workshop/terminal-door.md
-inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self) {
+inline std::vector<Destination> destinations_of(const loom::host::Participants& now,
+                                                loom::WeaveId self) {
     std::vector<Destination> out;
-    for (const loom::WeaveId id : bus.list_weaves()) {
-        if (bus.sealed(id)) {
-            continue; // a prepared candidate is outside the world: nothing can be sent to it
-        }
+    out.reserve(now.rows.size());
+    for (const loom::host::Participant& row : now.rows) {
         Destination d;
-        d.id = id.value;
-        d.roles = bus.roles_of(id);
-        d.alive = bus.alive(id);
-        d.self = self.valid() && id == self;
-        for (const std::shared_ptr<const loom::Schema>& door : bus.accepted_schemas(id)) {
-            if (door != nullptr) {
-                d.accepts.push_back(door->name());
-            }
+        d.id = static_cast<std::uint64_t>(row.id);
+        d.roles = row.roles;
+        d.alive = row.alive;
+        d.self = self.valid() && d.id == self.value;
+        for (const loom::DeclaredShape& shape : row.accepts) {
+            d.accepts.push_back(shape.name);
         }
         out.push_back(std::move(d));
     }
@@ -66,8 +66,9 @@ inline const char* slot_name(LineSlot slot) noexcept {
     return kSlotVerb;
 }
 
-/// THE TERMINAL DOOR: the participant it reads is the host's (`Host::terminal`), and so is where
-/// a line can be addressed (`Host::destinations`); what it keeps is only the last picture it said.
+/// THE TERMINAL DOOR: the participant it reads is the host's (`Host::terminal`); where a line can
+/// be addressed is Loom's participants claim as the composing weave's delivery read it
+/// (`Self::bus_now_`); what it keeps is only the last picture it said.
 /// Workshop composes it over its `HostContext` (`TerminalDoorFacet`).
 template <class Host>
 class TerminalDoor {
@@ -127,10 +128,12 @@ public:
         // this runs on every keystroke. Where a line can go is read off the bus only when the line
         // is at its address, as a value kept no longer than the answer.
         std::vector<Destination> reachable;
-        const bool listing = host_->destinations &&
-                             read_command_line(asked.line).slot == LineSlot::Address;
+        const loom::host::Participants* now =
+            read_command_line(asked.line).slot == LineSlot::Address ? self.bus_now_.read(mail)
+                                                                    : nullptr;
+        const bool listing = now != nullptr;
         if (listing) {
-            reachable = host_->destinations();
+            reachable = destinations_of(*now, host_->terminal->id());
         }
         const Completion c = complete_line(*host_->terminal, asked.line,
                                            listing ? &reachable : nullptr,

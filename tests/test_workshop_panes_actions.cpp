@@ -2252,7 +2252,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     r.extent(160, 48);
     load_real_desktop(r);
     REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
-    REQUIRE(r.host.holder_accepts("zengine.info", *loom::schema_of<gfx::AreaRoom>()));
+    REQUIRE(holder_accepts_on(r.bus, "zengine.info", *loom::schema_of<gfx::AreaRoom>()));
     const PaneRef info{"zengine.info", "info"};
     REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it
 
@@ -2260,7 +2260,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     CHECK(launcher_text(r).find("[open] Info") != std::string::npos);
 
     REQUIRE(r.unload("zengine-info-pane"));
-    REQUIRE_FALSE(r.host.holder_accepts("zengine.info", *loom::schema_of<gfx::AreaRoom>()));
+    REQUIRE_FALSE(holder_accepts_on(r.bus, "zengine.info", *loom::schema_of<gfx::AreaRoom>()));
     manager_here(r); // a gesture: the reading is taken again, now
     CHECK(launcher_text(r).find("[gone] Info") != std::string::npos);
     CHECK(launcher_text(r).find("[gone]: build its provider, then launch again") !=
@@ -2346,7 +2346,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     CHECK(r.last_notice().rfind("hid ", 0) == 0);
     CHECK_MESSAGE(r.last_notice().find(" -- ") == std::string::npos, r.last_notice()); // WL-NOTE-06
     // ⚠ NOTHING WAS UNLOADED: the role is still held, and the catalog still knows the pane.
-    CHECK(r.host.holder_accepts(kHelloRole, *loom::schema_of<gfx::AreaRoom>()));
+    CHECK(holder_accepts_on(r.bus, kHelloRole, *loom::schema_of<gfx::AreaRoom>()));
     CHECK(r.session().panes.runtime.find(kHelloRole, kHelloPane) != nullptr);
 
     // A SECOND CLOSE IS REFUSED IN WORDS, and it opens nothing.
@@ -2432,8 +2432,8 @@ TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the liv
         desk.locks.push_back(SetupLock{hello, "mode"});
     });
     // THE DOOR IS THE OWNER'S ALONE: the presenter does not take the shape at all.
-    CHECK(r.host.holder_accepts(kLayoutsRole, *loom::schema_of<PaneCloseRequested>()));
-    CHECK_FALSE(r.host.holder_accepts(kWorkshopProvider, *loom::schema_of<PaneCloseRequested>()));
+    CHECK(holder_accepts_on(r.bus, kLayoutsRole, *loom::schema_of<PaneCloseRequested>()));
+    CHECK_FALSE(holder_accepts_on(r.bus, kWorkshopProvider, *loom::schema_of<PaneCloseRequested>()));
 
     // PERSONAL SPEECH IS ANSWERED, AND CLOSES NOTHING.
     DoorHand& h = door_hand(r);
@@ -2470,7 +2470,7 @@ TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the liv
     // WHAT WAS HIDDEN, and no more: nothing went with it (WL-NOTE-06).
     CHECK_MESSAGE(r.last_notice().rfind("hid ", 0) == 0, r.last_notice());
     CHECK_MESSAGE(r.last_notice().find(" and its ") == std::string::npos, r.last_notice());
-    CHECK(r.host.holder_accepts(kHelloRole, *loom::schema_of<gfx::AreaRoom>()));
+    CHECK(holder_accepts_on(r.bus, kHelloRole, *loom::schema_of<gfx::AreaRoom>()));
 }
 
 TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return opens it again: "
@@ -2490,7 +2490,7 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
     r.key(input::scan::kX);
     CHECK_FALSE(has_pane(r.session().setup.active, info));
     CHECK(marked_row(r).find("[    ] Info") != std::string::npos);
-    CHECK(r.host.holder_accepts("zengine.info", *loom::schema_of<gfx::AreaRoom>()));
+    CHECK(holder_accepts_on(r.bus, "zengine.info", *loom::schema_of<gfx::AreaRoom>()));
 
     // A SECOND x ON THE SAME ROW: the host's refusal is the launcher's notice, and nothing opened.
     r.key(input::scan::kX);

@@ -538,7 +538,9 @@ namespace {
 /// THE INVENTORY AS WORKSHOP LAST SAID IT, two of the test tools' panes' names swapped, said to the
 /// desktop again; nothing is delivered. The list goes by name, so each pane takes the other's row.
 void swap_in_inventory(Desk& d, const char* one, const char* other) {
-    PaneInventory inventory = d.r.w->inventory_reading();
+    const auto now = loom::from_value<loom::host::Participants>(
+        loom::host::participants_now(d.r.bus));
+    PaneInventory inventory = d.r.w->inventory_reading(&now);
     std::size_t a = inventory.panes.size();
     std::size_t b = inventory.panes.size();
     for (std::size_t i = 0; i < inventory.panes.size(); ++i) {

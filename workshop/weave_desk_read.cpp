@@ -186,13 +186,12 @@ bool WorkshopWeave::capture_guest(loom::WeaveId who) const {
 
 // THE STAMP A PANE OF `provider` STANDS ON, but for what it shows: its role's holder and that
 // holder's incarnation, and the incarnation of the window that shows the desk.
-PaneStamp WorkshopWeave::stamp_of(const std::string& provider, const std::string& pane) const {
+PaneStamp WorkshopWeave::stamp_of(const std::string& provider, const std::string& pane,
+                                  loom::Mail& mail) const {
     PaneStamp out{provider, pane, 0, 0, window_epoch_, 0};
-    if (host_->role_holder) {
-        const loom::WeaveId holder = host_->role_holder(provider);
-        out.holder = static_cast<std::int64_t>(holder.value);
-        if (holder.valid() && host_->incarnation_of) out.incarnation = host_->incarnation_of(holder);
-    }
+    const loom::WeaveId holder = bus_now_.holder_of(provider, mail);
+    out.holder = static_cast<std::int64_t>(holder.value);
+    if (holder.valid()) out.incarnation = bus_now_.incarnation_of(holder, mail);
     return out;
 }
 
@@ -246,14 +245,15 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind, co
 // drawing for Layouts; a pane no window shows is no reading, and says why.
 // WL-READ-02 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::pane_reading(const std::string& provider, const std::string& pane_key,
-                                        PaneView& out) const {
-    return pane_reading(provider, pane_key, out, laid_desk());
+                                        PaneView& out, loom::Mail& mail) const {
+    return pane_reading(provider, pane_key, out, laid_desk(), mail);
 }
 
 std::string WorkshopWeave::pane_reading(const std::string& provider, const std::string& pane_key,
-                                        PaneView& out, const DeskBounds& laid) const {
+                                        PaneView& out, const DeskBounds& laid,
+                                        loom::Mail& mail) const {
     out = PaneView{};
-    out.stamp = stamp_of(provider, pane_key);
+    out.stamp = stamp_of(provider, pane_key, mail);
     if (provider == kWorkshopProvider && pane_key == pane_key::kLayouts) {
         return layouts_reading(out, laid);
     }
@@ -261,7 +261,7 @@ std::string WorkshopWeave::pane_reading(const std::string& provider, const std::
     if (pane == nullptr || !session_.panes.has(pane->kind)) {
         return "pane view unavailable: closed or unknown";
     }
-    if (placed_kinds_.count(pane->kind) != 0) return area_reading(*pane, out, laid);
+    if (placed_kinds_.count(pane->kind) != 0) return area_reading(*pane, out, laid, mail);
     return unshown_reading(*pane);
 }
 
@@ -274,7 +274,7 @@ DeskBounds WorkshopWeave::laid_desk() const {
 // window waits for the pane's drawing, and Workshop's covers by its own order.
 // WL-READ-05 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out,
-                                        const DeskBounds& laid) const {
+                                        const DeskBounds& laid, loom::Mail& mail) const {
     const std::string area = pane_window_area(session_.panes, row);
     const auto placed = areas_placed_.find(area);
     if (placed == areas_placed_.end()) {
@@ -306,7 +306,7 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out,
     shown_words_and_parts(shown, rect, words, parts);
     cover_reading(covers_of(row.kind, rect, laid), rect, words, parts, out.covered);
     // NO POINT WHILE A MENU IS OPEN, nor while nobody holds the role a press there is told.
-    const bool unheld = host_->role_holder && !host_->role_holder(row.provider).valid();
+    const bool unheld = bus_now_.read(mail) != nullptr && !bus_now_.holder_of(row.provider, mail).valid();
     if (session_.presented.open || session_.context.open || unheld) without_points(words, parts);
     out.total = static_cast<std::int64_t>(words.size() + parts.size());
     out.words = std::move(words);
@@ -667,7 +667,7 @@ Said<PaneView> WorkshopWeave::pane_page(loom::Mail& mail, loom::WeaveId asker,
         return loom::Refused{"pane view withheld: " + withheld};
     }
     PaneView reading;
-    if (const std::string why = pane_reading(asked.provider, asked.pane, reading); !why.empty()) {
+    if (const std::string why = pane_reading(asked.provider, asked.pane, reading, mail); !why.empty()) {
         return loom::Refused{why};
     }
     // A STAMP NAMES ITS HOLDER, so an ask naming none reads the pane as it stands.
@@ -706,7 +706,7 @@ Said<PanePoint> WorkshopWeave::pane_point(loom::Mail& mail, loom::WeaveId asker,
         return loom::Refused{"pane view withheld: " + withheld};
     }
     PaneView reading;
-    if (const std::string why = pane_reading(asked.provider, asked.pane, reading); !why.empty()) {
+    if (const std::string why = pane_reading(asked.provider, asked.pane, reading, mail); !why.empty()) {
         return loom::Refused{why};
     }
     if (reading.in_flight || reading.stamp.fingerprint != asked.fingerprint) {
@@ -787,9 +787,10 @@ std::vector<PaneRef> WorkshopWeave::presented_refs(const DeskBounds& laid) const
 // fingerprint of what it shows as last said -- the one stamp a desk read, a page and a notice say.
 // A pane whose reading is refused still names what it shows where that is known, as a refused
 // picture's room shows the refusal.
-PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref, const DeskBounds& laid) const {
+PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref, const DeskBounds& laid,
+                                   loom::Mail& mail) const {
     PaneView reading;
-    (void)pane_reading(ref.provider, ref.pane, reading, laid);
+    (void)pane_reading(ref.provider, ref.pane, reading, laid, mail);
     return reading.stamp;
 }
 
@@ -805,12 +806,12 @@ Said<DeskRead> WorkshopWeave::desk_read_now(loom::Mail& mail, loom::WeaveId aske
     const DeskBounds laid = laid_desk();
     for (const PaneRef& ref : presented_refs(laid)) {
         if (!read_withheld(mail, asker, ref.provider, ref.pane).empty()) {
-            out.stamps.push_back(withheld_stamp(ref));
+            out.stamps.push_back(withheld_stamp(ref, mail));
             readings.emplace_back(std::nullopt);
             continue;
         }
         PaneView reading;
-        const bool said = pane_reading(ref.provider, ref.pane, reading, laid).empty();
+        const bool said = pane_reading(ref.provider, ref.pane, reading, laid, mail).empty();
         out.stamps.push_back(reading.stamp);
         if (said) {
             readings.emplace_back(std::move(reading));
@@ -875,7 +876,7 @@ void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const DeskView* known)
     // what covers it, as the desk stands at this publish.
     const DeskBounds laid = laid_desk();
     for (const PaneRef& ref : presented_refs(laid)) {
-        now.panes.push_back(stamp_now(ref, laid));
+        now.panes.push_back(stamp_now(ref, laid, mail));
     }
     if (stamps_published_ && now.desk == stamps_said_.desk && same_stamps(now.panes, stamps_said_.panes)) {
         return;

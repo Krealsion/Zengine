@@ -9,11 +9,12 @@ roles. The founder asked for real, currently discoverable destinations, through 
 enough identity to choose deliberately -- and without granting the Terminal a tap or keeping a
 second registry.
 
-**Decision.** The owner of which weaves exist and which roles they hold is the Switchboard. The
-host that holds it answers the completion ask, so when the line is at its address the host reads
-`list_weaves`, `sealed`, `roles_of`, `alive` and `accepted_schemas` at that moment and hands the
-completer a value for one answer. The list is `*`, the roles held now by name, and the weaves
-registered now by id, each saying what it is. Nothing keeps the reading.
+**Decision.** The owner of which weaves exist and which roles they hold is the Switchboard, and
+Loom says it as its participants claim (`loom::host::Participants`), made from the bus's own
+tables at each read. When the line is at its address Workshop reads that claim inside the
+completion ask's delivery and hands the completer a value for one answer. The list is `*`, the
+roles held now by name, and the weaves registered now by id, each saying what it is. Nothing keeps
+the reading.
 
 **Alternatives considered.**
 - *The Loaded pane's `zen.ListLoaded`* -- refused: it names kernel libraries only, so Workshop,
@@ -27,7 +28,7 @@ registered now by id, each saying what it is. Nothing keeps the reading.
 
 **Consequences.** A removed id comes back as Loom's `NoSuchTarget` on the participant's own
 record; a role reaches whoever holds it at delivery; a host that lists nothing still offers the
-forms. A Loom door answering the same question for a loaded asker is the seam an inspection tool
-would use.
+forms. The claim reads alike for a loaded Workshop, which holds no Switchboard, and for any
+weave granted to observe it: an inspection tool reads the same rows.
 
 **Laws supported.** [WL-TERM-16](../workshop/terminal-door.md).

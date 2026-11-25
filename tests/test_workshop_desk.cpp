@@ -432,7 +432,6 @@ struct SketchRig : DeskRig {
     std::int64_t number = 0;
 
     SketchRig() {
-        r.host.role_holder = [this](std::string_view role) { return r.bus.role_holder(role); };
         auto made = std::make_unique<SketchSeat>();
         sketch = made.get();
         sketch_id = r.bus.register_weave(std::move(made), sketch_grant(), std::string(kCanvasRole));

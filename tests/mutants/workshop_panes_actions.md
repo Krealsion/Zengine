@@ -106,8 +106,9 @@ In `workshop/weave_desktop.cpp`:
 
 ```diff
 -    (void)mail.answer(
--        inventory_reading(realization::latest<realization::PlanStatus>(mail).value_or(
--            realization::PlanStatus{})));
+-        inventory_reading(bus_now_.read(mail),
+-                          realization::latest<realization::PlanStatus>(mail).value_or(
+-                              realization::PlanStatus{})));
 -}
 +    (void)0;
 +}
@@ -209,10 +210,8 @@ Red in `zengine-workshop-panes-tests`:
 In `workshop/weave_desktop.cpp`:
 
 ```diff
--    return (host_->role_holder && host_->role_holder(ref.provider).valid()) ||
--           (host_->holder_accepts &&
--            host_->holder_accepts(ref.provider, *loom::schema_of<graphics::AreaRoom>()));
-+    (void)ref;
+-    return now != nullptr && now->holder_of(ref.provider) != nullptr;
++    (void)ref, (void)now;
 +    return true;
 ```
 

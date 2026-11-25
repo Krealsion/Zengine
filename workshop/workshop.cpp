@@ -770,29 +770,22 @@ int main(int argc, char** argv) {
     // pane sentences to roles resolved at runtime -- no lifecycle, no Manager. It is mounted in
     // `kWorkshopProvider`, the built-in rows' own provider string rather than a credential, so a
     // provider can verify its asks; holding the role is not a super-grant (Loom MSG-07).
-    host.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
-    host.incarnation_of = [&bus](loom::WeaveId id) {
-        return static_cast<std::int64_t>(bus.participant(id).incarnation);
-    };
     host.input_authority = [&bus](loom::WeaveId actor) {
         return bus.alive(actor)
             ? loom::host_describe_only_authority(bus, actor)
             : loom::GrantAuthority{};
     };
-    host.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
-        return holder_accepts_on(bus, role, shape);
-    };
-    host.holder_emits = [&bus](std::string_view role, const loom::Schema& shape) {
-        return holder_emits_on(bus, role, shape);
-    };
-    host.destinations = [&bus, &host] {
-        return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{});
-    };
+    // ---- Who is on the bus, as Loom claims it (zen/host/participants.hpp) ----------------------
+    // Who holds each role, at which incarnation, what it accepts and declares it emits, and every
+    // participant a terminal line can be addressed to: Loom's derived claim, made at each read from
+    // the bus's own tables, which Workshop reads inside the delivery that needs it and keeps
+    // nowhere. Mounted before Workshop, whose first picture reads it.
+    (void)loom::host::mount_participants(bus);
     // ---- The layouts' owner, in its own role (workshop/layouts/owner.hpp) ---------------------
     // Every layout and what each keeps, the role-wide settings, the locks and the pins: one
     // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
     // session; it reads this host's paths and readings at each ask.
-    mount_in_role<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host));
+    mount_in_role<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host, bus));
     auto speak = workshop_grant();
     const loom::WeaveId workshop_id =
         mount_in_role<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);

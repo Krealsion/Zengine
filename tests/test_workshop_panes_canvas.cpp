@@ -137,7 +137,6 @@ TEST_CASE("a described view of the greatest size its rules allow asks for a pane
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(150, 65);
     view::Host views(r.bus);
@@ -207,7 +206,6 @@ TEST_CASE("a weaver keys a described view's button by naming its id in their key
     PaneRig r;
     r.host.keymap_path = path;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(160, 90, 8, 18, gfx::kCellPx);
     view::Host views(r.bus);
@@ -272,7 +270,6 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(160, 90, 8, 18, gfx::kCellPx); // the shipped window's face
     view::Host views(r.bus);
@@ -331,7 +328,6 @@ TEST_CASE("a view the layout left in the stack, run when its column is spent, is
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
@@ -384,7 +380,6 @@ TEST_CASE("a view shown where its own place stands off this screen stays there, 
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     // THE VIEW'S ROW ON THE DESK BEFORE IT RUNS, its own place past the room's right edge.
     const PaneRef greeting{"greeting", view::kPane};
@@ -428,7 +423,6 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();
-    r.host.role_holder = [&r](std::string_view role) { return r.bus.role_holder(role); };
     r.ready();
     r.extent(150, 65);
     std::vector<zengine::graphics::AreaPlaced> placed;

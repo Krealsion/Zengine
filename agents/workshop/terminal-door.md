@@ -37,12 +37,12 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-16 — Where a line can go is read off the bus at the ask, and kept by nobody
 
-LAW — At the line's address, the host reads each weave on the bus that is not a sealed candidate -- id, roles now, accepted shapes, whether alive -- and hands that to the completer for one answer.
+LAW — At the line's address, Workshop reads Loom's participants claim -- each participant's id, roles now, accepted shapes, whether alive -- and hands that to the completer for one answer.
 
 MEANS
 - roles are listed by name, each role of a weave holding several among them, and weaves by id, each with what it is; the participant is marked;
 - a weave loaded, removed or replaced shows on the next ask: nothing kept the last reading;
-- it observes no traffic and holds nothing between asks: a reading, not a tap or a registry.
+- it observes no traffic and holds nothing between asks: a reading, not a tap or a registry, where a sealed candidate has no row.
 
 DOES NOT MEAN
 - permission to send: a grant is per shape, and a listed weave may refuse or be refused;
@@ -107,8 +107,7 @@ line, and says so when it cannot"
 
 ### WL-TERM-16
 `workshop/terminal/complete.hpp` Destination destination_detail complete_line CandidateKind
-`workshop/terminal/door.hpp` bus_destinations on(TerminalCompletionRequested)
-`workshop/weave.hpp` HostContext::destinations
+`workshop/terminal/door.hpp` destinations_of on(TerminalCompletionRequested)
 `tests/test_workshop_host.cpp` "with the bus read the address offers everyone then each role held
 now then each weave registered now with what it is" "a destination holding several roles is offered
 as each of them, in role order"

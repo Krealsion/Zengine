@@ -230,8 +230,8 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
     const auto* rows = pane ? session_.keymap.pane_rows(pane->kind) : nullptr;
     bool declared = false;
     if (rows) for (const auto& row : rows->rows) if (row.id == asked.action) declared = true;
-    if (!pane || !declared || asked.holder <= 0 || !host_->role_holder ||
-        host_->role_holder(asked.role).value != static_cast<std::uint64_t>(asked.holder)) {
+    if (!pane || !declared || asked.holder <= 0 ||
+        bus_now_.holder_of(asked.role, mail).value != static_cast<std::uint64_t>(asked.holder)) {
         say("Shortcut unavailable: its pane, action or provider has changed", true); repaint(mail); return;
     }
     if (const std::string why = refused_toward(by->actor, pane->kind); !why.empty()) {
@@ -265,7 +265,7 @@ std::string WorkshopWeave::approve_gesture(const std::string& pane_key, std::int
                                     h.shortcut_sent.answering == corr && h.shortcut_sent.gesture == h.latest);
         });
     if (mail.authored_role().empty() || !pane || (!session_.panes.has(pane->kind) && !shortcut) ||
-        !host_->role_holder || host_->role_holder(mail.authored_role()) != mail.sender()) {
+        bus_now_.holder_of(mail.authored_role(), mail) != mail.sender()) {
         return "the requesting pane is no longer on this desk";
     }
     const bool names_send = !role.empty() || !shape.empty() || version != 0;
@@ -469,7 +469,7 @@ void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) 
         // before counting, so a departed provider's approvals cannot fill the book.
         std::erase_if(leases_, [&](const ObservationLease& l) {
             return (l.holder_role == role && l.pane == asked.pane) ||
-                   !host_->role_holder || host_->role_holder(l.holder_role) != l.holder;
+                   bus_now_.holder_of(l.holder_role, mail) != l.holder;
         });
         if (leases_.size() >= kMaxObservationLeases)
             reason = "too many observations are active; pause one first";
@@ -495,7 +495,7 @@ void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) 
     }
     std::string reason;
     const auto* pane = session_.panes.runtime.find(role, asked.pane);
-    if (!host_->role_holder || host_->role_holder(role) != mail.sender()) {
+    if (bus_now_.holder_of(role, mail) != mail.sender()) {
         reason = "the observing pane's role changed hands";
     } else if (asked.subject != it->subject) {
         reason = "the observation's subject changed; start it again";
@@ -627,9 +627,11 @@ bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
     }
     const RuntimePane* pane = session_.panes.runtime.of_kind(at.kind);
     const bool value = carried_.value;
-    if (pane == nullptr || !host_->holder_accepts ||
-        !host_->holder_accepts(pane->provider, value ? *loom::schema_of<PaneCanvasValueDrop>()
-                                                     : *loom::schema_of<PaneCanvasDrop>())) {
+    if (pane == nullptr ||
+        !bus_now_.holder_accepts(pane->provider,
+                                 value ? *loom::schema_of<PaneCanvasValueDrop>()
+                                       : *loom::schema_of<PaneCanvasDrop>(),
+                                 mail)) {
         say("This place does not accept the carried item; Escape cancels", true);
         return true;
     }
@@ -674,8 +676,7 @@ void WorkshopWeave::carry_hover(std::int64_t x, std::int64_t y, loom::Mail& mail
     const AreaPoint at = carried_.data.empty() ? AreaPoint{} : pane_area_at(x, y);
     const RuntimePane* row =
         at.kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(at.kind);
-    if (row == nullptr || !host_->holder_accepts ||
-        !host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasHover>())) {
+    if (row == nullptr || !bus_now_.holder_accepts(row->provider, *loom::schema_of<PaneCanvasHover>(), mail)) {
         leave_carry_hover(mail);
         return;
     }
@@ -742,9 +743,9 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
         const auto point = canvas_point_of(button.space, button.x, button.y);
         const AreaPoint over = point.understood ? pane_area_at(point.px.x, point.px.y) : AreaPoint{};
         const auto* pane = over.kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(over.kind);
-        if (pane && host_->role_holder) {
+        if (pane && bus_now_.read(mail) != nullptr) {
             drag.at = over;
-            drag.receiver = host_->role_holder(pane->provider);
+            drag.receiver = bus_now_.holder_of(pane->provider, mail);
             drag.word = window_under_;
         }
     }
@@ -757,8 +758,8 @@ void WorkshopWeave::finish_value_drag(loom::Mail& mail) {
     if (!carried_.drag) return;
     if (!drag.moved) { carried_ = {}; leave_carry_hover(mail); return; }
     const auto* pane = session_.panes.runtime.of_kind(drag.at.kind);
-    if (drag.gesture != latest_of(drag.actor) || !pane || !drag.receiver.valid() || !host_->role_holder ||
-        host_->role_holder(pane->provider) != drag.receiver) {
+    if (drag.gesture != latest_of(drag.actor) || !pane || !drag.receiver.valid() ||
+        bus_now_.holder_of(pane->provider, mail) != drag.receiver) {
         carried_ = {}; leave_carry_hover(mail);
         say("Value drag cancelled: no current receiver at the release", true); return;
     }

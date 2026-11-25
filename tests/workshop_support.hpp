@@ -641,6 +641,12 @@ inline constexpr std::int64_t kKind = kFirstRuntimeKind;
 
 PaneRef stock_ref();
 
+/// THE STAND-INS' ROLE HELD, AND DEAD: a weave in `stock::kRole` that takes an area's room, as a
+/// pane drawing in a window does, marked dead at once, so Loom's participants claim names a holder
+/// the launch door seats the stand-ins for, while everything sent to the role is refused on the
+/// tap and its bodies show the host's own waiting sentence.
+loom::WeaveId mount_stock_holder(loom::Switchboard& bus);
+
 /// THE SECOND STAND-IN, admitted right after the first under the same role: the other ordinary
 /// stack pane a case seats, overlaps, orders and persists.
 namespace second {
@@ -693,6 +699,8 @@ struct Live {
     std::vector<PaneSubjectShown> said_subjects;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
+    /// Loom's participants claimant, which Workshop reads who is on the bus from.
+    loom::WeaveId participants_id{};
     loom::WeaveId terminal_id{};
     /// THE HAND THAT OPENS AND CLOSES PANES THROUGH THE HOST'S DOORS, mounted when a case first
     /// asks (`door_hand`), so a case that never opens a pane has no extra party on its bus.
@@ -2074,6 +2082,8 @@ struct PaneRig {
     loom::WeaveId hand_id{};
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
+    /// Loom's participants claimant, which Workshop reads who is on the bus from.
+    loom::WeaveId participants_id{};
     /// THE HOST'S WATCH OVER THE QUIT'S DELIVERIES, mounted with Workshop exactly as
     /// `workshop.cpp` mounts it (WL-SESSION-19) -- a rig without it would be a Workshop whose
     /// quit waits on questions Loom refused to deliver, which no shipped host is. Declared after

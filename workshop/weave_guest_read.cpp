@@ -35,9 +35,9 @@ std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
     if (const std::string only = scope::weaver_only_pane(role, pane); !only.empty()) {
         return "pane " + named + " is read only by the weaver's hand: " + only;
     }
-    if (role == kEditorRole && !host_->host_fact.guests_file.empty() && host_->role_holder) {
+    if (role == kEditorRole && !host_->host_fact.guests_file.empty()) {
         // THE EDITOR'S DOCUMENT, as its role's holder last claimed it.
-        const loom::WeaveId holder = host_->role_holder(kEditorRole);
+        const loom::WeaveId holder = bus_now_.holder_of(kEditorRole, mail);
         const loom::SenseReading doc =
             holder.valid() ? mail.latest<EditorDocument>(holder) : loom::SenseReading{};
         if (doc && doc.by.author_incarnation_is_current) {
@@ -67,8 +67,8 @@ std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
 
 // A PANE THE ASKER MAY NOT READ, SAID AS A STAMP: its place in the order, its role, pane and
 // holder, and nothing that moves with what it shows.
-PaneStamp WorkshopWeave::withheld_stamp(const PaneRef& ref) const {
-    const PaneStamp of = stamp_of(ref.provider, ref.pane);
+PaneStamp WorkshopWeave::withheld_stamp(const PaneRef& ref, loom::Mail& mail) const {
+    const PaneStamp of = stamp_of(ref.provider, ref.pane, mail);
     return PaneStamp{ref.provider, ref.pane, of.holder, 0, 0, 0};
 }
 

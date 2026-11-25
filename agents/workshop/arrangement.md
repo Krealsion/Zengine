@@ -141,9 +141,9 @@ and moves nothing else" "an unspent Escape the weaver has already typed past mov
 second Escape does not lend its identity to the first Escape's answer"
 
 ### WL-ARR-16
-`workshop/weave_external.cpp` external_key holder_emits_on
+`workshop/weave_external.cpp` external_key
 `workshop/weave_handlers.cpp` on(KeyPressed)
-`workshop/weave.hpp` HostContext::holder_accepts HostContext::holder_emits
+`workshop/bus_now.hpp` BusNow::holder_accepts BusNow::holder_emits
 `tests/test_workshop_panes_input.cpp` "a pane that never mentions Escape is put down by it, and is
 sent nothing" "every shipped pane that holds the keys and selects nothing hands a bare Escape back"
 `tests/test_workshop_inventory_info.cpp` "escape: Loaded and Powers let go of the row a weaver chose
