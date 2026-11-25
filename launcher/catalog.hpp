@@ -4,7 +4,7 @@
 #ifndef ZENGINE_LAUNCHER_CATALOG_HPP
 #define ZENGINE_LAUNCHER_CATALOG_HPP
 
-// WHAT THE LAUNCHER MAY START, judged before anything starts (launcher/docs/zengine.launcher.md):
+// What the launcher may start, judged before anything starts (launcher/docs/zengine.launcher.md):
 // a kind and a name in a catalog the configuration fixed. An app is a folder directly in the
 // project's `apps/` holding a plan the codec reads, started by the `zengine-app` beside Workshop; a
 // demo is a setup the demo service lists, started by the configured `demo.py` on a root of its own
@@ -43,7 +43,7 @@ struct DemoSetup {
     std::string line;
 };
 
-/// WHAT THE CONFIGURATION FIXED: the app host's program, and the demo service's interpreter,
+/// What the configuration fixed: the app host's program, and the demo service's interpreter,
 /// script, build and Loom, with the setups it lists. A demo service left unconfigured starts no
 /// demo. In a package, `package` is the package's folder, which is both its build and its Loom,
 /// and the interpreter is the one found on the PATH, with the arguments it takes first; where none
@@ -65,7 +65,7 @@ inline constexpr const char* kPythonNeeded =
     "a setup starts with Python 3.8 or newer, and this machine's PATH holds none: install it "
     "(python.org), then start Workshop again";
 
-/// AN INTERPRETER FOUND ON A PATH: its program and the arguments it takes before the script.
+/// An interpreter found on a PATH: its program, and the arguments it takes before the script.
 struct Interpreter {
     std::string program;
     std::vector<std::string> args;
@@ -77,10 +77,11 @@ inline constexpr bool kWindowsPath = true;
 inline constexpr bool kWindowsPath = false;
 #endif
 
-/// THE PYTHON A PACKAGE STARTS ITS DEMO SERVICE WITH, found in `path` (a PATH's value), its
-/// folders in order: on Windows `python.exe`, then the launcher `py.exe` asked for a Python 3,
-/// passing over the Store's stand-ins in `Microsoft/WindowsApps`; elsewhere `python3`. Each is
-/// told to write no bytecode, so nothing is written into the package. None found is none.
+/// Finds the Python a package starts its demo service with in `path` (a PATH's value), looking in
+/// its folders in order: on Windows for `python.exe`, then for the launcher `py.exe` asked for a
+/// Python 3, passing over the Store's stand-ins in `Microsoft/WindowsApps`; elsewhere for
+/// `python3`. Each is told to write no bytecode (`-B`), so nothing is written into the package.
+/// When no folder holds one, the answer is empty.
 inline std::optional<Interpreter> find_python(const std::string& path,
                                               bool windows = kWindowsPath) {
     namespace fs = std::filesystem;
@@ -144,7 +145,7 @@ inline const DemoSetup* demo_named(const Catalog& catalog, const std::string& na
     return it == catalog.demos.end() ? nullptr : &*it;
 }
 
-/// JUDGE A LAUNCH in `project` against `catalog`, starting nothing.
+/// Judges a launch in `project` against `catalog`, and starts nothing.
 inline LaunchJudged judge_launch(const Launch& asked, const std::string& project,
                                  const Catalog& catalog) {
     namespace fs = std::filesystem;
@@ -172,7 +173,7 @@ inline LaunchJudged judge_launch(const Launch& asked, const std::string& project
         if (!fs::is_directory(folder, ec)) {
             return refuse("no app '" + asked.name + "' in " + apps.generic_string());
         }
-        // ...directly in `apps/`, a link to anywhere else included.
+        // The folder must stand directly in `apps/`: a link that leads anywhere else is refused.
         const fs::path real = fs::canonical(folder, ec);
         const fs::path real_apps = fs::canonical(apps, ec);
         if (ec || real.parent_path() != real_apps) {
@@ -215,7 +216,8 @@ inline LaunchJudged judge_launch(const Launch& asked, const std::string& project
     const std::vector<std::string> start{catalog.demo_script, "start", "--setup", setup->name,
                                          "--root", (runs / setup->name).generic_string()};
     args.insert(args.end(), start.begin(), start.end());
-    // A PACKAGE IS ITS OWN BUILD AND ITS OWN LOOM.
+    // A package is its own build and its own Loom, so the demo service is given the package
+    // alone.
     const std::vector<std::string> against =
         catalog.package.empty() ? std::vector<std::string>{"--build", catalog.build,
                                                            "--loom-prefix", catalog.loom_prefix}
@@ -227,7 +229,7 @@ inline LaunchJudged judge_launch(const Launch& asked, const std::string& project
     return out;
 }
 
-/// DOES THE APP IN `folder` RUN NOW: its host's session file stands there and names a process
+/// Whether the app in `folder` runs now: its host's session file stands there and names a process
 /// that still runs `catalog`'s app host. A file a killed host left names no such process.
 inline bool app_runs(const std::filesystem::path& folder, const Catalog& catalog) {
     const auto pid = app::read_session(folder);
@@ -235,7 +237,7 @@ inline bool app_runs(const std::filesystem::path& folder, const Catalog& catalog
            runs_program(*pid, std::filesystem::path(catalog.app_program).filename().string());
 }
 
-/// WHAT CAN BE STARTED IN `project`, as `Launch` would judge it now: each setup the demo service
+/// What can be started in `project`, as `Launch` would judge it now: each setup the demo service
 /// lists, then each folder directly in the project's `apps/`, by name, that `judge_launch` would
 /// start, with whether it runs. At most `kMaxListed`; how many past it is counted in `left_out`.
 inline LaunchCatalog listing(const std::string& project, const Catalog& catalog) {
@@ -251,7 +253,8 @@ inline LaunchCatalog listing(const std::string& project, const Catalog& catalog)
     for (const DemoSetup& d : catalog.demos) {
         add(LaunchEntry{kKindDemo, d.name, d.title.empty() ? d.name : d.title, d.line, false});
     }
-    // WHAT A LISTED SETUP'S START NEEDS THAT THIS MACHINE LACKS, said with the listing.
+    // A listed setup's start may need what this machine lacks, a package's Python, and the
+    // listing says so.
     if (!catalog.demos.empty() && catalog.python.empty()) {
         out.note = catalog.python_needed;
     }
@@ -262,7 +265,8 @@ inline LaunchCatalog listing(const std::string& project, const Catalog& catalog)
     }
     std::error_code ec;
     const fs::path apps = fs::path(project) / app::kAppsFolder;
-    // AT MOST `kMaxListed` FOLDERS LOOKED AT, in name order, the rest counted as left out.
+    // Every folder in `apps/` is named, but only the first `kMaxListed` in name order are judged;
+    // the rest are counted as left out.
     std::vector<std::string> names;
     for (fs::directory_iterator it(apps, ec), end; !ec && it != end; it.increment(ec)) {
         std::error_code is;

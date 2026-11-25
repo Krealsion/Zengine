@@ -15,3 +15,4 @@ composer
 input
 introspection
 external-host
+launcher
