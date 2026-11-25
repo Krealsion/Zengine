@@ -6,7 +6,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 [standalone workbench](../flow/docs/flow-guide.md), and
 [Workshop authoring](../flow/docs/flow.md). For `flow/flow-host/`, read
 [host integration](flow-host.md); for `flow/flow-pane/`, also read [panes](panes.md) and
-[message drafts](message-drafts.md).
+[message drafts](../message-draft/README.md).
 
 - Definitions, schemas, admission and graph meaning retain their existing owners. Keep the
   authoring package independent of Workshop and external-host test-session infrastructure.

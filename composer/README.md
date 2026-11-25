@@ -44,9 +44,9 @@ The repository's guide is [CONTRIBUTING.md](../CONTRIBUTING.md); this section is
 `composer/` adds to it.
 
 **Law.** Compose keeps the pane seam's law, in its section "The Composer is a schema-directed
-message form" ([the pane seam](../agents/panes.md)), and its drafts keep
-[the message drafts' law](../agents/message-drafts.md), which `message-draft/`'s router routes. A
-rule about one declaration is in that declaration's comment.
+message form" ([the pane seam](../agents/panes.md)), and its drafts are
+[`message-draft/`'s](../message-draft/README.md#working-on-it). A rule about one declaration is in
+that declaration's comment.
 
 **The manual is compiled in.** `zengine-composer` carries `docs/zengine.composer.md` and answers it
 when asked, so an edit to the manual is a build: its manual witnesses, in `workshop_panes_hand`,

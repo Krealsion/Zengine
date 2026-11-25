@@ -219,7 +219,7 @@ inline Library open_library(const std::string& path, const loom::Registry* curre
     return read_library(file.bytes, current);
 }
 inline void save_library(const std::string& path, const Library& library) {
-    const auto bytes = library_bytes(library); // all validation before the old file is touched
+    const auto bytes = library_bytes(library); // every check runs before the old file is touched
     const auto error = maker::write_file(path, bytes);
     if (!error.empty()) throw std::runtime_error(error);
 }
