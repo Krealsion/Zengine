@@ -253,13 +253,12 @@ TEST_CASE("the native close request reaches the quit policy `q` already had") {
     // and the weave has no branch that turns this shape into one. What it shares
     // with `q` is the POLICY, which is the thing that should be shared.
     Live t;
-    bool stopped = false;
-    t.host.request_stop = [&stopped] { stopped = true; };
+    const auto stopped = [&] { return t.session_door->ending(); };
     REQUIRE_FALSE(t.host.quit);
 
     t.close_requested();
     CHECK(t.host.quit);
-    CHECK(stopped);
+    CHECK(stopped());
 }
 
 namespace {
@@ -279,8 +278,7 @@ TEST_CASE("a close is the window's that shows the desk: one said by anyone else 
     // ⚔ MUTATION (tests/mutants/workshop_document.md#close-from-anyone): Workshop quitting on any
     // `SurfaceCloseRequested`, whoever said it.
     Live t;
-    bool stopped = false;
-    t.host.request_stop = [&stopped] { stopped = true; };
+    const auto stopped = [&] { return t.session_door->ending(); };
     t.ready();
     REQUIRE(t.windows.window() == gfx::kTuiWindow);
     const auto say_as = [&t](const std::string& role) {
@@ -304,17 +302,16 @@ TEST_CASE("a close is the window's that shows the desk: one said by anyone else 
     // ...AND AS ANOTHER ROLE ALTOGETHER.
     say_as("zengine.test.closer");
     CHECK_FALSE(t.host.quit);
-    CHECK_FALSE(stopped);
+    CHECK_FALSE(stopped());
     // THE WINDOW THAT SHOWS THE DESK ENDS IT.
     t.close_requested();
     CHECK(t.host.quit);
-    CHECK(stopped);
+    CHECK(stopped());
 }
 
 TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     Live t;
-    bool stopped = false;
-    t.host.request_stop = [&stopped] { stopped = true; };
+    const auto stopped = [&] { return t.session_door->ending(); };
 
     t.key(input::scan::kC); // a plain c is not a command at all
     CHECK_FALSE(t.host.quit);
@@ -323,7 +320,7 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
 
     t.key(input::scan::kC, input::mod::kCtrl);
     CHECK(t.host.quit);
-    CHECK(stopped);
+    CHECK(stopped());
 }
 
 TEST_CASE("a notice a weaver's own path makes too long is kept whole in the session, and drawn on no screen row") {

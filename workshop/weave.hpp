@@ -56,6 +56,7 @@
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
 #include <zen/host/wait_set.hpp>
+#include <zen/session/vocabulary.hpp> // the host's lifetime ended, in Loom's words
 #include <zen/terminal/session.hpp>
 #include <zen/weave.hpp>
 
@@ -125,7 +126,6 @@ struct HostContext {
     /// choice holds each switchable role is the realization owner's claim (`ChoicesHeld`).
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
     std::string choice_note;
-    std::function<void()> request_stop;
     std::string dir;
 
     /// THE PROJECT THIS WORKSHOP WAS LAUNCHED INTO -- the directory the process was
@@ -581,7 +581,7 @@ class WorkshopWeave
                                         zengine::graphics::RoomAsked,
                                         zengine::graphics::Drawn,
                                         zengine::pane::PaneKeys,
-                                        zengine::input::PointerTimingAsked>,
+                                        zengine::input::PointerTimingAsked, loom::session::Shutdown>,
                              loom::WeaveBase,
                              // the latest claims this host makes -- the managed pane's
                              // presentation, and what it waits on in the host's wait.

@@ -203,6 +203,7 @@ GuideRequested v1 0x449d827435acac26
 HeldMenu v4 0xeb4afdb8af818391
 HeldOwn v1 0x8d26781ac3eba99f
 HeldStack v1 0x69de234e6085c506
+HostSessionState v1 0x85d90d090588018d
 IconFace v3 0xec11724626fe4669
 ImageArgs v1 0x8085ca3e3649508e
 ImageFace v3 0xe91672bc24870918

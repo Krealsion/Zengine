@@ -556,9 +556,10 @@ void WorkshopWeave::finish_quit(loom::Mail& mail) {
 void WorkshopWeave::end_quit(loom::Mail& mail) {
     host_->quit = true;
     answer_quit_ask({}, mail);
-    if (host_->request_stop) {
-        host_->request_stop();
-    }
+    // ...AND THE HOST ASKED TO END ITS LIFETIME, in Loom's own words, of whoever holds its session.
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(loom::session::kSessionRole,
+                      loom::session::Shutdown{"the weaver quit Workshop"});
 }
 
 // WL-SESSION-13 -- agents/workshop/session.md

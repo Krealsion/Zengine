@@ -707,6 +707,9 @@ struct Live {
     loom::WeaveId workshop_id{};
     /// Loom's participants claimant, which Workshop reads who is on the bus from.
     loom::WeaveId participants_id{};
+    /// The host's session door, which Workshop asks to end the host's lifetime once its quit is
+    /// settled; here it stops nothing, and says whether it was asked.
+    HostSessionDoor* session_door = nullptr;
     loom::WeaveId terminal_id{};
     /// THE HAND THAT OPENS AND CLOSES PANES THROUGH THE HOST'S DOORS, mounted when a case first
     /// asks (`door_hand`), so a case that never opens a pane has no extra party on its bus.
@@ -729,7 +732,7 @@ struct Live {
     Live();
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
-    /// handed over as `request_stop` is -- with this rig's one rule, `RigNote` to whoever holds
+    /// handed over as `HostContext::terminal` -- with this rig's one rule, `RigNote` to whoever holds
     /// `kRigBoard`. `widen` is the canary lever, Workshop's own `to_any` rule, without which "a
     /// pane's publication reaches nobody" measures nothing. `shapes` mounts extra declared shapes,
     /// so a completion list can outgrow its room.
@@ -2135,6 +2138,9 @@ struct PaneRig {
     loom::WeaveId workshop_id{};
     /// Loom's participants claimant, which Workshop reads who is on the bus from.
     loom::WeaveId participants_id{};
+    /// The host's session door, which Workshop asks to end the host's lifetime once its quit is
+    /// settled; here it stops nothing, and says whether it was asked.
+    HostSessionDoor* session_door = nullptr;
     /// THE HOST'S WATCH OVER THE QUIT'S DELIVERIES, mounted with Workshop exactly as
     /// `workshop.cpp` mounts it (WL-SESSION-19) -- a rig without it would be a Workshop whose
     /// quit waits on questions Loom refused to deliver, which no shipped host is. Declared after
