@@ -164,7 +164,8 @@ automatically, so the page describes exactly the shapes the gate lets in.
 - The asker names the content id it holds, or none. Another id is another definition of the shape:
   the words are answered, `current` is false, and `said` says they are out of date for it.
 - A shape the role does not accept under that name and version, or one its page has no section
-  for, is refused in `refusal`, with no words.
+  for among its commands and what it hears, is refused in `refusal`, with no words. A section under
+  any other heading is no section for a shape.
 
 ## How a manual is kept true
 
