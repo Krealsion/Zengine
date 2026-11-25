@@ -242,8 +242,8 @@ pool unless it is kept apart: an entry seen to fail under load runs apart until 
 the repair proved on a local parallel lane. A panes part longer than a piece runs as pieces,
 `workshop_panes_<part>_<n>`, each a process of its own over a range of the part's cases, and the
 population check holds every case to one piece; `ctest -R '^workshop_panes_project'` runs a part
-whole. CI's sanitizer job runs in two runners: one builds the panes program and runs its entries,
-the other builds and runs the rest. Each runs its share as
+whole. CI's sanitizer job runs in three runners: two build the panes program and each runs half its
+entries, and the third builds and runs the rest. Each runs its share as
 `cmake -DZEN_BUILD_DIR=build-san -DZEN_SANITIZER_RUNNER=<runner> -P tests/sanitizer_lane.cmake`
 does, the file holding the shares, its arguments, the stack depth ASan keeps, the memory limit and
 the time budget an entry is warned past; with no runner named it runs every share in turn. The

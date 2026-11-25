@@ -31,12 +31,17 @@ set(ZEN_SANITIZER_ASAN_OPTIONS malloc_context_size=8)
 
 # The runners: each builds its own target and runs its share, the CTest entries its patterns
 # match (`*` any run of a name's characters), less those after EXCEPT. Every entry the tree
-# registers is in exactly one share, and a program's entries are in one: one runner builds the
-# panes program and runs its entries, the other builds and runs the rest. A runner builds the
-# targets it names, or ALL the tree builds less those after EXCEPT, with what they need.
-set(ZEN_SANITIZER_RUNNERS panes rest)
-set(ZEN_SANITIZER_ENTRIES_panes workshop_panes_*)
-set(ZEN_SANITIZER_BUILDS_panes zengine-workshop-panes-tests)
+# registers is in exactly one share, and each runner builds its entries' programs: two runners
+# build the panes program and run half its entries each, its parts split by their seconds under
+# the sanitizer, and the third builds and runs the rest. A runner builds the targets it names, or
+# ALL the tree builds less those after EXCEPT, with what they need.
+set(ZEN_SANITIZER_RUNNERS panes-info panes-hand rest)
+set(ZEN_SANITIZER_ENTRIES_panes-info workshop_panes_info* workshop_panes_inspect workshop_panes_seam
+                                     workshop_panes_settings workshop_panes_editor*)
+set(ZEN_SANITIZER_BUILDS_panes-info zengine-workshop-panes-tests)
+set(ZEN_SANITIZER_ENTRIES_panes-hand workshop_panes_hand* workshop_panes_project*
+                                     workshop_panes_terminal*)
+set(ZEN_SANITIZER_BUILDS_panes-hand zengine-workshop-panes-tests)
 set(ZEN_SANITIZER_ENTRIES_rest * EXCEPT workshop_panes_*)
 set(ZEN_SANITIZER_BUILDS_rest ALL EXCEPT zengine-workshop-panes-tests)
 
@@ -106,9 +111,9 @@ function(zen_sanitizer_shares registered out_problems)
     set(${out_problems} "${problems}" PARENT_SCOPE)
 endfunction()
 
-# THE PROGRAMS: an entry the build records a target for runs in the runner that builds that
-# target, and a program's entries in one runner. Reads `share_<runner>`, the record's
-# ZENGINE_TARGET_<entry> and the runners' record's ZENGINE_SANITIZER_BUILDS_<runner>.
+# THE PROGRAMS: an entry the build records a target for runs in a runner that builds that target;
+# a program's entries may be split between runners that each build it. Reads `share_<runner>`,
+# the record's ZENGINE_TARGET_<entry> and the runners' record's ZENGINE_SANITIZER_BUILDS_<runner>.
 function(zen_sanitizer_programs out_problems)
     set(problems "")
     foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
@@ -117,11 +122,6 @@ function(zen_sanitizer_programs out_problems)
                 continue()
             endif()
             set(target "${ZENGINE_TARGET_${entry}}")
-            string(MAKE_C_IDENTIFIER "${target}" key)
-            if(DEFINED runner_of_${key} AND NOT runner_of_${key} STREQUAL runner)
-                list(APPEND problems "${target} runs in ${runner_of_${key}} and in ${runner} (${entry}): a program's entries run in one runner")
-            endif()
-            set(runner_of_${key} ${runner})
             if(NOT target IN_LIST ZENGINE_SANITIZER_BUILDS_${runner})
                 list(APPEND problems "${entry} runs in ${runner}, which does not build its program ${target}")
             endif()

@@ -562,8 +562,9 @@ jobs:
   # defects of that kind, in test code and on the press path, the lane above had called
   # green. It runs the SAME population, no subset, no lowered floor, no gate off, the GUI window
   # included, so a red here is about the code and never about a lane that quietly shrank.
-  # TWO RUNNERS, BY PROGRAM (VM-LANE-27): each builds only what it runs and runs its share of the
-  # entries, tests/sanitizer_lane.cmake the home of both shares, and every entry is in one.
+  # THREE RUNNERS, BY PROGRAM (VM-LANE-27): each builds only what it runs and runs its share of the
+  # entries, tests/sanitizer_lane.cmake the home of every share, and every entry is in one. The
+  # panes program's entries are two shares, so two runners build it and run half of them each.
   zengine-linux-asan-ubsan:
     name: Zengine / Linux / ASan + UBSan / ${{ matrix.runner }}
     needs: [zengine-change-kind, resolve-loom]
@@ -573,7 +574,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [panes, rest]
+        runner: [panes-info, panes-hand, rest]
     steps:
       - name: Check out Zengine
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
