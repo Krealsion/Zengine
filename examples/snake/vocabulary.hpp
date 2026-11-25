@@ -149,12 +149,12 @@ inline constexpr const char* kWorldArea = "snake.world";
 inline constexpr const char* kScoreRole = "snake.score";
 /// The pilot's role, the address it is landed by.
 inline constexpr const char* kPilotRole = "snake.pilot";
+/// The board's role: whoever holds it provides what the board draws, which the world calls.
+inline constexpr const char* kBoardRole = "snake.board";
 
 /// The world's own beat, a repeating timer under this id (a new pace asks under a new one).
 inline constexpr const char* kTickTimerId = "snake.tick";
 
-/// The element type the board is presented as, and the world's reference for it.
-inline constexpr std::int64_t kBoardRef = 1;
 /// The pixels of one board cell: one terminal cell.
 inline constexpr std::int64_t kBoardCellPx = 12;
 

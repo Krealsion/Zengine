@@ -39,7 +39,7 @@ auto DrawnMirror::take(const loom::BusEvent& ev) -> void {
             zengine::graphics::window::WinArea& a = areas_[d.area];
             a.area = d.area;
             a.owner = ev.authored_role;
-            (void)zengine::graphics::window::apply(a, zengine::graphics::window::Drawer{}, d);
+            (void)zengine::graphics::window::apply(a, d);
         } else if (ev.schema_name == gfx::AreaRoom::zen_name) {
             if (ev.authored_role.rfind(prefix, 0) != 0) return;
             const gfx::AreaRoom r = loom::from_value<gfx::AreaRoom>(*ev.payload);

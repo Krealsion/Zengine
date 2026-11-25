@@ -5262,7 +5262,7 @@ HelloCounters hello_state(loom::Switchboard& bus, loom::WeaveId id) {
 /// freshly constructed instance would not have.
 void forge_room(loom::Switchboard& bus, loom::WeaveId id) {
     bus.send(id, loom::Message(loom::to_value(zengine::graphics::AreaRoom{
-                                   "zengine.test.workshop-hello.hello", "forged", 1, 240, 36, {},
+                                   "zengine.test.workshop-hello.hello", "forged", 1, 240, 36,
                                    true}),
                                loom::WeaveId{}, loom::WeaveId{}, 0));
     for (int i = 0; i < 8; ++i) {

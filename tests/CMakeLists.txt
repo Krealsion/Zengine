@@ -957,11 +957,8 @@ zengine_compile_test(ui_resolved_geometry_refused zengine-cn-ui-resolved
 zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 
 # ---- the drawing weave's compile-negative lane --------------------------------------------
-# An element's change outside its code's list, and a drawer replacing the end-of-delivery hook
-# that shows its drawing, are refused at build time, beside a drawer that must build (VM-WALL-04).
-zengine_compile_test(graphics_change_outside_list_refused zengine-cn-graphics-change-outside
-                     "is not one of the element's changes")
-
+# A drawer replacing the end-of-delivery hook that shows its drawing is refused at build time,
+# beside a drawer that must build (VM-WALL-04).
 zengine_compile_test(graphics_own_after_delivery_refused zengine-cn-graphics-after-delivery
                      "defines its own after_delivery")
 
@@ -2070,7 +2067,6 @@ foreach(zengine_cost_row IN ITEMS
         "package_judges:8"
         "timer_activation_hook_compiles:8"
         "flow:7"
-        "graphics_change_outside_list_refused:7"
         "inventory:7"
         "workshop_files:7"
         "graphics_own_after_delivery_refused:6"

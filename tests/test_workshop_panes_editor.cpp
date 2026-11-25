@@ -2034,7 +2034,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
 
         // A ROOM OR A PRESS ANYONE BUT THE WINDOW SAYS IS NOTHING.
         mark = seen.heard.size();
-        w.r.publish(loom::to_value(gfx::AreaRoom{area, "elsewhere", 1, 480, 120, {}}));
+        w.r.publish(loom::to_value(gfx::AreaRoom{area, "elsewhere", 1, 480, 120}));
         w.r.publish(loom::to_value(gfx::ActionRequested{area, "line:1"}));
         CHECK(seen.heard.size() == mark);
         CHECK(w.read("caret_row") == "2");

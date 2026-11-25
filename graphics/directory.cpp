@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The loadable weave `zengine-graphics`, the directory: which windows exist, where each area
-// stands and who draws in it, which palette it wears, the palettes offered, and which code presents
-// each element type. It introduces an area to its window once the window is known, and the window
-// tells the owner its room; it is told again of every change, passes every palette to every window,
-// and stays off the path a picture takes.
+// stands and who draws in it, which palette it wears, and the palettes offered. It introduces an
+// area to its window once the window is known, and the window tells the owner its room; it is told
+// again of every change, passes every palette to every window, and stays off the path a picture
+// takes.
 // Reference: graphics/docs/zengine.graphics.md, its manual, compiled in and answered.
 
 #include "graphics/vocabulary.hpp"
@@ -39,9 +39,8 @@ struct DirectoryState {
     std::vector<gfx::WindowOffered> windows;
     std::vector<DirectoryArea> areas;
     std::vector<gfx::PaletteOffered> palettes;
-    std::vector<gfx::ElementCodeOffered> codes;
-    ZEN_SHAPE(DirectoryState, 13, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(palettes),
-              ZEN_FIELD(codes));
+    /// Version 14: it keeps no element code, since a window presents no element.
+    ZEN_SHAPE(DirectoryState, 14, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(palettes));
 };
 
 class Directory
@@ -49,14 +48,13 @@ class Directory
           zengine::manual::ManualFacet<zengine::manual::pages::zengine_graphics::kManual>>::
           Weave<Directory, DirectoryState,
                 loom::Accept<gfx::WindowOffered, gfx::AreaPlaced, gfx::PaletteOffered,
-                             gfx::PaletteChosen, gfx::ElementCodeOffered, gfx::RoomAsked,
-                             loom::Activated>,
-                loom::Emit<gfx::AreaIntroduced, gfx::AreaWithdrawn, gfx::ElementCodeOffered,
-                           gfx::PaletteOffered, gfx::GraphicsReady>> {
+                             gfx::PaletteChosen, gfx::RoomAsked, loom::Activated>,
+                loom::Emit<gfx::AreaIntroduced, gfx::AreaWithdrawn, gfx::PaletteOffered,
+                           gfx::GraphicsReady>> {
 public:
-    /// A window, as its own role: every code and palette offered, then each of its areas
-    /// introduced, which the window answers with each owner's room -- in that order, so an element
-    /// a fresh window is asked to present finds its code there, and an area its palette.
+    /// A window, as its own role: every palette offered, then each of its areas introduced, which
+    /// the window answers with each owner's room -- in that order, so an area finds its palette
+    /// there.
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
         if (!mail.authored_from_role(std::string(gfx::kWindowRolePrefix) + w.window)) {
             return;
@@ -67,9 +65,6 @@ public:
             state_.windows.push_back(w);
         } else {
             *it = w;
-        }
-        for (const gfx::ElementCodeOffered& c : state_.codes) {
-            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(role_of(w.window), c);
         }
         for (const gfx::PaletteOffered& p : state_.palettes) {
             (void)mail.as_role(gfx::kGraphicsRole).send_to_role(role_of(w.window), p);
@@ -137,22 +132,6 @@ public:
         }
         a->palette = c.palette;
         introduce(mail, *a);
-    }
-
-    void on(const gfx::ElementCodeOffered& c, loom::Mail& mail) {
-        auto it = std::find_if(state_.codes.begin(), state_.codes.end(),
-                               [&](const gfx::ElementCodeOffered& k) { return k.type == c.type; });
-        if (it != state_.codes.end() && it->library == c.library) {
-            return;
-        }
-        if (it == state_.codes.end()) {
-            state_.codes.push_back(c);
-        } else {
-            *it = c;
-        }
-        for (const gfx::WindowOffered& w : state_.windows) {
-            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(role_of(w.window), c);
-        }
     }
 
     /// An owner that started again, as its role: the area introduced again, so the window that

@@ -82,14 +82,14 @@ public:
         }
         heard.push_back(d);
         const std::string why = refuse_next ? std::string("the case refused this drawing")
-                                            : gw::judge(*a, gw::Drawer{}, d);
+                                            : gw::judge(*a, d);
         refuse_next = false;
         if (!why.empty()) {
             refusals.push_back(why);
             (void)mail.as_role(role()).send_to_role(a->owner, gfx::DrawnRefused{d.area, why});
             return;
         }
-        (void)gw::apply(*a, gw::Drawer{}, d);
+        (void)gw::apply(*a, d);
         a->drawing = d.number;
     }
 
@@ -247,7 +247,7 @@ public:
         a->owner = owner;
         a->w = w;
         a->h = h;
-        say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h, {},
+        say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h,
                                  a->nodes.empty() && a->records.empty(), cell_px_, face_.advance,
                                  face_.line, {}});
     }

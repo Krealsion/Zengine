@@ -25,7 +25,6 @@
 
 #include "graphics/canvas.hpp"
 #include "graphics/drawing.hpp"
-#include "graphics/element_export.hpp"
 #include "graphics/elements.hpp"
 #include "graphics/light_paint.hpp"
 #include "graphics/ops.hpp"

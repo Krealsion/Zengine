@@ -205,8 +205,8 @@ public:
             at.owner = view_of(d.area);
         }
         auto why = in.provenance.authored_role() == at.owner
-                       ? gfx::window::judge(at, gfx::window::Drawer{}, d) : "not this area's owner";
-        if (why.empty()) (void)gfx::window::apply(at, gfx::window::Drawer{}, d);
+                       ? gfx::window::judge(at, d) : "not this area's owner";
+        if (why.empty()) (void)gfx::window::apply(at, d);
         else refused.push_back(std::move(why));
         drawn.push_back(std::move(d));
     }
@@ -434,7 +434,7 @@ void window_says(Rig& rig, const Shown& w, const std::string& view, const T& val
 /// The room the window gives a view's area, in pixels: `columns` by `rows` of its cells.
 gfx::AreaRoom area_room(const std::string& view, std::int64_t columns, std::int64_t rows, std::int64_t epoch = 1) {
     return gfx::AreaRoom{area_of(view), gfx::kTuiWindow, epoch, columns * gfx::kCellPx,
-                         rows * gfx::kCellPx, {}};
+                         rows * gfx::kCellPx};
 }
 } // namespace
 

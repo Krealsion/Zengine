@@ -4235,7 +4235,7 @@ TEST_CASE("the TUI window offered brings Workshop up in it, the last session res
             (void)m.as_role(sdl_window_role())
                 .send_to_role(kWorkshopProvider,
                               gfx::AreaRoom{kWorkshopProvider, gfx::kGuiWindow, 1, cells_px(90),
-                                            cells_px(30), {}});
+                                            cells_px(30)});
         });
         CHECK(os->drawn() > 0);
         // ...AND A PASTE INTO THE NAME EDITOR IS ASKED OF IT, its answer landing in the line; the

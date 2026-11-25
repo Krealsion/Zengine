@@ -2389,7 +2389,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         CHECK(seen.refusals.empty());
         gfx::window::WinArea fresh;
         fresh.area = vb::kRole;
-        CHECK(gfx::window::judge(fresh, gfx::window::Drawer{}, first).empty());
+        CHECK(gfx::window::judge(fresh, first).empty());
         std::set<std::string> names = said_there, recorded;
         names.erase(std::string());
         for (const auto& r : first.said) recorded.insert(r.action);

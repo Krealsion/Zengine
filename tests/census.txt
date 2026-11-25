@@ -126,10 +126,10 @@ doors files/files.cpp FilesWeave 10
 doors flow/flow-host/runtime.hpp Clock 1
 doors flow/flow-host/runtime.hpp Manager 7
 doors flow/flow-pane/pane.cpp FlowPane 22
-doors graphics/directory.cpp Directory 7
+doors graphics/directory.cpp Directory 6
 doors graphics/drawing.hpp ActionFacet 4
 doors graphics/drawing.hpp DrawingFacet 3
-doors graphics/window/window.hpp WindowBase 21
+doors graphics/window/window.hpp WindowBase 18
 doors info/pane.cpp InfoPaneWeave 26
 doors input/double_click_setting.hpp DoubleClickSetting 2
 doors input/input_weave.hpp EmitsOf 8
@@ -184,7 +184,7 @@ lines editor/editor-pane/pane.cpp EditorPaneWeave 877 falls
 lines editor/neovim-editor/pane.cpp NeovimEditorWeave 883 falls
 lines files/files.cpp FilesWeave 1216 falls
 lines flow/flow-pane/pane.cpp FlowPane 2292 falls
-lines graphics/window/window.hpp Window 1160 falls
+lines graphics/window/window.hpp Window 1007 falls
 lines info/property_view.hpp PropertyView 691 falls
 lines info/value_view.hpp ValueView 1166 falls
 lines realization/owner.hpp Owner 837 falls
@@ -209,6 +209,7 @@ kind editor/neovim-editor/vocabulary.hpp vocabulary
 kind editor/source-transfer/vocabulary.hpp vocabulary
 kind examples/ host
 kind examples/snake/ weave
+kind examples/snake/board.hpp vocabulary
 kind examples/snake/vocabulary.hpp vocabulary
 kind examples/tile-defense/ weave
 kind examples/tile-defense/vocabulary.hpp vocabulary
@@ -450,7 +451,6 @@ reach tests/census_headers.hpp app/vocabulary.hpp 1 falls
 reach tests/census_headers.hpp builder/runner.hpp 1 falls
 reach tests/census_headers.hpp builder/weave.hpp 1 falls
 reach tests/census_headers.hpp composer/command_context.hpp 1 falls
-reach tests/census_headers.hpp examples/snake/board.hpp 1 falls
 reach tests/census_headers.hpp examples/snake/play_state.hpp 1 falls
 reach tests/census_headers.hpp examples/tally-app/tally.hpp 1 falls
 reach tests/census_headers.hpp examples/tile-defense/host_shapes.hpp 1 falls

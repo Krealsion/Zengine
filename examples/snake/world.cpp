@@ -4,8 +4,9 @@
 // The snake World weave, the whole game: its rules (logic.hpp), keys, beat, pause and picture. One
 // source, two libraries: snake-world-v1 and, with `SNAKE_WORLD_V2`, snake-world-v2 (a larger board
 // and `growths`, the heir). It publishes its news for anyone, takes `SnakeTick` and `SnakeTurn`
-// from anyone, and draws its frame and its board into the window that shows its area: the board
-// said once, as the game's own element (board.hpp), then each step as a change.
+// from anyone, and draws its frame and its board into the window that shows its area as one
+// picture. The board is the game's own element (board.hpp): what it draws is the answer of the
+// function the board's weave provides, called with the board's data whenever that data changes.
 // Reference: examples/snake/README.md.
 
 // Both worlds converse: they answer `zen.PrepareShutdown` with a letter carrying their whole
@@ -28,7 +29,9 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -54,12 +57,10 @@ class SnakeWorld
 #if defined(SNAKE_WORLD_V2)
           loom::Accept<SnakeTick, SnakeTurn, gfx::AreaKeyPressed, loom::PrepareShutdown,
                        loom::Bequest, loom::Refused, loom::AskEnded>,
-          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
-                     loom::Bequest, loom::ClaimBequest>,
+          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, loom::Bequest, loom::ClaimBequest>,
 #else
           loom::Accept<SnakeTick, SnakeTurn, gfx::AreaKeyPressed, loom::PrepareShutdown>,
-          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
-                     loom::Bequest>,
+          loom::Emit<SnakeVisual, FoodEaten, SnakeDied, loom::Bequest>,
 #endif
           timer::TimedWeave> {
 public:
@@ -112,7 +113,7 @@ public:
     }
 
     /// The world's buttons, pressed in the window: the pause button pauses and resumes, as `p`
-    /// does; the new-game button starts a new game, unpaused, sent to the board as a change.
+    /// does; the new-game button starts a new game, unpaused.
     void on_action(const std::string& action, loom::Mail& mail) {
         if (action == kPause) {
             state_.paused = !state_.paused;
@@ -131,7 +132,6 @@ public:
         copy_bindings(keep);
         seed(state_);
         mail.publish(visual_of(state_));
-        new_board();
     }
 
     /// "You are being replaced. Say what you want your heir to know": the whole state, as one
@@ -160,7 +160,6 @@ public:
                 continue;
             }
             mail.publish(visual_of(state_));
-            present_board(); // the board it inherited, said again whole
             return;
         }
         begin_fresh(mail); // a letter holding nothing this world recognizes
@@ -185,11 +184,31 @@ public:
 
     /// After every delivery, and every write into its state: the beat follows the state, at the
     /// pace it holds and only while the world plays. Started again by a reload, it does the same.
-    void after_delivery(loom::Mail& mail) { keep_beat(mail); }
+    /// Then its picture, drawn by the world itself rather than by the drawing facet, so a grown
+    /// world draws none until it knows its game: the window shows the board it holds until then.
+    /// With no window to show it, nothing is drawn and the board is not asked.
+    void after_delivery(loom::Mail& mail) {
+        keep_beat(mail);
+#if defined(SNAKE_WORLD_V2)
+        if (!asked_ || awaiting_claim_) {
+            return;
+        }
+#endif
+        if (canvas().window().empty()) {
+            return;
+        }
+        ask_board(mail);
+        gfx::Sketch f;
+        draw(f);
+        (void)f.drop_unparented();
+        canvas().draw(f);
+    }
 
-    /// The world's own nodes: the score, the death notice, the board's place, the new-game button
-    /// and the pause button beside it, which says resume while the world is paused.
-    void picture(gfx::Sketch& f) const {
+private:
+    /// The world's own nodes: the score, the death notice, the board where the board's function
+    /// answered, the new-game button and the pause button beside it, which says resume while the
+    /// world is paused.
+    void draw(gfx::Sketch& f) const {
         const std::int64_t c = kBoardCellPx;
         f.text("score", 0, 0, "score " + std::to_string(state_.score),
                gfx::colors::quiet);
@@ -197,6 +216,10 @@ public:
             f.text("dead", 10 * c, 0, "DEAD", gfx::colors::alert);
         }
         f.group("board", 0, c);
+        if (board_drawn_) {
+            f.group("board/grid", 0, 0);
+            f.place("board/grid", *board_drawn_);
+        }
         const std::int64_t row = (state_.height + 3) * c;
         gfx::Button new_game("new-game", " new game ");
         new_game.set_measure(canvas().text());
@@ -209,14 +232,29 @@ public:
         pause.sketch(f, kPause);
     }
 
-    /// A window that does not hold the board: the board said there, whole.
-    void on_room(const gfx::AreaRoom&, loom::Mail&) {
-        if (!canvas().holds(kBoardRef)) {
-            present_board();
+    /// The board as it stands, said whole.
+    SnakeBoardData board_data() const {
+        return SnakeBoardData{state_.width, state_.height, kBoardCellPx, body(),
+                              state_.snake.empty() ? -1 : food_cell(), !state_.alive};
+    }
+
+    /// What the board draws, asked of the board's function when the board's data changed since
+    /// its last answer, or the last call was refused. A refusal draws no board, until a call is
+    /// answered: the world's other nodes stand.
+    void ask_board(loom::Mail& mail) {
+        const SnakeBoardData data = board_data();
+        if (board_drawn_ && board_asked_ == data) {
+            return;
+        }
+        const loom::Called<gfx::ElementDrawn> drawn =
+            mail.call<gfx::ElementDrawn>(kBoardRole, data);
+        board_asked_ = data;
+        board_drawn_.reset();
+        if (drawn) {
+            board_drawn_ = *drawn;
         }
     }
 
-private:
     /// The world's own beat.
     void on_beat(const timer::TimerFired& f, loom::Mail& mail) {
         if (f.id != beat_.id()) {
@@ -229,8 +267,8 @@ private:
         advance(mail);
     }
 
-    /// One step of world time: the news published and the board told what changed. The step
-    /// that reaches `pause_at` pauses the world after it, once.
+    /// One step of world time: the news published, and the board drawn again once the delivery
+    /// ends. The step that reaches `pause_at` pauses the world after it, once.
     void advance(loom::Mail& mail) {
 #if defined(SNAKE_WORLD_V2)
         claim_once(mail);
@@ -241,10 +279,8 @@ private:
         if (state_.snake.empty()) {
             seed(state_);
             mail.publish(visual_of(state_));
-            new_board();
             return;
         }
-        const State before = state_;
         const StepEvents ev = step(state_);
         if (ev.ate) {
             mail.publish(FoodEaten{});
@@ -259,7 +295,6 @@ private:
                 state_.pause_at = 0;
             }
             mail.publish(visual_of(state_));
-            step_board(before);
         }
     }
 
@@ -273,44 +308,6 @@ private:
             out.push_back(cell_of(p));
         }
         return out;
-    }
-
-    /// The board said whole: where the window does not hold it, or to start it over.
-    void present_board() {
-        canvas().present("board/grid", kBoardRef,
-                         SnakeBoardData{state_.width, state_.height, kBoardCellPx, body(),
-                                        state_.snake.empty() ? -1 : food_cell()});
-    }
-
-    /// A new game on the board: a change where the window holds it.
-    void new_board() {
-        if (!canvas().holds(kBoardRef)) {
-            present_board();
-            return;
-        }
-        canvas().change<SnakeBoardChanges>(kBoardRef, SnakeNewGame{body(), food_cell()});
-    }
-
-    /// One step's facts on the board: a change where the window holds it.
-    void step_board(const State& before) {
-        if (!canvas().holds(kBoardRef)) {
-            present_board();
-            return;
-        }
-        SnakeStep s;
-        const bool moved = !(state_.snake.front().x == before.snake.front().x &&
-                             state_.snake.front().y == before.snake.front().y);
-        if (moved) {
-            s.head = cell_of(state_.snake.front());
-            if (state_.snake.size() == before.snake.size()) {
-                s.freed = cell_of(before.snake.back());
-            }
-        }
-        if (state_.food.x != before.food.x || state_.food.y != before.food.y) {
-            s.food = food_cell();
-        }
-        s.dead = !state_.alive && before.alive;
-        canvas().change<SnakeBoardChanges>(kBoardRef, s);
     }
 
     /// What a new game keeps of the state it replaces: the bindings and the beats taken.
@@ -372,18 +369,21 @@ private:
         mail.ask_role(loom::kManagerRole, loom::ClaimBequest{kWorldRole}, kClaimCorrelation);
     }
 
-    /// No inheritance: a fresh game, its board said whole, since the board the window holds may be
-    /// a predecessor's at another size.
+    /// No inheritance: a fresh game, drawn whole once the delivery ends, in place of the board the
+    /// window holds, which may be a predecessor's at another size.
     void begin_fresh(loom::Mail& mail) {
         seed(state_);
         mail.publish(visual_of(state_));
-        present_board();
     }
 #endif
 
     Handle beat_;
     std::int64_t armed_ms_ = kTickMs;
     std::int64_t paces_ = 0;
+    /// The board's data last handed to the board's function, and what it answered: none before an
+    /// answer, or after a refusal. Kept for the weave's life only, since a call holds nothing.
+    SnakeBoardData board_asked_;
+    std::optional<gfx::ElementDrawn> board_drawn_;
 };
 
 } // namespace

@@ -6,13 +6,14 @@
 
 // The graphics suites' rig: the real kernel, manager and bus, a tap that keeps every delivery with
 // its bytes, ears that hear the answers, the window's report and the snake's news, and the
-// arranger's gestures -- the palettes and the board's code offered, an area placed, a palette
-// chosen --
-// sent by the test, which stands where a host's arranger stands.
+// arranger's gestures -- the palettes offered, an area placed, a palette chosen -- sent by the
+// test, which stands where a host's arranger stands. Its kernel gives the snake's world the call
+// of the board's function, as the snake's host does.
 
 #include "role_set.hpp"
 #include "graphics/themes.hpp"
 #include "graphics/vocabulary.hpp"
+#include "examples/snake/board.hpp"
 #include "examples/snake/vocabulary.hpp"
 
 #include <zen/kernel/admission.hpp>
@@ -95,10 +96,26 @@ inline std::string window_role() {
     return std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
 }
 
+/// The harness's trust, and the call of the board's function for the snake's world libraries, by
+/// the names they are loaded and swapped under: a permissive grant holds no call rule.
+inline loom::AdmissionPolicy world_calls_the_board() {
+    return [trust = loom::trust_every_artifact(
+                "Zengine's test harness: it loads only this build tree's output")](
+               const loom::AdmissionRequest& req) {
+        loom::AdmissionVerdict verdict = trust(req);
+        if (verdict.admitted && req.stage == loom::AdmissionStage::Speak &&
+            (req.name == "snake-world-v1" || req.name == "snake-world-v2")) {
+            verdict.grant.allow_call(zengine::snake::kBoardRole,
+                                     zengine::snake::SnakeBoardData::zen_name,
+                                     zengine::snake::SnakeBoardData::zen_version);
+        }
+        return verdict;
+    };
+}
+
 struct Rig {
     loom::Switchboard bus;
-    loom::Kernel kernel{bus, loom::trust_every_artifact(
-                                 "Zengine's test harness: it loads only this build tree's output")};
+    loom::Kernel kernel{bus, world_calls_the_board()};
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
     Heard heard;
@@ -154,12 +171,11 @@ struct Rig {
     }
 
     /// The arranger's gestures for one area of the TUI window: the classic and block palettes
-    /// and the board's code offered, the area's palette chosen, the area placed.
-    void arrange(const char* board, const std::string& area, const std::string& owner,
-                 const std::string& palette, std::int64_t x = 0, std::int64_t y = 0) {
+    /// offered, the area's palette chosen, the area placed.
+    void arrange(const std::string& area, const std::string& owner, const std::string& palette,
+                 std::int64_t x = 0, std::int64_t y = 0) {
         to_role(gfx::kGraphicsRole, gfx::themes::night());
         to_role(gfx::kGraphicsRole, gfx::themes::block());
-        to_role(gfx::kGraphicsRole, gfx::ElementCodeOffered{"SnakeBoardData", board});
         to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, palette});
         to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTuiWindow, owner, x, y,
                                                     50 * gfx::kCellPx, 22 * gfx::kCellPx, 0,

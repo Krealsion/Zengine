@@ -5,18 +5,18 @@
 #define ZENGINE_GRAPHICS_WINDOW_WINDOW_HPP
 
 // A window, over the medium it shows on: the whole job of showing what its areas' owners drew. It
-// keeps each area's nodes, records and presented elements in its state, presents an element from
-// code it loads, has what changed painted in the palette the area wears, routes the pointer, gives
-// keys and their text to the areas that hear them, and tells each owner its room. What it keeps
-// painted, how it shows it and what it reads are its Medium's: characters on a terminal
-// (graphics/window/window_tui.hpp), light in a GUI window (graphics/window/window_sdl.hpp).
+// keeps each area's nodes and records in its state, has what changed painted in the palette the
+// area wears, routes the pointer, gives keys and their text to the areas that hear them, and tells
+// each owner its room. It runs no code of an owner's: an element is drawn by its owner, from the
+// function the element's weave provides. What it keeps painted, how it shows it and what it reads
+// are its Medium's: characters on a terminal (graphics/window/window_tui.hpp), light in a GUI
+// window (graphics/window/window_sdl.hpp).
 
 #include "graphics/painting.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/clicks.hpp"
 #include "graphics/window/compose.hpp"
 #include "graphics/window/palette.hpp"
-#include "graphics/window/seams.hpp"
 #include "graphics/window/store.hpp"
 
 #include "activation/activation.hpp"
@@ -51,19 +51,16 @@ namespace zengine::graphics::window {
 inline constexpr std::int64_t kLookAgainMs = zengine::input::kLookAgainMs;
 
 /// What a window keeps across a reload: its incarnation, its areas with everything drawn in them,
-/// the element code offered for each type, the palettes offered it, and the next handle it names an
-/// element by. A press it holds is not kept: a reload ends every hold, untold, and a release goes
-/// where it lands.
+/// and the palettes offered it. A press it holds is not kept: a reload ends every hold, untold, and
+/// a release goes where it lands.
 struct WindowState {
     std::int64_t epoch = 0;
     std::vector<WinArea> areas;
-    std::vector<ElementCodeOffered> codes;
-    std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    /// Version 14: its areas' nodes draw by eleven operators.
-    ZEN_SHAPE(WindowState, 14, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
-              ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
+    /// Version 15: it keeps no element code and no element, since a window presents none.
+    ZEN_SHAPE(WindowState, 15, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(refusals),
+              ZEN_FIELD(palettes));
 };
 
 /// A window's size in cells.
@@ -110,8 +107,8 @@ class Window;
 template <class Medium>
 using WindowBase = typename zengine::With<
     zengine::manual::ManualFacet<Medium::kManual>>::template Weave<Window<Medium>, WindowState,
-    loom::Accept<loom::Activated, Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
-                 ElementCodeOffered, PaletteOffered, GraphicsReady, WindowShowAsked, AreaShowAsked,
+    loom::Accept<loom::Activated, Drawn, AreaIntroduced, AreaWithdrawn, PaletteOffered,
+                 GraphicsReady, WindowShowAsked, AreaShowAsked,
                  zengine::input::AttributedInput, ClipboardCopy, ClipboardTextRequested,
                  SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
                  SurfaceCaptureChunkRequested, WindowShaped, zengine::input::PointerTimingSaid,
@@ -149,20 +146,10 @@ public:
             return;
         }
         std::string why;
-        if (!draw(*a, Drawer{}, d, why)) {
+        if (!draw(*a, d, why)) {
             refuse(mail, d.area, why);
         }
         settle(mail, d.more);
-    }
-
-    void on(const ElementPut& e, loom::Mail& mail) {
-        put(mail, e);
-        settle(mail, e.more);
-    }
-
-    void on(const ElementChange& c, loom::Mail& mail) {
-        change(mail, c);
-        settle(mail, c.more);
     }
 
     // ---- what the directory says --------------------------------------------------------------
@@ -200,7 +187,6 @@ public:
             medium_.drop_area(a->area);
             a->nodes.clear();
             a->records.clear();
-            a->presented.clear();
             a->drawing = 0;
             end_holds(mail, a->area, /*withdrawn=*/false);
             leave_hovers(mail, *a);
@@ -260,38 +246,6 @@ public:
         settle(mail, false);
     }
 
-    /// The load plan's element code, through the directory. New code for a type the window
-    /// presents draws each such element again, from the state the window kept.
-    void on(const ElementCodeOffered& o, loom::Mail& mail) {
-        if (!mail.authored_from_role(kGraphicsRole)) {
-            return;
-        }
-        auto& codes = this->state_.codes;
-        const auto it = std::find_if(codes.begin(), codes.end(),
-                                     [&](const ElementCodeOffered& k) { return k.type == o.type; });
-        if (it != codes.end() && it->library == o.library) {
-            return;
-        }
-        const std::string old = it == codes.end() ? std::string() : it->library;
-        if (it == codes.end()) {
-            codes.push_back(o);
-        } else {
-            it->library = o.library;
-        }
-        if (old.empty()) {
-            return;
-        }
-        codes_.close(old);
-        for (WinArea& a : this->state_.areas) {
-            for (Presented& p : a.presented) {
-                if (p.type == o.type) {
-                    act(mail, a, p, ElementEvent{event::kRedraw, p.handle, p.path, p.state, 0, {}, {}});
-                }
-            }
-        }
-        settle(mail, false);
-    }
-
     /// A palette, through the directory: kept at its latest revision, and every area wearing it
     /// painted again from what the window keeps. A change of colour alone is the window's own
     /// repaint, and its owners are told nothing and draw nothing; a change of a size, a font or a
@@ -348,13 +302,11 @@ public:
         s.areas = static_cast<std::int64_t>(this->state_.areas.size());
         for (const WinArea& a : this->state_.areas) {
             s.nodes += static_cast<std::int64_t>(a.nodes.size());
-            s.elements += static_cast<std::int64_t>(a.presented.size());
         }
         s.showings = medium_.showings();
         s.device_bytes = medium_.device_bytes();
         s.textures = medium_.textures_made();
         s.painter_calls = painter_calls_;
-        s.element_calls = codes_.calls;
         s.refusals = this->state_.refusals;
         s.last_refusal = last_refusal_;
         (void)mail.answer(s);
@@ -700,12 +652,12 @@ private:
         }
     }
 
-    /// A button pressed where the medium lands it: the element presented there, if its code takes a
-    /// left press; else, in an area not placed to hear the pointer, the action its record names, to
-    /// the owner; else the press itself, held for that area and told to its arranger. A release goes
-    /// to the area that hand's press is held for; one whose area went while it was held, to nobody;
-    /// one no hold names, where it lands. A guest's press in an area placed for the weaver's hand
-    /// alone reaches nobody, and the arranger is told. Every press is counted for its hand.
+    /// A button pressed where the medium lands it: in an area not placed to hear the pointer, the
+    /// action a left press's record names, to the owner; else the press itself, held for that area
+    /// and told to its arranger. A release goes to the area that hand's press is held for; one
+    /// whose area went while it was held, to nobody; one no hold names, where it lands. A guest's
+    /// press in an area placed for the weaver's hand alone reaches nobody, and the arranger is
+    /// told. Every press is counted for its hand.
     void button(loom::Mail& mail, const zengine::input::PointerButton& b, const Hand& hand) {
         const Point at = point_of(b.x, b.y, b.space);
         const HoldKey key{hand.key(), b.button};
@@ -749,14 +701,8 @@ private:
             return;
         }
         if (b.button == 1) {
-            Presented* p = presented_at(*a, l.path);
-            if (p != nullptr && act(mail, *a, *p,
-                                    ElementEvent{event::kPress, p->handle, p->path, p->state, 0,
-                                                 {}, l.path})) {
-                return;
-            }
             const ElementRecord* r = record_of(*a, l.path);
-            if (!a->pointer && p == nullptr && r != nullptr && !r->action.empty()) {
+            if (!a->pointer && r != nullptr && !r->action.empty()) {
                 (void)mail.as_role(role()).send_to_role(a->owner,
                                                           ActionRequested{a->area, r->action});
                 return;
@@ -1003,127 +949,20 @@ private:
         }
     }
 
-    // ---- elements -----------------------------------------------------------------------------
-
-    void put(loom::Mail& mail, const ElementPut& e) {
-        WinArea* a = find(e.area);
-        if (a == nullptr || !mail.authored_from_role(a->owner)) {
-            refuse(mail, e.area, "the sender does not draw in area '" + e.area + "' here");
-            return;
-        }
-        auto it = std::find_if(a->presented.begin(), a->presented.end(),
-                               [&](const Presented& p) { return p.path == e.path; });
-        if (it == a->presented.end() && !mine(*a, Drawer{}, e.path)) {
-            refuse(mail, e.area, "'" + e.path + "' is not the sender's to present an element at");
-            return;
-        }
-        std::string why;
-        const ElementCodes::Code* code = code_for(e.type, why);
-        if (code == nullptr) {
-            refuse(mail, e.area, "element '" + e.path + "': " + why);
-            return;
-        }
-        if (it == a->presented.end()) {
-            if (a->presented.size() >= kMaxElementsPerArea) {
-                refuse(mail, e.area, "area '" + e.area + "' presents " +
-                                         std::to_string(kMaxElementsPerArea) +
-                                         " elements already: '" + e.path + "' is not presented");
-                return;
-            }
-            a->presented.push_back(Presented{e.path, e.type, e.ref, this->state_.next_handle++, {}});
-            it = std::prev(a->presented.end());
-        } else if (it->type != e.type) {
-            it->type = e.type;
-            it->state.clear();
-        }
-        Presented trial = *it;
-        trial.ref = e.ref;
-        if (!act(mail, *a, trial, ElementEvent{event::kPut, trial.handle, e.path, trial.state, 0,
-                                               e.data, {}})) {
-            if (it->state.empty()) {
-                a->presented.erase(it); // never presented: nothing of it stays
-            }
-            return;
-        }
-        auto kept = std::find_if(a->presented.begin(), a->presented.end(),
-                                 [&](const Presented& p) { return p.path == e.path; });
-        *kept = trial;
-    }
-
-    void change(loom::Mail& mail, const ElementChange& c) {
-        for (WinArea& a : this->state_.areas) {
-            if (!mail.authored_from_role(a.owner)) {
-                continue;
-            }
-            for (Presented& p : a.presented) {
-                if (p.ref == c.ref) {
-                    (void)act(mail, a, p, ElementEvent{event::kChange, p.handle, p.path, p.state,
-                                                       c.kind, c.change, {}});
-                    return;
-                }
-            }
-        }
-        refuse(mail, "", "no element this window presents is the sender's by reference " +
-                             std::to_string(c.ref));
-    }
-
-    /// The code presenting a type, opened on first use.
-    const ElementCodes::Code* code_for(const std::string& type, std::string& why) {
-        const auto& codes = this->state_.codes;
-        const auto it = std::find_if(codes.begin(), codes.end(),
-                                     [&](const ElementCodeOffered& k) { return k.type == type; });
-        if (it == codes.end()) {
-            why = "no code offered presents '" + type + "'";
-            return nullptr;
-        }
-        return codes_.get(it->library, why);
-    }
-
-    /// One event for an element's code: its drawing applied as its own and its state kept, only
-    /// when the window accepts the drawing; a refusal is told to the element's drawer. True when
-    /// the event was taken.
-    bool act(loom::Mail& mail, WinArea& a, Presented& p, const ElementEvent& event) {
-        std::string why;
-        const ElementCodes::Code* code = code_for(p.type, why);
-        if (code == nullptr) {
-            refuse_to(mail, a.owner, a.area, "element '" + p.path + "': " + why);
-            return false;
-        }
-        auto out = codes_.act(*code, event, why);
-        if (!out) {
-            refuse_to(mail, a.owner, a.area, "element '" + p.path + "': " + why);
-            return false;
-        }
-        if (event.kind == event::kPress && !out->took) {
-            return false;
-        }
-        Drawn d = out->drawn;
-        d.area = a.area;
-        if (d.whole || !d.put.empty() || !d.removed.empty() || !d.said.empty() ||
-            !d.unsaid.empty()) {
-            if (!draw(a, Drawer{true, p.path}, d, why)) {
-                refuse_to(mail, a.owner, a.area, "element '" + p.path + "': " + why);
-                return false;
-            }
-        }
-        p.state = out->state;
-        return true;
-    }
-
     // ---- painting and showing -------------------------------------------------------------
 
     /// A drawing judged, applied, and what it changed painted and kept painted.
-    bool draw(WinArea& a, const Drawer& who, const Drawn& d, std::string& why) {
-        why = judge(a, who, d);
+    bool draw(WinArea& a, const Drawn& d, std::string& why) {
+        why = judge(a, d);
         if (!why.empty()) {
             return false;
         }
         for (const KeptNode& k : a.nodes) {
-            if (touches(a, who, d, k.node.path) || touches(a, who, d, read_from(k.node))) {
+            if (touches(d, k.node.path) || touches(d, read_from(k.node))) {
                 medium_.cover(a, k.node.path);
             }
         }
-        const Applied applied = apply(a, who, d);
+        const Applied applied = apply(a, d);
         for (const std::string& gone : applied.gone) {
             medium_.drop(a, gone);
         }
@@ -1132,21 +971,13 @@ private:
             !d.unsaid.empty()) {
             touch(a);
         }
-        if (!who.element) {
-            waiting_.erase(a.area);
-            a.drawing = d.number;
-        }
-        if (d.whole && !who.element) {
-            std::erase_if(a.presented, [&](const Presented& p) {
-                return index_of(a).count(p.path) == 0 && !applied.changed.count(p.path);
-            });
-        }
+        waiting_.erase(a.area);
+        a.drawing = d.number;
         return true;
     }
 
-    static bool touches(const WinArea& a, const Drawer& who, const Drawn& d,
-                        const std::string& path) {
-        if (d.whole && mine(a, who, path)) {
+    static bool touches(const Drawn& d, const std::string& path) {
+        if (d.whole) {
             return true;
         }
         for (const std::string& r : d.removed) {
@@ -1428,33 +1259,30 @@ private:
                           measures_of(built_in_palette())});
     }
 
-    /// An area's room, to its owner: this window, its incarnation, the area's size, the references
-    /// of the elements presented there, whether it holds none of the owner's drawing, and how this
-    /// window sets text.
+    /// An area's room, to its owner: this window, its incarnation, the area's size, whether it
+    /// holds none of the owner's drawing, and how this window sets text.
     void room(loom::Mail& mail, const WinArea& a) {
         if (a.owner.empty()) {
             return;
         }
         const PaletteOffered& palette = palette_of(a);
         const TextMeasure text = body_measure(palette);
-        AreaRoom r{a.area, Medium::kWindow, this->state_.epoch, a.w, a.h, {},
-                   a.nodes.empty() && a.records.empty() && a.presented.empty(),
-                   Medium::kCellDevicePx, text.advance, text.line, measures_of(palette)};
-        for (const Presented& p : a.presented) {
-            r.elements.push_back(p.ref);
-        }
+        const AreaRoom r{a.area,
+                         Medium::kWindow,
+                         this->state_.epoch,
+                         a.w,
+                         a.h,
+                         a.nodes.empty() && a.records.empty(),
+                         Medium::kCellDevicePx,
+                         text.advance,
+                         text.line,
+                         measures_of(palette)};
         (void)mail.as_role(role()).send_to_role(a.owner, r);
     }
 
     void refuse(loom::Mail& mail, const std::string& area, const std::string& reason) {
         note(reason);
         (void)mail.as_role(role()).send(mail.sender(), DrawnRefused{area, reason});
-    }
-
-    void refuse_to(loom::Mail& mail, const std::string& owner, const std::string& area,
-                   const std::string& reason) {
-        note(reason);
-        (void)mail.as_role(role()).send_to_role(owner, DrawnRefused{area, reason});
     }
 
     void note(const std::string& why) {
@@ -1529,7 +1357,6 @@ private:
     /// The areas whose owner was told a room asking a whole drawing, and has drawn none since.
     std::set<std::string> waiting_;
     std::int64_t painter_calls_ = 0;
-    ElementCodes codes_;
     std::string last_refusal_;
     std::optional<WindowPlacementValue> last_placement_; ///< the last place said, this incarnation
     Retained retained_;

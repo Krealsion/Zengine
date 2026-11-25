@@ -1,7 +1,7 @@
 # The snake package: the first game -- a World that keeps its own rules, keys, beat and pause and
-# draws into a TUI window, its board as the game's own element code, a late-loaded Score
-# weave, a Pilot that plays it, and the playable host that drives the live-evolution moments
-# (examples/snake/README.md).
+# draws into a TUI window, a Board weave whose function draws the board for the world, a
+# late-loaded Score weave, a Pilot that plays it, and the playable host that drives the
+# live-evolution moments (examples/snake/README.md).
 
 # Everything here needs a Loom that can host .so weaves, which is to say one exporting
 # loom::kernel: Linux does; Windows does only with the development backend enabled.
@@ -25,8 +25,9 @@ target_link_libraries(snake-score PRIVATE zengine-graphics-vocabulary zengine-in
 zengine_weave(snake-pilot pilot.cpp)
 target_link_libraries(snake-pilot PRIVATE zengine-input-vocabulary zengine-activation)
 
-# The board's code: element code a window opens, not a weave -- no participant lives in it.
-zengine_provider(snake-board board.cpp)
+# The board's weave: it provides what the board draws, a function of the board's data alone, which
+# the world calls.
+zengine_weave(snake-board board.cpp)
 target_link_libraries(snake-board PRIVATE zengine-graphics-vocabulary)
 
 # The playable host. It resolves every library beside its own binary, so every weave and every

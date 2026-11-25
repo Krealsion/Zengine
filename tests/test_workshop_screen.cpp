@@ -1669,7 +1669,7 @@ TEST_CASE("a forged room produces no content at all") {
     const std::size_t before = window.weave().heard.size();
 
     r.bus.send(id, loom::Message(loom::to_value(gfx::AreaRoom{area, window.name(), 1, 40 * gfx::kCellPx,
-                                                              6 * gfx::kCellPx, {}, true}),
+                                                              6 * gfx::kCellPx, true}),
                                  loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
     CHECK(window.weave().heard.size() == before); // holding no window's role is giving no room

@@ -392,7 +392,7 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
         all.said = big.sketch.records();
         zengine::graphics::window::WinArea fits;
         fits.area = "bounds";
-        CHECK(zengine::graphics::window::judge(fits, {}, all).empty());
+        CHECK(zengine::graphics::window::judge(fits, all).empty());
         CHECK(big.places.count("mark:0") == 1);
         CHECK(big.places.count("pane:2999") == 0);
     }

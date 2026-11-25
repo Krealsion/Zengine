@@ -7,22 +7,21 @@ practices are. It states no law. The repository's own rules are [the guide](../C
 
 | path | what it is |
 |---|---|
-| `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's and the palettes (`PaletteOffered`, `PaletteChosen`), `WindowShown`; `kGraphicsRole` |
+| `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementDrawn` (what an element's function answers), the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's and the palettes (`PaletteOffered`, `PaletteChosen`), `WindowShown`; `kGraphicsRole` |
 | `color.hpp` | a colour a look carries, `Color`, one union: none, an exact value (`rgb`, `rgba`, beside the pool colour it is `like`), a pool name (`PoolColor`) or an own value over either (`own()`, `OwnColor`) |
 | `own.hpp` | a pane's own values as it declares them to whoever offers palettes: `declared()`, `OwnValuesDeclared` |
 | `pool.json`, `themes/*.json` | the pool's roots (colours, fonts, sizes `tiny` to `huge`) and the styles made of them, with their defaults, and the three shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent`, `styles::heading`, `sizes::large` ...) and `graphics/themes.hpp` (`themes::night()` ...) by `cmake/ZengineNames.cmake` |
 | `text_style.hpp` | what a text is set in: a style (`TextStyle`, one union; `PoolStyle`) and the fields one draw changes (`TextLook`: `with_color`, `with_size`, `with_font`, `with_weight`), a size (`TextSize`, one union) and a weight |
 | `pixels.hpp` | saturating pixel arithmetic: `add_cells`, `sub_px`, `mul_px`, `floor_div_px`, `px_of_cells`, `cell_of_pixel`, `device_of_px`, `px_span_contains` and the grains |
 | `operands.hpp` | the node and the eleven operators' operands, one union (`Operands`), read by case (`operands`, `operator_of`) and by what they hold (`operand_bytes`, `sheet_named`, `sprite_at`, `point_at`, `frame_at`); a sheet's frame (`Frame`); the looks a node wears, one union (`Look`: `Paint`, `Ink`, `TextLook`), read by case (`look_as`), judged (`wears`), defaulted (`look_or_default`) and found in one step (`LookHash`) |
-| `ops.hpp`, `implied.hpp` | the colours a look or an operator's operands carry (`colors_of`, `frame_ink_at`, `frame_ground_at`) and the pool colour a colour shows as (`pool_color_of`); an element change's body without its envelope |
+| `ops.hpp`, `implied.hpp` | the colours a look or an operator's operands carry (`colors_of`, `frame_ink_at`, `frame_ground_at`) and the pool colour a colour shows as (`pool_color_of`); an operator's operands without their envelope |
 | `box.hpp`, `group.hpp`, `sheet.hpp`, `tiles.hpp`, `sprites.hpp`, `points.hpp` | the helpers, a header a job: a place and a size (`Box`); a group and the calls inside it by a node's own name (`Group`); a sheet made in code (`Sheet`, `FrameId`, `Rgba`); a tile's side in a window, places in tiles and a grid of them (`tile_px`, `TileSpace`, `TileGrid`); sprites and points gathered for one node (`SpriteBatch`, `PointBatch`) |
 | `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed, and a send Loom refused heard as the window's refusal (`Canvas::refused`) |
 | `elements.hpp`, `elements/*.hpp` | the parts an owner draws into a `Sketch`: `Button`, `Checkbox`, `List`, `Grid`, `Icon`, `Image`, `ScrollView`, `TextBox`; each its nodes and its `*Face` record, the action the owner names riding the record; and the text pieces' stateless faces over `component/`'s values (`text_face.hpp`) |
 | `drawing.hpp` | `DrawingWeave`: a drawer's authoring base, the room's handshake and the showing |
-| `painting.hpp` | `PaintTask`/`PaintResult`, a node handed its colours resolved (`PaintInk`), `ElementEvent`/`ElementOutcome`/`ElementDescribed` |
+| `painting.hpp` | `PaintTask`/`PaintResult`, a node handed its colours resolved (`PaintInk`) |
 | `term_paint.hpp`, `light_paint.hpp` | the window's own painters: for characters, and for light |
-| `element_abi.h`, `element_export.hpp` | the element seam (`zengine_element`), `ZENGINE_EXPORT_ELEMENT` |
-| `window/store.hpp`, `window/seams.hpp`, `window/palette.hpp`, `window/window.hpp` | the window's areas and judge; the element code it opens; the palettes it holds and a name turned into a colour (`resolve`); `Window<Medium>`, the window over its medium |
+| `window/store.hpp`, `window/palette.hpp`, `window/window.hpp` | the window's areas and judge; the palettes it holds and a name turned into a colour (`resolve`); `Window<Medium>`, the window over its medium |
 | `window/compose.hpp`, `window/terminal_io.hpp`, `window/window_tui.hpp` | the terminal's painted cells, composition and landing; the terminal's claim, size, ink (`sgr_for`: a colour's word, else its nearest) and copy sequence; `TerminalMedium`, `WindowT<Terminal>` |
 | `window/window_sdl.hpp` | the medium of light over a pixel backend: `LightMedium`, `SdlWindowT<Backend>`; the desktop's arithmetic, and the BMP a picture is read back as |
 | `window/window_sdl_backend.hpp` | the GUI window's backend through SDL3, `ProcessSdlBackend` |
@@ -32,35 +31,33 @@ practices are. It states no law. The repository's own rules are [the guide](../C
 
 ## Law
 
-- [graphics](../agents/graphics.md) — the window, its colours, its seam and the directory
+- [graphics](../agents/graphics.md) — the window, its colours, its painter and the directory
 
 ## Suites
 
 - `graphics` — the vocabulary, the canvas, colours by name, both painters and every operator, the
   light painter's packing and landing, and a tripwire that no source here includes Surface; the
-  window, the directory, the palettes and the snake's board through the real kernel: said once, one
-  change a tick shown once, a palette chosen or offered anew painting again with nothing drawn on
-  the bus, an own value, the window's own palette, a terminal's nearest ink, operands of the first
-  versions refused, each participant replaced or reloaded, the room naming what the
-  window holds, a drawing weave shown once a beat, keys and their releases, every pointer moment
-  given to the area hearing the pointer it lands in, a press held for its area until its release
-  or a hold's end, the arranger told where presses land, an area deaf to the pointer letting it
-  through, every bound refused in words,
-  and each role's manual answering for every shape it accepts; every part in `elements/` drawn,
-  changed and painted, and pressed through the window, its action asked or nothing sent; the
-  Attention and Connections panes Workshop loads drawn, pressed and reloaded in a window, and a
-  pane's refused drawing followed by a whole one; the GUI window over the suite's own pixel
-  backend, every operator painted, pressed, typed into, resized, asked to close and started again
-  from what it kept; both windows' clipboard, place on the desktop and last picture read back, and
-  the desktop's arithmetic and the BMP; and, where the build has SDL, its weave under SDL's dummy
-  driver emptying SDL's queue, claiming it while loaded, keeping its one GUI window across a reload,
-  and holding one again once replaced, and its own backend centring, growing and placing its window,
-  copying to SDL's clipboard and reading its pixels back; `tests/test_graphics.cpp`,
-  `tests/graphics_rig.hpp`
-- `graphics_change_outside_list_refused` — an element's change outside its code's list does not
-  compile (`tests/compile_negative/drawing_walls.cpp`, case 1)
+  window, the directory, the palettes and the snake's board through the real kernel: drawn whole on
+  a room, what one tick changed shown once, a palette chosen or offered anew painting again with
+  nothing drawn on the bus, an own value, the window's own palette, a terminal's nearest ink,
+  operands of the first versions refused, each participant replaced or reloaded, the room saying
+  whether the window holds the owner's drawing, a drawing weave shown once a beat with what an
+  element's function drew placed in its picture, keys and their releases, every pointer moment given
+  to the area hearing the pointer it lands in, a press held for its area until its release or a
+  hold's end, the arranger told where presses land, an area deaf to the pointer letting it through,
+  every bound refused in words, and each role's manual answering for every shape it accepts; every
+  part in `elements/` drawn, changed and painted, and pressed through the window, its action asked
+  or nothing sent; the Attention and Connections panes Workshop loads drawn, pressed and reloaded in
+  a window, and a pane's refused drawing followed by a whole one; the GUI window over the suite's
+  own pixel backend, every operator painted, pressed, typed into, resized, asked to close and
+  started again from what it kept; both windows' clipboard, place on the desktop and last picture
+  read back, and the desktop's arithmetic and the BMP; and, where the build has SDL, its weave under
+  SDL's dummy driver emptying SDL's queue, claiming it while loaded, keeping its one GUI window
+  across a reload, and holding one again once replaced, and its own backend centring, growing and
+  placing its window, copying to SDL's clipboard and reading its pixels back;
+  `tests/test_graphics.cpp`, `tests/graphics_rig.hpp`
 - `graphics_own_after_delivery_refused` — a drawing weave whose drawer replaces the
-  end-of-delivery hook does not compile (case 2)
+  end-of-delivery hook does not compile (`tests/compile_negative/drawing_walls.cpp`, case 2)
 - `graphics_undeclared_color_refused` — a pool colour nobody declared does not compile (case 4)
 - `graphics_color_role_refused` — a colour named by a role does not compile (case 5)
 - `graphics_drawer_compiles` — the walls' positive control, a drawer naming a declared colour that
@@ -72,20 +69,21 @@ rows; it shares the rig.
 ## Host side
 
 - Staging and loading: `examples/snake/CMakeLists.txt` builds the window, the directory and the
-  board's code beside the snake's host; `examples/snake/play.cpp` loads the directory and the
+  board's weave beside the snake's host; `examples/snake/play.cpp` loads the directory and the
   window, and its console weave is the arranger, offering two of the shipped palettes.
   `workshop/CMakeLists.txt` stages the window and the directory beside `zengine-workshop` (and the
   GUI window where the build has SDL), whose weave arranges when they are loaded and names each
   area's palette by the stack of themes it wears, which the theme role (`theme/`) lays and offers;
   `cmake/ZengineInstall.cmake` installs them as artifacts, all but the GUI window, whose SDL the
   install does not own, with the generator and the pool's, the terminal's and the themes' JSON.
-- Grants: the snake host grants its console `AreaPlaced`, `PaletteOffered`, `PaletteChosen`,
-  `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's role.
+- Grants: the snake host grants its console `AreaPlaced`, `PaletteOffered`, `PaletteChosen` and
+  `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's role; its admission gives the world's
+  libraries the call of the board's function, which no permissive grant holds.
 - Beyond the snake: the TUI window reads its terminal with `input/terminal_reader.hpp` and
   claims its output with `window/terminal_io.hpp`; the GUI window reads SDL's queue with
   `input/translate_sdl_core.hpp` over the SDL `cmake/ZengineSdl.cmake` acquires; each claims its
-  input edge with `input/window_claim.hpp`; both open element code with `operator/image.hpp`. `cmake/ZengineInstall.cmake` installs the headers `zengine::graphics`
-  carries.
+  input edge with `input/window_claim.hpp`; neither opens a library of anyone's.
+  `cmake/ZengineInstall.cmake` installs the headers `zengine::graphics` carries.
 
 ## Pages
 

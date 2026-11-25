@@ -658,7 +658,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(seen.refusals.empty());
         gfx::window::WinArea fresh;
         fresh.area = fp::kRole;
-        CHECK(gfx::window::judge(fresh, gfx::window::Drawer{}, first).empty());
+        CHECK(gfx::window::judge(fresh, first).empty());
         std::set<std::string> names, recorded;
         for (const auto& p : said.parts)
             if (!p.name.empty()) names.insert(p.name);
@@ -699,7 +699,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         forging.allow_to_role(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version, fp::kRole);
         const auto forger = rig.bus.register_weave(std::make_unique<Presenter>(), std::move(forging));
         rig.bus.send_as_to_role(forger, fp::kRole,
-            loom::Message(loom::to_value(gfx::AreaRoom{kFlowArea, "flowtest", 9, 170 * unit, 65 * unit, {}}), forger));
+            loom::Message(loom::to_value(gfx::AreaRoom{kFlowArea, "flowtest", 9, 170 * unit, 65 * unit}), forger));
         rig.pump();
         pw::Window other(rig.bus, "other");
         other.ask(kFlowArea, "control:page-state", fp::kRole);

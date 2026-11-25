@@ -61,14 +61,13 @@ endif()
 zengine_weave(zengine-graphics directory.cpp MANUAL docs/zengine.graphics.md)
 target_link_libraries(zengine-graphics PRIVATE zengine-graphics-vocabulary zengine-activation)
 
-# The TUI window: it reads its own terminal on its own beat, paints with its own painter, and
-# opens element code as operator providers are opened (operator/image.hpp), so it needs the dynamic
-# loader too. Its manual is compiled in, and answered as the directory's is.
+# The TUI window: it reads its own terminal on its own beat and paints with its own painter. Its
+# manual is compiled in, and answered as the directory's is.
 zengine_weave(zengine-window-tui window/window.cpp MANUAL docs/zengine.window.tui.md)
 target_link_libraries(zengine-window-tui PRIVATE zengine-graphics-vocabulary
                                                       zengine-input-vocabulary
                                                       zengine-timer-vocabulary
-                                                      zengine-activation zengine-operator)
+                                                      zengine-activation)
 
 # The GUI window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), as
 # it is by default. Its manual is compiled in, as the TUI window's is, and so are its faces:
@@ -108,8 +107,7 @@ if(ZENGINE_SDL_LIB)
     target_link_libraries(zengine-window-sdl PRIVATE zengine-graphics-vocabulary
                                                      zengine-input-vocabulary
                                                      zengine-timer-vocabulary
-                                                     zengine-activation zengine-operator
-                                                     zengine-window-font)
+                                                     zengine-activation zengine-window-font)
     zengine_sdl_weave(zengine-window-sdl)
     target_link_libraries(zengine-window-sdl PRIVATE ${ZENGINE_SDL_TEXT_LIB})
 endif()

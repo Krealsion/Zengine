@@ -34,11 +34,10 @@ owned separately by the pane), `source-transfer` (the one header
 `editor/source-transfer/vocabulary.hpp`: the text, selection, location and location-context shapes the
 Editors carry, so a stranger's pane can make or recognize them; the byte laws, the Terminal line
 and the C++ generator stay internal), `graphics` (the vocabulary an owner draws with -- a node,
-an element record, the seven operators, a colour by name with the pool's generated names and the
-shipped themes' palettes (`colors.hpp`, `themes.hpp`), the roles and a canvas -- with the eight
-elements, a drawing weave's helper, the painters for characters and for light, the seam an
-element's code is written against, `element_abi.h` with its export helper, and the terminal's
-claim and size, `window/terminal_io.hpp`: every header
+an element record, what an element's function draws, the seven operators, a colour by name with
+the pool's generated names and the shipped themes' palettes (`colors.hpp`, `themes.hpp`), the roles
+and a canvas -- with the eight elements, a drawing weave's helper, the painters for characters and
+for light, and the terminal's claim and size, `window/terminal_io.hpp`: every header
 `zengine_public_headers_graphics`, `zengine_public_headers_graphics/elements` and
 `zengine_public_headers_graphics/window` list, installed under `include/zengine/graphics/` and
 its `elements/` and `window/`; the directory and the windows are artifacts, below), and `flow` (standalone

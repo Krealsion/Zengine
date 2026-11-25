@@ -4,11 +4,12 @@
 #ifndef ZENGINE_GRAPHICS_VOCABULARY_HPP
 #define ZENGINE_GRAPHICS_VOCABULARY_HPP
 
-// The graphics vocabulary: one primitive (a node), the element record beside it, and the messages
-// between an owner, the window that shows its area, and the directory that introduces the two.
-// An owner draws nodes into its window, or says an element once and then sends only its changes,
-// which code the window loads turns into nodes. The directory stays off that path. A window also
-// answers for its platform: the clipboard, its place on the desktop, a close, and its last picture.
+// The graphics vocabulary: one primitive (a node), the element record beside it, what an element
+// draws, and the messages between an owner, the window that shows its area, and the directory that
+// introduces the two. An owner draws nodes into its window; an element whose code is not the
+// owner's is a function a weave provides, which the owner calls and draws in its own picture. The
+// directory stays off that path. A window also answers for its platform: the clipboard, its place
+// on the desktop, a close, and its last picture.
 // Reference: graphics/docs/graphics.md.
 
 #include "graphics/operands.hpp" // the node and its operands
@@ -23,8 +24,8 @@
 
 namespace zengine::graphics {
 
-/// The directory's role: which windows exist, which areas each shows, who draws in each, which
-/// palette it wears and which code presents each element type.
+/// The directory's role: which windows exist, which areas each shows, who draws in each and which
+/// palette it wears.
 inline constexpr const char* kGraphicsRole = "zengine.graphics";
 /// A window's role is this prefix and its name: `zengine.window.tui`.
 inline constexpr const char* kWindowRolePrefix = "zengine.window.";
@@ -162,7 +163,7 @@ struct Drawn {
               ZEN_FIELD(number));
 };
 
-/// Window -> the drawer of a drawing or an element it refused: why, in words. What the window
+/// Window -> the drawer of a drawing it refused: why, in words. What the window
 /// showed stays as it was.
 struct DrawnRefused {
     std::string area;
@@ -170,31 +171,18 @@ struct DrawnRefused {
     ZEN_SHAPE(DrawnRefused, 1, ZEN_FIELD(area), ZEN_FIELD(reason));
 };
 
-// ---- elements the window presents ---------------------------------------------------------
+// ---- what an element draws ----------------------------------------------------------------
 
-/// A drawer -> its window: present an element of `type` at `path` of `area`, from `data`, the
-/// type's own shape whole. Said once, and again only to start it over; `ref` is the drawer's own
-/// reference for it in its changes. The element's subtree is its code's to draw.
-struct ElementPut {
-    std::string area;
-    std::string path;
-    std::string type;
-    std::int64_t ref = 0;
-    loom::Bytes data;
-    bool more = false;
-    ZEN_SHAPE(ElementPut, 1, ZEN_FIELD(area), ZEN_FIELD(path), ZEN_FIELD(type), ZEN_FIELD(ref),
-              ZEN_FIELD(data), ZEN_FIELD(more));
-};
-
-/// A drawer -> its window: a change to the element it named `ref`. `kind` indexes the changes its
-/// code takes, and `change` is that change's body alone: the element's type implies its shape.
-struct ElementChange {
-    std::int64_t ref = 0;
-    std::int64_t kind = 0;
-    loom::Bytes change;
-    bool more = false;
-    ZEN_SHAPE(ElementChange, 1, ZEN_FIELD(ref), ZEN_FIELD(kind), ZEN_FIELD(change),
-              ZEN_FIELD(more));
+/// WHAT AN ELEMENT DRAWS, as the function a weave provides for the element's data answers it
+/// (Loom's calls, MSG-14): its nodes, each named beneath the place its caller puts them, the looks
+/// they wear said once, and the records beside them. The function is handed the data alone; the
+/// caller draws the place, puts the answer beneath it (`Sketch::place`) and shows it in its own
+/// picture, so the element's rules stay its owner's and its look its code's.
+struct ElementDrawn {
+    std::vector<Look> looks;
+    std::vector<Node> put;
+    std::vector<ElementRecord> said;
+    ZEN_SHAPE(ElementDrawn, 1, ZEN_FIELD(looks), ZEN_FIELD(put), ZEN_FIELD(said));
 };
 
 /// Window -> the area's owner: perform this action, named by the element a left press landed in,
@@ -583,14 +571,6 @@ struct PaletteChosen {
     ZEN_SHAPE(PaletteChosen, 1, ZEN_FIELD(area), ZEN_FIELD(palette));
 };
 
-/// The arranger -> the directory, and the directory -> each window: the code that presents an
-/// element type (its data shape's name) is in this library, from the load plan.
-struct ElementCodeOffered {
-    std::string type;
-    std::string library;
-    ZEN_SHAPE(ElementCodeOffered, 1, ZEN_FIELD(type), ZEN_FIELD(library));
-};
-
 /// The directory -> a window: this area is yours, drawn by `owner`, here, wearing `palette` ("" or
 /// one the window holds none of: the window's own); `arranger` is the role that placed it, as
 /// its placing was authored, empty for
@@ -626,27 +606,24 @@ struct AreaWithdrawn {
 };
 
 /// A window -> the owner of an area it was introduced, as the window's role: draw into this
-/// window, as of this incarnation, in this room; `elements` are the references of the owner's
-/// elements the window still presents there, and `empty` says the window holds none of the
-/// owner's drawing there, as when it shows the area afresh or gives it to this owner. `cell_px`,
+/// window, as of this incarnation, in this room; `empty` says the window holds none of the owner's
+/// drawing there, as when it shows the area afresh or gives it to this owner. `cell_px`,
 /// `text_advance_px` and `text_line_px` are the window's, as it offers them, so an owner sets its
 /// text by the measure of the window that shows it. An owner draws whole only when the window, its
-/// incarnation, its size or its measure changed or the area is empty, and says again only an
-/// element the window does not hold.
+/// incarnation, its size or its measure changed or the area is empty.
 struct AreaRoom {
     std::string area;
     std::string window;
     std::int64_t epoch = 0;
     std::int64_t w = 0, h = 0;
-    std::vector<std::int64_t> elements;
     bool empty = false;
     std::int64_t cell_px = 0;
     std::int64_t text_advance_px = kCellPx, text_line_px = kCellPx;
     std::vector<TextMeasured> measures{};
-    /// Version 6: its measures name the style each measures.
-    ZEN_SHAPE(AreaRoom, 6, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
-              ZEN_FIELD(h), ZEN_FIELD(elements), ZEN_FIELD(empty), ZEN_FIELD(cell_px),
-              ZEN_FIELD(text_advance_px), ZEN_FIELD(text_line_px), ZEN_FIELD(measures));
+    /// Version 7: it names no element the window presents, since a window presents none.
+    ZEN_SHAPE(AreaRoom, 7, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
+              ZEN_FIELD(h), ZEN_FIELD(empty), ZEN_FIELD(cell_px), ZEN_FIELD(text_advance_px),
+              ZEN_FIELD(text_line_px), ZEN_FIELD(measures));
 
     /// How the window sets text in the pool's `body` style: its measure, or the cell's where it
     /// said none.
@@ -687,28 +664,26 @@ struct WindowShowAsked {
 };
 
 /// What a window shows, row by row as text, and its spending since it started: showings (writes
-/// to its terminal) and their bytes, calls of its painter and of element code, its refusals, and
-/// the textures it made (a window of light: one each time an image's or a sheet's pixels are new to
-/// its node; none in a terminal).
+/// to its terminal) and their bytes, calls of its painter, its refusals, and the textures it made
+/// (a window of light: one each time an image's or a sheet's pixels are new to its node; none in a
+/// terminal).
 struct WindowShown {
     std::string window;
     std::int64_t epoch = 0;
     std::vector<std::string> rows;
     std::int64_t areas = 0;
     std::int64_t nodes = 0;
-    std::int64_t elements = 0;
     std::int64_t showings = 0;
     std::int64_t device_bytes = 0;
     std::int64_t painter_calls = 0;
-    std::int64_t element_calls = 0;
     std::int64_t refusals = 0;
     std::string last_refusal;
     std::int64_t textures = 0;
-    /// Version 2: it says the textures it made.
-    ZEN_SHAPE(WindowShown, 2, ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(rows),
-              ZEN_FIELD(areas), ZEN_FIELD(nodes), ZEN_FIELD(elements), ZEN_FIELD(showings),
-              ZEN_FIELD(device_bytes), ZEN_FIELD(painter_calls), ZEN_FIELD(element_calls),
-              ZEN_FIELD(refusals), ZEN_FIELD(last_refusal), ZEN_FIELD(textures));
+    /// Version 3: it counts no element, since a window presents none.
+    ZEN_SHAPE(WindowShown, 3, ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(rows),
+              ZEN_FIELD(areas), ZEN_FIELD(nodes), ZEN_FIELD(showings), ZEN_FIELD(device_bytes),
+              ZEN_FIELD(painter_calls), ZEN_FIELD(refusals), ZEN_FIELD(last_refusal),
+              ZEN_FIELD(textures));
 };
 
 /// An area's arranger -> the window that shows it: what the area shows now. `since` is the

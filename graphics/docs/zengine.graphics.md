@@ -1,8 +1,7 @@
 # zengine.graphics -- the graphics directory
 
 **Manual.** The directory: the weave that knows which windows exist, where each area stands and
-who draws in it, which palette it wears, the palettes offered, and which code presents each element
-type. It answers to
+who draws in it, which palette it wears, and the palettes offered. It answers to
 the role `zengine.graphics` (a role is the name a weave answers to) and is built as
 `zengine-graphics`, a file a host loads beside its windows. It introduces each area to the window
 that shows it, and the window then tells the area's owner its room. Nothing a picture is made of
@@ -14,10 +13,10 @@ passes through it: an owner draws into its window directly, as
 An *area* is a rectangle of a window that one participant, its *owner*, draws in. A *palette* is
 a set of colours by name -- the shared pool's and each role's slots -- which a window turns the
 names a drawing carries into when it paints (see [The Graphics package](graphics.md), "Colours by
-name"). The directory keeps four lists: the windows that have offered themselves, the areas placed
-and the palette chosen for each, the palettes offered, each at its latest revision, and the element
-code offered for each element type. An element's code is a library named by path; which library is
-the load plan's word, through whoever arranges the window, never a drawer's.
+name"). The directory keeps three lists: the windows that have offered themselves, the areas placed
+and the palette chosen for each, and the palettes offered, each at its latest revision. No window
+runs an element's code: an owner draws an element itself, from what the function the element's
+weave provides answers ([an element of your own](graphics.md#an-element-of-your-own)).
 
 The directory introduces an area to its window once the window is known, wearing the palette
 chosen for it: a palette chosen before the area is placed is kept for it, so an arranger that
@@ -25,8 +24,7 @@ chooses first has each area introduced once. It says again whatever changes: ano
 chosen, an area placed elsewhere, a window that offers itself again, an owner that asks its room.
 Every palette offered is passed to every window, which paints again each area wearing it. An area
 placed in another window is withdrawn from the one it was in. A window that offers itself is told
-every element code and every palette first, then each of its areas, in that order, so an element it
-is asked to present finds its code there and an area its palette.
+every palette first, then each of its areas, in that order, so an area finds its palette there.
 
 The directory keeps its lists in its state, so a reload keeps them and says nothing again. A
 directory started afresh knows nothing: it says [`GraphicsReady`](#follow), every window offers
@@ -36,18 +34,16 @@ again draws nothing.
 ## Use
 
 Whoever arranges the window -- the *arranger*, in the snake's host its console weave, in Workshop
-Workshop's own -- offers the palettes and the element code, chooses each area's palette and places
-it. Once the window has offered itself, each area placed is introduced, and its owner hears its
-room from the window. An area wearing a palette no one offered, or none, is painted in the
-window's own until one is offered. An owner that starts again asks its room with
-[`RoomAsked`](#roomasked).
+Workshop's own -- offers the palettes, chooses each area's palette and places it. Once the window
+has offered itself, each area placed is introduced, and its owner hears its room from the window. An
+area wearing a palette no one offered, or none, is painted in the window's own until one is offered.
+An owner that starts again asks its room with [`RoomAsked`](#roomasked).
 
 Who may send: whoever the host's grant lets reach `zengine.graphics`. The snake's host grants its
 console [`AreaPlaced`](#areaplaced), [`PaletteOffered`](#paletteoffered),
-[`PaletteChosen`](#palettechosen),
-[`ElementCodeOffered`](#elementcodeoffered) and [`RoomAsked`](#roomasked); Workshop's grant gives
-it all but `ElementCodeOffered`. The directory itself takes [`WindowOffered`](#windowoffered) only
-from the window's own role, and `RoomAsked` only from the area's owner.
+[`PaletteChosen`](#palettechosen) and [`RoomAsked`](#roomasked), and so does Workshop's grant. The
+directory itself takes [`WindowOffered`](#windowoffered) only from the window's own role, and
+`RoomAsked` only from the area's owner.
 
 ## Commands
 
@@ -110,26 +106,14 @@ styles, each role's own values, and the terminal's look.
   is painted in the window's own until it is.
 - **Example:** the snake's `1` key, through its console: `PaletteChosen{"snake.world", "block"}`.
 
-### `ElementCodeOffered`
-
-`ElementCodeOffered` v1 says which library holds the code that presents an element type.
-
-- **Takes:** `type`, the element's data shape's name; `library`, the path of the library.
-- **Answers:** nothing to the sender. The code is kept and passed on to every window that has
-  offered itself, as `ElementCodeOffered` from `zengine.graphics`; a window offering itself later
-  is told it first.
-- **Refuses:** nothing; the same type from the same library again changes nothing.
-- **Example:** `ElementCodeOffered{"SnakeBoardData", path}`, `path` being where the build put
-  `snake-board`, the snake's board.
-
 ### `RoomAsked`
 
 `RoomAsked` v1 asks for an owner's room again: an owner that started again sends it.
 
 - **Takes:** `area`, the owner's area. It is taken only from the area's owner, as its role.
 - **Answers:** the area is introduced to its window again, and the window answers the owner with
-  its room (`AreaRoom`): its window, the window's incarnation, its size, the elements the window
-  still presents there, and how the window sets text.
+  its room (`AreaRoom`): its window, the window's incarnation, its size, whether the window holds
+  none of the owner's drawing there, and how the window sets text.
 - **Refuses:** nothing; an area never placed, a sender that is not its owner, or an area whose
   window is not known yet, changes nothing.
 - **Example:** a drawing weave (`graphics/drawing.hpp`) asks once in each life while no room has
@@ -142,8 +126,8 @@ styles, each role's own values, and the terminal's look.
 `WindowOffered` v3, from a window as its own role, `zengine.window.<name>`, on each activation,
 after `GraphicsReady`, and on a resize: its name, its pixels (none with nothing to measure), its
 incarnation, its device pixels in a cell (`kCellPx` for the GUI window, none for the terminal's) and
-its text's advance and line. The directory keeps it, then tells the window every element code and
-every palette and introduces each of its areas. One from any other
+its text's advance and line. The directory keeps it, then tells the window every palette and
+introduces each of its areas. One from any other
 role is ignored.
 
 ## Follow
@@ -153,7 +137,7 @@ offers, places and chooses again. Everything else it says goes to one window's r
 `AreaIntroduced` v9 (an area, its owner, its arranger, place, order, the key moments and pointer it
 hears, whether it is the weaver's hand's alone, the wheel and third button it hears, whether its
 arranger follows it, and the palette it wears),
-`AreaWithdrawn` v1 (an area no longer that window's), `ElementCodeOffered` v1 and `PaletteOffered`
+`AreaWithdrawn` v1 (an area no longer that window's) and `PaletteOffered`
 v1. It never
 answers its senders; an owner learns its area is shown when its window tells it its room.
 
