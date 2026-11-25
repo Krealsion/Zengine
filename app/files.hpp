@@ -53,7 +53,7 @@ inline std::string plain_name(const std::string& name) {
 inline ReadApp app_from_text(std::string_view text) {
     ReadApp out;
     const loom::Unverified claim = loom::compat::parse(text);
-    // A FILE OF VERSION 1, which named a skin, is read as version 2 holds it.
+    // A file of version 1, which named a skin, is read as version 2 holds it.
     const bool first = claim.well_formed() &&
                        claim.claimed_name() == std::string(v1::ZengineAppFile::zen_name) &&
                        claim.claimed_version() == v1::ZengineAppFile::zen_version;

@@ -4,11 +4,12 @@
 #ifndef ZENGINE_APP_SESSION_FILE_HPP
 #define ZENGINE_APP_SESSION_FILE_HPP
 
-// AN APP'S SESSION FILE, `app-session.json` in its folder (app/docs/app.md, "While it runs"): the
+// An app's session file, `app-session.json` in its folder (app/docs/app.md, "While it runs"): the
 // app host writes its own process id there once it holds the app's decisions, and removes the file
 // when it ends. A file that stands names a process that ran the app; whether that process still
 // runs is the reader's to ask the system, since a host that was killed leaves its file behind.
-// Portable: no kernel, no loader.
+// Nothing in the host reads it: the launcher's listing does. This header is portable: it needs no
+// kernel and no loader.
 
 #include <cstddef>
 #include <cstdint>
@@ -81,8 +82,9 @@ inline std::optional<std::int64_t> read_session(const std::filesystem::path& fol
     return session_pid(text);
 }
 
-/// THE SESSION FILE, held while it lives: written with this process's id when made, removed when
-/// it goes. A write that fails is said in `trouble` and leaves no file.
+/// Holds the session file while it lives: the file is written with this process's id when the
+/// holder is made, and removed when it goes. A write that fails is said in `trouble` and leaves no
+/// file.
 class SessionFile {
 public:
     SessionFile() = default;
@@ -118,7 +120,7 @@ public:
     bool held() const noexcept { return !path_.empty(); }
     const std::string& trouble() const noexcept { return trouble_; }
 
-    /// Remove the file now; idempotent, and done when the holder goes.
+    /// Removes the file now. A second call does nothing, and the holder's end calls it too.
     void release() noexcept {
         if (!path_.empty()) {
             std::error_code ec;

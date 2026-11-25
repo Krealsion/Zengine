@@ -55,7 +55,7 @@ Routed behind [the guide](../CONTRIBUTING.md) for `view/` and `view/view-builder
   that shows it, which gives keys only to an area placed to hear them, onto the handlers `PaneKey`
   and `PaneTextInput` reach; from any other role they change nothing.
 - A Zengine host composes the host beside the Flow host and holds no view behaviour: Workshop,
-  and an app's own host ([app](app.md)), where the app's own weave asks it. The View Builder
+  and an app's own host ([app](../app/README.md)), where the app's own weave asks it. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
   stop one session of its role.
@@ -78,7 +78,7 @@ Routed behind [the guide](../CONTRIBUTING.md) for `view/` and `view/view-builder
   starts a view, a name typed into File being none of these, so the file's return brings its
   view back at the next launch.
 - Export app makes an app of the saved view through `app/folder.hpp` and nothing of its own
-  ([app host](app.md)): an unsaved view or one with no file is refused before anything is asked; a
+  ([app host](../app/README.md)): an unsaved view or one with no file is refused before anything is asked; a
   hand's export asks Workshop for class `write` under its gesture, as Save does, one at a time; an
   app folder already there waits for a second press; and on Workshop's yes the export is judged
   again, on the view's file as it is then, before anything is written.
