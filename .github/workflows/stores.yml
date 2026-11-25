@@ -1,0 +1,201 @@
+name: Stores level
+
+# THE COMPILER CACHES KEPT LEVEL WITH LOOM (VM-LANE-23). Every run of CI builds against Loom's
+# `main` as it resolves it, and a store built against an older Loom misses every compile that Loom's
+# change reached. So every hour this asks, for each build job's store, whether `main`'s newest was
+# built against Loom's `main` now; when one was not, or a job has none, it runs CI's build jobs on
+# `main` again (ci.yml, called with `refresh`), which rebuild their stores and save them as a push's
+# run does. When every store is level it asks and does nothing more. The asks and the rebuild need
+# no secret and no token: a lookup reads a store's key without restoring it. Each hour it also
+# deletes every family's stores but its newest two (`prune`, below), the one job whose token may
+# write. The jobs it calls run in this workflow's run, under its name, so the run is none of
+# ci.yml's: it never holds, replaces or is replaced by a push's run or the nightly, and no reader of
+# ci.yml's runs reads it (the status board, package.yml). A pull request touching it runs the asks
+# on its own head, a dry run that rebuilds and deletes nothing.
+on:
+  schedule:
+    - cron: '43 * * * *'
+  pull_request:
+    paths:
+      - .github/workflows/stores.yml
+      - tests/ci_store.py
+
+permissions:
+  contents: read
+
+# One check at a time; a newer hour's waits behind the one running and replaces one still waiting.
+# The group names the event, so it is never the group ci.yml's own names when this run calls it
+# (`<this workflow>-<ref>`), which would hold each behind the other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # A lookup reads the key of a job's newest store, its prefix the job's store family, without
+  # restoring it; its path is the job's own, as a store is found only by the path it was saved
+  # under. Each store the Linux build jobs save, a step each: a new sanitizer runner is a new step.
+  ask-linux:
+    name: Stores level / ask, Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      level: ${{ steps.ask.outputs.level }}
+    steps:
+      - name: Check out the store tool
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: tests/ci_store.py
+          sparse-checkout-cone-mode: false
+
+      - name: The store tool, on its fixed cases
+        run: python3 tests/ci_store.py --self-test
+
+      - name: Look up the Linux job's newest store
+        id: debug
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-debug-
+          restore-keys: ccache-linux-debug-
+          lookup-only: true
+
+      - name: Look up the boxed job's newest store
+        id: boxed
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-boxed-
+          restore-keys: ccache-linux-boxed-
+          lookup-only: true
+
+      - name: Look up the sanitizer's panes runner's newest store
+        id: asan_panes
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-asan-panes-
+          restore-keys: ccache-linux-asan-panes-
+          lookup-only: true
+
+      - name: Look up the sanitizer's rest runner's newest store
+        id: asan_rest
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-asan-rest-
+          restore-keys: ccache-linux-asan-rest-
+          lookup-only: true
+
+      - name: Ask whether each was built against Loom's main
+        id: ask
+        env:
+          DEBUG: ${{ steps.debug.outputs.cache-matched-key }}
+          BOXED: ${{ steps.boxed.outputs.cache-matched-key }}
+          ASAN_PANES: ${{ steps.asan_panes.outputs.cache-matched-key }}
+          ASAN_REST: ${{ steps.asan_rest.outputs.cache-matched-key }}
+        run: |
+          python3 tests/ci_store.py ask \
+            --store "ccache-linux-debug-=$DEBUG" --store "ccache-linux-boxed-=$BOXED" \
+            --store "ccache-linux-asan-panes-=$ASAN_PANES" --store "ccache-linux-asan-rest-=$ASAN_REST"
+
+  # The MinGW-w64 job's store, asked on Windows, since a store saved there is found only there.
+  ask-windows:
+    name: Stores level / ask, Windows
+    runs-on: windows-2025
+    timeout-minutes: 10
+    outputs:
+      level: ${{ steps.ask.outputs.level }}
+    steps:
+      - name: Check out the store tool
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: tests/ci_store.py
+          sparse-checkout-cone-mode: false
+
+      - name: Look up the MinGW-w64 job's newest store
+        id: mingw
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-mingw-debug-
+          restore-keys: ccache-mingw-debug-
+          lookup-only: true
+
+      - name: Ask whether it was built against Loom's main
+        id: ask
+        shell: pwsh
+        env:
+          MINGW: ${{ steps.mingw.outputs.cache-matched-key }}
+        run: |
+          python tests/ci_store.py ask "--store=ccache-mingw-debug-=$env:MINGW"
+          exit $LASTEXITCODE
+
+  # A failed ask answers nothing, so it runs the build jobs, as CI's change kind does.
+  refresh:
+    name: Stores level / rebuild on main
+    needs: [ask-linux, ask-windows]
+    if: ${{ !cancelled() && github.event_name == 'schedule' && (needs.ask-linux.outputs.level != 'true' || needs.ask-windows.outputs.level != 'true') }}
+    uses: ./.github/workflows/ci.yml
+    with:
+      refresh: true
+
+  # THE REPLACED STORES DELETED. A restore reads its family's newest store, a family being a key
+  # less its Loom, run and attempt (ci.yml's keys), and in a run behind Loom's `main` the newest
+  # for its own Loom; so a replaced store is read by no run, and only crowds the repository's
+  # 10 GB, past which GitHub evicts the store least recently read: one read less often than a day,
+  # as package.yml's download cache is, before any replaced store. So every hour each family on
+  # `main` keeps its newest two, the second so that a store a run is still restoring is never
+  # deleted under it, and the rest go; never by age, since a quiet family's newest is old. A key
+  # this does not read as a compiler store is left alone, and named. Only the scheduled run on
+  # `main` deletes: this job's token alone may write Actions (`actions: write`, nothing more), and
+  # it checks out nothing and runs only `gh`, so no pull request's code reaches it.
+  prune:
+    name: Stores level / delete replaced stores
+    if: ${{ github.event_name == 'schedule' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    steps:
+      - name: Delete each family's stores but its newest two
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          list="$RUNNER_TEMP/stores.tsv"
+          plan="$RUNNER_TEMP/delete.tsv"
+          # Newest first: created, id, bytes, key, and the family where the key reads as a store's.
+          gh api --paginate "repos/$REPO/actions/caches?ref=refs/heads/main&key=ccache-&per_page=100" \
+            --jq '.actions_caches[] | [.created_at, (.id | tostring), (.size_in_bytes | tostring), .key] | @tsv' \
+            | sort -r \
+            | sed -E 's/^(.*\t)((ccache(-[a-z]+)+-[0-9a-f]{16}-)([0-9a-f]{40}-)?[0-9]+-[0-9]+)$/\1\2\t\3/' \
+            > "$list"
+          : > "$plan"
+          awk -F '\t' -v plan="$plan" '
+            NF == 5 {
+              n[$5]++
+              if (n[$5] <= 2) { kept[$5] = kept[$5] " " $4 }
+              else { gone[$5]++; mb[$5] += $3 / 1000000; print $2 "\t" $4 > plan }
+              next
+            }
+            { print "left alone, a key not read as a compiler store: " $4 }
+            END {
+              for (f in n) printf "%s: %d stores; keeps%s; deletes %d, %.0f MB\n", f, n[f], kept[f], gone[f], mb[f]
+            }' "$list"
+          deleted=0
+          failed=0
+          while IFS=$'\t' read -r id key; do
+            if [ -n "${ZEN_PRUNE_DRY:-}" ]; then
+              echo "would delete $key"
+            elif gh api -X DELETE "repos/$REPO/actions/caches/$id" > /dev/null; then
+              echo "deleted $key"
+              deleted=$((deleted + 1))
+            else
+              echo "::warning title=Stores level::could not delete $key (it may be gone already)"
+              failed=$((failed + 1))
+            fi
+          done < "$plan"
+          echo "deleted $deleted of $(wc -l < "$plan") replaced stores; $failed could not be"
