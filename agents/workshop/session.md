@@ -139,6 +139,7 @@ and each refuses the others"
 
 ### WL-SESSION-13
 `workshop/weave_run.cpp` quit finish_quit on(WorkshopQuitRequested) answer_quit_ask end_quit
+`workshop/quit_delivery.hpp` HostSessionDoor on(Shutdown)
 `workshop/setup_control.hpp` WorkshopQuitRequested
 `workshop/weave_session.cpp` save_last_session on(SessionSaveAnswered)
 `workshop/weave_handlers.cpp` on(SurfaceCloseRequested)

@@ -644,7 +644,6 @@ int main(int argc, char** argv) {
     // (`realization/owner.hpp`). The catalog is a local of `main`, never a singleton, declared
     // before the Kernel so the Kernel and its artifacts are destroyed first; the owner's handle,
     // declared after, takes it off the bus before them.
-    host.request_stop = [&bus] { bus.stop(); };
 
     op::Catalog operators;
 
@@ -683,7 +682,7 @@ int main(int argc, char** argv) {
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
         std::move(terminal_grant));
-    // Non-owning, handed down the way `request_stop` is. The bus owns the
+    // Non-owning, handed down as Workshop's host pointer. The bus owns the
     // participant; Workshop's weave holds a pointer and inherits nothing from it.
     host.terminal = terminal.session;
     // The boot line names the identity the Terminal pane speaks as.
@@ -788,6 +787,12 @@ int main(int argc, char** argv) {
     host.destinations = [&bus, &host] {
         return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{});
     };
+    // ---- The host's session, which Workshop asks to end once the weaver quit ------------------
+    // Loom's session role, held by this host's own door (workshop/quit_delivery.hpp): the one
+    // participant a `loom.session.Shutdown` reaches, which stops the bus so the turn in flight ends
+    // and the loop below finishes.
+    (void)mount_in_role<HostSessionDoor>(bus, host_session_grant(), loom::session::kSessionRole,
+                                         [&bus] { bus.stop(); });
     // ---- The layouts' owner, in its own role (workshop/layouts/owner.hpp) ---------------------
     // Every layout and what each keeps, the role-wide settings, the locks and the pins: one
     // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
@@ -977,7 +982,7 @@ int main(int argc, char** argv) {
     const realization::Mounted mounted = realization::mount(
         bus, std::move(operate), operators, operator_host, manager,
         [&host](const std::string& stem) { return host.so(stem); },
-        [&host, &operators, &project_refused, &last_words, &kernel](const realization::Executed& done) {
+        [&host, &bus, &operators, &project_refused, &last_words, &kernel](const realization::Executed& done) {
             // Said artifact by artifact, in order: resolved truth, never written back to the plan.
             // Said when realization settles, after the medium has taken the terminal: a medium
             // that holds it would have these lines scrolled into its picture, so they are said
@@ -1057,11 +1062,9 @@ int main(int argc, char** argv) {
                 std::fflush(stdout);
             }
             project_refused = true;
-            // The door `q` leaves by: `host.quit`, and `request_stop` to end the turn in flight.
+            // The door `q` leaves by: `host.quit`, and the bus stopped to end the turn in flight.
             host.quit = true;
-            if (host.request_stop) {
-                host.request_stop();
-            }
+            bus.stop();
         },
         // Is this row waiting on the weaver? Only the host holds both halves: the file is absent,
         // and a recipe in force produces the stem -- asked of the owner at the walk. Without the

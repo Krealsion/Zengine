@@ -119,6 +119,9 @@ loom::Grant workshop_grant() {
     // WHERE THE PLAN IS, the realization owner's claim: what the project waits on, the rows that
     // gave way and the roles still to come, read at the desk's every reading of them.
     speak.allow_observe(realization::PlanStatus::zen_name, realization::PlanStatus::zen_version);
+    // THE HOST'S LIFETIME ENDED, once the weaver's quit is settled: Loom's word, to the session role.
+    speak.allow_to_role(loom::session::Shutdown::zen_name, loom::session::Shutdown::zen_version,
+                        loom::session::kSessionRole);
     // THE DESK IN A GRAPHICS WINDOW: where each area stands and which palette it wears, said to the
     // directory, and Workshop's own drawing, to the window that shows its area.
     speak.allow_to_role(graphics::AreaPlaced::zen_name, graphics::AreaPlaced::zen_version, graphics::kGraphicsRole);

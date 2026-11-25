@@ -161,6 +161,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v2
         shape<::zengine::workshop::SessionSaveRequested>(), // SessionSaveRequested v1
         shape<::zengine::workshop::SessionSaveAnswered>(), // SessionSaveAnswered v1
+        shape<::zengine::workshop::HostSessionState>(), // HostSessionState v1
         shape<::zengine::workshop::WeaversActRequested>(), // WeaversActRequested v2
         shape<::zengine::workshop::WeaversActAnswered>(), // WeaversActAnswered v1
         shape<::zengine::workshop::ArrangementDoorState>(), // ArrangementDoorState v2

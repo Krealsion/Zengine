@@ -5423,8 +5423,7 @@ TEST_CASE("a quit the held Editor cannot be asked is refused at once in its role
     hold_the_editor(e);
     const std::string session = (e.root / "last-session.json").generic_string();
     e.r.host.session_path = session;
-    bool stopped = false;
-    e.r.host.request_stop = [&stopped] { stopped = true; };
+    const auto stopped = [&] { return e.r.session_door->ending(); };
     const std::string refused =
         "the quit could not ask " +
         could_not_ask(kEditorRole, e.image, "it is held until it is reloaded or removed",
@@ -5434,7 +5433,7 @@ TEST_CASE("a quit the held Editor cannot be asked is refused at once in its role
     CHECK_MESSAGE(e.r.session().notice.find("Workshop stays open") != std::string::npos,
                   e.r.session().notice);
     CHECK(e.r.session().notice_is_bad);
-    CHECK_FALSE(stopped);
+    CHECK_FALSE(stopped());
     CHECK_FALSE(std::filesystem::exists(session)); // an undeliverable question is no permission
     CHECK(e.r.bus.has_failed_application(e.image)); // the hold is Loom's, and untouched
     // THE KEYS ARE THE WEAVER'S: the contextual surface opens, and closes.
@@ -5452,7 +5451,7 @@ TEST_CASE("a quit the held Editor cannot be asked is refused at once in its role
     REQUIRE_FALSE(e.r.bus.has_failed_application(e.image));
     CHECK(e.read("text") == "one\n");
     CHECK(e.quit_by_key());
-    CHECK(stopped);
+    CHECK(stopped());
     CHECK(std::filesystem::exists(session)); // the one door wrote the desk on the way out
 }
 
@@ -5687,8 +5686,7 @@ TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot de
                                       later_id);
     QuitSeat* gone = mount_quit_seat(e.r, "zengine.test.quit-gone", QuitSeat::Mode::kPermit,
                                      gone_id);
-    bool stopped = false;
-    e.r.host.request_stop = [&stopped] { stopped = true; };
+    const auto stopped = [&] { return e.r.session_door->ending(); };
     const auto release = [&e, later_id] {
         (void)e.r.bus.send(later_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                    loom::WeaveId{}, 0));
@@ -5730,13 +5728,13 @@ TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot de
     // THE FIRST QUIT'S ANSWER, late: authentic, permitted, and about the ask that ended.
     release();
     REQUIRE(later->held.size() == 1);
-    CHECK_FALSE(stopped);
+    CHECK_FALSE(stopped());
     close_box(e);
     CHECK(e.r.session().notice == waiting);
     // THE SECOND QUIT'S OWN ANSWER is the only thing that ends it.
     release();
     CHECK(later->held.empty());
-    CHECK(stopped);
+    CHECK(stopped());
     CHECK(e.r.host.quit);
 }
 

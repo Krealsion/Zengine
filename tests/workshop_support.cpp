@@ -600,6 +600,14 @@ Live::Live() {
             return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
                                                                   : loom::WeaveId{});
         };
+        // THE HOST'S SESSION DOOR, as workshop.cpp mounts it, stopping nothing here.
+        {
+            auto door = std::make_unique<HostSessionDoor>();
+            session_door = door.get();
+            const loom::WeaveId id = bus.register_weave(std::move(door), host_session_grant(),
+                                                        std::string(loom::session::kSessionRole));
+            session_door->zen_set_self(id);
+        }
         mount_owner();
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
@@ -2028,6 +2036,14 @@ PaneRig::PaneRig() {
 #endif
         painter_id = loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
         (void)count_desk_drawings(bus, workshop_id, pictures);
+        // THE HOST'S SESSION DOOR, as workshop.cpp mounts it, stopping nothing here.
+        {
+            auto door = std::make_unique<HostSessionDoor>();
+            session_door = door.get();
+            const loom::WeaveId id = bus.register_weave(std::move(door), host_session_grant(),
+                                                        std::string(loom::session::kSessionRole));
+            session_door->zen_set_self(id);
+        }
     }
 
 auto PaneRig::mount_workshop() -> WorkshopWeave* {
