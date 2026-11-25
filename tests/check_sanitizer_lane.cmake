@@ -40,7 +40,11 @@ function(zen_lane_expect case problems)
 endfunction()
 
 # The job's own settings, kept while the fixed cases set their own.
-foreach(name RUNNERS ENTRIES_panes ENTRIES_rest)
+set(real_names RUNNERS)
+foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
+    list(APPEND real_names ENTRIES_${runner})
+endforeach()
+foreach(name IN LISTS real_names)
     set(real_${name} "${ZEN_SANITIZER_${name}}")
 endforeach()
 
@@ -95,8 +99,12 @@ set(ZENGINE_SANITIZER_BUILDS_one prog-x)
 set(ZENGINE_SANITIZER_BUILDS_two prog-x prog-y)
 set(ZENGINE_TARGET_y prog-x)
 zen_sanitizer_programs(problems)
-zen_lane_expect("a program whose entries run in two runners" "${problems}"
-                "prog-x runs in one and in two (y)")
+zen_lane_expect("a program whose entries run in two runners, each building it" "${problems}" none)
+
+set(ZENGINE_SANITIZER_BUILDS_two prog-y)
+zen_sanitizer_programs(problems)
+zen_lane_expect("a program whose entries run in two runners, one not building it" "${problems}"
+                "y runs in two, which does not build its program prog-x")
 unset(ZENGINE_TARGET_x_1)
 unset(ZENGINE_TARGET_x_2)
 unset(ZENGINE_TARGET_y)
@@ -228,7 +236,7 @@ endif()
 
 # ---- the job's own shares, over every entry the manifest declares --------------------------
 
-foreach(name RUNNERS ENTRIES_panes ENTRIES_rest)
+foreach(name IN LISTS real_names)
     set(ZEN_SANITIZER_${name} "${real_${name}}")
 endforeach()
 file(STRINGS "${ZEN_REPO}/tests/test_population.txt" rows REGEX "^[A-Za-z0-9_]+[ \t]")

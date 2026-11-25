@@ -69,13 +69,22 @@ jobs:
           restore-keys: ccache-linux-boxed-
           lookup-only: true
 
-      - name: Look up the sanitizer's panes runner's newest store
-        id: asan_panes
+      - name: Look up the sanitizer's panes-info runner's newest store
+        id: asan_panes_info
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-asan-panes-
-          restore-keys: ccache-linux-asan-panes-
+          key: ccache-linux-asan-panes-info-
+          restore-keys: ccache-linux-asan-panes-info-
+          lookup-only: true
+
+      - name: Look up the sanitizer's panes-hand runner's newest store
+        id: asan_panes_hand
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-asan-panes-hand-
+          restore-keys: ccache-linux-asan-panes-hand-
           lookup-only: true
 
       - name: Look up the sanitizer's rest runner's newest store
@@ -92,12 +101,15 @@ jobs:
         env:
           DEBUG: ${{ steps.debug.outputs.cache-matched-key }}
           BOXED: ${{ steps.boxed.outputs.cache-matched-key }}
-          ASAN_PANES: ${{ steps.asan_panes.outputs.cache-matched-key }}
+          ASAN_PANES_INFO: ${{ steps.asan_panes_info.outputs.cache-matched-key }}
+          ASAN_PANES_HAND: ${{ steps.asan_panes_hand.outputs.cache-matched-key }}
           ASAN_REST: ${{ steps.asan_rest.outputs.cache-matched-key }}
         run: |
           python3 tests/ci_store.py ask \
             --store "ccache-linux-debug-=$DEBUG" --store "ccache-linux-boxed-=$BOXED" \
-            --store "ccache-linux-asan-panes-=$ASAN_PANES" --store "ccache-linux-asan-rest-=$ASAN_REST"
+            --store "ccache-linux-asan-panes-info-=$ASAN_PANES_INFO" \
+            --store "ccache-linux-asan-panes-hand-=$ASAN_PANES_HAND" \
+            --store "ccache-linux-asan-rest-=$ASAN_REST"
 
   # The MinGW-w64 job's store, asked on Windows, since a store saved there is found only there.
   ask-windows:
