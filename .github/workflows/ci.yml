@@ -393,7 +393,7 @@ jobs:
   # runs whole, so the gate's rows are counted with the rest. Its compiler cache is a store of its
   # own, kept as the Linux job's is, restored by every run and saved by `main` alone: its configure
   # is not the Linux job's (Loom with the backend, the runner's CMake, the box gate open), and the
-  # Linux job's store left its build nearly whole.
+  # Linux job's store served only part of its build.
   zengine-linux-boxed:
     name: Zengine / Linux / boxed pane
     needs: [zengine-change-kind, resolve-loom]
