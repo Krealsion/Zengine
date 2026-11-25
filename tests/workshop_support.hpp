@@ -428,12 +428,18 @@ public:
     void on(const LayoutSettingsAnswered&, loom::Mail&);
 };
 
+/// WHO IS ON THE RIG'S BUS NOW, as Loom's participants claim says it, read by the host: what a rig
+/// hands the layouts' owner when it reads the owner's store between messages.
+inline loom::host::Participants bus_participants(const loom::Switchboard& bus) {
+    return loom::from_value<loom::host::Participants>(loom::host::participants_now(bus));
+}
+
 /// STAGE THE RUN THE LAYOUTS' OWNER HOLDS, changed by `f`: Workshop's copy is the store's at once,
 /// as a write past the doors showed it, and the owner's picture of it is presented at Workshop's
 /// next delivery -- nothing is reconciled before then.
 template <class Rig, class F>
 void stage_run(Rig& r, F&& f) {
-    r.owner->read_host_now();
+    r.owner->read_host_now(bus_participants(r.bus));
     SetupState run = r.owner->layouts().run();
     f(run);
     r.owner->store().put_run(std::move(run));
@@ -1418,6 +1424,42 @@ struct SeatState {
     ZEN_SHAPE(SeatState, 1, ZEN_FIELD(said));
 };
 
+/// THE GUEST DOOR'S STAND-IN, for a case that writes a guest's row with no door listening: it holds
+/// `zengine.guests` and answers `GuestRowOfRequested` as the door does -- to this host's own roles
+/// alone -- with the row `rows` says, read at each ask.
+class GuestRowsStandIn
+    : public loom::WeaveBase<GuestRowsStandIn, SeatState, loom::Accept<GuestRowOfRequested>,
+                             loom::Emit<GuestRowOf, loom::Refused>> {
+public:
+    explicit GuestRowsStandIn(std::function<scope::GuestRowFacts(loom::WeaveId)> rows)
+        : rows_(std::move(rows)) {}
+    void on(const GuestRowOfRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopProvider) && !mail.authored_from_role(kLayoutsRole)) {
+            (void)mail.answer(loom::Refused{"a row is said to this host's own roles alone"});
+            return;
+        }
+        const loom::WeaveId who{static_cast<std::uint64_t>(asked.session < 0 ? 0 : asked.session)};
+        (void)mail.answer(scope::said_row(asked.session, rows_ ? rows_(who) : scope::GuestRowFacts{}));
+    }
+
+private:
+    std::function<scope::GuestRowFacts(loom::WeaveId)> rows_;
+};
+
+/// Mount the stand-in on `bus`, answering from `rows`.
+inline loom::WeaveId mount_guest_rows(loom::Switchboard& bus,
+                                      std::function<scope::GuestRowFacts(loom::WeaveId)> rows) {
+    auto door = std::make_unique<GuestRowsStandIn>(std::move(rows));
+    GuestRowsStandIn* raw = door.get();
+    loom::Grant answers;
+    answers.allow_to_any(GuestRowOf::zen_name, GuestRowOf::zen_version);
+    answers.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
+    const loom::WeaveId id =
+        bus.register_weave(std::move(door), std::move(answers), std::string(kGuestsRole));
+    raw->zen_set_self(id);
+    return id;
+}
+
 /// A PARTY THAT PUTS A PANE ON THE DESK, OR TAKES ONE OFF, THROUGH THE TWO DOORS -- the host's
 /// `PaneLaunchRequested` and the layouts' owner's `PaneCloseRequested` -- what the desktop's Pane
 /// Manager does, for the many cases that need a pane open or closed and are not about who asked or
@@ -1610,7 +1652,7 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
 /// SETTINGS rows over it, composed as Info composes them (`info/settings_rows.hpp`).
 template <class Rig>
 inline PaneSettingsAnswered info_read(Rig& t, const PaneRef& ref) {
-    t.owner->read_host_now();
+    t.owner->read_host_now(bus_participants(t.bus));
     return t.owner->store().read_pane(std::string(), PaneSettingsRequested{ref.provider, ref.pane});
 }
 template <class Rig>
@@ -1683,12 +1725,21 @@ inline void keep_settings(Rig& t, const PaneRef& ref, std::vector<PaneSetting> s
     t.key(input::scan::kUnknown);
 }
 
+/// THE LAYOUTS' OWNER'S STORE AS A DELIVERY WOULD READ IT NOW: its host's readings, and who is on
+/// the bus as Loom's participants claim says it off the rig's bus, which a rig reading the store
+/// between messages hands it.
+template <class Rig>
+inline const LayoutStore& layouts_now(Rig& r) {
+    r.owner->read_host_now(bus_participants(r.bus));
+    return r.owner->layouts();
+}
+
 /// WHAT A PANE'S COUNTED DECLARATION TAKES, as the layouts' store counts it; none for none.
 template <class Rig>
 inline std::vector<zengine::pane::v2::PaneSettingRow> declared_settings(Rig& t, const PaneRef& ref) {
     const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
     REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
-    const std::vector<zengine::pane::v2::PaneSettingRow>* counted = t.owner->layouts().counted(ref);
+    const std::vector<zengine::pane::v2::PaneSettingRow>* counted = layouts_now(t).counted(ref);
     return counted != nullptr ? *counted : std::vector<zengine::pane::v2::PaneSettingRow>{};
 }
 
@@ -1699,7 +1750,7 @@ inline std::vector<std::string> unused_settings(Rig& t, const PaneRef& ref) {
     const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
     REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
     std::vector<std::string> out;
-    for (const RowSettingUnused& u : t.owner->layouts().unused_of(ref)) {
+    for (const RowSettingUnused& u : layouts_now(t).unused_of(ref)) {
         out.push_back(u.key + ": " + u.why);
     }
     return out;

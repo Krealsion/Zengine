@@ -20,6 +20,7 @@
 #include "workshop/guest_door.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/guests.hpp"
+#include <zen/weave/ask_ended.hpp>
 #include "pane/document.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
@@ -1958,7 +1959,94 @@ private:
     std::vector<std::string>* told_;
 };
 
+/// WHOSE ROW TO ASK, and whether to ask it as this host's own role or in no role's name.
+struct RowAskTurn {
+    std::int64_t session = 0;
+    bool as_role = true;
+    ZEN_SHAPE(RowAskTurn, 1, ZEN_FIELD(session), ZEN_FIELD(as_role));
+};
+
+/// A ROLE OF THIS HOST'S OWN ASKING WHICH ROW ADMITTED A SESSION, as the layouts' owner asks it:
+/// on its turn it asks the door, and keeps each row it is told and each refusal.
+class RowAsker
+    : public loom::WeaveBase<RowAsker, EarsState,
+                             loom::Accept<RowAskTurn, ws::GuestRowOf, loom::Refused, loom::AskEnded>,
+                             loom::Emit<ws::GuestRowOfRequested>> {
+public:
+    RowAsker(std::vector<ws::GuestRowOf>& rows, std::vector<std::string>& told)
+        : rows_(&rows), told_(&told) {}
+    void on(const RowAskTurn& turn, loom::Mail& mail) {
+        if (turn.as_role) {
+            (void)mail.as_role(zengine::pane::kLayoutsRole)
+                .ask_role(ws::kGuestsRole, ws::GuestRowOfRequested{turn.session}, ++asked_);
+        } else {
+            (void)mail.send_to_role(ws::kGuestsRole, ws::GuestRowOfRequested{turn.session});
+        }
+    }
+    void on(const ws::GuestRowOf& row, loom::Mail&) { rows_->push_back(row); }
+    void on(const loom::Refused& refusal, loom::Mail&) { told_->push_back(refusal.reason); }
+    void on(const loom::AskEnded&, loom::Mail&) { told_->push_back("ended"); }
+
+private:
+    std::vector<ws::GuestRowOf>* rows_;
+    std::vector<std::string>* told_;
+    std::uint64_t asked_ = 0;
+};
+
 } // namespace
+
+TEST_CASE("door: this host's own role asks which row admitted a session and hears that row, and no other asker is told") {
+    Scratch f("row-of");
+    f.write(R"({"version":"3","host":"development","guests":[)"
+            R"({"name":"agent","credential":"one","may":["input","settings"]},)"
+            R"({"name":"reader","credential":"two","may":["capture"]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    Guest one(r.port, "agent", "one");
+    Guest two(r.port, "reader", "two");
+    REQUIRE(r.beat_until([&] {
+        one.poll();
+        two.poll();
+        return one.client->admitted() && two.client->admitted();
+    }));
+    std::vector<ws::GuestRowOf> rows;
+    std::vector<std::string> told;
+    auto made = std::make_unique<RowAsker>(rows, told);
+    RowAsker* raw = made.get();
+    loom::Grant asks;
+    asks.allow_to_role(ws::GuestRowOfRequested::zen_name, ws::GuestRowOfRequested::zen_version,
+                       ws::kGuestsRole);
+    const loom::WeaveId asker = r.bus.register_weave(std::move(made), std::move(asks),
+                                                     std::string(zengine::pane::kLayoutsRole));
+    raw->zen_set_self(asker);
+    const auto turn = [&](std::uint64_t session, bool as_role) {
+        (void)r.bus.send(asker, loom::Message(loom::to_value(RowAskTurn{
+                                    static_cast<std::int64_t>(session), as_role})));
+        r.bus.drain_until_idle();
+    };
+    // EACH SESSION'S OWN ROW, as the door recorded it at admission.
+    turn(one.client->session(), true);
+    turn(two.client->session(), true);
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].session == static_cast<std::int64_t>(one.client->session()));
+    CHECK(rows[0].admitted);
+    CHECK(rows[0].name == "agent");
+    CHECK(rows[0].powers == std::vector<std::string>{"input", "settings"});
+    CHECK(rows[1].name == "reader");
+    CHECK(rows[1].powers == std::vector<std::string>{"capture"});
+    // A PARTICIPANT NO DOOR ADMITTED, the asker itself among them, is no guest.
+    turn(asker.value, true);
+    REQUIRE(rows.size() == 3);
+    CHECK_FALSE(rows[2].admitted);
+    CHECK(rows[2].name.empty());
+    // ...AND ASKED IN NO ROLE'S NAME, nothing is told but the refusal.
+    turn(one.client->session(), false);
+    CHECK(rows.size() == 3);
+    CHECK(told == std::vector<std::string>{
+                      "which row admitted a session is said to this host's own roles alone"});
+}
 
 TEST_CASE("door: through the real door, a session of version 3 hears its own role and doors, and the inventory says each row's beside it") {
     Scratch f("described-3");

@@ -232,8 +232,8 @@ TEST_CASE("a declaration is judged whole under the role stamp, refused aloud, an
     REQUIRE(t.row() != nullptr);
 
     t.declare(dial_declared());
-    REQUIRE(t.r.owner->layouts().counted_v1(dial_ref()) != nullptr);
-    CHECK(*t.r.owner->layouts().counted_v1(dial_ref()) == dial_declared().rows);
+    REQUIRE(layouts_now(t.r).counted_v1(dial_ref()) != nullptr);
+    CHECK(*layouts_now(t.r).counted_v1(dial_ref()) == dial_declared().rows);
 
     struct Case {
         const char* what;
@@ -313,18 +313,18 @@ TEST_CASE("a declaration is judged whole under the role stamp, refused aloud, an
         CHECK(t.r.session().notice_is_bad);
         CHECK(t.r.last_notice().find("Dial @test.dial: its settings were not taken") != std::string::npos);
         CHECK(t.r.last_notice().find(c.says) != std::string::npos);
-        CHECK(*t.r.owner->layouts().counted_v1(dial_ref()) == dial_declared().rows);
+        CHECK(*layouts_now(t.r).counted_v1(dial_ref()) == dial_declared().rows);
     }
 
     // A LATER ACCEPTED DECLARATION REPLACES THE SETTINGS WHOLE.
     t.declare(with({flag_row("legend", false)}));
-    CHECK(*t.r.owner->layouts().counted_v1(dial_ref()) ==
+    CHECK(*layouts_now(t.r).counted_v1(dial_ref()) ==
           std::vector<PaneSettingRow>{flag_row("legend", false)});
 
     // ...AND PERSONAL SPEECH, EVEN FROM THE HOLDER, DECLARES NOTHING AND SAYS NOTHING.
     const std::string before = t.r.last_notice();
     t.r.drive(t.seat, [](SettingsSeat& s, loom::Mail& m) { s.declare_personally(m, dial_declared()); });
-    CHECK(*t.r.owner->layouts().counted_v1(dial_ref()) ==
+    CHECK(*layouts_now(t.r).counted_v1(dial_ref()) ==
           std::vector<PaneSettingRow>{flag_row("legend", false)});
     CHECK(t.r.last_notice() == before);
 }
@@ -334,19 +334,19 @@ TEST_CASE("a declaration counts only while the weave that sent it holds the role
     t.open({});
     t.offer();
     t.declare(dial_declared());
-    REQUIRE(t.r.owner->layouts().counted_v1(dial_ref()) != nullptr);
+    REQUIRE(layouts_now(t.r).counted_v1(dial_ref()) != nullptr);
 
     // ANOTHER WEAVE TAKES THE ROLE: the declaration stays where it was admitted and counts for
     // nothing, until the new holder declares its own.
     t.r.unmount_settings_seat(t.seat);
     SettingsSeat* successor = t.r.mount_settings_seat(kDialRole);
-    CHECK(t.r.owner->layouts().counted_v1(dial_ref()) == nullptr);
+    CHECK(layouts_now(t.r).counted_v1(dial_ref()) == nullptr);
     PaneSettingsDeclared own;
     own.pane = kDial;
     own.rows = {flag_row("legend", false)};
     t.r.drive(successor, [own](SettingsSeat& s, loom::Mail& m) { s.declare(m, own); });
-    REQUIRE(t.r.owner->layouts().counted_v1(dial_ref()) != nullptr);
-    CHECK(*t.r.owner->layouts().counted_v1(dial_ref()) == own.rows);
+    REQUIRE(layouts_now(t.r).counted_v1(dial_ref()) != nullptr);
+    CHECK(*layouts_now(t.r).counted_v1(dial_ref()) == own.rows);
     // ...AND THE NEW HOLDER IS HANDED WHAT THE LAYOUT KEEPS, though it equals what the last one
     // heard: what a holder heard is that holder's.
     REQUIRE(successor->heard == std::vector<std::string>{"settings"});
@@ -604,7 +604,7 @@ TEST_CASE("the row Info reads moves with what it is built from: a declaration, a
     stale.revision = bare;
     stale.key = "legend";
     stale.flag = false;
-    t.r.owner->read_host_now();
+    t.r.owner->read_host_now(bus_participants(t.r.bus));
     CHECK_FALSE(t.r.owner->store().commit_pane(std::string(), stale).accepted);
     CHECK(pane_of(live_desk(t.r.owner->layouts().run()), dial_ref())->settings.empty());
 
@@ -1135,16 +1135,16 @@ TEST_CASE("a v2 declaration says how each setting is found, and each of its boun
     // declaration in force stands.
     RevisionRig t;
     t.open();
-    REQUIRE(t.r.owner->layouts().counted(dial_ref()) != nullptr);
-    CHECK(*t.r.owner->layouts().counted(dial_ref()) == sound.rows);
-    CHECK(*t.r.owner->layouts().counted_v1(dial_ref()) == dial_declared().rows);
+    REQUIRE(layouts_now(t.r).counted(dial_ref()) != nullptr);
+    CHECK(*layouts_now(t.r).counted(dial_ref()) == sound.rows);
+    CHECK(*layouts_now(t.r).counted_v1(dial_ref()) == dial_declared().rows);
     zengine::pane::v2::PaneSettingsDeclared reserved = sound;
     reserved.rows[1].tags = {"kept"};
     t.declare(reserved);
     CHECK(t.r.last_notice() ==
           "Dial @test.dial: its settings were not taken -- setting `mode`: `kept` is a tab of its "
           "own, never a setting's tag");
-    CHECK(*t.r.owner->layouts().counted(dial_ref()) == sound.rows);
+    CHECK(*layouts_now(t.r).counted(dial_ref()) == sound.rows);
 }
 
 TEST_CASE("a v1 declaration is read as v2 rows, untagged, unpinned and unsummarised") {
@@ -1152,8 +1152,8 @@ TEST_CASE("a v1 declaration is read as v2 rows, untagged, unpinned and unsummari
     t.open({});
     t.offer();
     t.declare(dial_declared());
-    REQUIRE(t.r.owner->layouts().counted(dial_ref()) != nullptr);
-    const std::vector<zengine::pane::v2::PaneSettingRow>& rows = *t.r.owner->layouts().counted(dial_ref());
+    REQUIRE(layouts_now(t.r).counted(dial_ref()) != nullptr);
+    const std::vector<zengine::pane::v2::PaneSettingRow>& rows = *layouts_now(t.r).counted(dial_ref());
     REQUIRE(rows.size() == 3);
     for (std::size_t i = 0; i < rows.size(); ++i) {
         CHECK(narrow_setting_row(rows[i]) == dial_declared().rows[i]);
@@ -1169,15 +1169,15 @@ TEST_CASE("a reloaded image that declares nothing shows none of its predecessor'
     REQUIRE(info_labels(t.r, dial_ref()) == std::vector<std::string>{"legend", "mode", "step"});
     // THE SAME IMAGE OFFERING AGAIN, as every catalog request brings, keeps its declaration.
     t.offer();
-    CHECK(t.r.owner->layouts().counted_v1(dial_ref()) != nullptr);
+    CHECK(layouts_now(t.r).counted_v1(dial_ref()) != nullptr);
     CHECK(info_labels(t.r, dial_ref()) == std::vector<std::string>{"legend", "mode", "step"});
     // A RELOAD IN PLACE: the same weave id, its next incarnation, offering and declaring nothing.
     const loom::WeaveId same = t.r.settings_seat_id(t.seat);
     REQUIRE(t.r.bus.swap_state(same, t.r.bus.snapshot_bytes(same)).revived);
     t.offer();
     REQUIRE(t.r.settings_seat_id(t.seat) == same);
-    CHECK(t.r.owner->layouts().counted_v1(dial_ref()) == nullptr);
-    CHECK(t.r.owner->layouts().counted(dial_ref()) == nullptr);
+    CHECK(layouts_now(t.r).counted_v1(dial_ref()) == nullptr);
+    CHECK(layouts_now(t.r).counted(dial_ref()) == nullptr);
     CHECK(info_labels(t.r, dial_ref()).empty());
     // ...AND A DECLARATION THE NEW IMAGE SENDS COUNTS.
     t.declare(dial_declared());

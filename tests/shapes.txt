@@ -195,6 +195,8 @@ GuestRowDescribed v1 0x0eb95a51a171e13e
 GuestRowDescribed v2 0x4accc5e1f8cd3962
 GuestRowDescribedRequested v1 0x0bcc886d17401cad
 GuestRowDescribedRequested v2 0x5aca9e352a5534ee
+GuestRowOf v1 0xe98e9e7e0f8d5ffe
+GuestRowOfRequested v1 0x717e59bd9a2cbde9
 GuestVocabularyState v1 0x3f20502e8bc320e5
 GuideAnswered v1 0x3387378ec94f6332
 GuideRequested v1 0x449d827435acac26
@@ -594,6 +596,7 @@ TerminalCompletionRequested v1 0xf6aac8925ab2f82f
 TerminalFile v1 0xc29c615c4aac4054
 TerminalInk v1 0x52f23deaa7b5b5da
 TerminalLook v1 0x64e574b12c6e304d
+TerminalNamed v1 0x5cb118ac9e8bfeae
 TerminalPaneState v1 0xd03f9407268706f8
 TerminalValueAnswered v1 0x17bc3734f66f3049
 TerminalValueRequested v1 0xc5538754a8ccd1f6

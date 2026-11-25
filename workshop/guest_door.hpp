@@ -14,6 +14,8 @@
 #include "guests.hpp"
 #include "activation/activation.hpp"
 #include "pane/operation.hpp" // the question about a sender's scope, and its answer
+#include "pane/menu.hpp" // Workshop's role, which asks which row admitted a session
+#include "pane/settings.hpp" // the layouts' owner's role, which asks it too
 
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
@@ -60,9 +62,9 @@ using GuestDoorBase =
     loom::Accept<GuestConnectionsRequested, v2::GuestConnectionsRequested,
                  v3::GuestConnectionsRequested, GuestRowDescribedRequested,
                  v2::GuestRowDescribedRequested, GuestPlanRequested, ActorScopeRequested,
-                 loom::host::Waited>,
+                 GuestRowOfRequested, loom::host::Waited>,
     loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections, GuestRowDescribed,
-               v2::GuestRowDescribed, GuestPlanSaid, ActorScopeJudged, loom::Refused,
+               v2::GuestRowDescribed, GuestPlanSaid, ActorScopeJudged, GuestRowOf, loom::Refused,
                input::InputSessionClosed>,
     loom::WeaveBase, loom::Claims<loom::host::WaitSet>>;
 
@@ -207,6 +209,23 @@ public:
                 ? std::string("the question names no action class")
                 : scope::judge_all(row, guests::host_fact_of(file_), asked.classes);
         (void)mail.answer(ActorScopeJudged{refusal.empty(), refusal});
+    }
+
+    /// WHICH ROW ADMITTED A SESSION, to this host's own roles alone -- Workshop's and the layouts'
+    /// owner's, which judge a guest's act by it -- from the record kept as the session was
+    /// admitted; a participant never admitted is said not admitted. Anyone else is refused.
+    // WL-SETTING-09 -- agents/workshop/settings.md
+    void on(const GuestRowOfRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(pane::pane_menu::kWorkshopRole) &&
+            !mail.authored_from_role(pane::kLayoutsRole)) {
+            (void)mail.answer(loom::Refused{"which row admitted a session is said to this host's "
+                                            "own roles alone"});
+            return;
+        }
+        const scope::GuestRowFacts row =
+            asked.session > 0 ? facts(loom::WeaveId{static_cast<std::uint64_t>(asked.session)})
+                              : scope::GuestRowFacts{};
+        (void)mail.answer(scope::said_row(asked.session, row));
     }
 
     /// WHERE THE PLAN IS, read from the realization owner's latest claim (`PlanStatus`) at every ask
@@ -522,6 +541,7 @@ inline loom::Grant guest_door_grant(bool reads_plan = true) {
     g.allow_to_any(v2::GuestRowDescribed::zen_name, v2::GuestRowDescribed::zen_version);
     g.allow_to_any(GuestPlanSaid::zen_name, GuestPlanSaid::zen_version);
     g.allow_to_any(ActorScopeJudged::zen_name, ActorScopeJudged::zen_version);
+    g.allow_to_any(GuestRowOf::zen_name, GuestRowOf::zen_version);
     g.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     g.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     g.allow_to_role(input::InputSessionClosed::zen_name, input::InputSessionClosed::zen_version,

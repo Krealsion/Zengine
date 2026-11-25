@@ -7649,7 +7649,7 @@ TEST_CASE("a reload carries the bindings, the room and the run: a Workshop and a
     CHECK(workshop.session().place_x == 40);
     CHECK(workshop.session().place_y == 30);
 
-    LayoutsOwner owner(layouts_owner_host(t.host, t.bus));
+    LayoutsOwner owner(layouts_owner_host(t.host));
     owner.revive(owner_state);
     // THE RUN: every layout, the live one, and no revision handed out twice.
     CHECK(layout_run(owner.layouts().run()) == layout_run(t.owner->layouts().run()));

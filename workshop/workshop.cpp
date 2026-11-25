@@ -785,7 +785,10 @@ int main(int argc, char** argv) {
     // Every layout and what each keeps, the role-wide settings, the locks and the pins: one
     // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
     // session; it reads this host's paths and readings at each ask.
-    mount_in_role<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host, bus));
+    const loom::WeaveId layouts_id =
+        mount_in_role<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host));
+    // ...told once which weave is the Terminal, whose settings asks it answers under its widening.
+    name_terminal(bus, layouts_id, terminal.id);
     auto speak = workshop_grant();
     const loom::WeaveId workshop_id =
         mount_in_role<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);

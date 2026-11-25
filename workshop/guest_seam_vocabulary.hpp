@@ -175,6 +175,30 @@ struct GuestRowDescribed {
 };
 } // namespace v2
 
+/// WHICH ROW ADMITTED A SESSION, asked by this host's own roles -- Workshop's and the layouts'
+/// owner's -- to judge that session's act: the row the door recorded as it admitted `session`,
+/// never a row found by name. A participant it never admitted is answered `admitted` false, and
+/// any other asker is refused. The answer is a fact at the ask, never kept by the asker.
+struct GuestRowOfRequested {
+    std::int64_t session = 0;
+    ZEN_SHAPE(GuestRowOfRequested, 1, ZEN_FIELD(session));
+};
+struct GuestRowOf {
+    std::int64_t session = 0;
+    bool admitted = false;
+    std::string name;
+    std::vector<std::string> powers;
+    std::int64_t version = 0;          ///< the guests file's version
+    std::string role;                  ///< the role the row names; empty: none
+    bool reads_by_pane = false;        ///< its reads are judged pane by pane
+    bool guides_by_pane = false;       ///< its marks are judged pane by pane
+    std::vector<std::string> capture;  ///< its `capture` doors as written
+    std::vector<std::string> guide;    ///< its `guide` doors as written
+    ZEN_SHAPE(GuestRowOf, 1, ZEN_FIELD(session), ZEN_FIELD(admitted), ZEN_FIELD(name),
+              ZEN_FIELD(powers), ZEN_FIELD(version), ZEN_FIELD(role), ZEN_FIELD(reads_by_pane),
+              ZEN_FIELD(guides_by_pane), ZEN_FIELD(capture), ZEN_FIELD(guide));
+};
+
 /// `GuestPlanSaid::state`'s words: where this Workshop's load plan is. The door listens before the
 /// plan begins, so a guest can be admitted while rows that declare shapes are still to come.
 /// `loading`: a shape nothing here declares may yet be declared by a row still to come.

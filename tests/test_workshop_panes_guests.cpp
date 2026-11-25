@@ -1207,10 +1207,10 @@ public:
         if (mail.answers_ask()) batches.push_back(w);
     }
     void on(const PaneSettingsAnswered& s, loom::Mail& mail) {
-        if (mail.answers_ask()) shown.push_back(s);
+        if (mail.answers_ask()) shown.push_back(s), order.push_back("shown");
     }
     void on(const PaneSettingCommitAnswered& a, loom::Mail& mail) {
-        if (mail.answers_ask()) acted.push_back(a);
+        if (mail.answers_ask()) acted.push_back(a), order.push_back("acted");
     }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -1229,6 +1229,7 @@ public:
     std::vector<PaneSettingLockAnswered> lock_acted;
     std::vector<LayoutSettingsAnswered> layouts;
     std::vector<SettingsWriteAnswered> batches;
+    std::vector<std::string> order; ///< "shown" and "acted", as the reads' and commits' answers came
 };
 
 struct GuestAsker {
@@ -1293,6 +1294,8 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
         if (who == without.id || who == past.id) return guest_facts(capture_row);
         return scope::GuestRowFacts{};
     };
+    // ...SAID BY THE GUEST DOOR, which the layouts' owner asks: its stand-in, answering that row.
+    (void)mount_guest_rows(r.bus, [&](loom::WeaveId who) { return r.host.guest_row(who); });
 
     // WITH `settings`: answered, and a clear written.
     ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, PaneSettingsRequested{dial.provider, dial.pane}); });
@@ -1347,6 +1350,52 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
           std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
 }
 
+TEST_CASE("a guest's settings asks wait on the guest door's word of its row and are answered in the order the guest made them") {
+    // ⚠ AN ACT THAT WAITS IS NOT OVERTAKEN: the layouts' owner asks the guest door which row
+    // admitted the asker before it judges each ask, so a commit and the read right behind it both
+    // wait; the read is answered after the commit, and reads what the commit wrote.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    const PaneRef dial{"test.dial", "dial"};
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, dial));
+    });
+    stage_desk(r, [&](Setup& desk) {
+        pane_of(desk, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    });
+    guests::GuestRow settings_row;
+    settings_row.name = "agent";
+    settings_row.may = {guests::kPowerSettings};
+    const GuestAsker with = mount_settings_guest(r, guests::grant_for(settings_row));
+    std::size_t rows_asked = 0;
+    (void)mount_guest_rows(r.bus, [&](loom::WeaveId who) {
+        ++rows_asked;
+        return who == with.id ? guest_facts(settings_row) : scope::GuestRowFacts{};
+    });
+    ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, PaneSettingsRequested{dial.provider, dial.pane}); });
+    REQUIRE(with.guest->shown.size() == 1);
+    PaneSettingCommitRequested clear;
+    clear.provider = dial.provider;
+    clear.pane = dial.pane;
+    clear.revision = with.guest->shown.back().revision;
+    clear.key = "step";
+    clear.clear = true;
+    with.guest->order.clear();
+    ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) {
+        g.ask(m, clear);
+        g.ask(m, PaneSettingsRequested{dial.provider, dial.pane});
+    });
+    CHECK(with.guest->order == std::vector<std::string>{"acted", "shown"});
+    REQUIRE(with.guest->acted.size() == 1);
+    CHECK_MESSAGE(with.guest->acted.back().accepted, with.guest->acted.back().refusal);
+    REQUIRE(with.guest->shown.size() == 2);
+    CHECK(with.guest->shown.back().settings.empty());
+    // ...AND THE ROW WAS ASKED AT EACH ASK, three of them, and kept by nobody.
+    CHECK(rows_asked == 3);
+}
+
 TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout and writes a batch, and never unlocks; without it Loom's grant refuses all three") {
     PaneRig r;
     r.mount_workshop();
@@ -1372,6 +1421,8 @@ TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout 
         if (who == without.id) return guest_facts(capture_row);
         return scope::GuestRowFacts{};
     };
+    // ...SAID BY THE GUEST DOOR, which the layouts' owner asks: its stand-in, answering that row.
+    (void)mount_guest_rows(r.bus, [&](loom::WeaveId who) { return r.host.guest_row(who); });
     const PaneSettingLockRequested lock{"test.dial/dial", "step", "lock", "layout", 0, 0};
 
     // WITH `settings`: every layout read, a lock made, a batch written.

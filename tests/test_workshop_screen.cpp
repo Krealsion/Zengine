@@ -6852,7 +6852,7 @@ TEST_CASE("two edits judged from one picture: the first is written, the second r
     t.ready();
     t.extent_px(cells_px(160), cells_px(44));
     open_pane(t, ref_of(stock::kKind));
-    t.owner->read_host_now();
+    t.owner->read_host_now(bus_participants(t.bus));
     LayoutStore& store = t.owner->store();
     const std::int64_t seen = store.revision();
     const Setup before = live_desk(store.run());
@@ -6888,7 +6888,7 @@ TEST_CASE("a batch's setup file is written once every edit in it is judged, and 
     t.host.setup_path = dir.file("setup.json");
     t.ready();
     t.extent_px(cells_px(160), cells_px(44));
-    t.owner->read_host_now();
+    t.owner->read_host_now(bus_participants(t.bus));
     LayoutStore& store = t.owner->store();
     LayoutEdit save;
     save.op = layout_op::kSave;
@@ -6918,7 +6918,7 @@ TEST_CASE("a batch whose setup file cannot be written is refused whole, the run 
     t.host.setup_path = dir.file("taken"); // a folder: no file can be written there
     t.ready();
     t.extent_px(cells_px(160), cells_px(44));
-    t.owner->read_host_now();
+    t.owner->read_host_now(bus_participants(t.bus));
     LayoutStore& store = t.owner->store();
     LayoutEdit made;
     made.op = layout_op::kNew;
