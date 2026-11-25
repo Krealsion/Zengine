@@ -2400,7 +2400,7 @@ bool heard_slot(const TextRecorder& seat, const std::string& slot) {
 TEST_CASE("the address lists the roles and weaves on the bus now with what each is and every ask reads the bus again") {
     TerminalRig t;
     t.open();
-    t.give_room(30, 120);
+    t.give_room(40, 120);
     // THE POPULATION IS THE BUS'S, NOT THE LOAD PLAN'S: Workshop itself and the terminal
     // participant are in-process weaves no library row names, and both are listed.
     t.type("send ");
