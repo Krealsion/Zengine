@@ -22,7 +22,6 @@
 #include "inventory/inventory-pane/toolbox_file.hpp"
 #include "inventory/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
-#include "examples/snake/board.hpp"
 #include "examples/snake/play_state.hpp"
 #include "examples/tile-defense/host_shapes.hpp"
 #include "graphics/elements.hpp"
@@ -319,15 +318,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::tile_defense::BenchActivate>(), // BenchActivate v1
         shape<::zengine::tile_defense::BenchDoorState>(), // BenchDoorState v1
         shape<::zengine::tile_defense::BenchEarsState>(), // BenchEarsState v1
-        // What crosses the window's two seams, and the operands of the seven operators: bytes in
-        // process, in no weave's manifest.
+        // What crosses the window's seam with its painter, and the operands of the seven
+        // operators: bytes in process, in no weave's manifest.
         shape<::zengine::graphics::PaintNode>(), // PaintNode v1
         shape<::zengine::graphics::PaintTask>(), // PaintTask v2
         shape<::zengine::graphics::NodePaint>(), // NodePaint v1
         shape<::zengine::graphics::PaintResult>(), // PaintResult v1
-        shape<::zengine::graphics::ElementEvent>(), // ElementEvent v1
-        shape<::zengine::graphics::ElementOutcome>(), // ElementOutcome v1
-        shape<::zengine::graphics::ElementDescribed>(), // ElementDescribed v1
         shape<::zengine::graphics::Color>(), // Color v1
         shape<::zengine::graphics::GroupArgs>(), // GroupArgs v1
         shape<::zengine::graphics::RectArgs>(), // RectArgs v1
@@ -347,11 +343,6 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::graphics::ImageFace>(), // ImageFace v1
         shape<::zengine::graphics::ScrollBarFace>(), // ScrollBarFace v1
         shape<::zengine::graphics::TextBoxFace>(), // TextBoxFace v1
-        // The snake's board: its data, changes and state, bytes its world and its code exchange.
-        shape<::zengine::snake::SnakeBoardData>(), // SnakeBoardData v1
-        shape<::zengine::snake::SnakeStep>(), // SnakeStep v1
-        shape<::zengine::snake::SnakeNewGame>(), // SnakeNewGame v1
-        shape<::zengine::snake::SnakeBoardState>(), // SnakeBoardState v1
         // Said by the GUI window, which a build without SDL has no manifest of.
         shape<zengine::graphics::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
         // BUILT BY HAND, under a quoted name: a file's format, a value carried as bytes inside

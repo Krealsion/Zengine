@@ -485,7 +485,7 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
 
         // A ROOM OR A PRESS ANYONE BUT THE WINDOW SAYS IS NOTHING: the rows stay this window's.
         mark = window.weave().heard.size();
-        u.r.publish(loom::to_value(gfx::AreaRoom{area, "elsewhere", 1, 480, 120, {}}));
+        u.r.publish(loom::to_value(gfx::AreaRoom{area, "elsewhere", 1, 480, 120}));
         u.r.publish(loom::to_value(gfx::ActionRequested{area, pane::kActionComplete}));
         CHECK(window.weave().heard.size() == mark);
         window.ask(area, pane::kActionComplete);

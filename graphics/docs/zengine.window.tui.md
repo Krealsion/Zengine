@@ -14,11 +14,11 @@ showed are read back by picture and chunk; C++ in its own process may ask the sa
 ## About
 
 The window keeps, in its state, its incarnation and every area it was introduced: where it stands,
-its owner, its palette, and what was drawn there -- every node in its paint order, every element
-record, each element it presents with its state -- and each palette offered. A reload keeps
-all of it and nothing is drawn again. What it painted, and the libraries it opened, it keeps in
-memory: started again, it paints its areas once from what its state keeps. A window replaced starts empty, with a
-new incarnation: each owner draws whole once when it hears its room, and says each element once.
+its owner, its palette, and what was drawn there -- every node in its paint order and every
+element record -- and each palette offered. A reload keeps all of it and nothing is drawn again.
+What it painted it keeps in memory: started again, it paints its areas once from what its state
+keeps. A window replaced starts empty, with a new incarnation: each owner draws whole once when it
+hears its room.
 
 It takes the terminal when activated, its output with the terminal's claim
 (`graphics/window/terminal_io.hpp`) and its input as the Input weave reads it
@@ -26,26 +26,26 @@ It takes the terminal when activated, its output with the terminal's claim
 it reads and writes nothing, offers no size, and draws its picture as far as its areas reach
 (`graphics/window/window_tui.hpp`: at least `kUnmeasuredCols` by `kUnmeasuredRows`).
 
-**Showing.** A node is painted once, when it changes, in its area's palette. The areas are
-composed front to back by their order, and the terminal is written only the cells that changed,
-as runs: a cursor move, the ink, the glyphs. A drawing or a change saying `more` holds the
-showing back; the next message from that drawer without it shows everything since, once. Any other
-message the window handles shows what it changed.
+**Showing.** A node is painted once, when it changes, in its area's palette. The areas are composed
+front to back by their order, and the terminal is written only the cells that changed, as runs: a
+cursor move, the ink, the glyphs. A drawing saying `more` holds the showing back; the next message
+from that drawer without it shows everything since, once. Any other message the window handles shows
+what it changed.
 
 **Keys and the pointer.** The window reads its terminal when the host's one wait wakes it
 ([`Waited`](#loomhostwaited)), and sends what it read on in order. A pointer moment lands in the front-most area that takes its cell: one
-placed to hear the pointer takes every cell in it, any other only where it drew an action or an
-element. A left press on an element whose code takes it is the element's; else, in an area deaf to
-the pointer, its record's action goes to the owner (`ActionRequested`); else, in one hearing it,
-the press itself (`AreaButtonChanged`).
+placed to hear the pointer takes every cell in it, any other only where it drew an action. A left
+press in an area deaf to the pointer is its record's action, to the owner (`ActionRequested`); in
+one hearing it, the press itself (`AreaButtonChanged`).
 
 ## Use
 
 An owner is told its room first (`AreaRoom`), once the directory introduces its area; it then draws
-with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends changes
-with [`ElementChange`](#elementchange). A drawer does all three through a canvas or a
-drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only on a new
-window, incarnation, size or measure, or an empty area. To read what it shows, ask
+with [`Drawn`](#drawn), through a canvas or a drawing weave ([the Graphics
+package](graphics.md#a-drawing-weave)), which draw whole only on a new window, incarnation, size or
+measure, or an empty area. An element whose code is not the owner's is drawn by the owner, from what
+the function its weave provides answers ([an element of your
+own](graphics.md#an-element-of-your-own)): the window runs no one's code. To read what it shows, ask
 [`WindowShowAsked`](#windowshowasked), or, as an area's arranger, [`AreaShowAsked`](#areashowasked),
 told when it settled (`AreaSettled`).
 
@@ -58,8 +58,8 @@ landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Each 
 ([`AttributedInput`](#attributedinput)), a press its clicks
 ([`PointerTimingSaid`](#pointertimingsaid)).
 
-Who may send: whoever the host's grant lets reach the window. It takes a drawing or an element only
-from the area's owner, as that role, and the directory's words only from `zengine.graphics`.
+Who may send: whoever the host's grant lets reach the window. It takes a drawing only from the
+area's owner, as that role, and the directory's words only from `zengine.graphics`.
 Every bound is judged before anything changes, and a drawing past one is refused whole, in words,
 to its drawer (`DrawnRefused`), leaving what the window shows as it was. The bounds are
 `graphics/vocabulary.hpp`'s: `kMaxNodesPerArea`, `kMaxElementsPerArea`, `kMaxPathBytes`,
@@ -86,58 +86,26 @@ reading the terminal.
   else `?` a character ([text](graphics.md#text-styles-sizes-fonts-weight)); frames, grounds and
   points as [the operators](graphics.md#the-operators) say.
 - **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'terminal' shows no area
-  '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
-  draw` (or `to remove`), where an element the window presents lies; `'<path>' is drawn in
+  '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is drawn in
   '<parent>', which is not drawn`; `a path is empty, longer than <bytes> bytes or deeper than
   <depth>`; `'<path>' has operands over <bytes> bytes`; `area '<area>' would hold more than <bound>
-  nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
-  sender's to say`; `a drawing says more than <bound> looks`; `'<path>' wears look <n>, which its
+  nodes` (or `elements`, its records); `record '<path>' has no node at its path`; `a drawing says
+  more than <bound> looks`; `'<path>' wears look <n>, which its
   drawing does not say`; `'<path>', a <operator>, wears a look of <paint|ink|text>, which a
   <operator> does not`; and a sheet's, tiles', sprites' or points' own
   ([words](graphics.md#sheets-tiles-sprites-and-points)).
-- **Example:** the snake's world, a drawing weave, sends the nodes its picture changed in a tick
-  with `more`, then its board's change without it, so the tick is shown once.
-
-### `ElementPut`
-
-`ElementPut` v1 presents an element: said once, and again only to start it over.
-
-- **Takes:** `area`; `path`, where the element stands; `type`, its data shape's name; `ref`, the
-  drawer's own reference for it in its changes; `data`, the type's value, whole; `more`.
-- **Answers:** the code offered for `type` is opened on first use and draws the element; its
-  subtree is the code's to draw, and the window keeps the element's state for it. Said again at its
-  path, the element starts over from its new data, and nothing of it is left.
-- **Refuses:** in `DrawnRefused`: `the sender does not draw in area '<area>' here`; `'<path>' is not
-  the sender's to present an element at`; `area '<area>' presents <bound> elements already: '<path>'
-  is not presented`; and, each as `element '<path>': <why>`, `no code offered presents '<type>'`,
-  the code's own words (`its data does not read as SnakeBoardData`), or a library that will not
-  open ([Files](#files)). Nothing of an element never presented stays.
-- **Example:** `ElementPut{"snake.world", "board/grid", "SnakeBoardData", 1, data, false}`, the
-  snake's board, said at its room.
-
-### `ElementChange`
-
-`ElementChange` v1 changes an element the sender presents, by its reference.
-
-- **Takes:** `ref`, the drawer's reference; `kind`, the change's index among the changes the
-  element's code takes; `change`, that change's body alone (the type implies its shape); `more`.
-- **Answers:** the element's code takes the change and draws it again; only what changed is
-  painted.
-- **Refuses:** in `DrawnRefused`, with no area: `no element this window presents is the sender's by
-  reference <ref>`; with the area, `element '<path>': ` and the code's words, as `change <kind> is
-  none this code takes, or its body does not read`.
-- **Example:** each tick the snake's world sends its board one step,
-  `ElementChange{1, 0, step, false}`.
+- **Example:** the snake's world sends what its picture changed in a tick, its board's cells
+  among it, in one drawing, so the tick is shown once.
 
 ### `WindowShowAsked`
 
 `WindowShowAsked` v1 asks the window what it shows, and what it has spent.
 
 - **Takes:** nothing.
-- **Answers:** `WindowShown` v2, to the asker alone: the window's name and incarnation; its rows as
-  text, trailing spaces left off; how many areas, nodes and presented elements it keeps; and since
-  it started, its showings (writes to the terminal) and their bytes, the calls of its painter and
-  of its element code, its refusals, and the last one's words; its textures, none in a terminal.
+- **Answers:** `WindowShown` v3, to the asker alone: the window's name and incarnation; its rows as
+  text, trailing spaces left off; how many areas and nodes it keeps; and since it started, its
+  showings (writes to the terminal) and their bytes, the calls of its painter, its refusals, and the
+  last one's words; its textures, none in a terminal.
 - **Refuses:** nothing.
 - **Example:** a suite asks it after each tick, and compares `rows` with what the game drew.
 
@@ -247,11 +215,6 @@ it is not shown, and `WindowShown` reports `the window shows <bound> areas: '<ar
 `AreaWithdrawn` v1, from `zengine.graphics`, the directory: the area is no longer this window's. What it held goes, a
 press held for it ends, and the cells it covered are shown again.
 
-### `ElementCodeOffered`
-
-`ElementCodeOffered` v1, from `zengine.graphics`, the directory: the library whose code presents an element type. New
-code for a type the window presents draws each such element again, from the state it kept.
-
 ### `PaletteOffered`
 
 `PaletteOffered` v1, from `zengine.graphics`, the directory: a palette, whole, at a revision. The window keeps the
@@ -298,7 +261,7 @@ The window asks it at each activation (`PointerTimingAsked`); until told, it cou
 As its own role the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
 and at each new terminal size: its name, its cells as `kCellPx` pixels (none with no terminal),
 incarnation, its unit the cell and text a cell; the directory keeps it. It never publishes
-`SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v4 for each
+`SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v7 for each
 introduction; `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged` v4, `AreaPointerMoved`,
 `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft` v1 when placed to hear the pointer;
 `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered` v1 as placed to hear each. To an arranger
@@ -307,20 +270,9 @@ one, `AreaSettled` v1; to any arranger, `AreaHandRefused`. To an asker: `WindowS
 `ClipboardText`, `SurfaceCaptured`, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the host's one
 wait, its claim, as its role.
 
-## Files
-
-- **An element's code** is a library the window opens by the path the directory gives, on first
-  use. Code that will not answer is not sent to anyone: it is the last refusal `WindowShown`
-  reports, `area '<area>': <why>`. The words: `could not open '<library>' to look for element
-  code`; `'<library>' exports no element code`; `'<library>' offers element seam version <n>, not
-  <m>`; `'<library>' could not say what it is: <reason>`; `'<library>' described itself in a shape
-  that does not read`; `its code answered something that does not read as an ElementOutcome`. What
-  a library exports is [the element seam](graphics.md#the-element-seam). The window paints with its
-  own painter, which no library replaces.
-
 ## See also
 
 - [`zengine.graphics`](zengine.graphics.md), the directory that introduces areas to it.
 - [The Graphics package](graphics.md): the node and the operators, colours by name, drawing with a
-  canvas, a drawing weave, an element of your own, and the element seam.
+  canvas, a drawing weave, and an element of your own.
 - [The snake](../../examples/snake/README.md), whose host loads the window and draws into it.

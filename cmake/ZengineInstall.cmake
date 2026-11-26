@@ -187,15 +187,13 @@ set(zengine_public_headers_view view/vocabulary.hpp view/description.hpp view/vi
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
 # The graphics vocabulary an owner draws with, its colours by name -- the pool's generated names
 # and the shipped themes' palettes among them -- the elements, the two painters' code
-# (for characters and for light), the seam an element's code is written against and the pixel
-# arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim and
-# size.
+# (for characters and for light) and the pixel arithmetic; the windows and the directory are
+# artifacts. Beside them, the terminal's claim and size.
 set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp
                                     graphics/text_style.hpp graphics/own.hpp
     graphics/operands.hpp graphics/ops.hpp graphics/implied.hpp graphics/painting.hpp
     graphics/term_paint.hpp graphics/light_paint.hpp graphics/canvas.hpp graphics/drawing.hpp
-    graphics/elements.hpp
-    graphics/element_abi.h graphics/element_export.hpp graphics/pixels.hpp
+    graphics/elements.hpp graphics/pixels.hpp
     graphics/box.hpp graphics/group.hpp graphics/sheet.hpp graphics/tiles.hpp
     graphics/sprites.hpp graphics/points.hpp
     ${ZENGINE_GRAPHICS_GENERATED})

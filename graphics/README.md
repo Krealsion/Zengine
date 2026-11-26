@@ -1,14 +1,15 @@
 # Graphics
 
 **Graphics is how a participant draws into a window. It draws nodes -- the one primitive, an
-operator and its operands -- or says an element once and sends only its changes; the window that
-shows its area keeps the picture, paints it in the palette the area wears -- every colour a draw
-names turned into a colour then -- and writes only what changed.**
+operator and its operands -- and an element whose code is not its own from what that code's
+function answers; the window that shows its area keeps the picture, paints it in the palette the
+area wears -- every colour a draw names turned into a colour then -- and writes only what
+changed.**
 
 A program spells the messages with `#include "graphics/vocabulary.hpp"` and draws with
 `graphics/drawing.hpp` or `graphics/canvas.hpp`, linking `zengine::graphics`. The snake
 (`examples/snake/`) is the worked example: its frame drawn as nodes, its board an element of the
-game's own.
+game's own, which the board's weave's function draws for the world.
 
 The common parts of a user interface come ready to draw, with `#include "graphics/elements.hpp"`:
 a button, a checkbox, a list, a grid, an icon, an image, a scroll view and a text box. Each is a
@@ -16,14 +17,16 @@ small class the owner keeps and changes, and draws into its `Sketch`: its nodes 
 its face (`ButtonFace`, `ListRowFace`, ...) as the record there, so a reader reads what the part is
 and shows. A press on a part asks the owner for the action the owner named when it drew the part,
 and sends nothing when it named none or the part is disabled. A part that sets text is given the
-measure of the window that shows it (`set_measure`, from `AreaRoom::measure`). A part is drawn by its owner, unlike
-an element the window presents from the owner's data (`element_export.hpp`).
+measure of the window that shows it (`set_measure`, from `AreaRoom::measure`). A part is drawn by
+its owner's own code; an element of another weave's code is drawn by its owner too, from the
+`ElementDrawn` that weave's function answers
+([an element of your own](docs/graphics.md#an-element-of-your-own)).
 
 ## Pages
 
 - [`zengine.window.tui`](docs/zengine.window.tui.md), the TUI window's manual: what
   it keeps and shows, what an owner sends it and what it refuses, where a key and a press go, the
-  palettes it holds and the code it opens, and what a reload or a replacement costs
+  palettes it holds, and what a reload or a replacement costs
 - [`zengine.window.gui`](docs/zengine.window.gui.md), the GUI window's manual: the same window on
   the desktop, drawn in light through SDL3, and how it keeps its window across a reload
 - [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual: what the arranger and a
@@ -31,13 +34,13 @@ an element the window presents from the owner's data (`element_export.hpp`).
 - [The Graphics package](docs/graphics.md): drawing into a window -- who says what, the node and the
   element record, the eleven operators, paint order and layers, colours by name, drawing with a
   canvas, sheets, tiles, sprites and points, the helpers, a drawing weave, an element of your own,
-  the element seam, and what a window answers to C++ in its own process
+  the window's own painter, and what a window answers to C++ in its own process
 
 ## What is in this folder
 
 | | |
 |---|---|
-| `vocabulary.hpp` | the messages: the node, the element record, drawing, elements, the directory, a window's report |
+| `vocabulary.hpp` | the messages: the node, the element record, drawing, what an element draws, the directory, a window's report |
 | `color.hpp` | a colour a look carries, one union: none, an exact value, a name from the shared pool, or an own value its pane declares |
 | `pool.json`, `themes/` | the pool's colours and their defaults, and the three shipped themes, generated into C++ names (`graphics/colors.hpp`) and palettes (`graphics/themes.hpp`) as the package is configured |
 | `pixels.hpp` | arithmetic on pixels and cells that cannot overflow, a pixel in a medium's device unit, and the grain a hit test floors by |
@@ -45,7 +48,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
 | `ops.hpp` | the colours a look and an operator's operands carry |
 | `box.hpp`, `group.hpp` | a place and a size by name; a group and the drawing calls inside it by each node's own name |
 | `sheet.hpp`, `tiles.hpp`, `sprites.hpp`, `points.hpp` | a sheet made in code and its frames; a tile's side in a window, places in tiles and a grid of them; sprites and points gathered for one node each |
-| `implied.hpp` | a value's body without its envelope, where an element's type implies its shape |
+| `implied.hpp` | a value's body without its envelope, where a node's operator implies its shape |
 | `canvas.hpp` | what an owner draws with: a `Sketch`, a `Canvas`, `difference` |
 | `elements.hpp` | every part below, in one include |
 | `elements/button.hpp`, `elements/checkbox.hpp` | a `Button` and a `Checkbox`, each with an action while enabled |
@@ -54,10 +57,9 @@ an element the window presents from the owner's data (`element_export.hpp`).
 | `elements/scroll_view.hpp`, `elements/text_box.hpp` | a `ScrollView`, a clipped box the owner draws in, and its bar; a one-line `TextBox` with its cursor |
 | `elements/text_face.hpp` | the text pieces' drawn faces: a text box's outline, text, caret and selection, and a text area scrolled freely with its bar, drawn from the values in `component/` and keeping nothing |
 | `drawing.hpp` | a drawing weave: the room's handshake and the showing, so a drawer writes its picture |
-| `painting.hpp` | a paint task, each colour resolved, and its result; what crosses the element seam: an element's event and its outcome |
+| `painting.hpp` | a paint task, each colour resolved, and its result |
 | `term_paint.hpp`, `light_paint.hpp` | the window's painters, for a medium of characters and of light |
-| `element_abi.h`, `element_export.hpp` | the element seam and its export |
-| `window/` | the windows: their store, the element code they open, the palettes they hold and the window over a medium; the TUI window, `zengine-window-tui`, with the terminal's claim; the GUI window, `zengine-window-sdl` |
+| `window/` | the windows: their store, the palettes they hold and the window over a medium; the TUI window, `zengine-window-tui`, with the terminal's claim; the GUI window, `zengine-window-sdl` |
 | `directory.cpp` | the directory, `zengine-graphics` |
 | `CMakeLists.txt` | how it is built |
 | `docs/` | the weaves' manuals and this package's page |

@@ -1,7 +1,8 @@
 # The Graphics package
 
 A participant that shows something draws it into the window that shows its area. It draws **nodes**
--- the one primitive -- or says an **element** once and then sends only that element's changes.
+-- the one primitive -- and an **element** whose code is not its own it draws from what that code's
+function answers, called with the element's data alone.
 The window keeps what was drawn, paints it in the colours of the palette its area wears, and shows
 only what changed: the cells that changed on a terminal, the picture once a beat in a GUI window. A
 **directory** introduces each area to its window and tells each owner its room; nothing a picture
@@ -9,16 +10,16 @@ is made of passes through it.
 
 A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and links
 `zengine::graphics`. This page is for whoever draws: the vocabulary, colours by name, the canvas, a
-drawing weave, an element of your own, and the seam an element's code is written against; and what
-a window answers for its platform, on the bus and to C++ in its own process. The
-package ships three weaves, each with its manual: the TUI window,
+drawing weave and an element of your own; and what a window answers for its platform, on the bus
+and to C++ in its own process. The package ships three weaves, each with its manual: the TUI window,
 [`zengine.window.tui`](zengine.window.tui.md), built as `zengine-window-tui`; the GUI
 window, [`zengine.window.gui`](zengine.window.gui.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
 Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they
 are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, is another name for
 `night`. The snake (`examples/snake/`) is the worked example:
-it draws its frame as nodes and its board as an element of its own.
+it draws its frame as nodes and its board as an element of its own, which the board's weave's
+function draws.
 
 ![The snake in a TUI window wearing the night palette, its pilot flying and the game paused after step 120: the console's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
 
@@ -27,7 +28,8 @@ it draws its frame as nodes and its board as an element of its own.
 ## Who says what
 
 ```text
-owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
+owner -> its window          Drawn (nodes and records)
+owner -> an element's weave  a call of its function: the element's data in, ElementDrawn out
 window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds,
                              and how it sets text)
 window -> the owner          DrawnRefused (why, in words), ActionRequested
@@ -44,10 +46,10 @@ window -> the input role   PointerTimingAsked (at each activation)
 window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another role)
 window -> the keys' owners   AreaKeyPressed, AreaKeyReleased, AreaTextEntered (naming the area
                              and the hand)
-arranger -> directory        PaletteOffered, PaletteChosen, AreaPlaced, ElementCodeOffered
+arranger -> directory        PaletteOffered, PaletteChosen, AreaPlaced
 arranger -> its window       WindowShaped (its title and size, from a role arranging there)
 window -> everyone           WindowOffered (as its own role: its pixels, incarnation and text)
-directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered, PaletteOffered
+directory -> window          AreaIntroduced, AreaWithdrawn, PaletteOffered
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
 anyone -> a window           ClipboardCopy, PumpSurface, SurfacePlacementRemembered
@@ -81,9 +83,9 @@ under the hand when it landed: the area that showed it, the part named there, an
 drawing as its owner numbered it (`Drawn::number`), so the owner acts on the element the press
 landed on, and refuses it only where its newest drawing shows another there ([a pane may be
 pressed](../../workshop/docs/workshop-panes.md#a-pane-may-be-pressed)). An area placed without the
-pointer takes only the points where what it drew names an action or presents an element, and lets
-the pointer through to the areas behind it everywhere else. Each time the window shows, it tells the
-arranger following an area, unasked, when the area's version moved (`AreaSettled`); of an area its
+pointer takes only the points where what it drew names an action, and lets the pointer through to
+the areas behind it everywhere else. Each time the window shows, it tells the arranger following an
+area, unasked, when the area's version moved (`AreaSettled`); of an area its
 arranger does not follow, it tells the arranger none of this. Either window, terminal or OS, routes
 them alike ([`zengine.window.tui`](zengine.window.tui.md#use)).
 
@@ -336,22 +338,20 @@ where its encoding carries none, one column each.
 
 `graphics/canvas.hpp` is what an owner draws with. A `Sketch` collects one picture; a `Canvas`,
 kept for the owner's life, remembers what it last sent its window, so a whole picture drawn again
-sends only the nodes that changed. A beat queues its picture (`draw`), an element it presents
-(`present`) and its elements' changes (`change`), and `show` sends them, its nodes before its
-elements: every message but the last says `more` follows, and the window shows once, after the
-last. A tick that changes the snake's board and its score is one showing.
+sends only the nodes that changed. A beat queues its picture (`draw`), and `show` sends what it
+queued: every message but the last says `more` follows, and the window shows once, after the last.
+A tick that changes the snake's board and its score is one drawing and one showing.
 
 A canvas draws whole when its window is new, started again, resized or sets text another way, or
 the window says the area is empty. The window tells the room (`AreaRoom`): its name, its
-incarnation, its width and height (`width()`, `height()`), the references of the owner's elements
-it still presents there, whether it holds none of the owner's drawing there (`empty`): an area
+incarnation, its width and height (`width()`, `height()`), whether it holds none of the owner's
+drawing there (`empty`): an area
 shown afresh, or given to this owner; and how it sets text (`text()`, a `TextMeasure`: a column's
 advance and a line's height in pixels at `body`, the GUI window's face or a terminal's cell, every
 other size's in `measures`, and `cell_px()`, its device pixels in a cell). An owner places its text
 by that measure, a row a line and a column an advance, and paints its area's ground: what it leaves
 unpainted shows what stands behind it. `room` answers whether the window, its incarnation, its size or its measure
-changed or the area is empty, and `holds` whether the window presents an element, so an owner says
-again only what the window does not hold.
+changed or the area is empty.
 
 ## Sheets, tiles, sprites and points
 
@@ -484,13 +484,12 @@ then each facet's `after_delivery` in declaration order, where `DrawingFacet` dr
 does not draw before it is left out of the picture, with what is drawn in it, and the drawer is told
 why through its handler for `DrawnRefused`, in words naming the node and its parent, once until what
 it is told changes; the rest of the picture is drawn, where a window would refuse the whole for that
-one node. An optional `on_room` runs when the window, its incarnation, or its size changed, where an
-element the window does not hold is said again (`canvas().holds`). A drawer that presents elements
-emits `ElementPut` and `ElementChange` itself and accepts the presses it wants. A drawer whose parts
-name actions composes `graphics::ActionFacet` in place of `DrawingFacet`: the same facet, also
-taking `ActionRequested`, which is the drawer's `on_action(action, mail)` only when the window that
-shows the drawer's area asks it, as that window's role, about that area; a drawer without actions
-keeps `DrawingFacet` and accepts no `ActionRequested`:
+one node. An optional `on_room(room, mail)` runs when the window, its incarnation, or its size
+changed, a handler where a drawer may call an element's function before its picture goes whole. A
+drawer whose parts name actions composes `graphics::ActionFacet` in place of `DrawingFacet`: the
+same facet, also taking `ActionRequested`, which is the drawer's `on_action(action, mail)` only when
+the window that shows the drawer's area asks it, as that window's role, about that area; a drawer
+without actions keeps `DrawingFacet` and accepts no `ActionRequested`:
 
 ```cpp
 class NewGame
@@ -529,54 +528,49 @@ weave claims nothing.
 
 ## An element of your own
 
-An element is presented by code the window opens, as it opens an operator provider. Its owner says
-it once
-(`ElementPut`: the area, the path, the type, the owner's reference for it, and its data, whole)
-and then sends each change by that reference and the change's index among the changes the code
-takes (`ElementChange`); the type implies each change's shape, so a change is its body alone. The
-code draws what it is told -- the rules stay the owner's. A press it does not take reaches the
-owner as the press itself (`AreaButtonChanged`) where the area was placed with `pointer` true, or
-else as the action its record names (`ActionRequested`); otherwise it sends nothing.
-
-`graphics/element_export.hpp` exports one with a struct and a macro:
+An element whose code is not its owner's -- the snake's board, drawn by the board's weave -- is a
+function another weave provides, and its owner calls it with the element's data ([Loom's
+calls](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#calls-a-function-of-its-argument-alone)).
+The function is handed that data alone: never its weave's instance, a bus or a claim. It answers
+`ElementDrawn`: the element's nodes, each named beneath the place its caller puts them, the looks
+they wear said once, and the records beside them. The owner draws the place and puts the answer
+beneath it in its own picture (`Sketch::place`), so the window is sent only what changed, as for any
+picture, and runs no one's code. The code draws what it is told -- the rules stay the owner's -- and
+a press on the element reaches the owner as a press on any part of its picture does.
 
 ```cpp
-struct BoardCode {
-    using Data = SnakeBoardData;                       // said once, whole
-    using State = SnakeBoardState;                     // kept by the window between events
-    using Changes = std::tuple<SnakeStep, SnakeNewGame>; // the wire's order: grows at its end
-    static State start(const Data& d);
-    static void change(State& s, const SnakeStep& step);  // one overload a change
-    static void change(State& s, const SnakeNewGame& game);
-    static bool press(State& s, const std::string& node, const std::string& path);
-    static void draw(const State& s, graphics::Sketch& f, const std::string& path);
+// The element's weave, holding `snake.board`: one function, of the board's data alone.
+class SnakeBoard final
+    : public loom::WeaveBase<SnakeBoard, SnakeBoardState, loom::Accept<>, loom::Emit<>,
+                             loom::Claims<>, loom::Provides<SnakeBoardData>> {
+public:
+    static graphics::ElementDrawn provide(const SnakeBoardData& b) {
+        graphics::Sketch f;
+        f.outline_rect("border", 0, 0, (b.cols + 2) * b.cell, (b.rows + 2) * b.cell,
+                       graphics::colors::quiet);
+        // ...and a filled cell for the food and each of the snake's
+        return f.as_element(); // its nodes named as drawn, beneath wherever its caller puts them
+    }
 };
-ZENGINE_EXPORT_ELEMENT(BoardCode)
+
+// Its owner, granted the call (Grant::allow_call(kBoardRole, SnakeBoardData::zen_name,
+// SnakeBoardData::zen_version)), asks inside a handler and keeps the answer for its picture...
+loom::Called<graphics::ElementDrawn> drawn = mail.call<graphics::ElementDrawn>(kBoardRole, board);
+// ...which puts it beneath a node of its own.
+f.group("board/grid", 0, 0);
+if (drawn) {
+    f.place("board/grid", *drawn);
+}
 ```
 
-The code draws its whole element from its state each time; the window is handed the difference
-from the drawing before, so only what changed is painted. The window keeps each element's state
-and hands it in with every event, naming the element by a handle of its own.
+A call runs inside a handler of the owner's -- in a drawing weave its `on_room`, a handler of its
+own, or its own `after_delivery`, which runs before the facet draws -- so an owner asks again when
+the element's data changed and keeps the last answer for its picture between. A call needs a call
+rule in the owner's grant, absent by default, and every way it ends without an answer is its own
+word (`loom::CallRefusal`): an owner with no answer draws no element there. The role is resolved
+at each call, so the element's weave replaced answers the next call with its successor's code.
 
-A change travels as its index in `Changes`, so the list's order is a wire contract: it only grows
-at its end. A change of a type outside the list, or listed twice, does not compile where its owner
-sends it (`Canvas::change`).
-
-## The element seam
-
-An element's code is a library a window opens by path, as operator providers are opened
-(`operator/image.hpp`), and calls in its own handler: no message, no participant. The library
-exports one C symbol answering a table whose version the window reads first and refuses when it is
-another; bytes cross as Loom canonical values through sinks the window owns, and every answer is
-read through the one gate. Ours and a stranger's are opened and judged alike.
-
-| seam | symbol | in | out |
-|---|---|---|---|
-| element code (`element_abi.h`) | `zengine_element` | `ElementEvent` | `ElementOutcome` |
-
-Which library holds an element's code is the load plan's word, through the arranger and the
-directory, never a pane's. What a window says of a library it cannot open or read is
-[the window's manual](zengine.window.tui.md#files).
+## The window's own painter
 
 The window paints with its own painter, one of each medium -- the character painter
 (`graphics/term_paint.hpp`) and the painter for light (`graphics/light_paint.hpp`) -- handing it each

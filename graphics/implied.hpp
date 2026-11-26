@@ -5,10 +5,9 @@
 #define ZENGINE_GRAPHICS_IMPLIED_HPP
 
 // A value whose shape its receiver already knows: Loom's canonical bytes without the envelope that
-// names the shape. A node's operator implies its operands' shape and an element's type implies its
-// changes', so the sender leaves the envelope off and the receiver puts back its own before the one
-// gate reads the value: a body of another shape, version or content is refused there, as a whole
-// value would be.
+// names the shape. A node's operator implies its operands' shape, so the sender leaves the envelope
+// off and the receiver puts back its own before the one gate reads the value: a body of another
+// shape, version or content is refused there, as a whole value would be.
 
 #include <zen/serialize.hpp>
 #include <zen/weave/lifecycle.hpp>

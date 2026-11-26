@@ -6,10 +6,11 @@
 
 // What an owner draws with. A Sketch collects one picture's drawing calls; a Canvas, kept for the
 // owner's life, remembers what it last sent its window, so a whole picture drawn again sends only
-// what changed. A beat queues its drawing (`draw`) and its elements' changes (`change`), and `show`
-// sends them, the last saying the beat's drawing is whole, so the window shows once; a drawing
-// weave (graphics/drawing.hpp) shows at the end of every delivery. Element code draws into a Sketch
-// too (graphics/element_export.hpp). Reference: graphics/docs/graphics.md.
+// what changed. A beat queues its drawing (`draw`), and `show` sends it, the last send saying the
+// beat's drawing is whole, so the window shows once; a drawing weave (graphics/drawing.hpp) shows
+// at the end of every delivery. An element's code draws into a Sketch too, said as an
+// `ElementDrawn` from the function its weave provides, which the owner places in its own picture.
+// Reference: graphics/docs/graphics.md.
 
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
@@ -32,7 +33,6 @@
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace zengine::graphics {
@@ -175,6 +175,35 @@ public:
                 out.look = it->second;
             }
             d.put.push_back(std::move(out));
+        }
+    }
+
+    /// THIS SKETCH AS WHAT AN ELEMENT DRAWS: every node, the looks they wear said once, and every
+    /// record, named as drawn, which the caller places beneath a node of its own.
+    ElementDrawn as_element() const {
+        Drawn d;
+        put_worn(d, drawn_);
+        return ElementDrawn{std::move(d.looks), std::move(d.put), said_};
+    }
+
+    /// WHAT AN ELEMENT DREW, PUT BENEATH `root`: each node and record named beneath it, each node
+    /// wearing the look the answer gives it (none where it names none the answer holds). The caller
+    /// draws `root` before it; a node with no name is left out, as one drawn in a parent the
+    /// picture does not draw is left out when it is drawn whole.
+    void place(const std::string& root, const ElementDrawn& drawn) {
+        for (const Node& n : drawn.put) {
+            if (n.path.empty()) {
+                continue;
+            }
+            Node at = n;
+            at.path = root + "/" + n.path;
+            const bool worn = n.look >= 0 && static_cast<std::size_t>(n.look) < drawn.looks.size();
+            put(std::move(at), worn ? &drawn.looks[static_cast<std::size_t>(n.look)] : nullptr);
+        }
+        for (const ElementRecord& r : drawn.said) {
+            ElementRecord at = r;
+            at.path = r.path.empty() ? root : root + "/" + r.path;
+            say(std::move(at));
         }
     }
 
@@ -396,8 +425,8 @@ inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y
     return nearest != nullptr ? nearest->action : std::string();
 }
 
-/// THE WORDS A DRAWER IS TOLD when Loom refused `what` it sent its window (a "drawing", an
-/// "element" or an "element's change") before the window read it, for Loom's `reason`
+/// THE WORDS A DRAWER IS TOLD when Loom refused `what` it sent its window (a "drawing") before the
+/// window read it, for Loom's `reason`
 /// (`loom::DispatchRefused::reason`): the gate's refusal of a drawing names the way for an area
 /// whose every node wears a look of its own.
 inline std::string dispatch_refusal_words(std::string_view what, std::string_view reason) {
@@ -413,8 +442,8 @@ inline std::string dispatch_refusal_words(std::string_view what, std::string_vie
     return words;
 }
 
-/// What an owner keeps for its life: the role it draws as, its area, the window that shows it
-/// and the elements that window presents, what it last sent there, and what one beat has queued.
+/// What an owner keeps for its life: the role it draws as, its area, the window that shows it, what
+/// it last sent there, and what one beat has queued.
 class Canvas {
 public:
     /// The sends a canvas remembers, newest last, so Loom's later word that it refused one is
@@ -426,8 +455,7 @@ public:
 
     /// The room the window that shows the area told. True when the window, its incarnation, its
     /// size or its measure changed, or the window says the area is empty: it holds none of this
-    /// canvas's nodes, so the next drawing goes whole, and of its elements only those the room
-    /// names.
+    /// canvas's nodes, so the next drawing goes whole.
     bool room(const AreaRoom& r) {
         if (!r.empty && r.window == window_ && r.epoch == epoch_ && r.w == w_ && r.h == h_ &&
             r.cell_px == cell_px_ && r.measure() == text_) {
@@ -439,13 +467,10 @@ public:
         h_ = r.h;
         cell_px_ = r.cell_px;
         text_ = r.measure();
-        held_ = std::set<std::int64_t>(r.elements.begin(), r.elements.end());
         known_ = false;
         held_back_ = false;
         return true;
     }
-    /// Whether the window that shows the area presents the element named `ref`.
-    bool holds(std::int64_t ref) const { return held_.count(ref) != 0; }
     const std::string& window() const { return window_; }
     std::int64_t epoch() const { return epoch_; }
     std::int64_t width() const { return w_; }
@@ -512,53 +537,24 @@ public:
         }
     }
 
-    /// Queue an element to present at `path`, from its data form T, said whole.
-    template <class T>
-    void present(const std::string& path, std::int64_t ref, const T& data) {
-        if (!window_.empty()) {
-            queued_.emplace_back(ElementPut{area_, path, loom::schema_of<T>()->name(), ref,
-                                            loom::bequeath_item(data), false});
-            held_.insert(ref);
-        }
-    }
-
-    /// Queue a change of the element named `ref`: C's index among `Changes`, the changes its code
-    /// takes in order, and C's body alone. A C that is not in `Changes` once does not compile.
-    template <class Changes, class C>
-    void change(std::int64_t ref, const C& c) {
-        if (!window_.empty()) {
-            queued_.emplace_back(ElementChange{ref, index_in<C, Changes>(), body_of(c), false});
-        }
-    }
-
-    /// Send what this beat queued, its nodes before its elements, the last saying the drawing is
-    /// whole, so the window shows once. Throws, sending nothing more, when this participant does
-    /// not hold the role it draws as.
+    /// Send what this beat queued, the last saying the drawing is whole, so the window shows once.
+    /// Throws, sending nothing more, when this participant does not hold the role it draws as.
     void show(loom::Mail& mail) {
-        std::vector<Out> out = std::move(queued_);
+        std::vector<Drawn> out = std::move(queued_);
         queued_.clear();
-        std::stable_partition(out.begin(), out.end(),
-                              [](const Out& m) { return std::holds_alternative<Drawn>(m); });
         for (std::size_t i = 0; i < out.size(); ++i) {
-            const bool more = i + 1 < out.size();
-            std::visit(
-                [&](auto& m) {
-                    m.more = more;
-                    const loom::Ticket t =
-                        mail.as_role(role_).send_to_role(window_role(), m);
-                    if (!t.valid()) {
-                        throw std::logic_error("graphics: this participant does not hold the "
-                                               "role '" + role_ + "' it draws as");
-                    }
-                    heard(t.seq, m);
-                },
-                out[i]);
+            Drawn& d = out[i];
+            d.more = i + 1 < out.size();
+            const loom::Ticket t = mail.as_role(role_).send_to_role(window_role(), d);
+            if (!t.valid()) {
+                throw std::logic_error("graphics: this participant does not hold the role '" +
+                                       role_ + "' it draws as");
+            }
+            remember(t.seq, "drawing", d.whole);
         }
     }
 
 private:
-    using Out = std::variant<Drawn, ElementPut, ElementChange>;
-
     /// A send Loom may yet refuse: its queued attempt, what it carried, and whether it was a whole
     /// drawing.
     struct Sent {
@@ -567,40 +563,11 @@ private:
         bool whole = false;
     };
 
-    void heard(std::uint64_t attempt, const Drawn& d) { remember(attempt, "drawing", d.whole); }
-    void heard(std::uint64_t attempt, const ElementPut&) { remember(attempt, "element", false); }
-    void heard(std::uint64_t attempt, const ElementChange&) {
-        remember(attempt, "element's change", false);
-    }
     void remember(std::uint64_t attempt, const char* what, bool whole) {
         sends_.push_back(Sent{attempt, what, whole});
         if (sends_.size() > kHeardSends) {
             sends_.pop_front();
         }
-    }
-
-    template <class C, class Changes, std::size_t... I>
-    static constexpr std::size_t count_of(std::index_sequence<I...>) {
-        return (std::size_t{0} + ... +
-                (std::is_same_v<C, std::tuple_element_t<I, Changes>> ? std::size_t{1} : 0));
-    }
-    template <class C, class Changes, std::size_t... I>
-    static constexpr std::int64_t index_of(std::index_sequence<I...>) {
-        std::int64_t at = -1;
-        ((std::is_same_v<C, std::tuple_element_t<I, Changes>> ? (at = static_cast<std::int64_t>(I),
-                                                                 true)
-                                                              : false) ||
-         ...);
-        return at;
-    }
-    template <class C, class Changes>
-    static constexpr std::int64_t index_in() {
-        constexpr auto all = std::make_index_sequence<std::tuple_size_v<Changes>>{};
-        static_assert(count_of<C, Changes>(all) == 1,
-                      "zengine::graphics::Canvas::change: this change is not one of the element's "
-                      "changes, once -- the `Changes` list its code takes, where a change travels "
-                      "as its index");
-        return index_of<C, Changes>(all);
     }
 
     std::string role_;
@@ -611,11 +578,10 @@ private:
     std::int64_t h_ = 0;
     std::int64_t cell_px_ = 0;
     TextMeasure text_;
-    std::set<std::int64_t> held_;
     bool known_ = false;
     bool held_back_ = false; ///< Loom refused the whole drawing of the picture last sent
     Sketch sent_;
-    std::vector<Out> queued_;
+    std::vector<Drawn> queued_;
     std::deque<Sent> sends_;
 };
 

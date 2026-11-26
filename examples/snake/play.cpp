@@ -4,9 +4,10 @@
 // zengine-snake, the playable host: it owns the boot list and its loop's rest, and nothing else --
 // it draws nothing of the game, knows no snake rules, reads no keys and keeps no time: between
 // turns it rests in one wait on its window and the Timer's time. The world keeps its own
-// rules, keys and beat; the TUI window reads the terminal and shows what owners draw;
-// the directory introduces the two; and the console weave arranges the window, chooses its
-// palette, speaks the status line and sends every lifecycle command (examples/snake/README.md).
+// rules, keys and beat, and calls the board's weave for what the board draws; the TUI window reads
+// the terminal and shows what owners draw; the directory introduces the two; and the console weave
+// arranges the window, chooses its palette, speaks the status line and sends every lifecycle
+// command (examples/snake/README.md).
 
 // The moments are keys, which the window gives the world and the console alike, and the
 // console's buttons beneath its status line, each making its key's gesture: 1 the other palette,
@@ -15,6 +16,7 @@
 // `--pilot` flies the pilot from birth and `--pause-at <step>` pauses the first game after that
 // step: the same game every run, held still on the same step.
 
+#include "board.hpp"
 #include "play_state.hpp"
 #include "vocabulary.hpp"
 
@@ -170,8 +172,8 @@ struct ConsoleContext {
     }
 };
 
-/// The host's hand on the bus and the window's arranger: it places the areas, offers the palettes
-/// and the board's code, chooses the palette, draws the status line and its buttons, holds the
+/// The host's hand on the bus and the window's arranger: it places the areas, offers the palettes,
+/// chooses the palette, draws the status line and its buttons, holds the
 /// reach (the manager and the kernel's door, target-scoped, and the world's poke doors by role),
 /// and hears every answer.
 class ConsoleWeave
@@ -181,7 +183,7 @@ class ConsoleWeave
                        gfx::AreaKeyPressed, gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
                      loom::UnloadRole, loom::PokeResetState, loom::PokeWrite, gfx::AreaPlaced,
-                     gfx::PaletteOffered, gfx::PaletteChosen, gfx::ElementCodeOffered>> {
+                     gfx::PaletteOffered, gfx::PaletteChosen>> {
 public:
     using Weave::on;
 
@@ -358,9 +360,9 @@ private:
         }
     }
 
-    /// The window as the console arranges it: the palettes and the board's code offered, the
-    /// status line and its buttons across the top, the world beneath them, the score beside it
-    /// once loaded; every area hears the keys, and each wears the chosen palette.
+    /// The window as the console arranges it: the palettes offered, the status line and its
+    /// buttons across the top, the world beneath them, the score beside it once loaded; every area
+    /// hears the keys, and each wears the chosen palette.
     void arrange(loom::Mail& mail) {
         const auto to_directory = [&](const auto& m) {
             (void)mail.as_role(kConsoleRole).send_to_role(gfx::kGraphicsRole, m);
@@ -368,7 +370,6 @@ private:
         for (const gfx::PaletteOffered& p : palettes()) {
             to_directory(p);
         }
-        to_directory(gfx::ElementCodeOffered{"SnakeBoardData", ctx_->so("snake-board")});
         choose_palette(mail); // before the places, so each area is introduced once, wearing it
         const std::int64_t c = gfx::kCellPx;
         to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTuiWindow, kConsoleRole, 0,
@@ -532,6 +533,21 @@ constexpr const char* kWeaveSuffix =
 
 std::string ConsoleContext::so(const char* stem) const { return dir + "/" + stem + kWeaveSuffix; }
 
+/// `trust`, and a call of the board's function for the world's libraries, by the names the host
+/// loads and swaps them under: a swap's candidate is admitted before it binds the world's role,
+/// so the role alone would miss the grown world.
+loom::AdmissionPolicy world_calls_the_board(loom::AdmissionPolicy trust) {
+    return [trust = std::move(trust)](const loom::AdmissionRequest& req) {
+        loom::AdmissionVerdict verdict = trust(req);
+        if (verdict.admitted && req.stage == loom::AdmissionStage::Speak &&
+            (req.name == "snake-world-v1" || req.name == "snake-world-v2")) {
+            verdict.grant.allow_call(kBoardRole, SnakeBoardData::zen_name,
+                                     SnakeBoardData::zen_version);
+        }
+        return verdict;
+    };
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -578,9 +594,10 @@ int main(int argc, char** argv) {
     loom::Switchboard bus;
     zengine::tally::BusTally tally(bus);
     // The demo loads exactly the artifacts its own build just produced, so it says so rather than
-    // relying on a default the Loom no longer has.
-    loom::Kernel kernel(
-        bus, loom::trust_every_artifact("the snake demo loads only its own build output"));
+    // relying on a default the Loom no longer has. A permissive grant holds no call rule, so the
+    // world's libraries are given the one they need: a call of the board's function.
+    loom::Kernel kernel(bus, world_calls_the_board(loom::trust_every_artifact(
+                                 "the snake demo loads only its own build output")));
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
@@ -609,8 +626,6 @@ int main(int argc, char** argv) {
                         gfx::kGraphicsRole);
     reach.allow_to_role(gfx::PaletteChosen::zen_name, gfx::PaletteChosen::zen_version,
                         gfx::kGraphicsRole);
-    reach.allow_to_role(gfx::ElementCodeOffered::zen_name, gfx::ElementCodeOffered::zen_version,
-                        gfx::kGraphicsRole);
     reach.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
     reach.allow_to_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowRole);
     auto weave = std::make_unique<ConsoleWeave>(ctx);
@@ -635,6 +650,7 @@ int main(int argc, char** argv) {
                                            {gfx::kGraphicsRole}});
     boot("load TUI window", loom::LoadWeave{"zengine-window-tui",
                                                  ctx.so("zengine-window-tui"), {kWindowRole}});
+    boot("load board", loom::LoadWeave{"snake-board", ctx.so("snake-board"), {kBoardRole}});
     boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), {kWorldRole}},
          kWorldLoaded);
     if (fly_at_birth) {

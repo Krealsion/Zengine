@@ -10,7 +10,7 @@ them and their practices are. It states no law. The repository's own rules are
 |---|---|
 | `snake/` | the snake game, built only where `loom::kernel` exists |
 | `snake/world.cpp` | loadable weaves `snake-world-v1` and `snake-world-v2` (`SNAKE_WORLD_V2`) |
-| `snake/board.cpp` | element code `snake-board` (a provider library), presenting `board.hpp`'s `SnakeBoardData` |
+| `snake/board.cpp` | the board's weave `snake-board`, holding `snake.board`: the function drawing `board.hpp`'s `SnakeBoardData` as an `ElementDrawn`, which the world calls |
 | `snake/score.cpp` | loadable weave `snake-score`, role `snake.score` |
 | `snake/pilot.cpp` | loadable weave `snake-pilot`, role `snake.pilot`; its choice: `pilot.hpp`, pure |
 | `snake/play.cpp` | executable `zengine-snake`, the playable host; state: `play_state.hpp` |

@@ -185,8 +185,7 @@ private:
     /// A drawing the window paints now: the last of a run (`more` false).
     static bool paints_now(const loom::BusEvent& e) {
         namespace g = zengine::graphics;
-        if (e.schema_name != g::Drawn::zen_name && e.schema_name != g::ElementPut::zen_name &&
-            e.schema_name != g::ElementChange::zen_name) {
+        if (e.schema_name != g::Drawn::zen_name) {
             return false;
         }
         const loom::Cell* more = e.payload != nullptr ? e.payload->get("more") : nullptr;

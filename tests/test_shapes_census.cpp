@@ -170,7 +170,8 @@ std::optional<loom::Value> read_manifest(const std::string& path, std::string& w
     return admitted.value();
 }
 
-/// ...ITS SHAPES: every door, claim and sentence, and its state.
+/// ...ITS SHAPES: every door, claim and sentence, its state, and each function it provides, from
+/// its input shape to its output shape.
 std::vector<Shape> manifest_shapes(const std::string& path, std::string& why) {
     const std::optional<loom::Value> manifest = read_manifest(path, why);
     if (!manifest) {
@@ -188,6 +189,13 @@ std::vector<Shape> manifest_shapes(const std::string& path, std::string& why) {
         }
     }
     out.push_back(loom::decode_schema(*manifest->get("state")->as_message(), deps));
+    if (const loom::Cell* provides = manifest->get("provides")) {
+        for (const loom::Cell& c : provides->as_list()) {
+            const loom::Value& function = *c.as_message();
+            out.push_back(loom::decode_schema(*function.get("input")->as_message(), deps));
+            out.push_back(loom::decode_schema(*function.get("output")->as_message(), deps));
+        }
+    }
     return out;
 }
 

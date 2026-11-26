@@ -637,8 +637,9 @@ TEST_CASE("moment 1: another skin is chosen while the game continues, and nothin
     rig::Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
     REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
+    REQUIRE(r.load("snake-board", SNAKE_SO_BOARD, kBoardRole).valid());
     REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
-    r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole, "night");
+    r.arrange(kWorldArea, kWorldRole, "night");
 
     r.tick(); // seeds: the window shows the classic head
     v1::SnakeWorldState local;
@@ -653,8 +654,6 @@ TEST_CASE("moment 1: another skin is chosen while the game continues, and nothin
     r.to_role(zengine::graphics::kGraphicsRole, zengine::graphics::PaletteChosen{kWorldArea, "block"});
     r.drain();
     CHECK(r.count(mark, "Drawn", kWorldRole) == 0);
-    CHECK(r.count(mark, "ElementPut", kWorldRole) == 0);
-    CHECK(r.count(mark, "ElementChange", kWorldRole) == 0);
     const std::string block = r.screen();
     CHECK(block.find('@') != std::string::npos);
     CHECK(block.find('O') == std::string::npos);
@@ -903,8 +902,9 @@ TEST_CASE("snake draws into its window, never onto the terminal: with no termina
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
         REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
         const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, kScoreRole);
+        REQUIRE(r.load("snake-board", SNAKE_SO_BOARD, kBoardRole).valid());
         REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
-        r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole,
+        r.arrange(kWorldArea, kWorldRole,
                   "night");
         for (int i = 0; i < 6; ++i) {
             r.tick();
@@ -1025,8 +1025,9 @@ TEST_CASE("the world draws its new-game button as a part: a ButtonFace at new-ga
     rig::Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
     REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
+    REQUIRE(r.load("snake-board", SNAKE_SO_BOARD, kBoardRole).valid());
     REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
-    r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole, "night");
+    r.arrange(kWorldArea, kWorldRole, "night");
     r.tick();
 
     // The world's drawing as its window received it, the record at new-game read back as the

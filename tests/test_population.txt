@@ -102,7 +102,6 @@ timer_cursor_bypass_refused       compile-negative  always  (discards|loses) qua
 ui_authored_extent_required       compile-negative  always  a resolvable dimension must be an authored Size
 ui_resolved_geometry_refused      compile-negative  always  no resolved rectangle may live on an authored element
 ui_authored_element_compiles      compile-positive  always
-graphics_change_outside_list_refused compile-negative always is not one of the element's changes
 graphics_own_after_delivery_refused compile-negative always defines its own after_delivery
 graphics_drawer_compiles          compile-positive  always
 graphics_undeclared_color_refused compile-negative always no member named .acent.|acent.*is not a member

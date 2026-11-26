@@ -1,4 +1,4 @@
-# Agent law — Graphics: the window, its colours, its seam and the directory
+# Agent law — Graphics: the window, its colours, its painter and the directory
 
 Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks touching
 `graphics/` or a participant that draws into a window. Public reference:
@@ -6,10 +6,10 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 
 ## The window is a compositor above its medium
 
-- **One window, many media.** The store, the judge, the element seam, the directory's words, keys
-  and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
-  painted, how it shows it and what it reads are the medium's alone (`window_tui.hpp`,
-  `window_sdl.hpp`). A medium never holds a node, a record or an element the store does not.
+- **One window, many media.** The store, the judge, the directory's words, keys and presses are
+  one class over its medium (`graphics/window/window.hpp`); what a medium keeps painted, how it
+  shows it and what it reads are the medium's alone (`window_tui.hpp`, `window_sdl.hpp`). A medium
+  never holds a node or a record the store does not.
 - **A window answers for its platform, on the bus and to C++ in its own process**: a copy, a
   paste's read of the clipboard (`ClipboardText`), its place on the desktop and a place offered
   back, a close its desktop asked for, the beat on request (`PumpSurface`), and the picture it last
@@ -25,15 +25,12 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **Nothing on the path a picture takes but the drawer and its window.** The directory introduces;
   it never holds a node, a record or a painted cell, and a palette chosen or offered or an area
   moved sends the window a word, never a drawing.
-- **One showing a beat, on the drawer's word.** A drawing or a change saying `more` is held back;
+- **One showing a beat, on the drawer's word.** A drawing saying `more` is held back;
   the next message from that drawer without it shows everything since, once. Any other handler of
   the window shows what it changed.
 - **Every bound is judged before anything changes**, and a drawing past one is refused whole, to
-  its drawer, in words (`DrawnRefused`): the nodes, records and presented elements of an area, a
-  path's bytes and depth, an operator's operands.
-  A record said again at its own path counts as
-  itself. An element whose data does not read as its type is refused saying so, and nothing of a
-  never-presented element stays.
+  its drawer, in words (`DrawnRefused`): the nodes and records of an area, a path's bytes and
+  depth, an operator's operands. A record said again at its own path counts as itself.
 - Owners draw whole only when the window, its incarnation,
   its size or its measure changed, or the window says the area is empty (`AreaRoom`,
   `Canvas::room`).
@@ -42,8 +39,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   area's ground, so nothing behind a pane shows through what it leaves blank; no window paints an
   area's ground for its owner.
 - **The window tells the room.** It answers every introduction of an area with the owner's room,
-  naming the elements it still presents there, so a drawer's state keeps no window or incarnation
-  and a drawer that starts again says only what the window does not hold. An area given another
+  so a drawer's state keeps no window or incarnation. An area given another
   owner, or withdrawn and introduced again, starts empty, and its room says so (`empty`). A drawing
   weave takes a room only from the role of the window it names.
 
@@ -52,9 +48,8 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **An area placed to hear the pointer holds every point inside it**, painted or not, and its owner
   is given every pointer moment there as the moment it was, naming the area: `AreaButtonChanged`,
   `AreaPointerMoved`, `AreaWheelTurned`, at the area's own point in pixels. A record there takes no
-  press: the press goes as itself, element code still first. An area deaf to the pointer takes a
-  point only where what it drew names an action or presents an element, and lets the pointer through
-  elsewhere.
+  press: the press goes as itself. An area deaf to the pointer takes a point only where what it
+  drew names an action, and lets the pointer through elsewhere.
 - **A press holds its button for its area until that button's release**: its moves and its release
   go there wherever the pointer is, and carry the press's number as their correlation. A hold ends
   with no release when its area is withdrawn or handed over, or an area hearing the pointer comes to
@@ -128,26 +123,20 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   paint, an ink or a text's look), each node naming one by its place there or none, its operator's
   default; the window keeps an area's looks once and lets go of one no node wears, and its judge
   refuses a look the drawing does not say or the operator does not wear.
-- **An element's changes are a list whose order is the wire**: a change travels as its index, so
-  the list only grows at its end, and a change outside it does not compile where its owner sends
-  it.
 
-## The element seam, and the window's own painter
+## An element is drawn by its owner, and the window paints with its own painter
 
-- An element's code is a library the window opens by path and calls in its own handler: one
-  exported C symbol, the seam's version read first and another refused, bytes through sinks the
-  window owns, every answer read through the gate. No exception crosses.
+- **No window runs an element's code.** An element whose code is not its owner's is a function a
+  weave provides, of the element's data alone (Loom's MSG-14); its owner calls it inside a handler
+  of its own and draws what it answers (`ElementDrawn`) in its own picture, beneath a node it draws
+  (`Sketch::place`). A window loads no library and calls nothing of anyone's.
+- **Element code draws what it is told.** It holds no game's or pane's rules; behaviour stays with
+  the owner, which hands the function the data it needs. Nothing is kept between two calls.
 - **The window paints with its own painter**, one of each medium behind one interface (`PaintTask`
   in, `PaintResult` out, every colour resolved): no library replaces it, and another way of
   painting is another window weave.
-- **A terminal is never made to show every element a window shows.**
-- **Which library is the load plan's word**, through the arranger and the directory; a drawer
-  names a type, never a library.
-- **Element code draws what it is told.** It holds no game's or pane's rules; behaviour stays with
-  the owner, who says and changes. At the element seam's version the window keeps each element's
-  state and hands it in with every event, naming the element by a handle of its own: a later
-  version may keep the state in the code by that handle.
-- An element code's crash or stall is its window's: it runs in its handler.
+- An element function's crash or stall is its caller's: a native one runs in the caller's handler,
+  and one that throws ends its call `Failed`, the caller's delivery going on.
 
 ## The terminal's claim and the input edge
 

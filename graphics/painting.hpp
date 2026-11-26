@@ -4,10 +4,8 @@
 #ifndef ZENGINE_GRAPHICS_PAINTING_HPP
 #define ZENGINE_GRAPHICS_PAINTING_HPP
 
-// What a window hands its painter and what comes back -- a node to paint, its colours resolved, and
-// what it painted -- and what crosses the element seam a window calls in its own handler, as Loom
-// canonical bytes, never as messages: an event for an element's code and what came of it.
-// Reference: graphics/docs/graphics.md.
+// What a window hands its painter and what comes back: a node to paint, its colours resolved, and
+// what it painted. Reference: graphics/docs/graphics.md.
 
 #include "graphics/text_style.hpp"
 #include "graphics/vocabulary.hpp"
@@ -92,44 +90,6 @@ struct NodePaint {
 struct PaintResult {
     std::vector<NodePaint> nodes;
     ZEN_SHAPE(PaintResult, 1, ZEN_FIELD(nodes));
-};
-
-namespace event {
-inline constexpr const char* kPut = "put";       ///< `input` is the data form, whole
-inline constexpr const char* kChange = "change"; ///< `input` is a change's body; `change_kind` which
-inline constexpr const char* kPress = "press";   ///< `node` is the node pressed
-inline constexpr const char* kRedraw = "redraw"; ///< new code, the same state: drawn whole
-} // namespace event
-
-/// Window -> element code: one event for the element the window names `handle`, at `path`, with
-/// the state the window kept for it ("" before its first put).
-struct ElementEvent {
-    std::string kind;
-    std::int64_t handle = 0;
-    std::string path;
-    loom::Bytes state;
-    std::int64_t change_kind = 0;
-    loom::Bytes input;
-    std::string node;
-    ZEN_SHAPE(ElementEvent, 1, ZEN_FIELD(kind), ZEN_FIELD(handle), ZEN_FIELD(path),
-              ZEN_FIELD(state), ZEN_FIELD(change_kind), ZEN_FIELD(input), ZEN_FIELD(node));
-};
-
-/// Element code -> window: the element's state after the event, which the window keeps; what
-/// changed in its subtree, applied as its drawing; and whether it took a press.
-struct ElementOutcome {
-    loom::Bytes state;
-    Drawn drawn;
-    bool took = true;
-    /// Version 4: its drawing's nodes draw by eleven operators.
-    ZEN_SHAPE(ElementOutcome, 4, ZEN_FIELD(state), ZEN_FIELD(drawn), ZEN_FIELD(took));
-};
-
-/// What element code is: the data form it presents, and the changes it takes in index order.
-struct ElementDescribed {
-    std::string type;
-    std::vector<std::string> changes;
-    ZEN_SHAPE(ElementDescribed, 1, ZEN_FIELD(type), ZEN_FIELD(changes));
 };
 
 } // namespace zengine::graphics
