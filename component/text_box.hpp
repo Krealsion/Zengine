@@ -32,7 +32,7 @@ namespace zengine::component {
 // not a context, command id or file. Shift-transparent spellings follow the bare ones, so a
 // bounded help surface loses the duplicates before a meaning.
 
-/// One consumed editing gesture: the key, the EXACT modifiers, and its human meaning.
+/// One consumed editing gesture: the key, the exact modifiers, and its human meaning.
 struct EditingGesture {
     std::int64_t scancode = 0;
     std::int64_t modifiers = 0;
@@ -105,11 +105,11 @@ public:
     bool empty() const noexcept { return text_.empty(); }
     std::size_t size() const noexcept { return text_.size(); }
 
-    /// THE BYTE THE VISIBLE PART OF THE TEXT BEGINS AT. Zero for everything that fits, so a
+    /// The byte the visible part of the text begins at. Zero for everything that fits, so a
     /// short line is shown whole from its first byte.
     std::size_t first_visible() const noexcept { return first_; }
 
-    /// Is the caret at the end? The one question about a caret that a CONSUMER's policy can
+    /// Is the caret at the end? The one question about a caret that a consumer's policy can
     /// legitimately turn on -- the Terminal's completer answers about the end of a line, so
     /// this is what decides whether it may be asked. The component itself draws no
     /// conclusion from it.
@@ -117,12 +117,12 @@ public:
 
     // ---- The selection, read ------------------------------------------------------------
 
-    /// THE SELECTION'S OTHER END. Equal to the caret exactly when there is no selection.
+    /// The selection's other end. Equal to the caret exactly when there is no selection.
     std::size_t anchor() const noexcept { return places_.anchor; }
     bool has_selection() const noexcept { return places_.has_selection(); }
 
     /// The selected range in reading order — begin inclusive, end exclusive, byte indices of
-    /// the whole text. Which end the CARET is at is a separate fact (`caret()`), and it is
+    /// the whole text. Which end the caret is at is a separate fact (`caret()`), and it is
     /// the anchor/caret split that keeps a leftward and a rightward selection two different
     /// states that show one range.
     std::size_t selection_begin() const noexcept { return places_.begin(); }
@@ -134,7 +134,7 @@ public:
     /// both ends of a selection are on character boundaries, always.
     std::string selected_text() const { return component::selected_text(text_, places_); }
 
-    /// THE PART OF THE SELECTION A ROW OF `columns` COLUMNS IS SHOWING, in columns of the
+    /// The part of the selection a row of `columns` columns is showing, in columns of the
     /// visible slice — the one answer both a painter and a hit test may spend, computed here
     /// because `selection - first_visible` written twice is two answers to one question, and
     /// the second one is right until the first line long enough to scroll (`caret_column`'s
@@ -172,7 +172,7 @@ public:
     /// arithmetic -- a column inside a wide character names that character. A column at or before
     /// the start gives `first_visible` (what the weaver could see); one past the last character
     /// gives `size()`, the end of the whole text -- honest, since after `keep_caret_visible` blank
-    /// room at the right means the text ended there.
+    /// area at the right means the text ended there.
     std::size_t position_at_column(std::int64_t column) const noexcept {
         const std::size_t from = first_ < text_.size() ? first_ : text_.size();
         if (column <= 0) {
@@ -192,12 +192,12 @@ public:
         return text_.substr(first_, end - first_);
     }
 
-    /// Move the window as little as it takes to see the caret, given the row's room: no
-    /// animation, recentring or margin. The rules, in order: (1) no blank room on the right while
-    /// text is hidden on the left, which is what makes deleting recover freed room; (2) the caret
+    /// Move the window as little as it takes to see the caret, given the row's area: no
+    /// animation, recentring or margin. The rules, in order: (1) no blank space on the right while
+    /// text is hidden on the left, which is what makes deleting recover freed area; (2) the caret
     /// is not left of the window; (3) nor past its right; (4) the window does not begin inside a
     /// character. Every measure is in columns. Afterwards the text from `first_visible` fills the
-    /// row whenever it is longer than the row, so blank room at the right means the text ended
+    /// row whenever it is longer than the row, so blank space at the right means the text ended
     /// there.
     void keep_caret_visible(std::int64_t columns) noexcept {
         const std::size_t room = columns > 0 ? static_cast<std::size_t>(columns) : 0;
@@ -216,8 +216,8 @@ public:
 
     // ---- The editing operations ---------------------------------------------------------
 
-    /// Insert what the platform said the weaver typed, at the caret, and step over it. WHILE
-    /// TEXT IS SELECTED, TYPING REPLACES IT — the selection is what the next keystroke acts
+    /// Insert what the platform said the weaver typed, at the caret, and step over it. While
+    /// text is selected, typing replaces it — the selection is what the next keystroke acts
     /// on, which is the whole meaning a weaver attaches to having made one.
     void type(const std::string& utf8) {
         if (utf8.empty()) {
@@ -235,8 +235,8 @@ public:
         settle();
     }
 
-    /// Erase the character immediately BEFORE the caret, and follow it back — or, while text
-    /// is selected, erase the SELECTION: the weaver named what to remove, and removing one
+    /// Erase the character immediately before the caret, and follow it back — or, while text
+    /// is selected, erase the selection: the weaver named what to remove, and removing one
     /// character beside it instead would be answering a different gesture.
     void backspace() {
         if (has_selection()) {
@@ -256,7 +256,7 @@ public:
         settle();
     }
 
-    /// Erase the character AT the caret. The caret does not move -- the text after it comes
+    /// Erase the character at the caret. The caret does not move -- the text after it comes
     /// back to meet it, which is what makes this a different gesture from backspace rather
     /// than the same one aimed differently. A selection is erased whole, `backspace`'s rule.
     void erase_forward() {
@@ -275,7 +275,7 @@ public:
         settle();
     }
 
-    /// ERASE FROM THE START OF THE WORD BEFORE THE CARET TO THE CARET — the word-grain
+    /// Erase from the start of the word before the caret to the caret — the word-grain
     /// backspace. A selection is erased whole instead, the same precedence every erase has.
     void erase_word_before() {
         if (has_selection()) {
@@ -295,7 +295,7 @@ public:
         settle();
     }
 
-    /// ERASE FROM THE CARET TO THE START OF THE NEXT WORD — the word-grain delete.
+    /// Erase from the caret to the start of the next word — the word-grain delete.
     void erase_word_after() {
         if (has_selection()) {
             remember(EditKind::kStructural);
@@ -312,7 +312,7 @@ public:
         settle();
     }
 
-    // ---- Movement. Plain movement COLLAPSES a selection; the select_ variants EXTEND one.
+    // ---- Movement. Plain movement collapses a selection; the select_ variants extend one.
     //
     // Left and Right with a selection live do not step a character: they collapse to the
     // selection's matching end, because after sweeping a range the arrow keys mean "put me
@@ -388,7 +388,7 @@ public:
         settle();
     }
 
-    /// SELECT EVERYTHING, with the caret at the end — where the next ordinary keystroke
+    /// Select everything, with the caret at the end — where the next ordinary keystroke
     /// belongs, and where both media already know how to show an active end.
     void select_all() noexcept {
         places_.anchor = 0;
@@ -397,11 +397,11 @@ public:
         settle();
     }
 
-    /// PUT THE CARET AT A POSITION THAT CAME FROM OUTSIDE THE TEXT — a pointer press,
+    /// Put the caret at a position that came from outside the text — a pointer press,
     /// resolved to a column and then to a byte by whoever knows where the window is.
     /// Clamped into the text and snapped to a character boundary, so there is no index a
     /// press can produce that this type will hold. A press collapses any selection: it is
-    /// the gesture that STARTS one (the drag extends from here), so it cannot also be
+    /// the gesture that starts one (the drag extends from here), so it cannot also be
     /// inside one.
     void place(std::size_t at) noexcept {
         places_.caret = character_boundary(text_, at);
@@ -449,12 +449,12 @@ public:
 
     // ---- The clipboard operations -------------------------------------------------------
 
-    /// COPY THE SELECTION INTO THE OWNER'S CLIPBOARD. With nothing selected, nothing
+    /// Copy the selection into the owner's clipboard. With nothing selected, nothing
     /// happens — the clipboard a weaver filled a minute ago is not overwritten with an empty
     /// string by a stray chord.
     void copy(Clipboard& clip) const { copy_selection(text_, places_, clip); }
 
-    /// CUT: copy the selection, then erase it. One undo entry, because it is one gesture.
+    /// Cut: copy the selection, then erase it. One undo entry, because it is one gesture.
     void cut(Clipboard& clip) {
         if (!has_selection()) {
             return;
@@ -488,7 +488,7 @@ public:
 
     // ---- The history --------------------------------------------------------------------
 
-    /// STEP BACK TO THE STATE BEFORE THE LAST EDIT GROUP. Answers whether anything changed,
+    /// Step back to the state before the last edit group. Answers whether anything changed,
     /// which is a fact a test wants and a consumer may ignore; an undo with no history is
     /// not an error, it is a weaver asking one step too far, and the honest response is
     /// nothing.
@@ -506,7 +506,7 @@ public:
         return true;
     }
 
-    /// STEP FORWARD AGAIN. Redo exists exactly until the next edit: a new keystroke makes
+    /// Step forward again. Redo exists exactly until the next edit: a new keystroke makes
     /// the undone future a road not taken, and `remember` discards it.
     bool redo() {
         if (redo_.empty()) {
@@ -623,7 +623,7 @@ public:
     std::uint64_t draft_epoch() const noexcept { return draft_epoch_; }
 
 private:
-    /// WHAT KIND OF EDIT THE LAST MUTATION WAS — the whole of the undo grouping rule.
+    /// What kind of edit the last mutation was — the whole of the undo grouping rule.
     /// Consecutive edits of one kind coalesce into the entry the first of them opened;
     /// `kStructural` never coalesces (a paste, a cut, a word erase and any edit that
     /// replaced a selection are each one gesture and one entry); `kNone` means the next
@@ -650,7 +650,7 @@ private:
     /// is forgetting the far past, never refusing the present.
     static constexpr std::size_t kUndoDepth = 100;
 
-    /// CALLED BEFORE EVERY MUTATION, WITH THE PRE-STATE STILL CURRENT. Opens a new undo
+    /// Called before every mutation, with the pre-state still current. Opens a new undo
     /// entry when the edit kind changed (or is structural), and always discards the redo
     /// stack — an edit after an undo makes the undone future a road not taken.
     void remember(EditKind kind) {
@@ -704,7 +704,7 @@ private:
 
 // ---- The text box measured in characters ------------------------------------------------
 
-/// WHAT A TEXT BOX SHOWS IN `columns` CHARACTERS, measured as both media lay a row out: the visible
+/// What a text box shows in `columns` characters, measured as both media lay a row out: the visible
 /// slice, the column the caret sits before, and the selected columns (end exclusive, equal when
 /// none shows), all counted from the slice's first character. How the box looks around them -- an
 /// outline, brackets -- is a face's (`graphics/elements/text_face.hpp`).
@@ -718,7 +718,7 @@ struct TextBoxView {
     bool operator==(const TextBoxView&) const = default;
 };
 
-/// THE BOX AS `columns` CHARACTERS SHOW IT through the window it holds now. One measurer: the slice,
+/// The box as `columns` characters show it through the window it holds now. One measurer: the slice,
 /// the caret's column and the selection come from one window, the one a press is read with
 /// (`text_box_press`), so a caret cannot land where the text is not.
 inline TextBoxView text_box_view(const TextBox& box, std::int64_t columns) {
@@ -734,14 +734,14 @@ inline TextBoxView text_box_view(const TextBox& box, std::int64_t columns) {
     return out;
 }
 
-/// ...AND OF A BOX ITS OWNER MAY MOVE: its window kept round the caret first
+/// ...And of a box its owner may move: its window kept round the caret first
 /// (`TextBox::keep_caret_visible`), then measured.
 inline TextBoxView text_box_view(TextBox& box, std::int64_t columns) {
     box.keep_caret_visible(columns);
     return text_box_view(static_cast<const TextBox&>(box), columns);
 }
 
-/// WHERE A PRESS ON A BOX PUTS THE CARET: `column` counted from the slice's first character, any
+/// Where a press on a box puts the caret: `column` counted from the slice's first character, any
 /// column of the box meaning something -- left of the slice its first visible byte, past the text
 /// the text's end. `extend` is a held Shift or a drag: the caret moves and the anchor stays.
 inline void text_box_press(TextBox& box, std::int64_t column, bool extend = false) {

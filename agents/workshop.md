@@ -24,7 +24,7 @@ consumer-specific behavior of its extracted panes.
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
 | a key, the keymap, an edit, a press's causes | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) · [spelling](workshop/key-spelling.md) `WL-KEY` · [causes](workshop/action-causes.md) `WL-CAUSE` · [focus](workshop/focus.md) `WL-FOCUS` |
-| an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
+| an editable line, the TextBox, the clipboard, a paste | [the text box's laws](../component/docs/component-laws.md) `WL-TEXT` |
 | Info's body, its subject, its grounds, the desk row naming it | [info-body](workshop/info-body.md) `WL-INFO` |
 | the Editor, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
@@ -33,13 +33,13 @@ consumer-specific behavior of its extracted panes.
 | a pane's code: the join from a role to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
-| the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
-| what Workshop said: each notice published, the notices record and its `keep`, the Notices pane | [notices](workshop/notices.md) `WL-NOTE` |
+| the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [the laws of attention](../attention/docs/attention-laws.md) `WL-ATTN` |
+| what Workshop said: each notice published, the notices record and its `keep`, the Notices pane | [the notices' laws](../notices/docs/notices-laws.md) `WL-NOTE` |
 | several desks, the tab run, the durable files, the session and the window file, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) · [window-file](workshop/window-file.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the application's defaults: their role, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) `WL-DESK` |
 | a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` |
 | the typed rows a property is edited through, the file doors, an old object document | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
-| the Terminal pane and its seam; the participant, its door, the completer and its speech; the pane's history and view of the record | [terminal](workshop/terminal.md) · [terminal-door](workshop/terminal-door.md) `WL-TERM` |
+| the Terminal pane and its seam; the participant, its door, the completer and its speech; the pane's history and view of the record | [the Terminal's laws](../terminal/docs/terminal-laws.md) · [terminal-door](workshop/terminal-door.md) `WL-TERM` |
 | a guest's hand: the guests file's host, its row, action classes, what a weaver's host refuses, each hand's gestures | [guests](workshop/guests.md) `WL-GUEST` |
 | a guest that reads and points by door: the file's version 3, a role, a by-pane read, a guide mark | [guide](workshop/guide.md) `WL-GUIDE` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |

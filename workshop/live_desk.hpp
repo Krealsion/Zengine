@@ -23,7 +23,7 @@ namespace zengine::workshop {
 
 /// THE ONE-LINE LAYOUT-NAME EDITOR: open or not, which layout it is naming, and the line being
 /// typed. Workshop's input: a committed name is asked of the owner.
-// WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-TEXT-01 -- agents/workshop/text-box.md
+// WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-TEXT-01 -- component/docs/component-laws.md
 struct LayoutNaming {
     bool open = false;
     std::size_t at = 0;

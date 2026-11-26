@@ -76,7 +76,8 @@ the official lane, and self-test before they answer:
   directory) and `agents/verification/` (the VM form): ids unique under `agents/`, every path,
   identifier and witness resolving, every record reciprocal with the WHY lines that name it,
   every `// WL-` or `// MW-` pointer naming the declaration beneath it, a front-page folder's laws
-  (`tests/front_page_folders.txt`) declared once on its own law pages and every citation of their
+  (`tests/front_page_folders.txt`) declared once on its own law pages, a table family's keeping its
+  number, their proofs in the folder's manifest, `tests/laws/<folder>.txt`, and every citation of their
   family declared, no plan code or step label in a case name, a law id a name opens with declared, every case a
   current-facing document cites by name existing wherever the citation stands, every WL, MW or VM
   id a source comment names declared, and no development-phase id in a current-facing Markdown

@@ -9,6 +9,7 @@ words, and kept in the app's folder.
 
 - [Running an app on its own](docs/app.md): an app's folder, making one in Workshop, `app.json`,
   starting it, its console, and what runs the view and the flow.
+- [The app host's laws](docs/app-laws.md): the app host never holds `zengine.workshop`.
 
 ![The tally app in its own GUI window, typed into and counting](docs/images/tally-app.png)
 
@@ -34,15 +35,13 @@ An app written by hand: [`examples/tally-app/`](../examples/tally-app/README.md)
 The repository's guide is [CONTRIBUTING.md](../CONTRIBUTING.md); this section is what a change in
 `app/` adds to it.
 
-**Law.** The folder has no numbered law: what an app is, its console and its end are
-[the reference's](docs/app.md), and a rule about one declaration is in that declaration's comment.
-What the host must never become:
+**Law.** One numbered law, on [the app host's laws](docs/app-laws.md): the app host holds what a
+weave cannot hold and nothing else, and never `zengine.workshop` (APP-01). Its proof is listed in
+`tests/laws/app.txt`. What an app is, its console and its end are [the reference's](docs/app.md),
+and a rule about one declaration is in that declaration's comment. What the host must never become:
 
-- **More than what a weave cannot hold.** `zengine-app` holds the bus, one operator catalog, the
-  Kernel and its control door, the plan's booter and executor, the Flow host and the view host,
-  the role that says where the app is (`zengine.app.host`), the close and the console, and nothing
-  else; it never holds `zengine.workshop`. Everything an app does past that is a weave, its own
-  weave among them ([write Loom, not host code](../CONTRIBUTING.md#what-a-change-is-judged-against)).
+- **More than what a weave cannot hold** (APP-01). Everything an app does past that is a weave
+  ([write Loom, not host code](../CONTRIBUTING.md#what-a-change-is-judged-against)).
 - **A second store of decisions.** The decisions are Loom's authority store in the app's folder,
   `app-authority.json`, its lock held for the run, and nothing is admitted by default. The Kernel
   asks the store at `Open`, and the plan's executor asks the same policy before each row, a

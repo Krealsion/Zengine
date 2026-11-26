@@ -263,7 +263,7 @@ void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
 
 } // namespace
 
-// WL-ATTN-04 -- agents/workshop/attention.md
+// WL-ATTN-04 -- attention/docs/attention-laws.md
 ScreenCanvas paint(const Session& s) {
     const Screen sc = screen_of(s);
     ScreenCanvas c;

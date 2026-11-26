@@ -180,7 +180,7 @@ enum class Act : std::uint8_t {
 /// One declaration row: the identity, the human meaning, where it is requestable, and the
 /// developer's default gesture. Exactly what the common consumers need and nothing more --
 /// no callback, no availability flag, no ordering weight.
-// WL-KEY-01 -- agents/workshop/keyboard.md; WL-ATTN-10 -- agents/workshop/attention.md
+// WL-KEY-01 -- agents/workshop/keyboard.md; WL-ATTN-10 -- attention/docs/attention-laws.md
 struct ActionRow {
     Act act = Act::kNone;
     const char* id = "";

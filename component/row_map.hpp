@@ -36,7 +36,7 @@ inline std::int64_t solid_columns(const std::string& drawn, std::size_t wanted,
 template <class Meaning>
 class RowMap {
 public:
-    /// ONE RUN OF ONE ROW THAT CARRIES ONE MEANING. `first`/`last` are inclusive prose columns;
+    /// One run of one row that carries one meaning. `first`/`last` are inclusive prose columns;
     /// `last == kWholeRow` is the row entire.
     struct Span {
         std::int64_t row = 0;
@@ -51,14 +51,14 @@ public:
 
     static constexpr std::int64_t kWholeRow = -1;
 
-    /// BEGIN A NEW COMPOSITION. What was recorded is kept aside until `settle`, which compares
+    /// Begin a new composition. What was recorded is kept aside until `settle`, which compares
     /// the two and numbers the picture: the same spans keep the same number.
     void begin() {
         previous_.swap(spans_);
         spans_.clear();
     }
 
-    /// END THE COMPOSITION: the picture number moves exactly when the spans did. Returns it.
+    /// End the composition: the picture number moves exactly when the spans did. Returns it.
     std::int64_t settle() {
         if (!settled_ || spans_ != previous_) {
             ++picture_;
@@ -68,7 +68,7 @@ public:
         return picture_;
     }
 
-    /// THE NUMBER OF THE PICTURE LAST SETTLED -- it moves exactly when the row-to-meaning map
+    /// The number of the picture last settled -- it moves exactly when the row-to-meaning map
     /// does, and a press's echo is compared against it. 0 until the first `settle`.
     std::int64_t picture() const noexcept { return picture_; }
 
@@ -80,12 +80,12 @@ public:
     std::size_t size() const noexcept { return spans_.size(); }
     const std::vector<Span>& spans() const noexcept { return spans_; }
 
-    /// THE WHOLE ROW MEANS ONE THING -- a list entry, a heading a press may name.
+    /// The whole row means one thing -- a list entry, a heading a press may name.
     void row(std::int64_t row, Meaning meaning) {
         spans_.push_back(Span{row, 0, kWholeRow, std::move(meaning)});
     }
 
-    /// A RUN OF COLUMNS MEANS ONE THING -- a control inside a row. Refused, and not recorded,
+    /// A run of columns means one thing -- a control inside a row. Refused, and not recorded,
     /// when the run is not inside the row's `solid` columns: a press on the `...` a cut left
     /// behind must not operate a control the weaver cannot see. Returns whether it was recorded.
     bool span(std::int64_t row, std::int64_t first, std::int64_t width, std::int64_t solid,
@@ -97,7 +97,7 @@ public:
         return true;
     }
 
-    /// ROWS SOMETHING IS DRAWN OVER: every span recorded on the `count` rows from `first` is
+    /// Rows something is drawn over: every span recorded on the `count` rows from `first` is
     /// forgotten, so what is drawn there names its own meaning and nothing beneath it answers.
     void cover(std::int64_t first, std::int64_t count) {
         spans_.erase(std::remove_if(spans_.begin(), spans_.end(),
@@ -107,7 +107,7 @@ public:
                      spans_.end());
     }
 
-    /// THE MEANING UNDER A PLACE, or nullptr: the narrowest span that contains it wins, so a
+    /// The meaning under a place, or nullptr: the narrowest span that contains it wins, so a
     /// control inside an entry row answers before the row does. Total over every row and column,
     /// including ones no press can produce.
     const Meaning* at(std::int64_t row, std::int64_t column) const noexcept {
@@ -130,7 +130,7 @@ public:
         return best == nullptr ? nullptr : &best->meaning;
     }
 
-    /// THE SPANS AS A PRESS READS THEM, as indices into `spans()`: row by row, and on a row the
+    /// The spans as a press reads them, as indices into `spans()`: row by row, and on a row the
     /// widest first -- the row entire before any run, and of two as wide the later recorded
     /// first -- so where several hold one place, the last of them is the one `at` answers.
     std::vector<std::size_t> press_order() const {
@@ -154,7 +154,7 @@ public:
         return order;
     }
 
-    /// THE ROW'S OWN MEANING, ignoring controls inside it, or nullptr.
+    /// The row's own meaning, ignoring controls inside it, or nullptr.
     const Meaning* at_row(std::int64_t row) const noexcept {
         for (const Span& s : spans_) {
             if (s.row == row && s.last == kWholeRow) {
@@ -164,7 +164,7 @@ public:
         return nullptr;
     }
 
-    /// THE FIRST ROW THAT CARRIES THIS MEANING (whole-row spans only), or -1: what a keyboard
+    /// The first row that carries this meaning (whole-row spans only), or -1: what a keyboard
     /// route needs to name the place of the row it acts on.
     std::int64_t row_of(const Meaning& meaning) const noexcept {
         for (const Span& s : spans_) {

@@ -17,7 +17,7 @@
 
 namespace zengine::component {
 
-/// WHICH MEMBERS A PLACE SHOWS, WHAT IT OMITTED, AND WHAT IT RESERVED TO SAY SO.
+/// Which members a place shows, what it omitted, and what it reserved to say so.
 ///
 /// Invariants, over every input of every policy below:
 ///   before + count + after == total        (the omitted counts are always true)
@@ -36,7 +36,7 @@ struct ListWindow {
     std::size_t end() const noexcept { return first + count; }
     bool shows(std::size_t i) const noexcept { return i >= first && i < end(); }
     std::size_t marker_rows() const noexcept { return markers; }
-    /// A CUT THE WINDOW COULD NOT RESERVE A ROW FOR -- the consumer's to say elsewhere.
+    /// A cut the window could not reserve a row for -- the consumer's to say elsewhere.
     bool unsaid_cut() const noexcept { return (before > 0 || after > 0) && markers == 0; }
 };
 
@@ -55,14 +55,14 @@ inline ListWindow nothing_shown(std::size_t total, std::size_t at) noexcept {
 
 } // namespace detail
 
-/// A CURSOR-ANCHORED, LEAST-MOTION WINDOW: the largest window that keeps `cursor`
+/// A cursor-anchored, least-motion window: the largest window that keeps `cursor`
 /// visible inside `budget` rows with one marker row reserved per cut side, and among equally
 /// large ones the one whose first row is nearest `hint` (last time's first row), so a list
 /// scrolls by the least it can rather than jumping.
 ///
-/// TOTAL: a cursor past the population is read as its last row; a budget of zero shows nothing
+/// Total: a cursor past the population is read as its last row; a budget of zero shows nothing
 /// and counts everything; a budget that cannot seat the cursor's row beside the markers it would
-/// need (one or two rows, members hidden on both sides) shows the cursor's row alone with NO
+/// need (one or two rows, members hidden on both sides) shows the cursor's row alone with no
 /// marker reserved and the counts still true (`unsaid_cut`).
 inline ListWindow cursor_window(std::size_t total, std::size_t cursor, std::size_t hint,
                                 std::size_t budget) noexcept {
@@ -108,7 +108,7 @@ inline ListWindow cursor_window(std::size_t total, std::size_t cursor, std::size
         }
     }
     if (!found) {
-        // ONE OR TWO ROWS, CUT ON BOTH SIDES: the cursor's row, and the truth in the counts.
+        // One or two rows, cut on both sides: the cursor's row, and the truth in the counts.
         best = ListWindow{};
         best.first = cursor;
         best.count = 1;
@@ -119,7 +119,7 @@ inline ListWindow cursor_window(std::size_t total, std::size_t cursor, std::size
     return best;
 }
 
-/// A CURSOR-ANCHORED, CENTRED WINDOW WITH ONE MARKER ROW FOR BOTH SIDES: the cursor sits at the
+/// A cursor-anchored, centred window with one marker row for both sides: the cursor sits at the
 /// middle of `budget - 1` rows, and the last row says what is hidden above and below in one
 /// sentence. A one-row budget shows the marker and no member; a zero budget shows nothing.
 inline ListWindow centred_window(std::size_t total, std::size_t cursor,
@@ -156,11 +156,11 @@ inline ListWindow centred_window(std::size_t total, std::size_t cursor,
     return w;
 }
 
-/// AN OFFSET-ANCHORED WINDOW -- a scroll, not a cursor: `top` is the first member the weaver
+/// An offset-anchored window -- a scroll, not a cursor: `top` is the first member the weaver
 /// asked to see, clamped so the last page is full, and each cut side reserves a row for its
 /// marker.
 ///
-/// TOTAL: a budget under three rows cannot seat a member between two markers, so it shows up to
+/// Total: a budget under three rows cannot seat a member between two markers, so it shows up to
 /// `budget` members from `top` with no marker reserved and the counts true (`unsaid_cut`).
 inline ListWindow scroll_window(std::size_t total, std::size_t top, std::size_t budget) noexcept {
     if (total == 0) {
@@ -202,7 +202,7 @@ inline ListWindow scroll_window(std::size_t total, std::size_t top, std::size_t 
     return w;
 }
 
-/// WHERE A SCROLL LANDS after `by` steps (negative is up), clamped to the population. The
+/// Where a scroll lands after `by` steps (negative is up), clamped to the population. The
 /// consumer stores the answer as its offset; `scroll_window` clamps it again against the budget
 /// it has at the next composition.
 inline std::size_t scroll_by(std::size_t total, std::size_t top, std::int64_t by) noexcept {
@@ -230,19 +230,19 @@ inline bool marker_per_cut_side(const ListWindow& w) noexcept {
 
 } // namespace detail
 
-/// HOW MANY MEMBERS THE ROW ABOVE THE WINDOW SAYS IT LEFT OUT: `before`, when the window reserved
+/// How many members the row above the window says it left out: `before`, when the window reserved
 /// that side a marker row of its own, else zero -- no row is said where none was reserved, since
 /// a marker that overran the budget would cut the last entry.
 inline std::size_t earlier_marker(const ListWindow& w) noexcept {
     return detail::marker_per_cut_side(w) ? w.before : 0;
 }
 
-/// ...AND THE ROW BELOW IT: `after`, on the same terms.
+/// ...And the row below it: `after`, on the same terms.
 inline std::size_t more_marker(const ListWindow& w) noexcept {
     return detail::marker_per_cut_side(w) ? w.after : 0;
 }
 
-/// THE WHOLE NOTCHES A WHEEL HAS TURNED, taken out of `carry`: `dy` is added to what earlier
+/// The whole notches a wheel has turned, taken out of `carry`: `dy` is added to what earlier
 /// turns left over, the whole steps are returned (toward zero, so either direction), and the
 /// fraction stays for the next turn, so a slow wheel still moves a list.
 inline std::int64_t take_wheel_notches(double& carry, double dy) noexcept {

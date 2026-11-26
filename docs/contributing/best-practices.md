@@ -163,18 +163,18 @@ Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 ### Components (`component/`)
 
-Its law, pages and suites: [`component/AGENTS.md`](../../component/AGENTS.md).
+Its law, pages and suites: [its front page](../../component/README.md#working-on-it).
 
 - **A piece joins the package when extracting it deletes copies that working tools carry.**
   [Recurring principles](../architecture/README.md#recurring-principles)
 - **An unavailable control is still drawn and still a target**, and the operation asks again when
   pressed. [WL-HAND-01](../../agents/workshop/pane-controls.md#wl-hand-01--a-control-is-a-face-a-place-and-an-operation-and-availability-is-drawn)
 - **A paste is a conversation**, and its answer belongs to the draft that asked.
-  [WL-TEXT-09](../../agents/workshop/text-box.md#wl-text-09--a-paste-is-a-conversation-and-the-answer-belongs-to-the-draft-that-asked)
+  [WL-TEXT-09](../../component/docs/component-laws.md#wl-text-09--a-paste-is-a-conversation-and-the-answer-belongs-to-the-draft-that-asked)
 
 ### Attention (`attention/`)
 
-Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
+Its law, pages and suites: [its front page](../../attention/README.md#working-on-it).
 
 - **A condition leaves only when it stops being true.**
   [About](../../attention/docs/zengine.attention.md#about)
@@ -185,7 +185,7 @@ Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
 
 ### Notices (`notices/`)
 
-Its law, pages and suites: [`notices/AGENTS.md`](../../notices/AGENTS.md).
+Its law, pages and suites: [its front page](../../notices/README.md#working-on-it).
 
 - **A notice is a moment that passed**: kept, never waiting, unread or expiring.
   [About](../../notices/docs/zengine.notices-pane.md#about)
@@ -292,10 +292,10 @@ Its law, pages and suites: [`inventory/AGENTS.md`](../../inventory/AGENTS.md).
 
 ### The Terminal (`terminal/`)
 
-Its law, pages and suites: [`terminal/AGENTS.md`](../../terminal/AGENTS.md).
+Its law, pages and suites: [its front page](../../terminal/README.md#working-on-it).
 
 - **The image that presents the Terminal's participant cannot reach it.**
-  [WL-TERM-08](../../agents/workshop/terminal.md#wl-term-08--the-image-that-presents-a-participant-cannot-reach-one)
+  [WL-TERM-08](../../terminal/docs/terminal-laws.md#wl-term-08--the-image-that-presents-a-participant-cannot-reach-one)
 - **Escape sheds one layer a press**, and is given back only when the pane holds nothing.
   [`terminal.back`](../../terminal/docs/zengine.terminal.md#terminalback)
 - **A case moved to another consumer is coverage lost.**

@@ -23,14 +23,14 @@
 
 namespace zengine::component {
 
-/// HOW MANY ROWS OF ITS OWN A STRIP MAY SPEND AT MOST. Three is what the widest strip needs at
-/// the narrowest room a weaver works in and still leaves a list its own rows; past that the rest
+/// How many rows of its own a strip may spend at most. Three is what the widest strip needs at
+/// the narrowest area a weaver works in and still leaves a list its own rows; past that the rest
 /// of the controls are the pane menu's, which is what a first `[menu]` is for.
 inline constexpr std::int64_t kMaxStripRows = 3;
 
-/// HOW MANY ROWS A STRIP MAY SPEND IN A ROOM OF `rows`: none under two rows, else about a third
-/// of the room -- one row until the room has eight, two until eleven -- and never more than
-/// `max_rows`. The controls do not get to eat the pane: what does not fit is counted, and a room
+/// How many rows a strip may spend in an area of `rows`: none under two rows, else about a third
+/// of the area -- one row until the area has eight, two until eleven -- and never more than
+/// `max_rows`. The controls do not get to eat the pane: what does not fit is counted, and an area
 /// too small for one strip row leaves the pane's menu, which opens the same rows.
 inline std::int64_t strip_budget(std::int64_t rows,
                                  std::int64_t max_rows = kMaxStripRows) noexcept {
@@ -40,15 +40,15 @@ inline std::int64_t strip_budget(std::int64_t rows,
     return std::clamp<std::int64_t>((rows - 2) / 3, 1, max_rows);
 }
 
-/// ONE CONTROL A PANE OFFERS: what it reads as, and whether the pane believes the operation
-/// applies right now. Availability is a HINT drawn on the face; it is not permission, and the
+/// One control a pane offers: what it reads as, and whether the pane believes the operation
+/// applies right now. Availability is a hint drawn on the face; it is not permission, and the
 /// pane asks its own question again when the press arrives.
 struct Control {
     std::string label;
     bool available = true;
 };
 
-/// WHERE ONE CONTROL WAS DRAWN: which packed row, which column its face begins at, and how wide
+/// Where one control was drawn: which packed row, which column its face begins at, and how wide
 /// the face is (brackets included -- the whole face is the target).
 struct PlacedControl {
     std::size_t index = 0; ///< into the `Control` list handed to `pack`
@@ -57,7 +57,7 @@ struct PlacedControl {
     std::int64_t width = 0;
 };
 
-/// THE PACKED STRIP: the text rows to draw, where each placed control sits, and how many the
+/// The packed strip: the text rows to draw, where each placed control sits, and how many the
 /// budget could not seat.
 struct ControlStrip {
     std::vector<std::string> rows;
@@ -67,17 +67,17 @@ struct ControlStrip {
     bool empty() const noexcept { return rows.empty(); }
 };
 
-/// THE FACE OF ONE CONTROL, spelled the one way so a pane's own measurement and this packing
+/// The face of one control, spelled the one way so a pane's own measurement and this packing
 /// agree on its width.
 inline std::string control_face(const Control& control) {
     return control.available ? "[" + control.label + "]" : "(" + control.label + ")";
 }
 
-/// PACK `controls` INTO AT MOST `max_rows` ROWS OF `columns` COLUMNS, one space between faces.
+/// Pack `controls` into at most `max_rows` rows of `columns` columns, one space between faces.
 ///
 /// A face wider than the whole width is dropped rather than cut: a control a weaver cannot read
 /// is not a control, and half a label under a hand is worse than none. Rows are only as long as
-/// what they carry, so the caller may fit them into the room as it fits any other row.
+/// what they carry, so the caller may fit them into the area as it fits any other row.
 inline ControlStrip pack_controls(const std::vector<Control>& controls, std::int64_t columns,
                                   std::int64_t max_rows) {
     ControlStrip strip;
@@ -119,7 +119,7 @@ inline ControlStrip pack_controls(const std::vector<Control>& controls, std::int
     return strip;
 }
 
-/// ...A PANE'S OWN CONTROL ROWS, any type with a `label` and an `available`, read as faces: the
+/// ...A pane's own control rows, any type with a `label` and an `available`, read as faces: the
 /// index of each placed control is the row's own index, so its meaning stays the pane's.
 template <class Row>
     requires requires(const Row& r) {
@@ -136,7 +136,7 @@ ControlStrip pack_controls(const std::vector<Row>& controls, std::int64_t column
     return pack_controls(faces, columns, max_rows);
 }
 
-/// HOW MANY ROWS A STRIP OF `controls` WOULD TAKE -- asked before the body is laid out, so the
+/// How many rows a strip of `controls` would take -- asked before the body is laid out, so the
 /// body is given what is genuinely left rather than losing its tail afterwards.
 template <class Row>
 std::int64_t strip_rows_for(const std::vector<Row>& controls, std::int64_t columns,

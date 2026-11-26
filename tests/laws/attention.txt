@@ -1,0 +1,62 @@
+# The proofs of attention/'s laws (attention/docs/attention-laws.md), read by the law_register
+# check (tests/check_law_register.cmake): under each `### <id>` a line a file, the file in
+# backticks, then the functions, types, constants and members it holds bare and its cases quoted.
+# The `Retired:` line holds the numbers these laws no longer use, never used again.
+
+Retired: WL-ATTN-02, WL-ATTN-05, WL-ATTN-06, WL-ATTN-09, WL-ATTN-12
+
+### WL-ATTN-01
+`workshop/screen.hpp` Session::notice Session::conditions kKeymapWallKey
+`workshop/weave_run.cpp` say
+`workshop/attention.hpp` HeldConditions Condition unavailable_tool
+`workshop/weave.hpp` HostContext::standing_conditions
+`workshop/weave_handlers.cpp` take_host_conditions
+`tests/test_workshop_host.cpp` "event sentences stay events, and a condition needs no sentence" "a
+held condition stands until its owner retracts it" "an unavailable tool is named by its artifact on
+the host's own condition row, which no tool paints"
+
+### WL-ATTN-03
+`workshop/screen_attention.cpp` attention_conditions
+`tests/test_workshop_host.cpp` "a held condition stands until its owner retracts it" "the glance is
+ranked by truth, and says how many it is not saying"
+
+### WL-ATTN-04
+`workshop/panes.hpp` ExternalPane ProjectFrontier
+`workshop/screen_pane_state.cpp` pane_state_of
+`workshop/screen_compose.cpp` paint
+`workshop/screen_attention.cpp` attention_conditions
+`workshop/attention.hpp` HeldConditions
+`realization/owner.hpp` Owner::where_claimed
+`workshop/weave_run.cpp` frontier_now
+`pane/drawing.hpp` WindowDrawing
+`graphics/vocabulary.hpp` DrawnRefused
+`tests/test_workshop_host.cpp` "a derived condition enters and leaves attention with its subject"
+"the project frontier is a condition while it waits and nothing after"
+
+### WL-ATTN-07
+`workshop/attention.hpp` ranks_before attention_rank
+`tests/test_workshop_host.cpp` "the glance is ranked by truth, and says how many it is not saying"
+
+### WL-ATTN-08
+`attention/vocabulary.hpp` Dismissal AttentionPaneState::dismissed
+`attention/pane.cpp` say_view visible known_
+`workshop/attention.hpp` Condition::stamp
+`tests/test_workshop_panes_attention.cpp` "dismissal hides a presentation and changes nothing that
+is true" "a dismissed condition comes back when it materially changes" "a dismissal does not outlive
+the condition it was about" "an Attention pane whose every current condition is hidden says they are
+hidden and still true, through a spent notice and a new room, and says nothing needs attention only
+when nothing is true"
+
+### WL-ATTN-10
+`workshop/attention.hpp` Condition::action
+`workshop/keymap.hpp` ActionRow
+`workshop/screen_attention.cpp` standing_conditions
+`tests/test_workshop_host.cpp` "a condition names an action and what crosses is the weaver's own
+gesture" "an alert condition opens nothing"
+`tests/test_workshop_panes_attention.cpp` "the action a condition names arrives as words and not as
+a name"
+
+### WL-ATTN-11
+`workshop/attention.hpp` HeldConditions
+`tests/test_workshop_host.cpp` "the condition path carries no timer, no callback and no history"
+"showing a condition writes no history"

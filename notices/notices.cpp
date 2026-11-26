@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The notices record: a loadable weave that keeps what Workshop said, as Workshop said it
-// (`NoticeSaid`), up to its role-wide `keep` setting, the oldest let go past it; says when the
-// record moved (`NoticesMoved`); and answers a page of it to whoever asks (`NoticesRequested`).
-// It shows nothing: the Notices pane walks it. It lasts the run, and a reload in place keeps it.
-// Workshop law: agents/workshop/notices.md
+// The notices record, a loadable weave answering as `zengine.notices`, keeps what Workshop says
+// (`NoticeSaid`) as Workshop said it, up to its role-wide `keep` setting, and lets the oldest go
+// past it. It says when the record moved (`NoticesMoved`) and answers a page of it to whoever asks
+// (`NoticesRequested`). It shows nothing: the Notices pane walks it. The record lasts the run, and
+// a reload in place keeps it. Its laws are notices/docs/notices-laws.md.
 
 #include "notices/vocabulary.hpp"
 
@@ -35,10 +35,11 @@ namespace {
 namespace ws = zengine::workshop;
 namespace nt = zengine::notices;
 
-/// WHO SAYS THE NOTICES: Workshop's role, read from the installed pane protocol.
+/// Workshop's role, as the pane protocol names it: the one sender whose notices are kept.
 using zengine::pane::pane_menu::kWorkshopRole;
 
-/// THE WORDS AS KEPT: cut at `kMaxNoticeBytes`, never inside a character, ending `...`.
+/// The words as kept. A notice longer than `kMaxNoticeBytes` is cut to fit with the `...` that
+/// ends it, and never inside a character.
 std::string kept_text(std::string text) {
     if (text.size() <= nt::kMaxNoticeBytes) {
         return text;
@@ -66,8 +67,8 @@ class NoticesWeave
 public:
     using Base::on;
 
-    /// EVERY ACTIVATION: the setting declared to the role that keeps it, which hands it back, and
-    /// the record said to have moved, so a reader that asked of an earlier life asks again.
+    /// On every activation the record declares its setting to the role that keeps it, which hands
+    /// it back, and says it moved, so a reader that asked an earlier life of it asks again.
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) {
             return;
@@ -84,9 +85,9 @@ public:
         moved(mail);
     }
 
-    /// ONE THING WORKSHOP SAID, kept as heard, after the newest: from Workshop alone, which says each
-    /// notice once.
-    // WL-NOTE-02 -- agents/workshop/notices.md
+    /// One thing Workshop said, kept as it was heard, after the newest. Only what Workshop says is
+    /// kept, never what another weave says, and Workshop says each notice once, so none is kept
+    /// twice (WL-NOTE-02). A notice numbered below 1 is none.
     void on(const ws::NoticeSaid& said, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || said.number <= 0) {
             return;
@@ -97,8 +98,9 @@ public:
         moved(mail);
     }
 
-    /// THE SETTING AS THE LAYOUTS' OWNER KEEPS IT: a default is kept as its absence, so none is
-    /// `kDefaultKept`. Fewer than the record holds lets the oldest go now.
+    /// The setting as the layouts' owner keeps it. A default is kept as its absence, so no setting
+    /// means `kDefaultKept`, and any other is held to `kDefaultKept` to `kMostKept`. A `keep` below
+    /// what the record holds lets the oldest go now; the same `keep` again changes nothing.
     void on(const ws::RoleSettings& kept, loom::Mail& mail) {
         if (!mail.authored_from_role(zengine::pane::kLayoutsRole)) {
             return;
@@ -118,8 +120,9 @@ public:
         moved(mail);
     }
 
-    /// A PAGE OF THE RECORD, to the asker alone: at most `kMaxNoticesPage` notices ending at the
-    /// newest kept at or before `newest`, oldest first, and where they stand in what is kept.
+    /// Answers a page of the record to the asker alone: at most `kMaxNoticesPage` notices, oldest
+    /// first, ending at the newest kept at or before `newest`, and where they stand among those
+    /// kept.
     void on(const nt::NoticesRequested& asked, loom::Mail& mail) {
         const std::vector<nt::KeptNotice>& kept = state_.kept;
         nt::NoticesShown page;
@@ -127,7 +130,7 @@ public:
         page.last = kept.empty() ? 0 : kept.back().number;
         page.keep = keep_;
         page.let_go = state_.let_go;
-        // THE END OF THE PAGE: one past the newest kept at or before `newest`.
+        // The page ends one past the newest notice kept at or before `newest`.
         std::size_t end = kept.size();
         if (asked.newest > 0) {
             end = 0;
@@ -147,8 +150,8 @@ public:
     }
 
 private:
-    /// THE OLDEST LET GO PAST `keep_`, counted -- past `kMostKept` while the setting has not been
-    /// handed in this life, so a reload keeps what the setting it held kept.
+    /// Lets the oldest go past `keep_`, and counts them. While the setting has not been handed in
+    /// this life the bound is `kMostKept`, so a reload keeps what the setting it held kept.
     void let_go_past_keep() {
         std::vector<nt::KeptNotice>& kept = state_.kept;
         const std::size_t keep = static_cast<std::size_t>(heard_ ? keep_ : nt::kMostKept);
@@ -160,7 +163,7 @@ private:
         state_.let_go += static_cast<std::int64_t>(gone);
     }
 
-    /// THE RECORD MOVED, said to any.
+    /// Says to any that the record moved.
     void moved(loom::Mail& mail) {
         const std::vector<nt::KeptNotice>& kept = state_.kept;
         (void)mail.as_role(nt::kNoticesRole)
@@ -169,8 +172,8 @@ private:
                                       state_.let_go});
     }
 
-    /// HOW MANY THE RECORD KEEPS, as its setting was last handed: a plain member, handed again
-    /// after a reload.
+    /// How many the record keeps, as its setting was last handed. It is a plain member, not state,
+    /// because the setting is handed again after a reload.
     std::int64_t keep_ = nt::kDefaultKept;
     bool heard_ = false;
     zengine::ActivationCursor activation_;

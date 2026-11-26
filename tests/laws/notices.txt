@@ -1,0 +1,33 @@
+# The proofs of notices/'s laws (notices/docs/notices-laws.md), read by the law_register check
+# (tests/check_law_register.cmake): under each `### <id>` a line a file, the file in backticks, then
+# the functions, types, constants and members it holds bare and its cases quoted. The `Retired:`
+# line holds the numbers these laws no longer use, never used again.
+
+Retired: WL-NOTE-01, WL-NOTE-03, WL-NOTE-04
+
+### WL-NOTE-02
+`notices/vocabulary.hpp` kNoticesRole kSettingKeep kDefaultKept kMostKept kMaxNoticeBytes NoticesMoved NoticesState
+`notices/notices.cpp` NoticesWeave kept_text let_go_past_keep on(NoticeSaid)
+`tests/test_workshop_panes_notices.cpp` "the record keeps what Workshop said, the oldest let go past
+keep, and a lower keep lets go at once" "the record keeps nothing a stranger says, cuts a long notice
+and keeps what it holds across a reload"
+
+### WL-NOTE-05
+`workshop/guests.cpp` carries_the_desk follows_the_desk
+`tests/test_workshop_guests.cpp` "a guest reads Workshop's notices through its row: with capture,
+and a page of the record it observes"
+
+### WL-NOTE-06
+`workshop/weave_operation.cpp` move_value_drag drop_carry
+`workshop/layouts/store.cpp` commit_role close
+`workshop/layouts/owner.cpp` LayoutsOwner
+`workshop/weave_desktop.cpp` judge_toggle
+`tests/test_workshop_panes_first_run.cpp` "WL-NOTE-06: what the quick setup keeps for itself is kept
+without a notice, and a keep that was not written is said"
+`tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close is the layouts' owner's: the row stays in
+the live layout, hidden, its settings and this layout's locks kept, and the presenter takes no close"
+`tests/test_workshop_inventory_info.cpp` "a press on a canvas pane drags a value out as a prose press
+does: the hold ends as lost when the carry begins, the value lands where the hand lets go, and a
+click carries nothing" "while an entry is carried the wheel reaches the pane under the hand, past
+Workshop's area in front, and walks its selection; the carry stands, and is dropped where it is
+released"

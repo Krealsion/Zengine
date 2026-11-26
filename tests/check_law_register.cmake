@@ -2,11 +2,11 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The `law_register` entry (docs/contributing/build-and-test.md), CONTRIBUTING.md's register rules:
-# are the registers, records and pointers well formed (and in budget, while the budgets hold); does
-# every name they make, every case a document cites and every law a comment or document names
-# resolve, a front-page folder's laws on its own law pages among them; do case names carry no plan
-# code or bare label, and documents no plan code? It cannot say whether a law is true; each parse
-# says why.
+# are the registers, records, pointers, front-page folders' law pages and their manifests well
+# formed (and in budget, while the budgets hold); does every name they make, every case a document
+# cites and every law a comment or document names resolve, a front-page folder's laws on its own
+# law pages among them; do case names carry no plan code or bare label, and documents no plan code?
+# It cannot say whether a law is true; each parse says why.
 #   cmake [-DLAW_REGISTER_STRICT=OFF] [-DZEN_REPO=<repo>] -P tests/check_law_register.cmake
 
 cmake_minimum_required(VERSION 3.16)
@@ -27,8 +27,9 @@ endif()
 
 # ---- scope, declared here so a standalone clone carries its own rule -----------------
 # THE FAMILY TABLE, one row per law family: its id prefix, the register directory that owns it
-# and its router. An id may spell only the table's families, an entry only its directory's, and a
-# row whose directory holds no register is a red. tools/fill_laws.sh reads these `set(...)` lines
+# and its router. An id may spell only the table's families, an entry only its directory's or a
+# front-page folder's law page (population 2c), and a row whose directory holds no register is a
+# red. tools/fill_laws.sh reads these `set(...)` lines
 # at column 0, one each, so the table has one copy; the self-test binds its synthetic family with
 # list(APPEND), never a second `set`.
 set(ZEN_LAW_FAMILIES WL MW PANE)
@@ -744,6 +745,235 @@ function(zen_law_pointer_names owned name kind param scope out)
     set(${out} "${named}" PARENT_SCOPE)
 endfunction()
 
+# ---- a front-page folder's laws: its own law pages, and its manifest -----------------------------
+#
+# A folder tests/front_page_folders.txt names keeps its laws on its own pages in its `docs/`, each
+# named for its laws (`*-laws`), one heading a law: `## <FAMILY>-<NN> — <title>` for a family of the
+# folder's own, as timer/docs/timer-laws.md does, or `## <FAMILY>-<AREA>-<NN> — <title>` for a law
+# of a family the table names, which keeps the number it had in a register. Every id is declared
+# once, and every citation of a family those pages declare, in a first-party source file or a
+# current-facing document, names a law one of them declares. The proofs of a folder's laws stand in
+# its manifest, `tests/laws/<folder>.txt`, which a law of a table family needs and a folder's own
+# family may have: one `### <id>` a law, then the proof's lines in the appendix's grammar.
+set(ZEN_LAW_FRONT_LIST tests/front_page_folders.txt)
+set(ZEN_LAW_MANIFEST_DIR tests/laws)
+set(ZEN_LAW_RECORD_MARK "**Decision record.**")
+
+# The laws a law page declares, as `<id>` entries, from its `## <FAMILY>-<NN> — ` and
+# `## <FAMILY>-<AREA>-<NN> — ` headings, in page order.
+function(zen_law_page_ids text out)
+    string(REGEX MATCHALL "\n## [A-Z]+(-[A-Z]+)?-[0-9]+ (—|--) " heads "\n${text}")
+    set(ids "")
+    foreach(h IN LISTS heads)
+        string(REGEX MATCH "[A-Z]+(-[A-Z]+)?-[0-9]+" id "${h}")
+        list(APPEND ids "${id}")
+    endforeach()
+    set(${out} "${ids}" PARENT_SCOPE)
+endfunction()
+
+# The law pages of the folders tests/front_page_folders.txt names, in its order and each folder's
+# pages in name order.
+function(zen_law_front_pages out)
+    file(STRINGS "${ZEN_REPO}/${ZEN_LAW_FRONT_LIST}" rows REGEX "^[^#]")
+    set(pages "")
+    foreach(folder IN LISTS rows)
+        string(STRIP "${folder}" folder)
+        if(folder STREQUAL "")
+            continue()
+        endif()
+        file(GLOB found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${folder}/docs/*-laws.md")
+        list(SORT found)
+        list(APPEND pages ${found})
+    endforeach()
+    set(${out} "${pages}" PARENT_SCOPE)
+endfunction()
+
+# The decision records a law's section of a law page links: the section runs from its
+# `## <id> — ` heading to the next `## `, and a record is a page whose text holds
+# ZEN_LAW_RECORD_MARK. Each as a repository path, resolved from the page's own directory, an anchor
+# dropped, once however often it is linked. The text may be as zen_law_read leaves it or as written.
+function(zen_law_page_records rel text id out)
+    # Brackets and semicolons are swapped as zen_law_read swaps them, so a link's `]` never splits
+    # the list of links; text read already is left as it is.
+    string(REPLACE "\r" "" text "${text}")
+    string(REPLACE ";" "${ZEN_SOH}" text "${text}")
+    string(REPLACE "[" "${ZEN_STX}" text "${text}")
+    string(REPLACE "]" "${ZEN_ETX}" text "${text}")
+    set(${out} "" PARENT_SCOPE)
+    string(FIND "\n${text}" "\n## ${id} " at)
+    if(at EQUAL -1)
+        return()
+    endif()
+    string(SUBSTRING "${text}" ${at} -1 section)
+    string(FIND "${section}" "\n## " next)
+    if(NOT next EQUAL -1)
+        string(SUBSTRING "${section}" 0 ${next} section)
+    endif()
+    get_filename_component(dir "${rel}" DIRECTORY)
+    string(REGEX MATCHALL "${ZEN_ETX}\\([^)#]+(#[^)]*)?\\)" links "${section}")
+    set(records "")
+    foreach(link IN LISTS links)
+        if(NOT link MATCHES "\\(([^)#]+)(#[^)]*)?\\)$")
+            continue()
+        endif()
+        set(target "${dir}/${CMAKE_MATCH_1}")
+        while(target MATCHES "[^/.][^/]*/\\.\\./")
+            string(REGEX REPLACE "[^/.][^/]*/\\.\\./" "" target "${target}")
+        endwhile()
+        if(NOT target MATCHES "\\.md$" OR NOT EXISTS "${ZEN_REPO}/${target}" OR target IN_LIST records)
+            continue()
+        endif()
+        file(READ "${ZEN_REPO}/${target}" linked)
+        string(FIND "${linked}" "${ZEN_LAW_RECORD_MARK}" marked)
+        if(NOT marked EQUAL -1)
+            list(APPEND records "${target}")
+        endif()
+    endforeach()
+    set(${out} "${records}" PARENT_SCOPE)
+endfunction()
+# The citations in a text of the families in `families` (a `|` alternation), as `<line>|<id>`: a
+# family, a dash and digits, standing alone: an id inside a longer token, with a letter or a dash
+# before it or a dash after it, is no citation.
+function(zen_law_page_cites text families out)
+    string(REPLACE "\r" "" text "${text}")
+    string(REPLACE ";" "," text "${text}")
+    string(REPLACE "\n" ";" lines "${text}")
+    set(found "")
+    set(n 0)
+    foreach(line IN LISTS lines)
+        math(EXPR n "${n} + 1")
+        if(NOT line MATCHES "(${families})-[0-9]")
+            continue()
+        endif()
+        string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(${families})-[0-9]+([^A-Za-z0-9_-]|$)" hits "${line}")
+        foreach(hit IN LISTS hits)
+            if(hit MATCHES "-[0-9]+-$")
+                continue()
+            endif()
+            string(REGEX MATCH "(${families})-[0-9]+" id "${hit}")
+            list(APPEND found "${n}|${id}")
+        endforeach()
+    endforeach()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
+zen_law_page_ids("# Laws\n\n## TIMER-01 — One\n\ntext ## TIMER-09 — not a heading\n## TIMER-02 -- Two\n### TIMER-03 — a subheading\n## WL-ZZZ-04 — A table family's\n## WL-ZZZ — no number\n" st_page_ids)
+if(NOT st_page_ids STREQUAL "TIMER-01;TIMER-02;WL-ZZZ-04")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a law page declares '${st_page_ids}', want "
+                        "'TIMER-01;TIMER-02;WL-ZZZ-04' (only a `## ` heading opening with an id declares one, "
+                        "of a family of its own or of the table)")
+endif()
+# A law's section links the record under ZEN_LAW_RECORD_DIR twice and the guide once: one record. The
+# next section's link is not the law's.
+zen_law_page_records("tests/laws.md" "## WL-ZZZ-05 — A law\n\nWhy: [the decision](../agents/decisions/a-participant-earns-its-place.md#why), [again](../agents/decisions/a-participant-earns-its-place.md), [the guide](../CONTRIBUTING.md).\n\n## WL-ZZZ-06 — The next\n\n[another](../agents/decisions/what-workshop-said-is-kept.md)\n" "WL-ZZZ-05" st_records)
+if(NOT st_records STREQUAL "agents/decisions/a-participant-earns-its-place.md")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a law's section links the records '${st_records}', "
+                        "want 'agents/decisions/a-participant-earns-its-place.md' alone: a guide is no "
+                        "record, a record linked twice is one, and the next law's link is not this law's")
+endif()
+zen_law_page_cites("see TIMER-01 and (TIMER-07);\nX-TIMER-02, TIMER-03-B and TIMER-04a are no citation\nTIMER-05" "TIMER" st_page_cites)
+if(NOT st_page_cites STREQUAL "1|TIMER-01;1|TIMER-07;3|TIMER-05")
+    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- citations read as '${st_page_cites}', want "
+                        "'1|TIMER-01;1|TIMER-07;3|TIMER-05'")
+endif()
+
+# A folder's manifest, walked over its text -- handed in, so the self-test can walk a synthetic one
+# -- against `declared`, every law its folder's pages declare. A `#` line is a comment, and a
+# `Retired: <id>, ...` line before the first proof carries the numbers the folder's laws no longer
+# hold, never declared again and never cited. Then one `### <id>` a law the folder declares, its
+# proof's lines under it in the proof grammar, every law with one. A law on a public page is
+# witnessed: `witness: none` and `UNWITNESSED` stand in no manifest. Each proof is recorded as a
+# register's is (`zen_law_proven_<id>`), with the manifest that holds it (`zen_law_proof_file_<id>`).
+macro(zen_law_flush_manifest_proof)
+    if(NOT proof_id STREQUAL "")
+        string(STRIP "${proof_text}" proof_text)
+        if(proof_text STREQUAL "")
+            zen_law_fail("${rel} ${proof_id} proof is empty; a law on a public page names the files and cases that prove it")
+        else()
+            set_property(GLOBAL PROPERTY "zen_law_proven_${proof_id}" "${proof_text}")
+            set_property(GLOBAL PROPERTY "zen_law_proof_file_${proof_id}" "${rel}")
+        endif()
+    endif()
+    set(proof_id "")
+    set(proof_text "")
+endmacro()
+function(zen_law_walk_manifest rel content declared)
+    string(REPLACE "\n" ";" lines "${content}")
+    set(proof_id "")
+    set(proof_text "")
+    set(proved "")
+    set(proofs 0)
+    set(retired_lines 0)
+    set(n 0)
+    foreach(line IN LISTS lines)
+        math(EXPR n "${n} + 1")
+        if(line MATCHES "^[ \t]*$" OR line MATCHES "^#( |$)")
+            continue()
+        endif()
+        if(line MATCHES "^### (.*)$")
+            set(heading_id "${CMAKE_MATCH_1}")
+            zen_law_flush_manifest_proof()
+            math(EXPR proofs "${proofs} + 1")
+            if(NOT heading_id MATCHES "^[A-Z]+(-[A-Z]+)?-[0-9]+$")
+                zen_law_show("${line}" shown)
+                zen_law_fail("${rel}:${n} proof heading names no law id: ${shown}")
+            elseif(heading_id IN_LIST proved)
+                zen_law_fail("${rel}:${n} ${heading_id} has a second proof")
+            elseif(NOT heading_id IN_LIST declared)
+                zen_law_fail("${rel}:${n} ${heading_id} has a proof here and no law on its folder's law pages")
+            else()
+                set(proof_id "${heading_id}")
+                list(APPEND proved "${heading_id}")
+            endif()
+            continue()
+        endif()
+        if(line MATCHES "^Retired:")
+            math(EXPR retired_lines "${retired_lines} + 1")
+            if(proofs GREATER 0)
+                zen_law_fail("${rel}:${n} `Retired:` stands after a proof; it comes before the first")
+            elseif(retired_lines GREATER 1)
+                zen_law_fail("${rel}:${n} is a second `Retired:` line; a manifest carries one")
+            else()
+                string(REGEX MATCH "^Retired: ([A-Z]+)-" _ "${line}")
+                zen_law_parse_retired("${line}" "${CMAKE_MATCH_1}" retired_ids retired_why)
+                if(NOT retired_why STREQUAL "")
+                    zen_law_fail("${rel}:${n} `Retired:` ${retired_why}")
+                endif()
+                foreach(retired_id IN LISTS retired_ids)
+                    get_property(twice GLOBAL PROPERTY "zen_law_retired_file_${retired_id}" SET)
+                    if(twice)
+                        get_property(where GLOBAL PROPERTY "zen_law_retired_file_${retired_id}")
+                        zen_law_fail("${rel}:${n} retires ${retired_id}, which ${where} already retires")
+                        continue()
+                    endif()
+                    set_property(GLOBAL PROPERTY "zen_law_retired_file_${retired_id}" "${rel}")
+                    set_property(GLOBAL APPEND PROPERTY zen_law_retired_ids "${retired_id}")
+                endforeach()
+            endif()
+            continue()
+        endif()
+        if(line MATCHES "^#")
+            zen_law_show("${line}" shown)
+            zen_law_fail("${rel}:${n} is a heading a manifest does not hold (`### <id>` heads a proof, `# ` a comment): ${shown}")
+            continue()
+        endif()
+        if(proofs EQUAL 0)
+            zen_law_fail("${rel}:${n} stands before the first proof")
+            continue()
+        endif()
+        if(line MATCHES "witness: none|^UNWITNESSED")
+            zen_law_fail("${rel}:${n} ${proof_id} owes a witness; a law on a public page is proven, and one that owes a witness stays in its register until it has one")
+            continue()
+        endif()
+        string(APPEND proof_text " ${line}")
+    endforeach()
+    zen_law_flush_manifest_proof()
+    foreach(id IN LISTS declared)
+        if(NOT id IN_LIST proved)
+            zen_law_fail("${rel} has no proof of ${id}; it stands under `### ${id}`")
+        endif()
+    endforeach()
+endfunction()
+
 # ---- plan codes: in a case name, and in a current-facing document ------------------------------
 # A token is upper-case parts joined by dashes, the last maybe followed by one lower-case letter,
 # bounded by anything but a letter, digit or underscore: a hyphenated word or a possessive holds
@@ -756,6 +986,29 @@ foreach(zen_family IN LISTS ZEN_LAW_FAMILIES)
         message(FATAL_ERROR
             "law-register: family ${zen_family} is in the family table and not in "
             "ZEN_PLAN_LAW_FAMILIES; its cited ids would be read as development-phase codes. Add it there.")
+    endif()
+endforeach()
+# A family of a front-page folder's own, the one its law pages declare (`## <FAMILY>-<NN> — `), is
+# a law family too, and its citations no phase codes, in a method register's tags as anywhere: read
+# here, before anything is read for codes. Its citations are held to the pages that declare it in
+# population 7.
+zen_law_front_pages(zen_front_pages)
+set(ZEN_LAW_FRONT_FAMILIES "")
+foreach(zen_page IN LISTS zen_front_pages)
+    zen_law_text("${zen_page}" zen_page_text)
+    zen_law_page_ids("${zen_page_text}" zen_page_ids)
+    foreach(zen_id IN LISTS zen_page_ids)
+        if(zen_id MATCHES "^([A-Z]+)-[0-9]+$" AND NOT CMAKE_MATCH_1 IN_LIST ZEN_LAW_FRONT_FAMILIES)
+            list(APPEND ZEN_LAW_FRONT_FAMILIES "${CMAKE_MATCH_1}")
+        endif()
+    endforeach()
+endforeach()
+foreach(zen_family IN LISTS ZEN_LAW_FRONT_FAMILIES)
+    if(NOT zen_family IN_LIST ZEN_PLAN_LAW_FAMILIES)
+        list(APPEND ZEN_PLAN_LAW_FAMILIES "${zen_family}")
+    endif()
+    if(NOT zen_family IN_LIST ZEN_VM_ID_FAMILIES)
+        list(APPEND ZEN_VM_ID_FAMILIES "${zen_family}")
     endif()
 endforeach()
 set(ZEN_PLAN_NOT_CODES UTF-8 UTF-16 UTF-32 AGPL-3 FNV-1a SHA-1 SHA-256 ISO-8601
@@ -2592,59 +2845,145 @@ if(vm_applied_count LESS ZEN_VM_APPLIED_FLOOR)
     zen_law_fail("method registers: ${vm_applied_count} entries are applied in the tree, below the floor ${ZEN_VM_APPLIED_FLOOR}; a SEEN was deleted or a method went back to nowhere yet, and the floor is lowered by no one to make that pass")
 endif()
 
-# ---- a front-page folder's laws: its own law pages ----------------------------------------------
-#
-# A folder tests/front_page_folders.txt names keeps its laws on its own pages in its `docs/`, each
-# named for its laws (`*-laws`), one `## <FAMILY>-<NN> — <title>` heading a law, as
-# timer/docs/timer-laws.md does. Every id is
-# declared once, and every citation of a family those pages declare, in a first-party source file or
-# a current-facing document, names a law one of them declares.
-
-# The laws a law page declares, as `<id>` entries, from its `## <FAMILY>-<NN> — ` headings.
-function(zen_law_page_ids text out)
-    string(REGEX MATCHALL "\n## [A-Z]+-[0-9]+ (—|--) " heads "\n${text}")
-    set(ids "")
-    foreach(h IN LISTS heads)
-        string(REGEX MATCH "[A-Z]+-[0-9]+" id "${h}")
-        list(APPEND ids "${id}")
+# The manifest walker over synthetic manifests. One holding a line before its first proof, a second
+# proof, a proof of a law its folder does not declare, a proof that owes a witness (and so stands
+# empty), a heading naming no id, a heading a manifest does not hold, a `Retired:` line after a
+# proof and no proof of a declared law: nine problems. One whose every declared law has its proof,
+# and which retires a number, raises none and records both. Everything the walks record is dropped
+# again, so nothing reaches the real walk.
+get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
+get_property(law_saved_retired GLOBAL PROPERTY zen_law_retired_ids)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set_property(GLOBAL PROPERTY zen_law_retired_ids "")
+set(manifest_broken "# what the manifest is\nRetired: WL-ZZZ-30, WL-ZZZ-31\na stray line\n### WL-ZZZ-32\n`a.hpp` x\n### WL-ZZZ-32\n`b.hpp` y\n### WL-ZZZ-33\n`c.hpp` z\n### WL-ZZZ-34\nwitness: none\n### not an id\n## A heading\nRetired: WL-ZZZ-35\n")
+zen_law_walk_manifest("tests/laws/selftest-broken.txt" "${manifest_broken}" "WL-ZZZ-32;WL-ZZZ-34;WL-ZZZ-36")
+get_property(manifest_broken_problems GLOBAL PROPERTY zen_law_problems)
+set_property(GLOBAL PROPERTY zen_law_problems "")
+set_property(GLOBAL PROPERTY zen_law_retired_ids "")
+set(manifest_whole "# what the manifest is\n\nRetired: WL-ZZZ-37\n\n### WL-ZZZ-38\n`tests/check_law_register.cmake` zen_law_walk_manifest\n\"a case\"\n\n### TIMER-99\n`tests/check_law_register.cmake` zen_law_page_ids\n")
+zen_law_walk_manifest("tests/laws/selftest-whole.txt" "${manifest_whole}" "WL-ZZZ-38;TIMER-99")
+get_property(manifest_whole_problems GLOBAL PROPERTY zen_law_problems)
+get_property(manifest_whole_retired GLOBAL PROPERTY zen_law_retired_ids)
+get_property(manifest_whole_proven GLOBAL PROPERTY "zen_law_proven_WL-ZZZ-38")
+get_property(manifest_whole_file GLOBAL PROPERTY "zen_law_proof_file_TIMER-99")
+set_property(GLOBAL PROPERTY zen_law_problems "${law_saved_problems}")
+set_property(GLOBAL PROPERTY zen_law_retired_ids "${law_saved_retired}")
+foreach(synthetic WL-ZZZ-30 WL-ZZZ-31 WL-ZZZ-32 WL-ZZZ-33 WL-ZZZ-34 WL-ZZZ-35 WL-ZZZ-36 WL-ZZZ-37 WL-ZZZ-38 TIMER-99)
+    foreach(facet proven proof_file retired_file)
+        set_property(GLOBAL PROPERTY "zen_law_${facet}_${synthetic}")
     endforeach()
-    set(${out} "${ids}" PARENT_SCOPE)
-endfunction()
-# The citations in a text of the families in `families` (a `|` alternation), as `<line>|<id>`: a
-# family, a dash and digits, standing alone: an id inside a longer token, with a letter or a dash
-# before it or a dash after it, is no citation.
-function(zen_law_page_cites text families out)
-    string(REPLACE "\r" "" text "${text}")
-    string(REPLACE ";" "," text "${text}")
-    string(REPLACE "\n" ";" lines "${text}")
-    set(found "")
-    set(n 0)
-    foreach(line IN LISTS lines)
-        math(EXPR n "${n} + 1")
-        if(NOT line MATCHES "(${families})-[0-9]")
-            continue()
-        endif()
-        string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(${families})-[0-9]+([^A-Za-z0-9_-]|$)" hits "${line}")
-        foreach(hit IN LISTS hits)
-            if(hit MATCHES "-[0-9]+-$")
+endforeach()
+zen_law_count_lines("${manifest_broken_problems}" manifest_broken_count)
+if(NOT manifest_broken_count EQUAL 9
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt:3 stands before the first proof"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt:6 WL-ZZZ-32 has a second proof"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt:8 WL-ZZZ-33 has a proof here and no law"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt:11 WL-ZZZ-34 owes a witness"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt WL-ZZZ-34 proof is empty"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt:12 proof heading names no law id"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt:13 is a heading a manifest does not hold"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt:14 `Retired:` stands after a proof"
+   OR NOT manifest_broken_problems MATCHES "selftest-broken.txt has no proof of WL-ZZZ-36"
+   OR NOT manifest_whole_problems STREQUAL ""
+   OR NOT manifest_whole_retired STREQUAL "WL-ZZZ-37"
+   OR NOT manifest_whole_proven MATCHES "zen_law_walk_manifest \"a case\"$"
+   OR NOT manifest_whole_file STREQUAL "tests/laws/selftest-whole.txt")
+    zen_law_show("${manifest_broken_problems}" shown)
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the manifest walker raised ${manifest_broken_count} problem(s) "
+        "on a manifest built with nine:\n${shown}\nand '${manifest_whole_problems}' on a whole one, which "
+        "retired '${manifest_whole_retired}' and recorded the proof '${manifest_whole_proven}' in "
+        "'${manifest_whole_file}'. A law on a public page could then stand unproven, or a proof stand "
+        "for a law no page declares.")
+endif()
+
+# ---- population 2c: a front-page folder's laws of a table family, and the manifests ------------
+#
+# A law of a table family declared on a front-page folder's law page is a law like a register's:
+# its id joins every register's, the page is the file that declares it (a pointer and a record's
+# Laws-supported line name the page), its reason is the one decision record its section links, and
+# its proof stands in the folder's manifest, which population 3 reads as it reads an appendix. A
+# folder whose pages declare one has a manifest; a manifest is a front-page folder's, and holds a
+# proof of every law that folder's pages declare, of either kind.
+
+set(front_table_count 0)
+set(front_manifest_count 0)
+set(front_proven_ids "")
+set(front_folder_names "")
+file(STRINGS "${ZEN_REPO}/${ZEN_LAW_FRONT_LIST}" front_rows REGEX "^[^#]")
+foreach(folder IN LISTS front_rows)
+    string(STRIP "${folder}" folder)
+    if(folder STREQUAL "")
+        continue()
+    endif()
+    list(APPEND front_folder_names "${folder}")
+    file(GLOB pages RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${folder}/docs/*-laws.md")
+    list(SORT pages)
+    set(folder_ids "")
+    set(folder_table_ids "")
+    foreach(page IN LISTS pages)
+        zen_law_text("${page}" content)
+        zen_law_page_ids("${content}" ids)
+        string(MAKE_C_IDENTIFIER "${page}" pagekey)
+        foreach(id IN LISTS ids)
+            list(APPEND folder_ids "${id}")
+            if(NOT id MATCHES "^[A-Z]+-[A-Z]+-[0-9]+$")
                 continue()
             endif()
-            string(REGEX MATCH "(${families})-[0-9]+" id "${hit}")
-            list(APPEND found "${n}|${id}")
+            zen_law_family_of_id("${id}" family)
+            if(NOT family IN_LIST ZEN_LAW_FAMILIES)
+                zen_law_fail("${page} declares ${id}, of ${family}, a family the table does not name; a law page declares a table family's law, or a law of the folder's own family, `<FAMILY>-<NN>`")
+                continue()
+            endif()
+            get_property(known GLOBAL PROPERTY "zen_law_file_${id}" SET)
+            if(known)
+                get_property(where GLOBAL PROPERTY "zen_law_file_${id}")
+                zen_law_fail("${page} declares ${id}, which ${where} declares too; an id is declared once")
+                continue()
+            endif()
+            set_property(GLOBAL PROPERTY "zen_law_file_${id}" "${page}")
+            set_property(GLOBAL APPEND PROPERTY zen_law_ids "${id}")
+            set_property(GLOBAL APPEND PROPERTY "zen_law_ids_of_${pagekey}" "${id}")
+            zen_law_page_records("${page}" "${content}" "${id}" records)
+            list(LENGTH records record_n)
+            if(record_n GREATER 1)
+                string(REPLACE ";" ", " records "${records}")
+                zen_law_fail("${page} ${id} links ${record_n} decision records (${records}); a law's reason is one record")
+                set(records "")
+            endif()
+            set_property(GLOBAL PROPERTY "zen_law_why_${id}" "${records}")
+            list(APPEND folder_table_ids "${id}")
+            math(EXPR front_table_count "${front_table_count} + 1")
         endforeach()
     endforeach()
-    set(${out} "${found}" PARENT_SCOPE)
-endfunction()
-zen_law_page_ids("# Laws\n\n## TIMER-01 — One\n\ntext ## TIMER-09 — not a heading\n## TIMER-02 -- Two\n### TIMER-03 — a subheading\n" st_page_ids)
-if(NOT st_page_ids STREQUAL "TIMER-01;TIMER-02")
-    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a law page declares '${st_page_ids}', want "
-                        "'TIMER-01;TIMER-02' (only a `## ` heading opening with an id declares one)")
-endif()
-zen_law_page_cites("see TIMER-01 and (TIMER-07);\nX-TIMER-02, TIMER-03-B and TIMER-04a are no citation\nTIMER-05" "TIMER" st_page_cites)
-if(NOT st_page_cites STREQUAL "1|TIMER-01;1|TIMER-07;3|TIMER-05")
-    message(FATAL_ERROR "law-register: SELF-TEST FAILED -- citations read as '${st_page_cites}', want "
-                        "'1|TIMER-01;1|TIMER-07;3|TIMER-05'")
-endif()
+    set(manifest "${ZEN_LAW_MANIFEST_DIR}/${folder}.txt")
+    if(EXISTS "${ZEN_REPO}/${manifest}")
+        math(EXPR front_manifest_count "${front_manifest_count} + 1")
+        if(folder_ids STREQUAL "")
+            zen_law_fail("${manifest} is ${folder}/'s manifest, and no law page of ${folder}/ declares a law")
+        endif()
+        zen_law_text("${manifest}" content)
+        zen_law_walk_manifest("${manifest}" "${content}" "${folder_ids}")
+        foreach(id IN LISTS folder_ids)
+            if(NOT id IN_LIST folder_table_ids)
+                get_property(proven GLOBAL PROPERTY "zen_law_proven_${id}" SET)
+                if(proven)
+                    list(APPEND front_proven_ids "${id}")
+                endif()
+            endif()
+        endforeach()
+    elseif(NOT folder_table_ids STREQUAL "")
+        string(REPLACE ";" ", " shown "${folder_table_ids}")
+        zen_law_fail("${folder}/'s law pages declare ${shown}, of the family table, and ${manifest} does not exist; their proofs stand there, `### <id>` and the proof's lines")
+    endif()
+endforeach()
+file(GLOB manifests RELATIVE "${ZEN_REPO}/${ZEN_LAW_MANIFEST_DIR}" "${ZEN_REPO}/${ZEN_LAW_MANIFEST_DIR}/*")
+foreach(name IN LISTS manifests)
+    string(REGEX REPLACE "\\.txt$" "" stem "${name}")
+    if(NOT name MATCHES "\\.txt$" OR NOT stem IN_LIST front_folder_names)
+        zen_law_fail("${ZEN_LAW_MANIFEST_DIR}/${name} is no front-page folder's manifest; a manifest is `<folder>.txt` for a folder ${ZEN_LAW_FRONT_LIST} names")
+    endif()
+endforeach()
 
 # ---- the budgets: every *.md under agents/ -----------------------------------------------------
 #
@@ -2851,7 +3190,8 @@ foreach(rel IN LISTS agents_md)
 endforeach()
 
 # ---- population 3: the appendices' proofs and SEENs -- paths, identifiers, witnesses ------------
-# A proof is one line here, read in the proof grammar (zen_law_proof_tokens). Quoted witnesses
+# The manifests' proofs are read here as the appendices' are, each named by its manifest, and with
+# them the proofs of a folder's own family a manifest holds. A proof is one line here, read in the proof grammar (zen_law_proof_tokens). Quoted witnesses
 # come out first, so a case name holding backticks sheds nothing into the identifier walk; what
 # remains is a path (which sets the file later identifiers are checked against) or an identifier.
 # A SEEN is the same grammar under another word, through the same predicates.
@@ -2860,11 +3200,20 @@ set(path_count 0)
 set(ident_count 0)
 set(witness_checked 0)
 set(rule_m_count 0)
-foreach(id IN LISTS all_ids vm_ids)
-    get_property(rel GLOBAL PROPERTY "zen_law_file_${id}")
+foreach(id IN LISTS all_ids vm_ids front_proven_ids)
+    # A proof is named by the file that holds it: a manifest's by the manifest, a register's by the
+    # register; a SEEN says so, and every other proof is a proof.
+    get_property(in_manifest GLOBAL PROPERTY "zen_law_proof_file_${id}" SET)
+    if(in_manifest)
+        get_property(rel GLOBAL PROPERTY "zen_law_proof_file_${id}")
+    else()
+        get_property(rel GLOBAL PROPERTY "zen_law_file_${id}")
+    endif()
     get_property(para GLOBAL PROPERTY "zen_law_proven_${id}")
-    get_property(word GLOBAL PROPERTY "zen_law_word_${id}")
-    if(word STREQUAL "")
+    get_property(worded GLOBAL PROPERTY "zen_law_word_${id}" SET)
+    if(worded)
+        get_property(word GLOBAL PROPERTY "zen_law_word_${id}")
+    else()
         set(word "proof")
     endif()
     if(para STREQUAL "")
@@ -3000,7 +3349,7 @@ foreach(rel IN LISTS record_files)
     zen_law_header_links("${rel}" "${content}" header_links)
     foreach(linked IN LISTS header_links)
         zen_law_family_of_path("${linked}" linked_family)
-        if(linked_family STREQUAL "")
+        if(linked_family STREQUAL "" AND NOT linked IN_LIST zen_front_pages)
             continue()
         endif()
         set(declares_one FALSE)
@@ -3012,7 +3361,7 @@ foreach(rel IN LISTS record_files)
             endif()
         endforeach()
         if(NOT declares_one)
-            zen_law_fail("${rel}'s header links ${linked}, which declares none of the laws the record lists; link the register file that declares them")
+            zen_law_fail("${rel}'s header links ${linked}, which declares none of the laws the record lists; link the register file or the law page that declares them")
         endif()
     endforeach()
     if(NOT at EQUAL -1)
@@ -3106,7 +3455,7 @@ foreach(rel IN LISTS source_files)
             if(NOT ok)
                 zen_law_show("${line}" shown)
                 string(STRIP "${shown}" shown)
-                zen_law_fail("${rel}:${n} is not a well-formed pointer (`// <family>-X-NN[, ...] -- agents/<area>/<register>.md[; ...]`, the family one of ${ZEN_LAW_FAMILY_RE}${why}): ${shown}")
+                zen_law_fail("${rel}:${n} is not a well-formed pointer (`// <family>-X-NN[, ...] -- <the register or law page that declares it>.md[; ...]`, the family one of ${ZEN_LAW_FAMILY_RE}${why}): ${shown}")
                 continue()
             endif()
             set(line_ids "")
@@ -3115,7 +3464,7 @@ foreach(rel IN LISTS source_files)
                 set(register "${CMAKE_MATCH_1}")
                 string(REPLACE "," ";" ids "${CMAKE_MATCH_2}")
                 if(NOT EXISTS "${ZEN_REPO}/${register}")
-                    zen_law_fail("${rel}:${n} pointer names a register that does not exist: ${register}")
+                    zen_law_fail("${rel}:${n} pointer names a register or law page that does not exist: ${register}")
                     continue()
                 endif()
                 string(MAKE_C_IDENTIFIER "${register}" regkey)
@@ -3389,6 +3738,7 @@ endforeach()
 message(STATUS "law-register: ${vm_register_count} method registers, ${vm_entry_count} entries -- "
                "${vm_applied_count} applied in the tree (floor ${ZEN_VM_APPLIED_FLOOR}), ${vm_nowhere_count} nowhere yet")
 # ---- population 7: a front-page folder's law pages, and every citation of their families --------
+list(LENGTH front_proven_ids front_proven_count)
 set(front_law_folder_count 0)
 set(front_law_page_count 0)
 set(front_law_count 0)
@@ -3409,9 +3759,12 @@ foreach(folder IN LISTS front_rows)
         zen_law_text("${page}" content)
         zen_law_page_ids("${content}" ids)
         if(ids STREQUAL "")
-            zen_law_fail("${page} is a law page and declares no law: a `## <FAMILY>-<NN> — <title>` heading a law")
+            zen_law_fail("${page} is a law page and declares no law: a `## <FAMILY>-<NN> — <title>` or `## <FAMILY>-<AREA>-<NN> — <title>` heading a law")
         endif()
         foreach(id IN LISTS ids)
+            if(id MATCHES "^[A-Z]+-[A-Z]+-[0-9]+$")
+                continue()     # a table family's law, read with the registers' (population 2c)
+            endif()
             if(id IN_LIST front_law_ids OR id IN_LIST all_ids OR id IN_LIST vm_ids)
                 zen_law_fail("${page} declares ${id}, which another law page or register declares too; an id is declared once")
             endif()
@@ -3453,8 +3806,10 @@ else()
                    "${ZEN_LAW_RECORD_FLAG_BYTES} bytes: ${records_flagged}")
 endif()
 message(STATUS "law-register: ${front_law_folder_count} front-page folders, ${front_law_page_count} "
-               "law pages, ${front_law_count} laws (${front_law_families}), ${front_cite_count} "
-               "citations of them read")
+               "law pages, ${front_law_count} laws of their own families (${front_law_families}), "
+               "${front_cite_count} citations of them read; ${front_table_count} laws of the family "
+               "table on them; ${front_manifest_count} manifests under ${ZEN_LAW_MANIFEST_DIR}/, "
+               "proving those and ${front_proven_count} of their own families' laws")
 message(STATUS "law-register: ${path_count} proof paths, ${ident_count} identifiers, "
                "${witness_checked} witnesses checked against ${witness_count} TEST_CASE/SUBCASE "
                "literals in ${witness_file_count} files")

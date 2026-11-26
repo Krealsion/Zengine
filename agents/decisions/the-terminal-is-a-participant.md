@@ -1,7 +1,7 @@
 # The Terminal is a participant
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [terminal](../workshop/terminal.md).
+supports is in [the Terminal's laws](../../terminal/docs/terminal-laws.md) and [the door's](../workshop/terminal-door.md).
 
 **Context.** Workshop needed a terminal, and the risks were named before the pane existed: a
 second Loom, a privileged Workshop protocol, a second command grammar, a weave mounted merely to
@@ -128,5 +128,6 @@ what they reached for never appeared.
 
 **Laws supported.** [WL-TERM-02](../workshop/terminal-door.md),
 [WL-TERM-05](../workshop/terminal-door.md), [WL-TERM-20](../workshop/terminal-door.md),
-[WL-TERM-01](../workshop/terminal.md), [WL-TERM-08](../workshop/terminal.md),
-[WL-TERM-11](../workshop/terminal.md).
+[WL-TERM-01](../../terminal/docs/terminal-laws.md),
+[WL-TERM-08](../../terminal/docs/terminal-laws.md),
+[WL-TERM-11](../../terminal/docs/terminal-laws.md).

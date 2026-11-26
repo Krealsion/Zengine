@@ -1,0 +1,12 @@
+# The proofs of launcher/'s laws (launcher/docs/launcher-laws.md), read by the law_register check
+# (tests/check_law_register.cmake): under each `### <id>` a line a file, the file in backticks, then
+# the functions, types, constants and members it holds bare and its cases quoted.
+
+### LAUNCHER-01
+`launcher/weave.cpp` kAskers
+`view/view-builder/pane.cpp` ask_start
+`tests/test_launcher.cpp` "the launcher weave starts nothing for a role that is not the View
+Builder or Files, and answers those two from the catalog" "the launcher answers a listing to any
+role, and takes a start from the palette and the quick setup as from the View Builder and Files"
+`tests/test_view_builder.cpp` "Run app asks Workshop for a build and a write for the hand, then the
+launcher for the app the saved view was exported as, and says what started"

@@ -5,7 +5,7 @@
 #define ZENGINE_COMPONENT_COLUMNS_HPP
 
 // A table's columns, laid out once for every row: widths chosen from what the population wants,
-// within the room the pane was granted, so every row's cells begin at the same column and a
+// within the area the pane was granted, so every row's cells begin at the same column and a
 // press on a cell is answered by its column. It owns the layout arithmetic only; cutting
 // (`fit`) and padding (`pad`) are the consumer's (`pane/text.hpp`), and the widths are
 // spent twice -- to write the line and to record the spans (`RowMap`): one layout draws and hits.
@@ -18,19 +18,19 @@
 
 namespace zengine::component {
 
-/// ONE COLUMN'S ASK: the width its widest cell wants, and the least it may be cut to. A
+/// One column's ask: the width its widest cell wants, and the least it may be cut to. A
 /// column that may not be cut at all says `min == want`.
 struct Column {
     std::size_t want = 0;
     std::size_t min = 1;
 };
 
-/// THE WIDTHS THE COLUMNS GET INSIDE `budget`, with `gap` blank columns between neighbours.
+/// The widths the columns get inside `budget`, with `gap` blank columns between neighbours.
 ///
-/// Every column gets what it wants when the room allows. When it does not, columns are cut
-/// from the LAST to the first, each down to its `min`, until the row fits; a table that still
+/// Every column gets what it wants when the area allows. When it does not, columns are cut
+/// from the last to the first, each down to its `min`, until the row fits; a table that still
 /// does not fit at every minimum is returned at those minimums and the consumer's `fit` cuts
-/// the line, marking the cut, exactly as it cuts any row. TOTAL over any budget.
+/// the line, marking the cut, exactly as it cuts any row. Total over any budget.
 inline std::vector<std::size_t> layout_columns(const std::vector<Column>& columns,
                                                std::size_t budget, std::size_t gap = 1) {
     std::vector<std::size_t> widths;
@@ -56,7 +56,7 @@ inline std::vector<std::size_t> layout_columns(const std::vector<Column>& column
     return widths;
 }
 
-/// WHERE EACH COLUMN BEGINS, given the widths: the offsets a span is recorded at.
+/// Where each column begins, given the widths: the offsets a span is recorded at.
 inline std::vector<std::size_t> column_offsets(const std::vector<std::size_t>& widths,
                                                std::size_t gap = 1) {
     std::vector<std::size_t> offsets;
@@ -69,7 +69,7 @@ inline std::vector<std::size_t> column_offsets(const std::vector<std::size_t>& w
     return offsets;
 }
 
-/// ONE ROW OF THE TABLE: each cell cut to its width by the consumer's `fit` and padded to it by
+/// One row of the table: each cell cut to its width by the consumer's `fit` and padded to it by
 /// the consumer's `pad`, joined by `gap` spaces. A cell wider than its column is cut with the
 /// consumer's mark, never silently. `fit(text, width)` and `pad(text, width)` are
 /// `pane/text.hpp`'s signatures.
@@ -89,7 +89,7 @@ std::string table_line(const std::vector<std::string>& cells,
     return out;
 }
 
-/// THE WIDTH THE WIDEST CELL OF ONE COLUMN WANTS -- what a consumer asks of its population
+/// The width the widest cell of one column wants -- what a consumer asks of its population
 /// before laying out, so the columns are coherent across every row and not per row.
 template <class Population, class CellOf>
 std::size_t widest(const Population& population, CellOf cell_of) {

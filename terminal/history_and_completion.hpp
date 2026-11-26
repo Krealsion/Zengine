@@ -4,13 +4,12 @@
 #ifndef ZENGINE_TERMINAL_HISTORY_AND_COMPLETION_HPP
 #define ZENGINE_TERMINAL_HISTORY_AND_COMPLETION_HPP
 
-// The Terminal pane's two helps to the line: the participant's commands walked as history, and a
-// recalled line locked in; and the one read, what could be said next,
-// taken only by the intent that asked, with the list's own cursor (WL-TERM-11), whose candidate
-// Enter takes once the weaver moved it. The members are
+// The Terminal pane's two helps to the line. The first is history: the participant's commands
+// walked one at a time, and a recalled line locked in. The second is the one read, what could be
+// said next: an answer is taken only by the intent that asked for it (WL-TERM-11), and the list
+// keeps its own cursor, whose candidate Enter takes once the weaver has moved it. The members are
 // `TerminalPaneWeave`'s, declared in `pane.cpp`, which includes this file after the class; it
-// compiles in no other place.
-// Workshop law: agents/workshop/terminal-pane.md, agents/workshop/terminal.md
+// compiles in no other place. The Terminal's laws are terminal/docs/terminal-laws.md.
 
 #include "terminal/vocabulary.hpp"
 
@@ -30,7 +29,7 @@ namespace {
 
 // ---- Command history: the participant's own record, walked ------------------------------
 
-/// THE COMMANDS THE RECORD HOLDS, NEWEST FIRST. Only `command` entries -- what a
+/// The commands the record holds, newest first. Only `command` entries -- what a
 /// presentation asked this participant to run, recorded before it was parsed -- and never
 /// an answer, a notice or a refusal. A run of the same command typed again and again is
 /// walked as one, as its newest. Bounded by the record's own owner, so a command the
@@ -50,7 +49,7 @@ inline std::vector<TerminalPaneWeave::Recallable> TerminalPaneWeave::recallable(
     return out;
 }
 
-/// ONE STEP THROUGH HISTORY: -1 older, +1 newer.
+/// One step through history: -1 older, +1 newer.
 inline void TerminalPaneWeave::recall(int by, loom::Mail& mail) {
     const std::vector<Recallable> commands = recallable();
     if (!recall_.active) {
@@ -89,7 +88,7 @@ inline void TerminalPaneWeave::recall(int by, loom::Mail& mail) {
             return;
         }
     }
-    // PAST THE NEWEST IS THE LINE BEFORE THE FIRST RECALL, exactly as it was left.
+    // Past the newest is the line before the first recall, exactly as it was left.
     cancel_recall();
     say(mail);
 }
@@ -107,7 +106,7 @@ inline void TerminalPaneWeave::show_recalled(const Recallable& c) {
     offered_intent_ = intent_;
 }
 
-/// THE RECALLED LINE BECOMES THE DRAFT, where it stands, and the line before the recall is
+/// The recalled line becomes the draft, where it stands, and the line before the recall is
 /// let go. Answers whether there was a recall to end.
 inline bool TerminalPaneWeave::settle_recall() {
     if (!recall_.active) {
@@ -118,7 +117,7 @@ inline bool TerminalPaneWeave::settle_recall() {
     return true;
 }
 
-/// BACK TO THE DRAFT BEFORE THE FIRST RECALL -- the whole box, so its undo, its caret and
+/// Back to the draft before the first recall -- the whole box, so its undo, its caret and
 /// the draft a paste in flight belongs to come back with its text.
 inline void TerminalPaneWeave::cancel_recall() {
     line_ = recall_.before;
@@ -127,7 +126,7 @@ inline void TerminalPaneWeave::cancel_recall() {
     remember_line();
 }
 
-/// WHAT THE ROW ABOVE THE LINE SAYS ABOUT HISTORY, or nothing.
+/// What the row above the line says about history, or nothing.
 inline std::string TerminalPaneWeave::history_heading() const {
     if (!recall_.active) {
         return history_note_;
@@ -153,7 +152,7 @@ inline void TerminalPaneWeave::ask_completion(loom::Mail& mail) {
     wanted_ = true;
     wanted_intent_ = intent_;
     if (recall_.active) {
-        // A RECALLED LINE IS BROWSED, NOT COMPOSED: no list is asked for it until the weaver
+        // A recalled line is browsed, not composed: no list is asked for it until the weaver
         // locks it in or edits it.
         offered_ = TerminalCompletionOffered{};
         offered_about_ = here();
@@ -179,7 +178,7 @@ inline void TerminalPaneWeave::ask_completion(loom::Mail& mail) {
         unmove_cursor();
         return;
     }
-    // AN UNTOUCHED LINE ASKS NOTHING. The line is empty immediately after a submit, and a
+    // An untouched line asks nothing. The line is empty immediately after a submit, and a
     // list there covers the answer the pane just gave. Typing is the gesture; the
     // completion key is the way to ask anyway.
     if (line_.empty() && !asked_for_list_) {
@@ -213,7 +212,7 @@ inline TerminalPaneWeave::Asking TerminalPaneWeave::here() const { return Asking
 /// ever offered against a line that is not on the screen.
 inline bool TerminalPaneWeave::offer_applies() const { return offered_intent_ == intent_ && offered_about_ == here(); }
 
-/// THE WEAVER'S ACT CHANGED WHAT A COMPLETION WOULD BE ABOUT: a new intent, which no answer
+/// The weaver's act changed what a completion would be about: a new intent, which no answer
 /// already in flight belongs to, and no wish for a list until an act asks for one.
 inline void TerminalPaneWeave::moved() {
     ++intent_;
@@ -222,14 +221,14 @@ inline void TerminalPaneWeave::moved() {
 
 // ---- The completion list's own cursor -------------------------------------------------
 
-/// WHETHER THERE IS A CANDIDATE TO ACT ON -- and the first half of the question is
+/// Whether there is a candidate to act on -- and the first half of the question is
 /// whether what this pane is holding is about the line in front of the weaver at all
 /// (`offer_applies`). A list that outlived its line is not a list.
 inline bool TerminalPaneWeave::selectable() const {
     return offer_applies() && offered_.open && !dismissed_ && !offered_.candidates.empty();
 }
 
-/// THE CURSOR MOVED BY THE WEAVER'S UP OR DOWN -- moved even where an end holds it in place, for
+/// The cursor moved by the weaver's up or down -- moved even where an end holds it in place, for
 /// the weaver is choosing in the list, and Enter then takes what it stands on.
 inline void TerminalPaneWeave::move_selection(int by) {
     if (!selectable()) {
@@ -249,7 +248,7 @@ inline void TerminalPaneWeave::accept_candidate() {
         return;
     }
     const ShownCandidate& c = offered_.candidates[selected_];
-    // `partial` IS A TOKEN OF THIS VERY LINE, so it can never be longer than the line.
+    // `partial` is a token of this very line, so it can never be longer than the line.
     // The `min` is written anyway rather than as an `if`, because the alternative to
     // clamping is appending without stripping, which is a doubled word on a line nobody
     // could explain.
@@ -262,7 +261,7 @@ inline void TerminalPaneWeave::accept_candidate() {
     line_.set(std::move(text), at);
 }
 
-/// THE CANDIDATE THE CURSOR IS ON, TAKEN -- by Tab, or by Enter once the weaver moved the cursor
+/// The candidate the cursor is on, taken -- by Tab, or by Enter once the weaver moved the cursor
 /// -- and what could follow the line it leaves asked again. The cursor is the list's once more,
 /// so the next Enter runs the line unless the weaver moves it.
 inline void TerminalPaneWeave::take_candidate(loom::Mail& mail) {
@@ -273,7 +272,7 @@ inline void TerminalPaneWeave::take_candidate(loom::Mail& mail) {
     ask_completion(mail);
 }
 
-/// THE LIST'S CURSOR ON ITS FIRST ROW, where the list puts it and no weaver moved it.
+/// The list's cursor on its first row, where the list puts it and no weaver moved it.
 inline void TerminalPaneWeave::unmove_cursor() {
     selected_ = 0;
     cursor_moved_ = false;

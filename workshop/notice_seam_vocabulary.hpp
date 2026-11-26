@@ -8,7 +8,7 @@
 // the delivery that said it, for the notices record to keep (notices/vocabulary.hpp) and the
 // Notices pane to show. A thing said is a moment that passed; what is true now is
 // `StandingConditions`'s (WL-ATTN-01).
-// Workshop law: agents/workshop/notices.md
+// Workshop law: notices/docs/notices-laws.md
 
 #include <zen/weave/shape.hpp>
 

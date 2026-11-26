@@ -30,15 +30,15 @@ namespace zengine::component {
 // Free functions over the string, beside their main consumer, so anything that needs to know
 // where a character starts asks here rather than walking UTF-8 for itself.
 
-/// IS THIS BYTE THE MIDDLE OF A CHARACTER? UTF-8 continuation bytes are 10xxxxxx, and this
+/// Is this byte the middle of a character? UTF-8 continuation bytes are 10xxxxxx, and this
 /// one predicate is the whole of what "not a character boundary" means in this application.
 inline bool is_continuation_byte(char b) noexcept {
     return (static_cast<unsigned char>(b) & 0xC0u) == 0x80u;
 }
 
-/// THE BYTE INDEX ONE CHARACTER BEFORE `at`, and 0 when there is none.
+/// The byte index one character before `at`, and 0 when there is none.
 ///
-/// A line a weaver types is a byte string, so stepping back one BYTE over `é` would land
+/// A line a weaver types is a byte string, so stepping back one byte over `é` would land
 /// between its two bytes -- a position that is not anywhere in the text, and from which an
 /// erase leaves half a character behind. Continuation bytes go with their lead byte.
 inline std::size_t character_before(const std::string& line, std::size_t at) noexcept {
@@ -49,7 +49,7 @@ inline std::size_t character_before(const std::string& line, std::size_t at) noe
     return i > 0 ? i - 1 : 0;
 }
 
-/// THE BYTE INDEX ONE CHARACTER AFTER `at`, and `line.size()` when there is none. The other
+/// The byte index one character after `at`, and `line.size()` when there is none. The other
 /// direction of `character_before`, same rule, same reason.
 inline std::size_t character_after(const std::string& line, std::size_t at) noexcept {
     std::size_t i = at;
@@ -63,9 +63,9 @@ inline std::size_t character_after(const std::string& line, std::size_t at) noex
     return i;
 }
 
-/// THE NEAREST CHARACTER BOUNDARY AT OR BEFORE `at`, clamped into the line.
+/// The nearest character boundary at or before `at`, clamped into the line.
 ///
-/// The one place a position that came from OUTSIDE the text -- a pointer press resolved to a
+/// The one place a position that came from outside the text -- a pointer press resolved to a
 /// column -- is made into a position the text actually has. Snapping backwards rather than
 /// forwards is what makes a press on the second byte of a two-byte character mean the
 /// character it landed on rather than the one after it.
@@ -103,7 +103,7 @@ inline std::size_t character_boundary_at_or_after(const std::string& line,
 /// What a character's bytes spell where they spell no code point.
 inline constexpr char32_t kNotACharacter = 0xFFFFFFFFu;
 
-/// THE BYTE AFTER THE CHARACTER AT `at`: its lead byte and the continuation bytes after it, and
+/// The byte after the character at `at`: its lead byte and the continuation bytes after it, and
 /// `text.size()` where `at` is at or past the end.
 inline std::size_t character_end(std::string_view text, std::size_t at) noexcept {
     if (at >= text.size()) {
@@ -116,7 +116,7 @@ inline std::size_t character_end(std::string_view text, std::size_t at) noexcept
     return i;
 }
 
-/// THE CODE POINT THE CHARACTER AT `at` SPELLS: its bytes (`character_end`) as one well-formed
+/// The code point the character at `at` spells: its bytes (`character_end`) as one well-formed
 /// UTF-8 sequence -- the shortest spelling, no surrogate, at most U+10FFFF -- or `kNotACharacter`
 /// where they are not one, or `at` is past the end.
 inline char32_t code_point_at(std::string_view text, std::size_t at) noexcept {
@@ -171,7 +171,7 @@ constexpr bool in_ranges(const unicode_width::CodeRange (&ranges)[N], char32_t c
 }
 } // namespace detail
 
-/// HOW MANY COLUMNS A CODE POINT TAKES: 0, 1 or 2 by its width class (above); a control character
+/// How many columns a code point takes: 0, 1 or 2 by its width class (above); a control character
 /// and `kNotACharacter` take one.
 inline int code_point_columns(char32_t cp) noexcept {
     if (cp == kNotACharacter || cp < 0x300u) {
@@ -183,12 +183,12 @@ inline int code_point_columns(char32_t cp) noexcept {
     return detail::in_ranges(unicode_width::kTwo, cp) ? 2 : 1;
 }
 
-/// HOW MANY COLUMNS THE CHARACTER AT `at` TAKES, by its code point (`code_point_at`).
+/// How many columns the character at `at` takes, by its code point (`code_point_at`).
 inline int character_columns(std::string_view text, std::size_t at) noexcept {
     return code_point_columns(code_point_at(text, at));
 }
 
-/// HOW MANY COLUMNS THE CHARACTERS FROM `from` TO `to` TAKE, each counted whole from its lead byte;
+/// How many columns the characters from `from` to `to` take, each counted whole from its lead byte;
 /// `to` is clamped into the text.
 inline std::size_t columns_between(std::string_view text, std::size_t from,
                                    std::size_t to) noexcept {
@@ -200,12 +200,12 @@ inline std::size_t columns_between(std::string_view text, std::size_t from,
     return cols;
 }
 
-/// HOW MANY COLUMNS A TEXT TAKES.
+/// How many columns a text takes.
 inline std::size_t text_columns(std::string_view text) noexcept {
     return columns_between(text, 0, text.size());
 }
 
-/// WHERE A RUN FROM `from` THAT FITS IN `columns` ENDS: after the last whole character that fits,
+/// Where a run from `from` that fits in `columns` ends: after the last whole character that fits,
 /// with the characters of no column that follow it, which belong with it. A cut never falls inside
 /// a character, and a wide character with one column left is left out whole.
 inline std::size_t cut_at_columns(std::string_view text, std::size_t from,
@@ -223,7 +223,7 @@ inline std::size_t cut_at_columns(std::string_view text, std::size_t from,
     return i;
 }
 
-/// THE BYTE WHERE THE CHARACTER COVERING `column` BEGINS, counted from `from`: a column inside a
+/// The byte where the character covering `column` begins, counted from `from`: a column inside a
 /// wide character names that character, and a column past the text names its end. A character of
 /// no column stays with the one before it, so the answer is a character that takes a column, or the
 /// end.
@@ -242,7 +242,7 @@ inline std::size_t byte_at_column(std::string_view text, std::size_t from,
     return i;
 }
 
-/// THE FURTHEST BACK A RUN ENDING AT `to` MAY START AND STILL FIT IN `columns`: a character
+/// The furthest back a run ending at `to` may start and still fit in `columns`: a character
 /// boundary, the run's columns at most `columns`.
 inline std::size_t start_for_columns(std::string_view text, std::size_t to,
                                      std::size_t columns) noexcept {
@@ -263,7 +263,7 @@ inline std::size_t start_for_columns(std::string_view text, std::size_t to,
     return start;
 }
 
-/// THE CHARACTERS A RUN OF COLUMNS SHOWS: what `text` laid from column 0 shows from `column` for
+/// The characters a run of columns shows: what `text` laid from column 0 shows from `column` for
 /// `columns`, as a string exactly that many columns wide -- a wide character the run's start or end
 /// would cut left out whole and its column blank, and blanks past the text's end.
 inline std::string column_slice(std::string_view text, std::size_t column, std::size_t columns) {
@@ -289,8 +289,8 @@ inline std::string column_slice(std::string_view text, std::size_t column, std::
 // `word_after` add the separator walk a keyboard gesture means, and `word_at` is the two scans
 // meeting at one position, which is what a pointer means -- one definition of a word.
 
-/// THE START OF THE RUN OF WORD BYTES REACHING BACK FROM `at`, or `at` itself when the byte
-/// behind it is a separator. A position is BETWEEN bytes, so a leftward scan reads what is
+/// The start of the run of word bytes reaching back from `at`, or `at` itself when the byte
+/// behind it is a separator. A position is between bytes, so a leftward scan reads what is
 /// behind it and never `at` itself.
 inline std::size_t word_run_begin(const std::string& line, std::size_t at) noexcept {
     std::size_t i = at < line.size() ? at : line.size();
@@ -300,7 +300,7 @@ inline std::size_t word_run_begin(const std::string& line, std::size_t at) noexc
     return i;
 }
 
-/// THE END OF THE RUN OF WORD BYTES REACHING FORWARD FROM `at`, or `at` itself when the byte
+/// The end of the run of word bytes reaching forward from `at`, or `at` itself when the byte
 /// at it is a separator — the same between-the-bytes rule read the other way.
 inline std::size_t word_run_end(const std::string& line, std::size_t at) noexcept {
     std::size_t i = at < line.size() ? at : line.size();
@@ -310,7 +310,7 @@ inline std::size_t word_run_end(const std::string& line, std::size_t at) noexcep
     return i;
 }
 
-/// THE START OF THE WORD BEFORE `at`: back over spaces, then back over the word.
+/// The start of the word before `at`: back over spaces, then back over the word.
 inline std::size_t word_before(const std::string& line, std::size_t at) noexcept {
     std::size_t i = at < line.size() ? at : line.size();
     while (i > 0 && line[i - 1] == ' ') {
@@ -319,7 +319,7 @@ inline std::size_t word_before(const std::string& line, std::size_t at) noexcept
     return word_run_begin(line, i);
 }
 
-/// THE START OF THE WORD AFTER `at`: forward over the word, then over the spaces — so
+/// The start of the word after `at`: forward over the word, then over the spaces — so
 /// repeated presses walk word starts, which is the gesture's conventional meaning, and the
 /// last press lands at the end of the line.
 inline std::size_t word_after(const std::string& line, std::size_t at) noexcept {
@@ -414,7 +414,7 @@ inline constexpr std::int64_t kSuper = 8;
 
 // ---- Places in a text, and the selection between two of them ------------------------------
 
-/// A SELECTION AS TWO PLACES IN A TEXT: the caret, where the next gesture acts, and the anchor, the
+/// A selection as two places in a text: the caret, where the next gesture acts, and the anchor, the
 /// selection's other end -- no selection is the two equal, so there is no flag to fall out of
 /// step. A place is a byte between two characters, so a text laid out again (wrapped at another
 /// width, scrolled) keeps both: neither is a row or a pixel.
@@ -435,7 +435,7 @@ struct TextPlaces {
     bool operator==(const TextPlaces&) const = default;
 };
 
-/// THE TEXT BETWEEN TWO PLACES, AS WRITTEN: the bytes of `text` the selection covers, empty when
+/// The text between two places, as written: the bytes of `text` the selection covers, empty when
 /// nothing is selected. What a presentation added to show it -- a wrap's break, its indent, a
 /// marker -- is not in `text`, so it is never in a copy.
 inline std::string selected_text(const std::string& text, const TextPlaces& places) {
@@ -444,7 +444,7 @@ inline std::string selected_text(const std::string& text, const TextPlaces& plac
     return text.substr(from, to - from);
 }
 
-/// COPY THE SELECTION INTO THE OWNER'S CLIPBOARD. With nothing selected nothing happens: the
+/// Copy the selection into the owner's clipboard. With nothing selected nothing happens: the
 /// clipboard a weaver filled a minute ago is not overwritten with an empty string by a stray chord.
 inline void copy_selection(const std::string& text, const TextPlaces& places, Clipboard& clip) {
     if (!places.has_selection()) {

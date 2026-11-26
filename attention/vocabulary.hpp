@@ -4,16 +4,15 @@
 #ifndef ZENGINE_ATTENTION_PANE_VOCABULARY_HPP
 #define ZENGINE_ATTENTION_PANE_VOCABULARY_HPP
 
-// The Attention pane's durable names: the role it holds, the one pane it offers, the action
-// ids its keys answer to, and the state a same-shape reload keeps. The role is
-// `zengine.attention`, not the host's `zengine.workshop` (admission refuses a pane offered by
-// its holder, WL-CAT-03). No saved file names this pane -- it was never a catalog row -- so
-// nothing converts. `attention.close` and `workshop.attention` retired with the overlay: a
-// weaver's override of either is kept at load, bound to nothing (WL-KEY-06).
-// Workshop law: agents/workshop/attention.md
+// The Attention pane's durable names: the role it holds, the one pane it offers, the action ids its
+// keys answer to, and the state a same-shape reload keeps. The role is `zengine.attention`, not the
+// host's `zengine.workshop` (admission refuses a pane offered by its holder, WL-CAT-03). No saved
+// file names this pane, which is no catalog row, so nothing converts. A weaver's override of
+// `attention.close` or `workshop.attention`, ids nothing declares, is kept at load and bound to
+// nothing (WL-KEY-06). The laws of what earns attention are attention/docs/attention-laws.md.
 
-// The action ids keep the spellings and keys weavers' overrides name, and are the pane's now,
-// legal because Workshop's own rows left (WL-KEY-06, WL-KEY-08).
+// The action ids keep the spellings and keys weavers' overrides name. They are the pane's alone:
+// Workshop declares no row of its own for them (WL-KEY-06, WL-KEY-08).
 
 #include <zen/weave/shape.hpp>
 
@@ -22,38 +21,38 @@
 
 namespace zengine::attention_pane {
 
-/// THE ROLE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
-/// anything reaches it by. A ROLE, so the window and Workshop find whoever holds it rather
+/// The role this pane holds -- the durable half of its `PaneRef`, and the only address
+/// anything reaches it by. A role, so the window and Workshop find whoever holds it rather
 /// than the incarnation that offered first: a reloaded provider is a different `WeaveId` and
 /// the same role.
 inline constexpr const char* kAttentionPaneRole = "zengine.attention";
 
-/// THE PANE KEY, in this role's namespace.
+/// The pane key, in this role's namespace.
 inline constexpr const char* kAttentionPane = "attention";
 
-/// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// The two lines a weaver reads about this pane -- its name in the Pane Manager's list, its
 /// summary in Info -- and what Workshop's pane header says after the role.
 /// Bounded by Workshop's admission law before a byte is retained: a name at 32 bytes, a
 /// summary at 64.
 inline constexpr const char* kAttentionPaneName = "Attention";
 inline constexpr const char* kAttentionPaneSummary = "what is true right now";
 
-/// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
+/// The library stem a host boots. Not part of the pane protocol and not durable the way the
 /// role is -- it is a file name, here because the host's boot plan and the suite's loader
 /// must agree on it.
 inline constexpr const char* kAttentionPaneStem = "zengine-attention-pane";
 
-// ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, pane/vocabulary.hpp) ---------
+// ---- The actions the pane declares (`PaneActions`, pane/vocabulary.hpp) ---------
 //
-// The ids a weaver's keymap file names to move them, carrying the built-in's own spellings
-// unchanged. What each one DOES is the weave's (pane.cpp); what KEY requests it is
+// The ids a weaver's keymap file names to move them, in the spellings weavers' overrides name.
+// What each one does is the weave's (pane.cpp); what key requests it is
 // Workshop's effective keymap, and the weave is told the id, never the key.
 
 inline constexpr const char* kActionUp = "attention.up";
 inline constexpr const char* kActionDown = "attention.down";
 inline constexpr const char* kActionDismiss = "attention.dismiss";
 
-/// THE ONE SETTING THE PANE DECLARES (`v2::PaneSettingsDeclared`, pane/settings.hpp):
+/// The one setting the pane declares (`v2::PaneSettingsDeclared`, pane/settings.hpp):
 /// whether the cursor's condition is explained beneath it in a layout, on unless the layout keeps
 /// it off.
 inline constexpr const char* kSettingDetail = "detail";
@@ -71,8 +70,8 @@ struct Dismissal {
 /// The state a same-shape reload keeps: which statements the weaver chose not to look at, the one
 /// thing here that is theirs (`agents/decisions/a-presentation-owns-no-facts.md`). Not the
 /// cursor: it is a position in a derived population that can shrink, so a reload lands on the
-/// first, loudest row. Not persisted either: a shape crosses a reload in memory, and the
-/// dismissal set is session-only, as it always was.
+/// first, loudest row. Nor is it written to a file: a shape crosses a reload in memory, and the
+/// dismissal set lasts the session.
 struct AttentionPaneState {
     std::vector<Dismissal> dismissed;
     ZEN_SHAPE(AttentionPaneState, 1, ZEN_FIELD(dismissed));

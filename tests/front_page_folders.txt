@@ -1,7 +1,8 @@
 # The folders whose front page is their router, one a line, read by folder_map and law_register
 # (tests/check_folder_map.cmake, tests/check_law_register.cmake). Such a folder holds no AGENTS.md:
 # its README.md ends with `## Working on it`, which claims its suites, and its laws stand numbered
-# on its own law pages (in `<folder>/docs/`, each page named `<name>-laws`). A folder not named here
+# on its own law pages (in `<folder>/docs/`, each page named `<name>-laws`), their proofs in its
+# manifest, `tests/laws/<folder>.txt`, where it has one. A folder not named here
 # keeps an AGENTS.md router beside its front page. A folder joins in the change that gives it this
 # shape. ASCII only.
 timer
@@ -19,3 +20,7 @@ launcher
 message-draft
 theme
 app
+notices
+terminal
+attention
+component

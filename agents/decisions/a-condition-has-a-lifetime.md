@@ -1,7 +1,7 @@
 # A condition has a lifetime
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [attention](../workshop/attention.md).
+supports is in [the laws of attention](../../attention/docs/attention-laws.md).
 
 **Context.** Workshop said outward truth two structurally different ways — a derived condition
 recomputed from a live owner at every paint, correct by construction, and one unowned string
@@ -42,7 +42,10 @@ it. `workshop/attention.hpp` includes exactly `graphics/colors.hpp`, the pool's 
 the Recorder and Logger attached to a live bus. `workshop.attention` is a no-text row on `^a`,
 the component owning that chord inside a text field.
 
-**Laws supported.** [WL-ATTN-01](../workshop/attention.md),
-[WL-ATTN-03](../workshop/attention.md), [WL-ATTN-04](../workshop/attention.md),
-[WL-ATTN-07](../workshop/attention.md), [WL-ATTN-08](../workshop/attention.md),
-[WL-ATTN-10](../workshop/attention.md), [WL-ATTN-11](../workshop/attention.md).
+**Laws supported.** [WL-ATTN-01](../../attention/docs/attention-laws.md),
+[WL-ATTN-03](../../attention/docs/attention-laws.md),
+[WL-ATTN-04](../../attention/docs/attention-laws.md),
+[WL-ATTN-07](../../attention/docs/attention-laws.md),
+[WL-ATTN-08](../../attention/docs/attention-laws.md),
+[WL-ATTN-10](../../attention/docs/attention-laws.md),
+[WL-ATTN-11](../../attention/docs/attention-laws.md).

@@ -47,7 +47,6 @@ agents/verification/witnesses.md 16
 agents/view.md 5
 agents/workshop/action-causes.md 7
 agents/workshop/arrangement.md 9
-agents/workshop/attention.md 6
 agents/workshop/authoring.md 7
 agents/workshop/canvas.md 1
 agents/workshop/catalog.md 2
@@ -69,7 +68,6 @@ agents/workshop/layouts.md 3
 agents/workshop/migration.md 11
 agents/workshop/neovim-transfers.md 6
 agents/workshop/neovim.md 9
-agents/workshop/notices.md 2
 agents/workshop/opening.md 15
 agents/workshop/pane-controls.md 9
 agents/workshop/pane-manager.md 1
@@ -85,5 +83,3 @@ agents/workshop/setting-locks.md 7
 agents/workshop/settings.md 30
 agents/workshop/setup-file.md 16
 agents/workshop/terminal-door.md 8
-agents/workshop/terminal.md 2
-agents/workshop/text-box.md 4

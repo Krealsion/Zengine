@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The screen's projection of what is true right now, and the contextual surface, presented.
-// Workshop law: agents/workshop/attention.md (+2 registers; agents/workshop.md routes)
+// Workshop law: attention/docs/attention-laws.md (+2 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
 
@@ -22,7 +22,7 @@ static std::string pane_setting_unused_key(const PaneRef& ref, const std::string
     return "pane.setting-unused." + ref_text(ref) + "." + key;
 }
 
-// WL-ATTN-03, WL-ATTN-04 -- agents/workshop/attention.md
+// WL-ATTN-03, WL-ATTN-04 -- attention/docs/attention-laws.md
 std::vector<Condition> attention_conditions(const Session& s,
                                             const ProjectFrontier& frontier) {
     std::vector<Condition> out = s.conditions.rows;

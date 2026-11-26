@@ -3,7 +3,7 @@
 Register `WL-EDIT`: one source document, held by the Editor pane weave, presented through the
 pane protocol. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 Paths: [`project.md`](project.md); caret: [`pane-caret.md`](pane-caret.md); sweep:
-[`text-box.md`](text-box.md).
+[the text box's laws](../../component/docs/component-laws.md).
 
 Retired: WL-EDIT-04, WL-EDIT-08, WL-EDIT-09, WL-EDIT-12, WL-EDIT-13, WL-EDIT-16
 

@@ -1,7 +1,7 @@
 # Editing text is a component
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [text-box](../workshop/text-box.md).
+supports is in [the text box's laws](../../component/docs/component-laws.md).
 
 **Context.** Two Workshop tools reached the same editing machinery from opposite ends: the
 Terminal's command line had text, a caret, character-safe edits, a window and a pointer, and an
@@ -45,5 +45,6 @@ whole, rather than left for each consumer to add.
 the smaller repair. The founder retired that rule, 2026-10-31: a piece is built for the uses the
 direction sets, whole and with care. The decision stands on its invariant: one state, one door.
 
-**Laws supported.** [WL-TEXT-01](../workshop/text-box.md), [WL-TEXT-02](../workshop/text-box.md),
-[WL-TEXT-11](../workshop/text-box.md).
+**Laws supported.** [WL-TEXT-01](../../component/docs/component-laws.md),
+[WL-TEXT-02](../../component/docs/component-laws.md),
+[WL-TEXT-11](../../component/docs/component-laws.md).

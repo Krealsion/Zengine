@@ -5,8 +5,8 @@
 // and worth a weaver's attention. Every row is the host's reading of its own state (files it
 // could not use, a pane that refused an update, an authored pane no cell shows, the row
 // realization stopped at), published whenever it changes
-// (`workshop/attention_seam_vocabulary.hpp`), so there is nothing to poll (WL-ATTN-01).
-// Workshop law: agents/workshop/attention.md
+// (`workshop/attention_seam_vocabulary.hpp`), so there is nothing to poll (WL-ATTN-01). The laws
+// of what earns attention are attention/docs/attention-laws.md.
 
 // This pane owns one thing, which statements the weaver has hidden; everything else is held for
 // as long as the last publication and replaced whole by the next.
@@ -52,7 +52,7 @@ using zengine::pane::v2::PaneOffered;
 using ws::StandingCondition;
 using ws::StandingConditions;
 
-/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// Who this pane is talking to: Workshop's role, read from the installed pane protocol
 /// (`pane/menu.hpp`) as a stranger's pane reads it.
 using zengine::pane::pane_menu::kWorkshopRole;
 
@@ -68,10 +68,10 @@ using zengine::pane::pane_text::omitted_text;
 using zengine::pane::pane_text::wrap;
 constexpr std::int64_t kWrapIndent = zengine::pane::pane_text::kWrapIndent;
 
-/// WHAT A PRESS ON A CONDITION'S ROW ASKS: `condition:<key>`, the key as the host said it.
+/// What a press on a condition's row asks: `condition:<key>`, the key as the host said it.
 constexpr const char* kConditionAction = "condition:";
 
-/// THE NAME OF A CONDITION'S ROW, `condition:<key>`, with `/` and `%` spelled `%2F` and `%25` so
+/// The name of a condition's row, `condition:<key>`, with `/` and `%` spelled `%2F` and `%25` so
 /// the key stays one segment of the drawing's path; empty when the name is longer than a path may
 /// be, and the row is then drawn unnamed.
 std::string condition_path(const std::string& key) {
@@ -82,7 +82,7 @@ std::string condition_path(const std::string& key) {
     return out.size() <= gfx::kMaxPathBytes ? out : std::string();
 }
 
-/// WHAT A DISMISSAL IS MEASURED AGAINST -- the condition's content, as one opaque token.
+/// What a dismissal is measured against -- the condition's content, as one opaque token.
 /// `Condition::stamp()`'s composition, over the fields that cross: the fifth field is the
 /// resolved suggestion where the host's own was the action's id, and it is the same
 /// question either way ("is this the same statement I hid?").
@@ -94,12 +94,12 @@ std::string stamp_of(const StandingCondition& c) {
 // The weave
 // =============================================================================
 
-/// The pane's room and its one picture, shown in Workshop and in a graphics window; a press on a
+/// The pane's area and its one picture, shown in Workshop and in a graphics window; a press on a
 /// condition's row asks `condition:<key>`.
 using Drawing = zengine::pane::PaneDrawingFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
                                      zengine::manual::pages::zengine_attention::kManual>;
 using Actions = zengine::pane::PaneActionFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
-/// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+/// Its row's settings, asked of the layouts' owner when it arrives; no area is drawn before.
 using Settings = zengine::pane::PaneSettingsFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
 
 class AttentionPaneWeave
@@ -120,21 +120,21 @@ public:
                           zengine::pane::v2::PaneSettingsDeclared{pane::kAttentionPane, setting_rows()});
     }
 
-    /// Workshop, or the graphics window that shows the pane's area, grants it a room: the one beat
+    /// Workshop, or the graphics window that shows the pane's area, grants it an area: the one beat
     /// on which this view draws unasked. It asks for nothing here: what it shows arrives when it
-    /// changes, so a pane granted a room before the host has said anything shows "waiting" rather
+    /// changes, so a pane granted an area before the host has said anything shows "waiting" rather
     /// than an empty list reading as "all is well".
     void on_room(loom::Mail& mail) { say(mail); }
 
-    /// A PRESS THE WINDOW LANDED ON ANOTHER ROW than the list shows there now moves the cursor
+    /// A press the window landed on another row than the list shows there now moves the cursor
     /// nowhere, and is said.
     void fenced(loom::Mail& mail) {
         notice_ = "the list moved -- press again";
         say(mail);
     }
 
-    /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15), OR A PRESS ON A
-    /// CONDITION'S ROW. Workshop resolved the keystroke against the effective keymap -- the
+    /// One of the pane's declared actions, asked for by name (WL-KEY-15), or a press on a
+    /// condition's row. Workshop resolved the keystroke against the effective keymap -- the
     /// weaver's override where one is authored, this role's declared default otherwise -- so
     /// what arrives is the id, one `answers` admits; a press on a row, in Workshop or in a window,
     /// asks `condition:<key>`, which puts the cursor on it. Every act says its rows below, so what
@@ -162,10 +162,10 @@ public:
             }
         } else if (id == pane::kActionDismiss) {
             if (cursor_ < shown.size()) {
-                // AN EVENT, SAID AS ONE. What just happened is that a weaver hid a
+                // An event, said as one. What just happened is that a weaver hid a
                 // presentation; what remains true is the condition, which is why the
                 // sentence is about the gesture and not about the subject. A pane has only
-                // its own room, so it leads with it and it stands until the weaver's next act
+                // its own area, so it leads with it and it stands until the weaver's next act
                 // (`agents/panes.md`).
                 notice_ = "hidden -- " + shown[cursor_].compact + " is still true";
                 dismiss(shown[cursor_]);
@@ -174,7 +174,7 @@ public:
         say(mail);
     }
 
-    /// AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: the
+    /// An id this pane never declared is no act (`agents/panes.md`), so it spends nothing: the
     /// notice, the cursor and every dismissal stay as they were.
     static bool answers(const std::string& id) {
         for (const PaneActionRow& row : action_rows()) {
@@ -185,7 +185,7 @@ public:
         return false;
     }
 
-    /// WHAT IS TRUE RIGHT NOW, SAID BY THE HOST. Replaced WHOLE, never merged: the host
+    /// What is true right now, said by the host. Replaced whole, never merged: the host
     /// publishes the current reading and a condition that stopped being returned stopped
     /// being true. Half of a previous reading and half of this one would be a picture of a
     /// moment that never existed -- the same republish-the-picture discipline
@@ -196,7 +196,7 @@ public:
         }
         known_ = said.rows;
         heard_ = true;
-        // A DISMISSAL WHOSE CONDITION IS GONE GOES WITH IT. The set stays one entry per key
+        // A dismissal whose condition is gone goes with it. The set stays one entry per key
         // and nothing here outlives its subject: a keymap that starts being readable takes
         // the weaver's decision not to look at the refusal with it, and if the same key ever
         // comes back it comes back visible.
@@ -208,7 +208,7 @@ public:
         say(mail);
     }
 
-    /// THE SETTING THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed it and its facet
+    /// The setting this layout keeps for the pane, as the layouts' owner handed it and its facet
     /// took it whole. Held as a plain member, never reload state.
     void on_settings(const zengine::pane::SettingsTaken& taken, loom::Mail& mail) {
         const bool was = detail_shown_;
@@ -217,10 +217,10 @@ public:
             say(mail);
         }
     }
-    /// ...THE FIRST THE LIFE HOLDS: the room it drew nothing in, drawn now.
+    /// ...The first the life holds: the area it drew nothing in, drawn now.
     void on_settings_held(loom::Mail& mail) { say(mail); }
 
-    /// THE SETTING THE PANE TAKES, with its default, how a weaver finds it and what it does.
+    /// The setting the pane takes, with its default, how a weaver finds it and what it does.
     static std::vector<zengine::pane::v2::PaneSettingRow> setting_rows() {
         zengine::pane::v2::PaneSettingRow detail;
         detail.key = pane::kSettingDetail;
@@ -239,7 +239,7 @@ private:
     /// declaration: nothing in this pane takes text, which is also why a bare letter is legal.
     void declare(loom::Mail& mail) { this->template facet<Actions>().declare(mail, action_rows()); }
 
-    /// THE THREE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the
+    /// The three rows -- what `declare` tells Workshop, and what `answers` reads, so what the
     /// pane acts on and what it said it acts on are one list.
     static std::vector<PaneActionRow> action_rows() {
         return {PaneActionRow{pane::kActionUp, "row up", input::scan::kUp, input::mod::kNone},
@@ -261,7 +261,7 @@ private:
         return false;
     }
 
-    /// Hide this statement. Re-dismissing a condition that has since changed REPLACES the
+    /// Hide this statement. Re-dismissing a condition that has since changed replaces the
     /// old stamp rather than adding a row, so the set stays one entry per key and a weaver
     /// who hides the same condition twice has hidden it once.
     void dismiss(const StandingCondition& c) {
@@ -275,10 +275,10 @@ private:
         state_.dismissed.push_back(pane::Dismissal{c.key, mark});
     }
 
-    /// DROP EVERY DISMISSAL WHOSE CONDITION IS NO LONGER TRUE. The set is the pane's own state
+    /// Drop every dismissal whose condition is no longer true. The set is the pane's own state
     /// and crosses a reload, so a dismissal that outlived its subject would be a decision a
     /// weaver made about a fact that no longer exists, silently re-applied if it ever came
-    /// back. Dismiss is still not resolve: this drops the HIDING, not the condition.
+    /// back. Dismiss is still not resolve: this drops the hiding, not the condition.
     void forget_resolved() {
         std::vector<pane::Dismissal> kept;
         for (const pane::Dismissal& d : state_.dismissed) {
@@ -292,7 +292,7 @@ private:
         state_.dismissed = std::move(kept);
     }
 
-    /// THE ONE POPULATION EVERY ROW BELOW SPENDS -- what the host says is true, less what
+    /// The one population every row below spends -- what the host says is true, less what
     /// this weaver has hidden. `attention_shown`'s job, on the pane's side of the seam.
     std::vector<StandingCondition> visible() const {
         std::vector<StandingCondition> out;
@@ -317,26 +317,26 @@ private:
     }
 
 public:
-    /// WHAT THE PANE SHOWS, one row a line of the room's text high: the notice, the glance, and the
-    /// list `say_view` composes. A row the room has no place for is neither drawn nor named.
+    /// What the pane shows, one row a line of the area's text high: the notice, the glance, and the
+    /// list `say_view` composes. A row the area has no place for is neither drawn nor named.
     void picture(gfx::Sketch& f) {
         const std::int64_t rows = room().rows(), columns = room().columns();
         const std::int64_t height = room().text().line;
         std::int64_t row = 0;
         const auto line = [&](const std::string& path, const std::string& text,
                               gfx::Color ink) {
-            // A SECOND GUARD: the window marks a byte it cannot draw and keeps the row, so this
+            // A second guard: the window marks a byte it cannot draw and keeps the row, so this
             // matters only to a window that refused a picture for one such byte.
             f.text(path, 0, row * height, printable(fit(text, columns)), ink);
             ++row;
         };
-        // A notice, when there is one, leads: a pane has only its own room, so its first row
+        // A notice, when there is one, leads: a pane has only its own area, so its first row
         // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
         if (!notice_.empty() && rows > 1) {
             line("notice", notice_, gfx::colors::accent);
         }
-        // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it, and a
+        // A condition is named by its key, `condition:<key>`, on the row that says it, and a
         // press there asks for it; the notice and the glance are named for what they are, and
         // every other row for its place.
         bool glance = true, lines = false;
@@ -365,7 +365,7 @@ public:
     }
 
 private:
-    /// HOW MANY ROWS THE LIST MAY SPEND: the room, less the glance, less the notice row
+    /// How many rows the list may spend: the area, less the glance, less the notice row
     /// `picture` puts in front of it.
     std::int64_t body_budget() const {
         return room().rows() - 1 - (notice_.empty() ? 0 : 1);
@@ -374,24 +374,24 @@ private:
     template <class Push>
     void say_view(Push&& push) {
         const std::int64_t columns = room().columns();
-        // NO ROW SPELLS THE PANE'S OWN KEYS: a pane's declared rows are in the band's legend and
+        // No row spells the pane's own keys: a pane's declared rows are in the band's legend and
         // in the hotkey view under this pane's own heading, resolved through the weaver's
         // effective keymap. Saying them here would put this pane in the business of reading a
         // keymap it cannot see.
         if (!heard_) {
-            // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS NOTHING BEING
-            // WRONG. A pane opened before the first publication has no reading at all, and
+            // The host has not said anything yet, which is not the same as nothing being
+            // wrong. A pane opened before the first publication has no reading at all, and
             // an empty list here would read as an all-clear this pane has no grounds for.
             push("ATTENTION (waiting)", gfx::colors::quiet);
             return;
         }
         if (known_.empty()) {
-            // NOTHING IS WRONG, SAID IN WORDS. A weaver who put this pane on their desk is
+            // Nothing is wrong, said in words. A weaver who put this pane on their desk is
             // owed an answer, and an empty box is not one.
             push("nothing needs your attention right now", gfx::colors::quiet);
             return;
         }
-        // THE GLANCE LEADS: the loudest condition the host says is true and how many more, in
+        // The glance leads: the loudest condition the host says is true and how many more, in
         // that condition's colour -- every true one, hidden or not, since hiding is a choice about
         // what this weaver reads and not about what is the case. A pane one row tall is this row.
         push(ws::attention_glance(known_), known_.front().ink);
@@ -402,7 +402,7 @@ private:
         }
         const std::size_t budget = static_cast<std::size_t>(budget_rows);
         if (shown.empty()) {
-            // EVERYTHING TRUE IS HIDDEN, WHICH IS NOT NOTHING BEING TRUE. Hiding is what this
+            // Everything true is hidden, which is not nothing being true. Hiding is what this
             // weaver chose to read; the host still holds each condition, the glance still counts
             // it and the publication still carries it, so the list says it is hiding them rather
             // than saying the all-clear.
@@ -418,16 +418,16 @@ private:
         // and the next publication, and every question below spends the same answer.
         const std::size_t cursor = cursor_ < shown.size() ? cursor_ : shown.size() - 1;
         const StandingCondition& at = shown[cursor];
-        // THE LAYOUT'S `detail` SETTING OFF: no block, and its rows are the list's.
+        // The layout's `detail` setting off: no block, and its rows are the list's.
         std::vector<std::string> block =
             detail_shown_ ? wrap(at.detail, columns - kWrapIndent) : std::vector<std::string>{};
         if (detail_shown_ && !at.suggestion.empty()) {
-            // WHAT A WEAVER COULD PRESS SOMEWHERE ELSE, in the host's own words. Nothing here
-            // can press it, which is WL-ATTN-10 unchanged: the row is a sentence, and this
-            // pane could not resolve an action id even if it were given one.
+            // What a weaver could press somewhere else, in the host's own words. Nothing here
+            // can press it (WL-ATTN-10): the row is a sentence, and this pane could not resolve an
+            // action id even if it were given one.
             block.push_back(at.suggestion);
         }
-        // THE LIST KEEPS A FLOOR OF THREE ROWS, so the cursor's row is always in the window it is
+        // The list keeps a floor of three rows, so the cursor's row is always in the window it is
         // being explained inside of. Below four rows there is no explanation at all rather than
         // an explanation with no statement over it, and below three no row is seated between two
         // markers: the list says only how many it leaves out, since it never drops a condition
@@ -466,8 +466,8 @@ private:
 
     // ---- State not in the shape ----------------------------------------------------------
 
-    /// THE HOST'S LAST READING, held between publications and owned by nobody here. Replaced
-    /// whole; never merged; never persisted; deliberately NOT in the state shape, because a
+    /// The host's last reading, held between publications and owned by nobody here. Replaced
+    /// whole; never merged; never persisted; deliberately not in the state shape, because a
     /// reloaded image that carried it would present a picture derived before it existed.
     std::vector<StandingCondition> known_;
     bool heard_ = false;
@@ -475,7 +475,7 @@ private:
     std::size_t cursor_ = 0;
     std::string notice_;
 
-    /// WHETHER THE CURSOR'S CONDITION IS EXPLAINED BENEATH IT: the layout's `detail` setting,
+    /// Whether the cursor's condition is explained beneath it: the layout's `detail` setting,
     /// handed again after a reload, so never reload state.
     bool detail_shown_ = true;
 };

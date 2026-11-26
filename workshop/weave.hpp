@@ -273,7 +273,7 @@ struct HostContext {
 
     /// What the host already knew was true, and still is. It can grow after the first picture (an
     /// optional row refusing inside a delivery), hence `conditions_generation`.
-    // WL-ATTN-01 -- agents/workshop/attention.md
+    // WL-ATTN-01 -- attention/docs/attention-laws.md
     std::vector<Condition> standing_conditions;
     /// How many times that list grew: compared, so a repaint costs one integer.
     std::uint64_t conditions_generation = 0;
@@ -1321,7 +1321,7 @@ private:
 
     /// Which of this weave's own editable places a consumed paste request came from; `kNone` for
     /// every armless branch. A pane asks the window that shows it for the clipboard itself.
-    // WL-TEXT-09 -- agents/workshop/text-box.md
+    // WL-TEXT-09 -- component/docs/component-laws.md
     enum class PasteOwner : std::uint8_t { kNone, kNaming };
 
     /// THE ONE-LINE NAME EDITOR THAT IS OPEN, or nothing -- the layout's.
@@ -1333,7 +1333,7 @@ private:
 
     /// ONE PASTE STILL IN FLIGHT: the conversation (by the book's own id) and the draft it
     /// belongs to.
-    // WL-TEXT-09 -- agents/workshop/text-box.md
+    // WL-TEXT-09 -- component/docs/component-laws.md
     struct PendingPaste {
         std::uint64_t ask = 0;
         PasteOwner owner = PasteOwner::kNone;
@@ -2128,7 +2128,7 @@ private:
     std::size_t held_dropped_ = 0;
 
     /// THE ASKER'S OWN BOOK OF PASTES STILL IN FLIGHT, and the drafts each one belongs to.
-    // WL-TEXT-09 -- agents/workshop/text-box.md
+    // WL-TEXT-09 -- component/docs/component-laws.md
     loom::AskBook paste_asks_{4};
     std::vector<PendingPaste> pending_pastes_;
 

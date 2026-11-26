@@ -5,9 +5,8 @@
 #define ZENGINE_NOTICES_PANE_VOCABULARY_HPP
 
 // The Notices pane's durable names: the role it holds, the one pane it offers, the action ids its
-// keys answer to, and the state a same-shape reload keeps. The record it walks is the notices
-// role's (notices/vocabulary.hpp).
-// Workshop law: agents/workshop/notices.md
+// keys answer to, and the state a same-shape reload keeps. The record it reads is the notices
+// role's (notices/vocabulary.hpp), and its laws are notices/docs/notices-laws.md.
 
 #include <zen/weave/shape.hpp>
 
@@ -15,21 +14,22 @@
 
 namespace zengine::notices_pane {
 
-/// THE ROLE THIS PANE HOLDS, and the only address anything reaches it by.
+/// The role this pane holds, and the only address by which anything reaches it.
 inline constexpr const char* kNoticesPaneRole = "zengine.notices-pane";
 
-/// THE PANE KEY, in this role's namespace.
+/// The pane key, in this role's namespace.
 inline constexpr const char* kNoticesPane = "notices";
 
-/// ITS NAME IN THE PANE MANAGER'S LIST AND ITS SUMMARY IN INFO, inside Workshop's admission bounds:
-/// a name at 32 bytes, a summary at 64.
+/// Its name in the Pane Manager's list and its summary in Info, inside Workshop's admission bounds:
+/// a name of at most 32 bytes, a summary of at most 64.
 inline constexpr const char* kNoticesPaneName = "Notices";
 inline constexpr const char* kNoticesPaneSummary = "what Workshop said";
 
-/// THE LIBRARY STEM A HOST BOOTS, here because the host's plan and the suites' loader must agree.
+/// The library stem a host boots. It is here because the host's plan and the suites' loader must
+/// agree on it.
 inline constexpr const char* kNoticesPaneStem = "zengine-notices-pane";
 
-/// THE ACTIONS THE PANE DECLARES: one notice older, one notice newer. The wheel's notches ask the
+/// The actions the pane declares: one notice older, one notice newer. The wheel's notches ask the
 /// same two, so a key and a notch move the same rows.
 inline constexpr const char* kActionUp = "notices.up";
 inline constexpr const char* kActionDown = "notices.down";
