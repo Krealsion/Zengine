@@ -1,7 +1,7 @@
 # What Workshop said is kept
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [notices](../workshop/notices.md).
+supports is in [the notices' laws](../../notices/docs/notices-laws.md).
 
 **Context.** Workshop said each event in one notice row in its bottom band, replaced by the next
 thing said: a weaver who looked away lost it, and the band spent a row of the room on it.
@@ -28,5 +28,6 @@ understand what just happened: a role's own bookkeeping and a motion under way g
 every refusal and failure is said. The reserved chrome is five rows. A notice is no longer the desk's words, so
 saying one moves no desk stamp; the pane's rows are. A guest reads notices with `capture`.
 
-**Laws supported.** [WL-NOTE-02](../workshop/notices.md), [WL-NOTE-05](../workshop/notices.md),
-[WL-NOTE-06](../workshop/notices.md).
+**Laws supported.** [WL-NOTE-02](../../notices/docs/notices-laws.md),
+[WL-NOTE-05](../../notices/docs/notices-laws.md),
+[WL-NOTE-06](../../notices/docs/notices-laws.md).

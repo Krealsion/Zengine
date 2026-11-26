@@ -34,7 +34,7 @@ consumer-specific behavior of its extracted panes.
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
-| what Workshop said: each notice published, the notices record and its `keep`, the Notices pane | [notices](workshop/notices.md) `WL-NOTE` |
+| what Workshop said: each notice published, the notices record and its `keep`, the Notices pane | [the notices' laws](../notices/docs/notices-laws.md) `WL-NOTE` |
 | several desks, the tab run, the durable files, the session and the window file, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) · [window-file](workshop/window-file.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the application's defaults: their role, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) `WL-DESK` |
 | a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` |

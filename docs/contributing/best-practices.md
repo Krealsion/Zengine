@@ -185,7 +185,7 @@ Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
 
 ### Notices (`notices/`)
 
-Its law, pages and suites: [`notices/AGENTS.md`](../../notices/AGENTS.md).
+Its law, pages and suites: [its front page](../../notices/README.md#working-on-it).
 
 - **A notice is a moment that passed**: kept, never waiting, unread or expiring.
   [About](../../notices/docs/zengine.notices-pane.md#about)

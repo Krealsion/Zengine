@@ -20,3 +20,4 @@ launcher
 message-draft
 theme
 app
+notices

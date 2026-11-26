@@ -69,7 +69,6 @@ agents/workshop/layouts.md 3
 agents/workshop/migration.md 11
 agents/workshop/neovim-transfers.md 6
 agents/workshop/neovim.md 9
-agents/workshop/notices.md 2
 agents/workshop/opening.md 15
 agents/workshop/pane-controls.md 9
 agents/workshop/pane-manager.md 1
