@@ -16,6 +16,8 @@ starts.
 
 - [`zengine.launcher`](docs/zengine.launcher.md): the manual -- the catalog, a detached start, and
   `Launch`.
+- [The launcher's laws](docs/launcher-laws.md): who may ask for a start, and whose approval of the
+  hand the launcher trusts.
 
 ## Parts
 
@@ -34,8 +36,11 @@ starts.
 The repository's guide is [CONTRIBUTING.md](../CONTRIBUTING.md); this section is what a change in
 `launcher/` adds to it.
 
-**Law.** The folder has no numbered law. What it promises the roles that ask it is its manual's,
-and a rule about one declaration is in that declaration's comment.
+**Law.** One numbered law, on [the launcher's laws](docs/launcher-laws.md): only its four askers
+may ask it for a start, each after Workshop allowed the hand that pressed, and the launcher trusts
+that approval (LAUNCHER-01). Its proofs are listed in `tests/laws/launcher.txt`. What it promises
+the roles that ask it is its manual's, and a rule about one declaration is in that declaration's
+comment.
 
 **Suites.** Each runs through the official lane, `tests/verify.cmake`.
 
@@ -51,7 +56,7 @@ Run app.
 - The View Builder's Run app (`view/view-builder/pane.cpp`), Files' start and its demos
   (`files/files.cpp`), the palette's setups and apps (`workshop/palette/palette.cpp`) and the quick
   setup's Start (`workshop/first-run/first_run.cpp`) ask it, each after Workshop's approval for the
-  hand that pressed. The launcher trusts that approval and does not judge the hand again.
+  hand that pressed (LAUNCHER-01).
 - The app host writes the session file a listing reads (`app/session_file.hpp`).
 - Workshop's four load plans load it as an optional row, and Workshop's directory stages it
   (`workshop/CMakeLists.txt`); it is installed with Zengine's artifacts

@@ -101,6 +101,7 @@ already on disk is overwritten only when asked to.
 ## Pages
 
 - [`zengine.theme`](docs/zengine.theme.md): the role's manual, compiled in and answered.
+- [The themes' laws](docs/theme-laws.md): one owner offers each palette name.
 
 ## Parts
 
@@ -119,7 +120,9 @@ already on disk is overwritten only when asked to.
 The repository's guide is [CONTRIBUTING.md](../CONTRIBUTING.md); this section is what a change in
 `theme/` adds to it.
 
-**Law.** The folder has no numbered law: what a theme is and how a stack is laid are this page's,
+**Law.** One numbered law, on [the themes' laws](docs/theme-laws.md): one owner offers each palette
+name, the theme role where it runs and the host where it does not (THEME-01). Its proofs are listed
+in `tests/laws/theme.txt`. What a theme is and how a stack is laid are this page's,
 the role's messages are its manual's, and a rule about one declaration is in that declaration's
 comment. A pane's own values and the terminal's look are the names graphics declares, and their law
 is graphics' ([`graphics/`](../graphics/README.md)).
@@ -140,6 +143,5 @@ Its shapes are pinned with every other shape the tree publishes (`tests/census_h
   palette by its stack's name; its layouts' owner keeps each layout's stack and each row's theme.
 - The theme role keeps no stack of its own and names no host: a host is whoever says where the
   themes are and what is worn, and nothing here assumes Workshop.
-- One owner offers each palette name: where the theme role runs it offers every stack's palette,
-  the shipped looks among them, and the host offers none; a host without it offers its own.
+- Where the theme role runs, Workshop offers no palette of its own (THEME-01).
 - Its files are read and written through `persist/`.

@@ -1,0 +1,11 @@
+# The proofs of theme/'s laws (theme/docs/theme-laws.md), read by the law_register check
+# (tests/check_law_register.cmake): under each `### <id>` a line a file, the file in backticks, then
+# the functions, types, constants and members it holds bare and its cases quoted.
+
+### THEME-01
+`theme/weave.cpp` offer_held
+`theme/stack_name.hpp` stack_palette
+`app/weave.cpp` shipped_palette
+`tests/test_theme.cpp` "the theme weave asks on its activation for where the themes are and for
+every own value, and offers each stack worn as the palette named for it, laid again only where it
+changed"

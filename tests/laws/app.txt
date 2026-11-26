@@ -1,0 +1,6 @@
+# The proofs of app/'s laws (app/docs/app-laws.md), read by the law_register check
+# (tests/check_law_register.cmake): under each `### <id>` a line a file, the file in backticks, then
+# the functions, types, constants and members it holds bare and its cases quoted.
+
+### APP-01
+`app/host.hpp` AppHost kAppHostRole (true by construction: no case reads the roles `AppHost` holds)
