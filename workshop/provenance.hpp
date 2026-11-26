@@ -11,6 +11,7 @@
 // Workshop law: agents/workshop/code.md
 
 #include "code_source.hpp"
+#include "project_acts.hpp"
 #include "realization/owner.hpp"
 #include "recipes.hpp"
 #include "weave.hpp"
@@ -67,16 +68,16 @@ inline CodeSource code_source_of(const std::string& role, loom::WeaveId holder,
                                     &catalog);
 }
 
-/// WHICH FILE ONE RECIPE'S CODE STARTS IN -- the answer `HostContext::recipe_source` gives the
+/// WHICH FILE ONE RECIPE'S CODE STARTS IN -- the answer the project door's `Source` gives the
 /// read-only project door, read from the catalog in force at the ask: a single source, or the
 /// editing entry a `cmake_target` recipe names, completed as the build reads them; empty for a
 /// recipe that names neither. Read through the claim's own rule (`recipes_in_force_of`), so the
 /// Builder's `e` and Edit Code read a recipe the same way, and a suite can ask the rule the host
 /// wires rather than a copy of it.
 // WL-CODE-05 -- agents/workshop/code.md
-inline HostContext::RecipeSource recipe_source_of(const std::vector<builder::Recipe>& recipes,
+inline RecipeSource recipe_source_of(const std::vector<builder::Recipe>& recipes,
                                                   const std::string& id) {
-    HostContext::RecipeSource out;
+    RecipeSource out;
     const builder::Recipe* found = builder::recipe_named(recipes, id);
     if (found == nullptr) {
         return out;

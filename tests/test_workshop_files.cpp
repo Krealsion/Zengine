@@ -138,7 +138,7 @@ inline std::filesystem::path unsayable_dir_name() {
 }
 
 /// A PROJECT THIS CASE MADE, WITH A WORKSHOP STANDING IN IT. `project_dir` is set the way
-/// the host sets it: one string on the `HostContext`, before the weave runs. The browser's
+/// the host sets it: one string among its places, before the weave runs. The browser's
 /// gestures are a weave's -- `u` and a Return on a row cross as `RecipeUseRequested` and
 /// `OpenSourceRequested` -- so a case about the HOST's half calls it through the closure the
 /// door spends; what the weaver's hand does is proved at the pane seam.
@@ -192,11 +192,11 @@ inline void mount_project_door_with_source(ProjectRig& r) {
 }
 
 /// CHOOSE A CATALOG THE WAY THE PROJECT DOOR DOES: the one install seam
-/// (`HostContext::use_recipes`, WL-PROJ-04), then the republish the Files weave asks the
+/// (the project door's `Use`, WL-PROJ-04), then the republish the Files weave asks the
 /// Builder for after an accepted one. Two acts, exactly as `ProjectDoor` and the weave
 /// perform them between them -- and neither of them is a browser.
-inline HostContext::RecipeSwap choose_catalog(Live& t, const std::string& path) {
-    const HostContext::RecipeSwap done = t.project.use_recipes(path);
+inline RecipeSwap choose_catalog(Live& t, const std::string& path) {
+    const RecipeSwap done = t.project.use_recipes(path);
     if (done.accepted) {
         t.publish(loom::to_value(zengine::builder::StatusRequested{}));
     }
@@ -408,7 +408,7 @@ TEST_CASE("the project door names the file that recipe's build would compile") {
     // is the whole mechanism: one completion, and every reader downstream reads it.
     const std::string completed = all[0].single_source->source;
     r.t.project.recipe_source = [completed](const std::string& id) {
-        HostContext::RecipeSource out;
+        RecipeSource out;
         if (id == "one") {
             out.known = true;
             out.kind = "single_source";
@@ -436,11 +436,11 @@ TEST_CASE("the project door names the file that recipe's build would compile") {
 
 namespace {
 
-/// The host's own wiring of `HostContext::recipe_source`, said again here so a case
+/// The host's own wiring of the project door's `Source`, said again here so a case
 /// measures the shape `workshop.cpp` actually installs rather than a shape a rig
 /// invented. It captures the OWNER and asks it at the moment of the gesture; that is
 /// the whole of what this tier is about.
-inline std::function<HostContext::RecipeSource(const std::string&)>
+inline std::function<RecipeSource(const std::string&)>
 host_recipe_source(const CurrentRecipes& owner) {
     return [&owner](const std::string& id) {
         return provenance::recipe_source_of(owner.all(), id);
@@ -484,7 +484,7 @@ TEST_CASE("the owner derives the tool's view from the recipes it is holding") {
     second.cmake_target =
         zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string(), std::string()};
     completed.push_back(second);
-    owner.hold("/project/recipes.json", completed, &HostContext::so_in);
+    owner.hold("/project/recipes.json", completed, &so_in);
 
     REQUIRE(owner.all().size() == 2);
     REQUIRE(owner.views().size() == 2);
@@ -494,15 +494,15 @@ TEST_CASE("the owner derives the tool's view from the recipes it is holding") {
         CHECK(owner.views()[i].id == owner.all()[i].id);
         CHECK(owner.views()[i].artifact == owner.all()[i].artifact);
         CHECK(owner.views()[i].path ==
-              HostContext::so_in(owner.all()[i].artifact_dir, owner.all()[i].artifact));
+              so_in(owner.all()[i].artifact_dir, owner.all()[i].artifact));
     }
     // ...AND THE COMPLETED ARTIFACT DIRECTORY IS WHAT THE VIEW SPELLS, not the host's own: a
     // recipe whose product lands in somebody else's tree is why `so_in` takes a directory. A
     // single-source recipe's empty directory is its workspace's `out`, never the host's: the
     // build must not write the file the process maps.
     CHECK(owner.views()[0].path ==
-          HostContext::so_in("/install/build-workspace/one/out", "one"));
-    CHECK(owner.views()[1].path == HostContext::so_in("/elsewhere", "zengine-two"));
+          so_in("/install/build-workspace/one/out", "one"));
+    CHECK(owner.views()[1].path == so_in("/elsewhere", "zengine-two"));
     // AND NOTHING IN THE VIEW CARRIES A BUILD PROCEDURE: the subtraction is the split,
     // derived by the owner.
     CHECK(owner.views()[0].path.find("one.cpp") == std::string::npos);
@@ -514,13 +514,13 @@ TEST_CASE("a recipe making its pane native and boxed is a view for each product,
     std::vector<zengine::builder::Recipe> completed =
         completed_catalog("one", "/abs/one.cpp", "/install", "/project");
     completed[0].single_source->makes = zengine::builder::makes::kBoth;
-    owner.hold("/project/recipes.json", completed, &HostContext::so_in);
+    owner.hold("/project/recipes.json", completed, &so_in);
 
     REQUIRE(owner.all().size() == 1);
     REQUIRE(owner.views().size() == 2);
     CHECK(owner.views()[0].id == "one");
     CHECK(owner.views()[0].artifact == "one");
-    CHECK(owner.views()[0].path == HostContext::so_in("/install/build-workspace/one/out", "one"));
+    CHECK(owner.views()[0].path == so_in("/install/build-workspace/one/out", "one"));
     CHECK(owner.views()[1].id == "one");
     CHECK(owner.views()[1].artifact == "one.wasm");
     // A MODULE'S STEM IS ITS FILE'S NAME, the same on every platform.
@@ -541,7 +541,7 @@ TEST_CASE("holding a new catalog replaces the contents, never the object") {
     const std::vector<zengine::builder::RecipeView>* views = &owner.views();
 
     owner.hold("/project/a.json", completed_catalog("one", "/abs/one.cpp", "/install", "/project"),
-               &HostContext::so_in);
+               &so_in);
     CHECK(&owner.all() == recipes);
     CHECK(&owner.views() == views);
     REQUIRE(recipes->size() == 1);
@@ -551,7 +551,7 @@ TEST_CASE("holding a new catalog replaces the contents, never the object") {
     // answer, and the answer is the new one.
     owner.hold("/project/b.json",
                completed_catalog("later", "/abs/later.cpp", "/install", "/project"),
-               &HostContext::so_in);
+               &so_in);
     CHECK(&owner.all() == recipes);
     CHECK(&owner.views() == views);
     REQUIRE(recipes->size() == 1);
@@ -563,18 +563,18 @@ TEST_CASE("holding a new catalog replaces the contents, never the object") {
 
     // ...AND AN EMPTY ONE EMPTIES BOTH, rather than leaving the previous views standing
     // beside no recipes -- a half-installed catalog.
-    owner.hold("/project/empty.json", {}, &HostContext::so_in);
+    owner.hold("/project/empty.json", {}, &so_in);
     CHECK(recipes->empty());
     CHECK(views->empty());
 }
 
 TEST_CASE("the host's edit-source answer is asked of the owner, not of a copy") {
-    // THE CLOSURE FALSIFIER. `HostContext::recipe_source` captures the owner and reads it
+    // THE CLOSURE FALSIFIER. the project door's `Source` captures the owner and reads it
     // when asked; a closure holding its own copy of three fields per recipe would be a third
     // session-long store, and this case tells the two apart: the answer has to follow a
     // catalog the closure never saw.
     CurrentRecipes owner;
-    const std::function<HostContext::RecipeSource(const std::string&)> answer =
+    const std::function<RecipeSource(const std::string&)> answer =
         host_recipe_source(owner);
 
     // WITH NOTHING HELD, NOTHING IS KNOWN -- and it is a refusal in the caller's hands
@@ -582,8 +582,8 @@ TEST_CASE("the host's edit-source answer is asked of the owner, not of a copy") 
     CHECK_FALSE(answer("one").known);
 
     owner.hold("/project/a.json", completed_catalog("one", "src/a.cpp", "/install", "/project"),
-               &HostContext::so_in);
-    const HostContext::RecipeSource first = answer("one");
+               &so_in);
+    const RecipeSource first = answer("one");
     CHECK(first.known);
     CHECK(first.kind == "single_source"); // the recipe FILE's own word for the kind
     CHECK(first.source == "/project/src/a.cpp");
@@ -592,9 +592,9 @@ TEST_CASE("the host's edit-source answer is asked of the owner, not of a copy") 
     // THE ONE PLACE CHANGES, AND THE SAME CLOSURE ANSWERS THE NEW CATALOG.
     owner.hold("/elsewhere/b.json",
                completed_catalog("two", "src/b.cpp", "/install", "/elsewhere"),
-               &HostContext::so_in);
+               &so_in);
     CHECK_FALSE(answer("one").known);
-    const HostContext::RecipeSource second = answer("two");
+    const RecipeSource second = answer("two");
     CHECK(second.known);
     CHECK(second.source == "/elsewhere/src/b.cpp");
 
@@ -605,8 +605,8 @@ TEST_CASE("the host's edit-source answer is asked of the owner, not of a copy") 
     target.artifact = "built";
     target.cmake_target =
         zengine::builder::CMakeTargetRecipe{"/tree", "t", std::string(), std::string()};
-    owner.hold("/project/t.json", {target}, &HostContext::so_in);
-    const HostContext::RecipeSource named = answer("built");
+    owner.hold("/project/t.json", {target}, &so_in);
+    const RecipeSource named = answer("built");
     CHECK(named.known);
     CHECK(named.kind == "cmake_target");
     CHECK(named.source.empty());
@@ -637,7 +637,7 @@ TEST_CASE("the project door names the file the OWNER's completed recipe names") 
     // THE OWNER TAKES IT, AND THE HOST'S SEAM IS WIRED OVER THE OWNER -- `workshop.cpp`,
     // in the order `workshop.cpp` does it.
     CurrentRecipes owner;
-    owner.hold("/project/recipes.json", std::move(all), &HostContext::so_in);
+    owner.hold("/project/recipes.json", std::move(all), &so_in);
     r.t.project.recipe_source = host_recipe_source(owner);
 
     mount_project_door_with_source(r);
@@ -655,7 +655,7 @@ TEST_CASE("the project door names the file the OWNER's completed recipe names") 
     // completed artifact directory and the stem, spelled by the host's one rule.
     REQUIRE(owner.views().size() == 1);
     CHECK(owner.views()[0].path ==
-          HostContext::so_in(owner.all()[0].artifact_dir, owner.all()[0].artifact));
+          so_in(owner.all()[0].artifact_dir, owner.all()[0].artifact));
     // ...AND A RECIPE THE OWNER DOES NOT HOLD IS REFUSED IN THE CATALOG'S OWN WORDS.
     const RecipeSourceSaid unknown = edit_source_through_door(r.t, asker, "two");
     CHECK_FALSE(unknown.accepted);
@@ -799,15 +799,15 @@ inline Held held_by(const CurrentRecipes& owner) {
     return out;
 }
 
-/// The host's own wiring of `HostContext::use_recipes`, said again here so a case measures
+/// The host's own wiring of the project door's `Use`, said again here so a case measures
 /// the shape `workshop.cpp` actually installs rather than a shape a rig invented. The
 /// source-read case above is what keeps the two from drifting.
-inline std::function<HostContext::RecipeSwap(const std::string&)>
+inline std::function<RecipeSwap(const std::string&)>
 host_use_recipes(CurrentRecipes& owner, std::string host_dir, std::string project_dir) {
     return [&owner, host_dir, project_dir](const std::string& path) {
-        HostContext::RecipeSwap done;
+        RecipeSwap done;
         const Written read = install_recipes(owner, path, host_dir, project_dir,
-                                             &HostContext::so_in);
+                                             &so_in);
         done.accepted = read.accepted;
         done.refusal = read.refusal;
         done.path = owner.source();
@@ -854,7 +854,7 @@ TEST_CASE("installing a catalog moves its source, its rows and its views togethe
     CurrentRecipes owner;
     const Written done = install_recipes(owner, (root / "recipes.json").generic_string(),
                                          "/install", root.generic_string(),
-                                         &HostContext::so_in);
+                                         &so_in);
     REQUIRE(done.accepted);
     // THE THREE ANSWERS, AND THEY ARE ONE ANSWER. The file it came from, what it holds,
     // and the tool's reduced view of what it holds -- all installed by the one call.
@@ -868,7 +868,7 @@ TEST_CASE("installing a catalog moves its source, its rows and its views togethe
     // workspace's `out` -- off the install, where the loaded file is.
     CHECK(owner.all()[0].single_source->source == (root / "src/one.cpp").generic_string());
     CHECK(owner.all()[0].artifact_dir == "/install/build-workspace/one/out");
-    CHECK(owner.views()[0].path == HostContext::so_in("/install/build-workspace/one/out", "one"));
+    CHECK(owner.views()[0].path == so_in("/install/build-workspace/one/out", "one"));
 }
 
 TEST_CASE("a candidate that cannot be read installs nothing at all") {
@@ -882,13 +882,13 @@ TEST_CASE("a candidate that cannot be read installs nothing at all") {
 
     CurrentRecipes owner;
     REQUIRE(install_recipes(owner, (root / "good.json").generic_string(), "/install",
-                            root.generic_string(), &HostContext::so_in)
+                            root.generic_string(), &so_in)
                 .accepted);
     const Held before = held_by(owner);
 
     const Written no = install_recipes(owner, (root / "not-here.json").generic_string(),
                                        "/install", root.generic_string(),
-                                       &HostContext::so_in);
+                                       &so_in);
     CHECK_FALSE(no.accepted);
     // THE OWNER'S OWN WORDS, unwrapped: `zengine::persist::read_file` names the file and says why.
     CHECK(no.refusal.find("not-here.json") != std::string::npos);
@@ -906,14 +906,14 @@ TEST_CASE("bytes that are not a catalog install nothing at all") {
 
     CurrentRecipes owner;
     REQUIRE(install_recipes(owner, (root / "good.json").generic_string(), "/install",
-                            root.generic_string(), &HostContext::so_in)
+                            root.generic_string(), &so_in)
                 .accepted);
     const Held before = held_by(owner);
 
     put_file(root / "notes.txt", "these are notes, not recipes\n");
     const Written garbage = install_recipes(owner, (root / "notes.txt").generic_string(),
                                             "/install", root.generic_string(),
-                                            &HostContext::so_in);
+                                            &so_in);
     CHECK_FALSE(garbage.accepted);
     CHECK_FALSE(garbage.refusal.empty());
     CHECK(held_by(owner) == before);
@@ -923,7 +923,7 @@ TEST_CASE("bytes that are not a catalog install nothing at all") {
     put_file(root / "plan.json", load_persist::to_text(load::LoadPlan{}));
     const Written wrong_kind = install_recipes(owner, (root / "plan.json").generic_string(),
                                                "/install", root.generic_string(),
-                                               &HostContext::so_in);
+                                               &so_in);
     CHECK_FALSE(wrong_kind.accepted);
     CHECK(held_by(owner) == before);
 
@@ -947,7 +947,7 @@ TEST_CASE("bytes that are not a catalog install nothing at all") {
     }
     const Written twice = install_recipes(owner, (root / "twice.json").generic_string(),
                                           "/install", root.generic_string(),
-                                          &HostContext::so_in);
+                                          &so_in);
     CHECK_FALSE(twice.accepted);
     CHECK(twice.refusal.find("declared twice") != std::string::npos);
     CHECK(held_by(owner) == before);
@@ -966,12 +966,12 @@ TEST_CASE("a valid EMPTY catalog is a replacement, not a failure") {
 
     CurrentRecipes owner;
     REQUIRE(install_recipes(owner, (root / "full.json").generic_string(), "/install",
-                            root.generic_string(), &HostContext::so_in)
+                            root.generic_string(), &so_in)
                 .accepted);
     REQUIRE(owner.all().size() == 1);
 
     REQUIRE(install_recipes(owner, (root / "empty.json").generic_string(), "/install",
-                            root.generic_string(), &HostContext::so_in)
+                            root.generic_string(), &so_in)
                 .accepted);
     CHECK(owner.all().empty());
     CHECK(owner.views().empty());
@@ -991,13 +991,13 @@ TEST_CASE("selecting the catalog already in force is a reload, not a no-op") {
 
     CurrentRecipes owner;
     REQUIRE(install_recipes(owner, path, "/install", root.generic_string(),
-                            &HostContext::so_in)
+                            &so_in)
                 .accepted);
     REQUIRE(owner.all()[0].id == "before");
 
     put_catalog(root / "recipes.json", {authored_recipe("after", "src/b.cpp")});
     REQUIRE(install_recipes(owner, path, "/install", root.generic_string(),
-                            &HostContext::so_in)
+                            &so_in)
                 .accepted);
     CHECK(owner.source() == path); // the same file...
     REQUIRE(owner.all().size() == 1);
@@ -1021,7 +1021,7 @@ TEST_CASE("a catalog's own directory is not a source base") {
 
     CurrentRecipes owner;
     REQUIRE(install_recipes(owner, (elsewhere / "recipes.json").generic_string(), "/install",
-                            root.generic_string(), &HostContext::so_in)
+                            root.generic_string(), &so_in)
                 .accepted);
     REQUIRE(owner.all().size() == 1);
     // THE PROJECT'S FILE, NOT THE CATALOG'S NEIGHBOUR.
@@ -1055,7 +1055,7 @@ TEST_CASE("a weaver chooses a catalog in Files and every consumer moves with it"
     REQUIRE(tool->recipes().size() == 1);
     REQUIRE(tool->recipes()[0].id == "alpha");
 
-    const HostContext::RecipeSwap moved =
+    const RecipeSwap moved =
         choose_catalog(r.t, (r.root / "b-recipes.json").generic_string());
     REQUIRE(moved.accepted);
     // THE ANSWER CARRIES BOTH HALVES A WEAVER IS OWED: which file is in force now, and how
@@ -1115,7 +1115,7 @@ TEST_CASE("a refused catalog leaves the weaver exactly where they were") {
     zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
     const Held before = held_by(owner);
 
-    const HostContext::RecipeSwap refused =
+    const RecipeSwap refused =
         choose_catalog(r.t, (r.root / "notes.txt").generic_string());
     REQUIRE_FALSE(refused.accepted);
 
@@ -1259,7 +1259,7 @@ TEST_CASE("the shipped catalog is staged beside the executable, under the name t
     // The owner answers with the path it holds, never with an echo of the argument.
     TempDir project("shipped");
     CurrentRecipes owner;
-    const HostContext::RecipeSwap read = host_use_recipes(
+    const RecipeSwap read = host_use_recipes(
         owner, beside.generic_string(), project.path().generic_string())(staged.generic_string());
     REQUIRE_MESSAGE(read.accepted, read.refusal);
     CHECK(read.path == staged.generic_string());
@@ -1519,7 +1519,7 @@ TEST_CASE("a door answers a role, and refuses speech with no author") {
     // accident, and the very same asker gets its answer the moment it speaks as a role.
     DoorRig d("anonymous");
     d.mount_project([](const std::string&) {
-        HostContext::RecipeSwap done;
+        RecipeSwap done;
         done.accepted = true;
         return done;
     });
@@ -1599,7 +1599,7 @@ TEST_CASE("a row authored while the shipped catalog is in force goes into a proj
     const auto use = host_use_recipes(owner, install.generic_string(), d.r.t.host.project_dir);
     const authoring::RecipeAuthor author{install.generic_string(), d.r.t.host.project_dir, &owner,
                                          use};
-    d.mount_project(use, [author](const HostContext::RecipeDraft& draft) {
+    d.mount_project(use, [author](const RecipeDraft& draft) {
         return authoring::author_recipe(author, draft);
     });
     REQUIRE(use(shipped.generic_string()).accepted);
@@ -1649,7 +1649,7 @@ TEST_CASE("a host that holds no such role answers nothing, and that is the answe
 // ============================================================================
 // THE HOST MAY DESCRIBE ITSELF; IT MAY NOT INVENT PROVIDER POWER: zero-input SOURCES over
 // facts it owns are allowed, parameterized power is not, and `mount_host_sources` enforces
-// it. The owners are this suite's (`HostContext::project_dir`, `CurrentRecipes`), asked live.
+// it. The owners are this suite's (the launch's project directory, `CurrentRecipes`), asked live.
 
 namespace {
 
@@ -1832,7 +1832,7 @@ TEST_CASE("zengine.recipes.catalog answers which catalog is in force, and how mu
         put_catalog(root / "two.json",
                     {authored_recipe("one", "src/a.cpp"), authored_recipe("two", "src/b.cpp")});
         REQUIRE(install_recipes(r.recipes, (root / "two.json").generic_string(), "/install",
-                                r.project_dir, &HostContext::so_in)
+                                r.project_dir, &so_in)
                     .accepted);
 
         const std::pair<std::string, std::int64_t> said = r.catalog_said();
@@ -1848,7 +1848,7 @@ TEST_CASE("zengine.recipes.catalog answers which catalog is in force, and how mu
         const std::filesystem::path root = dir.path();
         put_catalog(root / "one.json", {authored_recipe("secret", "src/secret.cpp")});
         REQUIRE(install_recipes(r.recipes, (root / "one.json").generic_string(), "/install",
-                                r.project_dir, &HostContext::so_in)
+                                r.project_dir, &so_in)
                     .accepted);
         // BEING IN MEMORY IS NOT A REASON TO BE ROUTABLE. The rows, their ids, their
         // sources, their build procedures and their artifacts are all right there in the
@@ -1896,7 +1896,7 @@ TEST_CASE("the recipe Source follows a live swap, and a REFUSED one moves nothin
     SUBCASE("a REFUSED replacement leaves the sampled answer exactly where it was") {
         // ...because it leaves the OWNER exactly where it was. The Source has no opinion
         // about a failed swap and needs none: it reports whoever the owner currently is.
-        const HostContext::RecipeSwap no = use((root / "notes.txt").generic_string());
+        const RecipeSwap no = use((root / "notes.txt").generic_string());
         CHECK_FALSE(no.accepted);
         CHECK(r.catalog_said() == started);
     }
@@ -2014,7 +2014,7 @@ TEST_CASE("exposure stays deliberate -- the host did not become reflectable") {
     // real fact this process could reach, and none is a door.
     TempDir dir("srcsecret");
     HostSourceRig r(dir.path().generic_string());
-    r.recipes.hold((dir.path() / "r.json").generic_string(), {}, &HostContext::so_in);
+    r.recipes.hold((dir.path() / "r.json").generic_string(), {}, &so_in);
     REQUIRE(r.expose());
 
     for (const char* absent : {"zengine.clipboard", "zengine.editor.document",
@@ -2059,7 +2059,7 @@ TEST_CASE("the host reaches its own facts through one door, and the owners outli
     // so reverse-order destruction drops the readers first. This is the lifetime claim and
     // there is nothing else that could make it.
     const std::size_t recipes = host.find("CurrentRecipes current_recipes;");
-    const std::size_t context = host.find("HostContext host;");
+    const std::size_t context = host.find("} host;"); // the host's places, the project's among them
     const std::size_t catalog = host.find("op::Catalog operators;");
     REQUIRE(recipes != std::string::npos);
     REQUIRE(context != std::string::npos);
@@ -2111,10 +2111,10 @@ TEST_CASE("a single-source recipe's product lands in its workspace, never on the
     CHECK(all[2].artifact_dir == "/elsewhere");
     // THE VIEW FOLLOWS, so the tool looks where CMake was told to write...
     CurrentRecipes owner;
-    owner.hold("/project/recipes.json", all, &HostContext::so_in);
+    owner.hold("/project/recipes.json", all, &so_in);
     REQUIRE(owner.views().size() == 3);
     CHECK(owner.views()[0].path ==
-          HostContext::so_in("/install/build-workspace/one/out", "zengine-one"));
+          so_in("/install/build-workspace/one/out", "zengine-one"));
     CHECK(owner.views()[0].path.find("/install/zengine-one") == std::string::npos);
     // ...AND THE GENERATED PROJECT AIMS THE SAME DIRECTORY.
     CHECK(zengine::builder::generated_project(owner.all()[0])
@@ -2172,7 +2172,7 @@ TEST_CASE("a version-1 catalog a weaver already has reads whole: every row, and 
     CHECK(again.recipes == read.recipes);
 
     // ...AND THE JOIN READS IT AS A RECIPE WITH NO FILE TO OPEN, in the recipe file's words.
-    const HostContext::RecipeSource named = provenance::recipe_source_of(read.recipes,
+    const RecipeSource named = provenance::recipe_source_of(read.recipes,
                                                                          "skin-tui-block");
     CHECK(named.known);
     CHECK(named.kind == "cmake_target");

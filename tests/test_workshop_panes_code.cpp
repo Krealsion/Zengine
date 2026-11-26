@@ -255,7 +255,7 @@ struct CodeRig {
             tool->catalog.recipes.push_back(bld::RecipeSummary{row.id, row.artifact});
         }
         tool->catalog.source = "/project/build-recipes.json";
-        r.host_recipes.hold("/project/build-recipes.json", std::move(rows), &HostContext::so_in);
+        r.host_recipes.hold("/project/build-recipes.json", std::move(rows), &so_in);
         claim_catalog();
     }
 
@@ -1050,7 +1050,7 @@ TEST_CASE("code that changed while its source was opening leaves the file open a
                           {target_recipe("skin", "zengine-skin"),
                            single_recipe("tally", kTallyStem, c.source),
                            single_recipe("tally-debug", kTallyStem, spelled(other))},
-                          &HostContext::so_in);
+                          &so_in);
     c.claim_catalog(); // the project door claims the catalog it now holds
     c.r.bus.drain_until_idle();
 
@@ -1666,11 +1666,11 @@ TEST_CASE("a stem spelled with WebAssembly's suffix names that file, and any oth
 #else
         "/d/zengine-example-tally.so";
 #endif
-    CHECK(HostContext::so_in("/d", kNativeStem) == library);
-    CHECK(HostContext::so_in("/d", kBoxedStem) == "/d/zengine-example-tally.wasm");
+    CHECK(so_in("/d", kNativeStem) == library);
+    CHECK(so_in("/d", kBoxedStem) == "/d/zengine-example-tally.wasm");
     // The suffix is the stem's end, and a stem that is only the suffix names no module.
-    CHECK(HostContext::so_in("/d", "a.wasm.b") != "/d/a.wasm.b");
-    CHECK(HostContext::so_in("/d", ".wasm") != "/d/.wasm");
+    CHECK(so_in("/d", "a.wasm.b") != "/d/a.wasm.b");
+    CHECK(so_in("/d", ".wasm") != "/d/.wasm");
 }
 
 TEST_CASE("Workshop's loaded words say a native Tally is held as the kernel's note says") {

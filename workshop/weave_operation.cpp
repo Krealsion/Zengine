@@ -371,7 +371,8 @@ std::string WorkshopWeave::approve_gesture(const std::string& pane_key, std::int
     // that relays it, never from the guest, so it is judged here, for the hand that asked.
     if (names_send) {
         if (std::string refused = scope::judge_send(facet<GuestActsFacet>().row(guest_hand(actor)),
-                                                    host_->host_fact, shape);
+                                                    facet<GuestActsFacet>().host_fact(guest_hand(actor)),
+                                                    shape);
             !refused.empty())
             return refused;
     }
@@ -386,7 +387,8 @@ std::string WorkshopWeave::approve_gesture(const std::string& pane_key, std::int
 std::string WorkshopWeave::judge_classes(const InputActor& actor, const std::vector<std::string>& classes,
                                          const std::string& subject) const {
     if (classes.empty()) return {};
-    return scope::judge_all(facet<GuestActsFacet>().row(guest_hand(actor)), host_->host_fact, classes, subject);
+    return scope::judge_all(facet<GuestActsFacet>().row(guest_hand(actor)),
+                            facet<GuestActsFacet>().host_fact(guest_hand(actor)), classes, subject);
 }
 
 // ON A WEAVER'S HOST, THE PLACES ONLY THE WEAVER'S HAND REACHES: the editor role, whichever
@@ -398,21 +400,23 @@ std::string WorkshopWeave::refused_toward(const InputActor& actor, std::int64_t 
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) return {};
     const scope::GuestRowFacts guest = facet<GuestActsFacet>().row(guest_hand(actor));
-    if (!guest.admitted || !weaver_only_pane(*row, true)) return {};
-    if (row->provider == kEditorRole) return scope::refuse_toward(guest, host_->host_fact, "the editor");
-    if (row->provider == kTerminalRole) return scope::refuse_toward(guest, host_->host_fact, "the Terminal");
+    const scope::HostFact host = facet<GuestActsFacet>().host_fact(guest_hand(actor));
+    if (!guest.admitted || !weaver_only_pane(*row, true, host)) return {};
+    if (row->provider == kEditorRole) return scope::refuse_toward(guest, host, "the editor");
+    if (row->provider == kTerminalRole) return scope::refuse_toward(guest, host, "the Terminal");
     if (row->provider == first_run::kFirstRunRole) {
-        return scope::refuse_toward(guest, host_->host_fact,
+        return scope::refuse_toward(guest, host,
                                     "the quick setup, which switches the editor and writes the settings file,");
     }
-    return scope::refuse_toward(guest, host_->host_fact, "the Hotkeys pane, which edits the keymap file,");
+    return scope::refuse_toward(guest, host, "the Hotkeys pane, which edits the keymap file,");
 }
 
 // ...AND SO PLACED IN A WINDOW while a guest door listens on a weaver's host: the window, which
 // cannot tell a guest's hand from another participant's, then lands no injected hand there.
 // WL-GUEST-06 -- agents/workshop/guests.md
-bool WorkshopWeave::weaver_only_pane(const RuntimePane& row, bool door) const {
-    if (host_->host_fact.development || !door) return false;
+bool WorkshopWeave::weaver_only_pane(const RuntimePane& row, bool door,
+                                     const scope::HostFact& host) const {
+    if (host.development || !door) return false;
     return row.provider == kEditorRole || row.provider == kTerminalRole ||
            row.provider == first_run::kFirstRunRole ||
            (row.provider == kDesktopRole && row.pane == kHotkeysPane);
@@ -623,7 +627,8 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     // none: dropped on a pane it would stand as a draft the weaver's own Submit, commit or save
     // sends as the weaver's. So the carry does not begin, and the one carry the desk holds stays
     // the weaver's to take.
-    if (const std::string why = scope::refuse_carry(facet<GuestActsFacet>().row(guest_hand(carrier)), host_->host_fact);
+    if (const std::string why = scope::refuse_carry(facet<GuestActsFacet>().row(guest_hand(carrier)),
+                                                    facet<GuestActsFacet>().host_fact(guest_hand(carrier)));
         !why.empty()) {
         say(why, true);
         (void)mail.answer(PaneCarryAnswered{false, why});

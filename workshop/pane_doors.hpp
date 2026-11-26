@@ -11,6 +11,7 @@
 
 #include "builder_seam_vocabulary.hpp"
 #include "workshop/project_seam_vocabulary.hpp"
+#include "project_acts.hpp" // what the host's owners answer a recipe read and act
 #include "weave.hpp"
 
 #include "activation/activation.hpp"
@@ -62,10 +63,10 @@ class ProjectDoor
           loom::WeaveBase, loom::Claims<RecipesInForce>> {
 public:
     using Names = std::function<bool(const std::string&)>;
-    using Source = std::function<HostContext::RecipeSource(const std::string&)>;
-    using Use = std::function<HostContext::RecipeSwap(const std::string&)>;
-    using Author = std::function<HostContext::RecipeSwap(const HostContext::RecipeDraft&)>;
-    using Append = std::function<HostContext::PlanAppend(
+    using Source = std::function<RecipeSource(const std::string&)>;
+    using Use = std::function<RecipeSwap(const std::string&)>;
+    using Author = std::function<RecipeSwap(const RecipeDraft&)>;
+    using Append = std::function<PlanAppend(
         const std::string&, const std::string&, const std::string&)>;
     /// The catalog in force, read from its holder at each change, as this role claims it.
     using Catalog = std::function<RecipesInForce()>;
@@ -112,7 +113,7 @@ public:
                                               where.waiting_on.empty() ? 0 : where.behind});
     }
 
-    /// DOES THE PLAN IN FORCE ALREADY NAME THIS ARTIFACT? `HostContext::plan_names`, spent
+    /// DOES THE PLAN IN FORCE ALREADY NAME THIS ARTIFACT? the host's `Names`, spent
     /// at the ask. The stem rides back on the answer so the asker reads it against the row
     /// it asked about rather than against wherever its cursor has since moved.
     void on(const PlanNamesRequested& asked, loom::Mail& mail) {
@@ -123,7 +124,7 @@ public:
         (void)mail.answer(PlanNames{asked.stem, names_ ? names_(asked.stem) : false});
     }
 
-    /// Which file this recipe names (`HostContext::recipe_source`, spent at the ask): the one
+    /// Which file this recipe names (the project door's `Source`, spent at the ask): the one
     /// absolute path the recipe was completed to, or the owner's refusal in its own words.
     /// Opening the file is the Editor's, and is asked of the Editor.
     void on(const RecipeSourceRequested& asked, loom::Mail& mail) {
@@ -137,7 +138,7 @@ public:
                 "this host resolves no recipe sources -- nothing was opened", std::string()});
             return;
         }
-        const HostContext::RecipeSource named = source_(asked.recipe);
+        const RecipeSource named = source_(asked.recipe);
         if (!named.known) {
             (void)mail.answer(RecipeSourceSaid{asked.recipe, false,
                                                "this project's recipes do not hold `" +
@@ -171,7 +172,7 @@ public:
         answer(mail, use_(asked.path));
     }
 
-    /// AUTHOR ONE ROW. The draft's fields become `HostContext::RecipeDraft` and go to the one
+    /// AUTHOR ONE ROW. The draft's fields become `RecipeDraft` and go to the one
     /// writer (`authoring::author_recipe`), which owns the recipe law, the file the row lands
     /// in, the atomic save and the install.
     void on(const RecipeAuthorRequested& asked, loom::Mail& mail) {
@@ -184,7 +185,7 @@ public:
                 RecipeOutcome{false, "this host cannot author recipes", std::string(), 0});
             return;
         }
-        HostContext::RecipeDraft draft;
+        RecipeDraft draft;
         draft.id = asked.id;
         draft.artifact = asked.artifact;
         draft.source = asked.source;
@@ -213,7 +214,7 @@ public:
                                              std::string()});
             return;
         }
-        const HostContext::PlanAppend done = append_(asked.stem, asked.role, asked.recipe);
+        const PlanAppend done = append_(asked.stem, asked.role, asked.recipe);
         if (!done.accepted) {
             ++state_.refusals;
         }
@@ -230,7 +231,7 @@ private:
         return true;
     }
 
-    void answer(loom::Mail& mail, const HostContext::RecipeSwap& done) {
+    void answer(loom::Mail& mail, const RecipeSwap& done) {
         if (!done.accepted) {
             ++state_.refusals;
         }

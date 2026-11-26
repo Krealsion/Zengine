@@ -112,8 +112,9 @@ WHY — `agents/decisions/leaving-with-unsaved-work-asks-in-a-box.md`
 
 ### WL-SESSION-01
 `workshop/user_paths.hpp` resolve_durable_path
-`workshop/weave.hpp` HostContext::retired_document HostContext::setup_path HostContext::session_path
-HostContext::keymap_path HostContext::prefs_path
+`workshop/made.hpp` WorkshopMade WorkshopMade::retired_document WorkshopMade::session_path
+WorkshopMade::keymap_path WorkshopMade::prefs_path
+`workshop/layouts/owner.hpp` layouts_owner_host
 `workshop/workshop.cpp` Arguments
 `tests/test_workshop_persistence.cpp` "the two Windows roots are the platform's own conventions"
 "the two XDG roots, and their home fallbacks" "the host resolves the weaver's files through the one
@@ -122,7 +123,7 @@ precedence"
 ### WL-SESSION-03
 `workshop/user_paths.hpp` import_legacy_file LegacyImport
 `workshop/workshop.cpp` import_legacy_file
-`workshop/weave.hpp` HostContext::transition_note
+`workshop/made.hpp` WorkshopMade::transition_note
 `tests/test_workshop_persistence.cpp` "a legacy-only file is imported once, and the original is left
 in place" "an existing user-root file always wins over a legacy file" "repeated launches converge --
 the import can never fire twice" "no legacy file, no destination -- the import does nothing,
@@ -132,7 +133,7 @@ one or a taken root is left alone"
 ### WL-SESSION-04
 `workshop/layouts/session_persist.hpp` WorkshopSession setup_in
 `workshop/setup_persist.hpp` WorkshopSetup setup_in
-`workshop/weave.hpp` HostContext::session_path
+`workshop/made.hpp` WorkshopMade::session_path
 `tests/test_workshop_persistence.cpp` "an automatic save never touches the file a weaver named" "a
 restored session never touches the file a weaver named, either" "the three files are three formats,
 and each refuses the others"
@@ -143,7 +144,7 @@ and each refuses the others"
 `workshop/setup_control.hpp` WorkshopQuitRequested
 `workshop/weave_session.cpp` save_last_session on(SessionSaveAnswered)
 `workshop/weave_handlers.cpp` on(SurfaceCloseRequested)
-`workshop/weave.hpp` HostContext::session_path
+`workshop/made.hpp` WorkshopMade::session_path
 `workshop/screen.hpp` Session::quit
 `persist/file.hpp` write_file
 `graphics/vocabulary.hpp` SurfaceCloseRequested

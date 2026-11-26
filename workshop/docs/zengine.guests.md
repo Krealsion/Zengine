@@ -24,7 +24,9 @@ lets go of the ask for the plan the guest was holding, and the observation relay
 the guest's subscriptions. The door is a source of the host's one wait, opened by its host at
 mount: it claims what the crossing waits on -- its listener, every guest and what it owes them --
 and does its work when that wait says the crossing is ready, or at a time it claimed while an ask
-for the plan waits for the plan to come to rest, or while the wait cannot hold the crossing.
+for the plan waits for the plan to come to rest, or while the wait cannot hold the crossing. It
+claims once, too, whose host this is: `GuestHost` v1, whether its file names a development host
+and that file, which the host's own roles read as they judge a guest's act.
 
 ## Use
 

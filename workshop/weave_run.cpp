@@ -136,13 +136,11 @@ void WorkshopWeave::claim_time(loom::Mail& mail) {
 }
 
 void WorkshopWeave::repaint(loom::Mail& mail) {
-    // ⚠ WHAT THE HOST HAS LEARNED SINCE THE LAST PICTURE, FIRST. The boot's own discoveries --
+    // ⚠ WHAT THE PLAN COULD NOT LOAD SINCE THE LAST PICTURE, FIRST. The boot's own discoveries --
     // an optional plan row that refused, and so a tool that is not in this Workshop -- settle
-    // inside a delivery that can arrive after the first surface did (`HostContext`). One
-    // integer compared; the list is re-taken only when it moved, and `establish` is keyed.
-    if (conditions_taken_ != host_->conditions_generation) {
-        take_host_conditions();
-    }
+    // inside a delivery that can arrive after the first surface did. The realization owner claims
+    // them; the claim's revision is compared, the list re-taken only when it moved.
+    conditions_taken_.take(session_, made_, mail);
     refresh_setup_name(); // a name editor's window is only true against the room it has now
     note_manuals(mail);   // ...and which panes wear a `?`, against the holders there are now
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
@@ -312,7 +310,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             area, window_name_, row->provider, place.x, place.y, place.w, place.h,
             2 * static_cast<std::int64_t>(i) + 2, false,
             accepts(row->provider, *loom::schema_of<graphics::AreaButtonChanged>()),
-            weaver_only_pane(*row, bus_now_.holder_of(kGuestsRole, mail).valid())};
+            weaver_only_pane(*row, bus_now_.holder_of(kGuestsRole, mail).valid(),
+                             host_fact_now(mail))};
         next[area].followed = true; // presses raise it; what it shows moves the desk's notice
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
@@ -347,7 +346,9 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         next[session_.presented.area] = graphics::AreaPlaced{
             session_.presented.area, window_name_, kPresenterRole, menu.x, menu.y, menu.w, menu.h,
             panes_order + 2, false, true,
-            about != nullptr && weaver_only_pane(*about, bus_now_.holder_of(kGuestsRole, mail).valid())};
+            about != nullptr && weaver_only_pane(*about,
+                                                 bus_now_.holder_of(kGuestsRole, mail).valid(),
+                                                 host_fact_now(mail))};
         next[session_.presented.area].followed = true;
         skins[session_.presented.area] = worn;
     }
@@ -778,7 +779,7 @@ void WorkshopWeave::wear_themes(loom::Mail& mail, std::vector<theme::ThemeStack>
     }
     const std::int64_t incarnation = bus_now_.incarnation_of(holder, mail);
     const bool fresh = holder.value != themes_holder_ || incarnation != themes_incarnation_;
-    const theme::ThemesPlaced placed{host_->themes_path, host_->shipped_themes_path};
+    const theme::ThemesPlaced placed{made_.themes_path, made_.shipped_themes_path};
     const theme::ThemesWorn worn{std::move(stacks)};
     if (fresh || !(placed == themes_placed_)) {
         (void)mail.as_role(kWorkshopProvider).send_to_role(theme::kThemeRole, placed);

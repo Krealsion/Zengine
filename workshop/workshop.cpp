@@ -356,12 +356,21 @@ int main(int argc, char** argv) {
     }
 
     // ---- The recipes this Workshop means, declared first ----------------------------------------
-    // Empty until read below. Declared above the HostContext, the bus and the Kernel so reverse
+    // Empty until read below. Declared above the host's places, the bus and the Kernel so reverse
     // destruction outlives every reader: do not move it below the bus.
     CurrentRecipes current_recipes;
 
-    // Where the host's own files are, resolved before anything is said about them.
-    HostContext host;
+    // Where the host's own files are, resolved before anything is said about them: the host's own
+    // places, which its owners read (the layouts' owner at each ask, the project door's paths),
+    // and what Workshop's weave is made with, a value, once (`made.hpp`).
+    struct LaunchPlaces {
+        std::string dir, project_dir, setup_path, session_path, keymap_path, prefs_path;
+        const op::Catalog* conversions = nullptr;
+    } host;
+    WorkshopMade made;
+    // ...and what Workshop is still handed of this host (`HostContext`): declared before the bus,
+    // so it outlives every weave the bus holds.
+    HostContext context;
     host.dir = exe_dir();
     // And where the weaver is standing: the project is the launch directory (user_paths.hpp),
     // captured once. A directory the platform will not report and one this application cannot
@@ -369,17 +378,17 @@ int main(int argc, char** argv) {
     host.project_dir = launch_project_dir();
     // The one pane whose presentation this host commits jointly with its document, spelled
     // through the conversion table, the one host-side file that names it.
-    host.managed_pane = PaneRef{pane_migration::kEditorProvider, pane_migration::kEditorPane};
+    made.manage(PaneRef{pane_migration::kEditorProvider, pane_migration::kEditorPane});
     // An object document this launch names, or one under the retired default name in the project:
     // said once at startup and never read (WL-DOC-22).
     if (!args.document.empty()) {
-        host.retired_document = args.document;
+        made.retired_document = args.document;
     } else if (!host.project_dir.empty()) {
         std::error_code ec;
         const std::string old = zengine::persist::resolved_against(
             host.project_dir, zengine::workshop::kRetiredDocumentName);
         if (std::filesystem::is_regular_file(old, ec)) {
-            host.retired_document = old;
+            made.retired_document = old;
         }
     }
     host.setup_path = args.setup;
@@ -395,7 +404,7 @@ int main(int argc, char** argv) {
     // The TUI window reads a POSIX terminal everywhere but Windows, whose console delivers
     // every chord (`input/terminal_reader.hpp`).
 #if !defined(_WIN32)
-    host.posix_terminal = true;
+    made.posix_terminal = true;
 #endif
     host.prefs_path = user_paths::resolve_durable_path(
         args.prefs, args.isolated, config_root, prefs_persist::kDefaultPrefsFileName);
@@ -408,9 +417,9 @@ int main(int argc, char** argv) {
         args.marks, args.isolated, state_root, kDefaultMarksFileName);
     // The weaver's own themes stand in a folder under the per-user configuration root, and the
     // shipped ones beside this host; an isolated launch keeps none of its own.
-    host.themes_path =
+    made.themes_path =
         user_paths::resolve_durable_path("", args.isolated, config_root, zengine::theme::kThemesSubdir);
-    host.shipped_themes_path = host.dir + "/" + zengine::theme::kThemesSubdir;
+    made.shipped_themes_path = host.dir + "/" + zengine::theme::kThemesSubdir;
 
     // ---- ...and the one-time legacy import, for defaulted files only --------------------------
     // The rule is `user_paths.hpp`'s. An import is an event, said on the notice row; a shadowed
@@ -421,7 +430,7 @@ int main(int argc, char** argv) {
             return;
         }
         if (did.shadowed) {
-            host.standing_conditions.push_back(
+            made.know(
                 Condition{std::string(kLegacyShadowedKeyPrefix) + what,
                           std::string("older local ") + what + " file is not read",
                           did.note, gfx::colors::accent, std::string()});
@@ -444,7 +453,7 @@ int main(int argc, char** argv) {
                             "session", session_persist::kMaxSessionBytes),
                         "session");
     }
-    host.transition_note = transition;
+    made.transition_note = transition;
 
     // The plan in force: `--load-plan`, else the project plan, else the shipped default -- one
     // rule, `realization::load_persist::plan_in_force`, handed the same probe as the recipes' twin rule.
@@ -459,8 +468,8 @@ int main(int argc, char** argv) {
     // A module is held in its box, and its own `loaded:` line says so.
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: retired with the object canvas%s%s\n",
-                host.retired_document.empty() ? "" : " -- left as it is: ",
-                host.retired_document.c_str());
+                made.retired_document.empty() ? "" : " -- left as it is: ",
+                made.retired_document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
     // The project, said once. Its absence has two causes and one sentence, true of both.
     std::printf("zengine-workshop - project: %s\n",
@@ -485,7 +494,7 @@ int main(int argc, char** argv) {
         std::printf("zengine-workshop - %s\n", transition.c_str());
     }
     // The standing conditions too, in the words the weave will show them in.
-    for (const Condition& standing : host.standing_conditions) {
+    for (const LaunchCondition& standing : made.conditions) {
         std::printf("zengine-workshop - %s\n", standing.detail.c_str());
     }
     std::printf("zengine-workshop - load plan: %s\n", plan_path.c_str());
@@ -535,9 +544,9 @@ int main(int argc, char** argv) {
     // The project door's, handed it at its mount below: the one role that may change the
     // catalog, and so the catalog's owner on the bus.
     const ProjectDoor::Use use_recipes = [&host, &current_recipes](const std::string& path) {
-        HostContext::RecipeSwap done;
+        RecipeSwap done;
         const Written read = install_recipes(current_recipes, path, host.dir,
-                                             host.project_dir, &HostContext::so_in);
+                                             host.project_dir, &so_in);
         done.accepted = read.accepted;
         done.refusal = read.refusal;
         // What is in force, asked of the owner after the attempt -- never echoed from the
@@ -556,7 +565,7 @@ int main(int argc, char** argv) {
                         "Workshop can build nothing)\n",
                         recipe_path.c_str());
         } else {
-            const HostContext::RecipeSwap read = use_recipes(recipe_path);
+            const RecipeSwap read = use_recipes(recipe_path);
             if (!read.accepted) {
                 std::printf("zengine-workshop - build recipes refused: %s\n"
                             "zengine-workshop - nothing was mounted and nothing was loaded.\n",
@@ -580,6 +589,11 @@ int main(int argc, char** argv) {
     // Declared before the bus and the Kernel, so it is destroyed after every weave, a terminal
     // medium included, and speaks to the terminal that medium gave back.
     LastWords last_words;
+
+    // THE HOST'S BOOK OF NATIVE SHOWINGS THAT DID NOT COMPLETE (`host_pump.hpp`): a native owner
+    // that keeps its words there has them told at the host's turn. Declared before the bus, so
+    // every owner that writes in it goes first.
+    ShowingFailures showings;
 
     loom::Switchboard bus;
     // Where the bus spends its time, from its first delivery (tally/bus_tally.hpp).
@@ -686,7 +700,7 @@ int main(int argc, char** argv) {
         std::move(terminal_grant));
     // Non-owning, handed down as Workshop's host pointer. The bus owns the
     // participant; Workshop's weave holds a pointer and inherits nothing from it.
-    host.terminal = terminal.session;
+    context.terminal = terminal.session;
     // The boot line names the identity the Terminal pane speaks as.
     std::printf("zengine-workshop - terminal: weave #%s (presented by the Terminal pane)\n",
                 std::to_string(terminal.id.value).c_str());
@@ -792,6 +806,20 @@ int main(int argc, char** argv) {
                                              ended = true;
                                              bus.stop();
                                          });
+    // ---- The guests file, read before Workshop is made ----------------------------------------
+    // Its rows are the guest door's policy, mounted below; what the file says stands for the whole
+    // run is among the conditions Workshop is made with.
+    guests::GuestsFile guests_file;
+    if (!args.guests.empty()) {
+        std::string complaint;
+        if (!guests::read_guests_file(args.guests, &guests_file, &complaint)) {
+            std::printf("zengine-workshop - guests: %s\n"
+                        "zengine-workshop - nothing was mounted and nothing was loaded.\n",
+                        complaint.c_str());
+            return 7;
+        }
+        for (const Condition& c : guests::conditions_of(guests_file)) made.know(c);
+    }
     // ---- The layouts' owner, in its own role (workshop/layouts/owner.hpp) ---------------------
     // Every layout and what each keeps, the role-wide settings, the locks and the pins: one
     // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
@@ -800,9 +828,39 @@ int main(int argc, char** argv) {
         mount_in_role<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host));
     // ...told once which weave is the Terminal, whose settings asks it answers under its widening.
     name_terminal(bus, layouts_id, terminal.id);
+    // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable role starts on the
+    // authored choice that held it at quit, while the plan still authors it; the project's plan
+    // file is never changed, and a run with no session file reads none. Read before Workshop is
+    // made, which says the choice note once.
+    realization::LoadPlan begun = launched;
+    if (!host.session_path.empty()) {
+        const session_persist::LoadedSession last =
+            session_persist::load_file(host.session_path, host.conversions);
+        std::vector<std::pair<std::string, std::string>> remembered;
+        for (const session_persist::WorkshopChoice& c : last.choices) {
+            remembered.emplace_back(c.role, c.choice);
+        }
+        for (const auto& [role, name] : realization::remember_choices(begun, remembered)) {
+            made.choice_note += (made.choice_note.empty() ? "" : "; ") +
+                                std::string("your last choice `") + name + "` for " + role +
+                                " is not one this plan authors, so its own loaded";
+        }
+    }
+    // WORKSHOP, MADE WITH ITS WORDS AND PATHS (`made.hpp`): the value judged against its shape as a
+    // load's would be, by Loom's one gate, then the weave mounted in its role with its grant.
+    made.keymap_path = host.keymap_path;
+    made.prefs_path = host.prefs_path;
+    made.session_path = host.session_path;
+    std::string made_refused;
+    const std::optional<WorkshopMade> admitted =
+        loom::admit_creation<WorkshopMade>(loom::to_value(made), made_refused);
+    if (!admitted) {
+        std::printf("zengine-workshop - Workshop could not be made: %s\n", made_refused.c_str());
+        return 3;
+    }
     auto speak = workshop_grant();
     const loom::WeaveId workshop_id =
-        mount_in_role<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
+        mount_in_role<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, *admitted, context);
 
     // ---- The guest door: other hosts, admitted deliberately (workshop/guest_door.hpp) -----------
     // Only with a `--guests` file: without one this Workshop cannot be connected to, the honest
@@ -812,14 +870,8 @@ int main(int argc, char** argv) {
     std::string guests_listen;
     GuestDoor* guest_door = nullptr;
     if (!args.guests.empty()) {
-        guests::GuestsFile file;
+        const guests::GuestsFile& file = guests_file;
         std::string complaint;
-        if (!guests::read_guests_file(args.guests, &file, &complaint)) {
-            std::printf("zengine-workshop - guests: %s\n"
-                        "zengine-workshop - nothing was mounted and nothing was loaded.\n",
-                        complaint.c_str());
-            return 7;
-        }
         std::string listen_host;
         std::uint16_t listen_port = 0;
         (void)guests::split_listen(file.listen, &listen_host, &listen_port);
@@ -853,15 +905,14 @@ int main(int argc, char** argv) {
                     std::to_string(door_id.value).c_str());
         // ---- WHOSE HOST THIS IS, AND WHAT EACH ROW'S POWERS DO NOT REACH HERE ---------------
         // Said at launch, on Attention and in Connections; the dispatch and the owners read a
-        // session's admitted row through the door's record (`actor_scope.hpp`).
-        host.host_fact = guests::host_fact_of(file);
+        // session's admitted row through the door's record (`actor_scope.hpp`), and whose host
+        // this is through the door's claim (`GuestHost`).
         std::printf("zengine-workshop - guests: the file is version %s, and this is %s\n",
                     std::to_string(file.version).c_str(),
                     file.development() ? "a development host: guests may write and build here"
                                        : "a weaver's host: a guest writes no file, types into no "
                                          "pane, carries nothing and reaches none of the editor, "
                                          "the Terminal, the Hotkeys pane and the quick setup");
-        for (const Condition& c : guests::conditions_of(file)) host.standing_conditions.push_back(c);
         for (std::size_t i = 0; i < file.rows.size(); ++i) {
             const std::vector<std::string> losses = guests::losses_of(file.rows[i], file);
             if (losses.empty()) continue;
@@ -886,7 +937,6 @@ int main(int argc, char** argv) {
             std::printf("zengine-workshop - guests: '%s' (version %s) %s\n", file.rows[i].name.c_str(),
                         std::to_string(file.version).c_str(), said.c_str());
         }
-        ++host.conditions_generation;
         // ---- THE OBSERVATION RELAY, beside the door (workshop/guest_door.hpp says how) --------
         // What a guest may OBSERVE is its row's `observe` list and nothing else. No weaver control
         // calls the relay's `revoke` yet; it is a host seam.
@@ -910,7 +960,7 @@ int main(int argc, char** argv) {
     // A refusal notice never reaches a publication's author, so this host watches its tap for the
     // quit's refused deliveries and writes them where Workshop reads (`quit_delivery.hpp`).
     // Declared after the bus and the `HostContext`, so it goes first.
-    const QuitDeliveryWatch quit_watch(bus, workshop_id, host.undelivered_quits);
+    const QuitDeliveryWatch quit_watch(bus, workshop_id, context.undelivered_quits);
 
     // ---- The opening manager (WL-OPEN-01, WL-OPEN-08) -------------------------------------------
     // Mounted in its own role with exactly the conversation it carries. Its joint authority is
@@ -941,7 +991,7 @@ int main(int argc, char** argv) {
     {
         auto opener = std::make_unique<OpeningManager>(std::string(kEditorRole),
                                                        std::string(kWorkshopProvider),
-                                                       host.managed_pane);
+                                                       made.managed());
         OpeningManager* raw = opener.get();
         const loom::WeaveId opening = bus.register_weave(
             std::move(opener), std::move(arrange_openings), std::string(kOpeningRole));
@@ -979,11 +1029,11 @@ int main(int argc, char** argv) {
     // turns, so the handle takes it off the bus before the artifacts go. The host hands it the one
     // stem-to-file rule, and keeps its own failure policy (the lambda).
     bool project_refused = false;
-    staging::Host staging_host{host.dir, &current_recipes, &HostContext::so_in, 0};
+    staging::Host staging_host{host.dir, &current_recipes, &so_in, 0};
     const realization::Mounted mounted = realization::mount(
         bus, std::move(operate), operators, operator_host, manager,
-        [&host](const std::string& stem) { return host.so(stem); },
-        [&host, &bus, &operators, &project_refused, &last_words, &kernel, &ended](const realization::Executed& done) {
+        [&host](const std::string& stem) { return so_in(host.dir, stem); },
+        [&bus, &operators, &project_refused, &last_words, &kernel, &ended](const realization::Executed& done) {
             // Said artifact by artifact, in order: resolved truth, never written back to the plan.
             // Said when realization settles, after the medium has taken the terminal: a medium
             // that holds it would have these lines scrolled into its picture, so they are said
@@ -1004,15 +1054,6 @@ int main(int argc, char** argv) {
                 if (say) {
                     line(gone.sentence());
                 }
-                bool kept = false;
-                for (const Condition& c : host.standing_conditions) {
-                    kept = kept || c.key == zengine::workshop::kGaveWayKeyPrefix + gone.stem;
-                }
-                if (!kept) {
-                    host.standing_conditions.push_back(
-                        zengine::workshop::gave_way(gone.stem, gone.next, gone.why));
-                    ++host.conditions_generation;
-                }
             }
             if (say) {
                 // Each weave with what the kernel holds it to: a library as the line above says, a
@@ -1028,16 +1069,13 @@ int main(int argc, char** argv) {
                      "authored row after it is waiting on this one)");
             }
             // The tools that are not here, named: an optional row that refused is an unavailable
-            // tool, said with its reason and kept as a standing condition for the run (WL-ATTN-01),
-            // whether or not the line is printed. The compact row is what a terminal weaver can
-            // still read.
+            // tool, said with its reason. Workshop keeps it as a standing condition for the run
+            // (WL-ATTN-01) from the realization owner's claim (`RowsNotLoaded`), whether or not the
+            // line is printed.
             for (std::size_t i = 0; i < done.unavailable.size(); ++i) {
                 if (say) {
                     line("unavailable: " + done.unavailable[i]);
                 }
-                host.standing_conditions.push_back(zengine::workshop::unavailable_tool(
-                    done.unavailable_stems[i], done.unavailable[i]));
-                ++host.conditions_generation;
             }
             if (done.ok && say) {
                 line("operators: " + std::to_string(operators.size()) + " resolvable, from " +
@@ -1077,7 +1115,7 @@ int main(int argc, char** argv) {
                 if (!builder::makes_product(r, stem)) {
                     continue;
                 }
-                return !std::filesystem::exists(std::filesystem::path(host.so(stem)));
+                return !std::filesystem::exists(std::filesystem::path(so_in(host.dir, stem)));
             }
             return false;
         },
@@ -1093,7 +1131,7 @@ int main(int argc, char** argv) {
         // beside the host, by the one stem-to-file rule: a build without it passes it unsaid.
         [&host](const std::string& stem) {
             std::error_code ec;
-            return std::filesystem::exists(std::filesystem::path(host.so(stem)), ec) && !ec;
+            return std::filesystem::exists(std::filesystem::path(so_in(host.dir, stem)), ec) && !ec;
         });
     realization::Owner& owner = mounted.owner();
     // What the owner knows -- where the plan is, what it waits on, the rows that gave way, the
@@ -1106,7 +1144,7 @@ int main(int argc, char** argv) {
     // A plan row is written only after the running project took it.
     authoring::RecipeAuthor recipe_author{host.dir, host.project_dir, &current_recipes,
                                           use_recipes};
-    const ProjectDoor::Author author_recipe = [&recipe_author](const HostContext::RecipeDraft& draft) {
+    const ProjectDoor::Author author_recipe = [&recipe_author](const RecipeDraft& draft) {
         return authoring::author_recipe(recipe_author, draft);
     };
     authoring::PlanAuthor plan_author{
@@ -1219,23 +1257,6 @@ int main(int argc, char** argv) {
     zengine::view::Host view_host(bus);
     view_host.mount();
 
-    // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable role starts on the
-    // authored choice that held it at quit, while the plan still authors it; the project's plan
-    // file is never changed, and a run with no session file reads none.
-    realization::LoadPlan begun = launched;
-    if (!host.session_path.empty()) {
-        const session_persist::LoadedSession last =
-            session_persist::load_file(host.session_path, host.conversions);
-        std::vector<std::pair<std::string, std::string>> remembered;
-        for (const session_persist::WorkshopChoice& c : last.choices) {
-            remembered.emplace_back(c.role, c.choice);
-        }
-        for (const auto& [role, name] : realization::remember_choices(begun, remembered)) {
-            host.choice_note += (host.choice_note.empty() ? "" : "; ") +
-                                std::string("your last choice `") + name + "` for " + role +
-                                " is not one this plan authors, so its own loaded";
-        }
-    }
     owner.begin(std::move(begun));
 
     // The loop: a turn, then one wait on every source the plan's roles and the guest door say
@@ -1254,7 +1275,7 @@ int main(int argc, char** argv) {
     wait.trust(kWorkshopProvider); // the hub's own times: Shift's taps, its desk reads' rate
     while (!ended) {
         const ServedTurn served =
-            serve_turn(bus, host.showings, [&journal](const std::string& said) {
+            serve_turn(bus, showings, [&journal](const std::string& said) {
                 journal.info(zengine::pane::pane_menu::kWorkshopRole, said);
                 std::printf("zengine-workshop - %s\n", said.c_str());
                 std::fflush(stdout);

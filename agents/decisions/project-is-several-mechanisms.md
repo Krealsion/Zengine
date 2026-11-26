@@ -9,7 +9,7 @@ relative path happened to resolve against the process's working directory (`ed73
 working directory outside the active code page ended the process before the banner's first line
 (`9154c4d`).
 
-**Decision.** `HostContext::project_dir` is the launch directory, captured once by the host
+**Decision.** The host's project directory is the launch directory, captured once by the host
 through `launch_project_dir()`. Empty is the designed absence, said on the banner. It is not
 `dir` — where the binary is, installation truth — and nothing derives it from that, from
 `--document`, from `--recipes`, a workspace or a prefix. There is no `--project`. Two roads reach

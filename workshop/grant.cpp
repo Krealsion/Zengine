@@ -119,6 +119,9 @@ loom::Grant workshop_grant() {
     // WHERE THE PLAN IS, the realization owner's claim: what the project waits on, the rows that
     // gave way and the roles still to come, read at the desk's every reading of them.
     speak.allow_observe(realization::PlanStatus::zen_name, realization::PlanStatus::zen_version);
+    // ...AND WHAT THE PLAN COULD NOT LOAD, which the desk says stands for the whole run.
+    speak.allow_observe(realization::RowsNotLoaded::zen_name,
+                        realization::RowsNotLoaded::zen_version);
     // WHAT STANDS BEHIND A ROLE'S CODE, of two owners' claims beside the participants claim: which
     // weave each row realized, the realization owner's, and the catalog in force, the project
     // door's, read inside the Edit Code delivery that composes them.
@@ -128,7 +131,8 @@ loom::Grant workshop_grant() {
     // it accepts and declares it emits, read inside the delivery that needs it.
     loom::host::allow_observe_participants(speak);
     // A GUEST'S ACT, JUDGED: the row its guest door admitted it with, and what Loom says it may
-    // do now, each asked at the act.
+    // do now, each asked at the act; and whose host this is, the door's claim, read as it runs.
+    speak.allow_observe(GuestHost::zen_name, GuestHost::zen_version);
     speak.allow_to_role(GuestRowOfRequested::zen_name, GuestRowOfRequested::zen_version, kGuestsRole);
     speak.allow_to_role(loom::host::AuthorityAsked::zen_name, loom::host::AuthorityAsked::zen_version,
                         kAuthorityRole);

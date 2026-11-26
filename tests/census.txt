@@ -188,7 +188,7 @@ lines flow/flow-pane/pane.cpp FlowPane 2292 falls
 lines graphics/window/window.hpp Window 1007 falls
 lines info/property_view.hpp PropertyView 691 falls
 lines info/value_view.hpp ValueView 1166 falls
-lines realization/owner.hpp Owner 837 falls
+lines realization/owner.hpp Owner 836 falls
 lines view/view-builder/pane.cpp ViewBuilderPane 1163 falls
 lines workshop/weave.hpp WorkshopWeave 907 falls
 

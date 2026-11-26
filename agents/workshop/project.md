@@ -132,7 +132,7 @@ WHY — `agents/decisions/the-window-is-a-choice-in-the-plan.md`
 ## Proven by
 
 ### WL-PROJ-01
-`workshop/weave.hpp` HostContext::project_dir HostContext::dir
+`workshop/workshop.cpp` launch_project_dir exe_dir
 `persist/path_admission.hpp` launch_project_dir
 `workshop/workshop.cpp` launch_project_dir
 `tests/test_workshop_files.cpp` "the launch capture is the working directory, when it can be said"
@@ -143,7 +143,7 @@ answers the owner's anchor, absence included"
 `workshop/recipe_persist.hpp` WorkshopRecipe::artifact_dir WorkshopSingleSource::workspace
 complete_recipes
 `workshop/recipes.hpp` complete_recipes install_recipes
-`workshop/weave.hpp` RecipeSource
+`workshop/project_acts.hpp` RecipeSource
 `workshop/workshop.cpp` recipe_source
 `persist/file.hpp` resolved_against
 `tests/test_workshop_files.cpp` "a relative recipe source is the PROJECT's file, in the editor and
@@ -167,7 +167,7 @@ nothing at all" "a valid EMPTY catalog is a replacement, not a failure"
 
 ### WL-PROJ-09
 `workshop/workshop.cpp` use_recipes
-`workshop/weave.hpp` RecipeSwap
+`workshop/project_acts.hpp` RecipeSwap
 `files/files.hpp` catalog_taken_words catalog_refused_words
 `builder/vocabulary.hpp` RecipeCatalog
 `tests/test_files.cpp` "a refusal says what went wrong AND what is still running, in that order"

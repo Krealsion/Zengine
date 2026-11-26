@@ -251,13 +251,13 @@ them: the wheel reads its rows a notch and the line wears its prompt"
 its revision by the layouts' owner, said, and goes when a newer one is handed"
 
 ### WL-SETTING-09
-`workshop/weave.hpp` let_terminal_edit_settings layouts_owner_host
+`workshop/weave.hpp` let_terminal_edit_settings
 `workshop/terminal_speech.hpp` let_terminal_edit_settings
 `workshop/guests.cpp` grant_for read_guests_file
 `workshop/guests.hpp` kPowerSettings
 `workshop/actor_scope.hpp` kPowerSettings
 `workshop/layouts/owner.cpp` asker_refused held_for_row on(GuestRowOf)
-`workshop/layouts/owner.hpp` LayoutsOwnerHost
+`workshop/layouts/owner.hpp` LayoutsOwnerHost layouts_owner_host
 `workshop/guest_door.hpp` on(GuestRowOfRequested)
 `workshop/guest_seam_vocabulary.hpp` GuestRowOfRequested GuestRowOf
 `tests/test_workshop_panes_settings.cpp` "an asker the settings doors do not serve is answered that

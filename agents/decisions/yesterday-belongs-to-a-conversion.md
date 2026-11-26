@@ -41,7 +41,7 @@ moving a field.
 
 **Consequences.** Each format move cost the reader one number and one shape; the edges renamed
 themselves with no string edited, no plan row added and `operator/migration.hpp` unchanged. The
-forbidden-token list names every retired version. `HostContext::conversions` is null for every fixture. A
+forbidden-token list names every retired version. A fixture's conversions are null. A
 version claim is a lookup key that reaches no load door; the file first changes at the ordinary
 close-time save.
 

@@ -55,19 +55,20 @@ std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
                                          const std::string& role, const std::string& pane) const {
     const scope::GuestRowFacts row = facet<GuestActsFacet>().row(asker);
     if (!row.admitted) return {};
+    const scope::HostFact host = host_fact_now(mail);
     const std::string named = role + "/" + pane;
     // THE WEAVER'S OWN, ON EVERY HOST, whatever the row reads.
     if (const std::string only = scope::weaver_only_pane(role, pane); !only.empty()) {
         return "pane " + named + " is read only by the weaver's hand: " + only;
     }
-    if (role == kEditorRole && !host_->host_fact.guests_file.empty()) {
+    if (role == kEditorRole && !host.guests_file.empty()) {
         // THE EDITOR'S DOCUMENT, as its role's holder last claimed it.
         const loom::WeaveId holder = bus_now_.holder_of(kEditorRole, mail);
         const loom::SenseReading doc =
             holder.valid() ? mail.latest<EditorDocument>(holder) : loom::SenseReading{};
         if (doc && doc.by.author_incarnation_is_current) {
             const loom::Cell* path = doc.value ? doc.value->get("path") : nullptr;
-            if (path != nullptr && scope::same_file(path->as_text(), host_->host_fact.guests_file)) {
+            if (path != nullptr && scope::same_file(path->as_text(), host.guests_file)) {
                 return "pane " + named + " shows the guests file, which only the weaver's hand reads";
             }
         }

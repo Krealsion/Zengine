@@ -687,10 +687,10 @@ inline loom::WeaveId mount_authority_reader(loom::Switchboard& bus) {
 /// THE PROJECT DOOR'S FIVE, kept by a rig as workshop.cpp keeps them: the host's answers over its
 /// recipes and plan, handed to the project door (`ProjectDoor`) a case mounts.
 struct ProjectAnswers {
-    std::function<HostContext::RecipeSource(const std::string&)> recipe_source;
-    std::function<HostContext::RecipeSwap(const std::string&)> use_recipes;
-    std::function<HostContext::RecipeSwap(const HostContext::RecipeDraft&)> author_recipe;
-    std::function<HostContext::PlanAppend(const std::string&, const std::string&, const std::string&)>
+    std::function<RecipeSource(const std::string&)> recipe_source;
+    std::function<RecipeSwap(const std::string&)> use_recipes;
+    std::function<RecipeSwap(const RecipeDraft&)> author_recipe;
+    std::function<PlanAppend(const std::string&, const std::string&, const std::string&)>
         append_plan_row;
     std::function<bool(const std::string&)> plan_names;
 };
@@ -710,12 +710,54 @@ struct GuestRows {
     GuestRowsStandIn* stand_in = nullptr;
     /// Whose host the stand-in judges a session's act on: the rig's.
     std::function<scope::HostFact()> host;
+    /// THE STAND-IN SAYS WHOSE HOST THIS IS NOW, as the door claims it, for a case that changes the
+    /// rig's host between two of its acts with no delivery to the door between them.
+    void say_host(loom::Switchboard& bus) const {
+        const scope::HostFact now = host ? host() : scope::HostFact{};
+        if (door.valid()) {
+            (void)bus.role_claim_as(door, kGuestsRole,
+                                    loom::to_value(GuestHost{now.development, now.guests_file}));
+        }
+    }
     /// `who` is answered as `row` from now on; a row not admitted takes it back.
     void admit(loom::Switchboard& bus, loom::WeaveId who, scope::GuestRowFacts row) {
         admit_reading(bus, who, [row] { return row; });
     }
     /// ...or as `reading` says at each ask, for a case that changes the row as it goes.
     void admit_reading(loom::Switchboard& bus, loom::WeaveId who, Reading reading);
+};
+
+/// WHAT A RIG'S HOST HOLDS, as `workshop.cpp`'s `main` holds it: its places, which the layouts'
+/// owner and the project door read at each ask; what Workshop is made with, composed from them when
+/// it is mounted (`made`); what is still handed to Workshop (the base, `HostContext`); and whose
+/// host this is, which the guest door's stand-in claims.
+struct RigHost : HostContext {
+    std::string dir, project_dir, setup_path, session_path, keymap_path, prefs_path;
+    std::string themes_path, shipped_themes_path;
+    bool posix_terminal = false;
+    const op::Catalog* conversions = nullptr;
+    PaneRef managed_pane;
+    std::string retired_document, transition_note, choice_note;
+    /// What the host knew at the launch, which Workshop is made with.
+    std::vector<Condition> standing_conditions;
+    scope::HostFact host_fact;
+
+    /// WHAT WORKSHOP IS MADE WITH, of these, now.
+    WorkshopMade made() const {
+        WorkshopMade out;
+        out.keymap_path = keymap_path;
+        out.prefs_path = prefs_path;
+        out.session_path = session_path;
+        out.themes_path = themes_path;
+        out.shipped_themes_path = shipped_themes_path;
+        out.posix_terminal = posix_terminal;
+        out.manage(managed_pane);
+        out.retired_document = retired_document;
+        out.transition_note = transition_note;
+        out.choice_note = choice_note;
+        for (const Condition& c : standing_conditions) out.know(c);
+        return out;
+    }
 };
 
 /// A live Workshop: the real weave on a real bus, driven only by published input messages.
@@ -737,7 +779,7 @@ struct Live {
     /// False: this case brings its own directory or window, and the rig's never comes up.
     bool in_window = true;
     InteractionClock clock;
-    HostContext host;
+    RigHost host;
     /// The project door's five, as a case wires them (`ProjectAnswers`).
     ProjectAnswers project;
     /// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window (`count_desk_drawings`) -- a
@@ -783,7 +825,14 @@ struct Live {
     /// ...AND THE OWNER ASKED SOMETHING, so the picture it owes is sent: delivered at the next drain.
     void nudge_owner();
 
-    Live();
+    /// A live Workshop made with `launch`, the conditions its host knew at the launch.
+    explicit Live(std::vector<Condition> launch = {});
+    /// MAKE WORKSHOP with the host's values as they stand, in its role, as the host mounts it.
+    void make_workshop();
+    /// ...AND MAKE IT AGAIN, before its desk starts, if a case changed those values since.
+    void remake_if_host_moved();
+    /// What Workshop was last made with, serialized.
+    std::string made_with_;
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
     /// handed over as `HostContext::terminal` -- with this rig's one rule, `RigNote` to whoever holds
@@ -1489,11 +1538,18 @@ struct SeatState {
 class GuestRowsStandIn
     : public loom::WeaveBase<GuestRowsStandIn, SeatState,
                              loom::Accept<GuestRowOfRequested, zengine::pane::ActorScopeRequested, SeatDo>,
-                             loom::Emit<GuestRowOf, zengine::pane::ActorScopeJudged, loom::Refused>> {
+                             loom::Emit<GuestRowOf, zengine::pane::ActorScopeJudged, loom::Refused>,
+                             loom::Claims<GuestHost>> {
 public:
     explicit GuestRowsStandIn(std::function<scope::GuestRowFacts(loom::WeaveId)> rows,
                               std::function<scope::HostFact()> host = {})
         : rows_(std::move(rows)), host_(std::move(host)) {}
+    /// WHOSE HOST THIS IS, claimed as the door's role as the real door claims it: after every
+    /// delivery, so a case that changes the rig's host between two acts is read at the next.
+    void after_delivery(loom::Mail& mail) {
+        const scope::HostFact now = host_ ? host_() : scope::HostFact{};
+        (void)mail.as_role(kGuestsRole).claim(GuestHost{now.development, now.guests_file});
+    }
     void on(const zengine::pane::ActorScopeRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) return;
         const loom::WeaveId who{static_cast<std::uint64_t>(asked.session < 0 ? 0 : asked.session)};
@@ -1542,6 +1598,7 @@ inline loom::WeaveId mount_guest_rows(loom::Switchboard& bus,
                                       std::function<scope::GuestRowFacts(loom::WeaveId)> rows,
                                       std::function<scope::HostFact()> host = {},
                                       GuestRowsStandIn** out = nullptr) {
+    const scope::HostFact first = host ? host() : scope::HostFact{};
     auto door = std::make_unique<GuestRowsStandIn>(std::move(rows), std::move(host));
     GuestRowsStandIn* raw = door.get();
     if (out != nullptr) *out = raw;
@@ -1552,6 +1609,8 @@ inline loom::WeaveId mount_guest_rows(loom::Switchboard& bus,
     const loom::WeaveId id =
         bus.register_weave(std::move(door), std::move(answers), std::string(kGuestsRole));
     raw->zen_set_self(id);
+    (void)bus.role_claim_as(id, kGuestsRole,
+                            loom::to_value(GuestHost{first.development, first.guests_file}));
     return id;
 }
 
@@ -2224,7 +2283,7 @@ struct PaneRig {
     /// False: this case brings its own directory or window, and the rig's never comes up.
     bool in_window = true;
     InteractionClock clock;
-    HostContext host;
+    RigHost host;
     /// The project door's five, as a case wires them (`ProjectAnswers`).
     ProjectAnswers project;
     /// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window (`count_desk_drawings`) -- a

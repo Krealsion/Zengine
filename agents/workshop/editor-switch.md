@@ -160,7 +160,7 @@ at the Terminal is said"
 ### WL-SWITCH-08
 `realization/load_plan.hpp` remember_choices
 `workshop/layouts/session_persist.hpp` WorkshopChoice kMaxRememberedChoices WorkshopSession::choices
-`workshop/weave.hpp` HostContext::choice_note
+`workshop/made.hpp` WorkshopMade::choice_note
 `workshop/layouts/owner.cpp` realization::ChoicesHeld
 `realization/owner.hpp` Owner::choices_claimed
 `workshop/workshop.cpp` remember_choices

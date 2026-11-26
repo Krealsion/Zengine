@@ -95,7 +95,7 @@ void WorkshopWeave::on(const RoleSettingCommitAnswered& acted, loom::Mail& mail)
     std::string note = std::move(owed->second);
     own_said_.erase(owed);
     bool bad = false;
-    if (!host_->prefs_path.empty()) {
+    if (!made_.prefs_path.empty()) {
         const std::string written_word = "; written";
         if (!acted.accepted) {
             // A FILE THE OWNER COULD NOT READ IS NEVER WRITTEN OVER, and the toggle stands for the
@@ -103,7 +103,7 @@ void WorkshopWeave::on(const RoleSettingCommitAnswered& acted, loom::Mail& mail)
             note += "; not saved: " +
                     (settings_refused_.empty()
                          ? acted.refusal
-                         : host_->prefs_path + " could not be read and will not be overwritten");
+                         : made_.prefs_path + " could not be read and will not be overwritten");
             bad = true;
         } else if (acted.handed.size() < written_word.size() ||
                    acted.handed.compare(acted.handed.size() - written_word.size(),

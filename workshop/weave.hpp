@@ -16,8 +16,8 @@
 #include "workshop/terminal/complete.hpp" // the completer's values, and where a line can go
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
-#include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
+#include "made.hpp" // what this weave is made with: its host's words and paths at the launch
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "notice_seam_vocabulary.hpp" // what Workshop said, said across the bus
 #include "desktop_seam_vocabulary.hpp"   // the application-defaults owner: rows, launches, the floor
@@ -120,166 +120,18 @@ inline constexpr std::int64_t kDeskWaitMs = 2000;
 /// The asks of the window Workshop keeps open at once: one an area for its notice, and each wait's.
 inline constexpr std::size_t kMaxAreaAsks = 256;
 
-/// What the weave needs from the host and cannot get by message; kept whole in this header so a
-/// suite can build one without linking the host.
+/// WHAT THE WEAVE IS STILL HANDED OF ITS HOST, beside the value it is made with (`made.hpp`): the
+/// terminal participant it presents, and the book the host's quit watch writes. Kept whole in this
+/// header so a suite can build one without linking the host.
 struct HostContext {
-    /// WHAT THE START SAID OF A REMEMBERED CHOICE THE PLAN NO LONGER AUTHORS, said once. Which
-    /// choice holds each switchable role is the realization owner's claim (`ChoicesHeld`).
-    // WL-SWITCH-08 -- agents/workshop/editor-switch.md
-    std::string choice_note;
-    std::string dir;
-
-    /// THE PROJECT THIS WORKSHOP WAS LAUNCHED INTO -- the directory the process was
-    /// started from, captured ONCE by the host and never recomputed.
-    // WL-FILES-02 -- agents/workshop/files.md; WL-PROJ-01 -- agents/workshop/project.md
-    std::string project_dir;
-
-    /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the
-    /// host mounted none.
+    /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the host mounted none.
     // WL-TERM-02 -- agents/workshop/terminal-door.md
     loom::TerminalSession* terminal = nullptr;
-
-    /// WHOSE HOST THIS IS, the guests file's `host`, and that file: a Workshop with no guests file,
-    /// or one naming no host, is a weaver's.
-    scope::HostFact host_fact;
-
-    /// What the recipe catalog says about one recipe's source, answered by the host through the
-    /// read-only project role.
-    // WL-PROJ-02 -- agents/workshop/project.md
-    struct RecipeSource {
-        bool known = false; ///< the id names an authored recipe of this project
-        std::string kind;   ///< `single_source` or `cmake_target`, the file's own words
-        std::string source; ///< the one authored source file; empty when the kind has none
-    };
-
-
-    /// WHAT A WEAVER'S CHOICE OF AUTHORED CATALOG ANSWERED.
-    // WL-PROJ-09 -- agents/workshop/project.md
-    struct RecipeSwap {
-        bool accepted = false;   ///< the candidate became this session's catalog
-        std::string refusal;     ///< the owner's own words; empty exactly when accepted
-        std::string path;        ///< the authored catalog IN FORCE after this request
-        std::size_t recipes = 0; ///< how many that catalog holds
-    };
-
-
-    /// A weaver's recipe row as typed. The host composes it, checks it by the recipe law, appends
-    /// it as authored and installs the file; the answer is the catalog in force (`RecipeSwap`).
-    // WL-AUTH-01 -- agents/workshop/authoring.md
-    struct RecipeDraft {
-        std::string id;                  ///< what the weaver calls it
-        std::string artifact;            ///< the stem it produces
-        std::string source;              ///< single-source: the one .cpp, as the browser spelled it
-        std::vector<std::string> packages; ///< single-source: CMAKE_PREFIX_PATH entries
-        std::vector<std::string> links;    ///< single-source: exported target names
-        std::string build_dir;           ///< cmake-target: the configured tree
-        std::string target;              ///< cmake-target: the target in it
-        std::string artifact_dir;        ///< cmake-target: where it lands, or empty
-        std::string config;              ///< cmake-target: a multi-config generator's
-                                          ///< configuration, or empty
-        bool tree = false;               ///< which of the two kinds this draft is
-        std::string makes = {};          ///< single-source: native, boxed or both
-    };
-
-    /// What authoring the minimum plan row came to: appended and written, or refused in the plan's
-    /// or the executor's words -- and the recipe's product when the new row is the frontier and the
-    /// product exists, so `o` can finish with the button's own act.
-    // WL-AUTH-02, WL-AUTH-03 -- agents/workshop/authoring.md
-    struct PlanAppend {
-        bool accepted = false;
-        std::string refusal;   ///< empty exactly when accepted
-        std::string path;      ///< the plan file written, when one was
-        std::string detail;    ///< what the running project made of the row, in its words
-        bool frontier = false; ///< the new row is what the project is now waiting on
-        std::string product;   ///< the recipe's product on disk, when the row is the frontier
-                               ///< and the product is there; empty otherwise
-    };
-
-
-    /// An object document this run was pointed at or found and will not open, or empty: said once
-    /// at startup and left exactly as it is.
-    // WL-DOC-22 -- agents/workshop/document-file.md
-    std::string retired_document;
-
-    /// The one file this Workshop's SETUP saves to and restores from.
-    // WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-SESSION-01 -- agents/workshop/session.md
-    std::string setup_path;
-
-    /// The one file this Workshop's LAST SESSION is written to and read from.
-    // WL-SESSION-01, WL-SESSION-04, WL-SESSION-13 -- agents/workshop/session.md
-    std::string session_path;
-
-    /// The one file this Workshop's KEYMAP is read from.
-    // WL-KEY-07 -- agents/workshop/keyboard.md; WL-SESSION-01 -- agents/workshop/session.md
-    std::string keymap_path;
-
-    /// WHETHER THIS HOST'S TUI WINDOW READS ITS KEYS FROM A POSIX TERMINAL
-    /// (`input/terminal_reader.hpp`): shown in that window, Workshop puts each pane row's POSIX key
-    /// in force in place of its default. The program sets it on a build that is not Windows.
-    // WL-KEY-08 -- agents/workshop/keyboard.md
-    bool posix_terminal = false;
-
-    /// The one file this Workshop's presentation PREFERENCES live in.
-    // WL-SESSION-01 -- agents/workshop/session.md
-    std::string prefs_path;
-
-    /// WHERE THE THEMES ARE, as the theme role is told: the weaver's own folder, empty where this
-    /// launch keeps none, and the folder of the themes shipped beside this host.
-    std::string themes_path;
-    std::string shipped_themes_path;
-
-    /// WHICH CONVERSIONS THIS RUN ACTUALLY HAS, or nothing.
-    // WL-MIG-08 -- agents/workshop/migration.md
-    const op::Catalog* conversions = nullptr;
-
-    /// ONE HUMAN-READABLE SENTENCE ABOUT THE LEGACY-FILE TRANSITION, or empty.
-    // WL-SESSION-03 -- agents/workshop/session.md
-    std::string transition_note;
-
-    /// The one pane whose presentation this host claims and commits jointly with its document,
-    /// spelled by the host; empty means none is managed.
-    PaneRef managed_pane;
-
-    /// THE BOOK A NATIVE SHOWING THAT DID NOT COMPLETE IS WRITTEN IN (`host_pump.hpp`): this
-    /// weave's publication hook keeps its own words here, and the host's turn tells them.
-    ShowingFailures showings;
 
     /// THE BOOK A QUIT DELIVERY LOOM REFUSED IS WRITTEN IN (`quit_delivery.hpp`): the host's
     /// watch writes what the tap said, and this weave reads it when the watch wakes it.
     // WL-SESSION-19 -- agents/workshop/session.md
     UndeliveredQuits undelivered_quits;
-
-    /// What the host already knew was true, and still is. It can grow after the first picture (an
-    /// optional row refusing inside a delivery), hence `conditions_generation`.
-    // WL-ATTN-01 -- attention/docs/attention-laws.md
-    std::vector<Condition> standing_conditions;
-    /// How many times that list grew: compared, so a repaint costs one integer.
-    std::uint64_t conditions_generation = 0;
-
-    /// An artifact stem as this platform spells a shared library: the host's one rule, so one plan
-    /// is legal on every platform. A view, so a literal and a stem read from a file resolve alike.
-    std::string so(std::string_view stem) const { return so_in(dir, stem); }
-
-    /// What a stem ends with when it names a WebAssembly module: the same file on every platform,
-    /// so the stem is the file's name and no suffix is added. Loom's kernel opens it by its first
-    /// bytes and holds it in a box (`Kernel::containment`). The Builder's, whose boxed products
-    /// are stems spelled so.
-    static constexpr std::string_view kModuleSuffix = builder::kModuleSuffix;
-
-    /// The same rule aimed at another directory (a CMake target lands where its own project puts
-    /// it). Static: a fact about the platform. One copy of the suffix rule.
-    static std::string so_in(std::string_view directory, std::string_view stem) {
-        std::string path = std::string(directory) + "/" + std::string(stem);
-        if (builder::names_module(stem)) {
-            return path;
-        }
-        return path +
-#if defined(_WIN32)
-               ".dll";
-#else
-               ".so";
-#endif
-    }
 };
 
 /// Whether the weave holding `role` on `bus` now has a door of exactly `shape`'s identity, read off
@@ -293,22 +145,6 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
 /// emits, read off the bus at the call. Nobody holding it is no.
 bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape);
-
-/// WHAT THE LAYOUTS' OWNER IS HANDED OF THIS HOST, read at its ask: the files' paths and the
-/// conversions.
-// WL-SETTING-09 -- agents/workshop/settings.md
-inline LayoutsOwnerHost layouts_owner_host(const HostContext& host) {
-    LayoutsOwnerHost out;
-    out.store = [&host] {
-        LayoutsHost readings;
-        readings.setup_path = host.setup_path;
-        readings.session_path = host.session_path;
-        readings.prefs_path = host.prefs_path;
-        readings.conversions = host.conversions;
-        return readings;
-    };
-    return out;
-}
 
 /// THE HOST SAYS WHICH WEAVE IS THE TERMINAL IT MOUNTED, to the layouts' owner, as a delivery no
 /// weave sent (`TerminalNamed`).
@@ -358,6 +194,28 @@ inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Gr
     grant.allow_to_role(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version,
                         kLayoutsRole);
 }
+
+/// WHICH OF THE HOST'S CONDITIONS THE DESK LAST TOOK: the launch's, once, and which of the
+/// realization owner's `RowsNotLoaded` claims, by its author and revision.
+// WL-ATTN-01 -- attention/docs/attention-laws.md
+struct ConditionsTaken {
+    bool launch = false;
+    loom::WeaveId author{};
+    std::uint64_t revision = 0;
+
+    /// TAKE INTO `s` THE CONDITIONS THE HOST KNEW AT THE LAUNCH, once, from `made`, and what the
+    /// plan could not load, as the realization owner claims it now, when the claim moved.
+    void take(Session& s, const WorkshopMade& made, loom::Mail& mail);
+
+    /// Has the claim moved since it was taken, or were the launch's never taken?
+    bool moved(loom::Mail& mail) const {
+        if (!launch) return true;
+        const loom::SenseReading read =
+            mail.latest_from_role<realization::RowsNotLoaded>(builder::kRealizationRole);
+        return read && read.value.has_value() &&
+               (read.by.author != author || read.by.revision != revision);
+    }
+};
 
 /// The door onto the terminal participant, as this host composes it: over its own context.
 using TerminalDoorFacet = TerminalDoor<HostContext>;
@@ -556,7 +414,9 @@ public:
         loom::WeaveId participant{};
     };
 
-    explicit WorkshopWeave(HostContext& host);
+    /// Made with the words and paths its host fixed at the launch (`made`), and handed the terminal
+    /// participant it presents (`host`).
+    WorkshopWeave(const WorkshopMade& made, HostContext& host);
 
     /// READ THE WEAVER'S KEYMAP, OR STAND ON THE DEFAULTS.
     void load_keymap(loom::Mail& mail);
@@ -570,8 +430,6 @@ public:
     /// notice line is the one about this launch.
     void speak_startup_notes(loom::Mail& mail);
 
-    /// TAKE THE CONDITIONS THE HOST ALREADY KNEW.
-    void take_host_conditions();
 
     /// Say what is true right now to anyone presenting it -- only when it changed: without the
     /// comparison, the publication, the pane's answer and the repaint would never stop. What it
@@ -746,8 +604,8 @@ public:
     /// HOTKEYS PANE: the refusal in words for `actor` toward the pane `kind`, or empty.
     std::string refused_toward(const InputActor& actor, std::int64_t kind) const;
     /// ...AND SO A WINDOW IS TOLD: whether the pane's area is placed for the weaver's hand alone,
-    /// while a guest door listens (`door`).
-    bool weaver_only_pane(const RuntimePane& row, bool door) const;
+    /// while a guest door listens (`door`) on a host the door says is a weaver's (`host`).
+    bool weaver_only_pane(const RuntimePane& row, bool door, const scope::HostFact& host) const;
     /// Say a refusal of the current input actor's act, and paint it.
     void refuse_input(const std::string& why, loom::Mail& mail);
     void on(const PaneObservationRequested& asked, loom::Mail& mail);
@@ -1924,6 +1782,8 @@ private:
         "no setup file -- start Workshop with --setup <path>";
 
     HostContext* host_;
+    /// What this weave was made with, read where its words and paths are needed.
+    WorkshopMade made_;
     Session session_;
 
     /// The one Edit Code open in flight: the pane, the code the three claims named for it at the
@@ -2161,7 +2021,8 @@ private:
     PaneSubjectShown subject_said_;
     bool subject_published_ = false;
     /// Which generation of the host's standing list this weave has taken.
-    std::uint64_t conditions_taken_ = 0;
+    /// Which of the host's conditions the desk last took (`ConditionsTaken`).
+    ConditionsTaken conditions_taken_;
     bool keymap_bad_ = false;
     /// The keymap file's bytes as this host last read or wrote them, and whether it was there: an
     /// edit's write never overwrites a file another hand changed since (WL-KEY-18).

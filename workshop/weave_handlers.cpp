@@ -10,7 +10,8 @@ namespace zengine::workshop {
 using pane::PaneCatalogRequested;
 
 // The terminal door reads the same host this weave does.
-WorkshopWeave::WorkshopWeave(HostContext& host) : Weave(host), host_(&host) {}
+WorkshopWeave::WorkshopWeave(const WorkshopMade& made, HostContext& host)
+    : Weave(host), host_(&host), made_(made) {}
 
 // WL-KEY-07, WL-KEY-08 -- agents/workshop/keyboard.md
 void WorkshopWeave::load_keymap(loom::Mail& mail) {
@@ -18,11 +19,11 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
         return;
     }
     keymap_loaded_ = true;
-    if (host_->keymap_path.empty()) {
+    if (made_.keymap_path.empty()) {
         keymap_standing_ = "no keymap file -- the shipped bindings stand";
         return;
     }
-    if (!std::filesystem::exists(host_->keymap_path)) {
+    if (!std::filesystem::exists(made_.keymap_path)) {
         keymap_standing_ = "not written yet -- the shipped bindings stand; a row written there "
                            "applies at the next launch";
         return;
@@ -30,7 +31,7 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     // READ ONCE, AND THE BYTES KEPT: they are the baseline an edit's write compares the file
     // against, so a change by another hand since this read is seen rather than overwritten.
     const persist::FileText read = persist::read_file(
-        host_->keymap_path, keymap_persist::kMaxKeymapBytes, "a Workshop keymap");
+        made_.keymap_path, keymap_persist::kMaxKeymapBytes, "a Workshop keymap");
     const keymap_persist::LoadedKeymap loaded =
         read.outcome.accepted ? keymap_persist::from_text(read.text)
                               : keymap_persist::LoadedKeymap{read.outcome, {}};
@@ -96,7 +97,7 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     std::string gaps;
     rejoin_pane_rows(refused, gaps, mail);
     if (!session_.keymap.authored.empty() || session_.keymap.legend != legend_mode::kDefault) {
-        keymap_word_ = "keymap " + host_->keymap_path + " applied -- " +
+        keymap_word_ = "keymap " + made_.keymap_path + " applied -- " +
                        std::to_string(session_.keymap.authored.size()) + " override" +
                        (session_.keymap.authored.size() == 1 ? "" : "s");
         if (!session_.keymap.note.empty()) {
@@ -123,9 +124,9 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
     // AN OBJECT DOCUMENT THIS RUN WAS POINTED AT, SAID ONCE AND LEFT ALONE (WL-DOC-22): the file is
     // a weaver's, the canvas that read it retired, and nothing here opens, rewrites or deletes it.
     const std::string retired =
-        host_->retired_document.empty()
+        made_.retired_document.empty()
             ? std::string()
-            : "object document " + host_->retired_document +
+            : "object document " + made_.retired_document +
                   " left as it is -- the object canvas retired, and nothing here reads or "
                   "writes it";
     // ...AND WHAT THE PLAN COULD NOT LOAD AND GAVE WAY FROM, said once: the GUI window that could
@@ -137,7 +138,7 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
             gave_way += (gave_way.empty() ? "" : "; ") + gone;
         }
     }
-    const std::string* parts[] = {&gave_way, &keymap_word_, &host_->transition_note, &retired};
+    const std::string* parts[] = {&gave_way, &keymap_word_, &made_.transition_note, &retired};
     for (const std::string* part : parts) {
         if (part->empty()) {
             continue;
@@ -155,10 +156,29 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
 }
 
 // WL-ATTN-01 -- attention/docs/attention-laws.md
-void WorkshopWeave::take_host_conditions() {
-    conditions_taken_ = host_->conditions_generation;
-    for (const Condition& c : host_->standing_conditions) {
-        session_.conditions.establish(c);
+void ConditionsTaken::take(Session& s, const WorkshopMade& made, loom::Mail& mail) {
+    // WHAT THE HOST KNEW AT THE LAUNCH, once: Workshop was made with it.
+    if (!launch) {
+        launch = true;
+        for (const LaunchCondition& c : made.conditions) {
+            s.conditions.establish(condition_of(c));
+        }
+    }
+    // ...AND WHAT THE PLAN COULD NOT LOAD, as the realization owner claims it: taken again only when
+    // the claim moved, and `establish` is keyed, so a row said twice stands once.
+    const loom::SenseReading read =
+        mail.latest_from_role<realization::RowsNotLoaded>(builder::kRealizationRole);
+    if (!read || !read.value.has_value() || !moved(mail)) {
+        return;
+    }
+    author = read.by.author;
+    revision = read.by.revision;
+    const auto rows = loom::from_value<realization::RowsNotLoaded>(*read.value);
+    for (const realization::RowGaveWay& gone : rows.gave_way) {
+        s.conditions.establish(gave_way(gone.stem, gone.next, gone.why));
+    }
+    for (const realization::RowSteppedOver& gone : rows.stepped_over) {
+        s.conditions.establish(unavailable_tool(gone.stem, gone.said));
     }
 }
 
@@ -175,7 +195,7 @@ void WorkshopWeave::start_desk(loom::Mail& mail) {
         .send_to_role(input::kInputRole, input::PointerTimingAsked{});
     // ...and whatever the host already knew was standing, so the first picture
     // of the run already carries every condition this launch is going to have.
-    take_host_conditions();
+    conditions_taken_.take(session_, made_, mail);
     repaint(mail);
     restore_last_session(mail);
 }
@@ -204,7 +224,7 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     }
     // ...AND THE KEYS IN FORCE FOR WHERE THEY COME FROM: a POSIX terminal's, in the TUI window
     // of a host whose terminal is one, and the defaults everywhere else.
-    set_posix_layer(host_->posix_terminal && w.window == graphics::kTuiWindow, mail);
+    set_posix_layer(made_.posix_terminal && w.window == graphics::kTuiWindow, mail);
     if (window_name_ != w.window) {
         window_name_ = w.window;
         areas_placed_.clear();

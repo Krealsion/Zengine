@@ -40,7 +40,7 @@ a place that does not exist refuses before it writes anything" "a file too large
 claims is refused before it is read"
 
 ### WL-DOC-22
-`workshop/weave.hpp` HostContext::retired_document
+`workshop/made.hpp` WorkshopMade::retired_document
 `workshop/user_paths.hpp` kRetiredDocumentName
 `workshop/weave_handlers.cpp` retired_document
 `workshop/workshop.cpp` retired_document kRetiredDocumentName

@@ -131,10 +131,10 @@ struct BuilderRig {
     ProjectFrontier frontier{};
     std::vector<std::string> plan_rows;
     std::vector<PlanRowRequested> authored;
-    HostContext::PlanAppend next_append{};
-    HostContext::RecipeSource next_source{};
+    PlanAppend next_append{};
+    RecipeSource next_source{};
     /// ...AND ONE ANSWER PER RECIPE where a case needs the two told apart.
-    std::map<std::string, HostContext::RecipeSource> sources;
+    std::map<std::string, RecipeSource> sources;
 
     explicit BuilderRig(const char* tag) : dir(tag) {
         root = dir.path();

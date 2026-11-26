@@ -78,7 +78,7 @@ loom::WeaveId mount_in_role(loom::Switchboard& bus, loom::Grant grant, const cha
     return id;
 }
 
-/// THE ONE RULE THAT SPELLS A STEM AS A FILE, and it is the host's -- `HostContext::so`
+/// THE ONE RULE THAT SPELLS A STEM AS A FILE, and it is the host's -- `so_in` (`workshop/project_acts.hpp`)
 /// said again here rather than reached for, because this program deliberately does not
 /// link Workshop's UI vocabulary. A module's stem is its file's name.
 std::string so_in(std::string_view dir, std::string_view stem) {

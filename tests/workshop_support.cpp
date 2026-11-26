@@ -591,7 +591,8 @@ auto Live::nudge_owner() -> void {
                        loom::Message(loom::to_value(StageNudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     }
 
-Live::Live() {
+Live::Live(std::vector<Condition> launch) {
+        host.standing_conditions = std::move(launch);
         // The windows' clock, which they count the weaver's clicks by.
         windows.clock([this] { return clock.read(); });
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
@@ -614,7 +615,13 @@ Live::Live() {
             session_door->zen_set_self(id);
         }
         mount_owner();
-        auto weave = std::make_unique<WorkshopWeave>(host);
+        (void)loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
+        make_workshop();
+    }
+
+auto Live::make_workshop() -> void {
+        made_with_ = loom::serialize(loom::to_value(host.made()));
+        auto weave = std::make_unique<WorkshopWeave>(host.made(), host);
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
@@ -622,6 +629,10 @@ Live::Live() {
         // ...AND WHERE THE PLAN IS, the realization owner's claim, as the host grants it.
         grant.allow_observe(zengine::realization::PlanStatus::zen_name,
                             zengine::realization::PlanStatus::zen_version);
+        // ...WHAT THE PLAN COULD NOT LOAD, its claim too, and whose host this is, the guest door's.
+        grant.allow_observe(zengine::realization::RowsNotLoaded::zen_name,
+                            zengine::realization::RowsNotLoaded::zen_version);
+        grant.allow_observe(GuestHost::zen_name, GuestHost::zen_version);
         // IN THE ROLE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
         // the pane protocol is authored AS that role: mounted anonymously, its asks and room
         // grants would be refused at the bus. The three-argument `register_weave` is the Loom's
@@ -631,12 +642,24 @@ Live::Live() {
         w->zen_set_self(id);
         workshop_id = id;
         quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
-        (void)loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
         (void)count_desk_drawings(bus, workshop_id, pictures);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
         admit_stock(const_cast<Session&>(w->session()).panes);
         admit_second(const_cast<Session&>(w->session()).panes);
+    }
+
+auto Live::remake_if_host_moved() -> void {
+        // WORKSHOP IS MADE WITH ITS HOST'S VALUES AS THEY STAND BEFORE ITS DESK STARTS, as the host
+        // composes them before it mounts Workshop: a case that set one after this rig was built is
+        // a host that knew it at the launch, so the weave is made again with it, before it runs.
+        if (windows.up() || loom::serialize(loom::to_value(host.made())) == made_with_) {
+            return;
+        }
+        quit_watch.reset();
+        (void)bus.unregister_weave(workshop_id);
+        w = nullptr;
+        make_workshop();
     }
 
 auto Live::mount_terminal(bool widen, int shapes) -> loom::TerminalSession* {
@@ -757,6 +780,7 @@ auto Live::own_medium() -> bool {
     }
 
 auto Live::come_up() -> void {
+        remake_if_host_moved();
         if (own_medium() || windows.up() || w == nullptr) {
             return;
         }
@@ -2058,7 +2082,7 @@ PaneRig::PaneRig() {
     }
 
 auto PaneRig::mount_workshop() -> WorkshopWeave* {
-        auto weave = std::make_unique<WorkshopWeave>(host);
+        auto weave = std::make_unique<WorkshopWeave>(host.made(), host);
         w = weave.get();
         // The press's second version is chosen by what the role's holder accepts, which Workshop
         // reads from Loom's participants claim (the rig mounts it), and the stand-ins' role held

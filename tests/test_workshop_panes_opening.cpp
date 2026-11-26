@@ -357,6 +357,8 @@ struct OpeningRig {
     DoorAsker* asker = nullptr;
     std::int64_t kind = 0;
     std::vector<std::string> told; ///< what the pump seam told this host, in order
+    /// THE HOST'S BOOK OF NATIVE SHOWINGS THAT DID NOT COMPLETE, which its turn tells.
+    ShowingFailures showings;
 
     explicit OpeningRig(const char* tag) : dir(tag) {
         root = dir.path();
@@ -369,7 +371,7 @@ struct OpeningRig {
         r.mount_opening();
         auto seat = std::make_unique<NativeEditor>();
         editor = seat.get();
-        editor->book = &r.host.showings;
+        editor->book = &showings;
         loom::Grant say;
         say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         say.allow_to_any(zengine::workshop::v3::SourcePrepared::zen_name,
@@ -410,7 +412,7 @@ struct OpeningRig {
     }
     /// THE HOST'S TURN, through the seam under test, telling from the host's own book.
     ServedTurn serve() {
-        return serve_until_idle(r.bus, r.host.showings,
+        return serve_until_idle(r.bus, showings,
                                 [this](const std::string& said) { told.push_back(said); });
     }
     /// Queue an open at the manager's door; nothing is drained.
@@ -739,7 +741,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         CHECK(failures[0].diagnostic == expected);
         REQUIRE(o.told.size() == 1);
         CHECK(o.told[0] == expected);
-        CHECK(o.r.host.showings.empty());
+        CHECK(o.showings.empty());
         CHECK(o.r.bus.has_failed_application(o.editor_id));
         CHECK(o.editor->state().published_seen == 1);
         CHECK(o.editor->state().applied == 0);
@@ -771,7 +773,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         CHECK(o.editor->state().applied == 0);
         CHECK_FALSE(o.r.bus.has_failed_application(o.editor_id));
         CHECK(o.told.empty());
-        CHECK(o.r.host.showings.empty());
+        CHECK(o.showings.empty());
         // A FUNCTIONING OWNER: the next open takes.
         const SourceOpened next = o.open_and_serve("/x/c.cpp");
         CHECK_MESSAGE(next.accepted, next.refusal);
@@ -857,7 +859,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         CHECK(o.editor->state().published_seen == 1); // no second showing was attempted
         REQUIRE(o.told.size() == 1);                   // nothing new was told
         CHECK(o.r.bus.has_failed_application(o.editor_id));
-        CHECK(o.r.host.showings.empty());
+        CHECK(o.showings.empty());
     }
     SUBCASE("a host observer that throws on the showing's own refusal notification propagates, and the owner's failure is told in the owner's words and never the observer's") {
         OpeningRig o("open-pump-observer-on-refusal");
@@ -902,7 +904,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         CHECK(o.told[0] ==
               held_sentence(o, "test instrumentation: the stand-in Editor could not apply /x/b.cpp"));
         CHECK(o.told[0].find("observer") == std::string::npos);
-        CHECK(o.r.host.showings.empty());
+        CHECK(o.showings.empty());
         // THE BUS SERVES ON: the open settles in words, and nothing more is told.
         int turns = 0;
         while (o.asker->opens.size() == before) {
@@ -930,7 +932,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
               "test instrumentation: the stand-in Editor threw outside its boundary applying /x/b.cpp");
         CHECK(o.r.bus.has_failed_application(o.editor_id)); // Loom recorded it all the same
         CHECK(o.told.empty());
-        CHECK(o.r.host.showings.empty());
+        CHECK(o.showings.empty());
     }
 }
 
@@ -970,6 +972,7 @@ public:
 struct PictureOpen {
     TempDir dir;
     PaneRig r;
+    ShowingFailures showings; ///< the host's book of native showings its turn tells
     CanvasEditor* editor = nullptr;
     loom::WeaveId editor_id{};
     DoorAsker* asker = nullptr;
@@ -1029,7 +1032,7 @@ struct PictureOpen {
     }
     void serve() {
         for (int i = 0; i < 12 && asker->opens.empty(); ++i) {
-            (void)serve_until_idle(r.bus, r.host.showings, [](const std::string&) {});
+            (void)serve_until_idle(r.bus, showings, [](const std::string&) {});
         }
     }
     /// THE EDITOR PANE'S WORDS AND PARTS, asked as any participant asks.
