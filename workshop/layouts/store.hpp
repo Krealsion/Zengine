@@ -22,6 +22,8 @@
 
 #include "operator/catalog.hpp"
 
+#include <zen/host/participants.hpp> // who is on the bus, as Loom claims it
+
 #include <zen/schema.hpp>
 #include <zen/switchboard/message.hpp>
 
@@ -39,16 +41,29 @@ using pane::PaneSettingRow;
 using pane::PaneSettingUnused;
 
 /// WHAT THE STORE IS HANDED by whoever holds it: the paths of its files, the conversions this run
-/// has, and the readings of the bus it spends -- whose role it is now, at which incarnation,
-/// and whether its holder takes a shape -- each read at the ask and kept nowhere.
+/// has, and who is on the bus as the holder's delivery read Loom's participants claim -- whose role
+/// it is now, at which incarnation, and whether its holder takes a shape -- forgotten at the
+/// delivery's end. Outside a delivery, or with a claim the holder cannot read, it reads no bus.
 struct LayoutsHost {
     std::string setup_path;
     std::string session_path;
     std::string prefs_path;
     const op::Catalog* conversions = nullptr;
-    std::function<loom::WeaveId(std::string_view)> role_holder;
-    std::function<std::int64_t(loom::WeaveId)> incarnation_of;
-    std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
+    std::optional<loom::host::Participants> now;
+
+    bool reads_bus() const { return now.has_value(); }
+    loom::WeaveId role_holder(std::string_view role) const {
+        const loom::host::Participant* row = now ? now->holder_of(role) : nullptr;
+        return row != nullptr ? loom::WeaveId{static_cast<std::uint64_t>(row->id)}
+                              : loom::WeaveId{};
+    }
+    std::int64_t incarnation_of(loom::WeaveId who) const {
+        const loom::host::Participant* row = now ? now->find(who) : nullptr;
+        return row != nullptr ? row->incarnation : 0;
+    }
+    bool holder_accepts(std::string_view role, const loom::Schema& shape) const {
+        return now && now->holder_accepts(role, shape);
+    }
 };
 
 /// ONE PANE THE CATALOG LISTS, as the store reads it: its name, and whether the presenter can

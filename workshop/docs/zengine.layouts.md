@@ -289,6 +289,21 @@ role says and for which panes a desk put live can name.
 role}`: whether `gesture` is the weaver's current act sent to a pane of `role`. An unlock
 waiting on it is answered then.
 
+### `GuestRowOf`
+
+`GuestRowOf`, from `zengine.guests`, answering this role's `GuestRowOfRequested{session}`: the row
+that admitted a session. A settings ask from a participant that is no role and not this host's
+Terminal waits on it, each asker's asks in the order it made them, and is judged and answered once
+it comes; with no guest door to ask, the asker is no guest. Past the asks it holds at once, an ask
+is refused `the layouts' owner already holds <n> asks waiting on the guest door; ask again once
+one is answered`. The row is kept by nobody.
+
+### `TerminalNamed`
+
+`TerminalNamed`, from the host alone, once it mounts the Terminal: which weave that is, so a
+settings ask the Terminal makes is answered under its own widening. From any participant it is
+nothing.
+
 ## Follow
 
 This role sends `LiveLayout` v3 to Workshop on every change of the run or of the live layout,

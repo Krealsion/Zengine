@@ -10,6 +10,7 @@
 // participant, and no class narrows it.
 
 #include "desktop_seam_vocabulary.hpp"
+#include "guest_seam_vocabulary.hpp" // a row as the guest door says it
 #include "pane_seam_vocabulary.hpp"
 #include "pane/operation.hpp"
 
@@ -49,6 +50,26 @@ struct GuestRowFacts {
         return std::find(powers.begin(), powers.end(), power) != powers.end();
     }
 };
+
+/// A ROW AS THE GUEST DOOR SAYS IT (`GuestRowOf`), and back: the same facts, crossing by message.
+inline GuestRowOf said_row(std::int64_t session, const GuestRowFacts& row) {
+    return GuestRowOf{session,     row.admitted,       row.name,           row.powers,
+                      row.version, row.role,           row.reads_by_pane,  row.guides_by_pane,
+                      row.capture, row.guide};
+}
+inline GuestRowFacts row_said(const GuestRowOf& said) {
+    GuestRowFacts row;
+    row.admitted = said.admitted;
+    row.name = said.name;
+    row.powers = said.powers;
+    row.version = said.version;
+    row.role = said.role;
+    row.reads_by_pane = said.reads_by_pane;
+    row.guides_by_pane = said.guides_by_pane;
+    row.capture = said.capture;
+    row.guide = said.guide;
+    return row;
+}
 
 /// THE PANES ONLY THE WEAVER'S HAND READS OR POINTS AT, on every host: Connections, which says
 /// every row's powers and waiting asks, and the Hotkeys pane, which edits the keymap. Empty when a

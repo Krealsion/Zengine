@@ -165,8 +165,8 @@ doors workshop/arrangement.hpp ArrangementDoor 1
 doors workshop/desktop-pane/pane.cpp DesktopWeave 19
 doors workshop/editor_switch.hpp EditorSwitchBase 12
 doors workshop/first-run/first_run.cpp FirstRun 18
-doors workshop/guest_door.hpp GuestDoorBase 8
-doors workshop/layouts/owner.hpp LayoutsOwner 24
+doors workshop/guest_door.hpp GuestDoorBase 9
+doors workshop/layouts/owner.hpp LayoutsOwner 26
 doors workshop/menu-presenter/presenter.cpp MenuPresenter 8
 doors workshop/opening.hpp OpeningManager 7
 doors workshop/palette/palette.cpp Palette 16

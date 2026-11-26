@@ -13,8 +13,8 @@ hear.
 In `workshop/layouts/owner.cpp`:
 
 ```diff
--    (void)mail.answer(as_office(read_asked(current(asked), mail)));
-+    (void)mail.answer(read_asked(current(asked), mail));
+-    reply(mail, as_office(read_asked(current(asked), mail)));
++    reply(mail, read_asked(current(asked), mail));
 ```
 
 Red in `zengine-workshop-panes-tests`:

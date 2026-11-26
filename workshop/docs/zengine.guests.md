@@ -111,6 +111,21 @@ guest: the Inventory pane, refused `NoSuchTarget`, saves.
   pane: "inventory", classes: ["write"], id: "InventoryToolboxSave"}` answers `allowed` false and the
   write's refusal.
 
+### `GuestRowOfRequested`
+
+`GuestRowOfRequested` v1 asks which row admitted one session, for this host's own roles to judge
+that session's act by: Workshop's (`zengine.workshop`) and the layouts' owner's
+(`zengine.layouts`). It is asked at the act and the answer is kept by nobody.
+
+- **Takes:** `session`, the participant's weave.
+- **Answers:** `GuestRowOf`, to the asker alone: the row recorded as the session was admitted, never
+  one found by name -- `admitted`, `name`, `powers`, the file's `version`, the row's `role`, whether
+  it reads and points by pane, and its `capture` and `guide` doors as written. A participant this
+  door never admitted, the weaver's own included, is said `admitted` false.
+- **Refuses:** `which row admitted a session is said to this host's own roles alone`.
+- **Example:** the layouts' owner asks it of a settings read from a session with no role, and
+  answers the read once it knows whether the row holds `settings`.
+
 ## Hears
 
 ### `loom.host.Waited`

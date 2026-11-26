@@ -27,6 +27,8 @@
 #include <zen/weave/ask_ended.hpp>
 
 #include <cstdint>
+#include <deque>
+#include <optional>
 #include <functional>
 #include <string>
 #include <utility>
@@ -71,15 +73,17 @@ struct LayoutsOwnerState {
               ZEN_FIELD(put_live), ZEN_FIELD(run), ZEN_FIELD(settings));
 };
 
-/// WHAT THE HOST HANDS THE OWNER AT ITS MOUNT, each read at the ask and kept nowhere: the store's
-/// own host -- the files' paths, the conversions and the bus's readings -- and the two readings a
-/// settings asker is judged by: a guest's row, and which weave is the Terminal this host mounted.
+/// WHAT THE HOST HANDS THE OWNER AT ITS MOUNT, read at each ask: the files' paths and the
+/// conversions. Who is on the bus is Loom's participants claim, which the owner reads in each
+/// delivery; a guest's row is the guest door's answer, asked at the act; which weave is the
+/// Terminal the host says once by message (`TerminalNamed`).
 // WL-SETTING-09 -- agents/workshop/settings.md
 struct LayoutsOwnerHost {
     std::function<LayoutsHost()> store;
-    std::function<scope::GuestRowFacts(loom::WeaveId)> guest_row;
-    std::function<loom::WeaveId()> terminal;
 };
+
+/// How many settings asks the owner holds at once while the guest door says each asker's row.
+inline constexpr std::size_t kMaxHeldSettingsAsks = 16;
 
 /// The owner.
 class LayoutsOwner
@@ -94,14 +98,17 @@ class LayoutsOwner
                        PaneInventory, WeaversActAnswered, loom::AskEnded, PaneCloseRequested,
                        // ...and as a pane built on an earlier vocabulary says them
                        v1::PaneCloseRequested, OfficeSettingsDeclared, OfficeSettingsRequested,
-                       OfficeSettingCommitRequested>,
+                       OfficeSettingCommitRequested,
+                       // ...which row admitted a settings asker, and which weave is the Terminal
+                       GuestRowOf, TerminalNamed>,
           loom::Emit<LiveLayout, LayoutEditAnswered, SessionSaveAnswered, loom::Ack, loom::Refused,
                      PaneSettings, pane::v2::PaneSettings, PaneSettingsAnswered,
                      PaneSettingCommitAnswered, RoleSettings, RoleSettingsAnswered,
                      RoleSettingCommitAnswered, PaneSettingPinAnswered, PaneSettingLockAnswered,
                      LayoutSettingsAnswered, SettingsWriteAnswered, WeaversActRequested,
                      PaneInventoryRequested, PaneCloseAnswered, v2::PaneCloseAnswered,
-                     OfficeSettingsAnswered, OfficeSettingCommitAnswered>> {
+                     OfficeSettingsAnswered, OfficeSettingCommitAnswered,
+                     GuestRowOfRequested>> {
 public:
     explicit LayoutsOwner(LayoutsOwnerHost host) : host_(std::move(host)), store_(readings_) {}
 
@@ -113,6 +120,12 @@ public:
     /// LOOM'S WORD THAT AN ASK OF THIS OWNER'S ENDED WITH NO ANSWER: an unlock's question to the
     /// presenter is answered refused, so its asker waits on nothing; the inventory's is not waited on.
     void on(const loom::AskEnded& ended, loom::Mail& mail);
+
+    // ---- Who asks ------------------------------------------------------------------------------
+    /// THE ROW THAT ADMITTED A HELD ASK'S ASKER, from the guest door: that ask judged and answered.
+    void on(const GuestRowOf& row, loom::Mail& mail);
+    /// THE HOST SAYS WHICH WEAVE IS THE TERMINAL IT MOUNTED; from a weave it is nothing.
+    void on(const TerminalNamed& named, loom::Mail& mail);
 
     // ---- A desk put live from a caller's text ----------------------------------------------
     void on(const SetupApplyRequested& asked, loom::Mail& mail);
@@ -154,8 +167,12 @@ public:
     /// WHAT THE STORE MOVED SINCE THE LAST MESSAGE, sent now: each pane's row, then the picture,
     /// then each role's settings.
     void settle(loom::Mail& mail, bool picture = false);
-    /// THE HOST'S READINGS, taken now: for a rig that reads the store between messages.
-    void read_host_now() { read_host(); }
+    /// THE HOST'S READINGS, taken now, and who is on the bus as `now` says: for a rig that reads the
+    /// store between messages, where no delivery reads Loom's claim.
+    void read_host_now(std::optional<loom::host::Participants> now = std::nullopt) {
+        read_host();
+        readings_.now = std::move(now);
+    }
 
     /// THE STATE MADE TO SAY WHAT THE STORE HOLDS, at the end of every delivery: the run, the
     /// settings and the revisions.
@@ -172,6 +189,26 @@ private:
         std::string refused;
     };
 
+    /// A SETTINGS ASK HELD WHILE THE GUEST DOOR SAYS WHICH ROW ADMITTED ITS ASKER: run again as it
+    /// was asked once the row comes, and answered through the answer right it holds.
+    struct HeldAsk {
+        loom::WeaveId asker;
+        std::uint64_t question = 0;
+        loom::DeferredAnswer answer;
+        std::function<void(loom::Mail&)> rerun;
+    };
+    /// Hold `asked` when its asker is no role and not the Terminal: true when it is held, or
+    /// refused for want of room, and the handler goes no further.
+    template <class Asked>
+    bool held_for_row(const Asked& asked, loom::Mail& mail);
+    /// Ask the guest door for the first held ask's row; with no door to ask, run it as no guest's.
+    void ask_row(loom::Mail& mail);
+    /// Run the first held ask with `row`, its asker's row as the door said it.
+    void rerun_first(const scope::GuestRowFacts& row, loom::Mail& mail);
+    /// Answer the ask being handled: through its held answer right when it is a held ask run again.
+    template <class Answer>
+    void reply(loom::Mail& mail, Answer&& answer);
+
     std::string asker_refused(const loom::Mail& mail) const;
     bool from_terminal(const loom::Mail& mail) const;
     bool from_presenter(const loom::Mail& mail) const;
@@ -180,11 +217,19 @@ private:
 
     /// THE HOST'S READINGS, read afresh before each ask is judged.
     void read_host();
+    void read_host(loom::Mail& mail);
 
     LayoutsOwnerHost host_;
     LayoutsHost readings_;
     LayoutStore store_;
     std::vector<PendingUnlock> unlocks_;
+    /// The asks waiting on the guest door, in the order they came: a person's asks keep theirs.
+    std::deque<HeldAsk> held_;
+    /// The held ask being run again, and its asker's row as the door said it; none otherwise.
+    const HeldAsk* rerunning_ = nullptr;
+    scope::GuestRowFacts row_now_;
+    /// The Terminal the host said it mounted.
+    loom::WeaveId terminal_{};
     std::uint64_t questions_ = 0;
     RestoredRun restored_;
     bool started_ = false;

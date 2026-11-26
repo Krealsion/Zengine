@@ -571,7 +571,7 @@ auto admit_second(Panes& panes) -> void {
 }
 
 auto Live::mount_owner() -> void {
-        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host, bus));
+        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
         owner = weave.get();
         owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
         owner->zen_set_self(owner_id);
@@ -649,6 +649,7 @@ auto Live::mount_terminal(bool widen, int shapes) -> loom::TerminalSession* {
             std::move(grant));
         host.terminal = mounted.session;
         terminal_id = mounted.id;
+        name_terminal(bus, owner_id, mounted.id); // as workshop.cpp tells the layouts' owner
         return mounted.session;
     }
 
@@ -2002,7 +2003,7 @@ auto ControlSeat::on(const loom::Ack&, loom::Mail&) -> void {}
 auto ControlSeat::on(const loom::Refused& r, loom::Mail&) -> void { no_->push_back(r.reason); }
 
 auto PaneRig::mount_owner() -> void {
-        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host, bus));
+        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
         owner = weave.get();
         owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
         owner->zen_set_self(owner_id);
@@ -2128,6 +2129,7 @@ auto PaneRig::mount_terminal(int shapes, bool widen) -> loom::TerminalSession* {
             std::move(grant));
         host.terminal = mounted.session;
         terminal_id = mounted.id;
+        name_terminal(bus, owner_id, mounted.id); // as workshop.cpp tells the layouts' owner
         return mounted.session;
     }
 

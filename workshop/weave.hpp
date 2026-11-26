@@ -338,34 +338,28 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
 bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape);
 
-/// WHAT THE LAYOUTS' OWNER IS HANDED OF THIS HOST, each reading taken at its ask: the files' paths,
-/// the conversions, `bus`'s readings and the remembered choices, a guest's row and which weave is
-/// the Terminal this host mounted.
+/// WHAT THE LAYOUTS' OWNER IS HANDED OF THIS HOST, read at its ask: the files' paths and the
+/// conversions.
 // WL-SETTING-09 -- agents/workshop/settings.md
-inline LayoutsOwnerHost layouts_owner_host(const HostContext& host, const loom::Switchboard& bus) {
+inline LayoutsOwnerHost layouts_owner_host(const HostContext& host) {
     LayoutsOwnerHost out;
-    out.store = [&host, &bus] {
+    out.store = [&host] {
         LayoutsHost readings;
         readings.setup_path = host.setup_path;
         readings.session_path = host.session_path;
         readings.prefs_path = host.prefs_path;
         readings.conversions = host.conversions;
-        readings.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
-        readings.incarnation_of = [&bus](loom::WeaveId id) {
-            return static_cast<std::int64_t>(bus.participant(id).incarnation);
-        };
-        readings.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
-            return holder_accepts_on(bus, role, shape);
-        };
         return readings;
     };
-    out.guest_row = [&host](loom::WeaveId who) {
-        return host.guest_row ? host.guest_row(who) : scope::GuestRowFacts{};
-    };
-    out.terminal = [&host] {
-        return host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{};
-    };
     return out;
+}
+
+/// THE HOST SAYS WHICH WEAVE IS THE TERMINAL IT MOUNTED, to the layouts' owner, as a delivery no
+/// weave sent (`TerminalNamed`).
+inline void name_terminal(loom::Switchboard& bus, loom::WeaveId owner, loom::WeaveId terminal) {
+    (void)bus.send(owner, loom::Message(loom::to_value(TerminalNamed{
+                                            static_cast<std::int64_t>(terminal.value)}),
+                                        loom::WeaveId{}, loom::WeaveId{}, 0));
 }
 
 /// What a terminal participant may ask of settings and hear back: a pane's row and a role's

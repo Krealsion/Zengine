@@ -256,8 +256,10 @@ its revision by the layouts' owner, said, and goes when a newer one is handed"
 `workshop/guests.cpp` grant_for read_guests_file
 `workshop/guests.hpp` kPowerSettings
 `workshop/actor_scope.hpp` kPowerSettings
-`workshop/layouts/owner.cpp` asker_refused
+`workshop/layouts/owner.cpp` asker_refused held_for_row on(GuestRowOf)
 `workshop/layouts/owner.hpp` LayoutsOwnerHost
+`workshop/guest_door.hpp` on(GuestRowOfRequested)
+`workshop/guest_seam_vocabulary.hpp` GuestRowOfRequested GuestRowOf
 `tests/test_workshop_panes_settings.cpp` "an asker the settings doors do not serve is answered that
 it was withheld, and nothing is written"
 `tests/test_workshop_panes_terminal.cpp` "a Terminal line reads the Terminal's settings, and writes

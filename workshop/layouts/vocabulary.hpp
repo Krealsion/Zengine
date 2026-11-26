@@ -176,6 +176,14 @@ struct WeaversActAnswered {
     ZEN_SHAPE(WeaversActAnswered, 1, ZEN_FIELD(current));
 };
 
+/// WHICH WEAVE IS THE TERMINAL THIS HOST MOUNTED, said by the host itself -- a delivery no weave
+/// sent -- once it mounts one: a settings ask that weave makes is the Terminal's, under its own
+/// widening. Said by anyone else, it is nothing.
+struct TerminalNamed {
+    std::int64_t terminal = 0;
+    ZEN_SHAPE(TerminalNamed, 1, ZEN_FIELD(terminal));
+};
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_LAYOUTS_VOCABULARY_HPP

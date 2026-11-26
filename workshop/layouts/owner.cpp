@@ -34,28 +34,33 @@ void LayoutsOwner::read_host() {
     }
 }
 
+// WHO IS ON THE BUS, Loom's participants claim, read once a delivery and forgotten at its end.
+void LayoutsOwner::read_host(loom::Mail& mail) {
+    read_host();
+    readings_.now = loom::host::read_participants(mail);
+}
+
 bool LayoutsOwner::from_presenter(const loom::Mail& mail) const {
     return mail.authored_from_role(kWorkshopProvider);
 }
 
 bool LayoutsOwner::from_terminal(const loom::Mail& mail) const {
-    if (!host_.terminal || !mail.authored_role().empty()) {
+    if (rerunning_ != nullptr || !mail.authored_role().empty()) {
         return false;
     }
-    const loom::WeaveId terminal = host_.terminal();
-    return terminal.valid() && mail.sender() == terminal;
+    return terminal_.valid() && mail.sender() == terminal_;
 }
 
 // WL-SETTING-09 -- agents/workshop/settings.md
 std::string LayoutsOwner::asker_refused(const loom::Mail& mail) const {
-    if (!mail.authored_role().empty()) {
+    if (rerunning_ == nullptr && !mail.authored_role().empty()) {
         return std::string(); // a role: code loaded into this process, or a host's own weave
     }
     if (from_terminal(mail)) {
         return std::string(); // the Terminal this host mounted, under its own widening
     }
-    const scope::GuestRowFacts guest =
-        host_.guest_row ? host_.guest_row(mail.sender()) : scope::GuestRowFacts{};
+    // ANY OTHER ASKER WAS HELD while the guest door said its row (`held_for_row`).
+    const scope::GuestRowFacts& guest = row_now_;
     if (guest.admitted) {
         if (guest.may(scope::kPowerSettings)) {
             return std::string();
@@ -66,6 +71,79 @@ std::string LayoutsOwner::asker_refused(const loom::Mail& mail) const {
     }
     return "a pane's settings are read and written by a role, this Workshop's Terminal or a "
            "guest with `" + std::string(scope::kPowerSettings) + "`";
+}
+
+// WL-SETTING-09 -- agents/workshop/settings.md
+template <class Asked>
+bool LayoutsOwner::held_for_row(const Asked& asked, loom::Mail& mail) {
+    if (rerunning_ != nullptr || !mail.authored_role().empty() || from_terminal(mail)) {
+        return false;
+    }
+    if (held_.size() >= kMaxHeldSettingsAsks) {
+        (void)mail.answer(loom::Refused{"the layouts' owner already holds " +
+                                        std::to_string(kMaxHeldSettingsAsks) +
+                                        " asks waiting on the guest door; ask again once one is "
+                                        "answered"});
+        return true;
+    }
+    HeldAsk held;
+    held.asker = mail.sender();
+    held.answer = mail.defer_answer();
+    held.rerun = [this, asked](loom::Mail& m) { on(asked, m); };
+    held_.push_back(std::move(held));
+    if (held_.size() == 1) {
+        ask_row(mail);
+    }
+    return true;
+}
+
+void LayoutsOwner::ask_row(loom::Mail& mail) {
+    while (!held_.empty()) {
+        HeldAsk& first = held_.front();
+        first.question = ++questions_;
+        const loom::Ticket sent = mail.as_role(kLayoutsRole).ask_role(
+            kGuestsRole, GuestRowOfRequested{static_cast<std::int64_t>(first.asker.value)},
+            first.question);
+        if (sent.valid()) {
+            return;
+        }
+        rerun_first(scope::GuestRowFacts{}, mail); // no door to ask: the asker is no guest
+    }
+}
+
+void LayoutsOwner::rerun_first(const scope::GuestRowFacts& row, loom::Mail& mail) {
+    HeldAsk first = std::move(held_.front());
+    held_.pop_front();
+    rerunning_ = &first;
+    row_now_ = row;
+    first.rerun(mail);
+    rerunning_ = nullptr;
+    row_now_ = scope::GuestRowFacts{};
+}
+
+template <class Answer>
+void LayoutsOwner::reply(loom::Mail& mail, Answer&& answer) {
+    if (rerunning_ != nullptr) {
+        (void)loom::answer_deferred(rerunning_->answer, mail, std::forward<Answer>(answer));
+        return;
+    }
+    (void)mail.answer(std::forward<Answer>(answer));
+}
+
+// WL-SETTING-09 -- agents/workshop/settings.md
+void LayoutsOwner::on(const GuestRowOf& row, loom::Mail& mail) {
+    if (!mail.answers_ask() || held_.empty() || held_.front().question != mail.correlation()) {
+        return; // an answer to an ask this owner no longer holds
+    }
+    rerun_first(scope::row_said(row), mail);
+    ask_row(mail);
+}
+
+void LayoutsOwner::on(const TerminalNamed& named, loom::Mail& mail) {
+    if (mail.sender().valid()) {
+        return; // the host says it, and no weave does
+    }
+    terminal_ = loom::WeaveId{static_cast<std::uint64_t>(named.terminal < 0 ? 0 : named.terminal)};
 }
 
 // ---- What moved, sent ---------------------------------------------------------------------------
@@ -136,7 +214,7 @@ void LayoutsOwner::settle(loom::Mail& mail, bool picture) {
 
 // WL-LAYOUT-01 -- agents/workshop/layouts.md
 void LayoutsOwner::on(const LayoutEditRequested& asked, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     if (!from_presenter(mail)) {
         // THE PRESENTER'S GESTURES, judged for their hand already: no door for anyone else.
         ++state_.refused;
@@ -177,10 +255,12 @@ void LayoutsOwner::after_delivery(loom::Mail&) {
     state_.settings = store_.declared_settings();
     state_.revision = store_.revision();
     state_.put_live = static_cast<std::int64_t>(store_.run().put_live);
+    readings_.now.reset(); // who was on the bus is this delivery's alone
 }
 
 void LayoutsOwner::revive(const loom::Value& v) {
     state_ = loom::from_value<LayoutsOwnerState>(v);
+    held_.clear(); // the asks the life before held end with it, each with `zen.AskEnded`
     if (state_.run.layouts.empty()) {
         return; // the life before declared no run: nothing to put back, and the files are read
     }
@@ -194,7 +274,7 @@ void LayoutsOwner::revive(const loom::Value& v) {
 
 // WL-SESSION-13 -- agents/workshop/session.md
 void LayoutsOwner::on(const SessionSaveRequested&, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     if (!from_presenter(mail)) {
         ++state_.refused;
         (void)mail.answer(SessionSaveAnswered{false, "the session is written at the presenter's "
@@ -227,7 +307,7 @@ void LayoutsOwner::on(const SessionSaveRequested&, loom::Mail& mail) {
 }
 
 void LayoutsOwner::on(const PaneInventory& said, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     // THE PRESENTER'S PUBLICATION, or its answer to this role's ask, which Loom verifies.
     if (!from_presenter(mail) && !mail.answers_ask()) {
         return; // a presenter's word about what it presents, and nobody else's
@@ -244,7 +324,14 @@ void LayoutsOwner::on(const PaneInventory& said, loom::Mail& mail) {
 
 // WL-LOCK-02 -- agents/workshop/setting-locks.md
 void LayoutsOwner::on(const loom::AskEnded& ended, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
+    if (mail.ask_ended() && ended.shape == GuestRowOfRequested::zen_name && !held_.empty() &&
+        held_.front().question == mail.correlation()) {
+        // NOBODY SAID WHICH ROW ADMITTED THE ASKER: there is no guest door, so it is no guest.
+        rerun_first(scope::GuestRowFacts{}, mail);
+        ask_row(mail);
+        return;
+    }
     if (!mail.ask_ended() || ended.shape != WeaversActRequested::zen_name) {
         return; // the inventory's ask waits on nothing: the next publication says it
     }
@@ -267,7 +354,7 @@ void LayoutsOwner::on(const loom::AskEnded& ended, loom::Mail& mail) {
 
 // WL-LOCK-02 -- agents/workshop/setting-locks.md
 void LayoutsOwner::on(const WeaversActAnswered& answered, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     // AN ANSWER IS LOOM'S TO VERIFY, to the question this role sent the presenter.
     if (!mail.answers_ask()) {
         return;
@@ -288,7 +375,7 @@ void LayoutsOwner::on(const WeaversActAnswered& answered, loom::Mail& mail) {
 // ---- A desk put live from a caller's text -------------------------------------------------------
 
 void LayoutsOwner::on(const SetupApplyRequested& asked, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string refused = store_.apply_setup(asked.setup);
     if (!refused.empty()) {
         (void)mail.answer(loom::Refused{refused});
@@ -308,7 +395,7 @@ void LayoutsOwner::on(const v1::PaneCloseRequested& asked, loom::Mail& mail) {
     (void)mail.answer(as_v2(close_asked(current(asked), mail)));
 }
 PaneCloseAnswered LayoutsOwner::close_asked(const PaneCloseRequested& asked, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     if (mail.authored_role().empty()) {
         // A ROLE, AND ONLY A ROLE, changes who is on the desk -- the seam's rule -- and the
         // asker is told so.
@@ -330,7 +417,7 @@ PaneCloseAnswered LayoutsOwner::close_asked(const PaneCloseRequested& asked, loo
 
 // WL-SETTING-03 -- agents/workshop/settings.md
 void LayoutsOwner::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
         return; // personal speech declares nothing (the offer's rule)
@@ -358,7 +445,7 @@ void LayoutsOwner::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
 
 // WL-SETTING-03 -- agents/workshop/settings.md
 void LayoutsOwner::on(const pane::v2::PaneSettingsDeclared& declared, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
         return;
@@ -373,7 +460,7 @@ void LayoutsOwner::on(const pane::v2::PaneSettingsDeclared& declared, loom::Mail
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 void LayoutsOwner::on(const RoleSettingsDeclared& declared, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string role(mail.authored_role());
     if (role.empty()) {
         return; // personal speech declares nothing (the offer's rule)
@@ -389,7 +476,7 @@ void LayoutsOwner::on(const RoleSettingsDeclared& declared, loom::Mail& mail) {
 
 // WL-SETTING-04 -- agents/workshop/settings.md
 void LayoutsOwner::on(const PaneSettingsAsked& asked, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
         return; // personal speech asks for no pane's row (the offer's rule)
@@ -402,7 +489,7 @@ void LayoutsOwner::on(const PaneSettingsAsked& asked, loom::Mail& mail) {
 
 // WL-SETTING-08 -- agents/workshop/settings.md
 void LayoutsOwner::on(const PaneSettingUnused& unused, loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
         return; // personal speech says nothing about a pane (the offer's rule)
@@ -415,18 +502,24 @@ void LayoutsOwner::on(const PaneSettingUnused& unused, loom::Mail& mail) {
 
 // WL-SETTING-07 -- agents/workshop/settings.md
 void LayoutsOwner::on(const PaneSettingsRequested& asked, loom::Mail& mail) {
-    read_host();
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     settle(mail);
     // READ AFTER THE HAND-OFFS, so the row's sentence says how far its own got.
     PaneSettingsAnswered shown = store_.read_pane(refused, asked);
-    (void)mail.answer(std::move(shown));
+    reply(mail, std::move(shown));
 }
 
 // WL-SETTING-07 -- agents/workshop/settings.md
 void LayoutsOwner::on(const PaneSettingCommitRequested& asked, loom::Mail& mail) {
-    read_host();
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     PaneSettingCommitAnswered acted = store_.commit_pane(refused, asked);
@@ -435,19 +528,25 @@ void LayoutsOwner::on(const PaneSettingCommitRequested& asked, loom::Mail& mail)
         // HOW FAR THE WRITE GOT, once its hand-off was asked for.
         acted.handed = store_.handed_fact(PaneRef{asked.provider, asked.pane});
     }
-    (void)mail.answer(std::move(acted));
+    reply(mail, std::move(acted));
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 void LayoutsOwner::on(const RoleSettingsRequested& asked, loom::Mail& mail) {
-    (void)mail.answer(read_asked(asked, mail));
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    reply(mail, read_asked(asked, mail));
 }
 void LayoutsOwner::on(const OfficeSettingsRequested& asked, loom::Mail& mail) {
-    (void)mail.answer(as_office(read_asked(current(asked), mail)));
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    reply(mail, as_office(read_asked(current(asked), mail)));
 }
 RoleSettingsAnswered LayoutsOwner::read_asked(const RoleSettingsRequested& asked,
                                               loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     RoleSettingsAnswered shown = store_.read_role(refused, asked);
@@ -457,14 +556,20 @@ RoleSettingsAnswered LayoutsOwner::read_asked(const RoleSettingsRequested& asked
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 void LayoutsOwner::on(const RoleSettingCommitRequested& asked, loom::Mail& mail) {
-    (void)mail.answer(commit_asked(asked, mail));
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    reply(mail, commit_asked(asked, mail));
 }
 void LayoutsOwner::on(const OfficeSettingCommitRequested& asked, loom::Mail& mail) {
-    (void)mail.answer(as_office(commit_asked(current(asked), mail)));
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    reply(mail, as_office(commit_asked(current(asked), mail)));
 }
 RoleSettingCommitAnswered LayoutsOwner::commit_asked(const RoleSettingCommitRequested& asked,
                                                      loom::Mail& mail) {
-    read_host();
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     RoleSettingCommitAnswered acted =
@@ -475,23 +580,29 @@ RoleSettingCommitAnswered LayoutsOwner::commit_asked(const RoleSettingCommitRequ
 
 // WL-SETTING-12 -- agents/workshop/settings.md
 void LayoutsOwner::on(const PaneSettingPinRequested& asked, loom::Mail& mail) {
-    read_host();
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     PaneSettingPinAnswered acted = store_.pin(refused, asked);
     settle(mail);
-    (void)mail.answer(std::move(acted));
+    reply(mail, std::move(acted));
 }
 
 // WL-LOCK-01, WL-LOCK-02 -- agents/workshop/setting-locks.md
 void LayoutsOwner::on(const PaneSettingLockRequested& asked, loom::Mail& mail) {
-    read_host();
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     // AN UNLOCK IS THE WEAVER'S HAND: the Terminal this host mounted, which answers the weaver
     // alone, or a role naming the weaver's current act -- which only the presenter, the judge
     // of every hand, can say. It is asked, and the unlock answered when it answers.
-    const std::string role(mail.authored_role());
+    const std::string role(rerunning_ != nullptr ? std::string_view() : mail.authored_role());
     if (refused.empty() && asked.act == kUnlockAct && !role.empty() && asked.gesture > 0) {
         PendingUnlock pending;
         pending.question = ++questions_;
@@ -510,33 +621,44 @@ void LayoutsOwner::on(const PaneSettingLockRequested& asked, loom::Mail& mail) {
     }
     PaneSettingLockAnswered acted = store_.lock(refused, asked, from_terminal(mail));
     settle(mail);
-    (void)mail.answer(std::move(acted));
+    reply(mail, std::move(acted));
 }
 
 // WL-LOCK-03 -- agents/workshop/setting-locks.md
-void LayoutsOwner::on(const LayoutSettingsRequested&, loom::Mail& mail) {
-    read_host();
+void LayoutsOwner::on(const LayoutSettingsRequested& asked, loom::Mail& mail) {
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     LayoutSettingsAnswered shown = store_.read_layouts(refused);
     settle(mail);
-    (void)mail.answer(std::move(shown));
+    reply(mail, std::move(shown));
 }
 
 // WL-LOCK-03 -- agents/workshop/setting-locks.md
 void LayoutsOwner::on(const SettingsWriteRequested& asked, loom::Mail& mail) {
-    read_host();
+    if (held_for_row(asked, mail)) {
+        return;
+    }
+    read_host(mail);
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     SettingsWriteAnswered written = store_.write(refused, asked);
     settle(mail);
-    (void)mail.answer(std::move(written));
+    reply(mail, std::move(written));
 }
 
 // ---- The grant ----------------------------------------------------------------------------------
 
 loom::Grant layouts_grant() {
     loom::Grant grant;
+    // WHO IS ON THE BUS, Loom's participants claim, read in each delivery; and WHICH ROW ADMITTED
+    // a settings asker, asked of the guest door.
+    loom::host::allow_observe_participants(grant);
+    grant.allow_to_role(GuestRowOfRequested::zen_name, GuestRowOfRequested::zen_version,
+                        kGuestsRole);
     // EACH ANSWER, to whoever asked: Loom picks the recipient of an answer.
     grant.allow_to_any(LayoutEditAnswered::zen_name, LayoutEditAnswered::zen_version);
     grant.allow_to_any(SessionSaveAnswered::zen_name, SessionSaveAnswered::zen_version);

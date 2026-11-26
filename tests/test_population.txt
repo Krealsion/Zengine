@@ -38,7 +38,7 @@ maker                             doctest           always  30
 # Tripwires in this suite read builder/weave.hpp, builder/runner.hpp and workshop/workshop.cpp as
 # text (VM-WALL-11).
 builder                           doctest           always  71
-workshop_guests                   doctest           always  43
+workshop_guests                   doctest           always  44
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
@@ -60,7 +60,7 @@ workshop_host                   doctest           always  78
 # The panes program, run as eight parts, each its own sources' cases, a long one as pieces (VM-POP-22).
 workshop_panes_seam               doctest           always  181
 # Tripwires in this part read tests/weavelib/legacy_pane.cpp as text (VM-WALL-11).
-workshop_panes_hand               doctest           always  236
+workshop_panes_hand               doctest           always  237
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, workshop/sample_door.hpp,
 # operator/reference.hpp and the Introspection pane's sources and CMake file as text (VM-WALL-11).

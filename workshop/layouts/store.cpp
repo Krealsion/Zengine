@@ -169,10 +169,10 @@ bool LayoutStore::counts(loom::WeaveId from, std::int64_t incarnation,
                          std::string_view role) const {
     // COUNTED WHILE THE INCARNATION THAT SENT IT HOLDS THE ROLE: a reload in place keeps the id
     // and moves the incarnation.
-    if (!from.valid() || !host_->role_holder || host_->role_holder(role) != from) {
+    if (!from.valid() || !host_->reads_bus() || host_->role_holder(role) != from) {
         return false;
     }
-    return !host_->incarnation_of || host_->incarnation_of(from) == incarnation;
+    return !host_->reads_bus() || host_->incarnation_of(from) == incarnation;
 }
 
 // WL-SETTING-03 -- agents/workshop/settings.md
@@ -210,7 +210,7 @@ std::string LayoutStore::declare_pane(std::string_view role, const std::string& 
     }
     kept->rows = std::move(rows);
     kept->from = from;
-    kept->incarnation = host_->incarnation_of ? host_->incarnation_of(from) : 0;
+    kept->incarnation = host_->incarnation_of(from);
     moved();
     return std::string();
 }
@@ -278,7 +278,7 @@ std::string LayoutStore::declare_role(const std::string& role,
     }
     kept->rows = rows;
     kept->from = from;
-    kept->incarnation = host_->incarnation_of ? host_->incarnation_of(from) : 0;
+    kept->incarnation = host_->incarnation_of(from);
     kept->handed = 0;
     role_moved(role);
     return std::string();
@@ -329,7 +329,7 @@ std::int64_t LayoutStore::role_revision(const std::string& role) {
                        0,
                        *rows,
                        kept != nullptr ? kept->settings : std::vector<PaneSetting>{},
-                       role == kWorkshopProvider || !host_->role_holder
+                       role == kWorkshopProvider || !host_->reads_bus()
                            ? loom::WeaveId{}
                            : host_->role_holder(role)};
     for (RoleRevision& r : role_revisions_) {
@@ -350,7 +350,7 @@ std::int64_t LayoutStore::role_revision(const std::string& role) {
 // WL-SETTING-10 -- agents/workshop/settings.md
 std::vector<std::pair<std::string, RoleSettings>> LayoutStore::role_hand_offs() {
     std::vector<std::pair<std::string, RoleSettings>> out;
-    if (!host_->holder_accepts || !host_->role_holder) {
+    if (!host_->reads_bus()) {
         return out;
     }
     for (RoleDeclaration& d : role_declarations_) {
@@ -390,7 +390,7 @@ const LayoutStore::RowHanded* LayoutStore::handed_of(const PaneRef& ref) const {
 }
 
 std::optional<std::pair<loom::WeaveId, bool>> LayoutStore::taker_of(const PaneRef& ref) const {
-    if (!host_->holder_accepts || !host_->role_holder || ref.provider == kWorkshopProvider) {
+    if (!host_->reads_bus() || ref.provider == kWorkshopProvider) {
         return std::nullopt;
     }
     const loom::WeaveId holder = host_->role_holder(ref.provider);
@@ -533,7 +533,7 @@ std::string LayoutStore::handed_fact(const PaneRef& ref) {
     if (seat == nullptr) {
         return "stored; not handed: the live layout has no row for " + ref_text(ref);
     }
-    if (!host_->role_holder || !host_->role_holder(ref.provider).valid()) {
+    if (!host_->reads_bus() || !host_->role_holder(ref.provider).valid()) {
         return "stored; not handed: nothing holds `" + ref.provider + "` now";
     }
     if (!presentable(ref)) {
@@ -988,8 +988,7 @@ RoleSettingCommitAnswered LayoutStore::commit_role(const std::string& refused,
     if (asked.role == kWorkshopProvider) {
         applied = "applied";
     } else {
-        applied = host_->holder_accepts &&
-                          host_->holder_accepts(asked.role, *loom::schema_of<RoleSettings>())
+        applied = host_->holder_accepts(asked.role, *loom::schema_of<RoleSettings>())
                       ? "handed"
                       : "kept; not handed: " + asked.role + " takes no role-wide settings";
     }
