@@ -53,8 +53,9 @@ Why: [a condition has a lifetime](../../agents/decisions/a-condition-has-a-lifet
 
 ## WL-ATTN-07 — Ranking is `ranks_before`: loudness, then key
 
-`attention_rank` is the one place this application says one role is more urgent than another. Its
-order is total, and an unknown role ranks last.
+`attention_rank` is the one place this application says one condition is more urgent than another,
+by the colour role its ink names: `alert`, then `accent`, then `text`, and any other colour last.
+`ranks_before` breaks a tie by the condition's key, so the order is total.
 
 Why: [a condition has a lifetime](../../agents/decisions/a-condition-has-a-lifetime.md).
 
