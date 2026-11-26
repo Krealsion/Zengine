@@ -52,6 +52,7 @@
 #include "graphics/vocabulary.hpp"
 #include "theme/vocabulary.hpp" // where the themes are and what is worn, told to the theme role
 #include "workshop/terminal/door.hpp" // the door onto the terminal participant, composed below
+#include "workshop/bus_now.hpp" // who is on the bus, as one delivery read Loom's claim
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
 #include <zen/host/wait_set.hpp>
@@ -137,19 +138,6 @@ struct HostContext {
     // WL-TERM-02 -- agents/workshop/terminal-door.md
     loom::TerminalSession* terminal = nullptr;
 
-    /// Does whoever holds `role` now accept `shape`? Read off the bus at the call
-    /// (`holder_accepts_on`). It picks which published version to send and promises nothing about
-    /// delivery; empty answers no, and the first version crosses.
-    std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
-    /// Does whoever holds `role` now declare it emits `shape`? Read off the bus at the call
-    /// (`holder_emits_on`); empty answers nothing, and the caller acts as before.
-    // WL-ARR-16 -- agents/workshop/arrangement.md
-    std::function<bool(std::string_view role, const loom::Schema& shape)> holder_emits;
-    // Current incarnation, read afresh: canvas grants and held input never cross replacement.
-    std::function<loom::WeaveId(std::string_view role)> role_holder;
-    /// THE INCARNATION OF A PARTICIPANT, read off the bus at the call (`participant(id)`): a reload
-    /// in place moves it. Empty answers 0, and a stamp then names no incarnation.
-    std::function<std::int64_t(loom::WeaveId)> incarnation_of;
     // A host-issued capability to read this actor's current authority. The ceiling is empty;
     // it never grants the actor anything. Unknown/dead actors yield an inert capability.
     std::function<loom::GrantAuthority(loom::WeaveId)> input_authority;
@@ -161,11 +149,6 @@ struct HostContext {
     /// WHOSE HOST THIS IS, the guests file's `host`, and that file: a Workshop with no guests file,
     /// or one naming no host, is a weaver's.
     scope::HostFact host_fact;
-
-    /// Where a terminal line can be addressed now, read off the bus at the call and kept nowhere.
-    /// Empty lists nothing, and the completer offers the address forms.
-    // WL-TERM-16 -- agents/workshop/terminal-door.md
-    std::function<std::vector<Destination>()> destinations;
 
     /// What the recipe catalog says about one recipe's source, answered by the host through the
     /// read-only project role.
@@ -343,21 +326,37 @@ struct HostContext {
     }
 };
 
+/// Whether the weave holding `role` on `bus` now has a door of exactly `shape`'s identity, read off
+/// the bus at the call: the host's own reading, for the doors it wires. Nobody holding the role, or
+/// a holder accepting by mode, is no. Workshop's weave reads the same fact from Loom's
+/// participants claim (`BusNow::holder_accepts`).
+bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
+                       const loom::Schema& shape);
+
+/// Whether the weave holding `role` on `bus` now declares exactly `shape`'s identity among what it
+/// emits, read off the bus at the call. Nobody holding it is no.
+bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
+                     const loom::Schema& shape);
+
 /// WHAT THE LAYOUTS' OWNER IS HANDED OF THIS HOST, each reading taken at its ask: the files' paths,
-/// the conversions, the bus's readings and the remembered choices, a guest's row and which weave is
+/// the conversions, `bus`'s readings and the remembered choices, a guest's row and which weave is
 /// the Terminal this host mounted.
 // WL-SETTING-09 -- agents/workshop/settings.md
-inline LayoutsOwnerHost layouts_owner_host(const HostContext& host) {
+inline LayoutsOwnerHost layouts_owner_host(const HostContext& host, const loom::Switchboard& bus) {
     LayoutsOwnerHost out;
-    out.store = [&host] {
+    out.store = [&host, &bus] {
         LayoutsHost readings;
         readings.setup_path = host.setup_path;
         readings.session_path = host.session_path;
         readings.prefs_path = host.prefs_path;
         readings.conversions = host.conversions;
-        readings.role_holder = host.role_holder;
-        readings.incarnation_of = host.incarnation_of;
-        readings.holder_accepts = host.holder_accepts;
+        readings.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
+        readings.incarnation_of = [&bus](loom::WeaveId id) {
+            return static_cast<std::int64_t>(bus.participant(id).incarnation);
+        };
+        readings.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
+            return holder_accepts_on(bus, role, shape);
+        };
         return readings;
     };
     out.guest_row = [&host](loom::WeaveId who) {
@@ -368,17 +367,6 @@ inline LayoutsOwnerHost layouts_owner_host(const HostContext& host) {
     };
     return out;
 }
-
-/// The host's answer to `holder_accepts`, read off `bus` at the call: the weave holding `role` now,
-/// and whether its accept-set has a door of exactly `shape`'s identity. Nobody holding the role, or
-/// a holder accepting by mode, is no.
-bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
-                       const loom::Schema& shape);
-
-/// The host's answer to `holder_emits`, read off `bus` at the call: the weave holding `role` now,
-/// and whether its declared emit-set holds exactly `shape`'s identity. Nobody holding it is no.
-bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
-                     const loom::Schema& shape);
 
 /// What a terminal participant may ask of settings and hear back: a pane's row and a role's
 /// settings, each read and committed, a pane's pin list edited, a setting locked or unlocked, and
@@ -665,15 +653,14 @@ public:
     /// ONE PANE'S WHOLE READING, or why there is none: its words and parts but the covered ones,
     /// what covers it, its stamp, and whether what it shows is in flight -- from the window that
     /// shows its area.
-    std::string pane_reading(const std::string& provider, const std::string& pane,
-                             PaneView& out) const;
+    std::string pane_reading(const std::string& provider, const std::string& pane, PaneView& out, loom::Mail& mail) const;
     /// ...on the desk as `laid` lays it out, for a caller reading many panes of one desk.
     std::string pane_reading(const std::string& provider, const std::string& pane, PaneView& out,
-                             const DeskBounds& laid) const;
+                             const DeskBounds& laid, loom::Mail& mail) const;
     /// The desk as it stands, laid out once: what one reading of many panes judges them from.
     DeskBounds laid_desk() const;
     /// ...for a pane that draws in an area of its own: as the window last said the area shows.
-    std::string area_reading(const RuntimePane& row, PaneView& out, const DeskBounds& laid) const;
+    std::string area_reading(const RuntimePane& row, PaneView& out, const DeskBounds& laid, loom::Mail& mail) const;
     /// WHAT A WINDOW SAID AN AREA AT `rect` SHOWS, as the desk read says words and parts: in the
     /// desk's pixels, each point in the space the medium reads, a word numbered by its place.
     void shown_words_and_parts(const graphics::AreaShown& shown, const PixelRect& rect,
@@ -696,7 +683,7 @@ public:
     std::vector<Cover> covers_of(std::int64_t kind, const PixelRect& rect,
                                  const DeskBounds& laid) const;
     /// The stamp of a pane offered by `provider`, but for what it shows.
-    PaneStamp stamp_of(const std::string& provider, const std::string& pane) const;
+    PaneStamp stamp_of(const std::string& provider, const std::string& pane, loom::Mail& mail) const;
     /// The area `ref` draws in, when it draws in one Workshop placed; else empty.
     std::string drawn_area(const PaneRef& ref) const;
     void on(const PaneViewRequested& asked, loom::Mail& mail);
@@ -712,7 +699,7 @@ public:
     /// Every presented pane, front to back: the order a desk read and a notice say stamps in.
     std::vector<PaneRef> presented_refs(const DeskBounds& laid) const;
     /// The stamp `ref` stands on now, its picture named by the fingerprint of what it shows.
-    PaneStamp stamp_now(const PaneRef& ref, const DeskBounds& laid) const;
+    PaneStamp stamp_now(const PaneRef& ref, const DeskBounds& laid, loom::Mail& mail) const;
     /// `DeskStamps` v3, published when the desk number or a presented pane's stamp moved since the
     /// last one; `known`, a desk computed already.
     void publish_desk_stamps(loom::Mail& mail, const DeskView* known = nullptr);
@@ -755,7 +742,7 @@ public:
     std::string read_withheld(loom::Mail& mail, loom::WeaveId asker, const std::string& role,
                               const std::string& pane) const;
     /// A pane the asker may not read, as a stamp: its role, pane and holder, nothing that moves.
-    PaneStamp withheld_stamp(const PaneRef& ref) const;
+    PaneStamp withheld_stamp(const PaneRef& ref, loom::Mail& mail) const;
     /// The desk said to a row that reads by pane: no band or desk number.
     void withhold_desk(DeskView& desk) const;
     /// Whether `asker` may read the desk once more now, or the refusal in words: a rate per asker.
@@ -1055,7 +1042,7 @@ public:
     void on(const PaneInventoryRequested& asked, loom::Mail& mail);
 
     /// THE ONE INVENTORY AS A VALUE: `inventory_rows` with the three facts beside each row.
-    PaneInventory inventory_reading(const realization::PlanStatus& plan = {}) const;
+    PaneInventory inventory_reading(const loom::host::Participants* now, const realization::PlanStatus& plan = {}) const;
 
     /// SAY THE EFFECTIVE KEYMAP OUT LOUD, if it changed since it was last said -- the one
     /// binding truth dispatch reads, for the presenters that show keys.
@@ -1122,8 +1109,8 @@ public:
     void publish_inventory(loom::Mail& mail);
 
     /// IS ANYBODY THERE TO FILL THIS PANE NOW? A built-in or the weaver's pane always is; a
-    /// runtime pane is when its role's current holder accepts a room. Presence, not health.
-    bool provider_present(std::int64_t kind, const PaneRef& ref) const;
+    /// runtime pane is when its role has a holder in `now`, as a delivery read it. Presence, not health.
+    bool provider_present(std::int64_t kind, const PaneRef& ref, const loom::host::Participants* now) const;
 
     /// Answer one declaration with Workshop's verdict, when the declaring role's holder accepts
     /// the shape; a refusal is said on the band too. The fact is Workshop's, the recovery the
@@ -1783,13 +1770,13 @@ private:
         std::vector<ScreenRect> rects;
         std::vector<ScreenLabel> labels;
     };
-    GuideDrawing guide_drawing(const GuideMark& mark) const;
+    GuideDrawing guide_drawing(const GuideMark& mark, loom::Mail& mail) const;
     /// The marks as one layer above the panes, each judged again against what the desk shows now:
     /// a mark whose session, holder or part is gone ends, and its guest is told.
     ScreenPlane guide_layer(loom::Mail& mail);
     /// Whether any mark would stand otherwise than it was last drawn: its part gone from a settled
     /// picture, or drawn elsewhere.
-    bool guide_marks_moved() const;
+    bool guide_marks_moved(loom::Mail& mail) const;
     /// End one mark and tell its guest why.
     void end_guide(loom::Mail& mail, std::uint64_t session, const std::string& why);
     /// The weaver's own press ends every mark it lands inside.
@@ -1802,7 +1789,7 @@ private:
 
     /// WHETHER A GRAPHICS DIRECTORY IS THERE TO PLACE AREAS WITH: its role's holder takes
     /// `AreaPlaced`. With none, nothing is said to `zengine.graphics`.
-    bool graphics_present() const;
+    bool graphics_present(loom::Mail& mail) const;
     /// PLACE EACH OPEN PANE'S AREA AND WORKSHOP'S OWN with the directory, saying only what moved,
     /// and draw the desk in the window that shows Workshop's area: what every repaint ends with.
     void show_in_graphics(loom::Mail& mail);
@@ -1858,6 +1845,8 @@ private:
     std::int64_t double_click_ms_ = zengine::input::kDefaultDoubleClickMs;
     std::uint64_t graphics_holder_ = 0;
     std::int64_t graphics_incarnation_ = 0;
+    /// WHO IS ON THE BUS, as this delivery read Loom's claim; forgotten at its end (`after_delivery`).
+    mutable BusNow bus_now_;
     /// Workshop's own room was asked of this directory.
     bool graphics_asked_ = false;
     /// The graphics window the desk's areas are placed on, and whether a window offered itself.
@@ -2126,8 +2115,8 @@ private:
     void request_app_action(const std::string& id, loom::Mail& mail, Hand& by);
     void request_app_action(const std::string& id, loom::Mail& mail, Hand& by,
                             const RuntimePane* on);
-    /// WHICH PANES WEAR A `?` AND A GEAR, asked of the live holders before a paint.
-    void note_manuals();
+    /// WHICH PANES WEAR A `?` AND A GEAR, read of the live holders before a paint.
+    void note_manuals(loom::Mail& mail);
     /// A PANE'S `?` PRESSED: ask the desktop's manual row about that pane, as the press's act.
     void press_manual(std::int64_t kind, loom::Mail& mail);
 

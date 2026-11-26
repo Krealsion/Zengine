@@ -166,6 +166,8 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
     }
     claim_time(mail);
     state_ = declared_state(session_, window_name_);
+    // ...AND WHO WAS ON THE BUS, forgotten: the next delivery reads Loom's claim afresh.
+    bus_now_.forget();
 }
 
 // ---- The trial: would it seat, and what room would it get? ---------------------------------

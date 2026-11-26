@@ -18,8 +18,7 @@ using pane::PaneActionRequested;
 // WL-DESK-18 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
     // FROM THE PALETTE'S ROLE, AS ITS HOLDER, and from nobody else.
-    if (mail.authored_role() != kPaletteRole || !host_->role_holder ||
-        host_->role_holder(kPaletteRole) != mail.sender()) {
+    if (mail.authored_role() != kPaletteRole || bus_now_.holder_of(kPaletteRole, mail) != mail.sender()) {
         return;
     }
     // ANSWERED ONCE WHAT IT RAN HAS: a pane's seat is the layouts' store's to answer first.

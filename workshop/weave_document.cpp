@@ -31,8 +31,7 @@ void WorkshopWeave::say(std::string text, bool bad) {
 // this is the notice the record keeps, and the one a reading of the refusal is.
 void WorkshopWeave::on(const PaneRefusalRequested& asked, loom::Mail& mail) {
     const std::string role(mail.authored_role());
-    if (asked.text.empty() || role.empty() || !host_->role_holder ||
-        host_->role_holder(role) != mail.sender()) {
+    if (asked.text.empty() || role.empty() || bus_now_.holder_of(role, mail) != mail.sender()) {
         return;
     }
     bool seated = false;

@@ -144,7 +144,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
         take_host_conditions();
     }
     refresh_setup_name(); // a name editor's window is only true against the room it has now
-    note_manuals();       // ...and which panes wear a `?`, against the holders there are now
+    note_manuals(mail);   // ...and which panes wear a `?`, against the holders there are now
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
     // pure projection of what it is handed, and what it is handed is this repaint's
     // reading of the living realization owner — never a member, never a field of the
@@ -190,9 +190,8 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
 
 // ---- THE DESK IN A GRAPHICS WINDOW: Workshop the arranger, and the drawer of its own area ----
 
-bool WorkshopWeave::graphics_present() const {
-    return host_->holder_accepts &&
-           host_->holder_accepts(graphics::kGraphicsRole, *loom::schema_of<graphics::AreaPlaced>());
+bool WorkshopWeave::graphics_present(loom::Mail& mail) const {
+    return bus_now_.holder_accepts(graphics::kGraphicsRole, *loom::schema_of<graphics::AreaPlaced>(), mail);
 }
 
 void WorkshopWeave::show_in_graphics(loom::Mail& mail) {
@@ -213,23 +212,21 @@ bool same_place(const graphics::AreaPlaced& a, const graphics::AreaPlaced& b) {
 } // namespace
 
 void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
-    if (!graphics_present()) {
+    if (!graphics_present(mail)) {
         graphics_known_ = false; // a directory that comes is a new one, placed with afresh
         return;
     }
     const auto to_directory = [&mail](const auto& said) {
         (void)mail.as_role(kWorkshopProvider).send_to_role(graphics::kGraphicsRole, said);
     };
-    const auto accepts = [this](const std::string& role, const loom::Schema& shape) {
-        return host_->holder_accepts && host_->holder_accepts(role, shape);
+    const auto accepts = [this, &mail](const std::string& role, const loom::Schema& shape) {
+        return bus_now_.holder_accepts(role, shape, mail);
     };
     // A DIRECTORY NOT PLACED WITH YET -- another holder, a reload, or one that said it started
     // afresh -- holds none of this desk's areas: everything is placed again. The palettes are the
     // theme role's to offer; Workshop names the one each area wears.
-    const loom::WeaveId holder =
-        host_->role_holder ? host_->role_holder(graphics::kGraphicsRole) : loom::WeaveId{};
-    const std::int64_t incarnation =
-        host_->incarnation_of && holder.valid() ? host_->incarnation_of(holder) : 0;
+    const loom::WeaveId holder = bus_now_.holder_of(graphics::kGraphicsRole, mail);
+    const std::int64_t incarnation = holder.valid() ? bus_now_.incarnation_of(holder, mail) : 0;
     if (!graphics_known_ || holder.value != graphics_holder_ ||
         incarnation != graphics_incarnation_) {
         graphics_known_ = true;
@@ -423,16 +420,14 @@ void WorkshopWeave::tell_keys(loom::Mail& mail) {
     std::map<std::int64_t, std::pair<std::uint64_t, bool>> told;
     for (const std::int64_t kind : placed_kinds_) {
         const RuntimePane* row = session_.panes.runtime.of_kind(kind);
-        if (row == nullptr || !host_->holder_accepts ||
-            !host_->holder_accepts(row->provider, *loom::schema_of<PaneKeys>())) {
+        if (row == nullptr || !bus_now_.holder_accepts(row->provider, *loom::schema_of<PaneKeys>(), mail)) {
             continue;
         }
         // A HOLDER IS KNOWN BY ITS WEAVE AND ITS INCARNATION: one started again knows nothing.
-        const loom::WeaveId holder =
-            host_->role_holder ? host_->role_holder(row->provider) : loom::WeaveId{};
+        const loom::WeaveId holder = bus_now_.holder_of(row->provider, mail);
         const std::uint64_t life =
-            holder.value ^ (host_->incarnation_of && holder.valid()
-                                ? static_cast<std::uint64_t>(host_->incarnation_of(holder)) << 32
+            holder.value ^ (holder.valid()
+                                ? static_cast<std::uint64_t>(bus_now_.incarnation_of(holder, mail)) << 32
                                 : 0);
         const std::pair<std::uint64_t, bool> now{life, typing == kind};
         const auto was = keys_told_.find(kind);
@@ -765,13 +760,12 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
 namespace zengine::workshop {
 
 void WorkshopWeave::wear_themes(loom::Mail& mail, std::vector<theme::ThemeStack> stacks) {
-    const loom::WeaveId holder =
-        host_->role_holder ? host_->role_holder(theme::kThemeRole) : loom::WeaveId{};
+    const loom::WeaveId holder = bus_now_.holder_of(theme::kThemeRole, mail);
     if (!holder.valid()) {
         themes_holder_ = 0;
         return;
     }
-    const std::int64_t incarnation = host_->incarnation_of ? host_->incarnation_of(holder) : 0;
+    const std::int64_t incarnation = bus_now_.incarnation_of(holder, mail);
     const bool fresh = holder.value != themes_holder_ || incarnation != themes_incarnation_;
     const theme::ThemesPlaced placed{host_->themes_path, host_->shipped_themes_path};
     const theme::ThemesWorn worn{std::move(stacks)};

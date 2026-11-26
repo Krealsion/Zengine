@@ -1023,7 +1023,7 @@ TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads no
     e.key(input::scan::kX);
     CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
     CHECK_FALSE(e.r.session().panes.has(e.kind));
-    CHECK(e.r.host.holder_accepts(pane::kEditorPaneRole, *loom::schema_of<gfx::AreaRoom>()));
+    CHECK(holder_accepts_on(e.r.bus, pane::kEditorPaneRole, *loom::schema_of<gfx::AreaRoom>()));
 
     e.key(input::scan::kReturn); // the same row: open or focus
     REQUIRE(e.r.session().panes.has(e.kind));
