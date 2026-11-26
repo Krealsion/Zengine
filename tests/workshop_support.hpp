@@ -673,6 +673,40 @@ void admit_second(Panes& panes);
 
 class DoorHand;
 
+/// LOOM'S AUTHORITY READER, as workshop.cpp mounts it: in this host's role for it, answering
+/// Workshop what an act's guest may do now.
+inline loom::WeaveId mount_authority_reader(loom::Switchboard& bus) {
+    auto reader = std::make_unique<loom::host::AuthorityReader>(bus);
+    loom::host::AuthorityReader* raw = reader.get();
+    const loom::WeaveId id = bus.register_weave(std::move(reader), loom::host::authority_reader_grant(),
+                                                std::string(kAuthorityRole));
+    raw->zen_set_self(id);
+    return id;
+}
+
+class GuestRowsStandIn;
+
+/// THE ROWS A CASE ADMITS ITS GUESTS WITH, said by the guest door's stand-in
+/// (`mount_guest_rows`), which the first admission mounts in the door's role. A case that mounts
+/// a real door admits nobody here.
+struct GuestRows {
+    using Reading = std::function<scope::GuestRowFacts()>;
+    explicit GuestRows(std::function<scope::HostFact()> on = {}) : host(std::move(on)) {}
+    std::shared_ptr<std::map<std::uint64_t, Reading>> rows =
+        std::make_shared<std::map<std::uint64_t, Reading>>();
+    loom::WeaveId door{};
+    /// The stand-in itself, once mounted: a case may make it slow or silent.
+    GuestRowsStandIn* stand_in = nullptr;
+    /// Whose host the stand-in judges a session's act on: the rig's.
+    std::function<scope::HostFact()> host;
+    /// `who` is answered as `row` from now on; a row not admitted takes it back.
+    void admit(loom::Switchboard& bus, loom::WeaveId who, scope::GuestRowFacts row) {
+        admit_reading(bus, who, [row] { return row; });
+    }
+    /// ...or as `reading` says at each ask, for a case that changes the row as it goes.
+    void admit_reading(loom::Switchboard& bus, loom::WeaveId who, Reading reading);
+};
+
 /// A live Workshop: the real weave on a real bus, driven only by published input messages.
 /// Nothing here reaches past the message boundary except to READ the result.
 struct Live {
@@ -707,6 +741,13 @@ struct Live {
     loom::WeaveId workshop_id{};
     /// Loom's participants claimant, which Workshop reads who is on the bus from.
     loom::WeaveId participants_id{};
+    /// Loom's authority reader, as the host mounts it (`mount_authority_reader`).
+    loom::WeaveId authority_id{};
+    /// The rows this case admits its guests with (`admit_guest`), judged on this rig's host.
+    GuestRows guests{[this] { return host.host_fact; }};
+    void admit_guest(loom::WeaveId who, scope::GuestRowFacts row) {
+        guests.admit(bus, who, std::move(row));
+    }
     /// The host's session door, which Workshop asks to end the host's lifetime once its quit is
     /// settled; here it stops nothing, and says whether it was asked.
     HostSessionDoor* session_door = nullptr;
@@ -1428,39 +1469,89 @@ struct SeatState {
 };
 
 /// THE GUEST DOOR'S STAND-IN, for a case that writes a guest's row with no door listening: it holds
-/// `zengine.guests` and answers `GuestRowOfRequested` as the door does -- to this host's own roles
-/// alone -- with the row `rows` says, read at each ask.
+/// `zengine.guests` and answers as the door does, with the row `rows` says, read at each ask --
+/// `GuestRowOfRequested` to this host's own roles alone, and `ActorScopeRequested` to a role,
+/// judged against the host `host` says (a weaver's when it says none). A case can make it slow
+/// (`holding`: each row waits until a `SeatDo` says the first) or silent (`silent`: no row is said).
 class GuestRowsStandIn
-    : public loom::WeaveBase<GuestRowsStandIn, SeatState, loom::Accept<GuestRowOfRequested>,
-                             loom::Emit<GuestRowOf, loom::Refused>> {
+    : public loom::WeaveBase<GuestRowsStandIn, SeatState,
+                             loom::Accept<GuestRowOfRequested, zengine::pane::ActorScopeRequested, SeatDo>,
+                             loom::Emit<GuestRowOf, zengine::pane::ActorScopeJudged, loom::Refused>> {
 public:
-    explicit GuestRowsStandIn(std::function<scope::GuestRowFacts(loom::WeaveId)> rows)
-        : rows_(std::move(rows)) {}
+    explicit GuestRowsStandIn(std::function<scope::GuestRowFacts(loom::WeaveId)> rows,
+                              std::function<scope::HostFact()> host = {})
+        : rows_(std::move(rows)), host_(std::move(host)) {}
+    void on(const zengine::pane::ActorScopeRequested& asked, loom::Mail& mail) {
+        if (mail.authored_role().empty()) return;
+        const loom::WeaveId who{static_cast<std::uint64_t>(asked.session < 0 ? 0 : asked.session)};
+        const scope::GuestRowFacts row = asked.session > 0 && rows_ ? rows_(who) : scope::GuestRowFacts{};
+        const std::string refusal =
+            asked.classes.empty() ? std::string("the question names no action class")
+                                  : scope::judge_all(row, host_ ? host_() : scope::HostFact{}, asked.classes);
+        (void)mail.answer(zengine::pane::ActorScopeJudged{refusal.empty(), refusal});
+    }
     void on(const GuestRowOfRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopProvider) && !mail.authored_from_role(kLayoutsRole)) {
             (void)mail.answer(loom::Refused{"a row is said to this host's own roles alone"});
             return;
         }
         const loom::WeaveId who{static_cast<std::uint64_t>(asked.session < 0 ? 0 : asked.session)};
+        ++asked_rows;
+        if (silent) return; // the delivery ends unanswered, and Loom tells the asker so
+        if (holding) {
+            held.emplace_back(mail.defer_answer(), asked.session);
+            return;
+        }
         (void)mail.answer(scope::said_row(asked.session, rows_ ? rows_(who) : scope::GuestRowFacts{}));
     }
+    /// ...THE FIRST HELD ROW, said now, as `rows` says it now.
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (held.empty()) return;
+        auto [due, session] = std::move(held.front());
+        held.pop_front();
+        const loom::WeaveId who{static_cast<std::uint64_t>(session < 0 ? 0 : session)};
+        (void)loom::answer_deferred(due, mail,
+                                    scope::said_row(session, rows_ ? rows_(who) : scope::GuestRowFacts{}));
+    }
+    bool holding = false;
+    bool silent = false;
+    std::size_t asked_rows = 0;
+    std::deque<std::pair<loom::DeferredAnswer, std::int64_t>> held;
 
 private:
     std::function<scope::GuestRowFacts(loom::WeaveId)> rows_;
+    std::function<scope::HostFact()> host_;
 };
 
-/// Mount the stand-in on `bus`, answering from `rows`.
+/// Mount the stand-in on `bus`, answering from `rows` on the host `host` says; `out`, when given,
+/// is told where it stands.
 inline loom::WeaveId mount_guest_rows(loom::Switchboard& bus,
-                                      std::function<scope::GuestRowFacts(loom::WeaveId)> rows) {
-    auto door = std::make_unique<GuestRowsStandIn>(std::move(rows));
+                                      std::function<scope::GuestRowFacts(loom::WeaveId)> rows,
+                                      std::function<scope::HostFact()> host = {},
+                                      GuestRowsStandIn** out = nullptr) {
+    auto door = std::make_unique<GuestRowsStandIn>(std::move(rows), std::move(host));
     GuestRowsStandIn* raw = door.get();
+    if (out != nullptr) *out = raw;
     loom::Grant answers;
     answers.allow_to_any(GuestRowOf::zen_name, GuestRowOf::zen_version);
+    answers.allow_to_any(zengine::pane::ActorScopeJudged::zen_name, zengine::pane::ActorScopeJudged::zen_version);
     answers.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     const loom::WeaveId id =
         bus.register_weave(std::move(door), std::move(answers), std::string(kGuestsRole));
     raw->zen_set_self(id);
     return id;
+}
+
+inline void GuestRows::admit_reading(loom::Switchboard& bus, loom::WeaveId who, Reading reading) {
+    (*rows)[who.value] = std::move(reading);
+    if (door.valid()) return;
+    door = mount_guest_rows(
+        bus,
+        [said = rows](loom::WeaveId asked) {
+            const auto it = said->find(asked.value);
+            return it != said->end() && it->second ? it->second() : scope::GuestRowFacts{};
+        },
+        host, &stand_in);
 }
 
 /// A PARTY THAT PUTS A PANE ON THE DESK, OR TAKES ONE OFF, THROUGH THE TWO DOORS -- the host's
@@ -2138,6 +2229,13 @@ struct PaneRig {
     loom::WeaveId workshop_id{};
     /// Loom's participants claimant, which Workshop reads who is on the bus from.
     loom::WeaveId participants_id{};
+    /// Loom's authority reader, as the host mounts it (`mount_authority_reader`).
+    loom::WeaveId authority_id{};
+    /// The rows this case admits its guests with (`admit_guest`), judged on this rig's host.
+    GuestRows guests{[this] { return host.host_fact; }};
+    void admit_guest(loom::WeaveId who, scope::GuestRowFacts row) {
+        guests.admit(bus, who, std::move(row));
+    }
     /// The host's session door, which Workshop asks to end the host's lifetime once its quit is
     /// settled; here it stops nothing, and says whether it was asked.
     HostSessionDoor* session_door = nullptr;

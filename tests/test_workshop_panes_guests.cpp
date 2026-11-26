@@ -3,8 +3,9 @@
 
 // The Workshop panes suite -- a guest's hand on the desk: what the keys, text and presses of a
 // participant a guest door admitted reach on a weaver's host and on a development host, through
-// the real Workshop and the real panes. A story's own injected hand is made a guest by the host
-// seam (`guest_row`, `host_fact`); a rig with no hand of its own takes `guest_hand.hpp`'s; a send
+// the real Workshop and the real panes. A story's own injected hand is made a guest by the guest
+// door's stand-in (`admit_guest`) and the host fact; a rig with no hand of its own takes
+// `guest_hand.hpp`'s; a send
 // straight to an owner comes over the bridge, through Workshop's own door. Each refusal is read in
 // words and by the absence of its effect, beside the act that succeeds.
 
@@ -62,7 +63,7 @@ bool holds_words(const std::string& said, const char* part) {
     return said.find(part) != std::string::npos;
 }
 
-/// THE HOST SEAM ANSWERING ONE PARTICIPANT AS A ROW A GUEST DOOR ADMITTED, on a weaver's host or
+/// THE GUEST DOOR'S STAND-IN ANSWERING ONE PARTICIPANT AS A ROW IT ADMITTED, on a weaver's host or
 /// a development host, as the door answers a session it admitted. Every other participant is
 /// answered as no guest, so the weaver's own hand is never narrowed.
 scope::GuestRowFacts admit_as_guest(PaneRig& r, loom::WeaveId who, bool development,
@@ -73,19 +74,15 @@ scope::GuestRowFacts admit_as_guest(PaneRig& r, loom::WeaveId who, bool developm
     row.powers = std::move(powers);
     row.version = 2;
     r.host.host_fact.development = development;
-    r.host.guest_row = [who, row](loom::WeaveId asked) {
-        return asked == who ? row : scope::GuestRowFacts{};
-    };
+    r.guests.rows->clear();
+    r.admit_guest(who, row);
     return row;
 }
 
 /// ...AND ONE MORE PARTICIPANT ANSWERED AS THE SAME ADMITTED ROW: a guest's session is one row
 /// whichever of its doors it speaks through.
 void answer_as_guest_too(PaneRig& r, loom::WeaveId who, const scope::GuestRowFacts& row) {
-    const auto before = r.host.guest_row;
-    r.host.guest_row = [before, who, row](loom::WeaveId asked) {
-        return asked == who ? row : before(asked);
-    };
+    r.admit_guest(who, row);
 }
 
 /// WHAT WORKSHOP SAID OF ONE ACT: the notice is blanked first, so the words read after it are
@@ -1289,13 +1286,12 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     open.allow_to_any(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version);
     open.allow_to_any(PaneSettingCommitRequested::zen_name, PaneSettingCommitRequested::zen_version);
     const GuestAsker past = mount_settings_guest(r, std::move(open));
-    r.host.guest_row = [&](loom::WeaveId who) {
+    // ...SAID BY THE GUEST DOOR, which the layouts' owner asks: its stand-in, answering that row.
+    (void)mount_guest_rows(r.bus, [&](loom::WeaveId who) {
         if (who == with.id) return guest_facts(settings_row);
         if (who == without.id || who == past.id) return guest_facts(capture_row);
         return scope::GuestRowFacts{};
-    };
-    // ...SAID BY THE GUEST DOOR, which the layouts' owner asks: its stand-in, answering that row.
-    (void)mount_guest_rows(r.bus, [&](loom::WeaveId who) { return r.host.guest_row(who); });
+    });
 
     // WITH `settings`: answered, and a clear written.
     ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, PaneSettingsRequested{dial.provider, dial.pane}); });
@@ -1416,13 +1412,12 @@ TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout 
     capture_row.may = {guests::kPowerCapture};
     const GuestAsker with = mount_settings_guest(r, guests::grant_for(settings_row));
     const GuestAsker without = mount_settings_guest(r, guests::grant_for(capture_row));
-    r.host.guest_row = [&](loom::WeaveId who) {
+    // ...SAID BY THE GUEST DOOR, which the layouts' owner asks: its stand-in, answering that row.
+    (void)mount_guest_rows(r.bus, [&](loom::WeaveId who) {
         if (who == with.id) return guest_facts(settings_row);
         if (who == without.id) return guest_facts(capture_row);
         return scope::GuestRowFacts{};
-    };
-    // ...SAID BY THE GUEST DOOR, which the layouts' owner asks: its stand-in, answering that row.
-    (void)mount_guest_rows(r.bus, [&](loom::WeaveId who) { return r.host.guest_row(who); });
+    });
     const PaneSettingLockRequested lock{"test.dial/dial", "step", "lock", "layout", 0, 0};
 
     // WITH `settings`: every layout read, a lock made, a batch written.
@@ -1478,4 +1473,95 @@ TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout 
     CHECK(without.guest->layouts.empty());
     CHECK(without.guest->lock_acted.empty());
     CHECK(without.guest->batches.empty());
+}
+
+// ============================================================================
+// A GUEST'S ACTS, HELD FOR THEIR ANSWERS: the guest door's row and Loom's word on its authority,
+// asked at each act
+// ============================================================================
+
+namespace {
+
+/// THE GUEST DOOR'S FIRST HELD ROW, said, and everything it lets go taken.
+void say_one_row(PaneRig& r) {
+    r.bus.send(r.guests.door, loom::Message(loom::to_value(SeatDo{})));
+    r.bus.drain_until_idle();
+}
+
+/// A TERMINAL WHOSE KEYS THE GUEST'S PRESS TOOK, on a development host, its door made slow.
+struct SlowDoorDesk {
+    TerminalDesk t;
+    guest_hand::GuestHand g{t.r, {"input"}, /*development=*/true};
+    GuestRowsStandIn* door = nullptr;
+    SlowDoorDesk() {
+        const CellRect body = external_body_rect(t.r.session(), t.kind);
+        g.press_cell(body.x + kFoldArrowColumns, body.y);
+        REQUIRE(t.r.session().panes.keyboard == t.kind);
+        door = t.r.guests.stand_in;
+        REQUIRE(door != nullptr);
+        door->holding = true;
+    }
+};
+
+} // namespace
+
+TEST_CASE("a guest's acts wait on the guest door's word of its row, each act asking it, and are taken in the order the guest made them") {
+    SlowDoorDesk d;
+    const std::size_t asked = d.door->asked_rows;
+    d.g.text("QQ");
+    d.g.text("ZZ");
+    // BOTH WAIT: the first on its row, the second behind it, and only the first has asked.
+    CHECK_MESSAGE(d.t.shown().find("QQ") == std::string::npos, d.t.shown());
+    CHECK(d.door->asked_rows == asked + 1);
+    say_one_row(d.t.r);
+    CHECK_MESSAGE(d.t.shown().find("QQ") != std::string::npos, d.t.shown());
+    CHECK(d.t.shown().find("ZZ") == std::string::npos);
+    // ...AND THE SECOND ACT ASKS FOR ITSELF: no row is kept from the act before.
+    CHECK(d.door->asked_rows == asked + 2);
+    say_one_row(d.t.r);
+    CHECK_MESSAGE(d.t.shown().find("QQZZ") != std::string::npos, d.t.shown());
+}
+
+TEST_CASE("the weaver's own text is taken at once while a guest's act waits on the guest door") {
+    SlowDoorDesk d;
+    d.g.text("QQ");
+    d.g.weaver_text("WW");
+    // THE WEAVER'S HAND WAITS ON NOBODY: its text is on the line before the guest's.
+    CHECK_MESSAGE(d.t.shown().find("WW") != std::string::npos, d.t.shown());
+    CHECK(d.t.shown().find("QQ") == std::string::npos);
+    say_one_row(d.t.r);
+    CHECK_MESSAGE(d.t.shown().find("WWQQ") != std::string::npos, d.t.shown());
+}
+
+TEST_CASE("past its bound a guest's act is refused in words, and every act held is taken once its row is said") {
+    SlowDoorDesk d;
+    std::vector<input::Moment> burst;
+    for (std::size_t i = 0; i < kMaxHeldGuestActs + 1; ++i) {
+        burst.push_back(guest_hand::GuestHand::text_event("Q"));
+    }
+    REQUIRE(burst.size() <= input::kMaxInjectedEvents);
+    const std::string said = said_for(d.t.r, [&] { d.g.inject(burst); });
+    const std::string full = "already holds " + std::to_string(kMaxHeldGuestActs) + " guests' acts";
+    CHECK_MESSAGE(holds_words(said, full.c_str()), said);
+    for (std::size_t i = 0; i < kMaxHeldGuestActs; ++i) say_one_row(d.t.r);
+    CHECK_MESSAGE(d.t.shown().find(std::string(kMaxHeldGuestActs, 'Q')) != std::string::npos,
+                  d.t.shown());
+    CHECK(d.t.shown().find(std::string(kMaxHeldGuestActs + 1, 'Q')) == std::string::npos);
+}
+
+TEST_CASE("a guest whose door does not answer is judged no guest: its act runs as any participant's") {
+    TerminalDesk t;
+    guest_hand::GuestHand g(t.r, {"input"});
+    const CellRect body = external_body_rect(t.r.session(), t.kind);
+    g.weaver_press_cell(body.x + kFoldArrowColumns, body.y);
+    REQUIRE(t.r.session().panes.keyboard == t.kind);
+    // ANSWERED, ITS ROW KEEPS THE GUEST'S TEXT OFF THE TERMINAL on a weaver's host...
+    const std::string typed = said_for(t.r, [&] { g.text("QQ"); });
+    CHECK_MESSAGE(holds_words(typed, kTextRefused), typed);
+    CHECK(t.shown().find("QQ") == std::string::npos);
+    // ...UNANSWERED, Loom ends the ask, no door has said a row, and the participant is no guest.
+    REQUIRE(t.r.guests.stand_in != nullptr);
+    t.r.guests.stand_in->silent = true;
+    g.text("ZZ");
+    CHECK_MESSAGE(t.shown().find("ZZ") != std::string::npos, t.shown() << "\n" << t.r.last_notice());
 }

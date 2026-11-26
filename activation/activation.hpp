@@ -325,6 +325,10 @@ public:
                   (!requires(Handlers& h, const S& m, loom::Mail& ml) { h.on(m, ml); } ||
                    (Contains<typename FacetAccept<Facets>::type, S>::value || ...)))
     void on(S&& msg, loom::Mail& mail) {
+        // A FACET MAY HOLD THE DELIVERY before any handler hears it, to run it again later.
+        if ((facet_holds<Facets>(std::as_const(msg), mail) || ...)) {
+            return;
+        }
         constexpr bool base_handles =
             requires(Handlers& h, const S& m, loom::Mail& ml) { h.on(m, ml); };
         constexpr bool self_handles =
@@ -397,6 +401,16 @@ private:
             } else if constexpr (requires { f.on(msg, mail); }) {
                 f.on(msg, mail);
             }
+        }
+    }
+
+    template <class F, class S>
+    bool facet_holds(const S& msg, loom::Mail& mail) {
+        auto& f = std::get<F>(facets_);
+        if constexpr (requires { f.holds(*static_cast<Self*>(this), msg, mail); }) {
+            return f.holds(*static_cast<Self*>(this), msg, mail);
+        } else {
+            return false;
         }
     }
 

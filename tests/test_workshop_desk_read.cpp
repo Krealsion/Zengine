@@ -861,13 +861,13 @@ loom::Grant hand_grant() {
 } // namespace
 
 TEST_CASE("a capture guest's asks for the desk, a pane's page, the inventory and the keymap are answered to it alone, and a guest without capture is refused") {
-    // THE HOST SEAM ANSWERS EACH PARTICIPANT AS THE ROW ITS SESSION WAS ADMITTED UNDER, or as no row.
+    // THE GUEST DOOR ANSWERS EACH PARTICIPANT AS THE ROW ITS SESSION WAS ADMITTED UNDER, or as no row.
     std::map<std::uint64_t, scope::GuestRowFacts> rows;
     ReadRig d;
-    d.r.host.guest_row = [&rows](loom::WeaveId who) {
+    (void)mount_guest_rows(d.r.bus, [&rows](loom::WeaveId who) {
         const auto it = rows.find(who.value);
         return it == rows.end() ? scope::GuestRowFacts{} : it->second;
-    };
+    });
     const std::string role = "zengine.test.read-guest";
     (void)d.open_canvas(role, 30, 8);
     d.place(0, 4, 4, 32, 12);

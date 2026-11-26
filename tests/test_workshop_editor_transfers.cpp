@@ -706,9 +706,7 @@ TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor a
     row.powers = {"input", "inventory", "open"};
     row.version = 2;
     const loom::WeaveId guest = s.hand_id;
-    s.r.host.guest_row = [guest, row](loom::WeaveId who) {
-        return who == guest ? row : scope::GuestRowFacts{};
-    };
+    s.r.admit_guest(guest, row);
     s.r.host.host_fact.development = true;
     const std::string a = s.write("a.txt", "one\n");
     REQUIRE(s.open(a).accepted);

@@ -3,8 +3,8 @@
 #ifndef ZENGINE_TESTS_GUEST_HAND_HPP
 #define ZENGINE_TESTS_GUEST_HAND_HPP
 // A GUEST'S HAND AND THE WEAVER'S, IN ANY LIVE WORKSHOP RIG: the real Input weave in its role, a
-// participant that opens an input session and injects through it, the host seam answering that
-// participant as a row a guest door admitted -- its name, powers and version -- on the host a case
+// participant that opens an input session and injects through it, the guest door's stand-in answering
+// for that participant with a row it admitted -- its name, powers and version -- on the host a case
 // chooses, and the weaver's own attributed moments beside it. A case on what a guest's hand may do
 // on a weaver's or a development host starts here; docs/contributing/testing-workshop-panes.md says
 // which traps are the rig's.
@@ -66,7 +66,7 @@ struct GuestHand {
     loom::WeaveId input_id{};
     std::shared_ptr<std::vector<WeaverReader::Event>> weaver =
         std::make_shared<std::vector<WeaverReader::Event>>();
-    /// What the host seam answers for this participant: a row the guest door admitted.
+    /// What the guest door's stand-in answers for this participant: the row it was admitted with.
     zengine::workshop::scope::GuestRowFacts row;
 
     /// `development` names the host fact: a weaver's host by default. The rig must outlive this
@@ -92,15 +92,8 @@ struct GuestHand {
         row.powers = std::move(powers);
         row.version = version;
         r.host.host_fact.development = development;
-        r.host.guest_row = [this](loom::WeaveId who) {
-            return who == id ? row : zengine::workshop::scope::GuestRowFacts{};
-        };
-        if (!r.host.input_authority) {
-            r.host.input_authority = [&bus = r.bus](loom::WeaveId who) {
-                return bus.alive(who) ? loom::host_grant_authority(bus, who, loom::LiveAuthority::nothing())
-                                      : loom::GrantAuthority{};
-            };
-        }
+        // THE GUEST DOOR'S WORD for this participant, read at each ask: a case may change the row.
+        r.guests.admit_reading(r.bus, id, [this] { return row; });
         act([](loom::Mail& m) {
             m.send_to_role(input::kInputRole, input::InputSessionRequested{"guest hand"});
         });

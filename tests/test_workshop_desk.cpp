@@ -4423,18 +4423,10 @@ TEST_CASE("a guest's guide mark stands over the panes in Workshop's overlay in t
     grant.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version, kWorkshopProvider);
     const loom::WeaveId guest_id = d.r.bus.register_weave(std::move(made), std::move(grant));
     guest->zen_set_self(guest_id);
-    d.r.host.guest_row = [guest_id](loom::WeaveId who) {
-        scope::GuestRowFacts row;
-        if (who == guest_id) {
-            row.admitted = true;
-            row.name = "tutor";
-        }
-        return row;
-    };
-    d.r.host.input_authority = [&bus = d.r.bus](loom::WeaveId who) {
-        return bus.alive(who) ? loom::host_describe_only_authority(bus, who)
-                              : loom::GrantAuthority{};
-    };
+    scope::GuestRowFacts tutor;
+    tutor.admitted = true;
+    tutor.name = "tutor";
+    d.r.admit_guest(guest_id, tutor);
     const auto ask = [&](std::string control) {
         guest->next = [control](loom::Mail& m) {
             (void)m.send_to_role(kWorkshopProvider,
@@ -5060,18 +5052,10 @@ TEST_CASE("a weaver's press in a pane's area of the window ends a guest's guide 
     grant.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version, kWorkshopProvider);
     const loom::WeaveId guest_id = p.d.r.bus.register_weave(std::move(made), std::move(grant));
     guest->zen_set_self(guest_id);
-    p.d.r.host.guest_row = [guest_id](loom::WeaveId who) {
-        scope::GuestRowFacts row;
-        if (who == guest_id) {
-            row.admitted = true;
-            row.name = "tutor";
-        }
-        return row;
-    };
-    p.d.r.host.input_authority = [&bus = p.d.r.bus](loom::WeaveId who) {
-        return bus.alive(who) ? loom::host_describe_only_authority(bus, who)
-                              : loom::GrantAuthority{};
-    };
+    scope::GuestRowFacts tutor;
+    tutor.admitted = true;
+    tutor.name = "tutor";
+    p.d.r.admit_guest(guest_id, tutor);
     guest->next = [](loom::Mail& m) {
         (void)m.send_to_role(kWorkshopProvider,
                              GuideRequested{std::string(kWindowSeatRole) + "/seat", "go",

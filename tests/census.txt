@@ -165,6 +165,7 @@ doors workshop/arrangement.hpp ArrangementDoor 1
 doors workshop/desktop-pane/pane.cpp DesktopWeave 19
 doors workshop/editor_switch.hpp EditorSwitchBase 12
 doors workshop/first-run/first_run.cpp FirstRun 18
+doors workshop/guest_acts.hpp GuestActs 2
 doors workshop/guest_door.hpp GuestDoorBase 9
 doors workshop/layouts/owner.hpp LayoutsOwner 26
 doors workshop/quit_delivery.hpp HostSessionDoor 1
@@ -178,7 +179,7 @@ doors workshop/terminal/door.hpp TerminalDoor 2
 doors workshop/weave.hpp WorkshopWeave 94 falls
 
 hooks workshop/develop.hpp World 5
-hooks workshop/weave.hpp HostContext 8 falls
+hooks workshop/weave.hpp HostContext 6 falls
 
 lines builder/builder-pane/pane.cpp BuilderPaneWeave 1176 falls
 lines editor/editor-pane/pane.cpp EditorPaneWeave 877 falls
@@ -190,7 +191,7 @@ lines info/property_view.hpp PropertyView 691 falls
 lines info/value_view.hpp ValueView 1166 falls
 lines realization/owner.hpp Owner 837 falls
 lines view/view-builder/pane.cpp ViewBuilderPane 1163 falls
-lines workshop/weave.hpp WorkshopWeave 908 falls
+lines workshop/weave.hpp WorkshopWeave 907 falls
 
 kind activation/ library
 kind app/ host

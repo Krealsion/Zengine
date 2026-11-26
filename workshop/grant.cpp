@@ -122,6 +122,11 @@ loom::Grant workshop_grant() {
     // WHO IS ON THE BUS, Loom's participants claim: who holds each role at which incarnation, what
     // it accepts and declares it emits, read inside the delivery that needs it.
     loom::host::allow_observe_participants(speak);
+    // A GUEST'S ACT, JUDGED: the row its guest door admitted it with, and what Loom says it may
+    // do now, each asked at the act.
+    speak.allow_to_role(GuestRowOfRequested::zen_name, GuestRowOfRequested::zen_version, kGuestsRole);
+    speak.allow_to_role(loom::host::AuthorityAsked::zen_name, loom::host::AuthorityAsked::zen_version,
+                        kAuthorityRole);
     // THE HOST'S LIFETIME ENDED, once the weaver's quit is settled: Loom's word, to the session role.
     speak.allow_to_role(loom::session::Shutdown::zen_name, loom::session::Shutdown::zen_version,
                         loom::session::kSessionRole);

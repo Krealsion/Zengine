@@ -178,12 +178,6 @@ DeskView WorkshopWeave::desk_view() const {
 
 // ---- A PANE'S READING -----------------------------------------------------------------------------
 
-bool WorkshopWeave::capture_guest(loom::WeaveId who) const {
-    if (!host_->guest_row) return false;
-    const scope::GuestRowFacts row = host_->guest_row(who);
-    return row.admitted && row.may(scope::kPowerCapture);
-}
-
 // THE STAMP A PANE OF `provider` STANDS ON, but for what it shows: its role's holder and that
 // holder's incarnation, and the incarnation of the window that shows the desk.
 PaneStamp WorkshopWeave::stamp_of(const std::string& provider, const std::string& pane,
@@ -499,6 +493,8 @@ void WorkshopWeave::on(const graphics::AreaShown& shown, loom::Mail& mail) {
 // ...OR WHY IT WOULD NOT SAY: kept as the area's refusal, which its waits answer.
 void WorkshopWeave::on(const loom::Refused& refused, loom::Mail& mail) {
     if (!mail.answers_ask()) return;
+    // A HELD ACT'S QUESTION ITS ANSWERER REFUSED counts as unanswered.
+    if (facet<GuestActsFacet>().ended(mail.correlation(), mail)) return;
     const std::optional<loom::PendingAsk> settled = area_asks_.settle(mail.correlation(), mail.sender());
     if (!settled) return;
     if (take_key_fence(settled->id, nullptr, mail)) return;
@@ -564,21 +560,33 @@ void WorkshopWeave::finish_desk_waits(loom::Mail& mail) {
                                         loom::Refused{"desk read unavailable: " + why + "; read again"});
             continue;
         }
-        switch (done.kind) {
-        case DeskWait::Kind::kDeskRead:
-            answer_later(done.answer, mail, desk_read_now(mail, done.asker));
-            publish_desk_stamps(mail);
-            break;
-        case DeskWait::Kind::kPaneView:
-            answer_later(done.answer, mail, pane_page(mail, done.asker, done.view));
-            break;
-        case DeskWait::Kind::kPanePoint:
-            answer_later(done.answer, mail, pane_point(mail, done.asker, done.point));
-            break;
-        case DeskWait::Kind::kGuide:
-            guide_requested(done.guide, done.asker, mail, &done.answer, true);
-            break;
-        }
+        // THE READ GOES ON AS ITS ASKER'S ACT, once the guest door and the authority reader have
+        // answered for it again.
+        const auto held = std::make_shared<DeskWait>(std::move(done));
+        const auto finish = [this, held](loom::Mail& m) {
+            DeskWait& wait = *held;
+            switch (wait.kind) {
+            case DeskWait::Kind::kDeskRead:
+                answer_later(wait.answer, m, desk_read_now(m, wait.asker));
+                publish_desk_stamps(m);
+                break;
+            case DeskWait::Kind::kPaneView:
+                answer_later(wait.answer, m, pane_page(m, wait.asker, wait.view));
+                break;
+            case DeskWait::Kind::kPanePoint:
+                answer_later(wait.answer, m, pane_point(m, wait.asker, wait.point));
+                break;
+            case DeskWait::Kind::kGuide:
+                guide_requested(wait.guide, wait.asker, m, &wait.answer, true);
+                break;
+            }
+        };
+        const auto questions = [this, held](const scope::GuestRowFacts& row) {
+            return held->kind == DeskWait::Kind::kGuide
+                       ? guide_questions(session_.panes.runtime, row, held->guide)
+                       : pane_read_questions(session_.panes.runtime, row);
+        };
+        if (!guest_waits(held->asker, mail, Came::kOn, finish, questions)) finish(mail);
     }
 }
 
@@ -684,6 +692,10 @@ Said<PaneView> WorkshopWeave::pane_page(loom::Mail& mail, loom::WeaveId asker,
 
 // WL-READ-02 -- agents/workshop/desk-read.md
 void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
+    if (guest_waits(mail.sender(), mail, Came::kAsk, [this, asked](loom::Mail& m) { on(asked, m); },
+                 [this](const scope::GuestRowFacts& row) { return pane_read_questions(session_.panes.runtime, row); })) {
+        return;
+    }
     const std::string area = drawn_area(PaneRef{asked.provider, asked.pane});
     if (area.empty() || !read_withheld(mail, mail.sender(), asked.provider, asked.pane).empty()) {
         answer_now(mail, pane_page(mail, mail.sender(), asked));
@@ -732,6 +744,10 @@ Said<PanePoint> WorkshopWeave::pane_point(loom::Mail& mail, loom::WeaveId asker,
 }
 
 void WorkshopWeave::on(const PanePointRequested& asked, loom::Mail& mail) {
+    if (guest_waits(mail.sender(), mail, Came::kAsk, [this, asked](loom::Mail& m) { on(asked, m); },
+                 [this](const scope::GuestRowFacts& row) { return pane_read_questions(session_.panes.runtime, row); })) {
+        return;
+    }
     const std::string area = drawn_area(PaneRef{asked.provider, asked.pane});
     if (area.empty() || !read_withheld(mail, mail.sender(), asked.provider, asked.pane).empty()) {
         answer_now(mail, pane_point(mail, mail.sender(), asked));
@@ -801,7 +817,7 @@ PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref, const DeskBounds& laid,
 Said<DeskRead> WorkshopWeave::desk_read_now(loom::Mail& mail, loom::WeaveId asker) const {
     DeskRead out;
     out.desk = desk_view();
-    if (reads_by_pane(asker)) withhold_desk(out.desk);
+    if (facet<GuestActsFacet>().row(asker).reads_by_pane) withhold_desk(out.desk);
     std::vector<std::optional<PaneView>> readings;
     const DeskBounds laid = laid_desk();
     for (const PaneRef& ref : presented_refs(laid)) {
@@ -836,7 +852,11 @@ Said<DeskRead> WorkshopWeave::desk_read_now(loom::Mail& mail, loom::WeaveId aske
     return out;
 }
 
-void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
+void WorkshopWeave::on(const DeskReadRequested& asked, loom::Mail& mail) {
+    if (guest_waits(mail.sender(), mail, Came::kAsk, [this, asked](loom::Mail& m) { on(asked, m); },
+                 [this](const scope::GuestRowFacts& row) { return pane_read_questions(session_.panes.runtime, row); })) {
+        return;
+    }
     if (const std::string why = take_desk_read(mail.sender()); !why.empty()) {
         (void)mail.answer(loom::Refused{why});
         return;

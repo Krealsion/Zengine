@@ -934,8 +934,11 @@ PaneInventory WorkshopWeave::inventory_reading(const loom::host::Participants* n
     return said;
 }
 
-void WorkshopWeave::on(const PaneInventoryRequested&, loom::Mail& mail) {
-    if (mail.authored_role().empty() && !capture_guest(mail.sender())) {
+void WorkshopWeave::on(const PaneInventoryRequested& asked, loom::Mail& mail) {
+    if (guest_waits(mail.sender(), mail, Came::kAsk, [this, asked](loom::Mail& m) { on(asked, m); })) {
+        return;
+    }
+    if (mail.authored_role().empty() && !facet<GuestActsFacet>().row(mail.sender()).may(scope::kPowerCapture)) {
         return; // a role, or a guest session holding `capture`; other speech is answered by nobody
     }
     // THE READING NOW, TO THE ONE WHO ASKED -- the incarnation that just arrived, and no other
@@ -1053,14 +1056,18 @@ void WorkshopWeave::publish_keymap(loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
 }
 
-void WorkshopWeave::on(const KeymapRequested&, loom::Mail& mail) {
-    if (mail.authored_role().empty() && !capture_guest(mail.sender())) {
+void WorkshopWeave::on(const KeymapRequested& asked, loom::Mail& mail) {
+    if (guest_waits(mail.sender(), mail, Came::kAsk, [this, asked](loom::Mail& m) { on(asked, m); },
+                 [this](const scope::GuestRowFacts& row) { return pane_read_questions(session_.panes.runtime, row); })) {
+        return;
+    }
+    if (mail.authored_role().empty() && !facet<GuestActsFacet>().row(mail.sender()).may(scope::kPowerCapture)) {
         return; // a role asks, or a guest session holding `capture`
     }
     KeymapShown said = keymap_shown(session_, host_->keymap_path, keymap_standing_);
     // A ROW THAT READS BY PANE hears the rows above every pane and its own panes' rows and modes:
     // what a press of a control it may read could cause, and no other pane's (WL-GUIDE-02).
-    if (reads_by_pane(mail.sender())) {
+    if (facet<GuestActsFacet>().row(mail.sender()).reads_by_pane) {
         const auto withheld = [&](const std::string& role, const std::string& pane) {
             return !pane.empty() && !read_withheld(mail, mail.sender(), role, pane).empty();
         };

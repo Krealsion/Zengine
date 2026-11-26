@@ -12,8 +12,8 @@ hands, so an agent's key made the weaver's pending approval stale. One Workshop 
 a guest off the weaver's files and let an agent type and build on its own development Workshop.
 
 **Decision.** The guests file names its version and, from version 2, whose host it is: a weaver's,
-the default, or a development host. Admission records the row that admitted each session, and a
-host seam answers it. An act that writes a file, builds or opens is an action class its owner asks
+the default, or a development host. Admission records the row that admitted each session, and the
+guest door says it when asked. An act that writes a file, builds or opens is an action class its owner asks
 Workshop to approve for the gesture's hand, once, at the act's first beat, or at the beat that
 learns its subject; a door past the dispatch asks about its sender. A guest builds only with the version-2 `build` power, and on a weaver's host
 writes nothing, opens no guests file, types into no pane, carries nothing, and reaches neither the

@@ -312,7 +312,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             area, window_name_, row->provider, place.x, place.y, place.w, place.h,
             2 * static_cast<std::int64_t>(i) + 2, false,
             accepts(row->provider, *loom::schema_of<graphics::AreaButtonChanged>()),
-            weaver_only_pane(*row)};
+            weaver_only_pane(*row, bus_now_.holder_of(kGuestsRole, mail).valid())};
         next[area].followed = true; // presses raise it; what it shows moves the desk's notice
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
@@ -346,7 +346,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             session_.panes.runtime.find(session_.presented.role, session_.presented.pane);
         next[session_.presented.area] = graphics::AreaPlaced{
             session_.presented.area, window_name_, kPresenterRole, menu.x, menu.y, menu.w, menu.h,
-            panes_order + 2, false, true, about != nullptr && weaver_only_pane(*about)};
+            panes_order + 2, false, true,
+            about != nullptr && weaver_only_pane(*about, bus_now_.holder_of(kGuestsRole, mail).valid())};
         next[session_.presented.area].followed = true;
         skins[session_.presented.area] = worn;
     }
@@ -564,7 +565,10 @@ void WorkshopWeave::end_quit(loom::Mail& mail) {
 
 // WL-SESSION-13 -- agents/workshop/session.md
 // WL-GUEST-09 -- agents/workshop/guests.md
-void WorkshopWeave::on(const WorkshopQuitRequested&, loom::Mail& mail) {
+void WorkshopWeave::on(const WorkshopQuitRequested& asked, loom::Mail& mail) {
+    if (guest_waits(mail.sender(), mail, Came::kAsk, [this, asked](loom::Mail& m) { on(asked, m); })) {
+        return;
+    }
     // ...and asked by message, the asker is the hand: a guest's quit on a weaver's host is refused.
     const InputActor asker{true, false, mail.sender()};
     if (const std::string refused = judge_classes(asker, {pane::act_class::kWrite}, {}); !refused.empty()) {
@@ -744,15 +748,21 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
         ~RestoreActor() { current = before; }
     } restore{input_actor_, input_actor_};
     for (const HeldInput& held : replay) {
-        input_actor_ = held.actor;
-        switch (held.kind) {
-        case HeldInput::Kind::kKey: on(held.key, mail); break;
-        case HeldInput::Kind::kText: on(held.text, mail); break;
-        case HeldInput::Kind::kButton: pointer_button(held.button, held.clicks, mail); break;
-        case HeldInput::Kind::kMoved: pointer_moved(held.moved, mail); break;
-        case HeldInput::Kind::kWheel: pointer_wheel(held.wheel, mail); break;
-        case HeldInput::Kind::kAreaPress: area_pressed(held.area_press, held.press, mail); break;
-        }
+        // A GUEST'S GESTURE IS ITS ACT AGAIN: taken once its row is said, in its order.
+        const auto play = [this, held](loom::Mail& m) {
+            const InputActor before = input_actor_;
+            input_actor_ = held.actor;
+            switch (held.kind) {
+            case HeldInput::Kind::kKey: on(held.key, m); break;
+            case HeldInput::Kind::kText: on(held.text, m); break;
+            case HeldInput::Kind::kButton: pointer_button(held.button, held.clicks, m); break;
+            case HeldInput::Kind::kMoved: pointer_moved(held.moved, m); break;
+            case HeldInput::Kind::kWheel: pointer_wheel(held.wheel, m); break;
+            case HeldInput::Kind::kAreaPress: area_pressed(held.area_press, held.press, m); break;
+            }
+            input_actor_ = before;
+        };
+        if (!guest_waits(guest_hand(held.actor), mail, Came::kOn, play)) play(mail);
     }
 }
 

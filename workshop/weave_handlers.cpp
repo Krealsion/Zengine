@@ -292,13 +292,20 @@ struct WindowMoment {
     WindowMoment& operator=(const WindowMoment&) = delete;
 };
 
+/// The guest a window's moment names, or nobody for the weaver's own.
+loom::WeaveId window_guest(bool local, std::int64_t participant) {
+    return local || participant <= 0 ? loom::WeaveId{}
+                                     : loom::WeaveId{static_cast<std::uint64_t>(participant)};
+}
+
 } // namespace
 
 // A KEY, ITS RELEASE OR ITS TEXT, FROM THE WINDOW THAT SHOWS WORKSHOP'S OWN AREA, as that window's
 // role: answered under the hand it names. A key no window named names no hand.
 // WL-GUEST-13 -- agents/workshop/guests.md
 void WorkshopWeave::on(const graphics::AreaKeyPressed& k, loom::Mail& mail) {
-    if (!window_.from_window(k.area, mail)) {
+    if (!window_.from_window(k.area, mail) ||
+        guest_waits(window_guest(k.local, k.actor), mail, Came::kSaid, [this, k](loom::Mail& m) { on(k, m); })) {
         return;
     }
     const WindowMoment moment{input_actor_, k.local, k.actor};
@@ -306,7 +313,8 @@ void WorkshopWeave::on(const graphics::AreaKeyPressed& k, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const graphics::AreaKeyReleased& k, loom::Mail& mail) {
-    if (!window_.from_window(k.area, mail)) {
+    if (!window_.from_window(k.area, mail) ||
+        guest_waits(window_guest(k.local, k.actor), mail, Came::kSaid, [this, k](loom::Mail& m) { on(k, m); })) {
         return;
     }
     const WindowMoment moment{input_actor_, k.local, k.actor};
@@ -314,7 +322,8 @@ void WorkshopWeave::on(const graphics::AreaKeyReleased& k, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const graphics::AreaTextEntered& t, loom::Mail& mail) {
-    if (!window_.from_window(t.area, mail)) {
+    if (!window_.from_window(t.area, mail) ||
+        guest_waits(window_guest(t.local, t.actor), mail, Came::kSaid, [this, t](loom::Mail& m) { on(t, m); })) {
         return;
     }
     const WindowMoment moment{input_actor_, t.local, t.actor};
@@ -323,7 +332,8 @@ void WorkshopWeave::on(const graphics::AreaTextEntered& t, loom::Mail& mail) {
 
 // WL-PRESS-04 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
-    if (!own_pointer_area(b.area, mail)) {
+    if (!own_pointer_area(b.area, mail) ||
+        guest_waits(window_guest(b.local, b.actor), mail, Came::kSaid, [this, b](loom::Mail& m) { on(b, m); })) {
         return;
     }
     // ...AND A PRESS IN FRONT OF THE PANES WHILE A DEPARTED ACTOR'S REFERENCE IS CARRIED puts it
@@ -344,7 +354,8 @@ void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const graphics::AreaPointerMoved& m, loom::Mail& mail) {
-    if (!own_pointer_area(m.area, mail)) {
+    if (!own_pointer_area(m.area, mail) ||
+        guest_waits(window_guest(m.local, m.actor), mail, Came::kSaid, [this, m](loom::Mail& again) { on(m, again); })) {
         return;
     }
     const auto [ox, oy] = area_origin(m.area);
@@ -356,7 +367,8 @@ void WorkshopWeave::on(const graphics::AreaPointerMoved& m, loom::Mail& mail) {
 
 // WL-PTR-10 -- agents/workshop/pointer.md
 void WorkshopWeave::on(const graphics::AreaWheelTurned& w, loom::Mail& mail) {
-    if (!own_pointer_area(w.area, mail)) {
+    if (!own_pointer_area(w.area, mail) ||
+        guest_waits(window_guest(w.local, w.actor), mail, Came::kSaid, [this, w](loom::Mail& m) { on(w, m); })) {
         return;
     }
     const auto [ox, oy] = area_origin(w.area);
@@ -372,6 +384,17 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     if (p.window != window_name_ ||
         !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + p.window) ||
         p.button < 1 || p.button > 3) {
+        return;
+    }
+    if (const loom::WeaveId guest = window_guest(p.local, p.actor);
+        guest_waits(guest, mail, Came::kSaid, [this, p](loom::Mail& m) { on(p, m); })) {
+        // ...AND WHAT THE PANE THE WINDOW GAVE IT TO SAYS NEXT waits behind it.
+        std::string aimed = session_.presented.open && p.area == session_.presented.area ? pane::kPresenterRole : "";
+        for (const std::int64_t placed : placed_kinds_) {
+            const RuntimePane* row = session_.panes.runtime.of_kind(placed);
+            if (row != nullptr && pane_window_area(session_.panes, *row) == p.area) aimed = row->provider;
+        }
+        facet<GuestActsFacet>().aim(guest, std::move(aimed));
         return;
     }
     // WHILE A QUIT IS ASKED the press is held with every other gesture, and what it does here --
@@ -527,7 +550,8 @@ void WorkshopWeave::on(const graphics::AreaPointerLeft& l, loom::Mail& mail) {
 void WorkshopWeave::on(const graphics::AreaHandRefused& r, loom::Mail& mail) {
     if (r.window != window_name_ ||
         !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + r.window) ||
-        r.actor <= 0 || quitting_) {
+        r.actor <= 0 || quitting_ ||
+        guest_waits(window_guest(false, r.actor), mail, Came::kSaid, [this, r](loom::Mail& m) { on(r, m); })) {
         return;
     }
     // A MENU ABOUT A PANE ONLY THE WEAVER'S HAND REACHES is placed for that hand alone too.

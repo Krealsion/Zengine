@@ -99,10 +99,6 @@ struct TransferStory {
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         raw->zen_set_self(r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole)));
-        r.host.input_authority = [&](loom::WeaveId actor) {
-            return r.bus.alive(actor) ? loom::host_grant_authority(r.bus, actor, loom::LiveAuthority::nothing())
-                                      : loom::GrantAuthority{};
-        };
         load::LoadPlan plan;
         for (const auto& [image, role] : std::vector<std::pair<std::string, std::string>>{
                  {stem, ed::kEditorPaneRole}, {"zengine-inventory", inv::kInventoryRole},
