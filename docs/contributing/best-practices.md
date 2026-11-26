@@ -174,7 +174,7 @@ Its law, pages and suites: [`component/AGENTS.md`](../../component/AGENTS.md).
 
 ### Attention (`attention/`)
 
-Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
+Its law, pages and suites: [its front page](../../attention/README.md#working-on-it).
 
 - **A condition leaves only when it stops being true.**
   [About](../../attention/docs/zengine.attention.md#about)

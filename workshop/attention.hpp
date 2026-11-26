@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_ATTENTION_HPP
 
 // WHAT IS TRUE RIGHT NOW, AND WORTH A WEAVER'S ATTENTION
-// Workshop law: agents/workshop/attention.md
+// Workshop law: attention/docs/attention-laws.md
 
 #include "graphics/colors.hpp"
 
@@ -19,7 +19,7 @@
 namespace zengine::workshop {
 
 /// ONE CONDITION THAT IS TRUE RIGHT NOW.
-// WL-ATTN-01, WL-ATTN-10 -- agents/workshop/attention.md
+// WL-ATTN-01, WL-ATTN-10 -- attention/docs/attention-laws.md
 struct Condition {
     std::string key;
     std::string compact;
@@ -28,7 +28,7 @@ struct Condition {
     std::string action;
 
     /// WHAT A DISMISSAL IS MEASURED AGAINST -- the condition's content, as one opaque token.
-    // WL-ATTN-08 -- agents/workshop/attention.md
+    // WL-ATTN-08 -- attention/docs/attention-laws.md
     std::string stamp() const {
         return compact + '\n' + detail + '\n' + std::string(ink.name()) + '\n' + action;
     }
@@ -37,7 +37,7 @@ struct Condition {
 /// A tool this run stepped over, as the condition it is for the whole run: keyed and named by its
 /// artifact on the host's own compact row, which needs no tool to be read (even when the missing
 /// tool is the desktop). The refusing layer's sentence is the detail.
-// WL-ATTN-01 -- agents/workshop/attention.md
+// WL-ATTN-01 -- attention/docs/attention-laws.md
 inline Condition unavailable_tool(const std::string& stem, const std::string& said) {
     return Condition{"load.unavailable/" + stem, stem + " is not in this Workshop", said,
                      graphics::colors::alert, "build its artifact, then launch again"};
@@ -103,7 +103,7 @@ inline Condition guest_row_scopes(std::size_t row, const std::string& name, std:
 }
 
 /// HOW LOUD, AS AN ORDER.
-// WL-ATTN-07 -- agents/workshop/attention.md
+// WL-ATTN-07 -- attention/docs/attention-laws.md
 inline int attention_rank(const graphics::Color& ink) {
     if (ink == graphics::colors::alert) {
         return 0;
@@ -115,7 +115,7 @@ inline int attention_rank(const graphics::Color& ink) {
 }
 
 /// THE ORDER CONDITIONS ARE PRESENTED IN, and it is derived from CURRENT TRUTH ALONE.
-// WL-ATTN-07 -- agents/workshop/attention.md
+// WL-ATTN-07 -- attention/docs/attention-laws.md
 inline bool ranks_before(const Condition& a, const Condition& b) {
     const int ra = attention_rank(a.ink);
     const int rb = attention_rank(b.ink);
@@ -126,7 +126,7 @@ inline bool ranks_before(const Condition& a, const Condition& b) {
 }
 
 /// THE CONDITIONS WORKSHOP ITSELF HOLDS -- the ones no live state already answers.
-// WL-ATTN-01, WL-ATTN-04, WL-ATTN-11 -- agents/workshop/attention.md
+// WL-ATTN-01, WL-ATTN-04, WL-ATTN-11 -- attention/docs/attention-laws.md
 struct HeldConditions {
     std::vector<Condition> rows;
 

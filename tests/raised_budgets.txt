@@ -47,7 +47,6 @@ agents/verification/witnesses.md 16
 agents/view.md 5
 agents/workshop/action-causes.md 7
 agents/workshop/arrangement.md 9
-agents/workshop/attention.md 6
 agents/workshop/authoring.md 7
 agents/workshop/canvas.md 1
 agents/workshop/catalog.md 2

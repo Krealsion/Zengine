@@ -643,11 +643,11 @@ struct Session {
     std::int64_t window_room_h = 0;
     /// THE LAST THING WORKSHOP SAID, and that is all it is: each thing said is published to the
     /// notices record as it is said (`NoticeSaid`), and shown there, never here.
-    // WL-ATTN-01 -- agents/workshop/attention.md
+    // WL-ATTN-01 -- attention/docs/attention-laws.md
     std::string notice;
     bool notice_is_bad = false; ///< whether that thing was a refusal
     /// WHAT IS TRUE RIGHT NOW AND HAS NO LIVE OWNER TO DERIVE IT FROM (attention.hpp).
-    // WL-ATTN-01 -- agents/workshop/attention.md
+    // WL-ATTN-01 -- attention/docs/attention-laws.md
     HeldConditions conditions;
     /// The contextual-action surface: an identity and a cursor, never a snapshot (context.hpp).
     /// Opening it moves no selection or keyboard candidate.
@@ -1119,7 +1119,7 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
 
 /// Condition keys: durable dotted strings, spelled once so `establish` and `find` cannot drift. A
 /// per-subject family carries the subject in the key: two panes refusing are two conditions.
-// WL-ATTN-01 -- agents/workshop/attention.md
+// WL-ATTN-01 -- attention/docs/attention-laws.md
 inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
 /// ...AND THE ONE FOR AN EDIT THAT IS LIVE BUT NOT WRITTEN: the next launch will not have it.
 inline constexpr const char* kKeymapUnwrittenKey = "workshop.keymap-unwritten";

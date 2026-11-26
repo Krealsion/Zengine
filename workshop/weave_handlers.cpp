@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // `WorkshopWeave`'s startup files, the host's conditions, and the surface and key handlers.
-// Workshop law: agents/workshop/attention.md (+7 registers; agents/workshop.md routes)
+// Workshop law: attention/docs/attention-laws.md (+7 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 
@@ -154,7 +154,7 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
     repaint(mail);
 }
 
-// WL-ATTN-01 -- agents/workshop/attention.md
+// WL-ATTN-01 -- attention/docs/attention-laws.md
 void WorkshopWeave::take_host_conditions() {
     conditions_taken_ = host_->conditions_generation;
     for (const Condition& c : host_->standing_conditions) {

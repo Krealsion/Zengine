@@ -3,7 +3,7 @@
 
 // `WorkshopWeave`'s run: the frontier and the clock read alive, the repaint that publishes the
 // slots and then the picture, and the one quit that asks the room.
-// Workshop law: agents/workshop/attention.md (+5 registers; agents/workshop.md routes)
+// Workshop law: attention/docs/attention-laws.md (+5 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 #include "screen_canvas.hpp"
@@ -24,7 +24,7 @@ using pane::kPresenterRole;
 
 // ---- THE RUN: what is true now, the picture published, and the way out --------------
 
-// WL-ATTN-04 -- agents/workshop/attention.md
+// WL-ATTN-04 -- attention/docs/attention-laws.md
 ProjectFrontier WorkshopWeave::frontier_now(loom::Mail& mail) {
     ProjectFrontier now;
     if (const std::optional<realization::PlanStatus> where =

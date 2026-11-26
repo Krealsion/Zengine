@@ -273,7 +273,7 @@ struct HostContext {
 
     /// What the host already knew was true, and still is. It can grow after the first picture (an
     /// optional row refusing inside a delivery), hence `conditions_generation`.
-    // WL-ATTN-01 -- agents/workshop/attention.md
+    // WL-ATTN-01 -- attention/docs/attention-laws.md
     std::vector<Condition> standing_conditions;
     /// How many times that list grew: compared, so a repaint costs one integer.
     std::uint64_t conditions_generation = 0;

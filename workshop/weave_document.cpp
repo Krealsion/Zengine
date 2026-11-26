@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // `WorkshopWeave`'s own voice: the notice, the setup name's window, and the status line.
-// Workshop law: agents/workshop/attention.md (+2 registers; agents/workshop.md routes)
+// Workshop law: attention/docs/attention-laws.md (+2 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 

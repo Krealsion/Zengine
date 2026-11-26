@@ -195,7 +195,7 @@ static_assert(every_reference_is_one_kind(),
 
 /// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
 /// spend and held by nobody.
-// WL-ATTN-04 -- agents/workshop/attention.md
+// WL-ATTN-04 -- attention/docs/attention-laws.md
 struct ProjectFrontier {
     bool waiting = false;     ///< realization is stopped at a row waiting on the weaver
     std::string artifact;     ///< the frontier artifact stem; empty when not waiting
