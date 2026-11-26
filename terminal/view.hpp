@@ -4,12 +4,11 @@
 #ifndef ZENGINE_TERMINAL_VIEW_HPP
 #define ZENGINE_TERMINAL_VIEW_HPP
 
-// The Terminal pane's view of the record: each entry said as a sentence and wrapped into rows of
-// the pane's width, the window onto those rows and the gestures that move it, the
-// rows above and below it said, and the pane composed from them with the
-// caret in its line. The members are `TerminalPaneWeave`'s, declared in
-// `pane.cpp`, which includes this file after the class; it compiles in no other place.
-// Workshop law: agents/workshop/terminal.md, agents/workshop/terminal-pane.md
+// The Terminal pane's view of the record. Each entry is said as a sentence and wrapped into rows of
+// the pane's width; the view is a window onto those rows, moved by the reading gestures; what is
+// above and below it is said; and the pane is composed from them with the caret in its line. The
+// members are `TerminalPaneWeave`'s, declared in `pane.cpp`, which includes this file after the
+// class; it compiles in no other place. The Terminal's laws are terminal/docs/terminal-laws.md.
 
 #include "terminal/vocabulary.hpp"
 
@@ -38,7 +37,7 @@ using zengine::pane::pane_text::wrap;
 
 /// How wide the line's box stands while it is empty, the gesture that answers it said after it...
 constexpr std::int64_t kEmptyLineBox = 12;
-/// ...and in a room of cells, where the box reads plain: the caret's own column.
+/// ...and in an area of cells, where the box reads plain: the caret's own column.
 constexpr std::int64_t kEmptyLinePlain = 1;
 
 /// The chrome a pane spends on being this pane, whatever is in it: the header, the legend (where
@@ -47,9 +46,8 @@ constexpr std::int64_t kChromeRows = 4;
 
 // ---- Rendering one participant's record ---------------------------------------------
 //
-// EVERY FUNCTION HERE WAS `screen_terminal.cpp`'s, and every one of them is presentation:
-// what a sentence says, and how many rows of THIS pane it costs. They read a `ShownEntry`
-// instead of a `loom::TranscriptEntry`, which is the same ten facts.
+// Every function here is presentation: what a sentence says, and how many rows of this pane it
+// costs. They read a `ShownEntry`, which holds the same ten facts as a `loom::TranscriptEntry`.
 
 inline std::string entry_address(const ShownEntry& e) {
     if (e.addressing == ws::kAddressWeave) {
@@ -91,15 +89,15 @@ inline std::string entry_line(const ShownEntry& e) {
     return e.text;
 }
 
-/// WHAT `^` MEANS, said once, on a row the pane shows unless its layout keeps the legend off.
+/// What `^` means, said once, on a row the pane shows unless its layout keeps the legend off.
 inline std::string legend_text() { return "SUBMITTED = authored; a sender is not told its fate"; }
 
 inline std::vector<std::string> entry_wrapped(const ShownEntry& e, std::int64_t width) {
     return wrap(entry_line(e), width);
 }
 
-/// THE RECORD AS ROWS OF ONE WIDTH: every entry wrapped, and the row each entry starts on. The
-/// unit a view scrolls by and a marker counts in is a ROW, because a wrapped entry cut at the top
+/// The record as rows of one width: every entry wrapped, and the row each entry starts on. The
+/// unit a view scrolls by and a marker counts in is a row, because a wrapped entry cut at the top
 /// of a view is part of one entry and not one of a number of messages.
 struct WrappedRecord {
     std::vector<std::string> rows;
@@ -121,7 +119,7 @@ inline WrappedRecord wrap_record(const std::vector<ShownEntry>& entries, std::in
     return out;
 }
 
-/// WHAT IS ABOVE THE VIEW, said at its top: retained rows scrolled past, and -- a different fact --
+/// What is above the view, said at its top: retained rows scrolled past, and -- a different fact --
 /// entries the participant evicted for good, which no scroll reaches.
 inline std::string omission_text(std::int64_t above, std::int64_t below, std::int64_t dropped, bool lost) {
     std::string text;
@@ -141,12 +139,12 @@ inline std::string omission_text(std::int64_t above, std::int64_t below, std::in
     return text;
 }
 
-/// WHAT IS BELOW THE VIEW, said at its bottom, and the way back to the newest output.
+/// What is below the view, said at its bottom, and the way back to the newest output.
 inline std::string below_text(std::int64_t below) {
     return "... " + std::to_string(below) + " more rows below -- press here for the newest";
 }
 
-/// WHICH SLICE OF A LIST IS SHOWN, given the selection and the room: the window follows the
+/// Which slice of a list is shown, given the selection and the area: the window follows the
 /// selection and never scrolls past the end.
 inline std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t room) {
     if (room == 0 || total <= room) {
@@ -162,7 +160,7 @@ inline std::size_t first_shown(std::size_t selected, std::size_t total, std::siz
 
 // ---- Reading the record: the view's top, and the gestures that move it -------------------
 
-/// THE ROW AT THE TOP OF A VIEW `view` ROWS TALL. Following, the row that puts the newest row
+/// The row at the top of a view `view` rows tall. Following, the row that puts the newest row
 /// at the bottom; anchored, the anchor's row -- clamped into the entry a re-wrap may have
 /// shortened, and never so far down that the view runs past the newest row.
 inline std::int64_t TerminalPaneWeave::view_top(const WrappedRecord& record, std::int64_t view) const {
@@ -186,7 +184,7 @@ inline std::int64_t TerminalPaneWeave::view_top(const WrappedRecord& record, std
     return top < last ? top : last;
 }
 
-/// MOVE THE VIEW BY `by` ROWS (negative is older). Reaching the newest row follows it again;
+/// Move the view by `by` rows (negative is older). Reaching the newest row follows it again;
 /// anywhere else the view is anchored to the entry and row now at its top.
 inline void TerminalPaneWeave::scroll(std::int64_t by) {
     const WrappedRecord record = wrap_record(known_.entries, columns());
@@ -208,7 +206,7 @@ inline void TerminalPaneWeave::scroll(std::int64_t by) {
     reading_.row = top - (record.starts.empty() ? 0 : record.starts[i]);
 }
 
-/// A PAGE OF THE VIEW, keeping one row of the page before it in sight.
+/// A page of the view, keeping one row of the page before it in sight.
 inline std::int64_t TerminalPaneWeave::page() const { return view_rows_ > 1 ? view_rows_ - 1 : 1; }
 
 // ---- The rows, and the caret in them --------------------------------------------------
@@ -219,9 +217,9 @@ inline std::int64_t TerminalPaneWeave::page() const { return view_rows_ > 1 ? vi
 /// legend; the rest is split between the list (at most half) and the transcript. Every row is
 /// budgeted before it is composed, so a late row can never take back the input line.
 inline void TerminalPaneWeave::say(loom::Mail& mail) {
-    // No room, or no row yet: there is nothing this pane could truthfully fill. The row's half is a
-    // second guard: Workshop hands a pane its row before it grants the room, so it matters only to
-    // a host that grants the room first.
+    // No area, or no row yet: there is nothing this pane could truthfully fill. The row's half is a
+    // second guard: Workshop hands a pane its row before it grants the area, so it matters only to
+    // a host that grants the area first.
     if (!room().granted() || !this->template facet<Settings>().held()) {
         return;
     }
@@ -242,7 +240,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     }
     // The input row is taken first and a notice second, before anything else is composed: a
     // refusal belongs beside the line it is about, inside the budget. Two rows is the smallest
-    // room that holds both; in one row the line keeps it and the refusal is not shown.
+    // area that holds both; in one row the line keeps it and the refusal is not shown.
     const bool notice = !notice_.empty() && rows() >= 2;
     const std::int64_t body = rows() - 1 - (notice ? 1 : 0);
     const bool header = body >= 1;
@@ -253,12 +251,12 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
         rest = 0;
     }
 
-    // A REFUSAL THE DOOR GAVE, over the top row, where a weaver will see it.
+    // A refusal the door gave, over the top row, where a weaver will see it.
     if (notice) {
         push(notice_, zengine::graphics::colors::alert);
     }
 
-    // THE HEADER NAMES THE IDENTITY whose record this is. A presentation may hold
+    // The header names the identity whose record this is. A presentation may hold
     // controls for more than one identity, and the moment it stops saying which one it
     // is showing is the moment the two look like one thing with two windows.
     if (header) {
@@ -268,16 +266,16 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
              zengine::graphics::colors::accent);
     }
     if (legend) {
-        // WHERE THE SETTING SHOWS, SO WHERE A VALUE IT CANNOT USE IS SAID.
+        // Where the setting shows, so where a value it cannot use is said.
         legend_row_ = static_cast<std::int64_t>(out.size());
         push(legend_problem_.empty() ? legend_text() : legend_problem_,
              legend_problem_.empty() ? zengine::graphics::colors::quiet : zengine::graphics::colors::alert);
     }
 
-    // THE LIST'S SHARE, DECIDED BEFORE THE TRANSCRIPT'S so the transcript gets what is
+    // The list's share, decided before the transcript's so the transcript gets what is
     // left rather than the other way round.
     const bool list_open = offer_applies() && offered_.open && !dismissed_;
-    // THE ROW ABOVE THE LINE SAYS WHICH COMMAND IS RECALLED when there is no list: browsing
+    // The row above the line says which command is recalled when there is no list: browsing
     // history is a different state from composing, and a weaver has to be able to see which.
     const std::string history = list_open ? std::string() : history_heading();
     std::size_t list_wanted = list_open ? offered_.candidates.size() + 1 /*the heading*/
@@ -286,15 +284,15 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     if (list_wanted > list_ceiling) {
         list_wanted = list_ceiling;
     }
-    // A LIST OF ONE ROW IS A HEADING WITH NO CANDIDATES UNDER IT, and that is a complete
-    // answer rather than an empty box -- `kCompletionMinRows` was one for exactly this
-    // reason, measured: with a floor of two, `send * s` showed nothing at all.
+    // A list of one row is a heading with no candidates under it, and that is a complete
+    // answer rather than an empty box. That is why `kCompletionMinRows` is one: with a floor of
+    // two, `send * s` showed nothing at all.
     if ((list_open || !history.empty()) && list_wanted == 0 && rest >= 2) {
         list_wanted = 1;
     }
     const std::int64_t transcript_rows = rest - static_cast<std::int64_t>(list_wanted);
 
-    // THE TRANSCRIPT, WRAPPED AND SCROLLED -- one entry becomes as many rows as its sentence
+    // The transcript, wrapped and scrolled -- one entry becomes as many rows as its sentence
     // needs, and the view is a window onto all of them. Following, the newest row is at the
     // bottom. Scrolled away, a row below the view says how much is below and is the press back
     // to the newest; where there is no row for it, the top marker says it instead.
@@ -345,13 +343,13 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
         push(history, zengine::graphics::colors::quiet);
     }
 
-    // THE LINE BEING TYPED, AND -- while there is nothing on it -- the gesture that
+    // The line being typed, and -- while there is nothing on it -- the gesture that
     // answers "what can I say here". It is on this row rather than in the legend because
-    // it is about what to do NEXT rather than about what a word means, and because it
+    // it is about what to do next rather than about what a word means, and because it
     // erases itself: the moment a weaver types anything the line has their text on it.
 
-    // THE LINE IS A BOX from the column after the prompt's space to the row's end; while empty and
-    // nothing is listed, `kEmptyLineBox` wide with the gesture after it. In a room of cells the
+    // The line is a box from the column after the prompt's space to the row's end; while empty and
+    // nothing is listed, `kEmptyLineBox` wide with the gesture after it. In an area of cells the
     // prompt already says where to type: there it reads plain, and while empty is the caret's column.
     const bool prompting = line_.empty() && !list_open;
     line_cells_ = room().cells();
@@ -376,7 +374,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     send(std::move(out), std::move(parts), mail);
 }
 
-/// THE ROWS DRAWN in the pane's area, its caret and selection standing in them.
+/// The rows drawn in the pane's area, its caret and selection standing in them.
 inline void TerminalPaneWeave::send(std::vector<zengine::pane::TextRow> out,
                                     std::vector<zengine::pane::RowPart> parts, loom::Mail& mail) {
     room().caret() = caret();
@@ -392,7 +390,7 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
                                  : first + body;
     std::string heading = offered_.heading;
     if (offered_.candidates.size() > body) {
-        // WHICH SLICE, SAID OUT LOUD -- including the slice that is nothing at all, which
+        // Which slice, said out loud -- including the slice that is nothing at all, which
         // is what a pane too short for a single candidate row shows. "none of 5" is a
         // worse picture than five rows and a far better sentence than five rows' worth of
         // silence.
@@ -400,7 +398,7 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
                              : std::to_string(first + 1) + "-" + std::to_string(last)) +
                   " of " + std::to_string(offered_.candidates.size()) + "  " + heading;
     }
-    // WITH THE CURSOR THE WEAVER MOVED, ENTER TAKES WHAT IT IS ON: said where the list is read,
+    // With the cursor the weaver moved, enter takes what it is on: said where the list is read,
     // after what the list is, so a narrow pane gives up this before the list's own words.
     if (cursor_moved_ && !offered_.candidates.empty()) {
         heading += " -- Enter: take it, Shift+Enter: run the line";
@@ -411,7 +409,7 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
         const bool chosen = i == selected_;
         std::string text = (chosen ? "> " : "  ") + c.display;
         if (!c.detail.empty()) {
-            // The detail is what a candidate MEANS, and it is the first thing a narrow
+            // The detail is what a candidate means, and it is the first thing a narrow
             // pane gives up: `fit` cuts the whole row, so a list in a small window shows
             // names and a list in a large one shows names and meanings.
             text += "   " + c.detail;
@@ -420,10 +418,10 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
     }
 }
 
-/// WHERE THE CARET IS, AND WHAT IS SELECTED -- in the rows' own lattice, never written
+/// Where the caret is, and what is selected -- in the rows' own lattice, never written
 /// into them; none when the input row was cut away.
 ///
-/// ONE MEASURER: the column comes from the same window the row was written against and
+/// One measurer: the column comes from the same window the row was written against and
 /// the same one a press is answered with, so a caret cannot land where the text is not
 /// and a click cannot land where the caret would not.
 inline zengine::pane::RowsCaret TerminalPaneWeave::caret() const {
@@ -431,8 +429,8 @@ inline zengine::pane::RowsCaret TerminalPaneWeave::caret() const {
     if (input_row_ < 0) {
         return caret;
     }
-    // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range, from the
-    // box the row was written with, where its room puts its text. A selection scrolled wholly off
+    // And the selection, the same way: the visible part of the component's own range, from the
+    // box the row was written with, where its area puts its text. A selection scrolled wholly off
     // the slice says nothing, which is the truthful picture of a row that shows none of it.
     caret = zengine::pane::box_caret(line_box_, input_row_, line_cells_);
     return caret;

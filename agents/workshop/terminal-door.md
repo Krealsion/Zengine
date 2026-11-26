@@ -1,10 +1,10 @@
 # Workshop law — the Terminal's door
 
-Register `WL-TERM`, continued from [`terminal.md`](terminal.md): the terminal PARTICIPANT Workshop
+Register `WL-TERM`, continued from [the Terminal's laws](../../terminal/docs/terminal-laws.md): the terminal PARTICIPANT Workshop
 mounts and holds, the door onto it composed onto Workshop's weave (`workshop/terminal/door.hpp`),
 its completer (`workshop/terminal/complete.hpp`), the picture of its record
 (`workshop/terminal/transcript.hpp`) and what it may say. One law per heading; cite by ID. Router:
-[`../workshop.md`](../workshop.md). The pane that presents it is [`terminal.md`](terminal.md)'s.
+[`../workshop.md`](../workshop.md). The pane that presents it is [the Terminal's](../../terminal/README.md).
 
 Retired: WL-TERM-03, WL-TERM-04
 

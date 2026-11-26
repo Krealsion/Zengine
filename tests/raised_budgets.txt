@@ -84,5 +84,4 @@ agents/workshop/setting-locks.md 7
 agents/workshop/settings.md 30
 agents/workshop/setup-file.md 16
 agents/workshop/terminal-door.md 8
-agents/workshop/terminal.md 2
 agents/workshop/text-box.md 4

@@ -292,10 +292,10 @@ Its law, pages and suites: [`inventory/AGENTS.md`](../../inventory/AGENTS.md).
 
 ### The Terminal (`terminal/`)
 
-Its law, pages and suites: [`terminal/AGENTS.md`](../../terminal/AGENTS.md).
+Its law, pages and suites: [its front page](../../terminal/README.md#working-on-it).
 
 - **The image that presents the Terminal's participant cannot reach it.**
-  [WL-TERM-08](../../agents/workshop/terminal.md#wl-term-08--the-image-that-presents-a-participant-cannot-reach-one)
+  [WL-TERM-08](../../terminal/docs/terminal-laws.md#wl-term-08--the-image-that-presents-a-participant-cannot-reach-one)
 - **Escape sheds one layer a press**, and is given back only when the pane holds nothing.
   [`terminal.back`](../../terminal/docs/zengine.terminal.md#terminalback)
 - **A case moved to another consumer is coverage lost.**

@@ -1,0 +1,26 @@
+# The proofs of terminal/'s laws (terminal/docs/terminal-laws.md), read by the law_register check
+# (tests/check_law_register.cmake): under each `### <id>` a line a file, the file in backticks, then
+# the functions, types, constants and members it holds bare and its cases quoted. The `Retired:`
+# line holds the numbers these laws no longer use, never used again.
+
+Retired: WL-TERM-06, WL-TERM-07, WL-TERM-09, WL-TERM-10, WL-TERM-12, WL-TERM-13, WL-TERM-14, WL-TERM-15, WL-TERM-19, WL-TERM-21
+
+### WL-TERM-01
+`terminal/vocabulary.hpp` kTerminalPaneRole kTerminalPane kActionSubmit kActionBack kActionUp
+kActionDown kActionComplete
+`workshop/default-load-plan.json`
+`tests/test_workshop_panes_terminal.cpp` "the Terminal is an ordinary arranged pane, offered by a
+role" "the five keys are the pane's rows, on the built-in's own spellings" "nothing global opens
+it, and no key acts on it from anywhere else" "a weaver presses in, types a line, and the
+participant runs it"
+
+### WL-TERM-08
+`terminal/CMakeLists.txt`
+`terminal/pane.cpp` TerminalPaneWeave
+`tests/test_workshop_panes_terminal.cpp` "the image that presents a participant cannot reach one"
+
+### WL-TERM-11
+`terminal/pane.cpp` on(TerminalCompletionOffered)
+`terminal/history_and_completion.hpp` here moved offer_applies ask_completion selectable accept_candidate
+`tests/test_workshop_panes_terminal.cpp` "a completion answer about a line that is gone is neither
+shown nor taken" "an answer for a caret that has since moved does not reopen the list"
