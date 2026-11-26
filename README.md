@@ -213,7 +213,7 @@ the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengi
 | [`timer/`](timer/README.md) | timers, fired at the time the host's one wait hands over | `zengine::timer` |
 | [`input/`](input/README.md) | the sole producer of key, text and pointer moments | `zengine::input` |
 | [`graphics/`](graphics/README.md) | drawing into a window: nodes, elements, colours by name, the two windows and their palettes | `zengine::graphics` |
-| [`ui/`](ui/README.md) | authored places and sizes in words, solved in a room in whole pixels | `zengine::ui` |
+| [`ui/`](ui/README.md) | authored places and sizes in words, solved within bounds in whole pixels | `zengine::ui` |
 | [`component/`](component/README.md) | reusable pieces of a tool that own their state and know no medium: text editing, list and table arithmetic, a control strip, motion sampling | `zengine::component` |
 | [`activation/`](activation/README.md) | reading your own activation, once, without replay | `zengine::activation` |
 | [`property/`](property/README.md) | a typed connection to one property of one thing, the words a type is written and read in, and an inspector's line over it | `zengine::property` |
