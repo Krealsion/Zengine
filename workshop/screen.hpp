@@ -680,7 +680,7 @@ struct Session {
     /// third gesture record, for the other two's own reason; see `LayoutTabDrag`.
     LayoutTabDrag tab_drag;
     /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON — session in the plainest sense.
-    // WL-TEXT-08 -- agents/workshop/text-box.md
+    // WL-TEXT-08 -- component/docs/component-laws.md
     component::Clipboard clipboard;
     /// THE EFFECTIVE BINDING TRUTH: declaration defaults plus the weaver's
     /// authored overrides, plus the legend preference.

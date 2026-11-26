@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // `WorkshopWeave`'s external pane seam: offers, declared actions and reveals.
-// Workshop law: agents/workshop/text-box.md (+6 registers; agents/workshop.md routes)
+// Workshop law: component/docs/component-laws.md (+6 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 
@@ -366,7 +366,7 @@ std::string WorkshopWeave::hotkey(Act a) const {
     return hotkey_text(session_.keymap, session_.band_keys, a);
 }
 
-// WL-TEXT-09 -- agents/workshop/text-box.md
+// WL-TEXT-09 -- component/docs/component-laws.md
 component::TextBox* WorkshopWeave::naming_line() {
     if (session_.setup.naming.open) {
         return &session_.setup.naming.line;
@@ -374,7 +374,7 @@ component::TextBox* WorkshopWeave::naming_line() {
     return nullptr;
 }
 
-// WL-KEY-03 -- agents/workshop/keyboard.md; WL-TEXT-09 -- agents/workshop/text-box.md
+// WL-KEY-03 -- agents/workshop/keyboard.md; WL-TEXT-09 -- component/docs/component-laws.md
 WorkshopWeave::PasteOwner WorkshopWeave::paste_owner_now() {
     switch (keyboard_context(session_)) {
     case KeyContext::kNaming: return PasteOwner::kNaming;
@@ -382,7 +382,7 @@ WorkshopWeave::PasteOwner WorkshopWeave::paste_owner_now() {
     }
 }
 
-// WL-TEXT-09 -- agents/workshop/text-box.md
+// WL-TEXT-09 -- component/docs/component-laws.md
 void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
     PendingPaste p;
     p.owner = paste_owner_now();

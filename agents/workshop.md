@@ -24,7 +24,7 @@ consumer-specific behavior of its extracted panes.
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
 | a key, the keymap, an edit, a press's causes | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) · [spelling](workshop/key-spelling.md) `WL-KEY` · [causes](workshop/action-causes.md) `WL-CAUSE` · [focus](workshop/focus.md) `WL-FOCUS` |
-| an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
+| an editable line, the TextBox, the clipboard, a paste | [the text box's laws](../component/docs/component-laws.md) `WL-TEXT` |
 | Info's body, its subject, its grounds, the desk row naming it | [info-body](workshop/info-body.md) `WL-INFO` |
 | the Editor, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |

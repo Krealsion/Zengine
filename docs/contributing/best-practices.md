@@ -163,14 +163,14 @@ Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 ### Components (`component/`)
 
-Its law, pages and suites: [`component/AGENTS.md`](../../component/AGENTS.md).
+Its law, pages and suites: [its front page](../../component/README.md#working-on-it).
 
 - **A piece joins the package when extracting it deletes copies that working tools carry.**
   [Recurring principles](../architecture/README.md#recurring-principles)
 - **An unavailable control is still drawn and still a target**, and the operation asks again when
   pressed. [WL-HAND-01](../../agents/workshop/pane-controls.md#wl-hand-01--a-control-is-a-face-a-place-and-an-operation-and-availability-is-drawn)
 - **A paste is a conversation**, and its answer belongs to the draft that asked.
-  [WL-TEXT-09](../../agents/workshop/text-box.md#wl-text-09--a-paste-is-a-conversation-and-the-answer-belongs-to-the-draft-that-asked)
+  [WL-TEXT-09](../../component/docs/component-laws.md#wl-text-09--a-paste-is-a-conversation-and-the-answer-belongs-to-the-draft-that-asked)
 
 ### Attention (`attention/`)
 

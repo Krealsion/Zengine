@@ -30,7 +30,7 @@ inline constexpr std::string_view kPinnedTab = "pinned";
 inline constexpr std::string_view kAllTab = "all";
 inline constexpr std::string_view kKeptTab = "kept";
 
-/// THE TABS A SETTINGS LIST DERIVES, in order: `pinned` when any setting is pinned, `all`, every
+/// The tabs a settings list derives, in order: `pinned` when any setting is pinned, `all`, every
 /// tag the settings name in byte order and once each, and `kept` when a kept row is listed.
 inline std::vector<std::string> setting_tabs(bool any_pinned, std::vector<std::string> tags,
                                              bool any_kept) {
@@ -55,7 +55,7 @@ inline std::vector<std::string> setting_tabs(bool any_pinned, std::vector<std::s
     return out;
 }
 
-/// WHERE ONE TAB IS DRAWN: its place in the tab list, its word, and the columns of its face,
+/// Where one tab is drawn: its place in the tab list, its word, and the columns of its face,
 /// brackets included -- the whole face is the target.
 struct PlacedTab {
     std::size_t index = 0;
@@ -65,7 +65,7 @@ struct PlacedTab {
     std::int64_t width = 0;
 };
 
-/// THE STRIP AS A WIDTH SHOWS IT: the row to draw, the tabs placed on it, and on each side how
+/// The strip as a width shows it: the row to draw, the tabs placed on it, and on each side how
 /// many tabs it leaves out and where that count is drawn (`width` 0 when none is).
 struct TabStrip {
     std::string text;
@@ -88,7 +88,7 @@ inline std::string tab_face(std::string_view word, bool active) {
     return active ? "*" + std::string(word) + "*" : "[" + std::string(word) + "]";
 }
 
-/// WHAT `columns` SHOW OF `tabs` WITH `active` THE ACTIVE ONE (an index past the end is the
+/// What `columns` show of `tabs` with `active` the active one (an index past the end is the
 /// first): the active tab always, then as many on each side as fit beside it, grown outward a tab
 /// at a time, right before left, with the counts of what is left out spending the same width. A
 /// width too narrow for the active tab alone still shows it, cut by whoever draws the row.

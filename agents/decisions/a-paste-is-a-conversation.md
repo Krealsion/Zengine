@@ -1,7 +1,7 @@
 # A paste is a conversation
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [text-box](../workshop/text-box.md).
+supports is in [the text box's laws](../../component/docs/component-laws.md).
 
 **Context.** The clipboard crosses the Skin seam as a pair of shapes and every text-holding
 participant mirrors a copy (`25b304c`). A paste then read the mirror, which is stale against
@@ -70,4 +70,5 @@ undelivered ask of Info's is released; an act the host received and has not answ
 spelling line keeps its paste on the same terms.
 
 **Laws supported.** [WL-EDIT-11](../workshop/editor.md), [WL-INFO-12](../workshop/info-body.md),
-[WL-TEXT-08](../workshop/text-box.md), [WL-TEXT-09](../workshop/text-box.md).
+[WL-TEXT-08](../../component/docs/component-laws.md),
+[WL-TEXT-09](../../component/docs/component-laws.md).

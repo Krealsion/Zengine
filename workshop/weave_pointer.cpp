@@ -199,12 +199,12 @@ void WorkshopWeave::context_press(const PointedAt& at, std::int64_t space, std::
     choose_context_row(mail);
 }
 
-// WL-TEXT-08 -- agents/workshop/text-box.md
+// WL-TEXT-08 -- component/docs/component-laws.md
 void WorkshopWeave::on(const zengine::graphics::ClipboardCopy& c, loom::Mail&) {
     session_.clipboard.text = c.text;
 }
 
-// WL-TEXT-09 -- agents/workshop/text-box.md
+// WL-TEXT-09 -- component/docs/component-laws.md
 void WorkshopWeave::on(const zengine::graphics::ClipboardText& a, loom::Mail& mail) {
     if (!mail.answers_ask()) {
         return; // not Loom's answer to anything this weave asked

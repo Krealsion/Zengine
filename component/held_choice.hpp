@@ -23,7 +23,7 @@ struct HeldChoice {
     std::size_t at = 0;  ///< where the marker stands in the last population found against
     bool lost = false;   ///< the key was not in that population; `at` is where it was
 
-    /// FIND THE HELD KEY IN A FRESH POPULATION. By identity, so a member inserted above it
+    /// Find the held key in a fresh population. By identity, so a member inserted above it
     /// moves the marker with it, and one that returns is found again. A key that is not there
     /// leaves the marker where it was, holding nothing, and Return-like acts refuse until a row
     /// is deliberately chosen (`actionable`). Only a choice never made takes the row the marker
@@ -49,7 +49,7 @@ struct HeldChoice {
         }
     }
 
-    /// HOLD THE MEMBER AT `i`: the marker moves there and the key is that member's.
+    /// Hold the member at `i`: the marker moves there and the key is that member's.
     template <class Population, class KeyOf>
     void hold(const Population& population, std::size_t i, KeyOf key_of) {
         if (i >= population.size()) {
@@ -61,7 +61,7 @@ struct HeldChoice {
         lost = false;
     }
 
-    /// STEP THE MARKER BY `by` ROWS, clamped, holding what it lands on. Returns whether it moved.
+    /// Step the marker by `by` rows, clamped, holding what it lands on. Returns whether it moved.
     template <class Population, class KeyOf>
     bool step(const Population& population, std::int64_t by, KeyOf key_of) {
         const std::size_t n = population.size();
@@ -80,7 +80,7 @@ struct HeldChoice {
         return moved;
     }
 
-    /// MAY AN ACT SPEND THIS CHOICE? Not while nothing was ever chosen, and not while the chosen
+    /// May an act spend this choice? Not while nothing was ever chosen, and not while the chosen
     /// row has left: acting on whichever member slid into the marker's place is the defect the
     /// keep-lost rule exists to refuse.
     bool actionable() const noexcept { return chosen && !lost; }

@@ -22,7 +22,7 @@
 
 namespace zengine::component {
 
-/// HOW ONE PARAGRAPH OF AN AREA READS: the owner's number for its look, which only the owner reads,
+/// How one paragraph of an area reads: the owner's number for its look, which only the owner reads,
 /// and how many columns its further lines stand in when it wraps. A paragraph is a line of the
 /// text as written, up to its `\n`.
 struct TextLook {
@@ -31,7 +31,7 @@ struct TextLook {
     bool operator==(const TextLook&) const = default;
 };
 
-/// LONG TEXT, READ ONLY: the text as written, how each paragraph reads, a selection and the place
+/// Long text, read only: the text as written, how each paragraph reads, a selection and the place
 /// the scroll stands at. Every operation keeps the places on character boundaries in the text.
 class TextArea {
 public:
@@ -39,7 +39,7 @@ public:
     /// of any height is this many units tall.
     static constexpr std::int64_t kUnitsPerLine = 4096;
 
-    /// ONE LINE AS A WIDTH WRAPS IT: the bytes of the text it shows, `end` exclusive (a break's
+    /// One line as a width wraps it: the bytes of the text it shows, `end` exclusive (a break's
     /// space is in neither line), the paragraph it belongs to, and the blank columns it stands in.
     struct Line {
         std::size_t begin = 0, end = 0;
@@ -59,7 +59,7 @@ public:
     /// How paragraph `p` reads: its look, or the plain one where none was given.
     TextLook look(std::size_t p) const { return p < looks_.size() ? looks_[p] : TextLook{}; }
 
-    /// NEW TEXT, THE SCROLL AND THE SELECTION KEPT: each place held inside the new text and on its
+    /// New text, the scroll and the selection kept: each place held inside the new text and on its
     /// boundaries, so text that grew or was laid out again stays where the weaver was reading.
     void set(std::string text, std::vector<TextLook> looks = {}) {
         text_ = std::move(text);
@@ -82,7 +82,7 @@ public:
 
     // ---- The wrap -----------------------------------------------------------------------------
 
-    /// THE TEXT AS `columns` COLUMNS WRAP IT: each paragraph from its first line, a further line
+    /// The text as `columns` columns wrap it: each paragraph from its first line, a further line
     /// standing in its paragraph's hang; a line broken at its last space that fits, the space spent
     /// by the break, and a word longer than the line cut where the line ends. An empty paragraph is
     /// one empty line; no text is none.
@@ -104,7 +104,7 @@ public:
         }
     }
 
-    /// THE LINE HOLDING `place`: the last whose first byte is at or before it.
+    /// The line holding `place`: the last whose first byte is at or before it.
     static std::size_t line_of(const std::vector<Line>& lines, std::size_t place) noexcept {
         std::size_t found = 0;
         for (std::size_t i = 0; i < lines.size(); ++i) {
@@ -116,7 +116,7 @@ public:
         return found;
     }
 
-    /// THE PLACE A COLUMN OF A SHOWN LINE NAMES: the character covering it, from the line's indent
+    /// The place a column of a shown line names: the character covering it, from the line's indent
     /// on (`byte_at_column`), a column in the indent its first, one past its words its end.
     std::size_t place_in_line(const Line& line, std::int64_t column) const noexcept {
         const std::int64_t into = column - line.indent;
@@ -129,13 +129,13 @@ public:
 
     // ---- The scroll, by whole lines --------------------------------------------------------------
 
-    /// THE FURTHEST FIRST LINE `rows` LINES OF TEXT SHOW, `total` lines long: the last lines.
+    /// The furthest first line `rows` lines of text show, `total` lines long: the last lines.
     static std::size_t last_first(std::size_t total, std::int64_t rows) noexcept {
         const std::size_t room = rows > 0 ? static_cast<std::size_t>(rows) : 1;
         return total > room ? total - room : 0;
     }
 
-    /// THE FIRST LINE SHOWN, of `all`, where `rows` lines of text show: the line holding the scroll's
+    /// The first line shown, of `all`, where `rows` lines of text show: the line holding the scroll's
     /// place, held so the last line ends the rows at most.
     std::size_t first_line(const std::vector<Line>& all, std::int64_t rows) const noexcept {
         const std::size_t first = line_of(all, top_);
@@ -143,7 +143,7 @@ public:
         return first > last ? last : first;
     }
 
-    /// THE SCROLL MOVED `by` LINES, `columns` wide where `rows` lines of text show, held inside the
+    /// The scroll moved `by` lines, `columns` wide where `rows` lines of text show, held inside the
     /// text.
     void scroll_lines(std::int64_t by, std::int64_t columns, std::int64_t rows) {
         const std::vector<Line> all = lines(columns);
@@ -169,7 +169,7 @@ public:
 
     // ---- The scroll, in a window -----------------------------------------------------------------
 
-    /// HOW FAR DOWN THE TEXT A WINDOW `shown` UNITS TALL IS SCROLLED, in `kUnitsPerLine`, held so the
+    /// How far down the text a window `shown` units tall is scrolled, in `kUnitsPerLine`, held so the
     /// last line's foot is the window's foot at most.
     std::int64_t offset(const std::vector<Line>& all, std::int64_t shown) const noexcept {
         const std::int64_t most = furthest(all, shown);
@@ -178,14 +178,14 @@ public:
         return at < most ? at : most;
     }
 
-    /// THE SCROLL MOVED `by` UNITS IN A WINDOW `shown` UNITS TALL, `columns` wide: freely, a line
+    /// The scroll moved `by` units in a window `shown` units tall, `columns` wide: freely, a line
     /// part shown, and held inside the text.
     void scroll_by(std::int64_t by, std::int64_t columns, std::int64_t shown) {
         const std::vector<Line> all = lines(columns);
         scroll_to(offset(all, shown) + by, all, shown);
     }
 
-    /// THE SCROLL SET `to` UNITS DOWN A WINDOW `shown` UNITS TALL, held inside the text: where a
+    /// The scroll set `to` units down a window `shown` units tall, held inside the text: where a
     /// bar dragged or pressed puts it.
     void scroll_to(std::int64_t to, const std::vector<Line>& all, std::int64_t shown) {
         if (all.empty()) {
@@ -208,16 +208,16 @@ public:
 
     // ---- The selection ---------------------------------------------------------------------------
 
-    /// A PRESS AT `place`: the caret there and nothing selected -- the gesture that starts one.
+    /// A press at `place`: the caret there and nothing selected -- the gesture that starts one.
     void press(std::size_t place) noexcept {
         places_.caret = character_boundary(text_, place);
         places_.anchor = places_.caret;
     }
 
-    /// A DRAG OR A SHIFTED PRESS REACHING `place`: the caret moves and the anchor stays.
+    /// A drag or a shifted press reaching `place`: the caret moves and the anchor stays.
     void drag_to(std::size_t place) noexcept { places_.caret = character_boundary(text_, place); }
 
-    /// THE WORD AT `place` SELECTED, a word a run of bytes between spaces and line ends; true when
+    /// The word at `place` selected, a word a run of bytes between spaces and line ends; true when
     /// there was one, else the press's answer.
     bool select_word_at(std::size_t place) noexcept {
         std::size_t begin = place < text_.size() ? place : text_.size();
@@ -237,7 +237,7 @@ public:
         return true;
     }
 
-    /// EVERYTHING SELECTED, the caret at the end.
+    /// Everything selected, the caret at the end.
     void select_all() noexcept {
         places_.anchor = 0;
         places_.caret = text_.size();
@@ -246,10 +246,10 @@ public:
     /// Nothing selected, the caret where it stands.
     void clear_selection() noexcept { places_.anchor = places_.caret; }
 
-    /// THE SELECTION COPIED, AS WRITTEN: never the wrap's breaks, indents or markers.
+    /// The selection copied, as written: never the wrap's breaks, indents or markers.
     void copy(Clipboard& clip) const { copy_selection(text_, places_, clip); }
 
-    /// THE KEYS AN AREA ANSWERS ITSELF: Ctrl+C copies and Ctrl+A selects all. Any other key is the
+    /// The keys an area answers itself: Ctrl+C copies and Ctrl+A selects all. Any other key is the
     /// owner's, the scroll's keys among them, since an owner names its own actions.
     bool consume(std::int64_t scancode, std::int64_t modifiers, Clipboard& clip) {
         if (modifiers != mod::kCtrl) {
@@ -268,7 +268,7 @@ public:
 
     // ---- A line as characters show it -----------------------------------------------------------
 
-    /// ONE WRAPPED LINE AS A ROW OF CHARACTERS SHOWS IT: its indent and its bytes, cut to `columns`,
+    /// One wrapped line as a row of characters shows it: its indent and its bytes, cut to `columns`,
     /// its paragraph's look, its index among the wrapped lines, and the columns of it selected (end
     /// exclusive, equal for none).
     struct ShownLine {
