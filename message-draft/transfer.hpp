@@ -5,8 +5,8 @@
 #include "message-draft/library.hpp"
 
 namespace zengine::message_draft {
-// Complete transport shapes around the existing partial-data codec. These are data,
-// not relaxed versions of the enclosed command and not execution permissions.
+// Complete shapes that carry the library's partial-data codec as an ordinary value. They are
+// data: not relaxed versions of the enclosed command, and not a permission to run it.
 inline std::shared_ptr<const loom::Schema> stored_draft_schema() {
     static const auto s = loom::SchemaBuilder("zengine.message_draft.StoredDraft", 1)
         .field("library", loom::Kind::Bytes).build();

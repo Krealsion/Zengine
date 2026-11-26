@@ -4,10 +4,10 @@
 #ifndef ZENGINE_THEME_STACK_HPP
 #define ZENGINE_THEME_STACK_HPP
 
-// HOW A STACK IS LAID, as values: its themes, bottom first, each over the pool's defaults and the
-// terminal's own look and over the theme below it, into the one palette its areas wear. A theme of
-// one medium alone is a normal link, applied in its place and converted as well as it can be -- a
-// window colour to its nearest ink, an ink to the colour xterm shows it in, `terminal default`
+// How a stack is laid, as values alone: its themes, bottom first, each over the pool's defaults and
+// the terminal's own look and over the theme below it, into the one palette its areas wear. A theme
+// of one medium alone is a normal link, applied in its place and converted as well as it can be --
+// a window colour to its nearest ink, an ink to the colour xterm shows it in, `terminal default`
 // falling through to the theme below -- and said with a warning. A pane's own value a theme sets is
 // judged against what its role declares. Reference: theme/README.md, "A stack".
 
@@ -39,7 +39,7 @@ inline constexpr const char* kTerminalAloneWarning =
 /// A role's own values as it declared them.
 using Declared = std::map<std::string, graphics::OwnValuesDeclared>;
 
-/// A STACK LAID: the palette, named for the stack, and what laying it said.
+/// A stack laid: the palette, named for the stack, and what laying it said.
 struct Laid {
     graphics::PaletteOffered palette;
     StackLaid laid;
@@ -110,10 +110,10 @@ inline const graphics::OwnDeclared* declared_value(const graphics::OwnValuesDecl
 
 } // namespace detail
 
-/// LAY `themes`, BOTTOM FIRST, through `resolve` (a name to a `ThemeResolved`), judging own values
-/// against `declared`: the palette named `stack_palette(themes)` at revision 0, each link as it was
-/// put in, and each entry left out with why. A link that does not resolve is left out and said; the
-/// rest stand.
+/// Lays `themes`, bottom first, through `resolve` (a name to a `ThemeResolved`), judging own values
+/// against `declared`. It answers the palette named `stack_palette(themes)` at revision 0, each
+/// link as it was put in, and each entry left out with why. A link that does not resolve is left
+/// out and said, and the rest stand.
 inline Laid lay_stack(const std::vector<std::string>& themes,
                       const std::function<ThemeResolved(const std::string&)>& resolve,
                       const Declared& declared = {}) {
@@ -136,7 +136,7 @@ inline Laid lay_stack(const std::vector<std::string>& themes,
         const auto skip = [&](std::string role, std::string entry, std::string why) {
             out.laid.skipped.push_back(OwnSkipped{name, std::move(role), std::move(entry), std::move(why)});
         };
-        // ITS WINDOW LOOK: the window file's, or its inks as the colours xterm shows them in.
+        // Its window look: the window file's, or its inks as the colours xterm shows them in.
         if (r.window) {
             for (const ThemeColor& c : r.colors) {
                 if (!detail::holds_name(pool.colors, c.name)) {
@@ -207,8 +207,8 @@ inline Laid lay_stack(const std::vector<std::string>& themes,
                         skip(o.role, s.name, why);
                         continue;
                     }
-                    // BELOW IT: what it was set to, else the style its role declares for its default,
-                    // else `body`.
+                    // The style is laid over what it was already set to, else the style its role
+                    // declares as its default, else the palette's `body`.
                     graphics::PaletteStyle below{s.name, graphics::kTextFont, {},
                                                  graphics::colors::text.name,
                                                  graphics::text_weight::kRegular};
@@ -243,7 +243,7 @@ inline Laid lay_stack(const std::vector<std::string>& themes,
             }
             link.warning = kTerminalAloneWarning;
         }
-        // ITS TERMINAL LOOK: the terminal file's, or its colours as their nearest inks.
+        // Its terminal look: the terminal file's, or its colours as their nearest inks.
         if (r.terminal) {
             if (!r.borders.empty()) p.terminal.borders = r.borders;
             for (const ThemeInk& i : r.inks) {

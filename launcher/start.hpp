@@ -4,11 +4,12 @@
 #ifndef ZENGINE_LAUNCHER_START_HPP
 #define ZENGINE_LAUNCHER_START_HPP
 
-// A PROCESS STARTED DETACHED AND KEPT BY NOBODY (launcher/docs/zengine.launcher.md): it outlives
+// A process started detached and kept by nobody (launcher/docs/zengine.launcher.md): it outlives
 // whoever started it. On Windows it has a console and a process group of its own, inherits no
 // handle, and breaks away from a job where the job allows it; on POSIX it leads a session of its
-// own, its input empty, its output appended to a log, and no other descriptor open. Not a shell: a
-// program and an argument vector. The caller learns its id and nothing after.
+// own, its input empty, its output appended to a log, and no other descriptor open. It is not a
+// shell: it runs a program with an argument vector. The caller learns its id and nothing after.
+// It is not the build runner's child either, which dies with whoever holds it.
 
 #include <cerrno>
 #include <cstdint>
@@ -115,8 +116,8 @@ inline void close_all_but(int keep, long open_max) {
 
 } // namespace detail
 
-/// START `plan` DETACHED. Its id when it began; a program that could not run is said, on POSIX
-/// from the exec's own error.
+/// Starts `plan` detached and answers its id once it began. A program that could not run is
+/// said, on POSIX from the exec's own error.
 inline Started start_detached(const StartPlan& plan) {
     Started out;
 #if defined(_WIN32)
@@ -245,9 +246,10 @@ inline Started start_detached(const StartPlan& plan) {
 #endif
 }
 
-/// DOES THE PROCESS `pid` RUN NOW, a program whose file is named `program_file`? Asked of the
-/// system, never remembered: on Windows its exit is still to come and its image has that name; on
-/// Linux its `/proc` entry's program has that name; elsewhere it answers a signal of none.
+/// Whether the process `pid` runs now, as a program whose file is named `program_file`. It is
+/// asked of the system, never remembered: on Windows its exit is still to come and its image has
+/// that name, in any case; on Linux its `/proc` entry's program has that name. Elsewhere only
+/// whether the process exists is asked, by a signal of none, and its program is not read.
 inline bool runs_program(std::int64_t pid, const std::string& program_file) {
     if (pid <= 0) {
         return false;

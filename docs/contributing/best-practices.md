@@ -337,13 +337,13 @@ Its law, pages and suites: [the `introspection/` front page](../../introspection
 ### Compose (`composer/`, `message-draft/`)
 
 Its law, pages and suites: [the `composer/` front page](../../composer/README.md#working-on-it) and
-[`message-draft/AGENTS.md`](../../message-draft/AGENTS.md).
+[the `message-draft/` front page](../../message-draft/README.md#working-on-it).
 
 - **A drop never submits**, and submitting authorizes the exact destination and versioned shape.
   [The Composer](../../agents/panes.md#the-composer-is-a-schema-directed-message-form)
 - **`SUBMITTED` means queued**, not applied. [Reuse a stored command](../../inventory/docs/inventory-compose.md)
 - **Drafts spend Loom's lexer and composer**, and absence, false and empty stay distinct.
-  [Message drafts](../../agents/message-drafts.md)
+  [Message drafts](../../message-draft/docs/message-drafts.md#drafts-and-forms)
 
 ### The menu presenter (`workshop/menu-presenter/`)
 

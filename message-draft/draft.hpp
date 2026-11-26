@@ -14,7 +14,8 @@
 
 namespace zengine::message_draft {
 
-// Paths are structured: punctuation in a schema's field name is not a path grammar.
+// A path is structured, a field name or a list index a step, so punctuation in a schema's field
+// name is never read as a path grammar.
 using Step = std::variant<std::string, std::size_t>;
 using Path = std::vector<Step>;
 
@@ -41,7 +42,8 @@ inline void depth_check(std::size_t depth) {
     if (depth > max_depth) throw std::invalid_argument("draft exceeds 64 nesting levels");
 }
 inline loom::Cell clone_cell(const loom::Cell& cell, std::size_t depth);
-/// A union's held case into `out`: its value cloned, or the case chosen when it carries nothing.
+/// Copies a union's held case into `out`: its value cloned, or the case chosen when it carries
+/// nothing. A union that holds no case copies nothing.
 inline void clone_case(const loom::Value& value, loom::Value& out, std::size_t depth) {
     const auto held = value.chosen();
     if (!held) return;
@@ -80,7 +82,8 @@ inline void check_partial(const loom::Value& value) {
             throw std::invalid_argument(error.message());
 }
 
-// Rebuild the edited spine; no mutable nested Value escapes into another draft.
+// An edit rebuilds the values on the path to the edited field, so no mutable nested Value escapes
+// into another draft.
 inline loom::Cell edited_cell(const loom::Cell& cell, const Path& path, std::size_t at,
                              const std::optional<loom::Cell>& replacement);
 inline loom::Value edited_value(const loom::Value& value, const Path& path, std::size_t at,
@@ -198,7 +201,8 @@ public:
     Draft& operator=(Draft&&) noexcept = default;
 
     const std::shared_ptr<const loom::Schema>& schema() const noexcept { return value_.schema_ptr(); }
-    // Inspection only. Like Loom Value, shared nested messages are immutable to readers.
+    // For inspection only: as with Loom's own values, shared nested messages are immutable to
+    // readers.
     const loom::Value& value() const noexcept { return value_; }
     loom::Value snapshot() const { return detail::clone_value(value_); }
     std::vector<loom::Error> errors() const { return loom::diagnose(value_, value_.schema()); }

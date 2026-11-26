@@ -216,6 +216,8 @@ the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengi
 | [`ui/`](ui/README.md) | authored places and sizes in words, solved in a room in whole pixels | `zengine::ui` |
 | [`component/`](component/README.md) | reusable pieces of a tool that own their state and know no medium: text editing, list and table arithmetic, a control strip, motion sampling | `zengine::component` |
 | [`activation/`](activation/README.md) | reading your own activation, once, without replay | `zengine::activation` |
+| [`property/`](property/README.md) | a typed connection to one property of one thing, the words a type is written and read in, and an inspector's line over it | `zengine::property` |
+| [`persist/`](persist/README.md) | the file doors every durable file shares: a bounded read, a safe write, and what a write came to | `zengine::persist` |
 | [`operator/`](operator/README.md) | typed reusable rules, supplied by artifacts | `zengine::operator`, `zengine::operator-consumer` |
 | [`maker/`](maker/README.md) | a weave built from a weaver's definition — state, triggers and emits as data, edited live | `zengine::maker` |
 | [`message-draft/`](message-draft/README.md) | typed value forms, unfinished drafts and named presets | `zengine::message-draft` |

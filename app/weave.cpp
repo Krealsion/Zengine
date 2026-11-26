@@ -76,8 +76,9 @@ public:
 
     AppWeave() : Weave(app::kAppRole, kStatusArea) {}
 
-    /// Started: ask the host where the app is. A weave started again asks again, and runs nothing
-    /// twice: the hosts refuse a session that already runs, and say so on its line.
+    /// On its activation the weave asks the host where the app is. A weave started again asks
+    /// again, and runs nothing twice: the hosts refuse a session that already runs, and say so on
+    /// its line.
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
@@ -86,8 +87,8 @@ public:
         ask(mail, app::kAppHostRole, app::AppPlaceAsked{}, "where the app is was not told");
     }
 
-    /// Where the app is, in the answer Loom attests to this weave's own ask of the place door: the
-    /// app read and run, then arranged.
+    /// Where the app is, in the answer Loom attests to this weave's own ask of `zengine.app.host`:
+    /// the app is read and run, then arranged.
     void on(const app::AppPlaceSaid& place, loom::Mail& mail) {
         if (!mail.answers_ask() || told_) {
             return;
@@ -105,7 +106,7 @@ public:
         arrange(mail);
     }
 
-    /// A graphics directory started, afresh or again: everything is placed with it again.
+    /// When a graphics directory starts, afresh or again, everything is placed with it again.
     void on(const gfx::GraphicsReady&, loom::Mail& mail) {
         if (!mail.authored_from_role(gfx::kGraphicsRole)) {
             return;
@@ -116,6 +117,8 @@ public:
 
     /// A window offered itself, as its role: the first is the app's, and its size places the
     /// app's line at its foot.
+    /// Another window's offer is passed over, and the app's own offering itself again is
+    /// arranged again.
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
         if (!mail.authored_from_role(std::string(gfx::kWindowRolePrefix) + w.window) ||
             (!window_.window.empty() && w.window != window_.window)) {
@@ -154,8 +157,9 @@ public:
         }
     }
 
-    /// THE APP'S LINE GIVEN ITS ROOM in the app's window: the window holds this weave as an
-    /// arranger now, so it is told `app.json`'s title and size, once each incarnation of it.
+    /// The app's line is told its area in the app's window (`AreaRoom`): the window holds this
+    /// weave as an arranger now, so it tells the window `app.json`'s title and size, once each time
+    /// the window starts, and only where `app.json` names one of them.
     void on_room(const gfx::AreaRoom& r, loom::Mail& mail) {
         if (!read_ || r.window != window_.window || shaped_epoch_ == r.epoch) {
             return;
@@ -270,8 +274,8 @@ private:
     app::ZengineAppFile file_;
     gfx::WindowOffered window_;
     std::vector<Placed> views_;
-    /// This incarnation's asks not yet ended with no answer, by attempt: one a flow, a view and
-    /// the place, so as many as app.json names.
+    /// This incarnation's asks not yet ended with no answer, by attempt: one for each flow and
+    /// view, and one for where the app is, so as many as app.json names and one more.
     std::vector<std::pair<std::uint64_t, std::string>> asked_;
 };
 

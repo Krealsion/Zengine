@@ -7,8 +7,9 @@
 // The app host (app/docs/app.md): what `zengine-app` composes over one bus, and nothing a weave
 // could hold: one operator catalog, the Kernel asking Loom's authority store in the app's folder,
 // Loom's warden adopting each load, the weaver seat, the plan's realization owner (its barrier
-// asking the store before each row), the Flow host and the view host, the place door, the close,
-// and the console's words a line at a time, so a program and a suite drive it alike.
+// asking the store before each row), the Flow host and the view host, the role that says where the
+// app is, the close, and the console's words a line at a time, so a program and a suite drive it
+// alike. It never holds `zengine.workshop`.
 
 #include "app/session_file.hpp"
 #include "app/vocabulary.hpp"
@@ -66,7 +67,7 @@ struct AppSeatState {
     ZEN_SHAPE(AppSeatState, 1, ZEN_FIELD(answers));
 };
 
-/// THE WEAVER SEAT, the one participant the warden obeys. A question it asks from inside its
+/// The weaver seat, the one participant the warden obeys. A question it asks from inside its
 /// own delivery is a participant's ask, gated and stamped with its id, and an answer counts only
 /// when Loom attributes it to that question (`loom::AskBook`); Loom's word that it ended
 /// unanswered ends the wait at once.
@@ -160,15 +161,15 @@ private:
     loom::WeaveId warden_;
 };
 
-// ---- the place door, and the close -----------------------------------------------------------
+// ---- where the app is, and the close ---------------------------------------------------------
 
 struct AppPlaceDoorState {
     std::int64_t told = 0;
     ZEN_SHAPE(AppPlaceDoorState, 1, ZEN_FIELD(told));
 };
 
-/// `zengine.app.host`: where the app's folder is, and the directory the host opens artifacts from,
-/// answered to whoever asks. Facts, not powers.
+/// The host's role, `zengine.app.host`, answers whoever asks where the app's folder is and the
+/// directory the host opens artifacts from. These are facts, and they grant no power.
 class PlaceDoor final
     : public loom::WeaveBase<PlaceDoor, AppPlaceDoorState, loom::Accept<AppPlaceAsked>,
                              loom::Emit<AppPlaceSaid>> {
@@ -217,7 +218,7 @@ private:
 
 // ---- the host ----------------------------------------------------------------------------------
 
-/// WHERE AN APP RUNS: its folder, the directory artifacts are opened from, and how a stem is
+/// Where an app runs: its folder, the directory artifacts are opened from, and how a stem is
 /// spelled as a file there.
 struct AppPlace {
     std::string folder;
@@ -227,7 +228,7 @@ struct AppPlace {
 
 class AppHost {
 public:
-    /// Over `bus`, which outlives this host, saying what it does to `out`.
+    /// A host over `bus`, which outlives it, that says what it does to `out`.
     AppHost(loom::Switchboard& bus, AppPlace place, std::ostream& out)
         : bus_(bus), place_(std::move(place)), out_(out) {}
 
@@ -235,8 +236,8 @@ public:
     AppHost& operator=(const AppHost&) = delete;
 
     /// Read the plan and open the decisions, the store's lock claimed for this run, then compose
-    /// the host. False, with nothing composed and `why` saying it, for a plan that is refused, a
-    /// store that cannot be read, or one another host holds.
+    /// the host. It answers false, with nothing composed and `why` saying it, for a plan that is
+    /// refused, a store that cannot be read, or one another host holds.
     bool open(std::string* why) {
         const std::string plan_path = place_.folder + "/" + kPlanName;
         const realization::load_persist::LoadedPlan loaded = realization::load_persist::load_file(plan_path);
@@ -261,7 +262,7 @@ public:
             *why = "the decisions " + store_path_ + " cannot be read: " + refusal;
             return false;
         }
-        // WHILE IT RUNS, its process id stands in the folder (`app-session.json`), for whoever
+        // While it runs, its process id stands in the folder (`app-session.json`), for whoever
         // asks whether the app runs; the one host holding the decisions writes it.
         session_ = SessionFile(place_.folder);
         compose();
@@ -291,7 +292,7 @@ public:
         say_notes();
     }
 
-    /// ONE LINE AT THE CONSOLE: Loom's `authority ...`, `trust plan`, `status`, `help` or `quit`.
+    /// One line at the console: Loom's `authority ...`, `trust plan`, `status`, `help` or `quit`.
     /// After it, the row the plan waits on is asked again, and realized once the console has said
     /// yes.
     void command(const std::string& line) {
@@ -327,7 +328,8 @@ public:
     /// Kernel refused after that yes waits again, and the console is told why.
     void turned() { report_realization(/*then_waiting=*/true); }
 
-    /// Has the run ended -- `quit` at the console, the app's window closed, or its plan refused?
+    /// Whether the run has ended: `quit` at the console, the app's window closed, or its plan
+    /// refused.
     bool ended() const noexcept { return ended_; }
     /// The process's exit: 0 for a run its console or its window ended, 4 for a refused plan.
     int exit_code() const noexcept { return exit_code_; }
@@ -390,7 +392,8 @@ private:
             [this](const realization::Executed& done) { settled(done); },
             [this](const std::string& stem) { return !decided(stem); }));
 
-        // The place door, and the close, which hears only the app's own window.
+        // The role that says where the app is, and the close, which hears only the app's own
+        // window.
         loom::Grant say_place;
         say_place.allow_to_any(AppPlaceSaid::zen_name, AppPlaceSaid::zen_version);
         auto door = std::make_unique<PlaceDoor>(AppPlaceSaid{place_.folder, place_.artifacts});
@@ -408,7 +411,7 @@ private:
         views_->mount();
     }
 
-    /// THE KERNEL'S POLICY: the store's, which refuses at `Open` what the console has not decided
+    /// The Kernel's policy is the store's, which refuses at `Open` what the console has not decided
     /// and pins the build it decided; at `Speak` a plan row, from the plan's own file, speaks with
     /// the plan's posture, and anything else with the store's baseline.
     loom::AdmissionPolicy admission_policy() {
@@ -436,9 +439,9 @@ private:
         return place_.artifacts + "/" + stem + place_.suffix;
     }
 
-    /// HAS THE CONSOLE SAID YES TO THIS ROW'S BUILD? The store's own policy, asked at `Open` for
-    /// the file the row names, before anything of it is mounted or loaded: an undecided or
-    /// rebuilt artifact, a provider among them, is refused there and recorded as pending.
+    /// Whether the console has said yes to this row's build: the store's own policy, asked at
+    /// `Open` for the file the row names, before anything of it is mounted or loaded: an undecided
+    /// or rebuilt artifact, a provider among them, is refused there and recorded as pending.
     bool decided(const std::string& stem) {
         loom::AdmissionRequest request;
         request.stage = loom::AdmissionStage::Open;
@@ -505,7 +508,7 @@ private:
         }
     }
 
-    /// WHERE EACH ROW OF THE PLAN STANDS WITH THE CONSOLE, without asking the store's policy: its
+    /// Where each row of the plan stands with the console, without asking the store's policy: its
     /// file's build now, and whether a standing decision lets that build run, denies it, or there
     /// is none (or one about other bytes), so the row would wait.
     struct Standing {
@@ -528,7 +531,7 @@ private:
         return out;
     }
 
-    /// THE PLAN'S ONE LINE, OFFERED ONCE A RUN, before the first row the walk waits on: each
+    /// The plan's one line, offered once a run, before the first row the walk waits on: each
     /// artifact of the plan that would wait, by name and the build it would let run, and the line
     /// that lets them all. Nothing is decided until the weaver types it.
     void offer() {
@@ -582,7 +585,7 @@ private:
                      << " cannot be read\n";
                 continue;
             }
-            // THE BUILD THE WEAVER WAS SHOWN, or none: bytes that changed since are shown now and
+            // The build the weaver was shown, or none: bytes that changed since are shown now and
             // wait for the line again.
             if (const auto shown = shown_.find(s.stem); shown == shown_.end()) {
                 out_ << "  '" << s.stem << "' (build " << s.build.substr(0, 8)

@@ -31,7 +31,7 @@ constexpr const char* kLibrarySuffix =
     ".so";
 #endif
 
-/// WHERE THE ARTIFACTS ARE: beside this program, where a build stages them, else the installed
+/// Where the artifacts are: beside this program, where a build stages them, else the installed
 /// package's artifact directory, which stands at `ZENGINE_APP_ARTIFACTS` from this program's.
 std::string artifact_dir(const std::string& here) {
     namespace fs = std::filesystem;

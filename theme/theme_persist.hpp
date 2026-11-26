@@ -4,12 +4,12 @@
 #ifndef ZENGINE_THEME_THEME_PERSIST_HPP
 #define ZENGINE_THEME_THEME_PERSIST_HPP
 
-// A THEME'S FILES, paired by its name: `<name>.json` (format `zengine-theme`, version 3) holds a
+// A theme's files, paired by its name: `<name>.json` (format `zengine-theme`, version 3) holds a
 // window of light's look -- colours, fonts, sizes, styles and each role's own values -- and
 // `<name>.terminal.json` (format `zengine-terminal`, version 1) the terminal's: each colour's ink
 // and fill, and the border characters. Each may include other themes' files of its medium. A theme
 // is the look alone: a file of version 1, which held settings and keys, is refused, saying where
-// they live. Reference: theme/README.md.
+// they live. The files are described in theme/README.md.
 
 #include "graphics/terminal_inks.hpp" // the inks a terminal file names
 #include "persist/file.hpp"           // the bounded read and the safe write
@@ -121,7 +121,7 @@ struct ThemeOwn {
     friend bool operator==(const ThemeOwn&, const ThemeOwn&) = default;
 };
 
-/// A THEME'S WINDOW FILE, `<name>.json`: what it is, its name and summary, the themes whose window
+/// A theme's window file, `<name>.json`: what it is, its name and summary, the themes whose window
 /// files it is built from (applied first, in order), and its look.
 struct ThemeFile {
     std::string format = kThemeFormat;
@@ -150,7 +150,7 @@ struct ThemeInk {
     friend bool operator==(const ThemeInk&, const ThemeInk&) = default;
 };
 
-/// A THEME'S TERMINAL FILE, `<name>.terminal.json`: what it is, its name and summary, the themes
+/// A theme's terminal file, `<name>.terminal.json`: what it is, its name and summary, the themes
 /// whose terminal files it is built from, the border characters and each colour's ink.
 struct TerminalFile {
     std::string format = kTerminalFormat;
@@ -167,7 +167,7 @@ struct TerminalFile {
 
 // ---- Form ----------------------------------------------------------------------------------
 
-/// A THEME'S NAME: 1 to `kMaxThemeNameLen` bytes of `a`-`z`, `0`-`9` and `-`, the files' own name.
+/// A theme's name: 1 to `kMaxThemeNameLen` bytes of `a`-`z`, `0`-`9` and `-`, the files' own name.
 inline Written check_theme_name(std::string_view name) {
     if (name.empty() || name.size() > kMaxThemeNameLen) {
         return Written::no("a theme's name is 1 to " + std::to_string(kMaxThemeNameLen) +
@@ -311,7 +311,8 @@ template <class Items, class Check> Written each(const Items& items, Check check
 
 } // namespace detail
 
-/// A WINDOW FILE'S FORM: its name, every entry and every bound; refused naming the first fault.
+/// Judges a window file's form: its name, every entry and every bound. A fault is refused naming
+/// the first one found.
 inline Written check_theme_file(const ThemeFile& t) {
     if (Written w = check_theme_name(t.name); !w.accepted) return w;
     if (t.summary.size() > kMaxThemeSummaryLen) {
@@ -351,7 +352,7 @@ inline Written check_theme_file(const ThemeFile& t) {
     return Written::ok();
 }
 
-/// A TERMINAL FILE'S FORM: its name, its borders, every ink and every bound.
+/// Judges a terminal file's form: its name, its borders, every ink and every bound.
 inline Written check_terminal_file(const TerminalFile& t) {
     if (Written w = check_theme_name(t.name); !w.accepted) return w;
     if (t.summary.size() > kMaxThemeSummaryLen) {
@@ -433,7 +434,7 @@ inline js::Node ink_node(const ThemeInk& i) {
 
 } // namespace detail
 
-/// A WINDOW FILE AS PLAIN JSON, version 3: every member it holds a value for.
+/// A window file as plain JSON, version 3: every member it holds a value for.
 inline std::string to_text(const ThemeFile& t) {
     namespace js = persist::json;
     std::vector<std::pair<std::string, js::Node>> m{
@@ -450,7 +451,7 @@ inline std::string to_text(const ThemeFile& t) {
     return js::to_text(detail::object_of(std::move(m)));
 }
 
-/// A TERMINAL FILE AS PLAIN JSON, version 1: every member it holds a value for.
+/// A terminal file as plain JSON, version 1: every member it holds a value for.
 inline std::string to_text(const TerminalFile& t) {
     namespace js = persist::json;
     std::vector<std::pair<std::string, js::Node>> m{
@@ -464,11 +465,11 @@ inline std::string to_text(const TerminalFile& t) {
     return js::to_text(detail::object_of(std::move(m)));
 }
 
-/// WHY A THEME OF VERSION 1 IS NOT READ: it held settings and keys, which a theme holds no more.
+/// Why a theme of version 1 is not read: it held settings and keys, which a theme holds no more.
 inline constexpr const char* kVersionOneRefused =
     "a version-1 theme holds settings and keys, which a theme holds no more: a pane's settings are "
     "kept by the layouts' owner, and keys are the keymap's own layers -- nothing of it was read";
-/// WHY A WINDOW FILE OF VERSION 2 IS NOT READ: what moved since.
+/// Why a window file of version 2 is not read: what has moved since that version.
 inline constexpr const char* kVersionTwoRefused =
     "a version-2 theme gave each colour its terminal ink and fill, an outline, and named a pane's "
     "own values `slots`: a version-3 window file holds a window's look alone, under `own` for a "
@@ -476,8 +477,8 @@ inline constexpr const char* kVersionTwoRefused =
 
 namespace detail {
 
-/// PLAIN JSON READ AS A THEME'S FILE: each member one the file holds, of its kind; any other
-/// member, or a kind a member is not, refused by name.
+/// Reads plain JSON as a theme's file. Each member must be one the file holds, and of its kind;
+/// any other member, or one of the wrong kind, is refused by its name.
 struct Reader {
     std::string refusal;
 
@@ -620,7 +621,7 @@ inline Claimed claimed(std::string_view text) {
         c.refusal = "not a theme file: it is " + std::string(js::kind_word(root.kind));
         return c;
     }
-    // A FILE IN LOOM'S ENVELOPE IS VERSION 1, whatever else it says.
+    // A file in Loom's envelope is version 1, whatever else it says.
     if (root.member("zen") != nullptr) {
         c.refusal = kVersionOneRefused;
         return c;
@@ -637,7 +638,7 @@ inline Claimed claimed(std::string_view text) {
 
 } // namespace detail
 
-/// WHAT READING ONE FILE PRODUCED: the file, or why it was not read, and the bytes it was read
+/// What reading one file produced: the file, or why it was not read, and the bytes it was read
 /// from.
 template <class File> struct Loaded {
     Written outcome;
@@ -647,8 +648,9 @@ template <class File> struct Loaded {
 using LoadedWindow = Loaded<ThemeFile>;
 using LoadedTerminal = Loaded<TerminalFile>;
 
-/// Text to a window file, every refusal opening with `label`; nothing here throws. A version-1
-/// file is refused saying where settings and keys live, and a version-2 file saying what moved.
+/// Reads text as a window file, every refusal opening with `label`; nothing here throws. A
+/// version-1 file is refused saying where settings and keys live, and a version-2 file saying what
+/// moved.
 inline LoadedWindow window_from_text(std::string_view text, std::string_view label = "theme") {
     const std::string at = std::string(label) + ": ";
     detail::Claimed c = detail::claimed(text);
@@ -684,7 +686,7 @@ inline LoadedWindow window_from_text(std::string_view text, std::string_view lab
     return LoadedWindow{Written::ok(), std::move(t), std::string(text)};
 }
 
-/// Text to a terminal file, every refusal opening with `label`.
+/// Reads text as a terminal file, every refusal opening with `label`.
 inline LoadedTerminal terminal_from_text(std::string_view text, std::string_view label = "theme") {
     const std::string at = std::string(label) + ": ";
     detail::Claimed c = detail::claimed(text);
@@ -724,7 +726,7 @@ inline std::string terminal_path(const std::string& dir, std::string_view name) 
         .generic_string();
 }
 
-/// A THEME AS IT STANDS IN ONE FOLDER: each of its files there, read, or why one was not; a file
+/// A theme as it stands in one folder: each of its files there, read, or why one was not; a file
 /// not there is no refusal, and a theme with neither is none.
 struct ThemeFiles {
     bool window = false;
@@ -758,7 +760,7 @@ Loaded read_one(const std::string& path, std::string_view name, Read from_text) 
 }
 } // namespace detail
 
-/// READ THEME `name` FROM `dir`: a sound name, and each file of it there.
+/// Reads theme `name` from `dir`: its name is judged first, then each of its files there is read.
 inline ThemeFiles load_theme(const std::string& dir, std::string_view name) {
     ThemeFiles out;
     if (const Written form = check_theme_name(name); !form.accepted) {
@@ -783,7 +785,7 @@ inline ThemeFiles load_theme(const std::string& dir, std::string_view name) {
     return out;
 }
 
-/// WRITE A THEME'S FILES under `dir` by the safe write, the folder made on the first write: the
+/// Write a theme's files under `dir` by the safe write, the folder made on the first write: the
 /// window file where `window` is given, the terminal file where `terminal` is. Each is judged
 /// first, and nothing is written where either is refused; a theme already there is overwritten only
 /// with `replace`.
@@ -830,7 +832,7 @@ inline Written save_theme(const std::string& dir, const ThemeFile* window,
 
 // ---- Resolution ----------------------------------------------------------------------------
 
-/// A THEME RESOLVED WITH ITS INCLUDES: which of its files it has, its window look and its terminal
+/// A theme resolved with its includes: which of its files it has, its window look and its terminal
 /// look, each the later include's and then its own winning for one name -- or the refusal, which
 /// leaves nothing half done.
 struct ThemeResolved {
@@ -904,7 +906,7 @@ inline void own_into(std::vector<ThemeOwn>& into, const ThemeOwn& o) {
     into.push_back(o);
 }
 
-/// ONE MEDIUM'S FILES WALKED with their includes, depth first, each include whole before the file
+/// One medium's files walked with their includes, depth first, each include whole before the file
 /// that names it; a cycle, a missing or broken include, or a bound passed refuses the walk.
 template <class File, class Load, class Apply> struct Walk {
     Load load;
@@ -946,12 +948,12 @@ template <class File, class Load, class Apply> struct Walk {
 
 } // namespace detail
 
-/// HOW A THEME'S FILES ARE FOUND: a name to the theme's files as they stand (`load_theme`'s form).
+/// How a theme's files are found: a name to the theme's files as they stand (`load_theme`'s form).
 using ThemeLoader = std::function<ThemeFiles(std::string_view)>;
 
-/// RESOLVE THEME `name` THROUGH `load`: each of its files with its includes of that medium, in
-/// order, then its own entries. A theme with no file at all is refused; an include naming a theme
-/// with no file of that medium is refused.
+/// Resolves theme `name` through `load`: each of its files with its includes of that medium, in
+/// order, then its own entries. A theme with no file at all is refused, and so is an include that
+/// names a theme with no file of that medium.
 inline ThemeResolved resolve_theme_with(const std::string& name, const ThemeLoader& load) {
     ThemeResolved out;
     out.theme = name;
@@ -1034,7 +1036,7 @@ inline ThemeResolved resolve_theme(const std::string& dir, const std::string& na
 
 // ---- The folder ----------------------------------------------------------------------------
 
-/// ONE THEME IN A FOLDER: its name and summary, which of its files it has and the themes they
+/// One theme in a folder: its name and summary, which of its files it has and the themes they
 /// include -- or why a file of it would not load.
 struct ThemeSummary {
     std::string name;
@@ -1048,9 +1050,10 @@ struct ThemeSummary {
     friend bool operator==(const ThemeSummary&, const ThemeSummary&) = default;
 };
 
-/// EVERY THEME IN `dir`, by name, the first `kMaxThemesListed` files found: each summarised from
-/// its files, one that does not load listed by its name with its refusal. A folder that is not
-/// there holds none; a write's candidate is no theme.
+/// Every theme in `dir`, by name, from at most the first `kMaxThemesListed` `.json` files in the
+/// order the folder gives them: each is summarised from its files, and one that does not load is
+/// listed by its name with its refusal. A folder that is not there holds none, and a write's
+/// candidate is no theme.
 inline std::vector<ThemeSummary> list_themes(const std::string& dir) {
     std::map<std::string, ThemeSummary> found;
     std::error_code ec;

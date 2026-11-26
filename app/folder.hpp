@@ -4,7 +4,8 @@
 #ifndef ZENGINE_APP_FOLDER_HPP
 #define ZENGINE_APP_FOLDER_HPP
 
-// AN APP'S FOLDER, WRITTEN FROM A SAVED VIEW AND ITS FLOW (app/docs/app.md, "Export an app"):
+// An app's folder, written from a saved view and its flow (app/docs/app.md, "Making one in
+// Workshop"):
 // `<project>/apps/<name>/` holding the plan, `app.json`, the view's and the flow's files and the
 // two launchers. Everything is judged before anything is written -- the view and the flow read
 // back through their own gates, `app.json` through the app host's own reader -- and the folder's
@@ -36,7 +37,7 @@ namespace zengine::app {
 /// The two launchers an export writes.
 inline constexpr const char* kLauncherCmd = "run.cmd";
 inline constexpr const char* kLauncherSh = "run.sh";
-/// THE PROJECT'S LINE NAMING THE APP HOST, `<project>/zengine-app.path`: written by a package's
+/// The project's line naming the app host, `<project>/zengine-app.path`: written by a package's
 /// launcher at each start (workshop/package/), read by both launchers above, which start the
 /// program it names before the one they were exported with.
 inline constexpr const char* kAppHostLine = "zengine-app.path";
@@ -47,7 +48,7 @@ inline constexpr const char* kExportTheme = "day";
 /// The longest name an exported app may have, in bytes.
 inline constexpr std::size_t kMaxAppName = 64;
 
-/// THE PLAN AN EXPORTED APP LOADS: the operators its flow folds with, the app's own weave, the
+/// The plan an exported app loads: the operators its flow folds with, the app's own weave, the
 /// graphics directory, the GUI window and the timer, in that order.
 inline realization::LoadPlan export_plan() {
     const auto provider = realization::ProviderIntent{op::MountMode::Ordinary};
@@ -91,7 +92,7 @@ struct ExportAsked {
     std::string program;
 };
 
-/// AN EXPORT JUDGED, with nothing written: the app's name and folder, whether that folder is
+/// An export judged, with nothing written: the app's name and folder, whether that folder is
 /// already there, and every byte the export would write -- or why it would not.
 struct ExportJudged {
     bool ok = false;
@@ -165,7 +166,7 @@ inline std::string launcher_sh(const std::string& program) {
            "exec \"$app\" \"$here\"\n";
 }
 
-/// JUDGE AN EXPORT, writing nothing: the view's file read back through its gate, its flow beside
+/// Judges an export, writing nothing: the view's file read back through its gate, its flow beside
 /// it as `<stem>.flow` through its own, the name a plain folder name, the program present, and
 /// `app.json` read back through the app host's reader.
 inline ExportJudged judge_export(const ExportAsked& asked) {
@@ -253,7 +254,7 @@ inline ExportJudged judge_export(const ExportAsked& asked) {
     return out;
 }
 
-/// WRITE WHAT AN EXPORT JUDGED: the folder made if it is not there, then each of the export's
+/// Writes what an export judged: the folder made if it is not there, then each of the export's
 /// files, written whole or not at all (`maker::write_file`); every other file in the folder is
 /// left as it is.
 inline Exported write_export(const ExportJudged& judged) {

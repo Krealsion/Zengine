@@ -53,6 +53,8 @@ app made in Workshop runs in on its own, its console deciding what runs.
 | [ui/](../ui/README.md) | authored placement and extent, resolved against a viewport |
 | [component/](../component/README.md) | reusable pieces of a tool: text editing, list and table arithmetic, a control strip, motion sampling |
 | [activation/](../activation/README.md) | reading your own activation, once, without replay |
+| [property/](../property/README.md) | a typed connection to one property of one thing, the words a type is written and read in, and an inspector's line over it |
+| [persist/](../persist/README.md) | the file doors every durable file shares: a bounded read, a safe write, and what a write came to |
 | [operator/](../operator/README.md) | typed reusable rules, supplied by artifacts |
 | [maker/](../maker/README.md) | a weave built from a weaver's definition, edited live |
 | [message-draft/](../message-draft/README.md) | typed value forms, unfinished drafts and named presets |

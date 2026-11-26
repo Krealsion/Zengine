@@ -4,9 +4,9 @@
 #ifndef ZENGINE_APP_VOCABULARY_HPP
 #define ZENGINE_APP_VOCABULARY_HPP
 
-// The app host's words (app/docs/app.md): the roles it and an app's own weave hold, the two
-// asks of the host's place door, and `app.json`, the file that says what an app runs. Portable:
-// no kernel, no loader.
+// The app host's messages (app/docs/app.md): the roles it and an app's own weave hold, the ask and
+// answer that say where the app is, and `app.json`, the file that says what an app runs. This
+// header is portable: it needs no kernel and no loader.
 
 #include <zen/weave/shape.hpp>
 
@@ -20,7 +20,7 @@ namespace zengine::app {
 /// flows and views, and arranges the window.
 inline constexpr const char* kAppRole = "zengine.app";
 
-/// The role of the host's place door: where the app's folder and the artifacts are.
+/// The host's own role, which answers where the app's folder and the artifacts are.
 inline constexpr const char* kAppHostRole = "zengine.app.host";
 
 /// The files an app's folder holds, by their names there.
@@ -39,16 +39,16 @@ inline constexpr std::uintmax_t kMaxAppFileBytes = 1u << 16;
 inline constexpr std::size_t kMaxAppViews = 8;
 inline constexpr std::size_t kMaxAppFlows = 8;
 
-// ---- the place door ----------------------------------------------------------------------
+// ---- where the app is --------------------------------------------------------------------
 
-/// Anyone -> `zengine.app.host`: where am I? Answered with `AppPlaceSaid`.
+/// Any role may ask `zengine.app.host` where the app is; it is answered `AppPlaceSaid`.
 struct AppPlaceAsked {
     ZEN_SHAPE(AppPlaceAsked, 1);
 };
 
-/// `zengine.app.host` -> the asker: the app's folder, and the directory the host opens artifacts
-/// from. Facts the host holds; a loaded weave cannot know where
-/// it was loaded from.
+/// The host's answer to `AppPlaceAsked`: the app's folder, and the directory the host opens
+/// artifacts from. Only the host holds these facts: a loaded weave cannot know where it was loaded
+/// from.
 struct AppPlaceSaid {
     std::string folder;
     std::string artifacts;

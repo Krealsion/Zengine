@@ -37,7 +37,8 @@ struct ShapeDocumentRequested {
 /// id as this role accepts it and `page` the content id of the page the words come from;
 /// `current` is false when the caller named another content id, whose shape these words do not
 /// describe, and `said` then says so. A shape the role does not accept, or one its page has no
-/// section for, is answered with `refusal` and no text.
+/// section for among its commands and what it hears, is answered with `refusal` and no text: a
+/// section under any other heading is no section for it.
 struct ShapeDocumentShown {
     std::string shape;
     std::int64_t version = 0;
@@ -62,8 +63,9 @@ inline std::string content_id_text(loom::ContentId id) {
 
 /// The answer to `ask` from a role whose gate is `accepted` and whose page is `page`: the
 /// section for a shape the role accepts under that name and version, said against the content
-/// id the caller named. A shape outside `zen.` that the role accepts and its page does not
-/// describe is refused naming the page, as is one it does not accept.
+/// id the caller named. A shape the role accepts that its page has no section for, in a command
+/// group or under Hears, is refused naming the page, whatever the shape's name; a shape the role
+/// does not accept under that name and version is refused naming the role.
 template <class Schemas>
 ShapeDocumentShown shape_document(const ShapeDocumentRequested& ask, const Schemas& accepted,
                                   const Manual& page) {
