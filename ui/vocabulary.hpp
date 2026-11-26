@@ -419,7 +419,7 @@ inline std::string problem(const std::vector<Element>& parts) {
                 lap += (lap.empty() ? "#" : " -> #") + std::to_string(id);
             }
             return detail::part_name(e) + " stands in a loop of frames, " + lap +
-                   ", which never reaches the room";
+                   ", which never reaches the root frame";
         }
         if (e.flow == kFlowStack && e.height.mode == kSizeFit && framing[i] != 0) {
             return detail::part_name(e) +
@@ -506,7 +506,7 @@ inline constexpr bool authored_only_v =
 static_assert(authored_only_v<Element>,
               "An authored UI part must carry authored intent only: its width and height are "
               "Sizes (never solved numbers), and no solved rectangle may live on it. Solving "
-              "needs a room and produces a separate value -- see ui/layout.hpp.");
+              "needs bounds and produces a separate value -- see ui/layout.hpp.");
 
 } // namespace zengine::ui
 

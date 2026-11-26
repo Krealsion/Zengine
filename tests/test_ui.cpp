@@ -996,7 +996,7 @@ TEST_CASE("problem names a share in a frame that fits, a missing context and a l
             make(5, "b", Place{}, px(12), px(12), 4),
         });
         CHECK(said.find("#4 \"a\" stands in a loop of frames, #") == 0);
-        CHECK(said.find(", which never reaches the room") != std::string::npos);
+        CHECK(said.find(", which never reaches the root frame") != std::string::npos);
     }
     SUBCASE("a column that begins again and fits its own height") {
         Element column = make(1, "column", Place{}, px(120), word(kSizeFit));
