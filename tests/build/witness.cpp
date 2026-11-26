@@ -111,9 +111,9 @@ class Reporter
                                         builder::RevertArtifact,
                                         builder::BuildOutputRequested>> {
 public:
-    /// `stop` IS THE HOST'S OWN DOOR, handed over exactly as `HostContext::request_stop`
-    /// is: this weave decides that the conversation it was following is over, and the
-    /// HOST decides what that means for the process.
+    /// `stop` IS THE HOST'S OWN DOOR, handed over by the program that mounts this weave: this
+    /// weave decides that the conversation it was following is over, and the HOST decides what
+    /// that means for the process.
     Reporter(std::string recipe, std::string product, bool realize, bool then_promote,
              bool then_revert, std::function<void()> stop)
         : recipe_(std::move(recipe)), product_(std::move(product)), realize_(realize),

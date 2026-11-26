@@ -167,6 +167,7 @@ doors workshop/editor_switch.hpp EditorSwitchBase 12
 doors workshop/first-run/first_run.cpp FirstRun 18
 doors workshop/guest_door.hpp GuestDoorBase 9
 doors workshop/layouts/owner.hpp LayoutsOwner 26
+doors workshop/quit_delivery.hpp HostSessionDoor 1
 doors workshop/menu-presenter/presenter.cpp MenuPresenter 8
 doors workshop/opening.hpp OpeningManager 7
 doors workshop/palette/palette.cpp Palette 16
@@ -177,7 +178,7 @@ doors workshop/terminal/door.hpp TerminalDoor 2
 doors workshop/weave.hpp WorkshopWeave 94 falls
 
 hooks workshop/develop.hpp World 5
-hooks workshop/weave.hpp HostContext 9 falls
+hooks workshop/weave.hpp HostContext 8 falls
 
 lines builder/builder-pane/pane.cpp BuilderPaneWeave 1176 falls
 lines editor/editor-pane/pane.cpp EditorPaneWeave 877 falls
