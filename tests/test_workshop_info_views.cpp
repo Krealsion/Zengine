@@ -2242,3 +2242,50 @@ TEST_CASE("the manual Info answers for each of its panes names exactly the comma
         check_answered_manual(reader, info::view_key(slot), declared);
     }
 }
+
+namespace {
+
+struct SayingReaderState {
+    ZEN_SHAPE(SayingReaderState, 1);
+};
+
+/// LOOM'S AUTHORITY READER, STOOD IN FOR in its role: it says what `permits` says when it is asked,
+/// and counts the asks, so a case can change the actor's authority between two of its acts.
+class SayingReader
+    : public loom::WeaveBase<SayingReader, SayingReaderState, loom::Accept<loom::host::AuthorityAsked>,
+                             loom::Emit<loom::host::AuthorityAnswered>> {
+public:
+    bool permits = false;
+    std::size_t asked = 0;
+    void on(const loom::host::AuthorityAsked& question, loom::Mail& mail) {
+        ++asked;
+        (void)mail.answer(loom::host::AuthorityAnswered{question.subject, true, permits});
+    }
+};
+
+} // namespace
+
+TEST_CASE("info views: the actor's authority is asked of the reader at each act, and kept by nobody") {
+    Views s;
+    s.append(5, "Watched");
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.link_into(a, "Watched");
+    // THE READER SAYS NO, THEN YES: each watch is judged by what it says at that act.
+    REQUIRE(s.r.bus.unregister_weave(s.r.authority_id) != nullptr);
+    auto made = std::make_unique<SayingReader>();
+    SayingReader* reader = made.get();
+    loom::Grant answers;
+    answers.allow_to_any(loom::host::AuthorityAnswered::zen_name, loom::host::AuthorityAnswered::zen_version);
+    reader->zen_set_self(
+        s.r.bus.register_weave(std::move(made), std::move(answers), std::string(kAuthorityRole)));
+    s.button(a, "Watch");
+    CHECK_MESSAGE(s.shows(a, "Watch refused"), s.shown(a));
+    CHECK(s.r.w->observation_leases() == 0);
+    const std::size_t once = reader->asked;
+    CHECK(once >= 1);
+    reader->permits = true;
+    s.button(a, "Watch");
+    CHECK_MESSAGE(s.r.w->observation_leases() == 1, s.shown(a));
+    CHECK(reader->asked > once);
+}

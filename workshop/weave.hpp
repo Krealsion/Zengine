@@ -5,6 +5,7 @@
 #define ZENGINE_WORKSHOP_WEAVE_HPP
 #include "setup_control.hpp"
 #include "actor_scope.hpp" // what a guest's hand may do beside its grant: the action classes
+#include "guest_acts.hpp"  // a guest's acts, held while its row and its authority are asked
 
 // Workshop's own weave: the session, and the bindings from input moments to weaver gestures.
 // Workshop law: agents/workshop/session.md (+13 registers; agents/workshop.md routes)
@@ -138,14 +139,6 @@ struct HostContext {
     // WL-TERM-02 -- agents/workshop/terminal-door.md
     loom::TerminalSession* terminal = nullptr;
 
-    // A host-issued capability to read this actor's current authority. The ceiling is empty;
-    // it never grants the actor anything. Unknown/dead actors yield an inert capability.
-    std::function<loom::GrantAuthority(loom::WeaveId)> input_authority;
-
-    /// A GUEST SESSION'S ADMITTED ROW, answered by the guest door from the record it kept when it
-    /// admitted the session (`GuestDoor::facts`), never a row found by name; not admitted for any
-    /// other participant. Empty when no door is mounted: then no actor is a guest.
-    std::function<scope::GuestRowFacts(loom::WeaveId)> guest_row;
     /// WHOSE HOST THIS IS, the guests file's `host`, and that file: a Workshop with no guests file,
     /// or one naming no host, is a weaver's.
     scope::HostFact host_fact;
@@ -405,6 +398,8 @@ inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Gr
 
 /// The door onto the terminal participant, as this host composes it: over its own context.
 using TerminalDoorFacet = TerminalDoor<HostContext>;
+/// A guest's acts, held while the guest door and Loom's authority reader answer for each.
+using GuestActsFacet = GuestActs<HostContext>;
 
 /// The Workshop weave: its own doors, the terminal door and its page's answers composed beside them.
 /// WHAT WORKSHOP'S STATE DECLARES, as the session holds it now: the bindings as authored and the
@@ -413,7 +408,7 @@ using TerminalDoorFacet = TerminalDoor<HostContext>;
 WorkshopState declared_state(const Session& s, std::string_view window_name);
 
 class WorkshopWeave
-    : public zengine::With<TerminalDoorFacet,
+    : public zengine::With<TerminalDoorFacet, GuestActsFacet,
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
           Weave<WorkshopWeave, WorkshopState,
                              loom::Accept<PaneShortcutInvoked, CommandRunRequested,
@@ -724,17 +719,10 @@ public:
     bool wait_on_areas(loom::Mail& mail, DeskWait wait, const std::vector<std::string>& areas);
     /// The window the desk is shown in started again, or another took it.
     void forget_area_readings(loom::Mail& mail);
-    /// Whether `who` is a guest session whose admitted row holds `capture`: the one personal asker
-    /// the desk's offers and keymap answer.
-    bool capture_guest(loom::WeaveId who) const;
-    /// Whether `asker` is a guest whose row reads by pane: its reads are judged pane by pane against
-    /// its `capture` doors, and the desk is said to it without the words that move with every pane.
-    bool reads_by_pane(loom::WeaveId asker) const;
     /// Whether `asker` may read the words of `role`/`pane`: empty when it may, else why not --
     /// a pane only the weaver's hand reads, an editor showing the guests file, or a pane outside a
     /// by-pane row's `capture` doors, asked of Loom now. Never whether the pane shows anything.
-    std::string read_withheld(loom::Mail& mail, loom::WeaveId asker, const std::string& role,
-                              const std::string& pane) const;
+    std::string read_withheld(loom::Mail& mail, loom::WeaveId asker, const std::string& role, const std::string& pane) const;
     /// A pane the asker may not read, as a stamp: its role, pane and holder, nothing that moves.
     PaneStamp withheld_stamp(const PaneRef& ref, loom::Mail& mail) const;
     /// The desk said to a row that reads by pane: no band or desk number.
@@ -787,13 +775,16 @@ public:
     /// The action classes `classes` judged for `actor`: empty when each is its own, else the refusal.
     std::string judge_classes(const InputActor& actor, const std::vector<std::string>& classes,
                               const std::string& subject) const;
-    /// The admitted row of `actor` when the guest door admitted it; not admitted otherwise.
-    scope::GuestRowFacts guest_of(const InputActor& actor) const;
+    /// AN ACT OF `guest` HELD FOR ITS ANSWERS (`GuestActsFacet`): true when it waits, or is refused
+    /// for want of room, and the handler goes no further. A local hand, nobody, or the guest whose
+    /// act runs again now is not held. Any participant may be a guest's session, a role too.
+    bool guest_waits(loom::WeaveId guest, loom::Mail& mail, Came came, GuestActsFacet::Again, GuestActsFacet::Needs = {});
     /// ON A WEAVER'S HOST A GUEST'S HAND REACHES NEITHER THE EDITOR ROLE, THE TERMINAL NOR THE
     /// HOTKEYS PANE: the refusal in words for `actor` toward the pane `kind`, or empty.
     std::string refused_toward(const InputActor& actor, std::int64_t kind) const;
-    /// ...AND SO A WINDOW IS TOLD: whether the pane's area is placed for the weaver's hand alone.
-    bool weaver_only_pane(const RuntimePane& row) const;
+    /// ...AND SO A WINDOW IS TOLD: whether the pane's area is placed for the weaver's hand alone,
+    /// while a guest door listens (`door`).
+    bool weaver_only_pane(const RuntimePane& row, bool door) const;
     /// Say a refusal of the current input actor's act, and paint it.
     void refuse_input(const std::string& why, loom::Mail& mail);
     void on(const PaneObservationRequested& asked, loom::Mail& mail);
@@ -2072,6 +2063,11 @@ private:
         /// unspent, whatever this hand did since, for no send rides on it.
         std::vector<GestureSent> kept;
     };
+    /// The hand whose current act `corr` names on `pane`, spending its record when `spend`.
+    Hand* gesture_hand(const RuntimePane& pane, std::uint64_t corr, bool names_send, bool classed, bool spend);
+    /// A pane's ask on behalf of the hand whose act `gesture` names, held when that hand is a
+    /// guest's and its answers are not in this delivery.
+    bool held_for_gesture(const PaneOperationRequested& op, bool classed, loom::Mail& mail, GuestActsFacet::Again again);
     /// The weaver's hand: platform input, and input no actor was attributed to.
     Hand weaver_hand_;
     /// Each guest's that has gestured, the most recent last; bounded, the oldest forgotten.
@@ -2246,6 +2242,21 @@ private:
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     bool medium_placed_ = false;
 };
+
+/// The hand of an input actor, as a guest's act is held under it: nobody for the weaver's own.
+inline loom::WeaveId guest_hand(const WorkshopWeave::InputActor& actor) {
+    return actor.known && !actor.local ? actor.participant : loom::WeaveId{};
+}
+
+/// THE QUESTIONS A READ OF THE DESK ASKS for a row that reads by pane: may the guest read each pane
+/// of `panes`, at its door.
+std::vector<AuthorityQuestion> pane_read_questions(const RuntimeCatalog& panes,
+                                                   const scope::GuestRowFacts& row);
+
+/// ...AND A GUIDE MARK'S: those, and its pane at the row's `guide` doors.
+std::vector<AuthorityQuestion> guide_questions(const RuntimeCatalog& panes,
+                                               const scope::GuestRowFacts& row,
+                                               const GuideRequested& asked);
 
 } // namespace zengine::workshop
 

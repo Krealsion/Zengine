@@ -12,7 +12,7 @@ not Workshop's default user authority.
 | Your case needs... | Arrange... | Otherwise you may be testing... |
 |---|---|---|
 | A guest gesture | An admitted input session and an actor granted the exact operation the gesture requests | A host-root action that bypasses the actor decision |
-| A guest's act of a class (a write, a build, an open), or one toward a place only the weaver's hand reaches | The host seam answering that actor as the row a guest door admitted (`host.guest_row`) and naming the host (`host.host_fact`) | A participant no guest door admitted, which no class narrows |
+| A guest's act of a class (a write, a build, an open), or one toward a place only the weaver's hand reaches | The guest door's stand-in answering that actor as the row a guest door admitted (`PaneRig::admit_guest`) and naming the host (`host.host_fact`) | A participant no guest door admitted, which no class narrows |
 | A slow or reordered reply | A real requester and a controlled responding weave holding `mail.defer_answer()` | An ordinary message that never earned answer authority |
 | A placed pane | The authored setup plus the normal setup/layout reconciliation | A changed setup object with stale runtime rectangles |
 | A click that closes its target | Both pointer positions measured before delivering the press | A fixture trying to measure a pane that the press already removed |
@@ -29,10 +29,13 @@ See [external-host powers](../../external-host/docs/external-host.md) for real g
 
 A guest's hand is judged by its admitted row and the guests file's host as well as its grant.
 [`tests/guest_hand.hpp`](../../tests/guest_hand.hpp)'s `GuestHand` arranges both in any `PaneRig`:
-the real Input weave, a participant injecting through its own session, `host.guest_row` answering
-that participant as the row a case names, and `host.host_fact` on a weaver's host unless the case
-asks for a development one; the weaver's own moments go through the platform's reader beside it.
-The rig must outlive the hand, and the hand must not move, because the seam answers through it.
+the real Input weave, a participant injecting through its own session, the guest door's stand-in
+answering that participant as the row a case names (`GuestRows`, which the rig asks Workshop's
+questions of, beside Loom's authority reader that every rig mounts), and `host.host_fact` on a
+weaver's host unless the case asks for a development one; the weaver's own moments go through the
+platform's reader beside it. The rig must outlive the hand, and the hand must not move, because
+the stand-in reads its row through it. Workshop asks the row at each act and holds the act until it
+is said, so a case that wants an act to wait makes the stand-in slow (`holding`) or silent.
 To prove one hand's act leaves another's approval standing, queue both before either is
 delivered (`weaver_then_guest`), never one after the other has settled.
 

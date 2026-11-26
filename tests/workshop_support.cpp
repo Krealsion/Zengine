@@ -602,6 +602,8 @@ Live::Live() {
         // WHO IS ON THE BUS, Loom's participants claim, as workshop.cpp mounts it: who holds each
         // role, at which incarnation and with what doors, read by Workshop inside its deliveries.
         participants_id = loom::host::mount_participants(bus);
+        // ...AND LOOM'S AUTHORITY READER, as it mounts that too.
+        authority_id = mount_authority_reader(bus);
         (void)mount_stock_holder(bus);
         // THE HOST'S SESSION DOOR, as workshop.cpp mounts it, stopping nothing here.
         {
@@ -2041,8 +2043,10 @@ PaneRig::PaneRig() {
 #endif
         painter_id = loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
         (void)count_desk_drawings(bus, workshop_id, pictures);
-        // WHO IS ON THE BUS, Loom's participants claim, as workshop.cpp mounts it.
+        // WHO IS ON THE BUS, Loom's participants claim, and Loom's authority reader, as
+        // workshop.cpp mounts them.
         participants_id = loom::host::mount_participants(bus);
+        authority_id = mount_authority_reader(bus);
         // THE HOST'S SESSION DOOR, as workshop.cpp mounts it, stopping nothing here.
         {
             auto door = std::make_unique<HostSessionDoor>();

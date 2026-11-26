@@ -769,17 +769,17 @@ int main(int argc, char** argv) {
     // pane sentences to roles resolved at runtime -- no lifecycle, no Manager. It is mounted in
     // `kWorkshopProvider`, the built-in rows' own provider string rather than a credential, so a
     // provider can verify its asks; holding the role is not a super-grant (Loom MSG-07).
-    host.input_authority = [&bus](loom::WeaveId actor) {
-        return bus.alive(actor)
-            ? loom::host_describe_only_authority(bus, actor)
-            : loom::GrantAuthority{};
-    };
     // ---- Who is on the bus, as Loom claims it (zen/host/participants.hpp) ----------------------
     // Who holds each role, at which incarnation, what it accepts and declares it emits, and every
     // participant a terminal line can be addressed to: Loom's derived claim, made at each read from
     // the bus's own tables, which Workshop reads inside the delivery that needs it and keeps
     // nowhere. Mounted before Workshop, whose first picture reads it.
     (void)loom::host::mount_participants(bus);
+    // ---- What one participant may do now, as Loom reads it (zen/host/authority_reader.hpp) -----
+    // Loom's authority reader, in this host's role for it: Workshop asks it at each act it judges
+    // for a guest whether the guest may send what the act names, and is handed nothing to keep.
+    (void)mount_in_role<loom::host::AuthorityReader>(bus, loom::host::authority_reader_grant(),
+                                                     kAuthorityRole, bus);
     // ---- The host's session, which Workshop asks to end once the weaver quit ------------------
     // Loom's session role, held by this host's own door (workshop/quit_delivery.hpp): the one
     // participant a `loom.session.Shutdown` reaches, which stops the bus so the turn in flight ends
@@ -849,7 +849,6 @@ int main(int argc, char** argv) {
         // Said at launch, on Attention and in Connections; the dispatch and the owners read a
         // session's admitted row through the door's record (`actor_scope.hpp`).
         host.host_fact = guests::host_fact_of(file);
-        host.guest_row = [raw_door](loom::WeaveId session) { return raw_door->facts(session); };
         std::printf("zengine-workshop - guests: the file is version %s, and this is %s\n",
                     std::to_string(file.version).c_str(),
                     file.development() ? "a development host: guests may write and build here"

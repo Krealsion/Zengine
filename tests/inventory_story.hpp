@@ -90,10 +90,6 @@ struct InventoryStory {
             REQUIRE(r.catalog.mount("story.basic", zengine::op::primitive_definitions()));
             (void)r.mount_powers();
         }
-        r.host.input_authority = [&](loom::WeaveId actor) {
-            return r.bus.alive(actor) ? loom::host_grant_authority(r.bus, actor,
-                loom::LiveAuthority::nothing()) : loom::GrantAuthority{};
-        };
         load::LoadPlan plan;
         if (composer && desktop_first) {
             load::ArtifactIntent desktop; desktop.stem="zengine-desktop-pane";

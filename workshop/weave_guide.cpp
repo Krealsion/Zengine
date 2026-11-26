@@ -71,7 +71,26 @@ std::pair<std::string, std::string> subject_pane(const std::string& part) {
 // shows it now -- in that order, so a refusal by door says nothing of what the pane shows.
 // WL-GUIDE-04 -- agents/workshop/guide.md; WL-GUIDE-05 -- agents/workshop/guide.md
 void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
+    if (guest_waits(mail.sender(), mail, Came::kAsk, [this, asked](loom::Mail& m) { on(asked, m); },
+                 [this, asked](const scope::GuestRowFacts& row) {
+                     return guide_questions(session_.panes.runtime, row, asked);
+                 })) {
+        return;
+    }
     guide_requested(asked, mail.sender(), mail, nullptr, false);
+}
+
+// WHAT A MARK ASKS THE AUTHORITY READER: its pane at the row's `guide` doors, and every pane at its
+// `capture` doors for a row that reads by pane.
+std::vector<AuthorityQuestion> guide_questions(const RuntimeCatalog& panes,
+                                               const scope::GuestRowFacts& row,
+                                               const GuideRequested& asked) {
+    std::vector<AuthorityQuestion> out = pane_read_questions(panes, row);
+    if (row.admitted && row.guides_by_pane && asked.pane.find('/') != std::string::npos) {
+        out.push_back(AuthorityQuestion{GuideRequested::zen_name, GuideRequested::zen_version,
+                                        kWorkshopProvider, asked.pane});
+    }
+    return out;
 }
 
 // ...ASKED FOR `sender`, answered now or, once the window said what its pane shows, through `due`:
@@ -86,9 +105,9 @@ void WorkshopWeave::guide_requested(const GuideRequested& asked, loom::WeaveId s
             (void)mail.answer(std::move(answered));
         }
     };
-    const scope::GuestRowFacts guest =
-        host_->guest_row ? host_->guest_row(sender) : scope::GuestRowFacts{};
-    if (!guest.admitted) {
+    // A MARK IS A GUEST'S whose door said so for this act; nobody else draws one.
+    const scope::GuestRowFacts guest = facet<GuestActsFacet>().row(sender);
+    if (!guest.admitted || !facet<GuestActsFacet>().told(sender)) {
         say(GuideAnswered{false, "only a guest a guest door admitted draws a guide mark"});
         return;
     }
@@ -119,11 +138,9 @@ void WorkshopWeave::guide_requested(const GuideRequested& asked, loom::WeaveId s
     // THE ROW'S DOORS FIRST: its `guide` doors, asked of Loom now, and its read.
     if (!pane.empty()) {
         if (guest.guides_by_pane) {
-            const loom::GrantAuthority cap =
-                host_->input_authority ? host_->input_authority(sender) : loom::GrantAuthority{};
-            const loom::AuthorityView live = mail.describe_authority(cap);
-            if (!live.available || !live.permits_role(GuideRequested::zen_name, GuideRequested::zen_version,
-                                                      kWorkshopProvider, *door)) {
+            if (!facet<GuestActsFacet>().permits(sender, AuthorityQuestion{GuideRequested::zen_name,
+                                                         GuideRequested::zen_version,
+                                                         kWorkshopProvider, asked.pane})) {
                 say(GuideAnswered{false, "refused: pane " + asked.pane + " is outside guest '" +
                                                            guest.name + "''s `guide` doors"});
                 return;
@@ -317,8 +334,11 @@ ScreenPlane WorkshopWeave::guide_layer(loom::Mail& mail) {
     ScreenPlane layer;
     std::vector<std::pair<std::uint64_t, std::string>> ended;
     for (auto& [session, mark] : guide_marks_) {
-        // ITS SESSION IS GONE when the host mints nothing for it: nobody to tell.
-        if (!host_->input_authority || !host_->input_authority(loom::WeaveId{session}).valid()) {
+        // ITS SESSION IS GONE when Loom's participants claim holds it no longer: nobody to tell.
+        const loom::host::Participants* on_bus = bus_now_.read(mail);
+        const loom::host::Participant* who =
+            on_bus != nullptr ? on_bus->find(loom::WeaveId{session}) : nullptr;
+        if (who == nullptr || !who->alive) {
             ended.emplace_back(session, std::string());
             continue;
         }

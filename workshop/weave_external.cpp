@@ -763,11 +763,17 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     // requester unchosen, so no pane performs it.
     if (chooser != nullptr && !closed.chosen && !closed.standard.empty() && act >= ended.first_input &&
         act <= ended.last_input && act == chooser->latest) {
-        // The row is spent as the chooser's own act, so a class it is is judged for that hand.
-        const InputActor before = input_actor_;
-        input_actor_ = chooser->actor;
-        spend_standard_row(ended, closed.standard, mail);
-        input_actor_ = before;
+        // The row is spent as the chooser's own act, so a class it is is judged for that hand, and
+        // a guest's waits for its row.
+        const InputActor who = chooser->actor;
+        const auto spend = [this, ended, row = closed.standard, who](loom::Mail& m) {
+            const InputActor before = input_actor_;
+            input_actor_ = who;
+            spend_standard_row(ended, row, m);
+            input_actor_ = before;
+            repaint(m);
+        };
+        if (!guest_waits(guest_hand(who), mail, Came::kOn, spend)) spend(mail);
     }
     repaint(mail);
 }

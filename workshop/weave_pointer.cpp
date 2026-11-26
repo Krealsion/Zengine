@@ -259,7 +259,7 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     }
     // ON A WEAVER'S HOST A GUEST'S TYPED TEXT RESTS NOWHERE: no pane's field and no line of this
     // host's holds words the weaver would then commit as the weaver's own.
-    if (const std::string why = scope::refuse_text(guest_of(input_actor_), host_->host_fact);
+    if (const std::string why = scope::refuse_text(facet<GuestActsFacet>().row(guest_hand(input_actor_)), host_->host_fact);
         !why.empty()) {
         const KeyContext ctx = keyboard_context(session_);
         if (ctx == KeyContext::kNaming || ctx == KeyContext::kPane) refuse_input(why, mail);

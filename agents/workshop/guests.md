@@ -166,6 +166,21 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-row-written-admit-ask-is-refused-at-the-file.md`
 
+## WL-GUEST-15 — A guest's act waits for its row and its authority, asked at the act
+
+LAW — An act Workshop judges for a participant not the weaver's hand waits, in that participant's order, for its row and its authority asked for that act, then runs as it came.
+
+MEANS
+- the weaver's own acts never wait; a participant's later acts wait behind its first, a pane's ask on its behalf among them;
+- the row is the guest door's answer and the authority Loom's authority reader's; every act asks again, and nothing keeps either;
+- past `kMaxHeldGuestActs` an act is refused in words; with no door to answer, the participant is no guest; with no reader to answer, it is not permitted.
+
+DOES NOT MEAN
+- that a role speaking for itself is no guest: a guest's session may hold one;
+- that the hold widens anything: an act runs again with exactly the answers it was given.
+
+WHY — `agents/decisions/a-guests-act-waits-for-its-answers.md`
+
 ## Do not assume
 
 - That a guest's hand is narrowed everywhere: every other control a key or press reaches (a
@@ -197,7 +212,7 @@ row its own credential admitted"
 `workshop/actor_scope.hpp` judge judge_all GuestRowFacts HostFact
 `pane/operation.hpp` PaneOperationRequested
 `workshop/weave_operation.cpp` approve_gesture judge_classes on(PaneOperationRequested)
-`workshop/weave.hpp` HostContext::guest_row HostContext::host_fact
+`workshop/weave.hpp` HostContext::host_fact
 `tests/test_workshop_guests.cpp` "action classes: a guest builds only with build, writes nothing and
 opens no guests file on a weaver's host, and no class narrows a participant no door admitted"
 `tests/test_workshop_panes_builder.cpp` "a guest without build is refused b, B, f and load-built in
@@ -337,6 +352,17 @@ wheel, its arranger told, drops the moves and the release after, and takes the w
 the Editor are refused, and the Editor hears neither"
 `tests/test_workshop_panes_guests.cpp` "on a development host the same guest types into the Editor
 and saves, types a Terminal line, and toggles titles"
+
+### WL-GUEST-15
+`workshop/guest_acts.hpp` GuestActs kMaxHeldGuestActs ReplayBus
+`workshop/weave_guest_read.cpp` guest_waits
+`tests/test_workshop_panes_guests.cpp` "a guest's acts wait on the guest door's word of its row, each
+act asking it, and are taken in the order the guest made them" "the weaver's own text is taken at once
+while a guest's act waits on the guest door" "past its bound a guest's act is refused in words, and
+every act held is taken once its row is said" "a guest whose door does not answer is judged no guest:
+its act runs as any participant's"
+`tests/test_workshop_info_views.cpp` "info views: the actor's authority is asked of the reader at
+each act, and kept by nobody"
 
 ### WL-GUEST-14
 `workshop/guests.cpp` read_guests_file

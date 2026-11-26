@@ -210,6 +210,10 @@ void WorkshopWeave::on(const loom::AskEnded& ended, loom::Mail& mail) {
     if (!mail.ask_ended()) {
         return; // the shape alone is anybody's speech
     }
+    // ...A HELD ACT'S QUESTION NOBODY ANSWERED: no door, no reader, and the act runs so judged.
+    if (facet<GuestActsFacet>().ended(mail.correlation(), mail)) {
+        return;
+    }
     const loom::Ticket attempt = ended.ended_attempt();
     // A WITHDRAWAL NO PRESENTER ANSWERED -- none held the role, or its holder was silent or gone:
     // this host answers that requester itself, unchosen, once (WL-CTX-10).

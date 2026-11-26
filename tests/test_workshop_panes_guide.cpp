@@ -120,15 +120,13 @@ struct TutorDesk {
     explicit TutorDesk(const char* tag, bool with_editor = false) : b(tag) {
         file.version = guests::kGuestsFileVersion;
         b.r.host.host_fact.development = false;
-        b.r.host.input_authority = [&bus = b.r.bus](loom::WeaveId who) {
-            return bus.alive(who) ? loom::host_describe_only_authority(bus, who) : loom::GrantAuthority{};
-        };
-        b.r.host.guest_row = [this](loom::WeaveId who) {
+        // THE GUEST DOOR'S WORD for each tutor, as the file admits it.
+        (void)mount_guest_rows(b.r.bus, [this](loom::WeaveId who) {
             for (const auto& t : tutors) {
                 if (t->id == who) return guests::facts_of(t->row, file);
             }
             return scope::GuestRowFacts{};
-        };
+        });
         b.tool->catalog = catalog_of({{"tally", "tally"}});
         // A MARK IS A POOL COLOUR, so the desk wears the look a terminal draws each pool colour in:
         // `block`, which the theme weave lays.

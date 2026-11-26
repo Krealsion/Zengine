@@ -886,6 +886,21 @@ one beside Workshop) and every stack its areas wear (`ThemesWorn`). From anyone 
 says on its band each theme of the other medium alone it converted, with its warning, each theme it
 left out, and each own value nothing took. From anyone else it is nothing.
 
+### `GuestRowOf`
+
+`GuestRowOf` v1, from `zengine.guests`, answering this role's `GuestRowOfRequested{session}`: the
+row that admitted the participant whose act Workshop holds. Every act Workshop judges for a
+participant that is not the weaver's own hand -- a press, a key, a carry, a desk read, a guide
+mark, a pane's ask for that hand -- waits on it, each participant's acts in the order they came,
+and runs once it comes with that row; with no guest door to ask, the participant is no guest. Past
+the acts it holds at once, an act is refused `Workshop already holds <n> guests' acts waiting on
+the guest door and the authority reader; act again once they are answered`. Once the row is said,
+Workshop asks Loom's authority reader whether the participant may make each send the act would
+make and, for a row that reads by pane, read each pane it would read; the act runs with those
+answers, and with no reader to answer it may not. Neither the row nor an answer is kept: the next
+act asks again. Where no guest door listens, nobody is a guest, and an act that would ask the
+reader nothing runs at once.
+
 ## Follow
 
 Workshop publishes as `zengine.workshop`, to whoever follows it, each only when it differs from

@@ -825,9 +825,7 @@ TEST_CASE("on a weaver's host a guest's :!, :w and :lua toward Neovim's Editor a
     row.version = 2;
     const loom::WeaveId guest = s.hand_id;
     s.r.host.host_fact.development = false;
-    s.r.host.guest_row = [guest, row](loom::WeaveId who) {
-        return who == guest ? row : zengine::workshop::scope::GuestRowFacts{};
-    };
+    s.r.admit_guest(guest, row);
 
     // THE MODE NEOVIM RESTS IN, as the pane last heard it: a line that reached Neovim would leave it.
     const std::string resting = s.read("mode");

@@ -70,6 +70,12 @@ void WorkshopWeave::run_command(const CommandRunRequested& asked, const InputAct
                                 std::uint64_t gesture,
                                 const std::shared_ptr<loom::DeferredAnswer>& held,
                                 loom::Mail& mail) {
+    // THE RUN IS THE HAND'S ACT, and a guest's waits for its row.
+    if (guest_waits(guest_hand(actor), mail, Came::kOn, [this, asked, actor, gesture, held](loom::Mail& m) {
+            run_command(asked, actor, gesture, held, m);
+        })) {
+        return;
+    }
     const auto answer_in = [this, held](const std::string& refusal, loom::Mail& m) {
         if (!refusal.empty()) {
             say(refusal, true);
