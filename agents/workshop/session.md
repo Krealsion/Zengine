@@ -144,6 +144,7 @@ and each refuses the others"
 `workshop/weave_session.cpp` save_last_session on(SessionSaveAnswered)
 `workshop/weave_handlers.cpp` on(SurfaceCloseRequested)
 `workshop/weave.hpp` HostContext::session_path
+`workshop/screen.hpp` Session::quit
 `persist/file.hpp` write_file
 `graphics/vocabulary.hpp` SurfaceCloseRequested
 `workshop/layouts/session_persist.hpp` save_file

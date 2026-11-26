@@ -63,7 +63,8 @@ WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 compose_recipe field_at field_count
 `workshop/project_seam_vocabulary.hpp` RecipeAuthorRequested RecipeOutcome
 `workshop/pane_doors.hpp` ProjectDoor
-`workshop/weave.hpp` HostContext::RecipeDraft HostContext::author_recipe
+`workshop/weave.hpp` HostContext::RecipeDraft
+`workshop/workshop.cpp` author_recipe
 `workshop/authoring.hpp` RecipeAuthor author_recipe
 `workshop/recipe_persist.hpp` kProjectRecipesName
 `tests/test_workshop_panes_files.cpp` "`a` opens a chooser inside the pane's own room" "the chooser
@@ -83,7 +84,8 @@ catalog, which is installed, and the shipped file keeps its bytes"
 `builder/builder-pane/modes.hpp` begin_load_it open_role commit_role say_role
 `workshop/builder_seam_vocabulary.hpp` PlanNamesRequested PlanNames PlanRowRequested PlanRowWritten
 `workshop/pane_doors.hpp` ProjectDoor
-`workshop/weave.hpp` HostContext::PlanAppend HostContext::append_plan_row HostContext::plan_names
+`workshop/weave.hpp` HostContext::PlanAppend
+`workshop/workshop.cpp` append_plan_row plan_names
 `workshop/authoring.hpp` PlanAuthor plan_names append_plan_row
 `workshop/staging.hpp` product_of
 `realization/load_persist.hpp` kProjectLoadPlanName plan_in_force

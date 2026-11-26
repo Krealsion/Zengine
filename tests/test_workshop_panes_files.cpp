@@ -541,8 +541,8 @@ struct FilesRig {
         wire_recipes();
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
                                                   ProjectDoor::Names{},
-                                                  ProjectDoor::Source{}, r.host.use_recipes,
-                                                  r.host.author_recipe);
+                                                  ProjectDoor::Source{}, r.project.use_recipes,
+                                                  r.project.author_recipe);
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
@@ -553,7 +553,7 @@ struct FilesRig {
     }
 
     void wire_recipes() {
-        r.host.use_recipes = [this](const std::string& path) {
+        r.project.use_recipes = [this](const std::string& path) {
             HostContext::RecipeSwap done;
             const Written read = install_recipes(recipes, path, root.generic_string(),
                                                  r.host.project_dir, &HostContext::so_in);
@@ -565,9 +565,9 @@ struct FilesRig {
         };
         static std::vector<std::unique_ptr<authoring::RecipeAuthor>> kept;
         kept.push_back(std::make_unique<authoring::RecipeAuthor>(authoring::RecipeAuthor{
-            root.generic_string(), r.host.project_dir, &recipes, r.host.use_recipes}));
+            root.generic_string(), r.host.project_dir, &recipes, r.project.use_recipes}));
         authoring::RecipeAuthor* author = kept.back().get();
-        r.host.author_recipe = [author](const HostContext::RecipeDraft& draft) {
+        r.project.author_recipe = [author](const HostContext::RecipeDraft& draft) {
             return authoring::author_recipe(*author, draft);
         };
     }

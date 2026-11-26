@@ -1414,9 +1414,9 @@ TEST_CASE("the keys that mean the same thing in every mode still outrank a pane"
     // text means copy, so the chord crosses the seam like any other key and the provider decides
     // what it means. The application's launches outrank the pane and are the desktop's; quit is
     // one press-elsewhere away.
-    CHECK_FALSE(r.host.quit);
+    CHECK_FALSE(r.session().quit);
     r.key(input::scan::kC, input::mod::kCtrl);
-    CHECK_FALSE(r.host.quit);
+    CHECK_FALSE(r.session().quit);
     REQUIRE(seat->keys.size() == 3); // forwarded, beside the `p` and the `a` above
     CHECK(seat->keys[2].scancode == input::scan::kC);
     CHECK(seat->keys[2].modifiers == input::mod::kCtrl);
@@ -1427,7 +1427,7 @@ TEST_CASE("the keys that mean the same thing in every mode still outrank a pane"
     r.press_cell(pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
     REQUIRE(r.session().panes.keyboard == kNoPaneKind);
     r.key(input::scan::kC, input::mod::kCtrl);
-    CHECK(r.host.quit);
+    CHECK(r.session().quit);
     CHECK(seat->keys.size() == 3); // and this one was not forwarded
 }
 
@@ -3830,7 +3830,7 @@ TEST_CASE("ctrl+q gives Workshop the keys back from a pane that keeps Escape, an
     t.r.key(input::scan::kQ, input::mod::kCtrl);
     CHECK(t.r.last_notice() == "Workshop already has the keys");
     CHECK(t.r.session().panes.selected == t.a);
-    CHECK_FALSE(t.r.host.quit);
+    CHECK_FALSE(t.r.session().quit);
 }
 
 TEST_CASE("ctrl+q leaves every Workshop mode over a pane, and the pane with them") {

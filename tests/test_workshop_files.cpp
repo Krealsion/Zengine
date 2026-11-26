@@ -177,11 +177,11 @@ struct ProjectRig {
 };
 
 /// THE PROJECT DOOR WITH THE RECIPE SEAM WIRED, mounted the way `workshop.cpp` mounts it --
-/// after `host.recipe_source` is set, because the door captures it by value.
+/// after `project.recipe_source` is set, because the door captures it by value.
 inline void mount_project_door_with_source(ProjectRig& r) {
     const std::string marks = (r.root / "workshop-marks.json").generic_string();
     auto door = std::make_unique<ProjectDoor>(r.t.host.project_dir, marks,
-                                              ProjectDoor::Names{}, r.t.host.recipe_source);
+                                              ProjectDoor::Names{}, r.t.project.recipe_source);
     ProjectDoor* raw = door.get();
     loom::Grant grant;
     grant.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
@@ -196,7 +196,7 @@ inline void mount_project_door_with_source(ProjectRig& r) {
 /// Builder for after an accepted one. Two acts, exactly as `ProjectDoor` and the weave
 /// perform them between them -- and neither of them is a browser.
 inline HostContext::RecipeSwap choose_catalog(Live& t, const std::string& path) {
-    const HostContext::RecipeSwap done = t.host.use_recipes(path);
+    const HostContext::RecipeSwap done = t.project.use_recipes(path);
     if (done.accepted) {
         t.publish(loom::to_value(zengine::builder::StatusRequested{}));
     }
@@ -407,7 +407,7 @@ TEST_CASE("the project door names the file that recipe's build would compile") {
     // THE HOST ANSWERS OVER THE COMPLETED CATALOG, exactly as the real host does -- which
     // is the whole mechanism: one completion, and every reader downstream reads it.
     const std::string completed = all[0].single_source->source;
-    r.t.host.recipe_source = [completed](const std::string& id) {
+    r.t.project.recipe_source = [completed](const std::string& id) {
         HostContext::RecipeSource out;
         if (id == "one") {
             out.known = true;
@@ -638,7 +638,7 @@ TEST_CASE("the project door names the file the OWNER's completed recipe names") 
     // in the order `workshop.cpp` does it.
     CurrentRecipes owner;
     owner.hold("/project/recipes.json", std::move(all), &HostContext::so_in);
-    r.t.host.recipe_source = host_recipe_source(owner);
+    r.t.project.recipe_source = host_recipe_source(owner);
 
     mount_project_door_with_source(r);
     DoorAsker* asker = mount_door_asker(r.t);
@@ -1045,8 +1045,8 @@ TEST_CASE("a weaver chooses a catalog in Files and every consumer moves with it"
     put_catalog(r.root / "a-recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
     put_catalog(r.root / "b-recipes.json", {authored_recipe("beta", "src/beta.cpp"),
                                             authored_recipe("gamma", "src/gamma.cpp")});
-    r.t.host.use_recipes = host_use_recipes(owner, install, r.t.host.project_dir);
-    REQUIRE(r.t.host.use_recipes((r.root / "a-recipes.json").generic_string()).accepted);
+    r.t.project.use_recipes = host_use_recipes(owner, install, r.t.host.project_dir);
+    REQUIRE(r.t.project.use_recipes((r.root / "a-recipes.json").generic_string()).accepted);
 
     // THE TOOL IS THE ONE CONSUMER THIS CASE CAN SEE: what a PANE makes of the change is
     // asserted in the pane's own suite, against the real seam. The host owes that the owner,
@@ -1084,9 +1084,9 @@ TEST_CASE("the chooser needs no Builder pane loaded at all") {
     ProjectRig r("nobuilder");
     put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
     put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
-    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+    r.t.project.use_recipes = host_use_recipes(owner, r.root.generic_string(),
                                             r.t.host.project_dir);
-    REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
+    REQUIRE(r.t.project.use_recipes((r.root / "a.json").generic_string()).accepted);
     zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
 
     REQUIRE(choose_catalog(r.t, (r.root / "b.json").generic_string()).accepted);
@@ -1109,9 +1109,9 @@ TEST_CASE("a refused catalog leaves the weaver exactly where they were") {
     put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
     put_file(r.root / "notes.txt", "not a catalog\n");
     std::filesystem::create_directories(r.root / "somewhere");
-    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+    r.t.project.use_recipes = host_use_recipes(owner, r.root.generic_string(),
                                             r.t.host.project_dir);
-    REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
+    REQUIRE(r.t.project.use_recipes((r.root / "a.json").generic_string()).accepted);
     zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
     const Held before = held_by(owner);
 
@@ -1148,7 +1148,7 @@ TEST_CASE("the republish is the ask a presentation already sends, once") {
     ProjectRig r("republish");
     put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
     put_file(r.root / "notes.txt", "not a catalog\n");
-    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+    r.t.project.use_recipes = host_use_recipes(owner, r.root.generic_string(),
                                             r.t.host.project_dir);
     ToolSeat* tool = mount_tool(r.t, "alpha");
     REQUIRE(tool->described == 0); // nothing has asked it anything
@@ -1180,9 +1180,9 @@ TEST_CASE("a live catalog choice is this session's and is written nowhere") {
     r.t.host.session_path = session_file;
     put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
     put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
-    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+    r.t.project.use_recipes = host_use_recipes(owner, r.root.generic_string(),
                                             r.t.host.project_dir);
-    REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
+    REQUIRE(r.t.project.use_recipes((r.root / "a.json").generic_string()).accepted);
     REQUIRE(choose_catalog(r.t, (r.root / "b.json").generic_string()).accepted);
     // THE ANSWER IS THE OWNER'S OWN, read back after the attempt rather than recomposed from
     // wherever anybody was looking -- so no two parties can come to name two different files.
@@ -1340,7 +1340,7 @@ TEST_CASE("an external catalog is chosen live, and the project still owns relati
     const std::string anchor = r.t.host.project_dir;
     std::filesystem::create_directories(r.root / "src");
     put_file(r.root / "src" / "thing.cpp", "the project\n");
-    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(), anchor);
+    r.t.project.use_recipes = host_use_recipes(owner, r.root.generic_string(), anchor);
     REQUIRE(choose_catalog(r.t, (foreign / "recipes.json").generic_string()).accepted);
 
     REQUIRE(owner.source() == (foreign / "recipes.json").generic_string());

@@ -223,7 +223,7 @@ struct EditorRig {
         root = dir.path();
         r.host.project_dir = root.generic_string();
         marks_path = (root / "workshop-marks.json").generic_string();
-        r.host.recipe_source = [this](const std::string&) { return next_source; };
+        r.project.recipe_source = [this](const std::string&) { return next_source; };
     }
 
     /// Which project owner this run has: the read-only door that answers at once, one that holds
@@ -284,7 +284,7 @@ struct EditorRig {
     void mount_project_door() {
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
                                                   ProjectDoor::Names{},
-                                                  r.host.recipe_source);
+                                                  r.project.recipe_source);
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
@@ -855,7 +855,7 @@ struct EditorRig {
     bool quit_by_key() {
         unfocus();
         r.key(input::scan::kQ);
-        return r.host.quit;
+        return r.session().quit;
     }
 };
 
@@ -1596,7 +1596,7 @@ TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it
     CHECK(e.r.session().notice.find("Workshop stays open") != std::string::npos);
     // THE SAME DOOR FROM THE NATIVE CLOSE BOX.
     e.r.close_requested();
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     // SAVE, AND THE NEXT `q` ENDS THE PROCESS WITHOUT CEREMONY -- the box the refusal opened put
     // away first, as `Esc` puts away any menu.
     REQUIRE(e.r.session().context.open);
@@ -1641,7 +1641,7 @@ TEST_CASE("WL-SESSION-22: a quit refused for unsaved work opens a box at the roo
     // GO BACK, chosen by the key that reaches the box first: nothing discarded, nothing quit.
     e.r.key(input::scan::kReturn);
     CHECK_FALSE(box_open());
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(e.dirty());
     CHECK(e.r.session().notice.find("nothing was discarded") != std::string::npos);
     // A BOX THAT NAMED ANOTHER PANE discards nothing of the Editor's: it still refuses.
@@ -1650,14 +1650,14 @@ TEST_CASE("WL-SESSION-22: a quit refused for unsaved work opens a box at the roo
     const_cast<Session&>(e.r.session()).quit_unsaved = {"some other pane"};
     e.r.key(input::scan::kDown);
     e.r.key(input::scan::kReturn);
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(e.dirty());
     REQUIRE(box_open()); // refused again, by the Editor, and asked again
     CHECK(e.r.session().quit_unsaved == std::vector<std::string>{named});
     // DISCARD, by the weaver's press of it: the quit asked again ends the run.
     e.r.key(input::scan::kDown);
     e.r.key(input::scan::kReturn);
-    CHECK(e.r.host.quit);
+    CHECK(e.r.session().quit);
 }
 
 namespace {
@@ -1709,7 +1709,7 @@ TEST_CASE("a guest's quit is answered in the words of what kept Workshop open, a
     CHECK(asker->refusals[0].find("unsaved changes") != std::string::npos);
     CHECK(asker->refusals[0].find("a.cpp") != std::string::npos);
     CHECK(asker->acks == 0);
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     // SAVED, THE SAME ASK ENDS THE RUN, AND SAYS SO.
     e.focus();
     e.save();
@@ -1717,7 +1717,7 @@ TEST_CASE("a guest's quit is answered in the words of what kept Workshop open, a
     ask();
     CHECK(asker->acks == 1);
     CHECK(asker->refusals.size() == 1);
-    CHECK(e.r.host.quit);
+    CHECK(e.r.session().quit);
 }
 
 TEST_CASE("an authoritative `no source open` permits the quit, and so does a clean one") {
@@ -1735,7 +1735,7 @@ TEST_CASE("a Workshop with no custodian in the room quits at once") {
     r.ready();
     r.extent(160, 48);
     r.key(input::scan::kQ);
-    CHECK(r.host.quit);
+    CHECK(r.session().quit);
 }
 
 TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host's ask decides") {
@@ -1752,9 +1752,9 @@ TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host'
         (void)mail.as_role(kDoorAskerRole)
             .send_to_role(kWorkshopProvider, PaneQuitAnswered{pane::kEditorPane, true, ""});
     });
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK_FALSE(e.quit_by_key());
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     // ...AND A FORGERY THAT ARRIVES WHILE THE ROOM IS BEING ASKED decides nothing either: it
     // is not Loom's answer to the host's ask, so it is not counted, and the pane's own refusal
     // is what the host acts on. Staged in one poll: `q`, then the asker's forged permission,
@@ -1768,7 +1768,7 @@ TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host'
     (void)e.r.bus.send(e.asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
     e.settle();
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
 }
 
@@ -1796,7 +1796,7 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     e.enqueue_text("?");
     e.enqueue_key(input::scan::kA); // a KEY held too: routed at once it would open a menu
     e.settle();
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
     CHECK(e.r.session().panes.keyboard == e.kind); // the held press was replayed...
     CHECK(e.doc_row(0) == "on?e!");                  // ...and the held text landed
@@ -1811,7 +1811,7 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     e.enqueue_key(input::scan::kQ);
     e.enqueue_text("z");
     e.settle();
-    CHECK(e.r.host.quit);
+    CHECK(e.r.session().quit);
 }
 
 TEST_CASE("a paste still arriving refuses the quit, because its answer could dirty the document") {
@@ -1875,7 +1875,7 @@ TEST_CASE("printable text edits the source, and command letters stop being comma
     e.key(input::scan::kA);
     e.type("a");
     CHECK(e.doc_row(0) == "oneqa");
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK_FALSE(e.r.session().context.open);
 }
 
@@ -2096,7 +2096,7 @@ TEST_CASE("^c copies, does not quit, and the copy reaches the platform clipboard
     e.key(input::scan::kRight, input::mod::kShift);
     e.key(input::scan::kRight, input::mod::kShift);
     e.key(input::scan::kC, input::mod::kCtrl);
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(e.r.windows.clipboard() == std::optional<std::string>("one"));
     CHECK(e.doc_row(0) == "one two");
 }
@@ -2141,11 +2141,11 @@ TEST_CASE("an empty Editor pane takes the keys and does nothing with them") {
     e.focus();
     e.key(input::scan::kQ);
     e.type("q");
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(e.no_source());
     e.unfocus();
     e.r.key(input::scan::kQ);
-    CHECK(e.r.host.quit);
+    CHECK(e.r.session().quit);
 }
 
 TEST_CASE("copy here, paste there -- multiline, through the medium's own answer") {
@@ -3502,12 +3502,12 @@ TEST_CASE("a quit asked while an open is being seated is refused in words, and t
         REQUIRE(++turns <= 4);
         REQUIRE(e.r.bus.pump_pending() > 0);
     }
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(e.r.session().notice.find("still opening") != std::string::npos);
     CHECK(e.r.session().notice.find("b.cpp") != std::string::npos);
     CHECK(e.asker->opens.size() == before);
     e.settle();
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     REQUIRE(e.asker->opens.size() == before + 1);
     CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
     CHECK(e.read("path") == b_path);
@@ -3515,7 +3515,7 @@ TEST_CASE("a quit asked while an open is being seated is refused in words, and t
     // ...AND WITH THE OPEN DONE, THE SAME QUIT TAKES: a clean document permits.
     e.unfocus();
     e.r.key(input::scan::kQ);
-    CHECK(e.r.host.quit);
+    CHECK(e.r.session().quit);
 }
 
 TEST_CASE("an acquisition outstanding across the pane's removal still settles, and a forged "
@@ -5466,7 +5466,7 @@ TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are rep
     e.enqueue_key(input::scan::kQ);
     e.enqueue_key(input::scan::kA);
     e.settle();
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     // THE HELD `a`, REPLAYED AFTER THE REFUSAL, opened the contextual surface.
     CHECK_MESSAGE(e.r.session().context.open, e.r.session().notice);
     e.r.key(input::scan::kEscape);
@@ -5486,7 +5486,7 @@ TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are rep
     }
     (void)e.r.bus.send(e.r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
     e.settle();
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK_MESSAGE(e.r.session().notice.find("(ApplicationFailed)") != std::string::npos,
                   e.r.session().notice);
     CHECK_MESSAGE(e.r.session().notice.find("(44 gesture(s) that arrived while the quit was "
@@ -5519,7 +5519,7 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
     REQUIRE(gone->asks.empty());
     e.r.bus.kill(gone_id);
     e.settle();
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK(quiet->asks.size() == 1); // the silent one WAS asked, and still owes its answer
     CHECK(gone->asks.empty());      // the killed one never heard the question
     CHECK_MESSAGE(e.r.session().notice.rfind(
@@ -5632,7 +5632,7 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     CHECK(e.r.host.undelivered_quits.empty());
     close_box(e);
     CHECK(e.r.session().notice == waiting);
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
 }
 
 TEST_CASE("a Workshop that does not hold its role says so and starts no quit, and the refusal Loom records for that authorship is not made a participant's") {
@@ -5665,7 +5665,7 @@ TEST_CASE("a Workshop that does not hold its role says so and starts no quit, an
     r.key(input::scan::kQ);
     CHECK(authorship_refused == 1);
     CHECK(seat->asks.empty()); // nothing was published
-    CHECK_FALSE(r.host.quit);
+    CHECK_FALSE(r.session().quit);
     CHECK(r.host.undelivered_quits.empty()); // written, woken, and discarded
     CHECK(r.session().notice == "Workshop could not ask its panes whether they hold unsaved work "
                                 "-- it does not hold its own role; Workshop stays open");
@@ -5735,7 +5735,7 @@ TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot de
     release();
     CHECK(later->held.empty());
     CHECK(stopped());
-    CHECK(e.r.host.quit);
+    CHECK(e.r.session().quit);
 }
 
 TEST_CASE("once the host's watch is gone a refused quit delivery writes nothing and wakes nobody, and a Workshop not quitting discards what the book holds") {
@@ -5757,7 +5757,7 @@ TEST_CASE("once the host's watch is gone a refused quit delivery writes nothing 
     CHECK(e.r.host.undelivered_quits.empty());
     close_box(e);
     CHECK(e.r.session().notice == "quitting -- waiting for 1 pane(s) to answer");
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
 }
 
 TEST_CASE("the close box and the interrupt chord meet the same refusal as q when the held Editor cannot be asked") {
@@ -5771,7 +5771,7 @@ TEST_CASE("the close box and the interrupt chord meet the same refusal as q when
     e.unfocus(); // a press on the bare workspace: its own word replaces the notice
     REQUIRE(e.r.session().notice.rfind(refused, 0) != 0);
     close_box(e);
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK_MESSAGE(e.r.session().notice.rfind(refused, 0) == 0, e.r.session().notice);
     e.r.key(input::scan::kA);
     CHECK(e.r.session().context.open);
@@ -5779,7 +5779,7 @@ TEST_CASE("the close box and the interrupt chord meet the same refusal as q when
     e.unfocus();
     REQUIRE(e.r.session().notice.rfind(refused, 0) != 0);
     e.r.key(input::scan::kC, input::mod::kCtrl);
-    CHECK_FALSE(e.r.host.quit);
+    CHECK_FALSE(e.r.session().quit);
     CHECK_MESSAGE(e.r.session().notice.rfind(refused, 0) == 0, e.r.session().notice);
 }
 

@@ -532,7 +532,9 @@ int main(int argc, char** argv) {
     // Project intent like the plan, refused before anything is built, but a different document
     // (workshop/recipe_persist.hpp). The launch installs them through the weaver's own door
     // (`install_recipes`), wired before the file is read, so it cannot complete them differently.
-    host.use_recipes = [&host, &current_recipes](const std::string& path) {
+    // The project door's, handed it at its mount below: the one role that may change the
+    // catalog, and so the catalog's owner on the bus.
+    const ProjectDoor::Use use_recipes = [&host, &current_recipes](const std::string& path) {
         HostContext::RecipeSwap done;
         const Written read = install_recipes(current_recipes, path, host.dir,
                                              host.project_dir, &HostContext::so_in);
@@ -554,7 +556,7 @@ int main(int argc, char** argv) {
                         "Workshop can build nothing)\n",
                         recipe_path.c_str());
         } else {
-            const HostContext::RecipeSwap read = host.use_recipes(recipe_path);
+            const HostContext::RecipeSwap read = use_recipes(recipe_path);
             if (!read.accepted) {
                 std::printf("zengine-workshop - build recipes refused: %s\n"
                             "zengine-workshop - nothing was mounted and nothing was loaded.\n",
@@ -566,10 +568,10 @@ int main(int argc, char** argv) {
                         read.recipes);
         }
     }
-    // ---- The edit-source seam (`HostContext::recipe_source`) ------------------------------------
+    // ---- Which source a recipe names, the project door's at its mount -------------------------
     // The host holds the completed recipes, so it answers which source a recipe names, asking the
     // owner at the gesture through the one rule Edit Code reads too.
-    host.recipe_source = [&current_recipes](const std::string& id) {
+    const ProjectDoor::Source recipe_source = [&current_recipes](const std::string& id) {
         return provenance::recipe_source_of(current_recipes.all(), id);
     };
     std::fflush(stdout);
@@ -784,8 +786,12 @@ int main(int argc, char** argv) {
     // Loom's session role, held by this host's own door (workshop/quit_delivery.hpp): the one
     // participant a `loom.session.Shutdown` reaches, which stops the bus so the turn in flight ends
     // and the loop below finishes.
+    bool ended = false; // the door heard the end, or the host refused its own plan
     (void)mount_in_role<HostSessionDoor>(bus, host_session_grant(), loom::session::kSessionRole,
-                                         [&bus] { bus.stop(); });
+                                         [&bus, &ended] {
+                                             ended = true;
+                                             bus.stop();
+                                         });
     // ---- The layouts' owner, in its own role (workshop/layouts/owner.hpp) ---------------------
     // Every layout and what each keeps, the role-wide settings, the locks and the pins: one
     // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
@@ -977,7 +983,7 @@ int main(int argc, char** argv) {
     const realization::Mounted mounted = realization::mount(
         bus, std::move(operate), operators, operator_host, manager,
         [&host](const std::string& stem) { return host.so(stem); },
-        [&host, &bus, &operators, &project_refused, &last_words, &kernel](const realization::Executed& done) {
+        [&host, &bus, &operators, &project_refused, &last_words, &kernel, &ended](const realization::Executed& done) {
             // Said artifact by artifact, in order: resolved truth, never written back to the plan.
             // Said when realization settles, after the medium has taken the terminal: a medium
             // that holds it would have these lines scrolled into its picture, so they are said
@@ -1057,8 +1063,9 @@ int main(int argc, char** argv) {
                 std::fflush(stdout);
             }
             project_refused = true;
-            // The door `q` leaves by: `host.quit`, and the bus stopped to end the turn in flight.
-            host.quit = true;
+            // The host's own end, as its session door's: the loop finishes, and the bus stops to
+            // end the turn in flight.
+            ended = true;
             bus.stop();
         },
         // Is this row waiting on the weaver? Only the host holds both halves: the file is absent,
@@ -1105,19 +1112,20 @@ int main(int argc, char** argv) {
     // `workshop/authoring.hpp`'s rules, wired over the owners this host holds and read at the act.
     // A plan row is written only after the running project took it.
     authoring::RecipeAuthor recipe_author{host.dir, host.project_dir, &current_recipes,
-                                          host.use_recipes};
-    host.author_recipe = [&recipe_author](const HostContext::RecipeDraft& draft) {
+                                          use_recipes};
+    const ProjectDoor::Author author_recipe = [&recipe_author](const HostContext::RecipeDraft& draft) {
         return authoring::author_recipe(recipe_author, draft);
     };
     authoring::PlanAuthor plan_author{
         host.project_dir.empty() ? std::string()
                                  : host.project_dir + "/" + realization::load_persist::kProjectLoadPlanName,
         read_plan.plan, &owner, &staging_host};
-    host.append_plan_row = [&plan_author](const std::string& stem, const std::string& role,
-                                          const std::string& recipe) {
+    const ProjectDoor::Append append_plan_row = [&plan_author](const std::string& stem,
+                                                                const std::string& role,
+                                                                const std::string& recipe) {
         return authoring::append_plan_row(plan_author, stem, role, recipe);
     };
-    host.plan_names = [&plan_author](const std::string& stem) {
+    const ProjectDoor::Names plan_names = [&plan_author](const std::string& stem) {
         return authoring::plan_names(plan_author, stem);
     };
 
@@ -1161,9 +1169,10 @@ int main(int argc, char** argv) {
 
     // ---- ...and the project door the pane weaves ask (workshop/pane_doors.hpp) -----------------
     // One role: its readings derive at the ask, and each act spends a closure already wired
-    // (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02). It captures `host.plan_names`, `host.recipe_source`
-    // and the acts' closures by value, so it is mounted after they are wired; what realization
-    // waits on it reads from the owner's claim.
+    // (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02). It is the one role that may change the catalog, so it
+    // is the catalog's owner on the bus, and is handed the host's answers over the recipes and the
+    // plan, by value, once they are wired; what realization waits on it reads from the owner's
+    // claim.
     loom::Grant say_project;
     say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
     say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
@@ -1175,8 +1184,8 @@ int main(int argc, char** argv) {
                              manual::ShapeDocumentShown::zen_version);
     say_project.allow_observe(realization::PlanStatus::zen_name, realization::PlanStatus::zen_version);
     mount_in_role<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
-                                 marks_path, host.plan_names, host.recipe_source,
-                                 host.use_recipes, host.author_recipe, host.append_plan_row);
+                                 marks_path, plan_names, recipe_source, use_recipes,
+                                 author_recipe, append_plan_row);
 
     // ---- The editor switch (WL-SWITCH-03, WL-SWITCH-07) -----------------------------------------
     // One native coordinator in its own role, switching the managed pane's role between the
@@ -1243,7 +1252,7 @@ int main(int argc, char** argv) {
         wait.trust(kGuestsRole);
     }
     wait.trust(kWorkshopProvider); // the hub's own times: Shift's taps, its desk reads' rate
-    while (!host.quit) {
+    while (!ended) {
         const ServedTurn served =
             serve_turn(bus, host.showings, [&journal](const std::string& said) {
                 journal.info(zengine::pane::pane_menu::kWorkshopRole, said);
@@ -1251,7 +1260,7 @@ int main(int argc, char** argv) {
                 std::fflush(stdout);
             });
         (void)served;
-        if (host.quit) {
+        if (ended) {
             break;
         }
         const bool idle = bus.pending() == 0;

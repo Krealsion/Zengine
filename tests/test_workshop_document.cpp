@@ -254,10 +254,10 @@ TEST_CASE("the native close request reaches the quit policy `q` already had") {
     // with `q` is the POLICY, which is the thing that should be shared.
     Live t;
     const auto stopped = [&] { return t.session_door->ending(); };
-    REQUIRE_FALSE(t.host.quit);
+    REQUIRE_FALSE(t.session().quit);
 
     t.close_requested();
-    CHECK(t.host.quit);
+    CHECK(t.session().quit);
     CHECK(stopped());
 }
 
@@ -295,17 +295,17 @@ TEST_CASE("a close is the window's that shows the desk: one said by anyone else 
     };
     // UNSIGNED, AS NO ROLE...
     t.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
     // ...AS THE OTHER WINDOW'S ROLE, which shows no desk here...
     say_as(std::string(gfx::kWindowRolePrefix) + gfx::kGuiWindow);
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
     // ...AND AS ANOTHER ROLE ALTOGETHER.
     say_as("zengine.test.closer");
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
     CHECK_FALSE(stopped());
     // THE WINDOW THAT SHOWS THE DESK ENDS IT.
     t.close_requested();
-    CHECK(t.host.quit);
+    CHECK(t.session().quit);
     CHECK(stopped());
 }
 
@@ -314,12 +314,12 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     const auto stopped = [&] { return t.session_door->ending(); };
 
     t.key(input::scan::kC); // a plain c is not a command at all
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
     t.key(input::scan::kC, input::mod::kShift); // nor a shifted one
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
 
     t.key(input::scan::kC, input::mod::kCtrl);
-    CHECK(t.host.quit);
+    CHECK(t.session().quit);
     CHECK(stopped());
 }
 
@@ -408,7 +408,7 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     // ^c with a selection copies rather than quitting, in this mode too.
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kC, input::mod::kCtrl);
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
     // Escape is still the owner's: the name is unchanged and nothing was saved.
     t.key(input::scan::kEscape);
     CHECK_FALSE(t.session().setup.naming.open);
@@ -425,7 +425,7 @@ TEST_CASE("^c still quits exactly where nothing takes text") {
         t.text("a");
         REQUIRE(t.menu().open);
         t.key(input::scan::kC, input::mod::kCtrl);
-        CHECK(t.host.quit);
+        CHECK(t.session().quit);
     }
     {
         Live t;
@@ -433,12 +433,12 @@ TEST_CASE("^c still quits exactly where nothing takes text") {
         t.text("w");
         REQUIRE(t.session().arrange.open);
         t.key(input::scan::kC, input::mod::kCtrl);
-        CHECK(t.host.quit);
+        CHECK(t.session().quit);
     }
     {
         Live t; // command mode, nothing open
         t.key(input::scan::kC, input::mod::kCtrl);
-        CHECK(t.host.quit);
+        CHECK(t.session().quit);
     }
 }
 
@@ -510,7 +510,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     r.text("hello");
     r.key(input::scan::kA, input::mod::kCtrl);
     r.key(input::scan::kC, input::mod::kCtrl);
-    CHECK_FALSE(r.host.quit); // ^c crossed the seam instead of quitting
+    CHECK_FALSE(r.session().quit); // ^c crossed the seam instead of quitting
     CHECK(r.session().clipboard.text == "hello"); // ...and the copy reached the mirror
     // ...and the platform, through the window
     CHECK(r.windows.clipboard() == std::optional<std::string>("hello"));
@@ -685,7 +685,7 @@ TEST_CASE("in the TUI window, which reads no clipboard, paste inserts nothing an
         t.key(input::scan::kV, input::mod::kCtrl);
     }
     CHECK(t.session().setup.naming.line.text() == "abc");
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
 }
 
 // ============================================================================
@@ -700,7 +700,7 @@ TEST_CASE("exact modifier matching -- the accidental subset aliases no longer fi
     // Ctrl+Shift+C is not Ctrl+C: a test asking only whether Ctrl is among the bits would let
     // the widened chord quit too. Under exact matching it reaches nothing.
     t.key(input::scan::kC, input::mod::kCtrl | input::mod::kShift);
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
     // A chord is a different gesture from its bare key: `=` adds a layout, `^=` does not...
     const std::size_t before = layout_count(t.session().setup);
     t.key(input::scan::kEquals, input::mod::kCtrl);
@@ -710,7 +710,7 @@ TEST_CASE("exact modifier matching -- the accidental subset aliases no longer fi
     CHECK(layout_count(t.session().setup) == before + 1);
     // Alt+Q is not Q: it quits nothing.
     t.key(input::scan::kQ, input::mod::kAlt);
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
 }
 
 TEST_CASE("the effective keymap lists every place a key is answered, and marks the text box's keys "

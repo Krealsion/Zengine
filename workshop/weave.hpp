@@ -122,7 +122,6 @@ inline constexpr std::size_t kMaxAreaAsks = 256;
 /// What the weave needs from the host and cannot get by message; kept whole in this header so a
 /// suite can build one without linking the host.
 struct HostContext {
-    bool quit = false;
     /// WHAT THE START SAID OF A REMEMBERED CHOICE THE PLAN NO LONGER AUTHORS, said once. Which
     /// choice holds each switchable role is the realization owner's claim (`ChoicesHeld`).
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
@@ -152,9 +151,6 @@ struct HostContext {
         std::string source; ///< the one authored source file; empty when the kind has none
     };
 
-    /// The host wires it over its recipes; the door spends it at the ask and stores nothing.
-    // WL-PROJ-02 -- agents/workshop/project.md
-    std::function<RecipeSource(const std::string&)> recipe_source;
 
     /// What stands behind one role's running code, read at the ask from the three owners of its
     /// edges: the bus (role -> weave), the realization owner (weave -> artifact) and the catalog
@@ -188,9 +184,6 @@ struct HostContext {
         std::size_t recipes = 0; ///< how many that catalog holds
     };
 
-    /// USE THIS AUTHORED FILE AS THE CURRENT RECIPE CATALOG.
-    // WL-PROJ-04 -- agents/workshop/project.md
-    std::function<RecipeSwap(const std::string&)> use_recipes;
 
     /// A weaver's recipe row as typed. The host composes it, checks it by the recipe law, appends
     /// it as authored and installs the file; the answer is the catalog in force (`RecipeSwap`).
@@ -209,7 +202,6 @@ struct HostContext {
         bool tree = false;               ///< which of the two kinds this draft is
         std::string makes = {};          ///< single-source: native, boxed or both
     };
-    std::function<RecipeSwap(const RecipeDraft&)> author_recipe;
 
     /// What authoring the minimum plan row came to: appended and written, or refused in the plan's
     /// or the executor's words -- and the recipe's product when the new row is the frontier and the
@@ -224,14 +216,7 @@ struct HostContext {
         std::string product;   ///< the recipe's product on disk, when the row is the frontier
                                ///< and the product is there; empty otherwise
     };
-    std::function<PlanAppend(const std::string& stem, const std::string& role,
-                             const std::string& recipe)>
-        append_plan_row;
 
-    /// Does the plan in force already name this artifact? The host answers; the weave stores
-    /// nothing.
-    // WL-AUTH-02 -- agents/workshop/authoring.md
-    std::function<bool(const std::string& stem)> plan_names;
 
     /// An object document this run was pointed at or found and will not open, or empty: said once
     /// at startup and left exactly as it is.

@@ -2916,7 +2916,7 @@ TEST_CASE("a pane edit survives a restart through the session, and the subject d
         REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
         REQUIRE(hand_commit(t, "Y", "20").accepted);
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
     REQUIRE(std::filesystem::exists(session));
     Live back;

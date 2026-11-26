@@ -384,7 +384,7 @@ struct BuilderRig {
     }
 
     void mount_doors(bool with_project_door = true) {
-        r.host.plan_names = [this](const std::string& stem) {
+        r.project.plan_names = [this](const std::string& stem) {
             for (const std::string& held : plan_rows) {
                 if (held == stem) {
                     return true;
@@ -392,7 +392,7 @@ struct BuilderRig {
             }
             return false;
         };
-        r.host.append_plan_row = [this](const std::string& stem, const std::string& role,
+        r.project.append_plan_row = [this](const std::string& stem, const std::string& role,
                                         const std::string& recipe) {
             authored.push_back(PlanRowRequested{stem, role, recipe});
             if (next_append.accepted) {
@@ -403,7 +403,7 @@ struct BuilderRig {
         // ONE ANSWER FOR EVERY RECIPE, unless a case says a different one PER recipe -- which is
         // what a case proving WHICH source was opened needs, rather than one that cannot tell
         // two recipes' sources apart.
-        r.host.recipe_source = [this](const std::string& recipe) {
+        r.project.recipe_source = [this](const std::string& recipe) {
             const auto named = sources.find(recipe);
             return named == sources.end() ? next_source : named->second;
         };
@@ -412,8 +412,8 @@ struct BuilderRig {
         }
 
         auto project = std::make_unique<ProjectDoor>(
-            r.host.project_dir, marks_, r.host.plan_names, r.host.recipe_source,
-            ProjectDoor::Use{}, ProjectDoor::Author{}, r.host.append_plan_row);
+            r.host.project_dir, marks_, r.project.plan_names, r.project.recipe_source,
+            ProjectDoor::Use{}, ProjectDoor::Author{}, r.project.append_plan_row);
         ProjectDoor* praw = project.get();
         loom::Grant say_project;
         say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
