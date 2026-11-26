@@ -183,6 +183,10 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::realization::ChoiceHeld>(), // ChoiceHeld v1
         shape<::zengine::realization::ChoicesHeld>(), // ChoicesHeld v1
         shape<::zengine::realization::PlanStatus>(), // PlanStatus v1
+        shape<::zengine::realization::RealizedRow>(), // RealizedRow v1
+        shape<::zengine::realization::RealizedRows>(), // RealizedRows v1
+        shape<::zengine::workshop::RecipeInForce>(), // RecipeInForce v1
+        shape<::zengine::workshop::RecipesInForce>(), // RecipesInForce v1
         shape<::zengine::realization::load_persist::WorkshopLoadAlternative>(), // WorkshopLoadAlternative v1
         shape<::zengine::realization::load_persist::v1::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v1
         shape<::zengine::realization::load_persist::v3::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v2

@@ -4,9 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_PANE_DOORS_HPP
 #define ZENGINE_WORKSHOP_PANE_DOORS_HPP
 
-// The host's side of the pane seam: the project door a pane weave asks, which reads four facts
-// and spends three acts. It derives and calls and remembers nothing. Only a role may ask, which
-// names nobody and is not containment: the loader binds `allow_any()` to every library it opens.
+// The host's side of the pane seam: the project door a pane weave asks, which reads four facts,
+// spends three acts and claims the catalog in force after each act on the recipes. It derives and
+// calls and remembers nothing. Only a role may ask, which names nobody and is not containment: the
+// loader binds `allow_any()` to every library it opens.
 
 #include "builder_seam_vocabulary.hpp"
 #include "workshop/project_seam_vocabulary.hpp"
@@ -57,7 +58,8 @@ class ProjectDoor
                        RecipeSourceRequested, RecipeUseRequested, RecipeAuthorRequested,
                        PlanRowRequested>,
           loom::Emit<ProjectRoot, ProjectFrontierSaid, PlanNames, RecipeSourceSaid, RecipeOutcome,
-                     PlanRowWritten>> {
+                     PlanRowWritten>,
+          loom::WeaveBase, loom::Claims<RecipesInForce>> {
 public:
     using Names = std::function<bool(const std::string&)>;
     using Source = std::function<HostContext::RecipeSource(const std::string&)>;
@@ -65,12 +67,25 @@ public:
     using Author = std::function<HostContext::RecipeSwap(const HostContext::RecipeDraft&)>;
     using Append = std::function<HostContext::PlanAppend(
         const std::string&, const std::string&, const std::string&)>;
+    /// The catalog in force, read from its holder at each change, as this role claims it.
+    using Catalog = std::function<RecipesInForce()>;
 
     ProjectDoor(const std::string& project_dir, const std::string& marks_path, Names names = {},
-                Source source = {}, Use use = {}, Author author = {}, Append append = {})
+                Source source = {}, Use use = {}, Author author = {}, Append append = {},
+                Catalog catalog = {})
         : project_dir_(&project_dir), marks_path_(&marks_path), names_(std::move(names)),
           source_(std::move(source)), use_(std::move(use)), author_(std::move(author)),
-          append_(std::move(append)) {}
+          append_(std::move(append)), catalog_(std::move(catalog)) {}
+
+    /// THE CATALOG IN FORCE, CLAIMED AS THIS ROLE by the door at `self` on `bus`: once by the host
+    /// as the door is mounted, since the catalog was installed before it, and again by the door
+    /// after every act that may have changed it. A door handed no catalog claims nothing.
+    // WL-CODE-01 -- agents/workshop/code.md
+    static void claim_catalog(loom::Switchboard& bus, loom::WeaveId self, const Catalog& catalog) {
+        if (catalog) {
+            (void)bus.role_claim_as(self, kProjectRole, loom::to_value(catalog()));
+        }
+    }
 
     void on(const ProjectRootRequested&, loom::Mail& mail) {
         if (!answerable(mail)) {
@@ -219,6 +234,10 @@ private:
         if (!done.accepted) {
             ++state_.refusals;
         }
+        // THE CLAIM BEFORE THE ANSWER: a reader the answer wakes reads the catalog it names.
+        if (catalog_) {
+            (void)mail.as_role(kProjectRole).claim(catalog_());
+        }
         (void)mail.answer(RecipeOutcome{done.accepted, done.refusal, done.path,
                                         static_cast<std::int64_t>(done.recipes)});
     }
@@ -230,6 +249,7 @@ private:
     Use use_;
     Author author_;
     Append append_;
+    Catalog catalog_;
 };
 
 } // namespace zengine::workshop

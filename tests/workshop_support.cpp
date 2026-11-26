@@ -2615,16 +2615,6 @@ auto PaneRig::run_plan(load::LoadPlan plan) -> load::Executed {
         return plan_->outcome();
     }
 
-auto PaneRig::wire_code_source() -> void {
-        host.code_source = [this](const std::string& role) {
-            if (plan_ != nullptr) {
-                return provenance::code_source_of(role, bus, *plan_, host_recipes);
-            }
-            return provenance::code_source_of(role, bus.role_holder(role), {},
-                                              host_recipes.all());
-        };
-    }
-
 auto PaneRig::mount_arrangement(std::string plan_path) -> loom::WeaveId {
         REQUIRE(plan_ != nullptr); // a door with no owner would describe nothing
         auto door = std::make_unique<ArrangementDoor>(

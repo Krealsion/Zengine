@@ -4,12 +4,13 @@
 #ifndef ZENGINE_WORKSHOP_PROVENANCE_HPP
 #define ZENGINE_WORKSHOP_PROVENANCE_HPP
 
-// What stands behind a running role's code: the host's side of a pane's Edit Code. Three edges,
-// read from three owners at the ask (role to weave, the bus; weave to artifact, the realization
-// owner's row, joined by WeaveId and never by role string; artifact to recipes, the catalog), and
-// nothing chosen. Host-side, because it reads the realization owner's rows.
+// The host's readings of the owners it holds: the catalog in force as the project door claims it,
+// which file one recipe names, and what stands behind a role's code read from the owners
+// themselves -- the same composition Workshop makes of their claims (`code_source.hpp`), for a
+// host or a suite that holds the owners. Host-side, because it reads the realization owner's rows.
 // Workshop law: agents/workshop/code.md
 
+#include "code_source.hpp"
 #include "realization/owner.hpp"
 #include "recipes.hpp"
 #include "weave.hpp"
@@ -23,53 +24,55 @@
 
 namespace zengine::workshop::provenance {
 
-/// WHAT STANDS BEHIND `role`, given the three owners' readings at this instant: the role's
-/// holder (invalid when nobody holds it), the realization owner's resolved rows, and the
-/// completed recipe catalog.
+/// THE CATALOG IN FORCE AS ITS OWNER CLAIMS IT (`RecipesInForce`): each recipe's name, kind,
+/// the file its code starts in and every product, read from the completed catalog and the file it
+/// came from. One function, so the claim and a host reading the catalog cannot disagree.
 // WL-CODE-01 -- agents/workshop/code.md
-inline HostContext::CodeSource code_source_of(const std::string& role, loom::WeaveId holder,
-                                              const std::vector<realization::ResolvedArtifact>& rows,
-                                              const std::vector<builder::Recipe>& recipes) {
-    HostContext::CodeSource out;
-    out.role = role;
-    if (!holder.valid()) {
-        return out;
-    }
-    out.weave = static_cast<std::int64_t>(holder.value);
-    const realization::ResolvedArtifact* realized = nullptr;
-    for (const realization::ResolvedArtifact& row : rows) {
-        if (row.weave_loaded && row.weave == holder) {
-            realized = &row;
-            break;
-        }
-    }
-    if (realized == nullptr) {
-        return out;
-    }
-    out.artifact = realized->stem;
-    out.reload = realization::reload_refusal(*realized);
+inline RecipesInForce recipes_in_force_of(const std::vector<builder::Recipe>& recipes,
+                                          const std::string& path) {
+    RecipesInForce out;
+    out.path = path;
     for (const builder::Recipe& recipe : recipes) {
-        if (!builder::makes_product(recipe, out.artifact)) {
-            continue;
-        }
-        HostContext::CodeSource::Recipe named;
-        named.id = recipe.id;
-        named.kind = recipe.single_source.has_value() ? "single_source" : "cmake_target";
+        RecipeInForce one;
+        one.id = recipe.id;
+        one.kind = recipe.single_source.has_value() ? "single_source" : "cmake_target";
         if (recipe.single_source.has_value()) {
-            named.source = recipe.single_source->source;
+            one.source = recipe.single_source->source;
         } else if (recipe.cmake_target.has_value()) {
-            named.source = recipe.cmake_target->entry;
+            one.source = recipe.cmake_target->entry;
         }
-        out.recipes.push_back(std::move(named));
+        for (const builder::Product& product : builder::products_of(recipe)) {
+            one.products.push_back(product.artifact);
+        }
+        out.recipes.push_back(std::move(one));
     }
     return out;
+}
+
+/// The same, of the catalog this host holds.
+inline RecipesInForce recipes_in_force_of(const CurrentRecipes& recipes) {
+    return recipes_in_force_of(recipes.all(), recipes.source());
+}
+
+/// WHAT STANDS BEHIND `role`, given the three owners' readings at this instant: the role's
+/// holder (invalid when nobody holds it), the realization owner's resolved rows and the completed
+/// recipe catalog -- composed as Workshop composes their claims.
+// WL-CODE-01 -- agents/workshop/code.md
+inline CodeSource code_source_of(const std::string& role, loom::WeaveId holder,
+                                 const std::vector<realization::ResolvedArtifact>& rows,
+                                 const std::vector<builder::Recipe>& recipes) {
+    const realization::RealizedRows realized = realization::realized_rows_of(rows);
+    const RecipesInForce catalog = recipes_in_force_of(recipes, std::string());
+    return workshop::code_source_of(role, static_cast<std::int64_t>(holder.value), &realized,
+                                    &catalog);
 }
 
 /// WHICH FILE ONE RECIPE'S CODE STARTS IN -- the answer `HostContext::recipe_source` gives the
 /// read-only project door, read from the catalog in force at the ask: a single source, or the
 /// editing entry a `cmake_target` recipe names, completed as the build reads them; empty for a
-/// recipe that names neither. One function, so the Builder's `e` and Edit Code read a recipe the
-/// same way, and a suite can ask the rule the host wires rather than a copy of it.
+/// recipe that names neither. Read through the claim's own rule (`recipes_in_force_of`), so the
+/// Builder's `e` and Edit Code read a recipe the same way, and a suite can ask the rule the host
+/// wires rather than a copy of it.
 // WL-CODE-05 -- agents/workshop/code.md
 inline HostContext::RecipeSource recipe_source_of(const std::vector<builder::Recipe>& recipes,
                                                   const std::string& id) {
@@ -78,24 +81,20 @@ inline HostContext::RecipeSource recipe_source_of(const std::vector<builder::Rec
     if (found == nullptr) {
         return out;
     }
+    const RecipesInForce one = recipes_in_force_of({*found}, std::string());
     out.known = true;
-    out.kind = found->single_source.has_value() ? "single_source" : "cmake_target";
-    if (found->single_source.has_value()) {
-        out.source = found->single_source->source;
-    } else if (found->cmake_target.has_value()) {
-        out.source = found->cmake_target->entry;
-    }
+    out.kind = one.recipes.front().kind;
+    out.source = one.recipes.front().source;
     return out;
 }
 
 /// THE SAME READING, TAKEN FROM THE OWNERS THEMSELVES at this instant: who holds the role on
-/// this bus, the rows this realization owner has resolved, and the catalog in force. What the
-/// host wires into `HostContext::code_source`; it reads, and it drives nothing.
+/// this bus, the rows this realization owner has resolved, and the catalog in force. It reads, and
+/// it drives nothing.
 // WL-CODE-01 -- agents/workshop/code.md
-inline HostContext::CodeSource code_source_of(const std::string& role,
-                                              const loom::Switchboard& bus,
-                                              const realization::Owner& realization,
-                                              const CurrentRecipes& recipes) {
+inline CodeSource code_source_of(const std::string& role, const loom::Switchboard& bus,
+                                 const realization::Owner& realization,
+                                 const CurrentRecipes& recipes) {
     return code_source_of(role, bus.role_holder(role), realization.resolved(), recipes.all());
 }
 

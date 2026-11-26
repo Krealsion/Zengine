@@ -33,6 +33,12 @@ plan rows.
 Both recipe commands answer `RecipeOutcome` v1: `accepted`, or `refusal`, the owner's words for why
 not; then `path`, the recipe file in force after the attempt, and how many `recipes` it holds.
 
+The role claims the recipe file in force as `zengine.project`, at its start and after each recipe
+command, before its answer: `RecipesInForce` v1, its `path` and each recipe's `id`, `kind`
+(`single_source` or `cmake_target`), the `source` its code starts in and every artifact it makes
+(`products`), for whoever its host grants observing it. Workshop reads it, with what the realization
+owner claims, to find the file behind a pane's code.
+
 ## Commands
 
 ### `ProjectRootRequested`

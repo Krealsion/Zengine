@@ -333,6 +333,22 @@ inline std::string reload_refusal(const ResolvedArtifact& done) {
     return std::string();
 }
 
+/// WHAT THE OWNER CLAIMS OF ITS RESOLVED ROWS (`RealizedRows`): each row that loaded a weave, with
+/// the weave, its stem and the reload rule above. One function, so the claim and a host reading
+/// the rows directly cannot disagree. At most one row an authored artifact or choice, so the claim
+/// stays within what one reading admits.
+// WL-CODE-01 -- agents/workshop/code.md
+inline RealizedRows realized_rows_of(const std::vector<ResolvedArtifact>& resolved) {
+    RealizedRows out;
+    for (const ResolvedArtifact& row : resolved) {
+        if (row.weave_loaded) {
+            out.rows.push_back(RealizedRow{static_cast<std::int64_t>(row.weave.value), row.stem,
+                                           reload_refusal(row)});
+        }
+    }
+    return out;
+}
+
 // ---- What the owner heard, and its own state ------------------------------------
 
 /// What the owner heard about the load it last asked for. An arrival settles the load only
@@ -436,7 +452,7 @@ class Owner
                        zengine::builder::RevertArtifact>,
           loom::Emit<loom::LoadWeave, loom::ReloadWeave, zengine::builder::ArtifactRealized,
                      zengine::builder::ArtifactPromoted, zengine::builder::RealizationAsked>,
-          loom::WeaveBase, loom::Claims<PlanStatus, ChoicesHeld>> {
+          loom::WeaveBase, loom::Claims<PlanStatus, ChoicesHeld, RealizedRows>> {
 public:
     /// How a host spells an artifact stem as a file. The host owns the rule, so one plan is legal
     /// on every platform.
@@ -1483,10 +1499,10 @@ private:
         if (!self_.valid()) {
             return;
         }
-        (void)bus_->role_claim_as(self_, zengine::builder::kRealizationRole,
-                                  loom::to_value(where_claimed()));
-        (void)bus_->role_claim_as(self_, zengine::builder::kRealizationRole,
-                                  loom::to_value(choices_claimed()));
+        for (loom::Value claim : {loom::to_value(where_claimed()), loom::to_value(choices_claimed()),
+                                  loom::to_value(realized_rows_of(resolved_))}) {
+            (void)bus_->role_claim_as(self_, zengine::builder::kRealizationRole, std::move(claim));
+        }
     }
 
     /// Claims at the end of the entry point that holds it, however that entry point returns.

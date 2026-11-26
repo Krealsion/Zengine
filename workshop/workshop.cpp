@@ -1101,13 +1101,6 @@ int main(int argc, char** argv) {
     // the desk, the guest door, the project door, the layouts' owner and the editor switch read
     // it by their grants, never through the host.
 
-    // ---- What stands behind a role's running code --------------------------------------------
-    // Three owners read at the ask (`provenance.hpp`): the bus, the realization owner and the
-    // catalog in force. It opens nothing, and chooses nothing when several recipes answer.
-    host.code_source = [&bus, &owner, &current_recipes](const std::string& role) {
-        return provenance::code_source_of(role, bus, owner, current_recipes);
-    };
-
     // ---- The two authored files gain a writer: the weaver's own act -----------------------------
     // `workshop/authoring.hpp`'s rules, wired over the owners this host holds and read at the act.
     // A plan row is written only after the running project took it.
@@ -1183,9 +1176,16 @@ int main(int argc, char** argv) {
     say_project.allow_to_any(manual::ShapeDocumentShown::zen_name,
                              manual::ShapeDocumentShown::zen_version);
     say_project.allow_observe(realization::PlanStatus::zen_name, realization::PlanStatus::zen_version);
-    mount_in_role<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
-                                 marks_path, plan_names, recipe_source, use_recipes,
-                                 author_recipe, append_plan_row);
+    // ...and it claims the catalog in force as its role, so what stands behind a role's code is
+    // composed by its reader from the owners' claims (`code_source.hpp`): once here, since the
+    // launch installed the catalog before the door was mounted, and after each act that changes it.
+    const ProjectDoor::Catalog catalog_in_force = [&current_recipes] {
+        return provenance::recipes_in_force_of(current_recipes);
+    };
+    const loom::WeaveId project_door = mount_in_role<ProjectDoor>(
+        bus, std::move(say_project), kProjectRole, host.project_dir, marks_path, plan_names,
+        recipe_source, use_recipes, author_recipe, append_plan_row, catalog_in_force);
+    ProjectDoor::claim_catalog(bus, project_door, catalog_in_force);
 
     // ---- The editor switch (WL-SWITCH-03, WL-SWITCH-07) -----------------------------------------
     // One native coordinator in its own role, switching the managed pane's role between the

@@ -5,9 +5,10 @@
 #define ZENGINE_REALIZATION_VOCABULARY_HPP
 
 // What the realization owner claims as its role, `zengine.realization` (builder/vocabulary.hpp):
-// where the plan is, and which authored choice holds each switchable role. Latest claims, read by
-// whoever the host grants observing them (`loom::Grant::allow_observe`), never by a reference to
-// the owner (realization/docs/zengine.realization.md, "Follow").
+// where the plan is, which authored choice holds each switchable role, and which weave each row
+// realized. Latest claims, read by whoever the host grants observing them
+// (`loom::Grant::allow_observe`), never by a reference to the owner
+// (realization/docs/zengine.realization.md, "Follow").
 
 #include "builder/vocabulary.hpp" // `kRealizationRole`, the role these are claimed as
 
@@ -76,6 +77,22 @@ struct ChoiceHeld {
 struct ChoicesHeld {
     std::vector<ChoiceHeld> choices;
     ZEN_SHAPE(ChoicesHeld, 1, ZEN_FIELD(choices));
+};
+
+/// ONE ROW REALIZED INTO A RUNNING WEAVE: the weave the load made, the stem its image came from,
+/// and why a rebuilt image of it cannot reload in place, in the owner's words (empty when it can).
+struct RealizedRow {
+    std::int64_t weave = 0;
+    std::string stem;
+    std::string reload;
+    ZEN_SHAPE(RealizedRow, 1, ZEN_FIELD(weave), ZEN_FIELD(stem), ZEN_FIELD(reload));
+};
+
+/// EVERY ROW THAT LOADED A WEAVE, in the order realization met them, claimed after every change
+/// to them. A role's code is found by the weave holding it, never by a row's authored role.
+struct RealizedRows {
+    std::vector<RealizedRow> rows;
+    ZEN_SHAPE(RealizedRows, 1, ZEN_FIELD(rows));
 };
 
 /// THE REALIZATION OWNER'S LATEST CLAIM OF `Claim`, read in a delivery by the reader's grant; empty

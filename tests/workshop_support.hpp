@@ -2520,11 +2520,6 @@ struct PaneRig {
     /// crank itself -- `Owner` never does (`test_workshop_load.cpp` owns that claim).
     load::Executed run_plan(load::LoadPlan plan);
 
-    /// WIRE WHAT STANDS BEHIND A ROLE'S CODE the way `workshop.cpp` wires it: the bus's holder,
-    /// this rig's realization owner's rows (none before `run_plan`), and the catalog it holds --
-    /// each read at the moment a pane's Edit Code asks.
-    void wire_code_source();
-
     /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out: a rig that minted
     /// the grant from the Emit set could not notice the host quietly widening it.
     loom::WeaveId mount_arrangement(std::string plan_path = std::string());
