@@ -195,9 +195,10 @@ index and out of the installed package.
 The rules for writing one (`law_register` enforces form and names; the router, procedure):
 **a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** what a weaver types
 or sees is a spelling, not an identifier. **c** a law's proof stands under `### <id>` in its
-register's appendix, `## Proven by`, at the file's end (a method's under `## Seen`): a line per
-file, the file in backticks, then its functions, types, constants and members bare and its cases
-quoted, a note in parentheses. **d** a residue claim is LAW when it is the invariant, else DOES
+register's appendix, `## Proven by`, at the file's end (a method's under `## Seen`), or, for a law
+on a folder's law page, in that folder's manifest, `tests/laws/<folder>.txt`: a line per file, the
+file in backticks, then its functions, types, constants and members bare and its cases quoted, a
+note in parentheses. **d** a residue claim is LAW when it is the invariant, else DOES
 NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a table
 escapes `|`. **g** no phase code in a case name or a current-facing document, no step label
 opening a case name; every case a document cites, and every law a comment or document names,
