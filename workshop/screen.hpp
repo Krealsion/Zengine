@@ -696,6 +696,9 @@ struct Session {
     /// what the quit box offers to discard, and nothing else.
     // WL-SESSION-22 -- agents/workshop/session.md
     std::vector<std::string> quit_unsaved;
+    /// THE WEAVER'S QUIT, SETTLED: Workshop has asked its host's session to end.
+    // WL-SESSION-13 -- agents/workshop/session.md
+    bool quit = false;
     /// WHETHER THE KEYBOARD'S SELECTION IS RINGED PLAIN -- one ring in the chrome's ink -- rather
     /// than in the accent's two: `workshop.focus.ring`.
     bool selection_ring_plain = false;

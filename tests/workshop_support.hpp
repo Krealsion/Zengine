@@ -684,6 +684,17 @@ inline loom::WeaveId mount_authority_reader(loom::Switchboard& bus) {
     return id;
 }
 
+/// THE PROJECT DOOR'S FIVE, kept by a rig as workshop.cpp keeps them: the host's answers over its
+/// recipes and plan, handed to the project door (`ProjectDoor`) a case mounts.
+struct ProjectAnswers {
+    std::function<HostContext::RecipeSource(const std::string&)> recipe_source;
+    std::function<HostContext::RecipeSwap(const std::string&)> use_recipes;
+    std::function<HostContext::RecipeSwap(const HostContext::RecipeDraft&)> author_recipe;
+    std::function<HostContext::PlanAppend(const std::string&, const std::string&, const std::string&)>
+        append_plan_row;
+    std::function<bool(const std::string&)> plan_names;
+};
+
 class GuestRowsStandIn;
 
 /// THE ROWS A CASE ADMITS ITS GUESTS WITH, said by the guest door's stand-in
@@ -727,6 +738,8 @@ struct Live {
     bool in_window = true;
     InteractionClock clock;
     HostContext host;
+    /// The project door's five, as a case wires them (`ProjectAnswers`).
+    ProjectAnswers project;
     /// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window (`count_desk_drawings`) -- a
     /// repaint that moved the desk's count, never a desk to read.
     std::size_t pictures = 0;
@@ -2212,6 +2225,8 @@ struct PaneRig {
     bool in_window = true;
     InteractionClock clock;
     HostContext host;
+    /// The project door's five, as a case wires them (`ProjectAnswers`).
+    ProjectAnswers project;
     /// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window (`count_desk_drawings`) -- a
     /// repaint that moved the desk's count, never a desk to read.
     std::size_t pictures = 0;

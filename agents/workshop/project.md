@@ -30,7 +30,7 @@ WHY — `agents/decisions/one-completion-one-owner.md`
 LAW — Read, parse, complete, hold, every step on a candidate, so a refusal at any stage leaves all three answers as they were; the source path is a parameter of `hold()`, not a setter.
 
 MEANS
-- `main` wires `HostContext::use_recipes` over it and installs its own startup catalog through it;
+- `main` wires `use_recipes` over it, hands it the project door, and installs its own startup catalog through it;
 - a valid empty catalog installs: a project with nothing to build is a project;
 - completion is total and adds no third refusal kind beside the reader's and the parser's.
 
@@ -143,7 +143,8 @@ answers the owner's anchor, absence included"
 `workshop/recipe_persist.hpp` WorkshopRecipe::artifact_dir WorkshopSingleSource::workspace
 complete_recipes
 `workshop/recipes.hpp` complete_recipes install_recipes
-`workshop/weave.hpp` RecipeSource HostContext::recipe_source
+`workshop/weave.hpp` RecipeSource
+`workshop/workshop.cpp` recipe_source
 `persist/file.hpp` resolved_against
 `tests/test_workshop_files.cpp` "a relative recipe source is the PROJECT's file, in the editor and
 in the build" "the project door names the file that recipe's build would compile" "a catalog's own
@@ -151,7 +152,6 @@ directory is not a source base"
 
 ### WL-PROJ-04
 `workshop/recipes.hpp` install_recipes CurrentRecipes::hold
-`workshop/weave.hpp` HostContext::use_recipes
 `workshop/workshop.cpp` install_recipes use_recipes Arguments::recipes
 `workshop/recipe_persist.hpp` from_text
 `tests/test_workshop_files.cpp` "one completed catalog, installed through one seam" "installing a

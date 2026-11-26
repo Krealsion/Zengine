@@ -22,7 +22,7 @@ filesystem object. Where the overlay stack has no slot left the door refuses and
 - *A second door for the browser* — rejected.
 
 **Consequences.** `a.cpp` and `./a.cpp` cannot become two documents, and two referrers cannot
-disagree about which file the dirty refusal is protecting. `HostContext::recipe_source` is a
-function spent at the gesture and stored nowhere. A third referrer is a call, not a policy.
+disagree about which file the dirty refusal is protecting. The host's `recipe_source`, handed
+the project door, is a function spent at the gesture and stored nowhere. A third referrer is a call, not a policy.
 
 **Laws supported.** [WL-EDIT-06](../workshop/editor.md).

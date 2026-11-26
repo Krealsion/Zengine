@@ -804,7 +804,7 @@ TEST_CASE("on a weaver's host a guest's s, t and quit are refused, and nothing i
         const std::string kept = said_for(r, [&] { g.key(scan, mods); });
         CHECK_MESSAGE(holds_words(kept, "Workshop stays open"), kept);
         CHECK_MESSAGE(holds_words(kept, kWriteRefused), kept);
-        CHECK_FALSE(r.host.quit);
+        CHECK_FALSE(r.session().quit);
         CHECK_FALSE(std::filesystem::exists(r.host.session_path));
     };
     quit_by(input::scan::kQ, input::mod::kNone);
@@ -817,7 +817,7 @@ TEST_CASE("on a weaver's host a guest's s, t and quit are refused, and nothing i
     CHECK_MESSAGE(holds_words(asker->refusals[0], "Workshop stays open"), asker->refusals[0]);
     CHECK_MESSAGE(holds_words(asker->refusals[0], kWriteRefused), asker->refusals[0]);
     CHECK(asker->acks == 0);
-    CHECK_FALSE(r.host.quit);
+    CHECK_FALSE(r.session().quit);
     CHECK_FALSE(std::filesystem::exists(r.host.session_path));
 
     // THE WEAVER'S OWN `s`, `t` AND `q` WRITE EACH FILE.
@@ -827,7 +827,7 @@ TEST_CASE("on a weaver's host a guest's s, t and quit are refused, and nothing i
     CHECK(r.session().pane_titles != titles);
     CHECK_MESSAGE(std::filesystem::exists(r.host.prefs_path), r.last_notice());
     g.weaver_key(input::scan::kQ);
-    CHECK(r.host.quit);
+    CHECK(r.session().quit);
     CHECK(std::filesystem::exists(r.host.session_path));
 }
 

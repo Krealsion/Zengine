@@ -153,7 +153,7 @@ struct SwitchRig {
     void mount_project_door() {
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
                                                   ProjectDoor::Names{},
-                                                  r.host.recipe_source);
+                                                  r.project.recipe_source);
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);

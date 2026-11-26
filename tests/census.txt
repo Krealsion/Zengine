@@ -179,7 +179,6 @@ doors workshop/terminal/door.hpp TerminalDoor 2
 doors workshop/weave.hpp WorkshopWeave 94 falls
 
 hooks workshop/develop.hpp World 5
-hooks workshop/weave.hpp HostContext 6 falls
 
 lines builder/builder-pane/pane.cpp BuilderPaneWeave 1176 falls
 lines editor/editor-pane/pane.cpp EditorPaneWeave 877 falls

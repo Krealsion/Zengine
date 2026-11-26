@@ -314,9 +314,9 @@ struct CodeRig {
     void mount_project_door() {
         marks_path = (root / "workshop-marks.json").generic_string();
         // ...AND IT ANSWERS WHICH FILE A RECIPE NAMES by whatever rule a case wired into
-        // `host.recipe_source` -- none, unless a case wires the host's own.
+        // `project.recipe_source` -- none, unless a case wires the rig's own.
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
-                                                  ProjectDoor::Names{}, r.host.recipe_source);
+                                                  ProjectDoor::Names{}, r.project.recipe_source);
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
@@ -1250,7 +1250,7 @@ TEST_CASE("the Builder's e opens a CMake target recipe's editing entry by the ru
     // name, and the answer is the entry that recipe's author wrote -- or the recipe file's words.
     CodeRig c("code-entry-e");
     c.hold({target_recipe("tally-tree", kTallyStem, c.source), target_recipe("skin", "zengine-skin")});
-    c.r.host.recipe_source = [&c](const std::string& id) {
+    c.r.project.recipe_source = [&c](const std::string& id) {
         return provenance::recipe_source_of(c.r.host_recipes.all(), id);
     };
     c.open();

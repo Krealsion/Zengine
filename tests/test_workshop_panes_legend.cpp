@@ -339,7 +339,7 @@ TEST_CASE("after a restart the Terminal's first picture keeps its layout's legen
         REQUIRE_FALSE(t.legend_shown());
         t.unfocus();
         t.r.key(input::scan::kQ);
-        REQUIRE(t.r.host.quit);
+        REQUIRE(t.r.session().quit);
     }
     REQUIRE(std::filesystem::exists(session));
 

@@ -243,8 +243,8 @@ std::set<std::string> declared_ids(SwitchRig& s) {
 bool quit_by_key(SwitchRig& s) {
     s.r.press_cell(0, gfx::cell_of_pixel(screen_of(s.r.session()).h) - 1);
     s.r.key(input::scan::kQ);
-    (void)beat_until(s, [&] { return s.r.host.quit || s.r.session().context.open; }, 5000);
-    return s.r.host.quit;
+    (void)beat_until(s, [&] { return s.r.session().quit || s.r.session().context.open; }, 5000);
+    return s.r.session().quit;
 }
 
 } // namespace

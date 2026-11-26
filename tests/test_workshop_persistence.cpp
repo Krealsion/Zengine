@@ -1469,7 +1469,7 @@ TEST_CASE("the name editor takes the keys, and the contextual surface keeps its 
 
     // ...and `q` does not quit.
     t.text("q");
-    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(t.session().quit);
     CHECK(t.session().setup.naming.line.text() == "Defaultaq");
 
     // `^s` IS NOBODY'S: a chord no row answers is not a character either, so the line keeps
@@ -1991,7 +1991,7 @@ void arrange_and_close(const std::string& session_path, const std::string& setup
     REQUIRE(t.session().screen_w == cells_px(width));
     REQUIRE(t.session().screen_h == cells_px(height));
     t.key(input::scan::kQ);
-    REQUIRE(t.host.quit);
+    REQUIRE(t.session().quit);
 }
 
 /// THE IMAGES A WINDOW OPENS FOR ITSELF on a run with no session, the default desk: its painters
@@ -2139,7 +2139,7 @@ TEST_CASE("the second session replaces the first, room and desk both") {
         t.key(input::scan::kR);
         REQUIRE_MESSAGE(t.session().setup.active == second, t.notice());
         t.close_requested(); // the close BOX, and it is the same door `q` is
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
     // THE DEFECT THIS PREVENTS: a startup that reads the file correctly while
     // shutdown keeps rewriting an old cached representation of it.
@@ -2183,7 +2183,7 @@ TEST_CASE("a host that chose no session file restores nothing and writes nothing
     CHECK(t.session().setup.active == default_setup());
     CHECK_FALSE(t.session().notice_is_bad);
     t.key(input::scan::kQ);
-    CHECK(t.host.quit);
+    CHECK(t.session().quit);
     CHECK_FALSE(t.session().notice_is_bad); // and quitting complained about nothing
 }
 
@@ -3953,7 +3953,7 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
         second_authored = t.session().setup.active;
 
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
 
     // THE FILE CARRIES THE RUN AND THE POSITION.
@@ -4392,7 +4392,7 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
         // reading; there is no "migration complete, rewrite now" path and there must not be.
         CHECK(slurp(path) == original);
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
     // 4. AND THE ORDINARY CLOSE-TIME SAVE WROTE THE CURRENT SHAPE, on its own existing law.
     const std::string now = slurp(path);
@@ -4574,7 +4574,7 @@ TEST_CASE("a session this run could not read is never written over") {
             // the shape the keymap, prefs and marks walls already have.
             CHECK((t.session().conditions.find(kSessionWallKey) != nullptr) == c.refused);
             t.key(input::scan::kQ);
-            REQUIRE(t.host.quit);
+            REQUIRE(t.session().quit);
         }
         if (c.refused) {
             CHECK(slurp(path) == c.bytes);
@@ -4598,7 +4598,7 @@ TEST_CASE("the file survives the run that could not read it, and opens later") {
         without.ready();
         REQUIRE(without.session().notice_is_bad);
         without.key(input::scan::kQ);
-        REQUIRE(without.host.quit);
+        REQUIRE(without.session().quit);
     }
     CHECK(slurp(path) == original);
 
@@ -5151,7 +5151,7 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
         CHECK(layout_count(t.session().setup) == 1);
         // ...AND AN ORDERLY CLOSE WRITES NOTHING OVER IT.
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
     CHECK(slurp(path) == bytes);
     // NO IMAGE WAS OPENED but the window's own: a version claim is a lookup key and reaches no
@@ -5214,7 +5214,7 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
         authored = layout_run(t.run());
 
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
 
     Live back;
@@ -5285,7 +5285,7 @@ TEST_CASE("the position that comes back is the one the weaver stood on") {
                 layout_next(t);
             }
             t.key(input::scan::kQ);
-            REQUIRE(t.host.quit);
+            REQUIRE(t.session().quit);
         }
         Live back;
         back.host.session_path = session;
@@ -5329,7 +5329,7 @@ TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart")
         name_setup(t, "Kept");
         after_save = layout_run(t.run());
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
 
     // THE SETUP FILE HOLDS ONE DESK -- the live one -- and knows nothing about a run.
@@ -5391,7 +5391,7 @@ TEST_CASE("crossing media never rewrites a persisted layout's geometry") {
         layout_next(t);
     }
     t.key(input::scan::kQ);
-    REQUIRE(t.host.quit);
+    REQUIRE(t.session().quit);
 
     CHECK(slurp(session) == never_crossed);
     CHECK(slurp(session).find("cell_px") == std::string::npos);
@@ -5588,7 +5588,7 @@ TEST_CASE("the whole run and every association come back after a restart") {
         REQUIRE(t.session().setup.active_at == 0);
         authored = layout_run(t.run());
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
 
     // THE FILE SAYS IT, at the current version, with a link per layout.
@@ -6239,7 +6239,7 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
 
         after_open = layout_run(t.run());
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
 
     // THE FILE IS THE CURRENT SHAPE NOW, and only the current shape.
@@ -6319,7 +6319,7 @@ TEST_CASE("a version-5 file with no conversion live refuses, and is not rewritte
 
     t.extent_px(cells_px(132), cells_px(41));
     t.key(input::scan::kQ);
-    REQUIRE(t.host.quit);
+    REQUIRE(t.session().quit);
     CHECK(slurp(path) == before); // byte-identical after an orderly close
 }
 
@@ -7291,7 +7291,7 @@ TEST_CASE("a quit saves which choice holds each role, and a start says a choice 
              {"zengine.editor", "editor", "zengine-editor-pane", "", false}}});
         t.ready();
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
     const session_persist::LoadedSession read = session_persist::load_file(session);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
@@ -7332,7 +7332,7 @@ TEST_CASE("an older session's room is Workshop's window file's once: read while 
         CHECK(t.session().screen_w == cells_px(120));
         CHECK(t.session().screen_h == cells_px(44));
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
     // THE CLOSE WROTE BOTH: the window file holding the room, the session none of it.
     const window_persist::LoadedWindow wrote =
@@ -7427,7 +7427,7 @@ TEST_CASE("the settings file keeps its layouts' entries until a session holds th
         CHECK(prefs_persist::has_layout_entries(prefs_persist::load_file(prefs).kept));
         if (close) {
             t.key(input::scan::kQ);
-            REQUIRE(t.host.quit);
+            REQUIRE(t.session().quit);
         }
     };
     // A RUN THAT ENDS WITHOUT ITS CLOSE: the session on disk is still the older one...
@@ -7566,7 +7566,7 @@ TEST_CASE("a hidden pane keeps its row and comes back where it was after a save 
         CHECK(pane_of(t.session().setup.active, stock_row)->fold == pane_fold::kHidden);
         CHECK_FALSE(t.session().panes.has(stock::kKind));
         t.key(input::scan::kQ);
-        REQUIRE(t.host.quit);
+        REQUIRE(t.session().quit);
     }
     // THE FILE KEEPS THE ROW, hidden, at its place and sizes.
     const std::string bytes = slurp(session);

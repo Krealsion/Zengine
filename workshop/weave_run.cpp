@@ -555,7 +555,7 @@ void WorkshopWeave::finish_quit(loom::Mail& mail) {
 
 // WL-SESSION-13 -- agents/workshop/session.md
 void WorkshopWeave::end_quit(loom::Mail& mail) {
-    host_->quit = true;
+    session_.quit = true;
     answer_quit_ask({}, mail);
     // ...AND THE HOST ASKED TO END ITS LIFETIME, in Loom's own words, of whoever holds its session.
     (void)mail.as_role(kWorkshopProvider)
@@ -588,7 +588,7 @@ void WorkshopWeave::on(const WorkshopQuitRequested& asked, loom::Mail& mail) {
         return; // the room, or the session's writer, is being asked; its answer settles this ask
     }
     // Decided at once: the process ends, or the quit was refused in the words now on the notice.
-    answer_quit_ask(host_->quit ? std::string() : session_.notice, mail);
+    answer_quit_ask(session_.quit ? std::string() : session_.notice, mail);
 }
 
 void WorkshopWeave::answer_quit_ask(const std::string& why, loom::Mail& mail) {
