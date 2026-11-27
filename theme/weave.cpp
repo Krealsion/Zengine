@@ -5,7 +5,8 @@
 // file is read. It lays each stack a host's areas wear from the files as they stand -- its themes,
 // bottom first, a link of the other medium converted and said -- and offers each to graphics as the
 // palette named for the stack; it keeps each role's own values, and answers what the folders hold.
-// It names no host. Its manual, theme/docs/zengine.theme.md, is compiled in and answered.
+// It names no host, and a host where it runs offers no palette of its own, so each palette name
+// has one owner (THEME-01). Its manual, theme/docs/zengine.theme.md, is compiled in and answered.
 
 #include "theme/stack.hpp"
 #include "theme/theme_persist.hpp"

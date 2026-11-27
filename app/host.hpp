@@ -9,7 +9,7 @@
 // Loom's warden adopting each load, the weaver seat, the plan's realization owner (its barrier
 // asking the store before each row), the Flow host and the view host, the role that says where the
 // app is, the close, and the console's words a line at a time, so a program and a suite drive it
-// alike. It never holds `zengine.workshop`.
+// alike. It never holds `zengine.workshop` (APP-01).
 
 #include "app/session_file.hpp"
 #include "app/vocabulary.hpp"

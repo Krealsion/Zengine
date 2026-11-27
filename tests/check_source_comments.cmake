@@ -39,10 +39,53 @@ set(ZEN_COMMENT_BLOCK_LIMIT 6)
 # block count; set this OFF and the tree is held to the limit again.
 set(ZEN_COMMENT_BLOCK_LIMIT_PAUSED ON)
 # A private id is an upper-case token ending in a dash and a number, outside the families a
-# comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's published law families,
-# whose numbers have two digits: a family's letters with a one-digit number are a phase tag. A
-# standard's name shaped like an id is not one.
-set(ZEN_COMMENT_ID_FAMILIES WL MW VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
+# comment may cite: the law registers' (WL, MW, VM), Loom's published law families, and each family
+# a front-page folder's law pages declare as their own (`## <FAMILY>-<NN> — `, as
+# timer/docs/timer-laws.md declares TIMER), read from those pages as the law_register check reads
+# them, so a comment may cite a folder's law once its page declares it. Their numbers have two
+# digits: a family's letters with a one-digit number are a phase tag. A standard's name shaped like
+# an id is not one.
+set(ZEN_COMMENT_ID_FAMILIES WL MW VM ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
+set(ZEN_COMMENT_FRONT_LIST tests/front_page_folders.txt)
+
+# The families a law page declares as its own, from its `## <FAMILY>-<NN> — ` headings, each
+# once, in page order; a heading of a table family (`## WL-KEY-04 — `) declares none.
+function(zen_comments_page_families text out)
+    string(REGEX MATCHALL "\n## [A-Z]+-[0-9]+ (—|--) " heads "\n${text}")
+    set(found "")
+    foreach(head IN LISTS heads)
+        string(REGEX MATCH "[A-Z]+" family "${head}")
+        if(NOT family IN_LIST found)
+            list(APPEND found "${family}")
+        endif()
+    endforeach()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
+
+# The families every front-page folder's law pages declare: each page in the folder's docs named for
+# its laws, found as the law_register check finds them.
+function(zen_comments_front_families out)
+    file(STRINGS "${ZEN_REPO}/${ZEN_COMMENT_FRONT_LIST}" rows REGEX "^[^#]")
+    set(found "")
+    foreach(folder IN LISTS rows)
+        string(STRIP "${folder}" folder)
+        if(folder STREQUAL "")
+            continue()
+        endif()
+        file(GLOB pages "${ZEN_REPO}/${folder}/docs/*-laws.md")
+        list(SORT pages)
+        foreach(page IN LISTS pages)
+            file(READ "${page}" text)
+            zen_comments_page_families("${text}" families)
+            foreach(family IN LISTS families)
+                if(NOT family IN_LIST found)
+                    list(APPEND found "${family}")
+                endif()
+            endforeach()
+        endforeach()
+    endforeach()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
 set(ZEN_COMMENT_NOT_IDS UTF-8 UTF-16 UTF-32 AGPL-3 FNV-1a SHA-1 SHA-256 ISO-8601)
 
 # The four characters a CMake list cannot hold, swapped for control characters no source
@@ -303,6 +346,16 @@ zen_comments_expect("public ids and standards" cxx "// WL-KEY-15, ANS-03, UTF-8,
 zen_comments_expect("a phase tag in a law family's letters" cxx "// the MSG-0 reading\nint x;\n" 1)
 zen_comments_expect("an id in a trailing comment" cxx "int x; // P-WORK-22\n" 1)
 zen_comments_expect("an id in a literal" cxx "const char* s = \"VD-27\"; // fine\n" 0)
+zen_comments_page_families("# Laws\n\n## ZZZ-01 — One\n\n## ZZZ-02 -- Two\n## WL-KEY-04 — a table family's\n### YYY-03 — a subheading\ntext ## XXX-09 — no heading\n" st_families)
+if(NOT st_families STREQUAL "ZZZ")
+    message(FATAL_ERROR "source-comments: self-test 'a law page's own families' found '${st_families}', "
+                        "want 'ZZZ': only a `## <FAMILY>-<NN> — ` heading declares one, once")
+endif()
+set(zen_families_for_tree "${ZEN_COMMENT_ID_FAMILIES}")
+list(APPEND ZEN_COMMENT_ID_FAMILIES ${st_families})
+zen_comments_expect("a law of a family a law page declares" cxx "// it keeps ZZZ-01\nint x;\n" 0)
+set(ZEN_COMMENT_ID_FAMILIES "${zen_families_for_tree}")
+zen_comments_expect("a family no law page declares" cxx "// it keeps ZZZ-01\nint x;\n" 1)
 string(REPLACE "//" "#" hashes "${six}")
 zen_comments_expect("a CMake block" cmake "${hashes}# seven\nset(x 1)\n" 1)
 zen_comments_expect("hashes inside a quoted argument" cmake "set(x \"\n${hashes}# seven\n\")\n" 0)
@@ -345,6 +398,15 @@ zen_comments_expect_name(a/test_population.txt TRUE)
 zen_comments_expect_name(a/b/x_hpp FALSE)
 zen_comments_expect_name(a/b/x.hpp.orig FALSE)
 zen_comments_expect_name(a/b/notes.txt FALSE)
+
+# The families the tree's front pages declare, which its comments may cite; none is a red, since
+# TIMER at least is one.
+zen_comments_front_families(zen_front_families)
+if(zen_front_families STREQUAL "")
+    message(FATAL_ERROR "source-comments: no law page of a folder ${ZEN_COMMENT_FRONT_LIST} names "
+                        "declares a family of its own, so no folder's law could be cited")
+endif()
+list(APPEND ZEN_COMMENT_ID_FAMILIES ${zen_front_families})
 
 if(population_count EQUAL 0)
     message(FATAL_ERROR "source-comments: the population is empty -- no source under ${ZEN_COMMENT_ROOTS}")
