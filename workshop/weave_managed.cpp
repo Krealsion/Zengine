@@ -9,7 +9,6 @@
 #include "screen_canvas.hpp"
 
 #include <cstdint>
-#include <cstdio>
 #include <limits>
 #include <string>
 
@@ -18,16 +17,6 @@ namespace zengine::workshop {
 using zengine::component::Fingerprint;
 
 namespace {
-
-/// A SHOWING THIS DESK COULD NOT COMPLETE, said in its own words where the process says its own:
-/// the desk is held from here, so nothing it could say later would be heard.
-void say_showing_failed(loom::WeaveId self, const std::string& words) {
-    std::fprintf(stderr,
-                 "zengine-workshop: weave #%llu could not show the presentation it was published, "
-                 "and Loom holds it -- %s\n",
-                 static_cast<unsigned long long>(self.value), words.c_str());
-    std::fflush(stderr);
-}
 
 /// FNV-1a over a spelling of the active setup: membership, places, sizes and ranks. Any of those
 /// authored moves it, and with it the presentation claim's revision; the desk's name and a pane's
@@ -322,19 +311,10 @@ void WorkshopWeave::offer_presentation(std::int64_t op, std::int64_t generation,
 // ---- The publication hook: the trial becomes the desk ----------------------------------------
 
 loom::Weave::PublishedClaim WorkshopWeave::on_claim_published(const PanePresentation& published) {
-    // A THROW FROM ANYTHING BELOW IS THIS DESK'S OWN FAILURE, said here in its words and answered
-    // as Loom's Failed: Loom holds the desk and keeps the record, and a sender that opted in hears
-    // `ApplicationFailed` for what it sends the held desk (Loom's sender-visible dispatch refusal).
-    // Never an exception left for the host's turn to explain.
-    try {
-        return show_presentation(published) ? loom::Weave::PublishedClaim::Applied
-                                            : loom::Weave::PublishedClaim::Declined;
-    } catch (const std::exception& e) {
-        say_showing_failed(self_, e.what());
-    } catch (...) {
-        say_showing_failed(self_, "(not a std::exception)");
-    }
-    return loom::Weave::PublishedClaim::Failed;
+    // A THROW FROM ANYTHING BELOW IS THIS DESK'S OWN FAILURE (`own_showing.hpp`): said in its
+    // words and answered as Loom's Failed, so Loom holds the desk and keeps the record, and a
+    // sender that opted in hears `ApplicationFailed` for what it sends the held desk.
+    return show_own(self_, [&] { return show_presentation(published); });
 }
 
 bool WorkshopWeave::show_presentation(const PanePresentation& published) {

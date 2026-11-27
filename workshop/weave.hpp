@@ -17,6 +17,7 @@
 #include "persist/written.hpp" // `Written`
 #include "quit_delivery.hpp" // what a quit question that ended with no answer comes to
 #include "made.hpp" // what this weave is made with: its host's words and paths at the launch
+#include "own_showing.hpp" // the boundary its own showing runs inside
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "notice_seam_vocabulary.hpp" // what Workshop said, said across the bus
 #include "desktop_seam_vocabulary.hpp"   // the application-defaults owner: rows, launches, the floor

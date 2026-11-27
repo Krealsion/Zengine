@@ -132,6 +132,9 @@ door"
 ### WL-OPEN-02
 `workshop/weave_opening.cpp` on(PresentationAdmitted) on(JointApplied) settle unapplied_words
 `workshop/weave_managed.cpp` on_claim_published
+`workshop/own_showing.hpp` show_own say_showing_failed
+`tests/test_workshop_panes_opening.cpp` "the desk's own showing that throws is its own failure: said
+in its words where the process says its own, answered Failed, and left for no host's turn"
 `editor/editor-pane/pane.cpp` on_claim_published activate
 `tests/test_workshop_panes_editor.cpp` "a loaded owner that cannot apply the published claim is
 held, named, and reloaded" "the real desk, shown a presentation it holds no trial for, answers that
