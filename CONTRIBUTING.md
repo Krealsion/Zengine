@@ -37,11 +37,11 @@ is Loom's, and holds here whole: the purpose and the agreed contracts decide whe
 right, code and tests show what it does now, and the whole result is judged, not only its cases.
 
 **Write Loom, not host code.** A pane or a tool is a weave that reaches the rest only by messages.
-Split it until a piece is too small to be useful alone; that piece becomes an operator other
-weaves compose. Code that grows inside the host where a weave could hold it is the mistake to
-refuse; a problem that arises inside Loom's architecture is the one worth solving. When a piece
-earns being a weave of its own, and when it is a library of another, is
-[a decision record](agents/decisions/a-participant-earns-its-place.md) and its law, WL-PART-01.
+Split it until a piece is too small to be useful alone; how to tell, and what such a piece
+becomes, is [Loom's best practice](https://github.com/Krealsion/Loom/blob/main/docs/contributing/best-practices.md#identifying-a-provided-function),
+and where Zengine's operators fit is [the glossary](docs/glossary.md#zengines-words). Code that
+grows inside the host where a weave could hold it is the mistake to refuse; a problem that arises
+inside Loom's architecture is the one worth solving.
 
 ### Build and test
 

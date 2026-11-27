@@ -864,10 +864,10 @@ if(NOT st_page_ids STREQUAL "TIMER-01;TIMER-02;WL-ZZZ-04")
 endif()
 # A law's section links the record under ZEN_LAW_RECORD_DIR twice and the guide once: one record. The
 # next section's link is not the law's.
-zen_law_page_records("tests/laws.md" "## WL-ZZZ-05 — A law\n\nWhy: [the decision](../agents/decisions/a-participant-earns-its-place.md#why), [again](../agents/decisions/a-participant-earns-its-place.md), [the guide](../CONTRIBUTING.md).\n\n## WL-ZZZ-06 — The next\n\n[another](../agents/decisions/what-workshop-said-is-kept.md)\n" "WL-ZZZ-05" st_records)
-if(NOT st_records STREQUAL "agents/decisions/a-participant-earns-its-place.md")
+zen_law_page_records("tests/laws.md" "## WL-ZZZ-05 — A law\n\nWhy: [the decision](../agents/decisions/a-presentation-owns-no-facts.md#why), [again](../agents/decisions/a-presentation-owns-no-facts.md), [the guide](../CONTRIBUTING.md).\n\n## WL-ZZZ-06 — The next\n\n[another](../agents/decisions/what-workshop-said-is-kept.md)\n" "WL-ZZZ-05" st_records)
+if(NOT st_records STREQUAL "agents/decisions/a-presentation-owns-no-facts.md")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a law's section links the records '${st_records}', "
-                        "want 'agents/decisions/a-participant-earns-its-place.md' alone: a guide is no "
+                        "want 'agents/decisions/a-presentation-owns-no-facts.md' alone: a guide is no "
                         "record, a record linked twice is one, and the next law's link is not this law's")
 endif()
 zen_law_page_cites("see TIMER-01 and (TIMER-07);\nX-TIMER-02, TIMER-03-B and TIMER-04a are no citation\nTIMER-05" "TIMER" st_page_cites)
