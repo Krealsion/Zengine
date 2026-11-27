@@ -287,6 +287,30 @@ TEST_CASE("app.json names files in the app's own folder, and a file it cannot re
     CHECK_FALSE(app::read_app("no-such-folder/app.json").ok);
 }
 
+TEST_CASE("the app host never holds Workshop's role: no participant on the app's bus holds zengine.workshop, before its plan runs or once every row of it runs") {
+    // Every role is read off the bus, never the one name alone, so a host that came to hold
+    // Workshop's role under any participant, its own or a loaded one, is seen (APP-01).
+    const auto holders_of_workshop = [](const loom::Switchboard& bus) {
+        std::vector<std::string> found;
+        for (const loom::WeaveId id : bus.list_weaves()) {
+            for (const std::string& role : bus.roles_of(id)) {
+                if (role == "zengine.workshop") found.push_back(std::to_string(id.value));
+            }
+        }
+        return found;
+    };
+    AppFolder folder("roles");
+    Run run(folder);
+    REQUIRE(run.open());
+    run.host->begin();
+    run.turn();
+    REQUIRE(run.bus.role_holder(app::kAppHostRole).valid()); // the roles were read on a composed host
+    CHECK(holders_of_workshop(run.bus).empty());
+    run.command("trust plan");
+    REQUIRE(run.host->owner().state() == zengine::realization::Realization::Complete);
+    CHECK(holders_of_workshop(run.bus).empty());
+}
+
 TEST_CASE("each row of the app's plan waits on its console until decided there, a provider among them, and the walk goes on row by row after each yes") {
     AppFolder folder("consent");
     Run run(folder);

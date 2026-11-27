@@ -3,4 +3,5 @@
 # the functions, types, constants and members it holds bare and its cases quoted.
 
 ### APP-01
-`app/host.hpp` AppHost kAppHostRole (true by construction: no case reads the roles `AppHost` holds)
+`app/host.hpp` AppHost kAppHostRole
+`tests/test_app_host.cpp` "the app host never holds Workshop's role: no participant on the app's bus holds zengine.workshop, before its plan runs or once every row of it runs"
