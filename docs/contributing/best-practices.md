@@ -117,6 +117,12 @@ law, and each folder's front page or `AGENTS.md` router names the suites. The Wo
 
 ### Every pane
 
+- **Power is accessible.** No action is only a hotkey away: a button or the context menu reaches it
+  by mouse. What the next logical step needs is offered at the hand, with the least effort to reach
+  it, as a wire let go on Flow's empty graph room opens a search of what it can feed. It is the
+  direction panes are built toward, not a rule today's panes are checked against. [The context
+  menu](../../workshop/docs/panes.md#the-context-menu--what-can-i-do-with-this) and [finding what to
+  compose](../../flow/docs/flow.md#find-what-to-compose)
 - **A new law is a new entry under its owner register, and the source keeps only its pointer.**
   [Ongoing rules](../../agents/workshop.md#ongoing-rules)
 - **Changing a case a law cites re-verifies every law that cites it, in the same commit, and lists

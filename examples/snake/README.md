@@ -1,7 +1,9 @@
 # snake — a worked example
 
-**Reference / example.** A playable game whose parts are separate, independently replaceable
-weaves where each earns it: one world holding the whole game, a board whose weave draws it for the
+**Reference / example.** A playable game divided into separate, independently replaceable
+weaves, each a part of its own for what it does
+([Loom's best practice](https://github.com/Krealsion/Loom/blob/main/docs/contributing/best-practices.md#identifying-a-provided-function)
+shows why): one world holding the whole game, a board whose weave draws it for the
 world, a window that shows it, a directory that introduces the two, a score weave loaded late, and
 a pilot that plays the game. It is the
 best short answer to "what does an application made of weaves actually look like?", and the

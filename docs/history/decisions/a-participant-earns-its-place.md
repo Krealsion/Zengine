@@ -1,7 +1,12 @@
 # A participant earns its place
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [participants](../workshop/participants.md).
+supported, WL-PART-01, is retired on [participants](../../../agents/workshop/participants.md).
+
+**Retired.** No measured condition decides whether a piece is a weave of its own. The rule is
+Loom's, to split a piece until it is too small to be useful alone, and how to tell is
+[Loom's best practice](https://github.com/Krealsion/Loom/blob/main/docs/contributing/best-practices.md#identifying-a-provided-function),
+which teaches by example rather than by measure. What follows is the decision as it was made.
 
 **Context.** The split rule says to split a piece until it is too small to be useful alone, and
 said nothing about how to tell. A census tapped every delivery of the whole test population and
@@ -28,4 +33,4 @@ of data; a mixed piece is given the whole job.
 its pace a field of its state, and a pilot or a replay switches the world's own off by a field
 rather than unloading a weave: two drivers fight if nobody writes it.
 
-**Laws supported.** [WL-PART-01](../workshop/participants.md).
+**Laws supported.** WL-PART-01, retired ([participants](../../../agents/workshop/participants.md)).

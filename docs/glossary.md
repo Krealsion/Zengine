@@ -21,8 +21,10 @@ latest claim, which a weave's `loom::host::WaitSet` is) and *the letter* (`Prepa
 - **Load plan.** The file that says which weaves a host loads, and as which roles.
 - **Manual.** A weave's page for makers, compiled into the weave, which answers a section of it to
   anyone who asks.
-- **Operator.** A rule a weave can run by name, such as `timer.normalize_delay`. One weave supplies
-  it and one evaluator runs it, so every user of the rule gets the same answer.
+- **Operator.** A named function in Zengine's catalog (`operator/`), native or composite, which Flow
+  composes into weaves and a weave can run by name, such as `timer.normalize_delay`. It is where
+  Zengine keeps a rule too small to be a weave of its own and shared by many. One weave supplies it
+  and one evaluator runs it, so every user of the rule gets the same answer.
 - **The host's one wait.** Loom's wait (`loom::host::Reactor`), where a host rests between turns of
   its bus. It wakes each weave that claimed something on it, when that thing is ready or its time
   comes, and sends it the time in a `loom::host::Waited` message.

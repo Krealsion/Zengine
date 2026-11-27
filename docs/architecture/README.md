@@ -25,7 +25,8 @@ a guest — which is the point, and is why the
 
 ## Recurring principles
 
-These are not aspirations; each one is enforced somewhere, and the enforcement is named.
+These are not aspirations; each says what holds it, and where that is a check or a test, it is
+named.
 
 **Declared vocabulary is agreed at admission; authority is granted separately.** Loom checks
 accepted, emitted, claimed and persisted shapes and their nested schema closure. `Emit` is not
@@ -60,9 +61,10 @@ pane reference this build cannot present is *unresolved*, never *unavailable* �
 evidence of absence. A sentinel for "none" is negative where the positive space belongs to real
 values, so a later vocabulary cannot collide with it silently and in the widening direction.
 
-**Extract from repeated working behaviour, never from a list of widgets.** A piece joins the
-component package when working tools already carry the same behaviour and extracting it deletes
-their copies; a piece that would only rename one tool's code is not extracted.
+**What becomes a part of its own is judged, not measured.** Whether a piece is a weave of its
+own, a function others call, or a part of the component package is decided by what it is for, as
+[Loom's best practice](https://github.com/Krealsion/Loom/blob/main/docs/contributing/best-practices.md#identifying-a-provided-function)
+teaches; no check holds it.
 
 **Refuse rather than clamp, and say why.** A refused edit leaves both stored coordinates
 untouched. Resolution, by contrast, is **total for every value the type can hold** — authored
