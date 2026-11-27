@@ -7,13 +7,16 @@ it supports are in [code](../workshop/code.md).
 Builder's `e` opened a *chosen recipe's* source and Files opened any file, so the join from a
 pane to its artifact and recipe was the weaver's to reconstruct from names.
 
-**Decision.** The host answers what stands behind a role's code from the owners of each
-edge, at the ask: the bus's holder, the realization owner's row minted for that WeaveId, and the
-catalog's recipes for its artifact. The desk's Edit Code opens exactly one recipe's single source
+**Decision.** Workshop composes what stands behind a role's code from the claims of each edge's
+owner, at the ask: Loom's participants claim for the holder, the realization owner's row realized
+for that WeaveId, and the catalog in force's recipes for its artifact, the project door's. The desk's Edit Code opens exactly one recipe's single source
 through the opening role and refuses every other answer in words; after the open took, and
 only while the code is unchanged, it publishes a reading the Builder pane follows by name.
 
 **Alternatives considered.**
+- *Asking the realization owner and the catalog's owner, and holding the Edit Code for their
+  answers* — argued: each owner's state is a latest claim already, read inside the handler with
+  nothing waiting and no door added to Workshop's.
 - *Joining the held role to a plan row's authored role* — rejected: that role is copied forward,
   never observed; pinned by case `"the code behind a role is found by the weave holding it,
   never by a plan row's authored role"`.
@@ -40,8 +43,8 @@ only while the code is unchanged, it publishes a reading the Builder pane follow
   ([an-entry-is-where-reading-starts](an-entry-is-where-reading-starts.md)).
 
 **Consequences.** The pane protocol is exported alone as `zengine::pane`, so a one-file pane
-builds against the installed package. A later owner of the join replaces
-`HostContext::code_source`, never its spenders; Editor and Files learn no build topology.
+builds against the installed package. The join is Workshop's, of its owners' claims, never its
+spenders'; Editor and Files learn no build topology.
 
 **Laws supported.** [WL-CODE-01](../workshop/code.md), [WL-CODE-03](../workshop/code.md),
 [WL-CODE-04](../workshop/code.md).

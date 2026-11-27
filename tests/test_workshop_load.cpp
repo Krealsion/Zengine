@@ -7264,7 +7264,7 @@ TEST_CASE("a recorded switch moves a role between its authored choices, and ever
     CHECK(said.artifacts[1].weave == static_cast<std::int64_t>(first.value + 100));
 
     // EDIT CODE JOINS BY THE WEAVE THAT HOLDS THE ROLE, so it names the choice now running.
-    const workshop::HostContext::CodeSource code = workshop::provenance::code_source_of(
+    const workshop::CodeSource code = workshop::provenance::code_source_of(
         "test.plain", loom::WeaveId{first.value + 100}, rig.executor.resolved(), {});
     CHECK(code.artifact == "zengine-other-weave");
     CHECK(code.reload.empty());
@@ -7282,7 +7282,7 @@ TEST_CASE("a recorded switch moves a role between its authored choices, and ever
     CHECK(again.artifacts[0].weave == static_cast<std::int64_t>(first.value + 200));
     CHECK(again.artifacts[1].state == std::string(workshop::kSwitchedToken));
     CHECK(again.artifacts[1].weave == 0);
-    const workshop::HostContext::CodeSource back_code = workshop::provenance::code_source_of(
+    const workshop::CodeSource back_code = workshop::provenance::code_source_of(
         "test.plain", loom::WeaveId{first.value + 200}, rig.executor.resolved(), {});
     CHECK(back_code.artifact == "zengine-plain-weave");
 

@@ -24,10 +24,16 @@ namespace {
 /// Why the code behind a pane cannot be opened, in a weaver's words, or empty when the host named
 /// exactly one recipe with one source file. The reason comes before any path, and every absence
 /// is its own sentence, since each asks something different of the weaver.
-std::string code_refusal(const std::string& name, const HostContext::CodeSource& code) {
+std::string code_refusal(const std::string& name, const CodeSource& code) {
     if (code.weave == 0) {
         return "nobody holds " + code.role + " now, so " + name +
                " has no running code to trace -- nothing was opened";
+    }
+    // AN OWNER THAT CLAIMS NOTHING IS AN ABSENCE, said as one: never read as "not loaded" or "no
+    // recipe", which would send the weaver to fix a plan or a catalog that may be right.
+    if (!code.rows_claimed) {
+        return "no realization owner says which artifact each weave was loaded from, so " + name +
+               "'s code cannot be traced -- nothing was opened";
     }
     if (code.artifact.empty()) {
         if (code.role == kWorkshopProvider) {
@@ -38,20 +44,24 @@ std::string code_refusal(const std::string& name, const HostContext::CodeSource&
                "), which this project's plan did not load -- no artifact names its code, so "
                "nothing was opened";
     }
+    if (!code.catalog_claimed) {
+        return "no project door says which build recipes are in force, so the recipe behind " +
+               code.artifact + " cannot be named -- nothing was opened";
+    }
     if (code.recipes.empty()) {
         return "no build recipe produces " + code.artifact + ", the artifact behind " + name +
                " -- author one for its source (pick buildable, in Files); nothing was opened";
     }
     if (code.recipes.size() > 1) {
         std::string named;
-        for (const HostContext::CodeSource::Recipe& r : code.recipes) {
+        for (const CodeSource::Recipe& r : code.recipes) {
             named += (named.empty() ? "`" : ", `") + r.id + "`";
         }
         return std::to_string(code.recipes.size()) + " recipes build " + code.artifact + " (" +
                named + ") -- choose one in the Builder and open its source there; nothing was "
                        "opened";
     }
-    const HostContext::CodeSource::Recipe& only = code.recipes.front();
+    const CodeSource::Recipe& only = code.recipes.front();
     if (only.source.empty()) {
         return "recipe `" + only.id + "` is a " + only.kind + " recipe with no editing entry: it "
                "builds " + code.artifact + " from a build tree and a target and names no file to "
@@ -64,10 +74,26 @@ std::string code_refusal(const std::string& name, const HostContext::CodeSource&
 /// IS THE CODE BEHIND THE PANE STILL THE CODE THE SPEND OPENED? The same holder, realized from
 /// the same artifact, with still exactly one recipe -- the same one, naming the same file.
 // WL-CODE-03 -- agents/workshop/code.md
-bool same_code(const HostContext::CodeSource& now, const HostContext::CodeSource& then,
+bool same_code(const CodeSource& now, const CodeSource& then,
                const std::string& recipe, const std::string& source) {
     return now.weave == then.weave && now.artifact == then.artifact && now.recipes.size() == 1 &&
            now.recipes.front().id == recipe && now.recipes.front().source == source;
+}
+
+/// WHAT STANDS BEHIND `role`'S CODE NOW, composed inside this delivery of the three owners' latest
+/// claims: who holds the role, as `now` read Loom's participants claim, the realization owner's
+/// realized rows and the project door's catalog in force. Nothing is asked and nothing is kept.
+// WL-CODE-01 -- agents/workshop/code.md
+CodeSource code_source_now(const std::string& role, BusNow& now, loom::Mail& mail) {
+    const std::optional<realization::RealizedRows> realized =
+        realization::latest<realization::RealizedRows>(mail);
+    std::optional<RecipesInForce> catalog;
+    if (const loom::SenseReading read = mail.latest_from_role<RecipesInForce>(kProjectRole);
+        read && read.value.has_value()) {
+        catalog = loom::from_value<RecipesInForce>(*read.value);
+    }
+    return code_source_of(role, static_cast<std::int64_t>(now.holder_of(role, mail).value),
+                          realized ? &*realized : nullptr, catalog ? &*catalog : nullptr);
 }
 
 } // namespace
@@ -76,23 +102,20 @@ bool same_code(const HostContext::CodeSource& now, const HostContext::CodeSource
 void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     // THE SETUP HAS ALREADY ANSWERED FOR THE REFERENCE: this is reached only through
     // `spend_pane_action`, the pane's one spend seam (WL-CTX-07), which refuses a reference that
-    // left the setup before anything here runs. What is asked next is the code's owner.
+    // left the setup before anything here runs. What is read next is the claims of the code's
+    // three owners.
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
     std::string name = kind.has_value() ? kind_name(session_.panes, *kind) : std::string();
     if (name.empty()) {
         name = ref_text(ref);
     }
-    if (!host_->code_source) {
-        say("this Workshop cannot trace a pane to its code -- nothing was opened", true);
-        return;
-    }
-    const HostContext::CodeSource code = host_->code_source(ref.provider);
+    const CodeSource code = code_source_now(ref.provider, bus_now_, mail);
     const std::string refused = code_refusal(name, code);
     if (!refused.empty()) {
         say(refused, true);
         return;
     }
-    const HostContext::CodeSource::Recipe& recipe = code.recipes.front();
+    const CodeSource::Recipe& recipe = code.recipes.front();
     // AN OPENING, judged for the hand that chose it, by what it opens (`actor_scope.hpp`).
     if (const std::string judged = judge_classes(input_actor_, {pane::act_class::kOpen}, recipe.source);
         !judged.empty()) {
@@ -148,8 +171,7 @@ void WorkshopWeave::on(const SourceOpened& said, loom::Mail& mail) {
     // is open either way -- the Editor holds it, and that stands -- but the Builder is told only
     // about code that is still the pane's, so a later answer cannot point it at a recipe that
     // no longer builds what this pane runs.
-    const HostContext::CodeSource now =
-        host_->code_source ? host_->code_source(done.pane.provider) : HostContext::CodeSource{};
+    const CodeSource now = code_source_now(done.pane.provider, bus_now_, mail);
     if (!same_code(now, done.code, done.recipe, done.source)) {
         say(done.source + " is open, but the code behind " + done.name +
                 " changed while it opened -- the Builder was not pointed at `" + done.recipe +

@@ -9,14 +9,14 @@ is [`contextual.md`](contextual.md); the recipes and the Builder's choice are
 
 Retired: WL-CODE-02
 
-## WL-CODE-01 — What stands behind a role's code is three owners' answer, read at the ask
+## WL-CODE-01 — What stands behind a role's code is three owners' claims, read at the ask
 
-LAW — The host reads the role's holder from the bus, the realized row with that WeaveId, and every recipe producing its artifact, at the ask; it chooses nothing, opens nothing and stores nothing.
+LAW — Inside the asking delivery, Workshop reads the role's holder, the realized row with its WeaveId and every recipe of its artifact from three owners' claims; it chooses, opens and stores nothing.
 
 MEANS
 - an authored role that equals the held role joins nothing: only the holder's minted WeaveId does;
-- nobody holding, no realized row and no recipe are three absences, each its own sentence;
-- a `cmake_target` recipe carries its editing entry or no source; the reload refusal rides beside.
+- nobody holding, no realized row, no recipe, an owner claiming nothing: each its own sentence;
+- a claim changed between two asks is read at the second; a `cmake_target` gives its entry or none.
 
 DOES NOT MEAN
 - that the answer lists what a build compiles: a source or an entry is where reading starts.
@@ -25,7 +25,7 @@ WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## WL-CODE-03 — The open's answer settles the one held ask, and the Builder hears unchanged code
 
-LAW — Only the held ask's own answer or Loom's word that its attempt ended settles Edit Code's open; an accepted answer re-asks the host, publishing `PaneSourceOpened` once only if the code is unchanged.
+LAW — Only the held ask's own answer or Loom's word that its attempt ended settles Edit Code's open; an accepted answer reads the claims again and publishes `PaneSourceOpened` once, if the code is unchanged.
 
 MEANS
 - a refused or superseded answer is said in the owner's words, and nothing is published;
@@ -130,12 +130,21 @@ WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 ## Proven by
 
 ### WL-CODE-01
-`workshop/provenance.hpp` code_source_of
-`workshop/weave.hpp` HostContext::CodeSource HostContext::code_source
-`realization/owner.hpp` reload_refusal ResolvedArtifact
-`workshop/workshop.cpp` code_source
+`workshop/code_source.hpp` CodeSource code_source_of
+`workshop/weave_code.cpp` code_source_now code_refusal
+`workshop/provenance.hpp` code_source_of recipes_in_force_of
+`realization/owner.hpp` reload_refusal realized_rows_of ResolvedArtifact
+`realization/vocabulary.hpp` RealizedRows RealizedRow
+`workshop/project_seam_vocabulary.hpp` RecipesInForce RecipeInForce
+`workshop/pane_doors.hpp` ProjectDoor::claim_catalog
+`workshop/grant.cpp` workshop_grant
 `tests/test_workshop_panes_code.cpp` "the code behind a role is found by the weave holding it,
-never by a plan row's authored role"
+never by a plan row's authored role" "a role's code is read from three claims: the holder Loom
+names, the artifact its owner realized and the recipe the catalog in force claims" "the reason a
+rebuilt image cannot reload in place is the realization owner's claim, said in its words once the
+source is open" "an owner of a role's code that claims nothing is said as an absence, never as a
+plan or a catalog that lacks it" "a claim changed between two Edit Codes is read afresh by the
+second"
 
 ### WL-CODE-03
 `workshop/weave_code.cpp` on(SourceOpened) on(AskEnded) same_code

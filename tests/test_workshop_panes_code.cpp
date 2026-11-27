@@ -175,6 +175,8 @@ struct CodeRig {
     SourceWatch* watch = nullptr;
     loom::WeaveId watch_id{};
     DoorAsker* asker = nullptr;
+    /// THE PROJECT DOOR, which claims the catalog in force as its role; invalid until mounted.
+    loom::WeaveId door_id{};
     /// THE WEAVER'S COPY OF THE EXAMPLE, inside the project: what a recipe names and what the
     /// Editor opens. The repository's own file is never the one a case edits.
     std::string source;
@@ -254,6 +256,20 @@ struct CodeRig {
         }
         tool->catalog.source = "/project/build-recipes.json";
         r.host_recipes.hold("/project/build-recipes.json", std::move(rows), &HostContext::so_in);
+        claim_catalog();
+    }
+
+    /// THE PROJECT DOOR CLAIMS THE CATALOG THE RIG HOLDS NOW, as the host's door does after each
+    /// change to it; before the door is mounted there is nobody to claim it.
+    void claim_catalog() {
+        if (door_id.valid()) {
+            ProjectDoor::claim_catalog(r.bus, door_id, catalog_in_force());
+        }
+    }
+
+    /// THE CATALOG IN FORCE AS THE DOOR READS IT, from the recipes the rig holds.
+    ProjectDoor::Catalog catalog_in_force() {
+        return [this] { return provenance::recipes_in_force_of(r.host_recipes); };
     }
 
     /// `with_manager` false leaves the opening role unheld.
@@ -263,7 +279,6 @@ struct CodeRig {
         if (with_manager) {
             r.mount_opening();
         }
-        r.wire_code_source();
         mount_watch();
         mount_asker();
         mount_project_door();
@@ -283,6 +298,29 @@ struct CodeRig {
         widen_builder(126);
         REQUIRE(r.session().panes.has(kind_of(tally_ref())));
         REQUIRE(r.session().panes.has(kind_of(builder_ref())));
+    }
+
+    /// THE DESK WITH NO OWNER OF A ROLE'S CODE MOUNTED: Workshop, the opening role and the watch,
+    /// and no plan, no realization owner and no project door, so nothing claims what was realized
+    /// or which recipes are in force.
+    void open_bare() {
+        r.host.managed_pane = editor_ref();
+        r.mount_workshop();
+        r.mount_opening();
+        mount_watch();
+        r.ready();
+        r.extent(200, 64);
+    }
+
+    /// THE REALIZATION OWNER CLAIMS ONE ROW MORE: `weave` realized from `stem`, with `reload` its
+    /// words for a reload in place (empty when it can), beside the rows it realized itself.
+    void claim_realized(loom::WeaveId weave, const std::string& stem, const std::string& reload) {
+        REQUIRE(r.plan_ != nullptr);
+        zengine::realization::RealizedRows rows =
+            zengine::realization::realized_rows_of(r.plan_->resolved());
+        rows.rows.push_back(zengine::realization::RealizedRow{
+            static_cast<std::int64_t>(weave.value), stem, reload});
+        RealizationClaims(r.bus, r.mounted_plan_->id()).realized(rows);
     }
 
     /// A PANE WHOSE ROLE A NATIVE WEAVE HOLDS: a provider seat mounted on this bus, offering
@@ -316,7 +354,9 @@ struct CodeRig {
         // ...AND IT ANSWERS WHICH FILE A RECIPE NAMES by whatever rule a case wired into
         // `project.recipe_source` -- none, unless a case wires the rig's own.
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
-                                                  ProjectDoor::Names{}, r.project.recipe_source);
+                                                  ProjectDoor::Names{}, r.project.recipe_source,
+                                                  ProjectDoor::Use{}, ProjectDoor::Author{},
+                                                  ProjectDoor::Append{}, catalog_in_force());
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
@@ -327,6 +367,8 @@ struct CodeRig {
         const loom::WeaveId id =
             r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
         raw->zen_set_self(id);
+        door_id = id;
+        claim_catalog(); // the catalog the rig held before the door was mounted, as the host's
     }
 
     void mount_watch() {
@@ -471,7 +513,7 @@ TEST_CASE("the code behind a role is found by the weave holding it, never by a p
         target_recipe("second-b", "second")};
 
     SUBCASE("the holder's own row answers, with every recipe producing its artifact in catalog order") {
-        const HostContext::CodeSource code =
+        const CodeSource code =
             provenance::code_source_of("role.a", loom::WeaveId{7}, rows, recipes);
         CHECK(code.role == "role.a");
         CHECK(code.weave == 7);
@@ -486,14 +528,14 @@ TEST_CASE("the code behind a role is found by the weave holding it, never by a p
         CHECK(code.recipes[1].source.empty()); // a tree and a target name no file; none is guessed
     }
     SUBCASE("nobody holding the role is an absence, and no row is consulted") {
-        const HostContext::CodeSource code =
+        const CodeSource code =
             provenance::code_source_of("role.a", loom::WeaveId{}, rows, recipes);
         CHECK(code.weave == 0);
         CHECK(code.artifact.empty());
         CHECK(code.recipes.empty());
     }
     SUBCASE("a holder no realized row minted is an absence of artifact, not the nearest row") {
-        const HostContext::CodeSource code =
+        const CodeSource code =
             provenance::code_source_of("role.b", loom::WeaveId{11}, rows, recipes);
         CHECK(code.weave == 11);
         CHECK(code.artifact.empty());
@@ -503,7 +545,7 @@ TEST_CASE("the code behind a role is found by the weave holding it, never by a p
         const std::vector<bld::Recipe> entries{target_recipe("tree-with", "second",
                                                              "/project/second/pane.cpp"),
                                                target_recipe("tree-without", "second")};
-        const HostContext::CodeSource code =
+        const CodeSource code =
             provenance::code_source_of("role.a", loom::WeaveId{7}, rows, entries);
         REQUIRE(code.recipes.size() == 2);
         CHECK(code.recipes[0].kind == "cmake_target");
@@ -512,7 +554,7 @@ TEST_CASE("the code behind a role is found by the weave holding it, never by a p
         CHECK(code.recipes[1].source.empty()); // nothing is guessed from the target or the stem
     }
     SUBCASE("an artifact that also supplies operators says why a rebuild cannot reload in place") {
-        const HostContext::CodeSource code =
+        const CodeSource code =
             provenance::code_source_of("role.c", loom::WeaveId{9}, rows, recipes);
         CHECK(code.artifact == "supplier");
         CHECK_FALSE(code.reload.empty());
@@ -711,6 +753,117 @@ TEST_CASE("code that cannot be named is said in words -- no recipe, several, a C
 }
 
 // ============================================================================
+// What stands behind a role's code: three owners' claims, read at the ask
+// ============================================================================
+
+/// The artifact the cases below claim the stranger's holder was realized from: named by no plan
+/// row, so only the claims can say it.
+constexpr const char* kHelloStem = "zengine-hello-stand-in";
+
+TEST_CASE("a role's code is read from three claims: the holder Loom names, the artifact its owner realized and the recipe the catalog in force claims") {
+    CodeRig c("code-three-claims");
+    const std::filesystem::path hello = c.root / "hello.cpp";
+    put_bytes(hello, "int hello;\n");
+    c.hold({single_recipe("tally", kTallyStem, c.source),
+            single_recipe("hello", kHelloStem, spelled(hello))});
+    c.open();
+    c.seat_stranger();
+    // A HOLDER NO PLAN ROW MINTED, claimed by the realization owner as realized from a stem the
+    // catalog in force produces: the answer can come from the claims alone.
+    c.claim_realized(c.r.bus.role_holder(kHelloRole), kHelloStem, std::string());
+    c.point_at(hello_ref());
+    c.choose_edit_code();
+
+    CHECK_FALSE(c.r.session().notice_is_bad);
+    CHECK(c.r.opening->state().last_path == spelled(hello));
+    CHECK(c.notice().find("opened the source of Hello -- recipe `hello` builds " +
+                          std::string(kHelloStem)) != std::string::npos);
+    REQUIRE(c.watch->heard.size() == 1);
+    CHECK(c.watch->heard[0].role == kHelloRole);
+    CHECK(c.watch->heard[0].artifact == kHelloStem);
+    CHECK(c.watch->heard[0].recipe == "hello");
+    CHECK(c.watch->heard[0].source == spelled(hello));
+}
+
+TEST_CASE("the reason a rebuilt image cannot reload in place is the realization owner's claim, said in its words once the source is open") {
+    CodeRig c("code-claimed-reload");
+    const std::filesystem::path hello = c.root / "hello.cpp";
+    put_bytes(hello, "int hello;\n");
+    c.hold({single_recipe("hello", kHelloStem, spelled(hello))});
+    c.open();
+    c.seat_stranger();
+    c.claim_realized(c.r.bus.role_holder(kHelloRole), kHelloStem,
+                     "the stand-in's image is not reloaded in place");
+    c.point_at(hello_ref());
+    c.choose_edit_code();
+
+    CHECK_FALSE(c.r.session().notice_is_bad);
+    CHECK(c.notice().find("opened the source of Hello") != std::string::npos);
+    CHECK(c.notice().find("a rebuild will not reload in place: the stand-in's image is not "
+                          "reloaded in place") != std::string::npos);
+    CHECK(c.notice().find("reloads in place") == std::string::npos);
+}
+
+TEST_CASE("an owner of a role's code that claims nothing is said as an absence, never as a plan or a catalog that lacks it") {
+    SUBCASE("no realization owner claims what it realized") {
+        CodeRig c("code-no-realization");
+        c.open_bare();
+        c.seat_stranger();
+        c.point_at(hello_ref());
+        c.choose_edit_code();
+        CHECK(c.r.session().notice_is_bad);
+        CHECK(c.notice().find("no realization owner says which artifact each weave was loaded "
+                              "from, so Hello's code cannot be traced") != std::string::npos);
+        CHECK(c.notice().find("plan did not load") == std::string::npos);
+        CHECK(c.r.opening->state().last_path.empty());
+        CHECK(c.watch->heard.empty());
+    }
+    SUBCASE("no project door claims the catalog in force") {
+        CodeRig c("code-no-catalog");
+        c.open_bare();
+        c.seat_stranger();
+        const RealizationClaims owner(c.r.bus);
+        owner.realized(zengine::realization::RealizedRows{
+            {zengine::realization::RealizedRow{
+                static_cast<std::int64_t>(c.r.bus.role_holder(kHelloRole).value), kHelloStem,
+                std::string()}}});
+        c.point_at(hello_ref());
+        c.choose_edit_code();
+        CHECK(c.r.session().notice_is_bad);
+        CHECK(c.notice().find("no project door says which build recipes are in force, so the "
+                              "recipe behind " + std::string(kHelloStem) + " cannot be named") !=
+              std::string::npos);
+        CHECK(c.notice().find("no build recipe produces") == std::string::npos);
+        CHECK(c.r.opening->state().last_path.empty());
+        CHECK(c.watch->heard.empty());
+    }
+}
+
+TEST_CASE("a claim changed between two Edit Codes is read afresh by the second") {
+    CodeRig c("code-claim-fresh");
+    const std::filesystem::path first = c.root / "hello.cpp";
+    const std::filesystem::path second = c.root / "hello_two.cpp";
+    put_bytes(first, "int hello;\n");
+    put_bytes(second, "int hello_two;\n");
+    c.hold({single_recipe("hello", kHelloStem, spelled(first))});
+    c.open();
+    c.seat_stranger();
+    c.claim_realized(c.r.bus.role_holder(kHelloRole), kHelloStem, std::string());
+    c.point_at(hello_ref());
+    c.choose_edit_code();
+    REQUIRE(c.r.opening->state().last_path == spelled(first));
+
+    // THE CATALOG IN FORCE CHANGES, and its owner claims it: the next ask reads the new claim.
+    c.hold({single_recipe("hello", kHelloStem, spelled(second))});
+    c.point_at(hello_ref());
+    c.choose_edit_code();
+    CHECK_FALSE(c.r.session().notice_is_bad);
+    CHECK(c.r.opening->state().last_path == spelled(second));
+    REQUIRE(c.watch->heard.size() == 2);
+    CHECK(c.watch->heard[1].source == spelled(second));
+}
+
+// ============================================================================
 // The managed opening's own answers, read against the one ask
 // ============================================================================
 
@@ -898,6 +1051,7 @@ TEST_CASE("code that changed while its source was opening leaves the file open a
                            single_recipe("tally", kTallyStem, c.source),
                            single_recipe("tally-debug", kTallyStem, spelled(other))},
                           &HostContext::so_in);
+    c.claim_catalog(); // the project door claims the catalog it now holds
     c.r.bus.drain_until_idle();
 
     CHECK(c.editor_status().find("tally.cpp") != std::string::npos); // the open itself stands
@@ -1042,22 +1196,24 @@ TEST_CASE("the Builder's words after Edit Code promise no reload: an owner's ref
         CodeRig c("code-no-promise");
         c.hold({single_recipe("tally", kTallyStem, c.source)});
         c.open();
-        // THE OWNER'S ANSWER, CONTROLLED: the real holder, artifact, recipe and source, with the
-        // reload rule of a realized row that loaded a weave AND mounted an operator provider. The
-        // example exports no provider; this is the owner's word supplied, not Tally's.
-        const std::function<HostContext::CodeSource(const std::string&)> real =
-            c.r.host.code_source;
-        c.r.host.code_source = [real](const std::string& role) {
-            HostContext::CodeSource code = real(role);
-            if (!code.artifact.empty()) {
+        // THE OWNER'S CLAIM, CONTROLLED: the rows the real owner claims, with the reload rule of
+        // a realized row that loaded a weave AND mounted an operator provider claimed for Tally's.
+        // The example exports no provider; this is the owner's word supplied, not Tally's.
+        zengine::realization::RealizedRows rows =
+            zengine::realization::realized_rows_of(c.r.plan_->resolved());
+        bool supplied = false;
+        for (zengine::realization::RealizedRow& one : rows.rows) {
+            if (one.stem == kTallyStem) {
                 load::ResolvedArtifact row;
-                row.stem = code.artifact;
+                row.stem = one.stem;
                 row.weave_loaded = true;
                 row.provider_mounted = true;
-                code.reload = load::reload_refusal(row);
+                one.reload = load::reload_refusal(row);
+                supplied = true;
             }
-            return code;
-        };
+        }
+        REQUIRE(supplied);
+        RealizationClaims(c.r.bus, c.r.mounted_plan_->id()).realized(rows);
         c.point_at(tally_ref());
         c.choose_edit_code();
         c.widen_builder(180);

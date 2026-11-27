@@ -5,8 +5,8 @@
 #define ZENGINE_TESTS_REALIZATION_CLAIMS_HPP
 
 // The realization owner's claims as a case says them, and as a host reads them: a stand-in in the
-// owner's role, or the owner itself, claiming where the plan is and the authored choices
-// (realization/vocabulary.hpp).
+// owner's role, or the owner itself, claiming where the plan is, the authored choices and the rows
+// it realized (realization/vocabulary.hpp).
 
 #include "doctest.h"
 
@@ -28,12 +28,14 @@ struct RealizationStandInState {
 };
 
 /// A STAND-IN FOR THE REALIZATION OWNER'S CLAIMS: a weave in `zengine.realization` that claims, as
-/// that role, what a case says -- where the plan is, and the authored choices -- so the desk and the
-/// doors that read the owner's claims read a case's facts by their own grants, as in a host.
+/// that role, what a case says -- where the plan is, the authored choices and the realized rows --
+/// so the desk and the doors that read the owner's claims read a case's facts by their own grants,
+/// as in a host.
 class RealizationStandIn
     : public loom::WeaveBase<RealizationStandIn, RealizationStandInState, loom::Accept<>, loom::Emit<>,
                              loom::Claims<zengine::realization::PlanStatus,
-                                          zengine::realization::ChoicesHeld>> {};
+                                          zengine::realization::ChoicesHeld,
+                                          zengine::realization::RealizedRows>> {};
 
 /// WHAT THE REALIZATION OWNER CLAIMS THE PROJECT WAITS ON, read off the bus as a host reads it.
 inline zengine::workshop::ProjectFrontier frontier_claimed(const loom::Switchboard& bus) {
@@ -82,6 +84,11 @@ struct RealizationClaims {
     /// Claim the authored choices.
     void choices(const zengine::realization::ChoicesHeld& held) const {
         REQUIRE(bus->role_claim_as(id, zengine::builder::kRealizationRole, loom::to_value(held))
+                    .accepted);
+    }
+    /// Claim the rows realized into weaves.
+    void realized(const zengine::realization::RealizedRows& rows) const {
+        REQUIRE(bus->role_claim_as(id, zengine::builder::kRealizationRole, loom::to_value(rows))
                     .accepted);
     }
 };

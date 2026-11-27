@@ -49,6 +49,7 @@
 #include "pane/causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "realization/vocabulary.hpp" // where the plan is, as its owner claims it
+#include "workshop/code_source.hpp" // what stands behind a role's code, composed of three claims
 #include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
 #include "theme/vocabulary.hpp" // where the themes are and what is worn, told to the theme role
@@ -151,29 +152,6 @@ struct HostContext {
         std::string source; ///< the one authored source file; empty when the kind has none
     };
 
-
-    /// What stands behind one role's running code, read at the ask from the three owners of its
-    /// edges: the bus (role -> weave), the realization owner (weave -> artifact) and the catalog
-    /// in force (artifact -> recipes). Empty fields are absences a sentence names; choosing a
-    /// recipe and opening anything are not this answer's.
-    // WL-CODE-01 -- agents/workshop/code.md
-    struct CodeSource {
-        /// One authored recipe producing the artifact. `source` is a single-source recipe's file as
-        /// the build reads it -- an editing entry, not its includes -- and empty for
-        /// `cmake_target`.
-        struct Recipe {
-            std::string id;
-            std::string kind;   ///< `single_source` or `cmake_target`, the recipe file's words
-            std::string source; ///< empty when the kind names no single source
-        };
-        std::string role;          ///< the role asked about
-        std::int64_t weave = 0;      ///< its holder at the ask; 0 when nobody holds it
-        std::string artifact;        ///< the stem that weave was realized from; empty if none
-        std::string reload;          ///< why a rebuilt image cannot reload in place; empty if it can
-        std::vector<Recipe> recipes; ///< every authored recipe producing `artifact`, catalog order
-    };
-    // WL-CODE-01 -- agents/workshop/code.md
-    std::function<CodeSource(const std::string& role)> code_source;
 
     /// WHAT A WEAVER'S CHOICE OF AUTHORED CATALOG ANSWERED.
     // WL-PROJ-09 -- agents/workshop/project.md
@@ -1948,8 +1926,8 @@ private:
     HostContext* host_;
     Session session_;
 
-    /// The one Edit Code open in flight: the pane, the code the host named for it at the spend, and
-    /// Loom's ticket. Not durable; a newer Edit Code replaces it.
+    /// The one Edit Code open in flight: the pane, the code the three claims named for it at the
+    /// spend, and Loom's ticket. Not durable; a newer Edit Code replaces it.
     // WL-CODE-03 -- agents/workshop/code.md
     struct CodeOpen {
         bool live = false;
@@ -1957,7 +1935,7 @@ private:
         loom::Ticket attempt{};     ///< the queued send, matched by Loom's refusal notice
         PaneRef pane;
         std::string name;           ///< what the weaver sees the pane called
-        HostContext::CodeSource code; ///< the host's answer at the spend
+        CodeSource code;            ///< what the three claims said at the spend
         std::string recipe;         ///< the one recipe whose source was asked for
         std::string source;
     };

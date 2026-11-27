@@ -122,9 +122,11 @@ Project pane, not here.
 
 It claims, as `zengine.realization` after every change: `PlanStatus` v1, where the plan is -- its
 state (`PlanState`: `loading`, `waiting`, `complete` or `refused`), the row it waits on, the rows
-stepped over or given way from, the roles still to come -- and
-`ChoicesHeld` v1, every authored choice and whether it holds its role
-([`realization/vocabulary.hpp`](../vocabulary.hpp)), for whoever its host grants observing them.
+stepped over or given way from, the roles still to come -- `ChoicesHeld` v1, every authored choice
+and whether it holds its role, and `RealizedRows` v1, each row that loaded a weave: the weave, the
+artifact it was loaded from and why a rebuilt image of it cannot reload in place, or nothing when it
+can ([`realization/vocabulary.hpp`](../vocabulary.hpp)), for whoever its host grants observing
+them.
 
 ## Files
 

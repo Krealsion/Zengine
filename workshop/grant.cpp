@@ -119,6 +119,11 @@ loom::Grant workshop_grant() {
     // WHERE THE PLAN IS, the realization owner's claim: what the project waits on, the rows that
     // gave way and the roles still to come, read at the desk's every reading of them.
     speak.allow_observe(realization::PlanStatus::zen_name, realization::PlanStatus::zen_version);
+    // WHAT STANDS BEHIND A ROLE'S CODE, of two owners' claims beside the participants claim: which
+    // weave each row realized, the realization owner's, and the catalog in force, the project
+    // door's, read inside the Edit Code delivery that composes them.
+    speak.allow_observe(realization::RealizedRows::zen_name, realization::RealizedRows::zen_version);
+    speak.allow_observe(RecipesInForce::zen_name, RecipesInForce::zen_version);
     // WHO IS ON THE BUS, Loom's participants claim: who holds each role at which incarnation, what
     // it accepts and declares it emits, read inside the delivery that needs it.
     loom::host::allow_observe_participants(speak);

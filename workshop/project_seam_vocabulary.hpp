@@ -4,10 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_PROJECT_SEAM_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_PROJECT_SEAM_VOCABULARY_HPP
 
-// The project door's conversation: where this run began and which places file it owns, read; and
-// which recipes this project means, changed. Every ask goes to `zengine.project`, the host's
-// in-process door, and is answered by it. Values only: knowing a path is not permission to read,
-// write or delete under it.
+// The project door's conversation: where this run began and which places file it owns, read;
+// which recipes this project means, changed; and the catalog in force, claimed. Every ask goes to
+// `zengine.project`, the host's in-process door, and is answered by it. Values only: knowing a
+// path is not permission to read, write or delete under it.
 
 #include <zen/weave/shape.hpp>
 
@@ -79,6 +79,30 @@ struct RecipeOutcome {
     std::int64_t recipes = 0;
     ZEN_SHAPE(RecipeOutcome, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal), ZEN_FIELD(path),
               ZEN_FIELD(recipes));
+};
+
+// ---- The recipe catalog in force, claimed --------------------------------------
+
+/// ONE RECIPE OF THE CATALOG IN FORCE, as a reader composes with it: its name, its kind in the
+/// recipe file's words (`single_source` or `cmake_target`), the file its code starts in (the one
+/// source, or a CMake target's editing entry; empty when it names none), and every artifact stem
+/// it produces, its native product first.
+struct RecipeInForce {
+    std::string id;
+    std::string kind;
+    std::string source;
+    std::vector<std::string> products;
+    ZEN_SHAPE(RecipeInForce, 1, ZEN_FIELD(id), ZEN_FIELD(kind), ZEN_FIELD(source),
+              ZEN_FIELD(products));
+};
+
+/// THE CATALOG IN FORCE, claimed as `zengine.project` by the one role that may change it, after
+/// every change: the file it came from (empty when none is in force) and its recipes in the
+/// file's order. The recipe law's own bounds keep it within what one reading admits.
+struct RecipesInForce {
+    std::string path;
+    std::vector<RecipeInForce> recipes;
+    ZEN_SHAPE(RecipesInForce, 1, ZEN_FIELD(path), ZEN_FIELD(recipes));
 };
 
 } // namespace zengine::workshop

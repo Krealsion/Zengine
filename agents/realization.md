@@ -116,7 +116,8 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   the artifacts go.
 - **WHAT IT KNOWS, IT CLAIMS.** Where the plan is (`PlanStatus`: its state, an enumeration
   (`PlanState`), the row it waits on and the rows behind it, the optional rows stepped over, what
-  rows gave way from, the roles still to come) and every authored choice with the one that holds its role (`ChoicesHeld`) are
+  rows gave way from, the roles still to come), every authored choice with the one that holds its role (`ChoicesHeld`)
+  and each row that loaded a weave, with its artifact and its reload rule (`RealizedRows`), are
   the role's latest claims (`realization/vocabulary.hpp`), claimed as each entry point returns.
   The desk, the guest door, the project door, the layouts' owner and the editor switch read
   them by their grants' observe rules, in their own deliveries, never through a host closure
