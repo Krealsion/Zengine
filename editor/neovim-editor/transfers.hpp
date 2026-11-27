@@ -531,7 +531,7 @@ inline void NeovimEditorWeave::carry_snapshot(const Snapshot& snap, bool drag, s
     s.end_column = snap.last_col;
     s.line_ending = snap.fileformat == "dos" ? "CRLF" : "LF";
     s.unsaved = snap.modified;
-    s.captured_at_epoch_s = st::clock_now();
+    s.captured_at_epoch_s = st::captured_at(mail.turn_date_ms());
     const st::Lines lines = st::neovim_lines(snap.text);
     const std::string name = s.path.empty() ? std::string("[No Name]") : file_name(s.path);
     begin_pickup(st::text_pair(snap.text, s), drag, gesture,
@@ -565,7 +565,7 @@ inline void NeovimEditorWeave::carry_location(bool drag, std::uint64_t gesture, 
     c.relative = st::relative_to(loc.path, c.project_root);
     c.line_text = st::observe_line(field(*v, "text").as_str());
     c.unsaved = field(*v, "modified").as_bool(false);
-    c.captured_at_epoch_s = st::clock_now();
+    c.captured_at_epoch_s = st::captured_at(mail.turn_date_ms());
     begin_pickup(st::location_pair(loc, c), drag, gesture,
                  file_name(loc.path) + ":" + std::to_string(loc.line) + " (location)",
                  "the location of " + file_name(loc.path) + " at line " + std::to_string(loc.line), mail);

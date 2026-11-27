@@ -483,6 +483,29 @@ TEST_CASE("weave: CaptureDescribe stores a real target's zen.PokeStructure with 
           std::to_string(r.target_id.value));
 }
 
+TEST_CASE("weave: CaptureDescribe dates what it stores by the turn its answer settled in, and "
+          "a turn that carried no date records none") {
+    Rig r;
+    // A date no clock reads now, so a capture that read the machine's would not record it.
+    constexpr std::int64_t kDateMs = 1'000'000'000'000;
+    const auto captured_at = [&] {
+        r.get();
+        REQUIRE(r.caller->states.back().occupied);
+        const inv::DecodedPair decoded = inv::decode_pair(
+            std::string_view(reinterpret_cast<const char*>(r.caller->states.back().pair.data()),
+                             r.caller->states.back().pair.size()));
+        REQUIRE(decoded.metadata[0].schema().name() == "CaptureContext");
+        return decoded.metadata[0].get("captured_at_epoch_s")->as_int();
+    };
+    r.bus.begin_turn(loom::TurnFacts{1, kDateMs});
+    r.capture(kTargetRole);
+    REQUIRE(r.caller->captures.size() == 1);
+    CHECK(captured_at() == kDateMs / 1000);
+    r.capture(kTargetRole); // turned by hand, with nothing to say when
+    REQUIRE(r.caller->captures.size() == 2);
+    CHECK(captured_at() == 0);
+}
+
 TEST_CASE("weave: CaptureDescribe against a role nobody holds is refused in words, and stores "
          "nothing") {
     Rig r;

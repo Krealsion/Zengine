@@ -331,6 +331,39 @@ TEST_CASE("the keyboard carries the selection by pick-and-place, and with nothin
     CHECK(loom::from_value<st::SourceText>(kept[0].pair.item).text == "line two");
 }
 
+TEST_CASE("a selection and a location the Editor carries are dated by the turn that captured them, never by a clock of its own") {
+    // A date no clock reads now, so a capture that read the machine's would not record it.
+    constexpr std::int64_t kDateMs = 1'000'000'000'000;
+    {
+        EditorStory s("xfer-date-copy");
+        REQUIRE(s.open(s.write("a.txt", "line one\nline two\n")).accepted);
+        s.click_doc(1, 0);
+        s.key(input::scan::kEnd, input::mod::kShift);
+        s.turn_time = loom::TurnFacts{1, kDateMs};
+        s.key(input::scan::kE, input::mod::kCtrl);
+        REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+        s.click(s.inventory, 2, 2);
+        const auto kept = s.stored();
+        REQUIRE(kept.size() == 1);
+        CHECK(loom::from_value<st::SourceSelection>(kept[0].pair.metadata[0]).captured_at_epoch_s ==
+              kDateMs / 1000);
+    }
+    {
+        EditorStory s("xfer-date-place");
+        REQUIRE(s.open(s.write("a.txt", "first\nsecond\n")).accepted);
+        s.click_doc(1, 2);
+        s.turn_time = loom::TurnFacts{1, kDateMs + 7'000};
+        s.key(input::scan::kL, input::mod::kCtrl);
+        REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+        s.click(s.inventory, 2, 2);
+        s.name("a.txt at 2");
+        const auto kept = s.stored();
+        REQUIRE(kept.size() == 1);
+        CHECK(loom::from_value<st::SourceLocationContext>(kept[0].pair.metadata[0]).captured_at_epoch_s ==
+              kDateMs / 1000 + 7);
+    }
+}
+
 TEST_CASE("dropped text is inserted at the painted landing character as one undoable edit, replaces the highlight only when dropped onto it, and saves nothing") {
     EditorStory s("xfer-in");
     const std::string path = s.write("a.txt", "abc\ndef\n");

@@ -37,7 +37,7 @@ struct SourceSelection {
     std::int64_t end_column = 0;   ///< 1-based byte of that position
     std::string line_ending;       ///< the document's own break: `LF` or `CRLF`
     bool unsaved = false;          ///< the document held edits its file did not
-    std::int64_t captured_at_epoch_s = 0; ///< this process's clock at acquisition
+    std::int64_t captured_at_epoch_s = 0; ///< the turn's date at acquisition (`captured_at`)
     ZEN_SHAPE(SourceSelection, 1, ZEN_FIELD(editor), ZEN_FIELD(path), ZEN_FIELD(project_root),
               ZEN_FIELD(kind), ZEN_FIELD(first_line), ZEN_FIELD(first_column),
               ZEN_FIELD(end_line), ZEN_FIELD(end_column), ZEN_FIELD(line_ending),
@@ -71,7 +71,7 @@ struct SourceLocationContext {
     std::string relative;     ///< `path` relative to that root, when it was inside it
     std::string line_text;    ///< the caret line then, whole or its first `kMaxLineText` bytes
     bool unsaved = false;     ///< the buffer held edits its file did not
-    std::int64_t captured_at_epoch_s = 0;
+    std::int64_t captured_at_epoch_s = 0; ///< the turn's date at acquisition (`captured_at`)
     ZEN_SHAPE(SourceLocationContext, 1, ZEN_FIELD(editor), ZEN_FIELD(project_root),
               ZEN_FIELD(relative), ZEN_FIELD(line_text), ZEN_FIELD(unsaved),
               ZEN_FIELD(captured_at_epoch_s));

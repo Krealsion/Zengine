@@ -68,7 +68,7 @@ struct NeovimStory : NeovimHome, TransferStory {
     /// ONE BEAT, AS THE TIMER WOULD GIVE IT, then drain.
     void tick() {
         (void)r.bus.send(holder(), host_wake());
-        r.bus.drain_until_idle();
+        drain();
     }
     template <class Done>
     bool until(Done done, int ms = 20000) {
@@ -629,6 +629,41 @@ TEST_CASE("the status row carries this file's location, which reopens the file t
     CHECK(s.notice().find("is not there") != std::string::npos);
     CHECK(s.read("path") == a);
     CHECK_FALSE(std::filesystem::exists(b));
+}
+
+TEST_CASE("a selection and a location carried from Neovim are dated by the turn Neovim's answer landed in, never by a clock of the Editor's own") {
+    // A date no clock reads now, so a capture that read the machine's would not record it.
+    constexpr std::int64_t kDateMs = 1'000'000'000'000;
+    NeovimStory s("nvim-xfer-date");
+    REQUIRE(s.open(s.write("a.txt", "first\nsecond\n")).accepted);
+    REQUIRE(s.until([&] { return s.shows("second"); }));
+    s.focus();
+    s.keys("jV");
+    REQUIRE(s.until([&] { return s.read("mode") == "V"; }));
+    s.settle();
+    s.turn_time = loom::TurnFacts{1, kDateMs};
+    s.key(input::scan::kR, input::mod::kCtrl);
+    INFO(s.notice() << " / " << s.r.last_notice());
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    s.name("line two");
+    s.focus();
+    s.escape();
+    s.settle();
+    s.turn_time = loom::TurnFacts{2, kDateMs + 7'000};
+    s.click(s.editor, 0, 2, 3); // the status row's menu
+    REQUIRE(s.r.session().presented.open);
+    REQUIRE(s.offered("Carry this file's location"));
+    s.key(input::scan::kReturn);
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    s.name("a.txt at 2");
+    const auto kept = s.stored();
+    REQUIRE(kept.size() == 2);
+    CHECK(loom::from_value<st::SourceSelection>(kept[0].pair.metadata[0]).captured_at_epoch_s ==
+          kDateMs / 1000);
+    CHECK(loom::from_value<st::SourceLocationContext>(kept[1].pair.metadata[0]).captured_at_epoch_s ==
+          kDateMs / 1000 + 7);
 }
 
 TEST_CASE("a command chosen from the drop's menu while Neovim waits for input is held, never refused: typing still reaches Neovim, another drop, an open and a switch wait for it, and it goes in once Neovim stops waiting, said once, one undo taking it back") {

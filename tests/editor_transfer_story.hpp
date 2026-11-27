@@ -26,6 +26,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -74,6 +75,9 @@ struct TransferStory {
     /// The beat an Editor that answers on its beat is given, as the Timer would give it; none for
     /// one that answers in the delivery that asks.
     std::function<void()> beat;
+    /// THE TURN'S TIME AND DATE THE HAND'S ACTS AND THE BEATS ARE DISPATCHED IN, as a host's wait
+    /// hands them to the bus; none by default, as a bus turned by hand carries none.
+    std::optional<loom::TurnFacts> turn_time;
 
     /// `stem` is the image that holds the Editor's role: the standard Editor, or another
     /// implementation of it (the Neovim-backed Editor's suite passes its own). `desktop` loads the
@@ -160,10 +164,15 @@ struct TransferStory {
     }
 
     // ---- the hand ---------------------------------------------------------------------------
+    /// The bus turned until idle, in `turn_time` when the case set one.
+    void drain() {
+        if (turn_time) r.bus.begin_turn(*turn_time);
+        r.bus.drain_until_idle();
+    }
     void act(std::function<void(loom::Mail&)> action) {
         hand->next = std::move(action);
         r.bus.send(hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
-        r.bus.drain_until_idle();
+        drain();
         hand->next = {};
     }
     void batch(std::vector<input::Moment> events) {

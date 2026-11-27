@@ -448,7 +448,7 @@ public:
         if (!asked.has_value()) {
             return; // not this weave's own open conversation: data, and moves nothing
         }
-        const CaptureContext ctx = observed_structure(requested_role_, mail.sender());
+        const CaptureContext ctx = observed_structure(requested_role_, mail.sender(), mail.turn_date_ms());
         InventoryCaptured result;
         loom::Bytes stored;
         try {

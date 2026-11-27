@@ -297,9 +297,10 @@ struct InventoryCaptureDescribe {
 /// asked this weave to query); `request_shape`/`request_version` name what this weave actually
 /// sent; `answered_by` is the WeaveId Loom itself attested as the sender of the PokeStructure
 /// reply -- an OBSERVED fact, never read from the reply's own payload, and never a durable
-/// identity across a restart or a role that changes hands. `captured_at_epoch_s` is this
-/// process's own clock at the moment the answer settled: a local reading, not a claim that any
-/// other observation in this pair was simultaneous with it.
+/// identity across a restart or a role that changes hands. `captured_at_epoch_s` is the date of
+/// the turn the answer settled in, in whole seconds since 1970-01-01 UTC and 0 when the turn
+/// carried none: a record for a person, not a claim that any other observation in this pair was
+/// simultaneous with it.
 struct CaptureContext {
     std::string requested_role;
     std::string request_shape;
