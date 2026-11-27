@@ -45,7 +45,7 @@ fixture_target(fixture-neighbour
             "${ZENGINE_FIXTURE_ARTIFACTS}/fixture-bystander${ZENGINE_FIXTURE_SUFFIX}")
 
 # A build that succeeds and leaves a MODULE, `<name>.wasm`: the same file on every platform, the
-# stem rule's other half (`HostContext::kModuleSuffix`). A placeholder of no format, since what a
+# stem rule's other half (`builder::kModuleSuffix`). A placeholder of no format, since what a
 # CMake-target recipe is judged by is that its named file is there.
 add_custom_target(fixture-module
     COMMAND ${CMAKE_COMMAND} -E make_directory "${ZENGINE_FIXTURE_ARTIFACTS}"

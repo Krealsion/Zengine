@@ -58,14 +58,16 @@ and the Terminal's cases in `tests/test_workshop_panes_powers.cpp`) holds most o
 
 **The host's side.**
 
-- Workshop mounts and grants the participant, `loom::TerminalSession`, in `workshop/workshop.cpp`;
+- The host mounts and grants the participant, `loom::TerminalSession`, in `workshop/workshop.cpp`,
+  and holds it in its Terminal door, `workshop/terminal/host_door.hpp`;
   `workshop/editor_switch.hpp` and `workshop/powers_door.hpp` add its asks.
 - The seam is `workshop/terminal_seam_vocabulary.hpp`, the role is in
   `workshop/pane_seam_vocabulary.hpp`, and Workshop's grant to say it is in `workshop/grant.cpp`.
-- The door, `workshop/terminal/door.hpp`, is composed onto Workshop's weave in `workshop/weave.hpp`;
-  the picture is `workshop/terminal/transcript.hpp` and the completer
-  `workshop/terminal/complete.hpp`, their laws `agents/workshop/terminal-door.md`. A value of the
-  record is captured for a gesture in `workshop/weave_operation.cpp` (`TerminalValueRequested`).
+- The pane's door on Workshop, `workshop/terminal/door.hpp`, is composed onto Workshop's weave in
+  `workshop/weave.hpp` and forwards to the host's; the picture is
+  `workshop/terminal/transcript.hpp` and the completer `workshop/terminal/complete.hpp`, their laws
+  `agents/workshop/terminal-door.md`. A value of the record is captured for a gesture authorized in
+  `workshop/weave_operation.cpp` (`TerminalValueRequested`) and read by the host's door.
 - `workshop/CMakeLists.txt` stages and catalogues it, and `workshop/default-load-plan.json` holds its
   plan row.
 - A guest's hand toward it is refused in `workshop/weave_operation.cpp` (`refused_toward`), and

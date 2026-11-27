@@ -30,8 +30,8 @@ The window, the room, the setup and the canvas a pane draws on are [the pane pro
 reference](workshop-panes.md); where a reported pointer lands is [pointer
 spaces](pointer-spaces.md). Loom's own doors are Loom's: Workshop hears `zen.DispatchRefused` to
 learn that a drop, a press or a menu sentence it sent was not delivered, and `zen.AskEnded` that
-an ask of its own -- an open, a menu's withdrawal, a reading, an edit -- ended with no answer, and
-says so on the band.
+an ask of its own -- an open, a menu's withdrawal, a reading, an edit, a quit's question, a
+Terminal line -- ended with no answer, and says so on the band, or answers its own asker so.
 
 ## Use
 
@@ -172,14 +172,17 @@ that asked it.
 `WorkshopQuitRequested` asks Workshop to end, as a weaver's quit does.
 
 - **Takes:** nothing.
-- **Answers:** Workshop publishes `PaneQuitRequested` and waits for every pane to answer
+- **Answers:** Workshop asks `PaneQuitRequested` of each participant that takes it, as Loom's
+  participants claim lists them, and waits for every one to answer
   [`PaneQuitAnswered`](#panequitanswered); then writes its window file, asks `zengine.layouts` to
   write the last session (`SessionSaveRequested`), answers `loom::Ack` and stops.
   Input that arrives meanwhile is held, and replayed if the quit is refused.
 - **Refuses:** in `loom::Refused`: `a quit already asked is still waiting for its answer`; a
   guest's on a weaver's host, `Workshop stays open -- <why>; quitting writes the last session`;
   `Workshop could not ask its panes whether they hold unsaved work -- it does not hold its own
-  role; Workshop stays open`; and each pane's own refusal, joined.
+  role; Workshop stays open`; `the quit could not ask <role> (weave <n>) -- <why> (<reason>)` or
+  `the quit was not answered by <role> (weave <n>) -- <why> (<reason>)`, for an ask Loom ended with
+  no answer; and each pane's own refusal, joined.
 - **Example:** an agent's run ends Workshop with it.
 
 ### `PaneViewRequested`
@@ -501,13 +504,16 @@ a setting in the layout.
 ### `TerminalActRequested`
 
 `TerminalActRequested` asks Workshop to submit a line to its terminal participant
-([`terminal_seam_vocabulary.hpp`](../terminal_seam_vocabulary.hpp)).
+([`terminal_seam_vocabulary.hpp`](../terminal_seam_vocabulary.hpp)), which Workshop asks of the
+host's Terminal door, `zengine.terminal-door`, the participant's holder
+(in the same vocabulary).
 
 - **Takes:** `act`, `submit`; `line`, as typed.
-- **Answers:** `TerminalActed{accepted, refusal}`, to the asker alone; then the transcript it
-  changed is published (`TranscriptShown`).
+- **Answers:** `TerminalActed{accepted, refusal}`, the door's, to the asker alone; then the record
+  the door claims is published (`TranscriptShown`).
 - **Refuses:** ``this door knows one act, and it is `submit` ``; `no terminal participant is mounted
-  on this bus -- nothing was authored`. Only a role asks.
+  on this bus -- nothing was authored`; `the Terminal's door never answered -- <why>`; `the
+  Terminal is still answering <n> asks -- try again`. Only a role asks.
 - **Example:** the Terminal pane submits `ask @zengine.builder StatusRequested 1`.
 
 ### `TerminalValueRequested`
@@ -516,8 +522,9 @@ a setting in the layout.
 
 - **Takes:** `pane`, `participant`, `observation` (the entry), and `gesture`, judged as
   [`PaneOperationRequested`](#paneoperationrequested)'s is.
-- **Answers:** `TerminalValueAnswered{available, reason, label, pair}`, to the asker alone: the
-  value and what the transcript says of it, encoded as a pair, within the carry's bound.
+- **Answers:** `TerminalValueAnswered{available, reason, label, pair}`, the host's Terminal
+  door's, to the asker alone: the value and what the transcript says of it, encoded as a pair,
+  within the carry's bound.
 - **Refuses:** the operation's refusals; `The source terminal is no longer available`; `This
   transcript value is no longer retained, or is only local text`; `This transcript entry is no
   longer retained`; `This value exceeds the 64 KiB carry limit`; `This value could not be captured:
@@ -529,8 +536,9 @@ a setting in the layout.
 `TerminalCompletionRequested` asks what a terminal line could be completed with.
 
 - **Takes:** `line`.
-- **Answers:** `TerminalCompletionOffered{open, slot, partial, heading, candidates}`, to the asker
-  alone, `open` false with no terminal participant; read off the bus at the ask, authoring nothing.
+- **Answers:** `TerminalCompletionOffered{open, slot, partial, heading, candidates}`, the host's
+  Terminal door's, to the asker alone, `open` false with no terminal participant; read off the bus
+  at the ask, authoring nothing.
 - **Refuses:** nothing; personal speech is answered by nobody.
 - **Example:** the Terminal pane asks on each keystroke of its line.
 
@@ -729,16 +737,25 @@ or a guest's. Workshop routes it as that hand's; the producer's unattributed cop
 
 ### `PaneQuitAnswered`
 
-`PaneQuitAnswered`, from any pane answering `PaneQuitRequested`: `permitted`, or a `refusal` in its
-words. The last answer decides: every pane permitting ends Workshop; any refusal keeps it open, the
+`PaneQuitAnswered`, from any pane Workshop asked `PaneQuitRequested`, as Loom's answer to that ask: `permitted`, or a `refusal` in its words. The last answer decides: every pane permitting ends Workshop; any refusal keeps it open, the
 band saying each refusal, or `<pane> refused the quit and gave no reason`. A quit asked here then
 opens a box at the room's centre: go back, or discard what those panes hold and quit.
 
-### `QuitDeliveryRefusalNoted`
+### `TerminalActed`
 
-`QuitDeliveryRefusalNoted`, from the host's watch ([`quit_delivery.hpp`](../quit_delivery.hpp)):
-Loom refused the quit question to a pane. The quit is refused: `the quit could not ask <role>
-(weave <n>) -- <why>; Workshop stays open, and a quit after the repair asks again`.
+`TerminalActed`, from `zengine.terminal-door`, as Loom's answer to a line Workshop asked it to
+author: handed to the pane that asked, then the desk is drawn again with the record the door claims.
+
+### `TerminalCompletionOffered`
+
+`TerminalCompletionOffered`, from `zengine.terminal-door`, as Loom's answer to a completion Workshop
+asked: handed to the pane that asked, unchanged.
+
+### `TerminalValueAnswered`
+
+`TerminalValueAnswered`, from `zengine.terminal-door`, as Loom's answer to a capture Workshop
+authorized and asked: handed to the pane that asked; a refused one also forgets the approval its
+gesture gave.
 
 ### `SourceOpened`
 
@@ -910,7 +927,9 @@ thing it says; `DeskStamps` v3 when the desk or a
 pane's stamp moved, the newest standing for all before it
 ([the desk, said whole](workshop-panes.md#the-desk-said-whole)); `PaneSubjectShown` once a pane is
 inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an Edit Code open;
-and `PaneQuitRequested`, the question a quit asks. To a graphics directory it says
+and, to each participant that takes it, `PaneQuitRequested`, the question a quit asks. To
+`zengine.terminal-door` it asks the Terminal pane's line, completion and capture
+(`TerminalLineAsked`, `TerminalCompletionAsked`, `TerminalValueAsked`). To a graphics directory it says
 `PaletteChosen`, `AreaPlaced` and `RoomAsked`, each only when it moved, and to the window that shows
 its area, `Drawn`, and `AreaShowAsked` for each pane's area that settled; to `zengine.theme`,
 `ThemesPlaced` and `ThemesWorn`, when moved. To a pane's role it

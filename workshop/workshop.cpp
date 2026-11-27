@@ -28,6 +28,7 @@
 #include "opening.hpp"        // the opening manager this host mounts
 #include "editor_switch.hpp"  // the editor switch this host mounts
 #include "terminal_speech.hpp" // what the Terminal participant this host mounts may say
+#include "terminal/host_door.hpp" // the host's door holding that participant
 #include "pane_migration.hpp" // the retired references this host converts, one of which it manages
 #include "provenance.hpp"     // what stands behind a role's running code, from three owners
 #include "guest_door.hpp"     // the other hosts this Workshop admits, and the door they come through
@@ -368,9 +369,6 @@ int main(int argc, char** argv) {
         const op::Catalog* conversions = nullptr;
     } host;
     WorkshopMade made;
-    // ...and what Workshop is still handed of this host (`HostContext`): declared before the bus,
-    // so it outlives every weave the bus holds.
-    HostContext context;
     host.dir = exe_dir();
     // And where the weaver is standing: the project is the launch directory (user_paths.hpp),
     // captured once. A directory the platform will not report and one this application cannot
@@ -698,9 +696,13 @@ int main(int argc, char** argv) {
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
         std::move(terminal_grant));
-    // Non-owning, handed down as Workshop's host pointer. The bus owns the
-    // participant; Workshop's weave holds a pointer and inherits nothing from it.
-    context.terminal = terminal.session;
+    // ...held by the host's own Terminal door, in its role, which Workshop asks for the Terminal
+    // pane and whose claim of the record it reads (workshop/terminal/host_door.hpp). The bus owns
+    // both; the host keeps the door to claim the record again at its wakes.
+    const MountedTerminalDoor terminal_door = mount_terminal_door(bus, terminal);
+    // ...and claimed again after each delivery the participant takes, which moves its record with
+    // no delivery of the door's.
+    const TerminalRecordWatch terminal_watch(bus, terminal.id, *terminal_door.door);
     // The boot line names the identity the Terminal pane speaks as.
     std::printf("zengine-workshop - terminal: weave #%s (presented by the Terminal pane)\n",
                 std::to_string(terminal.id.value).c_str());
@@ -859,8 +861,7 @@ int main(int argc, char** argv) {
         return 3;
     }
     auto speak = workshop_grant();
-    const loom::WeaveId workshop_id =
-        mount_in_role<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, *admitted, context);
+    (void)mount_in_role<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, *admitted);
 
     // ---- The guest door: other hosts, admitted deliberately (workshop/guest_door.hpp) -----------
     // Only with a `--guests` file: without one this Workshop cannot be connected to, the honest
@@ -955,12 +956,6 @@ int main(int argc, char** argv) {
                     "--guests <file> to admit one)\n");
     }
     std::fflush(stdout);
-
-    // ---- The quit's undeliverable questions (WL-SESSION-19) -------------------------------------
-    // A refusal notice never reaches a publication's author, so this host watches its tap for the
-    // quit's refused deliveries and writes them where Workshop reads (`quit_delivery.hpp`).
-    // Declared after the bus and the `HostContext`, so it goes first.
-    const QuitDeliveryWatch quit_watch(bus, workshop_id, context.undelivered_quits);
 
     // ---- The opening manager (WL-OPEN-01, WL-OPEN-08) -------------------------------------------
     // Mounted in its own role with exactly the conversation it carries. Its joint authority is
@@ -1284,6 +1279,9 @@ int main(int argc, char** argv) {
         if (ended) {
             break;
         }
+        // AN ANSWER THE TERMINAL HEARD moved its record with no delivery of its door's: claimed
+        // again at each of the host's wakes, so Workshop's next picture reads it.
+        terminal_door.door->claim_again(bus);
         const bool idle = bus.pending() == 0;
         const loom::host::Reactor::Woke woke = idle ? wait.after_turn() : wait.after_turn(0);
         if (idle && bus.pending() == 0 && !woke.line && !woke.own && woke.roles == 0 &&

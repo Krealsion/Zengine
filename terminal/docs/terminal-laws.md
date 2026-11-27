@@ -32,8 +32,9 @@ or its transcript, links neither Workshop's logic nor Loom's terminal, and keeps
 record.
 
 What it does not mean: that the pane stands with nothing of the participant's beside it. The
-door onto the participant, its completer and the picture of the record are Workshop's
-(`workshop/terminal/`), and the pane includes none of them.
+host's door onto the participant, its completer and the picture of the record, and the pane's
+door on Workshop that forwards to it, are the host's and Workshop's (`workshop/terminal/`), and
+the pane includes none of them.
 
 Why: [the Terminal is a participant](../../agents/decisions/the-terminal-is-a-participant.md).
 

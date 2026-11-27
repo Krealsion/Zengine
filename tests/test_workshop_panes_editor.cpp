@@ -5285,10 +5285,11 @@ TEST_CASE("the real Editor, held behind a publication its image could not apply,
 }
 
 // ============================================================================
-// THE QUIT A PARTICIPANT CANNOT BE ASKED: a delivery Loom refuses runs no handler, so the
-// host's watch (`quit_delivery.hpp`) writes the refusal in the book Workshop reads and wakes it,
-// and the quit is refused naming who could not be asked and why. A delivered question nobody
-// answers still waits. Every party is real but the stand-ins that take part in the quit alone.
+// THE QUIT A PARTICIPANT CANNOT BE ASKED, OR DOES NOT ANSWER: Workshop asks each participant
+// that takes the question through Loom's ask door, so an ask Loom refuses, or one its handler
+// leaves unanswered, ends as `zen.AskEnded`, and the quit is refused naming who and why. A
+// participant keeping its answer still holds the quit. Every party is real but the stand-ins that
+// take part in the quit alone.
 // ============================================================================
 
 namespace {
@@ -5301,7 +5302,7 @@ struct QuitSeatState {
 /// A PARTICIPANT IN THE QUIT AND IN NOTHING ELSE (test instrumentation): a role that offers
 /// no pane, so nothing of it is on the desk, and accepts the quit question from Workshop's
 /// role. It permits at once, refuses the way a pane holding work does, keeps each answer right
-/// until a case releases it, or stays silent -- as the case sets it.
+/// until a case releases it or lets it go, or returns without answering -- as the case sets it.
 class QuitSeat : public loom::WeaveBase<QuitSeat, QuitSeatState,
                                         loom::Accept<PaneQuitRequested, SeatDo>,
                                         loom::Emit<PaneQuitAnswered>> {
@@ -5310,6 +5311,7 @@ public:
     Mode mode = Mode::kPermit;
     std::vector<std::uint64_t> asks;        ///< the correlation of each question heard, in order
     std::vector<loom::DeferredAnswer> held; ///< the answer rights kept, oldest first
+    bool let_go = false; ///< the release lets the oldest right go unspent, rather than spend it
 
     void on(const PaneQuitRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopProvider)) {
@@ -5326,23 +5328,27 @@ public:
             held.push_back(mail.defer_answer());
         }
     }
-    /// THE RELEASE: the oldest answer right kept, spent as a permission.
+    /// THE RELEASE: the oldest answer right kept, spent as a permission, or let go unspent.
     void on(const SeatDo&, loom::Mail& mail) {
         if (held.empty()) {
             return;
         }
-        (void)loom::answer_deferred(held.front(), mail,
-                                    PaneQuitAnswered{"quit-seat", true, std::string()});
+        if (let_go) {
+            loom::release_deferred(held.front(), mail);
+        } else {
+            (void)loom::answer_deferred(held.front(), mail,
+                                        PaneQuitAnswered{"quit-seat", true, std::string()});
+        }
         held.erase(held.begin());
     }
 };
 
-/// A STRANGER GRANTED THE QUIT QUESTION, THE HOST'S WAKE-UP AND AN INVENTORY ASK -- and taking no
-/// answer -- so the cases below prove what Workshop and the watch refuse and not what the bus
-/// does. It says what `next` says, inside its own delivery.
+/// A STRANGER GRANTED THE QUIT QUESTION, LOOM'S ENDING'S SHAPE AND AN INVENTORY ASK -- and taking
+/// no answer -- so the cases below prove what Workshop refuses and not what the bus does. It says
+/// what `next` says, inside its own delivery.
 class QuitForger
     : public loom::WeaveBase<QuitForger, SeenState, loom::Accept<SeatDo>,
-                             loom::Emit<PaneQuitRequested, QuitDeliveryRefusalNoted,
+                             loom::Emit<PaneQuitRequested, loom::AskEnded,
                                         PaneInventoryRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
@@ -5397,12 +5403,23 @@ inline void hold_the_editor(EditorRig& e) {
 /// otherwise it asks afresh -- the one door that can tell the two apart without a key.
 inline void close_box(EditorRig& e) { e.r.close_requested(); }
 
-/// THE HOST'S WAKE-UP, sent the way the watch sends it: a root delivery that carries nothing.
-inline void wake_workshop(EditorRig& e) {
-    (void)e.r.bus.send(e.r.workshop_id,
-                       loom::Message(loom::to_value(QuitDeliveryRefusalNoted{}), loom::WeaveId{},
-                                     loom::WeaveId{}, 0));
+/// THE SEAT'S RELEASE: its oldest kept answer right spent, or let go when `let_go` says so.
+inline void release_seat(EditorRig& e, loom::WeaveId seat) {
+    (void)e.r.bus.send(seat, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                           loom::WeaveId{}, 0));
     e.settle();
+}
+
+/// AN ENDING IN LOOM'S SHAPE NAMING `attempt`, as anybody granted the shape may say it: ordinary
+/// speech, which Loom's own word for an ended ask is not.
+inline loom::AskEnded forged_ending(std::uint64_t attempt, loom::WeaveId target) {
+    loom::AskEnded ended;
+    ended.attempt = std::to_string(attempt);
+    ended.target = std::to_string(target.value);
+    ended.shape = PaneQuitRequested::zen_name;
+    ended.version = PaneQuitRequested::zen_version;
+    ended.stage.is = loom::AskNotDelivered::TargetUnavailable;
+    return ended;
 }
 
 /// What Workshop says of one participant it could not ask: role, weave, meaning, Loom's reason.
@@ -5504,7 +5521,7 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
     e.open();
     loom::WeaveId quiet_id{};
     loom::WeaveId gone_id{};
-    QuitSeat* quiet = mount_quit_seat(e.r, "zengine.test.quit-quiet", QuitSeat::Mode::kSilent,
+    QuitSeat* quiet = mount_quit_seat(e.r, "zengine.test.quit-quiet", QuitSeat::Mode::kHold,
                                       quiet_id);
     QuitSeat* gone = mount_quit_seat(e.r, "zengine.test.quit-gone", QuitSeat::Mode::kPermit,
                                      gone_id);
@@ -5520,7 +5537,7 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
     e.r.bus.kill(gone_id);
     e.settle();
     CHECK_FALSE(e.r.session().quit);
-    CHECK(quiet->asks.size() == 1); // the silent one WAS asked, and still owes its answer
+    CHECK(quiet->asks.size() == 1); // the quiet one WAS asked, and still owes its answer
     CHECK(gone->asks.empty());      // the killed one never heard the question
     CHECK_MESSAGE(e.r.session().notice.rfind(
                       "the quit could not ask " +
@@ -5546,25 +5563,26 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
     CHECK(e.quit_by_key());
 }
 
-TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a forged wake-up, a stranger's quit question or Workshop's refused answer of another shape -- each carrying the live ask's own number -- ends nothing") {
-    // MISSING EVIDENCE IS NEITHER A PERMISSION NOR A REFUSAL: the silent participant received the
-    // question, so the quit waits. Three look-alikes arrive by real paths: a wake-up with nothing
-    // in the book; a stranger's quit question refused at a participant killed before it arrived;
-    // and Workshop's answer to the stranger's document ask, refused because the stranger does not
-    // take it. The last two carry the live ask's number, which a stranger can choose; only the
-    // sender's stamp and the shape tell them from this quit's refused question.
+TEST_CASE("a kept answer keeps the quit waiting, and a forged ending, a stranger's quit question or Workshop's refused answer of another shape -- each carrying the live ask's own attempt or number -- ends nothing") {
+    // MISSING EVIDENCE IS NEITHER A PERMISSION NOR A REFUSAL: the quiet participant received the
+    // question and keeps its answer, so the quit waits. Three look-alikes arrive by real paths: an
+    // ending in Loom's shape naming the live ask's attempt, said by a stranger; a stranger's quit
+    // question refused at a participant killed before it arrived; and Workshop's answer to the
+    // stranger's inventory ask, refused because the stranger does not take it. The last two carry
+    // the live ask's number, which a stranger can choose; only Loom's word that an ask ended, for
+    // the exact asker, tells an ending from speech.
     EditorRig e("quit-silence");
     e.open();
     loom::WeaveId quiet_id{};
     loom::WeaveId other_id{};
     QuitSeat* quiet =
-        mount_quit_seat(e.r, "zengine.test.quit-quiet", QuitSeat::Mode::kSilent, quiet_id);
+        mount_quit_seat(e.r, "zengine.test.quit-quiet", QuitSeat::Mode::kHold, quiet_id);
     (void)mount_quit_seat(e.r, "zengine.test.quit-other", QuitSeat::Mode::kPermit, other_id);
     auto forger_seat = std::make_unique<QuitForger>();
     QuitForger* forger = forger_seat.get();
     loom::Grant forge;
     forge.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
-    forge.allow_to_any(QuitDeliveryRefusalNoted::zen_name, QuitDeliveryRefusalNoted::zen_version);
+    forge.allow_to_any(loom::AskEnded::zen_name, loom::AskEnded::zen_version);
     forge.allow_to_any(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version);
     const loom::WeaveId forger_id = e.r.bus.register_weave(std::move(forger_seat),
                                                            std::move(forge),
@@ -5575,20 +5593,36 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
         (void)e.r.bus.send(forger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
     };
+    // THE LIVE ASK'S ATTEMPT, as the bus delivered it to the quiet participant.
+    std::uint64_t attempt = 0;
+    const loom::WeaveId workshop = e.r.workshop_id;
+    {
+        const RemovedTap asked{e.r.bus, e.r.bus.add_observer([&](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.sender == workshop &&
+                ev.target == quiet_id && ev.schema_name == PaneQuitRequested::zen_name) {
+                attempt = ev.seq;
+            }
+        })};
+        CHECK_FALSE(e.quit_by_key());
+    }
     const std::string waiting = "quitting -- waiting for 1 pane(s) to answer";
-    CHECK_FALSE(e.quit_by_key());
     close_box(e);
     REQUIRE(e.r.session().notice == waiting);
+    REQUIRE(attempt != 0);
     e.r.key(input::scan::kA);
     CHECK_FALSE(e.r.session().context.open); // held, as an asked quit holds every gesture
     REQUIRE(quiet->asks.size() == 1);
     const std::uint64_t live = quiet->asks[0]; // the live ask's own number, as it was delivered
-    // EACH LOOK-ALIKE MUST REALLY HAPPEN, WITH THAT NUMBER, or its step proves nothing: the tap
-    // records the two refusals the steps below rely on, by Loom's own stamps.
+    // EACH LOOK-ALIKE MUST REALLY HAPPEN, or its step proves nothing: the tap records the delivery
+    // and the two refusals the steps below rely on, by Loom's own stamps.
+    int forged_ending_delivered = 0;
     int foreign_quit_refused = 0;
     int echoed_answer_refused = 0;
-    const loom::WeaveId workshop = e.r.workshop_id;
     const RemovedTap tap{e.r.bus, e.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.sender == forger_id &&
+            ev.target == workshop && ev.schema_name == loom::AskEnded::zen_name) {
+            ++forged_ending_delivered;
+        }
         if (ev.kind != loom::EventKind::Refused || ev.correlation != live) {
             return;
         }
@@ -5602,12 +5636,12 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
             ++echoed_answer_refused;
         }
     })};
-    // 1. A FORGED WAKE-UP, with nothing in the book.
-    forge_next([workshop](loom::Mail& mail) {
-        (void)mail.as_role(kQuitForgerRole).send(workshop, QuitDeliveryRefusalNoted{});
+    // 1. A FORGED ENDING, naming the live ask's attempt and its participant.
+    forge_next([workshop, attempt, quiet_id](loom::Mail& mail) {
+        (void)mail.as_role(kQuitForgerRole).send(workshop, forged_ending(attempt, quiet_id), 0);
     });
     e.settle();
-    CHECK(e.r.host.undelivered_quits.empty());
+    CHECK(forged_ending_delivered == 1);
     close_box(e);
     CHECK(e.r.session().notice == waiting);
     // 2. A STRANGER'S QUIT QUESTION, numbered as the live ask, refused at a participant killed
@@ -5619,7 +5653,6 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     e.r.bus.kill(other_id);
     e.settle();
     CHECK(foreign_quit_refused == 1);
-    CHECK(e.r.host.undelivered_quits.empty());
     close_box(e);
     CHECK(e.r.session().notice == waiting);
     // 3. WORKSHOP'S OWN ANSWER OF ANOTHER SHAPE, echoing the live ask's number: the stranger asks
@@ -5629,29 +5662,28 @@ TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a for
     });
     e.settle();
     CHECK(echoed_answer_refused == 1);
-    CHECK(e.r.host.undelivered_quits.empty());
     close_box(e);
     CHECK(e.r.session().notice == waiting);
     CHECK_FALSE(e.r.session().quit);
 }
 
 TEST_CASE("a Workshop that does not hold its role says so and starts no quit, and the refusal Loom records for that authorship is not made a participant's") {
-    // THE QUESTION WAS NEVER ASKED, so there is no quit to refuse. Loom refuses the role
-    // publication at its authorship and records that refusal on the tap, under this Workshop's
-    // stamp and the quit's own number -- the host's watch writes it down like any other, and
-    // Workshop, not quitting, discards it and keeps its own sentence.
+    // THE QUESTION WAS NEVER ASKED, so there is no quit to refuse. Loom refuses the role-authored
+    // ask at its authorship, records that refusal on the tap under this Workshop's stamp, and
+    // queues nothing, so no ending follows; Workshop keeps its own sentence.
     PaneRig r;
-    auto weave = std::make_unique<WorkshopWeave>(r.host.made(), r.host);
+    auto weave = std::make_unique<WorkshopWeave>(r.host.made());
     r.w = weave.get();
     loom::Grant speak;
     speak.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
+    loom::host::allow_observe_participants(speak); // who takes the question, as the host grants it
     r.workshop_id = r.bus.register_weave(std::move(weave), std::move(speak)); // no role
     r.w->zen_set_self(r.workshop_id);
-    r.quit_watch = std::make_unique<QuitDeliveryWatch>(r.bus, r.workshop_id, r.host.undelivered_quits);
     loom::WeaveId seat_id{};
     QuitSeat* seat = mount_quit_seat(r, "zengine.test.quit-seat", QuitSeat::Mode::kPermit, seat_id);
     int authorship_refused = 0;
+    int ended = 0;
     const loom::WeaveId workshop = r.workshop_id;
     const RemovedTap tap{r.bus, r.bus.add_observer([&](const loom::BusEvent& ev) {
         if (ev.kind == loom::EventKind::Refused && ev.sender == workshop &&
@@ -5659,40 +5691,54 @@ TEST_CASE("a Workshop that does not hold its role says so and starts no quit, an
             ev.refusal.reason == loom::RefusalReason::RoleAuthorshipDenied) {
             ++authorship_refused;
         }
+        if (ev.target == workshop && ev.schema_name == loom::AskEnded::zen_name) {
+            ++ended;
+        }
     })};
     r.ready();
     r.extent(160, 48);
     r.key(input::scan::kQ);
     CHECK(authorship_refused == 1);
-    CHECK(seat->asks.empty()); // nothing was published
+    CHECK(ended == 0);         // nothing was queued, so nothing ends
+    CHECK(seat->asks.empty()); // nothing was asked
     CHECK_FALSE(r.session().quit);
-    CHECK(r.host.undelivered_quits.empty()); // written, woken, and discarded
     CHECK(r.session().notice == "Workshop could not ask its panes whether they hold unsaved work "
                                 "-- it does not hold its own role; Workshop stays open");
 }
 
-TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot decrement, refuse or complete the quit asked after it") {
-    // TWO QUITS, ONE PARTICIPANT HOLDING AN ANSWER RIGHT TO EACH. The first quit is refused
-    // because the question to another participant could not be delivered; the second is asked
-    // with every participant running and waits on the holder. Then the first quit's evidence
-    // arrives: its refusal, as the watch would have written it, and its answer, through Loom's
-    // kept right -- authentic, and about an ask that ended. Neither touches the second quit, which
-    // ends on its own answer and nothing else.
+TEST_CASE("an ending or an answer that belongs to a quit already ended cannot decrement, refuse or complete the quit asked after it") {
+    // TWO QUITS, TWO PARTICIPANTS EACH HOLDING AN ANSWER RIGHT TO EACH. The first quit is refused
+    // because the question to a third participant could not be delivered; the second is asked
+    // with every participant running and waits on both holders. Then the first quit's evidence
+    // arrives, each piece Loom's own: one holder lets its first right go, which Loom ends as
+    // `Released`, and the other spends its first right as a permission -- authentic, and about
+    // asks that ended with their quit. Neither touches the second quit, which ends on its own
+    // answers and nothing else.
     EditorRig e("quit-late-evidence");
     e.open();
     loom::WeaveId later_id{};
+    loom::WeaveId lapsed_id{};
     loom::WeaveId gone_id{};
     QuitSeat* later = mount_quit_seat(e.r, "zengine.test.quit-later", QuitSeat::Mode::kHold,
                                       later_id);
+    QuitSeat* lapsed = mount_quit_seat(e.r, "zengine.test.quit-lapsed", QuitSeat::Mode::kHold,
+                                       lapsed_id);
     QuitSeat* gone = mount_quit_seat(e.r, "zengine.test.quit-gone", QuitSeat::Mode::kPermit,
                                      gone_id);
     const auto stopped = [&] { return e.r.session_door->ending(); };
-    const auto release = [&e, later_id] {
-        (void)e.r.bus.send(later_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
-                                                   loom::WeaveId{}, 0));
-        e.settle();
-    };
-    const std::string waiting = "quitting -- waiting for 1 pane(s) to answer";
+    int released = 0; // Loom's endings of a quit's asks, delivered to Workshop
+    const loom::WeaveId workshop = e.r.workshop_id;
+    const RemovedTap tap{e.r.bus, e.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        const loom::Cell* shape =
+            ev.payload != nullptr ? ev.payload->get("shape") : nullptr;
+        if (ev.kind == loom::EventKind::Delivered && ev.target == workshop &&
+            ev.schema_name == loom::AskEnded::zen_name && shape != nullptr &&
+            shape->kind() == loom::Kind::Text &&
+            shape->as_text() == PaneQuitRequested::zen_name) {
+            ++released;
+        }
+    })};
+    const std::string waiting = "quitting -- waiting for 2 pane(s) to answer";
     // THE FIRST QUIT, refused by the delivery Loom could not make.
     e.unfocus();
     e.enqueue_key(input::scan::kQ);
@@ -5700,64 +5746,69 @@ TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot de
     (void)e.r.bus.pump_pending(); // Workshop asks each participant
     e.r.bus.kill(gone_id);
     e.settle();
-    REQUIRE(later->asks.size() == 1);
     REQUIRE(later->held.size() == 1);
-    const std::uint64_t first = later->asks[0];
+    REQUIRE(lapsed->held.size() == 1);
     REQUIRE_MESSAGE(e.r.session().notice.find("(TargetUnavailable)") != std::string::npos,
                     e.r.session().notice);
-    // THE SECOND QUIT: the Editor and the revived participant permit; the holder owes one answer.
+    const int first_endings = released; // the gone one's, which refused the first quit
+    // THE SECOND QUIT: the Editor and the revived participant permit; both holders owe answers.
     REQUIRE(e.r.bus.swap_state(gone_id, e.r.bus.snapshot_bytes(gone_id)).revived);
     CHECK_FALSE(e.quit_by_key());
-    REQUIRE(later->asks.size() == 2);
     REQUIRE(later->held.size() == 2);
-    CHECK(later->asks[1] != first);
+    REQUIRE(lapsed->held.size() == 2);
+    CHECK(later->asks[1] != later->asks[0]);
     CHECK(gone->asks.size() == 1);
     close_box(e);
     REQUIRE(e.r.session().notice == waiting);
-    // THE FIRST QUIT'S REFUSAL, in the book with its wake-up: it names the ended ask.
-    e.r.host.undelivered_quits.note(UndeliveredQuit{first, gone_id, {"zengine.test.quit-gone"},
-                                                    loom::RefusalReason::TargetUnavailable});
-    wake_workshop(e);
-    CHECK(e.r.host.undelivered_quits.empty());
-    close_box(e);
-    CHECK(e.r.session().notice == waiting);
-    // ...A DUPLICATE WAKE-UP, with the book already taken, is nothing too.
-    wake_workshop(e);
+    // THE FIRST QUIT'S ASK LET GO: Loom ends it `Released`, to Workshop, about the ask that ended.
+    lapsed->let_go = true;
+    release_seat(e, lapsed_id);
+    lapsed->let_go = false;
+    CHECK(released == first_endings + 1);
+    REQUIRE(lapsed->held.size() == 1);
     close_box(e);
     CHECK(e.r.session().notice == waiting);
     // THE FIRST QUIT'S ANSWER, late: authentic, permitted, and about the ask that ended.
-    release();
+    release_seat(e, later_id);
     REQUIRE(later->held.size() == 1);
     CHECK_FALSE(stopped());
     close_box(e);
     CHECK(e.r.session().notice == waiting);
-    // THE SECOND QUIT'S OWN ANSWER is the only thing that ends it.
-    release();
+    // THE SECOND QUIT'S OWN ANSWERS are the only thing that ends it.
+    release_seat(e, later_id);
+    CHECK_FALSE(stopped());
+    release_seat(e, lapsed_id);
     CHECK(later->held.empty());
+    CHECK(lapsed->held.empty());
     CHECK(stopped());
     CHECK(e.r.session().quit);
 }
 
-TEST_CASE("once the host's watch is gone a refused quit delivery writes nothing and wakes nobody, and a Workshop not quitting discards what the book holds") {
-    // THE WATCH'S LIFETIME IS ITS REGISTRATION: removed when it is destroyed, so a host that let
-    // it go -- or is tearing down -- is observed by nothing left behind. Without it the quit
-    // waits on an answer that cannot come.
-    EditorRig e("quit-watch-gone");
-    hold_the_editor(e);
-    // THE BOOK, WHILE NO QUIT IS IN FLIGHT: an entry and its wake-up are discarded, said nowhere.
-    e.r.host.undelivered_quits.note(
-        UndeliveredQuit{1, e.image, {kEditorRole}, loom::RefusalReason::ApplicationFailed});
-    const std::string before = e.r.session().notice;
-    wake_workshop(e);
-    CHECK(e.r.host.undelivered_quits.empty());
-    CHECK(e.r.session().notice == before);
-    // THE WATCH GOES, and the quit waits.
-    e.r.quit_watch.reset();
+TEST_CASE("a participant that returns from the quit question without answering refuses the quit in Loom's words, and the keys are the weaver's again") {
+    // NO ANSWER WILL COME, AND LOOM SAYS SO: the quiet participant takes the question and returns
+    // from its handler with its answer right neither spent nor kept. Loom ends that ask
+    // `delivered`, `Unanswered`, to Workshop alone, with nothing beside Workshop watching, and the
+    // quit is refused at once naming it; the next quit, answered, ends the run.
+    EditorRig e("quit-unanswered");
+    e.open();
+    loom::WeaveId quiet_id{};
+    QuitSeat* quiet =
+        mount_quit_seat(e.r, "zengine.test.quit-quiet", QuitSeat::Mode::kSilent, quiet_id);
     CHECK_FALSE(e.quit_by_key());
-    CHECK(e.r.host.undelivered_quits.empty());
-    close_box(e);
-    CHECK(e.r.session().notice == "quitting -- waiting for 1 pane(s) to answer");
+    CHECK(quiet->asks.size() == 1); // it WAS asked
     CHECK_FALSE(e.r.session().quit);
+    CHECK_MESSAGE(e.r.session().notice.rfind(
+                      "the quit was not answered by " +
+                          could_not_ask("zengine.test.quit-quiet", quiet_id,
+                                        "it was asked, and returned without answering",
+                                        "Unanswered"),
+                      0) == 0,
+                  e.r.session().notice);
+    e.r.key(input::scan::kA);
+    CHECK(e.r.session().context.open);
+    e.r.key(input::scan::kEscape);
+    quiet->mode = QuitSeat::Mode::kPermit;
+    CHECK(e.quit_by_key());
 }
 
 TEST_CASE("the close box and the interrupt chord meet the same refusal as q when the held Editor cannot be asked") {
@@ -5783,27 +5834,44 @@ TEST_CASE("the close box and the interrupt chord meet the same refusal as q when
     CHECK_MESSAGE(e.r.session().notice.rfind(refused, 0) == 0, e.r.session().notice);
 }
 
-TEST_CASE("the shipped host mounts the quit watch from Workshop's own mount, after the bus and the HostContext whose book it writes") {
-    // THE SHIPPED COMPOSITION CANNOT RUN IN A SUITE -- the host's `main` claims a terminal -- so
-    // its two facts are read off its source, comments stripped: the watch is made from the id
-    // Workshop's mount returned, and it is declared after the bus and after the `HostContext`, so
-    // it is destroyed before either and never observes into a book or a bus that has gone. The
-    // rigs mount it the same way; a host that stopped would be the one Workshop left whose quit
-    // waits on a question Loom refused to deliver.
-    const std::string host = code_only(file_source(WORKSHOP_HOST_CPP));
-    const std::size_t context = host.find("HostContext context;");
-    const std::size_t bus = host.find("loom::Switchboard bus;");
-    const std::size_t mount = host.find("const loom::WeaveId workshop_id =");
-    const std::size_t watch =
-        host.find("const QuitDeliveryWatch quit_watch(bus, workshop_id, context.undelivered_quits);");
-    REQUIRE(context != std::string::npos);
-    REQUIRE(bus != std::string::npos);
-    REQUIRE(mount != std::string::npos);
-    REQUIRE(watch != std::string::npos);
-    CHECK(context < bus);
-    CHECK(bus < mount);
-    CHECK(mount < watch);
-    CHECK(host.find("mount_in_role<WorkshopWeave>(", mount) < watch);
+TEST_CASE("the quit asks each participant that takes the question, one that shows no pane among them, and none that is not running or does not take it") {
+    // WHOM A PUBLICATION OF THE QUESTION WOULD REACH, read off Loom's participants claim: every
+    // participant alive that accepts it. Two pane-less participants take it and are asked, each
+    // once; one dead at the quit is not asked; one that does not take the question is not asked
+    // either; and the Editor, a pane, permits.
+    EditorRig e("quit-takers");
+    e.open();
+    loom::WeaveId first_id{};
+    loom::WeaveId second_id{};
+    loom::WeaveId dead_id{};
+    QuitSeat* first = mount_quit_seat(e.r, "zengine.test.quit-first", QuitSeat::Mode::kPermit,
+                                      first_id);
+    QuitSeat* second = mount_quit_seat(e.r, "zengine.test.quit-second", QuitSeat::Mode::kPermit,
+                                       second_id);
+    QuitSeat* dead = mount_quit_seat(e.r, "zengine.test.quit-dead", QuitSeat::Mode::kPermit,
+                                     dead_id);
+    e.r.bus.kill(dead_id);
+    std::vector<loom::WeaveId> asked;
+    const loom::WeaveId workshop = e.r.workshop_id;
+    const RemovedTap tap{e.r.bus, e.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if ((ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused) &&
+            ev.sender == workshop && ev.schema_name == PaneQuitRequested::zen_name) {
+            asked.push_back(ev.target);
+        }
+    })};
+    CHECK(e.quit_by_key());
+    CHECK(first->asks.size() == 1);
+    CHECK(second->asks.size() == 1);
+    CHECK(dead->asks.empty());
+    CHECK(std::count(asked.begin(), asked.end(), dead_id) == 0);
+    CHECK(std::count(asked.begin(), asked.end(), first_id) == 1);
+    CHECK(std::count(asked.begin(), asked.end(), second_id) == 1);
+    CHECK(std::count(asked.begin(), asked.end(), e.image) == 1); // the Editor
+    for (const loom::WeaveId to : asked) {
+        CAPTURE(to.value);
+        CHECK(e.r.bus.alive(to));
+        CHECK(to != e.r.terminal_id); // the participant does not take the question
+    }
 }
 
 // ============================================================================

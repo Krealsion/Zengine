@@ -14,7 +14,8 @@ and invisible (`1d48ec5`, "Let the Terminal show what it knows"); a 5x5 letterfo
 cell"); and the command line had no caret a press could place (`fe635ce`).
 
 **Decision.** The host mounts one `loom::TerminalSession` on the Switchboard it already has and
-hands Workshop the non-owning pointer through the HostContext. `workshop.terminal` toggles a
+holds it in a Terminal door of its own, in `zengine.terminal-door`, which Workshop asks for the
+pane and whose claim of the record it reads. `workshop.terminal` toggles a
 modal overlay: while it is open the keys and the pointer belong to it, and closing it restores
 every gesture. The pane presents an ordinary participant on Workshop's own bus, parsing with
 Loom's own grammar. It is one bounded region placed in cells that fits entries and says what it

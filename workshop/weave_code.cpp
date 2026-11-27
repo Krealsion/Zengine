@@ -236,6 +236,10 @@ void WorkshopWeave::on(const loom::AskEnded& ended, loom::Mail& mail) {
     if (facet<GuestActsFacet>().ended(mail.correlation(), mail)) {
         return;
     }
+    // ...ONE OF THE QUIT'S ASKS, which no answer will settle: the quit is refused.
+    if (quit_ask_ended(ended, mail)) {
+        return;
+    }
     const loom::Ticket attempt = ended.ended_attempt();
     // A WITHDRAWAL NO PRESENTER ANSWERED -- none held the role, or its holder was silent or gone:
     // this host answers that requester itself, unchosen, once (WL-CTX-10).

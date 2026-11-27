@@ -1,21 +1,22 @@
 # Workshop law — the Terminal's door
 
-Register `WL-TERM`, continued from [the Terminal's laws](../../terminal/docs/terminal-laws.md): the terminal PARTICIPANT Workshop
-mounts and holds, the door onto it composed onto Workshop's weave (`workshop/terminal/door.hpp`),
-its completer (`workshop/terminal/complete.hpp`), the picture of its record
-(`workshop/terminal/transcript.hpp`) and what it may say. One law per heading; cite by ID. Router:
+Register `WL-TERM`, continued from [the Terminal's laws](../../terminal/docs/terminal-laws.md): the terminal PARTICIPANT the host
+mounts and its Terminal door holds (`workshop/terminal/host_door.hpp`), the Terminal pane's door on
+Workshop's weave that forwards to it (`workshop/terminal/door.hpp`), the completer
+(`workshop/terminal/complete.hpp`), the picture of its record (`workshop/terminal/transcript.hpp`)
+and what it may say. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The pane that presents it is [the Terminal's](../../terminal/README.md).
 
 Retired: WL-TERM-03, WL-TERM-04
 
 ## WL-TERM-02 — The participant stays this host's, and speaks as itself
 
-LAW — `HostContext::terminal` is a non-owning pointer to the `loom::TerminalSession` this host mounted; a typed line reaches that participant's record and leaves through its door, as ITS identity.
+LAW — The host's Terminal door holds the participant, in `zengine.terminal-door`; a line Workshop forwards there leaves through its door as ITS identity, and Workshop shows the door's claim of its record.
 
 MEANS
-- the address grammar is Loom's own (`loom::tokenize`, `loom::parse_address`), never a second;
-- `submit_terminal_line` is the one path in this process that speaks as that identity;
-- no participant is a reading, not an absence: the door refuses, and the picture says so.
+- the grammar is Loom's own (`loom::tokenize`, `loom::parse_address`); `submit_terminal_line` is the one path speaking as that identity, and the door answers Workshop's role alone;
+- Workshop holds no participant: it forwards the pane's act, completion and capture, holding each answer until the door answers or Loom ends the ask;
+- the door claims the record after its deliveries, the participant's (the host's watch) and the host's wakes; no claim is a picture saying no participant is mounted.
 
 DOES NOT MEAN — that the participant could have migrated. Its handler sends nothing by
 construction and it accepts only the three answer doors its host declared, so no message drives
@@ -37,7 +38,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-16 — Where a line can go is read off the bus at the ask, and kept by nobody
 
-LAW — At the line's address, Workshop reads Loom's participants claim -- each participant's id, roles now, accepted shapes, whether alive -- and hands that to the completer for one answer.
+LAW — At the line's address, the host's Terminal door reads Loom's participants claim -- each participant's id, roles now, accepted shapes, whether alive -- and hands that to the completer for one answer.
 
 MEANS
 - roles are listed by name, each role of a weave holding several among them, and weaves by id, each with what it is; the participant is marked;
@@ -89,12 +90,20 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 ## Proven by
 
 ### WL-TERM-02
-`workshop/terminal/door.hpp` submit_terminal_line on(TerminalActRequested)
-`workshop/weave.hpp` HostContext::terminal
+`workshop/terminal/host_door.hpp` TerminalHostDoor submit_terminal_line on(TerminalLineAsked)
+after_delivery claim_again TerminalRecordWatch mount_terminal_door terminal_door_grant
+`workshop/terminal/door.hpp` TerminalDoor on(TerminalActRequested) picture
 `workshop/terminal_seam_vocabulary.hpp` TerminalActRequested TerminalActed kTerminalSubmitAct
+kTerminalDoorRole TerminalLineAsked same_transcript
 `workshop/terminal/transcript.hpp` transcript_shown
+`workshop/workshop.cpp` terminal_door terminal_watch
 `tests/test_workshop_panes_terminal.cpp` "a typed send leaves through the PARTICIPANT's door, not
-the pane's" "a Workshop with no participant says so, and authors nothing"
+the pane's" "a Workshop with no participant says so, and authors nothing" "a typed line reaches
+the participant as Workshop's ask of the host's Terminal door, and the pane's answer is the door's"
+"the host's Terminal door answers Workshop's role alone: a stranger granted its asks authors nothing
+and is told so" "the record's picture is the door's claim, made again after each delivery the
+participant takes, and Workshop's next picture says it" "a line whose ask Loom ends before the door
+hears it is answered in words, and nothing waits"
 
 ### WL-TERM-05
 `workshop/terminal/door.hpp` on(TerminalCompletionRequested)
@@ -107,7 +116,7 @@ line, and says so when it cannot"
 
 ### WL-TERM-16
 `workshop/terminal/complete.hpp` Destination destination_detail complete_line CandidateKind
-`workshop/terminal/door.hpp` destinations_of on(TerminalCompletionRequested)
+`workshop/terminal/host_door.hpp` destinations_of on(TerminalCompletionAsked)
 `tests/test_workshop_host.cpp` "with the bus read the address offers everyone then each role held
 now then each weave registered now with what it is" "a destination holding several roles is offered
 as each of them, in role order"
@@ -118,6 +127,8 @@ list reaches whoever holds it at delivery and a vacated role is refused not reta
 
 ### WL-TERM-17
 `workshop/weave_operation.cpp` on(TerminalValueRequested) authorize_pane_operation
+`workshop/terminal/door.hpp` capture
+`workshop/terminal/host_door.hpp` on(TerminalValueAsked)
 `terminal/pane.cpp` acquire
 `tests/test_workshop_inventory_info.cpp` "terminal capture: primary drag stores exact authored
 content and names the new copy" "terminal capture: retrieval and Inventory storage need separate

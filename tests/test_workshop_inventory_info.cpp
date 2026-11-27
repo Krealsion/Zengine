@@ -1308,6 +1308,7 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     const auto sent = terminal->send(loom::Address::to_role(kRigBoard),
         RigNote::zen_name, 1, {{std::string("slot"), loom::FieldValue{std::string("score")}}, {std::string("text"), loom::FieldValue{std::string("captured original")}}});
     REQUIRE(sent);
+    s.r.host_wake(); // the host acted on the participant: its door claims the record again
     s.r.extent(181, 60);
     const auto rows = pane_rows(s.r, kind);
     std::int64_t at = -1;
@@ -1390,6 +1391,7 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     });
     REQUIRE(terminal->send(loom::Address::to_role(kRigBoard), RigNote::zen_name, 1,
         {{"slot", loom::FieldValue{std::string("score")}}, {"text", loom::FieldValue{std::string("wrapped")}}}));
+    s.r.host_wake(); // the host acted on the participant: its door claims the record again
     s.r.extent(181, 60);
     auto rows = pane_rows(s.r, kind); std::int64_t at = -1;
     for (std::size_t i=0;i<rows.size();++i) if(rows[i].rfind("^ RigNote",0)==0) at=static_cast<std::int64_t>(i);

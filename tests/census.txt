@@ -175,8 +175,9 @@ doors workshop/palette/palette.cpp Palette 16
 doors workshop/pane_doors.hpp ProjectDoor 7
 doors workshop/powers_door.hpp PowersDoor 3
 doors workshop/sample_door.hpp SampleDoor 1
-doors workshop/terminal/door.hpp TerminalDoor 2
-doors workshop/weave.hpp WorkshopWeave 94 falls
+doors workshop/terminal/door.hpp TerminalDoor 6
+doors workshop/terminal/host_door.hpp TerminalHostDoor 3
+doors workshop/weave.hpp WorkshopWeave 93 falls
 
 hooks workshop/develop.hpp World 5
 
@@ -751,6 +752,7 @@ reach tests/workshop_support.hpp workshop/screen.hpp 1 falls
 reach tests/workshop_support.hpp workshop/screen_planes.hpp 1 falls
 reach tests/workshop_support.hpp workshop/setup.hpp 1 falls
 reach tests/workshop_support.hpp workshop/setup_persist.hpp 1 falls
+reach tests/workshop_support.hpp workshop/terminal/host_door.hpp 1 falls
 reach tests/workshop_support.hpp workshop/user_paths.hpp 1 falls
 reach tests/workshop_support.hpp workshop/vocabulary.hpp 1 falls
 reach tests/workshop_support.hpp workshop/weave.hpp 1 falls
@@ -806,7 +808,7 @@ reach workshop/recipes.hpp builder/recipe.hpp 1 falls
 reach workshop/settings_seam_vocabulary.hpp pane/settings.hpp 1 falls
 reach workshop/setup.hpp theme/stack_name.hpp 1 falls
 reach workshop/staging.hpp builder/recipe.hpp 1 falls
-reach workshop/weave_operation.cpp inventory/codec.hpp 1 falls
+reach workshop/terminal/host_door.hpp inventory/codec.hpp 1 falls
 reach workshop/weave_operation.cpp workshop/first-run/setup.hpp 1 falls
 reach workshop/weave_run.cpp theme/stack_name.hpp 1 falls
 reach workshop/workshop.cpp builder/runner.hpp 1 falls

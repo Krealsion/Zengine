@@ -621,7 +621,7 @@ Live::Live(std::vector<Condition> launch) {
 
 auto Live::make_workshop() -> void {
         made_with_ = loom::serialize(loom::to_value(host.made()));
-        auto weave = std::make_unique<WorkshopWeave>(host.made(), host);
+        auto weave = std::make_unique<WorkshopWeave>(host.made());
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
@@ -633,6 +633,8 @@ auto Live::make_workshop() -> void {
         grant.allow_observe(zengine::realization::RowsNotLoaded::zen_name,
                             zengine::realization::RowsNotLoaded::zen_version);
         grant.allow_observe(GuestHost::zen_name, GuestHost::zen_version);
+        // ...AND THE TERMINAL'S RECORD, as the host's Terminal door claims it.
+        grant.allow_observe(TranscriptShown::zen_name, TranscriptShown::zen_version);
         // IN THE ROLE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
         // the pane protocol is authored AS that role: mounted anonymously, its asks and room
         // grants would be refused at the bus. The three-argument `register_weave` is the Loom's
@@ -641,7 +643,6 @@ auto Live::make_workshop() -> void {
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
-        quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
         (void)count_desk_drawings(bus, workshop_id, pictures);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
@@ -656,7 +657,6 @@ auto Live::remake_if_host_moved() -> void {
         if (windows.up() || loom::serialize(loom::to_value(host.made())) == made_with_) {
             return;
         }
-        quit_watch.reset();
         (void)bus.unregister_weave(workshop_id);
         w = nullptr;
         make_workshop();
@@ -680,7 +680,7 @@ auto Live::mount_terminal(bool widen, int shapes) -> loom::TerminalSession* {
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
             std::move(grant));
-        host.terminal = mounted.session;
+        hold_terminal(mounted); // as workshop.cpp holds it
         terminal_id = mounted.id;
         name_terminal(bus, owner_id, mounted.id); // as workshop.cpp tells the layouts' owner
         return mounted.session;
@@ -2082,7 +2082,7 @@ PaneRig::PaneRig() {
     }
 
 auto PaneRig::mount_workshop() -> WorkshopWeave* {
-        auto weave = std::make_unique<WorkshopWeave>(host.made(), host);
+        auto weave = std::make_unique<WorkshopWeave>(host.made());
         w = weave.get();
         // The press's second version is chosen by what the role's holder accepts, which Workshop
         // reads from Loom's participants claim (the rig mounts it), and the stand-ins' role held
@@ -2099,11 +2099,9 @@ auto PaneRig::register_workshop(std::unique_ptr<loom::Weave> weave) -> void {
         workshop_id =
             bus.register_weave(std::move(weave), workshop_grant(), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
-        quit_watch = std::make_unique<QuitDeliveryWatch>(bus, workshop_id, host.undelivered_quits);
     }
 
 auto PaneRig::take_workshop_off() -> std::unique_ptr<loom::Weave> {
-        quit_watch.reset();
         std::unique_ptr<loom::Weave> off = bus.unregister_weave(workshop_id);
         REQUIRE(off != nullptr);
         workshop_id = loom::WeaveId{};
@@ -2171,7 +2169,7 @@ auto PaneRig::mount_terminal(int shapes, bool widen) -> loom::TerminalSession* {
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
             std::move(grant));
-        host.terminal = mounted.session;
+        hold_terminal(mounted); // as workshop.cpp holds it
         terminal_id = mounted.id;
         name_terminal(bus, owner_id, mounted.id); // as workshop.cpp tells the layouts' owner
         return mounted.session;

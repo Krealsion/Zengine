@@ -488,7 +488,6 @@ ProjectRootRequested v1 0x49db973a16ad85d5
 PromoteArtifact v1 0x47fbb3eb30902cb3
 PumpInput v1 0x166287bf6d7a0b31
 PumpSurface v1 0x0936180881326448
-QuitDeliveryRefusalNoted v1 0x0e5c8812183151e9
 RealizationAsked v1 0x1bb743d1720ed277
 RealizedRow v1 0x577a684f59fd05da
 RealizedRows v1 0x9e062c854b5a2156
@@ -593,14 +592,18 @@ TallyState v1 0x5c0335d920219d47
 TerminalActRequested v1 0x4e2937066d96881f
 TerminalActed v1 0x13ae84884286bd81
 TerminalCaptureFacts v1 0x7bd54445b9b1183f
+TerminalCompletionAsked v1 0xf729b3b2737e9776
 TerminalCompletionOffered v1 0x98a65c27133b17ed
 TerminalCompletionRequested v1 0xf6aac8925ab2f82f
+TerminalDoorState v1 0x3c8ff4f18ee19ca5
 TerminalFile v1 0xc29c615c4aac4054
 TerminalInk v1 0x52f23deaa7b5b5da
+TerminalLineAsked v1 0x9a67e02b61dc9ca5
 TerminalLook v1 0x64e574b12c6e304d
 TerminalNamed v1 0x5cb118ac9e8bfeae
 TerminalPaneState v1 0xd03f9407268706f8
 TerminalValueAnswered v1 0x17bc3734f66f3049
+TerminalValueAsked v1 0xdba213837c333868
 TerminalValueRequested v1 0xc5538754a8ccd1f6
 TextArgs v5 0xcd027bee049cfa3c
 TextBoxFace v3 0xafb658b5c372a7d4

@@ -86,14 +86,14 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-EDIT-14 — The exit is asked of the room, and decided by the answer
 
-LAW — `quit` publishes `PaneQuitRequested` and counts Loom's accepters: zero ends the process now; otherwise every gesture is held while the room is asked, and a refusal replays them and stays.
+LAW — `quit` asks `PaneQuitRequested` of each participant taking it: none ends the process now; otherwise every gesture is held while the room is asked, and a refusal replays them and stays.
 
 MEANS
 - a pane answers about the instant; a paste still arriving, or an open being seated, refuses;
-- a delivery Loom refused ends the quit as a refusal; the process stays open (WL-SESSION-19).
+- an ask Loom ended with no answer ends the quit as a refusal; the process stays open (WL-SESSION-19).
 
 DOES NOT MEAN
-- that an accepter which never answers is handled: the quit stays open, named so.
+- that an asked participant keeping its answer is handled: the quit stays open, named so.
 
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 

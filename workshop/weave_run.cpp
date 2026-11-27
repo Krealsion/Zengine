@@ -511,30 +511,66 @@ void WorkshopWeave::quit(loom::Mail& mail) {
             true);
         return;
     }
-    // The unsaved-loss floor at the one exit, asked of the room: every pane holding a weaver's
-    // unsaved work accepts the question, and Loom's fan-out count is how many answers are owed
-    // (zero: the exit proceeds now). Gestures are held until the last answer (`hold_input`). An
-    // answer that can never come does not hold the hands: a refused delivery is written in the
-    // host's book and refuses the quit (`quit_delivery.hpp`). The ask's number is minted by the
-    // paste book, so an answer to it can never settle a paste.
-    quit_ask_ = paste_asks_.mint_correlation();
-    const loom::RolePublication asked =
-        mail.as_role(kWorkshopProvider).publish(PaneQuitRequested{}, quit_ask_);
-    if (!asked.authored) {
-        // THIS WEAVE DOES NOT HOLD ITS OWN ROLE, so it cannot ask and cannot know. A host
-        // composed that way is a defect worth reading, not a reason to lose a weaver's work.
-        say("Workshop could not ask its panes whether they hold unsaved work -- it does not "
-            "hold its own role; Workshop stays open",
+    // The unsaved-loss floor at the one exit, asked of each participant that takes the question
+    // as Loom's participants claim lists it -- alive, its accept-set naming the question, which is
+    // whom a publication of it would reach -- each through the ask door. A pane holding a
+    // weaver's unsaved work answers, and the quit waits for every answer; gestures are held until
+    // the last (`hold_input`). An ask that will never be answered does not hold the hands: Loom
+    // ends it with `zen.AskEnded`, which refuses the quit (`quit_ask_ended`). None asked: the exit
+    // proceeds now.
+    const loom::host::Participants* now = bus_now_.read(mail);
+    if (now == nullptr || !now->whole) {
+        say("Workshop could not read who is on the bus, so it cannot ask its panes whether they "
+            "hold unsaved work; Workshop stays open",
             true);
         return;
     }
-    if (asked.recipients == 0) {
+    const loom::Schema& question = *loom::schema_of<PaneQuitRequested>();
+    std::vector<const loom::host::Participant*> takers;
+    for (const loom::host::Participant& row : now->rows) {
+        if (row.alive && row.id != static_cast<std::int64_t>(self_.value) &&
+            loom::host::Participants::lists(row.accepts, question)) {
+            takers.push_back(&row);
+        }
+    }
+    if (takers.size() > quit_asks_.capacity()) {
+        say("more participants take the quit question than Workshop asks at once (" +
+                std::to_string(quit_asks_.capacity()) + "); Workshop stays open",
+            true);
+        return;
+    }
+    (void)quit_asks_.end_all();
+    quit_asked_rows_.clear();
+    for (const loom::host::Participant* row : takers) {
+        const loom::WeaveId to{static_cast<std::uint64_t>(row->id)};
+        const loom::AskOpened opened =
+            quit_asks_.open(to, PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
+        const loom::Ticket sent =
+            mail.as_role(kWorkshopProvider).ask(to, PaneQuitRequested{}, opened.correlation);
+        if (!sent.valid()) {
+            (void)quit_asks_.end_all();
+            quit_asked_rows_.clear();
+            // THIS WEAVE DOES NOT HOLD ITS OWN ROLE, so it cannot ask and cannot know. A host
+            // composed that way is a defect worth reading, not a reason to lose a weaver's work.
+            say(sent.refusal == loom::RefusalReason::RoleAuthorshipDenied
+                    ? std::string("Workshop could not ask its panes whether they hold unsaved "
+                                  "work -- it does not hold its own role; Workshop stays open")
+                    : "Workshop could not ask " + std::to_string(row->id) +
+                          " whether it holds unsaved work (" + loom::name_of(sent.refusal) +
+                          "); Workshop stays open",
+                true);
+            return;
+        }
+        (void)quit_asks_.bind_attempt(opened.id, sent.seq);
+        quit_asked_rows_.push_back({opened.id, to, row->roles});
+    }
+    if (takers.empty()) {
         finish_quit(mail);
         return;
     }
     quitting_ = true;
     quit_by_weaver_ = !input_actor_.known || input_actor_.local;
-    quit_outstanding_ = asked.recipients;
+    quit_outstanding_ = takers.size();
     quit_refusals_.clear();
     quit_refused_panes_.clear();
     held_input_.clear();
@@ -607,8 +643,11 @@ void WorkshopWeave::answer_quit_ask(const std::string& why, loom::Mail& mail) {
 
 // WL-EDIT-03 -- agents/workshop/editor.md
 void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
-    if (!mail.answers_ask() || !quitting_ || mail.correlation() != quit_ask_) {
-        return; // not Loom's answer to the ask this host is waiting on
+    // LOOM'S ANSWER TO ONE OF THIS QUIT'S OWN ASKS, from the weave it asked: a correlation alone
+    // identifies and never authenticates, and an ask of a quit already ended is in no book.
+    if (!mail.answers_ask() || !quitting_ ||
+        !quit_asks_.settle(mail.correlation(), mail.sender())) {
+        return;
     }
     // A PANE THE QUIT BOX NAMED, discarded by the weaver's own press there, has permitted it.
     const bool discarded =
@@ -674,42 +713,35 @@ void WorkshopWeave::discard_and_quit(loom::Mail& mail) {
 }
 
 // WL-SESSION-19 -- agents/workshop/session.md
-void WorkshopWeave::on(const QuitDeliveryRefusalNoted&, loom::Mail& mail) {
-    // THE BOOK IS TAKEN WHOLE, EVERY TIME, so nothing in it outlives the wake-up that followed it:
-    // an entry for an ask that already ended -- refused, or answered -- is discarded here, and
-    // one written while no quit is in flight means nothing to this weave.
-    const std::vector<UndeliveredQuit> noted = host_->undelivered_quits.take();
-    if (!quitting_) {
-        return;
+bool WorkshopWeave::quit_ask_ended(const loom::AskEnded& ended, loom::Mail& mail) {
+    const std::optional<loom::PendingAsk> mine = quit_asks_.end(ended, mail);
+    if (!mine) {
+        return false; // not an ask of the quit in flight: an older quit's ended with it
     }
-    std::string undelivered;
-    for (const UndeliveredQuit& one : noted) {
-        // THE ASK IS THIS WEAVE'S OWN NUMBER (`paste_asks_.mint_correlation`), and the watch took
-        // the entry only from a refusal the bus stamped as this weave's -- so an equal number is
-        // this quit's delivery and nothing else's. An older quit's late fact carries an older one.
-        if (one.ask != quit_ask_) {
-            continue;
-        }
-        undelivered += (undelivered.empty() ? "the quit could not ask " : "; nor ") +
-                       undelivered_quit_words(one);
-    }
-    if (undelivered.empty()) {
-        return;
-    }
-    // ONE KNOWN REFUSAL MAKES THIS QUIT IMPOSSIBLE, so it ends now: an answer still owed by
-    // another pane cannot turn it back into an exit, and waiting for it would hold the weaver's
-    // hands for nothing. What panes already refused is said too, in their own words.
-    std::string why = undelivered + "; Workshop stays open, and a quit after the repair asks again";
+    const auto row = std::find_if(quit_asked_rows_.begin(), quit_asked_rows_.end(),
+                                  [&](const QuitAsked& a) { return a.id == mine->id; });
+    const std::string who = unanswered_quit_words(
+        row != quit_asked_rows_.end() ? row->roles : std::vector<std::string>{},
+        mine->respondent, ended);
+    // ONE ASK THAT WILL NEVER BE ANSWERED MAKES THIS QUIT IMPOSSIBLE, so it ends now: an answer
+    // still owed by another participant cannot turn it back into an exit, and waiting for it
+    // would hold the weaver's hands for nothing. What panes already refused is said too, in their
+    // own words.
+    std::string why =
+        (ended.never_delivered() ? "the quit could not ask " : "the quit was not answered by ") +
+        who + "; Workshop stays open, and a quit after the repair asks again";
     for (const std::string& one : quit_refusals_) {
         why += "; " + one;
     }
     refuse_quit(std::move(why), mail);
+    return true;
 }
 
 // WL-SESSION-19 -- agents/workshop/session.md
 void WorkshopWeave::refuse_quit(std::string why, loom::Mail& mail) {
     quitting_ = false;
-    quit_ask_ = 0;
+    (void)quit_asks_.end_all(); // a late answer or ending of these asks settles nothing now
+    quit_asked_rows_.clear();
     quit_outstanding_ = 0;
     quit_refusals_.clear();
     quit_refused_panes_.clear();

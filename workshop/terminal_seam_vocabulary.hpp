@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_TERMINAL_SEAM_VOCABULARY_HPP
 
 // The terminal participant across the pane seam: the record the Terminal pane is shown, the one
-// act it may ask for and the one read. The participant stays this host's (WL-TERM-02): what
+// act it may ask for and the one read, and what Workshop asks of the host's Terminal door. The participant stays this host's (WL-TERM-02): what
 // crosses is a picture of its record, said when it changed, and two asks answered
 // at the role this host holds. The completion is an ask, never a picture, because `compose`
 // is a live fact about a conversation in progress (WL-TERM-05).
@@ -13,6 +13,7 @@
 #include <zen/weave/shape.hpp>
 
 #include <zen/value.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -149,6 +150,68 @@ struct TerminalCompletionOffered {
     std::vector<ShownCandidate> candidates;
     ZEN_SHAPE(TerminalCompletionOffered, 1, ZEN_FIELD(open), ZEN_FIELD(slot),
               ZEN_FIELD(partial), ZEN_FIELD(heading), ZEN_FIELD(candidates));
+};
+
+// ---- The host's door ----------------------------------------------------------
+
+// What Workshop asks of the host's Terminal door, the participant's holder: the pane's three asks
+// as Workshop forwards them, each answered in the pane seam's own answer above, and the role the
+// door holds. The record's picture is the door's claim of `TranscriptShown` as that role.
+
+/// The role the host's Terminal door holds: where Workshop asks, and whose claim it reads.
+inline constexpr const char* kTerminalDoorRole = "zengine.terminal-door";
+
+/// Author one line through the participant, verbatim; answered `TerminalActed`.
+struct TerminalLineAsked {
+    std::string line;
+    ZEN_SHAPE(TerminalLineAsked, 1, ZEN_FIELD(line));
+};
+
+/// What could be said next on a half-typed line, its fields in the order Workshop's session
+/// chose (`required_first`); answered `TerminalCompletionOffered`, and authors nothing.
+struct TerminalCompletionAsked {
+    std::string line;
+    bool required_first = false;
+    ZEN_SHAPE(TerminalCompletionAsked, 1, ZEN_FIELD(line), ZEN_FIELD(required_first));
+};
+
+/// One retained value of the record, by the participant and observation a pane named, once
+/// Workshop has authorized the gesture asking for it; answered `TerminalValueAnswered`.
+struct TerminalValueAsked {
+    std::int64_t participant = 0;
+    std::int64_t observation = 0;
+    ZEN_SHAPE(TerminalValueAsked, 1, ZEN_FIELD(participant), ZEN_FIELD(observation));
+};
+
+/// Whether two pictures of the record say the same: what decides that saying it again is news,
+/// for the door claiming it and for Workshop saying it.
+inline bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) {
+    if (a.attached != b.attached || a.participant != b.participant || a.dropped != b.dropped ||
+        a.entries.size() != b.entries.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < a.entries.size(); ++i) {
+        const ShownEntry& x = a.entries[i];
+        const ShownEntry& y = b.entries[i];
+        // FIELD BY FIELD, because a record is append-and-evict and two entries at the same
+        // index after an eviction are two different entries. Comparing sizes alone would
+        // have made a full transcript stop publishing at exactly the moment it started
+        // dropping -- except that `dropped` moves with every eviction, which is why that
+        // count is compared above rather than merely carried.
+        if (x.observation != y.observation || x.kind != y.kind || x.text != y.text || x.shape != y.shape ||
+            x.version != y.version || x.addressing != y.addressing || x.target != y.target ||
+            x.role != y.role || x.recipients != y.recipients || x.sender != y.sender ||
+            x.answers != y.answers) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// What the host's door keeps: how many asks it has answered.
+struct TerminalDoorState {
+    std::int64_t answered = 0;
+    ZEN_SHAPE(TerminalDoorState, 1, ZEN_FIELD(answered));
 };
 
 } // namespace zengine::workshop

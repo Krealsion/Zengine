@@ -154,16 +154,16 @@ screen says so, is Workshop routing law
   two weaves and FIFO dispatch lets either change between two deliveries: the reveal-as-
   commitment shape held the asker's gestures to a bound and dropped the rest, and no bound
   repairs that.
-- **`PaneQuitRequested v1` `{}`**, Workshop → everyone, a PUBLICATION as the role, and
-  **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A pane
-  that accepts the ask MUST answer it, about the instant it answers; the host counts Loom's
-  accepters at the publication, ends the process at once when nobody accepted, and otherwise holds
+- **`PaneQuitRequested v1` `{}`**, Workshop → each participant that takes it, an ASK as the role,
+  and **`PaneQuitAnswered v1` `{pane, permitted, refusal}`**, its answer: may this Workshop end? A
+  pane asked MUST answer it, about the instant it answers; the host asks each participant Loom's
+  participants claim lists as taking it, ends the process at once when nobody does, and otherwise holds
   every gesture until the last answer, refuses on any refusal (saying it, and replaying the held
   gestures), and proceeds on all permissions. A pane with an answer still owed to it — a paste in
   flight — refuses rather than waits, so one clipboard read cannot hold every other pane's exit.
-  What is NOT
-  solved: an accepter that IS delivered the question and never answers holds the quit open, and
-  that is named rather than timed out.
+  An ask Loom ends with no answer -- refused, returned from unanswered, its kept answer let go --
+  refuses the quit. What is NOT solved: a participant that keeps its answer and never spends it
+  holds the quit open, and that is named rather than timed out.
 
 ## The second button reaches a pane from the window, and a menu is presented by a participant
 

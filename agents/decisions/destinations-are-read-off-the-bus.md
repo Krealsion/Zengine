@@ -11,8 +11,8 @@ second registry.
 
 **Decision.** The owner of which weaves exist and which roles they hold is the Switchboard, and
 Loom says it as its participants claim (`loom::host::Participants`), made from the bus's own
-tables at each read. When the line is at its address Workshop reads that claim inside the
-completion ask's delivery and hands the completer a value for one answer. The list is `*`, the
+tables at each read. When the line is at its address the host's Terminal door reads that claim
+inside the completion ask's delivery and hands the completer a value for one answer. The list is `*`, the
 roles held now by name, and the weaves registered now by id, each saying what it is. Nothing keeps
 the reading.
 

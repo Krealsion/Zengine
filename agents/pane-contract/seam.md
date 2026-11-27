@@ -62,10 +62,10 @@ WHY — `agents/decisions/a-menu-is-presented-by-a-participant.md`
 
 ## PANE-SEAM-06 — A pane that takes the quit question answers it
 
-LAW — The host publishes `PaneQuitRequested` before it ends; a pane that accepts it answers `PaneQuitAnswered` about the instant it answers, refusing in words while its work is unsaved.
+LAW — The host asks `PaneQuitRequested` of each pane that takes it before it ends; a pane asked answers `PaneQuitAnswered` about the instant it answers, refusing in words while its work is unsaved.
 
 MEANS
-- the host counts the accepters Loom delivered to and waits for their answers;
+- the host asks each participant Loom's participants claim lists as taking it, and waits for their answers;
 - a pane permits the quit once nothing it holds would be lost.
 
 WHY — `agents/decisions/a-quit-that-cannot-be-asked-is-refused.md`

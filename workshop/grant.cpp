@@ -110,6 +110,15 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
     speak.allow_to_any(TerminalValueAnswered::zen_name, TerminalValueAnswered::zen_version);
     speak.allow_to_any(TerminalCompletionOffered::zen_name, TerminalCompletionOffered::zen_version);
+    // THE TERMINAL PANE'S THREE ASKS, forwarded to the host's Terminal door, which holds the
+    // participant, and the record as that door claims it.
+    speak.allow_to_role(TerminalLineAsked::zen_name, TerminalLineAsked::zen_version,
+                        kTerminalDoorRole);
+    speak.allow_to_role(TerminalCompletionAsked::zen_name, TerminalCompletionAsked::zen_version,
+                        kTerminalDoorRole);
+    speak.allow_to_role(TerminalValueAsked::zen_name, TerminalValueAsked::zen_version,
+                        kTerminalDoorRole);
+    speak.allow_observe(TranscriptShown::zen_name, TranscriptShown::zen_version);
     // A GUIDE MARK'S ANSWER, to the guest that asked for it, at the ask and when the mark ends.
     speak.allow_to_any(GuideAnswered::zen_name, GuideAnswered::zen_version);
     // WHAT A SHAPE THIS ROLE ACCEPTS DOES, from its manual, to whoever asked.

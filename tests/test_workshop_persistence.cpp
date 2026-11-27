@@ -7629,7 +7629,7 @@ TEST_CASE("a reload carries the bindings, the room and the run: a Workshop and a
     const loom::Value workshop_state = t.w->snapshot();
     const loom::Value owner_state = t.owner->snapshot();
 
-    WorkshopWeave workshop(t.host.made(), t.host);
+    WorkshopWeave workshop(t.host.made());
     workshop.revive(workshop_state);
     // THE BINDINGS, as authored, and the keymap derived from them.
     const auto rows = [](const Keymap& k) {
