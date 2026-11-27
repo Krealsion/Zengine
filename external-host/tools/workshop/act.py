@@ -39,7 +39,7 @@ says the setting takes (PaneSettingCommitRequested), and reads the row back; `ke
 write Workshop refuses ends the run with Workshop's words.
 
 WHAT IT HEARS. Before its first press the run follows what Workshop says (`NoticeSaid` v1, each
-thing once as it is said; agents/workshop/notices.md). Every press is settled, so what it caused
+thing once as it is said; notices/docs/notices-laws.md). Every press is settled, so what it caused
 Workshop to say has arrived, marked with this run's correlation for the press (`cause`), before
 the press returns: each step keeps what its presses caused in steps.json (`caused`), and a refusal
 among it ends the run naming the step's index and verb and Workshop's words, with nothing pressed

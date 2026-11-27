@@ -8,9 +8,10 @@ set(ZEN_TEXT_CHECKS doc_links doc_names package_vocabulary law_register source_c
     folder_map manual census)
 
 # Besides Markdown and the images under a docs/ folder, what a documentation-only change may
-# touch: the text checks themselves and the files only they read.
+# touch: the text checks themselves and the files only they read, a row ending in `/` naming every
+# file under that folder (the laws' manifests, which law_register reads).
 set(ZEN_TEXT_ONLY_FILES tests/code_values.txt tests/folders.txt tests/census.txt tests/doc_names.txt
-    tests/raised_budgets.txt)
+    tests/raised_budgets.txt tests/laws/)
 
 # The folders whose first-party source doc_links and source_comments read: each row of
 # tests/folders.txt whose kind holds code a build compiles or a lane runs, and the root

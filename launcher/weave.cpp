@@ -38,7 +38,7 @@ namespace launcher = zengine::launcher;
 namespace ws = zengine::workshop;
 
 /// The roles that may ask for a start. Each asks Workshop first for the hand that pressed, and the
-/// launcher does not judge the hand again.
+/// launcher trusts that approval and does not judge the hand again (LAUNCHER-01).
 constexpr const char* kAskers[] = {zengine::view_builder::kRole, zengine::files::kFilesRole,
                                    ws::kPaletteRole, zengine::first_run::kFirstRunRole};
 
