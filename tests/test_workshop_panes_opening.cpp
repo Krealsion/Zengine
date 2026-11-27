@@ -19,6 +19,7 @@
 #include "pane/drawing.hpp"
 #include "workshop/pane_view.hpp"
 
+#include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
@@ -715,6 +716,40 @@ std::string held_sentence(const OpeningRig& o, const std::string& words) {
            ") -- it is held until it is reloaded or removed; its own words: " + words;
 }
 } // namespace
+
+TEST_CASE("the desk's own showing that throws is its own failure: said in its words where the process says its own, answered Failed, and left for no host's turn") {
+    // NO HONEST INPUT MAKES THE DESK'S SHOWING THROW, SO THE BOUNDARY ITS HOOK RUNS INSIDE
+    // (`on_claim_published`, through `show_own`) IS DRIVEN WITH A SHOWING THAT DOES: Loom is
+    // answered Failed, which holds the desk and keeps the record, and the words are the desk's
+    // own, on the stream it is handed -- standard error in a run. A showing that returns answers
+    // Applied or Declined, and says nothing.
+    std::FILE* said = std::tmpfile();
+    REQUIRE(said != nullptr);
+    const auto read_said = [said] {
+        std::fflush(said);
+        std::rewind(said);
+        std::string text;
+        for (int c = std::fgetc(said); c != EOF; c = std::fgetc(said)) {
+            text += static_cast<char>(c);
+        }
+        return text;
+    };
+    const loom::WeaveId desk{42};
+    loom::Weave::PublishedClaim answer = loom::Weave::PublishedClaim::Applied;
+    CHECK_NOTHROW(answer = show_own(
+                      desk, []() -> bool { throw std::runtime_error("the seat could not be made"); },
+                      said));
+    CHECK(answer == loom::Weave::PublishedClaim::Failed);
+    CHECK(read_said() == "zengine-workshop: weave #42 could not show the presentation it was "
+                         "published, and Loom holds it -- the seat could not be made\n");
+    std::fclose(said);
+    said = std::tmpfile();
+    REQUIRE(said != nullptr);
+    CHECK(show_own(desk, [] { return true; }, said) == loom::Weave::PublishedClaim::Applied);
+    CHECK(show_own(desk, [] { return false; }, said) == loom::Weave::PublishedClaim::Declined);
+    CHECK(read_said().empty());
+    std::fclose(said);
+}
 
 TEST_CASE("a native owner's failed showing is told in the words its own boundary captured, and "
           "every exception that reaches the host's turn propagates as it came") {

@@ -65,6 +65,7 @@
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/host_sources.hpp"
 #include "workshop/powers_door.hpp"
+#include "workshop/terminal/host_door.hpp" // the host's Terminal door, mounted over a rig's participant
 #include "realization/owner.hpp"
 #include "realization/load_plan.hpp"
 #include "realization/vocabulary.hpp"
@@ -729,9 +730,8 @@ struct GuestRows {
 
 /// WHAT A RIG'S HOST HOLDS, as `workshop.cpp`'s `main` holds it: its places, which the layouts'
 /// owner and the project door read at each ask; what Workshop is made with, composed from them when
-/// it is mounted (`made`); what is still handed to Workshop (the base, `HostContext`); and whose
-/// host this is, which the guest door's stand-in claims.
-struct RigHost : HostContext {
+/// it is mounted (`made`); and whose host this is, which the guest door's stand-in claims.
+struct RigHost {
     std::string dir, project_dir, setup_path, session_path, keymap_path, prefs_path;
     std::string themes_path, shipped_themes_path;
     bool posix_terminal = false;
@@ -807,14 +807,30 @@ struct Live {
     /// settled; here it stops nothing, and says whether it was asked.
     HostSessionDoor* session_door = nullptr;
     loom::WeaveId terminal_id{};
+    /// The host's Terminal door over the participant `mount_terminal` mounted, or null, and the
+    /// host's watch claiming its record after each delivery the participant takes.
+    TerminalHostDoor* terminal_door = nullptr;
+    loom::WeaveId terminal_door_id{};
+    std::unique_ptr<TerminalRecordWatch> terminal_watch;
+    /// HOLD A MOUNTED PARTICIPANT AS THE HOST DOES: its door, in its role, and the door's watch.
+    void hold_terminal(const loom::MountedTerminal& mounted) {
+        const MountedTerminalDoor held = mount_terminal_door(bus, mounted);
+        terminal_door = held.door;
+        terminal_door_id = held.id;
+        terminal_watch = std::make_unique<TerminalRecordWatch>(bus, mounted.id, *terminal_door);
+    }
+    /// THE HOST'S WAKE, as `workshop.cpp`'s loop takes it after each turn: the Terminal door
+    /// claims the record again, so a case that acted on the participant itself -- recorded on it,
+    /// or had it hear a message -- has Workshop's next picture read what that left.
+    void host_wake() {
+        if (terminal_door != nullptr) {
+            terminal_door->claim_again(bus);
+        }
+    }
     /// THE HAND THAT OPENS AND CLOSES PANES THROUGH THE HOST'S DOORS, mounted when a case first
     /// asks (`door_hand`), so a case that never opens a pane has no extra party on its bus.
     DoorHand* hand = nullptr;
     loom::WeaveId hand_id{};
-    /// THE HOST'S WATCH OVER THE QUIT'S DELIVERIES, mounted beside Workshop as `workshop.cpp`
-    /// mounts it (WL-SESSION-19). Declared after the bus and the `HostContext` whose book it
-    /// writes, so it is removed first.
-    std::unique_ptr<QuitDeliveryWatch> quit_watch;
 
     /// THE LAYOUTS' OWNER, mounted in its own role before Workshop, as the host mounts it, and the
     /// rig's stage hand, mounted when a case first stages a run past the doors.
@@ -835,7 +851,7 @@ struct Live {
     std::string made_with_;
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
-    /// handed over as `HostContext::terminal` -- with this rig's one rule, `RigNote` to whoever holds
+    /// held by the host's Terminal door in its role -- with this rig's one rule, `RigNote` to whoever holds
     /// `kRigBoard`. `widen` is the canary lever, Workshop's own `to_any` rule, without which "a
     /// pane's publication reaches nobody" measures nothing. `shapes` mounts extra declared shapes,
     /// so a completion list can outgrow its room.
@@ -2313,11 +2329,6 @@ struct PaneRig {
     /// The host's session door, which Workshop asks to end the host's lifetime once its quit is
     /// settled; here it stops nothing, and says whether it was asked.
     HostSessionDoor* session_door = nullptr;
-    /// THE HOST'S WATCH OVER THE QUIT'S DELIVERIES, mounted with Workshop exactly as
-    /// `workshop.cpp` mounts it (WL-SESSION-19) -- a rig without it would be a Workshop whose
-    /// quit waits on questions Loom refused to deliver, which no shipped host is. Declared after
-    /// the bus and the `HostContext` whose book it writes, so it is removed first.
-    std::unique_ptr<QuitDeliveryWatch> quit_watch;
     std::vector<std::string> loaded;
     std::vector<std::string> load_refusals;
 
@@ -2374,6 +2385,26 @@ struct PaneRig {
     /// and measure what the BUS says about the target rather than what the grant does.
     loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false);
     loom::WeaveId terminal_id{};
+    /// The host's Terminal door over the participant `mount_terminal` mounted, or null, and the
+    /// host's watch claiming its record after each delivery the participant takes.
+    TerminalHostDoor* terminal_door = nullptr;
+    loom::WeaveId terminal_door_id{};
+    std::unique_ptr<TerminalRecordWatch> terminal_watch;
+    /// HOLD A MOUNTED PARTICIPANT AS THE HOST DOES: its door, in its role, and the door's watch.
+    void hold_terminal(const loom::MountedTerminal& mounted) {
+        const MountedTerminalDoor held = mount_terminal_door(bus, mounted);
+        terminal_door = held.door;
+        terminal_door_id = held.id;
+        terminal_watch = std::make_unique<TerminalRecordWatch>(bus, mounted.id, *terminal_door);
+    }
+    /// THE HOST'S WAKE, as `workshop.cpp`'s loop takes it after each turn: the Terminal door
+    /// claims the record again, so a case that acted on the participant itself -- recorded on it,
+    /// or had it hear a message -- has Workshop's next picture read what that left.
+    void host_wake() {
+        if (terminal_door != nullptr) {
+            terminal_door->claim_again(bus);
+        }
+    }
     bool terminal_edits_settings = false;
 
     /// A native provider in a role of its own, granted the pane sentences a provider says --

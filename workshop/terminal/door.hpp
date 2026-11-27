@@ -4,87 +4,54 @@
 #ifndef ZENGINE_WORKSHOP_TERMINAL_DOOR_HPP
 #define ZENGINE_WORKSHOP_TERMINAL_DOOR_HPP
 
-// The door onto the terminal participant, composed onto Workshop's weave: the picture of its
-// record said when it changed, the one act that authors, and the read that says what could be
-// said next, all at the role Workshop holds. Compiled into Workshop; the pane's image includes
-// none of it (WL-TERM-08).
+// The Terminal pane's door on Workshop's weave: the pane's act, its completion and a value it
+// captures, each forwarded to the host's Terminal door (`kTerminalDoorRole`) and answered with
+// that door's answer, held meanwhile; and the picture of the participant's record, read from that
+// door's claim and said to the pane when it changed. Workshop holds no participant: the host's
+// door does (`host_door.hpp`). The pane's image includes none of it (WL-TERM-08).
 // Workshop law: agents/workshop/terminal-door.md
-
-#include "workshop/terminal/complete.hpp"
-#include "workshop/terminal/transcript.hpp"
 
 #include "workshop/panes.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
-#include <zen/host/participants.hpp>
-#include <zen/switchboard.hpp>
-#include <zen/terminal/input_lex.hpp>
-#include <zen/terminal/session.hpp>
-#include <zen/weave.hpp>
+#include "pane/operation.hpp"
 
+#include <zen/weave.hpp>
+#include <zen/weave/ask_book.hpp>
+#include <zen/weave/ask_ended.hpp>
+
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <memory>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace zengine::workshop {
 
-/// Where a line can be addressed, made of Loom's participants claim as a delivery read it
-/// (`loom::host::Participants`): every participant on the bus, its roles, the names of the shapes
-/// it accepts and whether it is alive, `self` marked. A reading, not a registry: a sealed
-/// candidate has no row, and a participant accepting any registered shape is shown by the shapes
-/// it lists, as the bus lists them.
-// WL-TERM-16 -- agents/workshop/terminal-door.md
-inline std::vector<Destination> destinations_of(const loom::host::Participants& now,
-                                                loom::WeaveId self) {
-    std::vector<Destination> out;
-    out.reserve(now.rows.size());
-    for (const loom::host::Participant& row : now.rows) {
-        Destination d;
-        d.id = static_cast<std::uint64_t>(row.id);
-        d.roles = row.roles;
-        d.alive = row.alive;
-        d.self = self.valid() && d.id == self.value;
-        for (const loom::DeclaredShape& shape : row.accepts) {
-            d.accepts.push_back(shape.name);
-        }
-        out.push_back(std::move(d));
-    }
-    return out;
-}
-
-/// `LineSlot` AS THE SEAM SPELLS IT.
-inline const char* slot_name(LineSlot slot) noexcept {
-    switch (slot) {
-    case LineSlot::Verb: return kSlotVerb;
-    case LineSlot::Address: return kSlotAddress;
-    case LineSlot::Shape: return kSlotShape;
-    case LineSlot::Version: return kSlotVersion;
-    case LineSlot::Arguments: return kSlotArguments;
-    }
-    return kSlotVerb;
-}
-
-/// THE TERMINAL DOOR: the participant it reads is the host's (`Host::terminal`); where a line can
-/// be addressed is Loom's participants claim as the composing weave's delivery read it
-/// (`Self::bus_now_`); what it keeps is only the last picture it said.
-/// Workshop composes it over its `HostContext` (`TerminalDoorFacet`).
-template <class Host>
+/// THE TERMINAL'S DOOR ON WORKSHOP. What it keeps is the asks it forwarded, each with the pane's
+/// answer right, and the last picture it said.
 class TerminalDoor {
 public:
-    using Accept = loom::Accept<TerminalActRequested, TerminalCompletionRequested>;
-    using Emit = loom::Emit<TranscriptShown, TerminalActed, TerminalCompletionOffered>;
+    using Accept = loom::Accept<TerminalActRequested, TerminalCompletionRequested, TerminalActed,
+                                TerminalCompletionOffered, TerminalValueAnswered, loom::AskEnded>;
+    using Emit = loom::Emit<TranscriptShown, TerminalActed, TerminalCompletionOffered,
+                            TerminalValueAnswered, TerminalLineAsked, TerminalCompletionAsked,
+                            TerminalValueAsked>;
 
-    explicit TerminalDoor(Host& host) : host_(&host) {}
+    /// How many forwarded asks wait on the host's door at once; past it the pane is refused.
+    static constexpr std::size_t kMaxForwarded = 8;
 
-    /// THE ONE ACT THAT AUTHORS, `submit`: authored through the participant, answered, then
-    /// `self`, the weave composing this door, repaints its desk so the picture follows the answer.
+    /// THE ONE ACT THAT AUTHORS, `submit`: forwarded, and its answer the door's; then `self`, the
+    /// weave composing this door, repaints its desk so the picture follows the answer.
     template <class Self>
     void on(Self& self, const TerminalActRequested& asked, loom::Mail& mail) {
-        // A ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
-        // the reason it names nobody: a second presentation of this participant asks with no
-        // edit here.
+        (void)self;
+        // A ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and the
+        // reason it names nobody: a second presentation of this participant asks with no edit
+        // here.
         if (mail.authored_role().empty()) {
             return;
         }
@@ -92,72 +59,79 @@ public:
             (void)mail.answer(TerminalActed{false, "this door knows one act, and it is `submit`"});
             return;
         }
-        if (host_->terminal == nullptr) {
-            // Nothing to author through, and nowhere to record the attempt: the participant is the
-            // transcript, so the sentence crosses as the refusal, beside the line it was typed on.
-            (void)mail.answer(
-                TerminalActed{false, "no terminal participant is mounted on this bus -- "
-                                     "nothing was authored"});
-            return;
-        }
-        submit_terminal_line(asked.line);
-        (void)mail.answer(TerminalActed{true, std::string()});
-        // THE ANSWER, THEN THE PICTURE. Submitting recorded at least one entry on the
-        // participant, so the reading HAS changed and `say_transcript` will publish it on the
-        // repaint this ends in -- which is how the pane learns what its own line came to
-        // without this door telling it twice.
-        self.repaint(mail);
+        forward(Asked::kLine, TerminalLineAsked{asked.line}, {}, mail);
     }
 
-    /// What could be said next on a half-typed line: read, never authored, a shape's fields in the
-    /// order `self`'s session chose (WL-TERM-05).
+    /// What could be said next on a half-typed line, the fields in the order `self`'s session
+    /// chose (WL-TERM-05): forwarded, and read there, never authored.
     template <class Self>
     void on(Self& self, const TerminalCompletionRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             return;
         }
-        TerminalCompletionOffered out;
-        if (host_->terminal == nullptr) {
-            // A CLOSED QUESTION, ANSWERED. `open` false is "there is nothing true to say here",
-            // which is exactly the state a pane with no participant is in -- and answering it
-            // is what keeps the asker from waiting on a door that will never reply.
-            (void)mail.answer(std::move(out));
-            return;
-        }
-        // And it authors nothing: `complete_line` takes the participant by const reference, and
-        // this runs on every keystroke. Where a line can go is read off the bus only when the line
-        // is at its address, as a value kept no longer than the answer.
-        std::vector<Destination> reachable;
-        const loom::host::Participants* now =
-            read_command_line(asked.line).slot == LineSlot::Address ? self.bus_now_.read(mail)
-                                                                    : nullptr;
-        const bool listing = now != nullptr;
-        if (listing) {
-            reachable = destinations_of(*now, host_->terminal->id());
-        }
-        const Completion c = complete_line(*host_->terminal, asked.line,
-                                           listing ? &reachable : nullptr,
-                                           self.session().completion_required_first
-                                               ? CompletionFieldOrder::RequiredFirst
-                                               : CompletionFieldOrder::Declared);
-        out.open = c.open;
-        out.slot = slot_name(c.slot);
-        out.partial = c.partial;
-        out.heading = c.heading;
-        out.candidates.reserve(c.candidates.size());
-        for (const Candidate& in : c.candidates) {
-            out.candidates.push_back(ShownCandidate{in.insert, in.display, in.detail});
-        }
-        (void)mail.answer(std::move(out));
-        // NO REPAINT. Nothing about this host changed: the participant was read and not
-        // written, and what the answer becomes on a screen is the pane's own drawing, which
-        // the window shows on its own arrival like every other pane's.
+        forward(Asked::kCompletion,
+                TerminalCompletionAsked{asked.line, self.session().completion_required_first},
+                {}, mail);
     }
 
-    /// WHAT THE PARTICIPANT'S RECORD HOLDS, TO WHOEVER IS PRESENTING IT -- derived on the
-    /// repaint, compared against the last utterance, and said only when it changed.
+    /// A VALUE THE PANE CAPTURES, once `self` has authorized the gesture asking for it
+    /// (`approved`): forwarded, and the door's answer the pane's.
+    // WL-TERM-17 -- agents/workshop/terminal-door.md
+    template <class Self, class Approved>
+    void capture(Self& self, const TerminalValueRequested& asked, const Approved& approved,
+                 loom::Mail& mail) {
+        (void)self;
+        forward(Asked::kValue, TerminalValueAsked{asked.participant, asked.observation},
+                Approval{approved.pane_owner, approved.pane, approved.correlation,
+                         approved.gesture},
+                mail);
+    }
+
+    /// THE DOOR'S ANSWERS, each taken only as Loom's answer to a forwarded ask of that kind from
+    /// whoever holds the door's role now, and spent as the pane's.
+    template <class Self>
+    void on(Self& self, const TerminalActed& said, loom::Mail& mail) {
+        if (!take(self, Asked::kLine, said, mail)) {
+            return;
+        }
+        // THE ANSWER, THEN THE PICTURE. The door claimed the record its act left before this
+        // answer was delivered, so the repaint this ends in says it -- which is how the pane
+        // learns what its own line came to without this door telling it twice.
+        self.repaint(mail);
+    }
+    template <class Self>
+    void on(Self& self, const TerminalCompletionOffered& said, loom::Mail& mail) {
+        // NO REPAINT. Nothing about this host changed: the participant was read and not
+        // written, and what the answer becomes on a screen is the pane's own drawing.
+        (void)take(self, Asked::kCompletion, said, mail);
+    }
+    template <class Self>
+    void on(Self& self, const TerminalValueAnswered& said, loom::Mail& mail) {
+        (void)take(self, Asked::kValue, said, mail);
+    }
+
+    /// LOOM'S WORD THAT A FORWARDED ASK ENDED WITH NO ANSWER: the pane is answered in words, and
+    /// nothing waits. An ask that reached no door had nowhere to author.
+    template <class Self>
+    void on(Self& self, const loom::AskEnded& ended, loom::Mail& mail) {
+        if (!mail.ask_ended()) {
+            return; // the shape alone is anybody's speech
+        }
+        const std::optional<loom::PendingAsk> mine = asks_.end(ended, mail);
+        if (!mine) {
+            return;
+        }
+        refuse(self, mine->id, ended.never_delivered() ? kNoDoor
+                                                      : "the Terminal's door never answered -- " +
+                                                            pane::no_answer(ended),
+               mail);
+    }
+
+    /// WHAT THE PARTICIPANT'S RECORD HOLDS, TO WHOEVER IS PRESENTING IT -- the host's door's
+    /// claim, read on the repaint, compared against the last utterance, and said only when it
+    /// changed. No claim is a reading too: no participant is mounted, and the pane says so.
     void say_transcript(loom::Mail& mail) {
-        TranscriptShown now = transcript_shown(host_->terminal);
+        TranscriptShown now = picture(mail);
         if (transcript_said_ && same_transcript(now, said_transcript_)) {
             return; // no news is silence, and silence is what makes this seam terminate
         }
@@ -171,56 +145,156 @@ public:
     /// A party has just arrived and has heard nothing: the next `say_transcript` says the record.
     void say_again() { transcript_said_ = false; }
 
-private:
-    /// Compose and author one line through the participant, in Loom's own grammar: the one path
-    /// that speaks as the terminal, stamped with its identity and judged against its grant -- why
-    /// the participant stayed this host's.
+    /// The record as the host's door claims it now, or no participant when nothing does.
     // WL-TERM-02 -- agents/workshop/terminal-door.md
-    void submit_terminal_line(const std::string& line) {
-        if (line.empty()) {
-            return;
+    static TranscriptShown picture(loom::Mail& mail) {
+        const loom::SenseReading read = mail.latest_from_role<TranscriptShown>(kTerminalDoorRole);
+        if (!read || !read.value.has_value() || !read.by.role_holder_is_current) {
+            return TranscriptShown{};
         }
-        loom::TerminalSession& me = *host_->terminal;
-        me.record_command(line);
-
-        const std::vector<loom::Token> tok = loom::tokenize(line);
-        // The verb table is the completer's too (complete.hpp): one list, so a third verb cannot
-        // be learned by only one asker.
-        const TerminalVerb* verb = tok.empty() ? nullptr : terminal_verb(tok[0].text);
-        loom::Address to;
-        std::uint64_t version = 0;
-        if (verb != nullptr && tok.size() >= 4 && loom::parse_address(tok[1].text, to) &&
-            loom::parse_u64(tok[3].text, version) && version <= kMaxVersion) {
-            std::vector<loom::Arg> args;
-            for (std::size_t i = 4; i < tok.size(); ++i) {
-                args.push_back(loom::lex_arg(tok[i]));
-            }
-            const loom::TerminalResult r =
-                verb->ask ? me.ask(to, tok[2].text, static_cast<std::uint32_t>(version), args)
-                          : me.send(to, tok[2].text, static_cast<std::uint32_t>(version), args);
-            if (!r) {
-                // A local refusal, recorded as this participant's own notice, not an answer:
-                // nothing was authored, and the core already words each outcome.
-                me.record_notice(std::string(loom::name_of(r.outcome)) +
-                                 (r.detail.empty() ? "" : ": " + r.detail));
-            }
-            return;
-        }
-        // THE WHOLE SENTENCE, at whatever length it takes to be a complete one. It is
-        // recorded on the participant, unshortened, exactly as every other entry is: the pane
-        // wraps it across as many of its own rows as it needs, so the length of this string is
-        // a question about the GRAMMAR and never about the furniture.
-        me.record_notice("this pane speaks two verbs, and `ask` takes the same form as `send`: "
-                         "send <addr> <Shape> <version> [args] -- an address is #12 for one "
-                         "weave, @role for whoever holds a role, or * for everyone");
+        return loom::from_value<TranscriptShown>(*read.value);
     }
 
-    /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
-    /// a schema version is 32, so a wider number is REFUSED rather than
-    /// truncated -- `send @x Foo 4294967297` must not quietly become version 1.
-    static constexpr std::uint64_t kMaxVersion = 0xFFFFFFFFull;
+private:
+    enum class Asked : std::uint8_t { kLine, kCompletion, kValue };
 
-    Host* host_;
+    /// Which gesture approved a capture, so its refusal forgets that approval and no other.
+    struct Approval {
+        loom::WeaveId pane_owner{};
+        std::string pane;
+        std::uint64_t correlation = 0;
+        std::uint64_t gesture = 0;
+    };
+
+    /// One forwarded ask: its record in the book, what it asked, and the pane's answer right.
+    struct Held {
+        std::uint64_t id = 0;
+        Asked asked = Asked::kLine;
+        loom::DeferredAnswer due;
+        Approval approval;
+    };
+
+    /// What a pane hears when no door could be asked: nothing was authored.
+    static constexpr const char* kNoDoor =
+        "no terminal participant is mounted on this bus -- nothing was authored";
+
+    /// Hold the pane's answer right and ask the host's door `msg`, as Workshop's role.
+    template <class Msg>
+    void forward(Asked asked, const Msg& msg, Approval approval, loom::Mail& mail) {
+        if (held_.size() >= kMaxForwarded) {
+            answer_now(asked, "the Terminal is still answering " +
+                                  std::to_string(held_.size()) + " asks -- try again",
+                       mail);
+            return;
+        }
+        loom::DeferredAnswer due = mail.defer_answer();
+        if (!due.valid()) {
+            return; // nothing can carry an answer back, and nothing is asked
+        }
+        const loom::AskOpened opened =
+            asks_.open_to_role(kTerminalDoorRole, Msg::zen_name, Msg::zen_version);
+        held_.push_back(Held{opened.id, asked, std::move(due), std::move(approval)});
+        if (!opened) {
+            spend(held_.size() - 1, refusal_of(asked, "the Terminal cannot hold another ask"),
+                  mail);
+            return;
+        }
+        const loom::Ticket sent = mail.as_role(kWorkshopProvider)
+                                      .ask_role(kTerminalDoorRole, msg, opened.correlation);
+        if (!sent.valid() || !asks_.bind_attempt(opened.id, sent.seq)) {
+            (void)asks_.forget(opened.id);
+            spend(index_of(opened.id), refusal_of(asked, kNoDoor), mail);
+        }
+    }
+
+    /// The door's answer of kind `asked`: spent as the pane's when it is Loom's answer to a held
+    /// ask of that kind, from the weave holding the door's role now. True when it was.
+    template <class Self, class Answer>
+    bool take(Self& self, Asked asked, const Answer& said, loom::Mail& mail) {
+        if (!mail.answers_ask() ||
+            self.bus_now_.holder_of(kTerminalDoorRole, mail) != mail.sender()) {
+            return false; // not the door's answer to an ask of this host's
+        }
+        const loom::PendingAsk* open = asks_.match(mail.correlation(), mail.sender());
+        const std::size_t at = open != nullptr ? index_of(open->id) : held_.size();
+        if (at == held_.size() || held_[at].asked != asked) {
+            return false;
+        }
+        (void)asks_.settle(mail.correlation(), mail.sender());
+        if constexpr (std::is_same_v<Answer, TerminalValueAnswered>) {
+            if (!said.available) {
+                forget_approval(self, held_[at].approval);
+            }
+        }
+        spend(at, loom::to_value(said), mail);
+        return true;
+    }
+
+    /// The pane's answer to held ask `id`, in words: its kind's refusal.
+    template <class Self>
+    void refuse(Self& self, std::uint64_t id, const std::string& why, loom::Mail& mail) {
+        const std::size_t at = index_of(id);
+        if (at == held_.size()) {
+            return;
+        }
+        if (held_[at].asked == Asked::kValue) {
+            forget_approval(self, held_[at].approval);
+        }
+        spend(at, refusal_of(held_[at].asked, held_[at].asked == Asked::kValue
+                                                  ? "The source terminal is no longer available"
+                                                  : why),
+              mail);
+    }
+
+    /// A capture refused forgets the approval its gesture gave, while that approval stands.
+    template <class Self>
+    static void forget_approval(Self& self, const Approval& approval) {
+        auto& standing = self.approved_operation_;
+        if (standing.pane_owner == approval.pane_owner && standing.pane == approval.pane &&
+            standing.correlation == approval.correlation && standing.gesture == approval.gesture) {
+            standing = {};
+        }
+    }
+
+    /// What a pane is told for an ask of kind `asked` that has no answer from the door.
+    static loom::Value refusal_of(Asked asked, const std::string& why) {
+        switch (asked) {
+        case Asked::kLine: return loom::to_value(TerminalActed{false, why});
+        case Asked::kCompletion: return loom::to_value(TerminalCompletionOffered{});
+        case Asked::kValue: return loom::to_value(TerminalValueAnswered{false, why, {}, {}});
+        }
+        return loom::to_value(TerminalActed{false, why});
+    }
+
+    /// Answer the pane's ask now, from inside its own delivery.
+    static void answer_now(Asked asked, const std::string& why, loom::Mail& mail) {
+        switch (asked) {
+        case Asked::kLine: (void)mail.answer(TerminalActed{false, why}); return;
+        case Asked::kCompletion: (void)mail.answer(TerminalCompletionOffered{}); return;
+        case Asked::kValue:
+            (void)mail.answer(TerminalValueAnswered{false, why, {}, {}});
+            return;
+        }
+    }
+
+    /// Spend held ask `at`'s answer right with `answer`, and let it go.
+    void spend(std::size_t at, const loom::Value& answer, loom::Mail& mail) {
+        if (at >= held_.size()) {
+            return;
+        }
+        Held done = std::move(held_[at]);
+        held_.erase(held_.begin() + static_cast<std::ptrdiff_t>(at));
+        (void)mail.bus().spend_deferred(done.due, loom::Message(answer));
+    }
+
+    std::size_t index_of(std::uint64_t id) const {
+        const auto it = std::find_if(held_.begin(), held_.end(),
+                                     [id](const Held& h) { return h.id == id; });
+        return static_cast<std::size_t>(it - held_.begin());
+    }
+
+    loom::AskBook asks_{kMaxForwarded};
+    std::vector<Held> held_;
     /// The last picture said, so the publication is silent when nothing changed.
     TranscriptShown said_transcript_;
     bool transcript_said_ = false;

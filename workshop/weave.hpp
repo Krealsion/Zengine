@@ -13,11 +13,11 @@
 
 
 
-#include "workshop/terminal/complete.hpp" // the completer's values, and where a line can go
 #include "persist/file.hpp"
 #include "persist/written.hpp" // `Written`
-#include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
+#include "quit_delivery.hpp" // what a quit question that ended with no answer comes to
 #include "made.hpp" // what this weave is made with: its host's words and paths at the launch
+#include "own_showing.hpp" // the boundary its own showing runs inside
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
 #include "notice_seam_vocabulary.hpp" // what Workshop said, said across the bus
 #include "desktop_seam_vocabulary.hpp"   // the application-defaults owner: rows, launches, the floor
@@ -53,14 +53,14 @@
 #include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
 #include "theme/vocabulary.hpp" // where the themes are and what is worn, told to the theme role
-#include "workshop/terminal/door.hpp" // the door onto the terminal participant, composed below
+#include "workshop/terminal/door.hpp" // the Terminal pane's door, forwarding to the host's
 #include "workshop/bus_now.hpp" // who is on the bus, as one delivery read Loom's claim
 
-#include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
 #include <zen/host/wait_set.hpp>
 #include <zen/session/vocabulary.hpp> // the host's lifetime ended, in Loom's words
-#include <zen/terminal/session.hpp>
 #include <zen/weave.hpp>
+
+#include <type_traits>
 
 #include <array>
 #include <cstddef>
@@ -119,20 +119,6 @@ inline constexpr std::size_t kMaxDeskWaits = 4;
 inline constexpr std::int64_t kDeskWaitMs = 2000;
 /// The asks of the window Workshop keeps open at once: one an area for its notice, and each wait's.
 inline constexpr std::size_t kMaxAreaAsks = 256;
-
-/// WHAT THE WEAVE IS STILL HANDED OF ITS HOST, beside the value it is made with (`made.hpp`): the
-/// terminal participant it presents, and the book the host's quit watch writes. Kept whole in this
-/// header so a suite can build one without linking the host.
-struct HostContext {
-    /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the host mounted none.
-    // WL-TERM-02 -- agents/workshop/terminal-door.md
-    loom::TerminalSession* terminal = nullptr;
-
-    /// THE BOOK A QUIT DELIVERY LOOM REFUSED IS WRITTEN IN (`quit_delivery.hpp`): the host's
-    /// watch writes what the tap said, and this weave reads it when the watch wakes it.
-    // WL-SESSION-19 -- agents/workshop/session.md
-    UndeliveredQuits undelivered_quits;
-};
 
 /// Whether the weave holding `role` on `bus` now has a door of exactly `shape`'s identity, read off
 /// the bus at the call: the host's own reading, for the doors it wires. Nobody holding the role, or
@@ -217,16 +203,26 @@ struct ConditionsTaken {
     }
 };
 
-/// The door onto the terminal participant, as this host composes it: over its own context.
-using TerminalDoorFacet = TerminalDoor<HostContext>;
+/// The Terminal pane's door, forwarding to the host's Terminal door.
+using TerminalDoorFacet = TerminalDoor;
 /// A guest's acts, held while the guest door and Loom's authority reader answer for each.
-using GuestActsFacet = GuestActs<HostContext>;
+using GuestActsFacet = GuestActs;
 
 /// The Workshop weave: its own doors, the terminal door and its page's answers composed beside them.
 /// WHAT WORKSHOP'S STATE DECLARES, as the session holds it now: the bindings as authored and the
 /// window's room, each its file's own value (`workshop/vocabulary.hpp`). `window_name` is the
 /// window the desk is shown in, which says whose room the GUI window's own is.
 WorkshopState declared_state(const Session& s, std::string_view window_name);
+
+/// HOW MANY PARTICIPANTS ONE QUIT ASKS AT MOST: past it the quit is refused, never half asked.
+inline constexpr std::size_t kMaxQuitAsks = 64;
+
+/// One participant a quit asked: the ask's record, its weave, and the roles it held then.
+struct QuitAsked {
+    std::uint64_t id = 0;
+    loom::WeaveId weave{};
+    std::vector<std::string> roles;
+};
 
 class WorkshopWeave
     : public zengine::With<TerminalDoorFacet, GuestActsFacet,
@@ -274,7 +270,6 @@ class WorkshopWeave
                                           zengine::pane::PaneManageRequested,
                                           zengine::pane::v1::PaneManageRequested,
                                           zengine::pane::PaneQuitAnswered,
-                                          zengine::workshop::QuitDeliveryRefusalNoted,
                                           // an inspector's pane subject: which pane, the
                                           // picture now, and one write through its owner
                                           zengine::workshop::InspectPaneRequested,
@@ -403,7 +398,7 @@ class WorkshopWeave
                              // presentation, and what it waits on in the host's wait.
                              loom::Claims<zengine::workshop::PanePresentation,
                                           loom::host::WaitSet>> {
-    friend TerminalDoorFacet; // the door repaints the desk after the line it authored
+    friend TerminalDoorFacet; // the door repaints the desk after a line, and forgets a capture's approval
 
 public:
     /// Whose hand an input moment is: the platform's (`local`), a participant that injected it, or
@@ -414,9 +409,11 @@ public:
         loom::WeaveId participant{};
     };
 
-    /// Made with the words and paths its host fixed at the launch (`made`), and handed the terminal
-    /// participant it presents (`host`).
-    WorkshopWeave(const WorkshopMade& made, HostContext& host);
+    /// Made with the words and paths its host fixed at the launch, and with nothing else: what
+    /// else it needs of its host it asks by message or reads as a claim. Loom's creation value, so
+    /// a load names it and the gate admits it before the weave is made (`made_alone` below).
+    ZEN_MADE_WITH(WorkshopMade);
+    explicit WorkshopWeave(const WorkshopMade& made);
 
     /// READ THE WEAVER'S KEYMAP, OR STAND ON THE DEFAULTS.
     void load_keymap(loom::Mail& mail);
@@ -956,16 +953,11 @@ public:
     void on(const PaneManageRequested& asked, loom::Mail& mail);
     void on(const pane::v1::PaneManageRequested& asked, loom::Mail& mail) { on(current(asked), mail); }
 
-    /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
-    /// last answer decides -- every permission ends the process, any refusal keeps it open,
-    /// says why, and replays the gestures held while the room was being asked.
+    /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the asks `quit` made; the last answer
+    /// decides -- every permission ends the process, any refusal keeps it open, says why, and
+    /// replays the gestures held while the room was being asked.
     void on(const PaneQuitAnswered& said, loom::Mail& mail);
     void on(const WorkshopQuitRequested& asked, loom::Mail& mail);
-
-    /// THE HOST'S WAKE-UP: a delivery of a quit question was refused, and the book says which.
-    /// The wake-up carries nothing and decides nothing; an entry for the quit in flight refuses
-    /// it, naming who could not be asked and why, and every other entry is discarded.
-    void on(const QuitDeliveryRefusalNoted& noted, loom::Mail& mail);
 
     // ---- A pane as an inspector's subject (WL-INFO-14, WL-INFO-15) -------------------------
 
@@ -1686,6 +1678,9 @@ private:
     /// deliver): `why` is said with the count of gestures dropped, the held gestures replay in
     /// order, and the desk repaints. Nothing is saved and the bus keeps running.
     void refuse_quit(std::string why, loom::Mail& mail);
+    /// LOOM'S WORD THAT ONE OF THE QUIT'S ASKS ENDED WITH NO ANSWER: the quit in flight is refused,
+    /// naming who was not asked or did not answer, and why. False for an ask of no quit in flight.
+    bool quit_ask_ended(const loom::AskEnded& ended, loom::Mail& mail);
     /// THE QUIT BOX: a quit the weaver asked here, refused by panes holding unsaved work, opens
     /// Workshop's own menu at the room's centre -- back to work, or discard what those panes hold
     /// and quit -- so no typing and no pane is needed to leave.
@@ -1781,7 +1776,6 @@ private:
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
 
-    HostContext* host_;
     /// What this weave was made with, read where its words and paths are needed.
     WorkshopMade made_;
     Session session_;
@@ -1951,8 +1945,10 @@ private:
     /// it, a bare modifier apart: one a toggle puts away even covered, as the weaver comes
     /// straight from it (WL-DESK-13).
     std::int64_t reached_ = kNoPaneKind;
-    /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.
-    std::uint64_t quit_ask_ = 0;
+    /// The quit in flight: its asks, each participant asked, the answers still owed, the
+    /// refusals, the gestures held.
+    loom::AskBook quit_asks_{kMaxQuitAsks};
+    std::vector<QuitAsked> quit_asked_rows_;
     std::size_t quit_outstanding_ = 0;
     std::vector<std::string> quit_refusals_;
     /// ...the panes that refused it, by the names they answered with...
@@ -2066,6 +2062,32 @@ private:
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     bool medium_placed_ = false;
 };
+
+/// WORKSHOP IS MADE BY ITS CREATION VALUE ALONE, the one way a loaded image is made: nothing of
+/// its host reaches it as an argument, so a second way to make it does not compile.
+namespace made_alone {
+/// Converts to anything but Workshop's own value and Workshop itself: a constructor it can reach
+/// is a second way to make Workshop.
+struct Anything {
+    template <class T>
+        requires(!std::is_same_v<std::remove_cvref_t<T>, WorkshopMade> &&
+                 !std::is_same_v<std::remove_cvref_t<T>, WorkshopWeave>)
+    operator T&() const;
+};
+} // namespace made_alone
+static_assert(std::is_same_v<loom::made_with_t<WorkshopWeave>, WorkshopMade>,
+              "Workshop declares the value it is made with, as a load names it");
+static_assert(std::is_constructible_v<WorkshopWeave, const WorkshopMade&>,
+              "Workshop is made with its creation value");
+static_assert(!std::is_default_constructible_v<WorkshopWeave> &&
+                  !std::is_constructible_v<WorkshopWeave, made_alone::Anything> &&
+                  !std::is_constructible_v<WorkshopWeave, const WorkshopMade&,
+                                           made_alone::Anything> &&
+                  !std::is_constructible_v<WorkshopWeave, made_alone::Anything,
+                                           made_alone::Anything> &&
+                  !std::is_constructible_v<WorkshopWeave, const WorkshopMade&,
+                                           made_alone::Anything, made_alone::Anything>,
+              "Workshop is made by its creation value alone: no other argument reaches it");
 
 /// The hand of an input actor, as a guest's act is held under it: nobody for the weaver's own.
 inline loom::WeaveId guest_hand(const WorkshopWeave::InputActor& actor) {

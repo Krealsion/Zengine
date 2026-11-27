@@ -21,7 +21,7 @@ with no release, and four ordinary protocol shapes carry the rest: `PaneRevealRe
 `PaneRevealAnswered` (the pane asks
 to be seated when its act needs nothing more, holding its own gestures until the answer; the
 desk seats, selects and focuses it in the delivery that answers, or refuses with nothing moved),
-`PaneQuitRequested` / `PaneQuitAnswered` (the host publishes, counts Loom's accepters, holds
+`PaneQuitRequested` / `PaneQuitAnswered` (the host asks each participant that takes it, holds
 every gesture until the last answer, and replays them on a refusal). `OpenSourceRequested` is
 answered at `zengine.editor`; the recipe-name half moved to the read-only project door as
 `RecipeSourceSaid`, so the Builder walks two doors and no host relays a source toward the Editor's

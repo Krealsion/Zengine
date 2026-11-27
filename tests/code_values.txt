@@ -231,6 +231,7 @@ name  zengine.realization        builder/vocabulary.hpp                 kRealiza
 name  zengine.sources            workshop/sample_vocabulary.hpp         kSampleRole
 name  zengine.terminal           terminal/vocabulary.hpp                kTerminalPaneRole
 copy  zengine.terminal           workshop/pane_seam_vocabulary.hpp      kTerminalRole
+name  zengine.terminal-door      workshop/terminal_seam_vocabulary.hpp  kTerminalDoorRole
 name  zengine.theme              theme/vocabulary.hpp                   kThemeRole
 name  zengine.timer              timer/vocabulary.hpp                   kTimerRole
 name  zengine.view.builder       view/view-builder/vocabulary.hpp       kRole

@@ -266,7 +266,7 @@ struct TerminalDesk {
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             r.bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
             std::move(grant));
-        r.host.terminal = mounted.session;
+        r.hold_terminal(mounted);
         r.terminal_id = mounted.id;
         me = mounted.session;
         auto stand_in = std::make_unique<SwitchRole>();

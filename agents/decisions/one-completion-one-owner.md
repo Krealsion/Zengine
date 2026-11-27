@@ -15,7 +15,7 @@ this Workshop means, while it is running").
 
 **Decision.** `complete_recipes(recipes, host_dir, project_dir)` is the one place any host fact
 enters a recipe, called once. `CurrentRecipes` is the one session owner, declared above the
-HostContext, the bus, the Kernel and every weave — the declaration order is the lifetime proof
+bus, the Kernel and every weave — the declaration order is the lifetime proof
 — and `hold()` assigns into members it owns, so a replacement changes contents and never the
 bound objects. `install_recipes` is the one seam that turns a file into the answer: read, parse,
 complete, hold, every step on a candidate. `files.use-recipes` is the first live chooser. Standing

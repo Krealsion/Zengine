@@ -863,6 +863,87 @@ TEST_CASE("a claim changed between two Edit Codes is read afresh by the second")
     CHECK(c.watch->heard[1].source == spelled(second));
 }
 
+namespace {
+
+inline constexpr const char* kRecipeActorRole = "zengine.test.recipe-actor";
+
+/// A TOOL THAT ASKS THE PROJECT DOOR TO USE A CATALOG, in a role of its own, and reads the catalog
+/// the door claims inside the delivery of the door's answer: what a reader the answer wakes reads.
+class RecipeActor : public loom::WeaveBase<RecipeActor, SeenState,
+                                           loom::Accept<RecipeOutcome, loom::AskEnded, SeatDo>,
+                                           loom::Emit<RecipeUseRequested>> {
+public:
+    std::string path;
+    std::vector<RecipeOutcome> outcomes;
+    std::vector<RecipesInForce> read_at_answer; ///< the claim, as each answer's delivery read it
+    void on(const SeatDo&, loom::Mail& mail) {
+        (void)mail.as_role(kRecipeActorRole).ask_role(kProjectRole, RecipeUseRequested{path}, 9);
+    }
+    void on(const RecipeOutcome& said, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        outcomes.push_back(said);
+        const loom::SenseReading read = mail.latest_from_role<RecipesInForce>(kProjectRole);
+        read_at_answer.push_back(read && read.value.has_value()
+                                     ? loom::from_value<RecipesInForce>(*read.value)
+                                     : RecipesInForce{});
+    }
+    void on(const loom::AskEnded&, loom::Mail&) {}
+};
+
+} // namespace
+
+TEST_CASE("the project door claims the catalog a recipe act left before it answers, so the reader the answer wakes reads it") {
+    // AN ACT ON THE RECIPES MOVES THE CATALOG IN FORCE, and the one role that may change it
+    // claims it again: inside the delivery of the door's answer, the catalog read is the one the
+    // act installed, never the one before it.
+    loom::Switchboard bus;
+    const std::string project_dir = "/project";
+    const std::string marks_path;
+    RecipesInForce in_force{"/project/build-recipes.json", {RecipeInForce{"old", "single_source",
+                                                                          "/project/old.cpp",
+                                                                          {"old-stem"}}}};
+    const ProjectDoor::Use use = [&in_force](const std::string& file) {
+        in_force = RecipesInForce{file, {RecipeInForce{"tally", "single_source",
+                                                       "/project/tally.cpp", {"tally-stem"}}}};
+        return RecipeSwap{true, std::string(), file, 1};
+    };
+    auto door = std::make_unique<ProjectDoor>(project_dir, marks_path, ProjectDoor::Names{},
+                                              ProjectDoor::Source{}, use, ProjectDoor::Author{},
+                                              ProjectDoor::Append{},
+                                              [&in_force] { return in_force; });
+    ProjectDoor* raw = door.get();
+    loom::Grant say;
+    say.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
+    const loom::WeaveId door_id =
+        bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
+    raw->zen_set_self(door_id);
+    ProjectDoor::claim_catalog(bus, door_id, [&in_force] { return in_force; });
+
+    auto seat = std::make_unique<RecipeActor>();
+    RecipeActor* actor = seat.get();
+    actor->path = "/project/other-recipes.json";
+    loom::Grant may;
+    may.allow_to_role(RecipeUseRequested::zen_name, RecipeUseRequested::zen_version, kProjectRole);
+    may.allow_observe(RecipesInForce::zen_name, RecipesInForce::zen_version);
+    const loom::WeaveId actor_id =
+        bus.register_weave(std::move(seat), std::move(may), std::string(kRecipeActorRole));
+    actor->zen_set_self(actor_id);
+
+    (void)bus.send(actor_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                           loom::WeaveId{}, 0));
+    bus.drain_until_idle();
+    REQUIRE(actor->outcomes.size() == 1);
+    CHECK(actor->outcomes.front().accepted);
+    REQUIRE(actor->read_at_answer.size() == 1);
+    const RecipesInForce& read = actor->read_at_answer.front();
+    CHECK(read.path == "/project/other-recipes.json");
+    REQUIRE(read.recipes.size() == 1);
+    CHECK(read.recipes.front().id == "tally");
+    CHECK(read.recipes.front().products == std::vector<std::string>{"tally-stem"});
+}
+
 // ============================================================================
 // The managed opening's own answers, read against the one ask
 // ============================================================================

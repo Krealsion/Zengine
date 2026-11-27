@@ -392,9 +392,10 @@ on it, so you can edit and try again. In a pane exactly one row tall there is no
 sentence that is not your own line, so the line keeps it and the refusal is not shown.
 
 **You are unlikely to ever see that refusal in Workshop**, and the reason is worth saying: the
-only one this door gives is *no terminal participant is mounted on this bus*, and Workshop
-always mounts one. The Terminal is a loadable pane, so a different host could load it without a
-participant — that host would see the refusal, and this is what it would look like.
+ones this door gives say that the host's Terminal door, which holds the participant, could not
+be asked or did not answer -- *no terminal participant is mounted on this bus* -- and Workshop's
+host always mounts that door. The Terminal is a loadable pane, so a different host could load it
+without a participant — that host would see the refusal, and this is what it would look like.
 
 ### The Files pane is a snapshot, and two identity questions are unanswered
 

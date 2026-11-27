@@ -198,8 +198,7 @@ private:
 enum class Came : std::uint8_t { kAsk, kSaid, kOn };
 
 /// The facet: where each act enters (`hold`) and the facts of the act running again (`row`,
-/// `permits`). `Host` is the context the composing weave is made with; the facet reads none of it.
-template <class Host>
+/// `permits`).
 class GuestActs {
 public:
     using Accept = loom::Accept<GuestRowOf, loom::host::AuthorityAnswered>;

@@ -164,6 +164,10 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::GuestRowOfRequested>(), // GuestRowOfRequested v1
         shape<::zengine::workshop::GuestRowOf>(), // GuestRowOf v1
         shape<::zengine::workshop::HostSessionState>(), // HostSessionState v1
+        shape<::zengine::workshop::TerminalLineAsked>(), // TerminalLineAsked v1
+        shape<::zengine::workshop::TerminalCompletionAsked>(), // TerminalCompletionAsked v1
+        shape<::zengine::workshop::TerminalValueAsked>(), // TerminalValueAsked v1
+        shape<::zengine::workshop::TerminalDoorState>(), // TerminalDoorState v1
         shape<::zengine::workshop::WeaversActRequested>(), // WeaversActRequested v2
         shape<::zengine::workshop::WeaversActAnswered>(), // WeaversActAnswered v1
         shape<::zengine::workshop::ArrangementDoorState>(), // ArrangementDoorState v2
@@ -238,7 +242,6 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::OfficeSettingsAnswered>(), // OfficeSettingsAnswered v1
         shape<::zengine::workshop::OfficeSettingCommitRequested>(), // OfficeSettingCommitRequested v1
         shape<::zengine::workshop::OfficeSettingCommitAnswered>(), // OfficeSettingCommitAnswered v1
-        shape<::zengine::workshop::QuitDeliveryRefusalNoted>(), // QuitDeliveryRefusalNoted v1
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1
         shape<::zengine::workshop::recipe_persist::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v2
         shape<::zengine::workshop::recipe_persist::v1::WorkshopRecipe>(), // WorkshopRecipe v1

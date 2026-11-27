@@ -622,6 +622,149 @@ TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") 
     CHECK(t.text().find("SUBMITTED") != std::string::npos);
 }
 
+/// A CASE'S OWN TAP, removed when the case leaves by any exit.
+struct DoorTap {
+    loom::Switchboard& bus;
+    loom::ObserverId id = 0;
+    DoorTap(loom::Switchboard& on, loom::ObserverId tap) : bus(on), id(tap) {}
+    ~DoorTap() { bus.remove_observer(id); }
+    DoorTap(const DoorTap&) = delete;
+    DoorTap& operator=(const DoorTap&) = delete;
+};
+
+inline constexpr const char* kDoorStrangerRole = "zengine.test.door-stranger";
+
+/// A STRANGER THE HOST GRANTED THE DOOR'S LINE ASK, asking as its own role on `SeatDo`, and
+/// keeping each answer it hears.
+class DoorStranger : public loom::WeaveBase<DoorStranger, SeenState,
+                                            loom::Accept<ws::TerminalActed, loom::AskEnded, SeatDo>,
+                                            loom::Emit<ws::TerminalLineAsked>> {
+public:
+    std::vector<ws::TerminalActed> acted;
+    void on(const SeatDo&, loom::Mail& mail) {
+        (void)mail.as_role(kDoorStrangerRole)
+            .ask_role(ws::kTerminalDoorRole, ws::TerminalLineAsked{"send @x Ping 1"}, 7);
+    }
+    void on(const ws::TerminalActed& said, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            acted.push_back(said);
+        }
+    }
+    void on(const loom::AskEnded&, loom::Mail&) {}
+};
+
+TEST_CASE("a typed line reaches the participant as Workshop's ask of the host's Terminal door, and the pane's answer is the door's") {
+    // THE PARTICIPANT IS THE HOST'S, HELD BY ITS DOOR. Workshop holds no participant: the pane's
+    // act is forwarded to the door's role, as Workshop's role, and answered with the door's own
+    // answer -- so what the record holds is what the door authored, and nothing Workshop did
+    // itself.
+    TerminalRig t;
+    t.open();
+    REQUIRE(t.r.terminal_door != nullptr);
+    std::vector<loom::WeaveId> asked_by;
+    std::vector<std::string> asked_as;
+    int answered_by_door = 0;
+    const loom::WeaveId door = t.r.terminal_door_id;
+    const loom::WeaveId workshop = t.r.workshop_id;
+    const DoorTap tap{t.r.bus, t.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.target == door &&
+            e.schema_name == ws::TerminalLineAsked::zen_name) {
+            asked_by.push_back(e.sender);
+            asked_as.push_back(e.authored_role);
+        }
+        if (e.kind == loom::EventKind::Delivered && e.sender == door && e.target == workshop &&
+            e.schema_name == ws::TerminalActed::zen_name) {
+            ++answered_by_door;
+        }
+    })};
+    t.focus();
+    t.type("hello door");
+    t.submit();
+    REQUIRE(asked_by.size() == 1);
+    CHECK(asked_by.front() == workshop);
+    CHECK(asked_as.front() == kWorkshopProvider);
+    CHECK(answered_by_door == 1);
+    const std::vector<loom::TranscriptEntry> record = t.record();
+    REQUIRE_FALSE(record.empty());
+    CHECK(record.front().kind == loom::TranscriptKind::LocalCommand);
+    CHECK(record.front().text == "hello door");
+    // ...AND THE PICTURE IS THE DOOR'S CLAIM, which Workshop said once the answer came.
+    CHECK(t.text().find("this pane speaks two verbs") != std::string::npos);
+}
+
+TEST_CASE("the host's Terminal door answers Workshop's role alone: a stranger granted its asks authors nothing and is told so") {
+    // THE HOST GRANTS REACHING THE DOOR TO WORKSHOP; A GRANT IS NOT THE DOOR'S APPROVAL. A
+    // stranger the host granted the door's line ask anyway is answered a refusal, and the
+    // participant records nothing of it.
+    TerminalRig t;
+    t.open();
+    auto seat = std::make_unique<DoorStranger>();
+    DoorStranger* stranger = seat.get();
+    loom::Grant may;
+    may.allow_to_role(ws::TerminalLineAsked::zen_name, ws::TerminalLineAsked::zen_version,
+                      ws::kTerminalDoorRole);
+    const loom::WeaveId stranger_id =
+        t.r.bus.register_weave(std::move(seat), std::move(may), std::string(kDoorStrangerRole));
+    stranger->zen_set_self(stranger_id);
+    const std::size_t before = t.record().size();
+    (void)t.r.bus.send(stranger_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                                  loom::WeaveId{}, 0));
+    t.r.bus.drain_until_idle();
+    REQUIRE(stranger->acted.size() == 1);
+    CHECK_FALSE(stranger->acted.front().accepted);
+    CHECK(stranger->acted.front().refusal.find("answers Workshop's own asks") != std::string::npos);
+    CHECK(t.record().size() == before);
+}
+
+TEST_CASE("the record's picture is the door's claim, made again after each delivery the participant takes, and Workshop's next picture says it") {
+    // AN ANSWER THE PARTICIPANT HEARS MOVES ITS RECORD WITH NO DELIVERY OF THE DOOR'S. The host's
+    // watch has the door claim the record again after it, so the next picture Workshop says --
+    // here a resize's repaint -- is the record that delivery left.
+    TerminalRig t;
+    t.open();
+    const std::size_t said = t.r.said_transcripts.size();
+    (void)t.r.bus.send(t.r.terminal_id, loom::Message(loom::to_value(loom::Ack{})));
+    t.r.bus.drain_until_idle();
+    t.r.extent(161, 48);
+    REQUIRE(t.r.said_transcripts.size() > said);
+    const TranscriptShown last = t.r.said_transcripts.back();
+    REQUIRE_FALSE(last.entries.empty());
+    CHECK(last.entries.back().kind == ws::kEntryReceived);
+    CHECK(last.entries.back().shape == loom::Ack::zen_name);
+    CHECK(t.text().find("zen.Ack") != std::string::npos);
+}
+
+TEST_CASE("a line whose ask Loom ends before the door hears it is answered in words, and nothing waits") {
+    // THE DOOR STOPPED RUNNING: its role still held, every delivery to it refused. Workshop's ask
+    // ends `queued`, which Loom tells Workshop, and the pane is answered that nothing was authored
+    // -- and the next line is answered the same way, so no forwarded ask was left holding a pane.
+    TerminalRig t;
+    t.open();
+    int ended = 0;
+    const loom::WeaveId workshop = t.r.workshop_id;
+    const DoorTap tap{t.r.bus, t.r.bus.add_observer([&](const loom::BusEvent& e) {
+        // THE LINE'S ENDING: each keystroke's completion is forwarded and ended as well.
+        const loom::Cell* shape = e.payload != nullptr ? e.payload->get("shape") : nullptr;
+        if (e.kind == loom::EventKind::Delivered && e.target == workshop &&
+            e.schema_name == loom::AskEnded::zen_name && shape != nullptr &&
+            shape->kind() == loom::Kind::Text &&
+            shape->as_text() == ws::TerminalLineAsked::zen_name) {
+            ++ended;
+        }
+    })};
+    t.r.bus.kill(t.r.terminal_door_id);
+    const std::size_t before = t.record().size();
+    t.focus();
+    for (int i = 0; i < 2; ++i) {
+        t.type("send @x Ping 1");
+        t.submit();
+        CHECK(ended == i + 1);
+        CHECK_MESSAGE(t.text().find("no terminal participant is mounted") != std::string::npos,
+                      t.text());
+    }
+    CHECK(t.record().size() == before);
+}
+
 // ============================================================================
 // THE PICTURE
 // ============================================================================
@@ -709,6 +852,8 @@ TEST_CASE("the image that presents a participant cannot reach one") {
                                   "#include \"workshop/screen.hpp\"",
                                   "#include \"workshop/terminal/complete.hpp\"", "#include \"complete.hpp\"",
                                   "#include \"workshop/terminal/door.hpp\"", "#include \"door.hpp\"",
+                                  "#include \"workshop/terminal/host_door.hpp\"",
+                                  "#include \"host_door.hpp\"",
                                   "#include \"workshop/terminal/transcript.hpp\"",
                                   "#include \"transcript.hpp\""}) {
         CAPTURE(forbidden);
@@ -2029,8 +2174,9 @@ TEST_CASE("Shift+Enter is a row of its own, on Return with Shift, and on ctrl+e 
 // READING THE RECORD — a view onto every wrapped row, and what it is not showing
 // ============================================================================
 // ⚠ NEW OUTPUT IS STAGED ON THE PARTICIPANT (`record_notice`): a submit follows the newest output
-// by design, so output a weaver did not submit is the case that matters. A chord the line never
-// takes (Alt+Left) then gives Workshop the repaint where the host says the new picture.
+// by design, so output a weaver did not submit is the case that matters. The host's wake then
+// claims the record it left, and a chord the line never takes (Alt+Left) gives Workshop the
+// repaint where it says the new picture.
 
 namespace {
 
@@ -2043,7 +2189,10 @@ std::string named_notice(const std::string& name, int words) {
     return text;
 }
 
-void poke(TerminalRig& t) { t.r.key(input::scan::kLeft, input::mod::kAlt); }
+void poke(TerminalRig& t) {
+    t.r.host_wake();
+    t.r.key(input::scan::kLeft, input::mod::kAlt);
+}
 
 /// Thirty long notices, each twenty words of its own name.
 void thirty_notices(TerminalRig& t) {

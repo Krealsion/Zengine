@@ -10,8 +10,7 @@ namespace zengine::workshop {
 using pane::PaneCatalogRequested;
 
 // The terminal door reads the same host this weave does.
-WorkshopWeave::WorkshopWeave(const WorkshopMade& made, HostContext& host)
-    : Weave(host), host_(&host), made_(made) {}
+WorkshopWeave::WorkshopWeave(const WorkshopMade& made) : made_(made) {}
 
 // WL-KEY-07, WL-KEY-08 -- agents/workshop/keyboard.md
 void WorkshopWeave::load_keymap(loom::Mail& mail) {
