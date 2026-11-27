@@ -149,7 +149,7 @@ no check" "a current-version file whose own field says otherwise is a forgery" "
 session names its version by NUMBER"
 
 ### WL-MIG-08
-`workshop/weave.hpp` HostContext::conversions
+`workshop/layouts/store.hpp` LayoutsHost::conversions
 `workshop/layouts/session_persist.hpp` op::migrate from_text load_file converted_in
 `tests/test_workshop_persistence.cpp` "with the conversion mounted, the desk comes back through the
 weave" "unmounting the artifact takes the conversion with it"

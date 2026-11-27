@@ -1009,12 +1009,15 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
     CHECK(gone.action == "build its artifact, then launch again");
 
     // ...SAID ACROSS THE SEAM, in the host's own order: the glance a presenter leads with names the
-    // loudest by its artifact and counts the rest.
+    // loudest by its artifact and counts the rest. The rows stepped over are the realization
+    // owner's claim, which Workshop takes them from.
     Live t;
-    t.host.standing_conditions.push_back(gone);
-    t.host.standing_conditions.push_back(
-        unavailable_tool("zengine-files", "artifact 'zengine-files': weave load refused"));
-    ++t.host.conditions_generation;
+    const RealizationClaims owner(t.bus);
+    owner.not_loaded(zengine::realization::RowsNotLoaded{
+        {zengine::realization::RowSteppedOver{"zengine-desktop-pane", said},
+         zengine::realization::RowSteppedOver{"zengine-files",
+                                              "artifact 'zengine-files': weave load refused"}},
+        {}});
     t.ready();
     CHECK(t.glance() == "zengine-desktop-pane is not in this Workshop (+1 more)");
     const std::vector<Condition> now = t.conditions();
@@ -1032,11 +1035,10 @@ TEST_CASE("a development host and each row's losses stand as conditions on Atten
     // ⚔ MUTATION (tests/mutants/workshop_host.md#row-stands-whenever-a-guest): a row standing
     // whenever it is a guest's -- the second file's count fails, since a row that reaches
     // everything its powers name here has nothing to say.
-    const auto stand = [](const guests::GuestsFile& file, Live& t) {
-        for (const Condition& c : guests::conditions_of(file)) t.host.standing_conditions.push_back(c);
-        ++t.host.conditions_generation;
+    const auto stand = [](const guests::GuestsFile& file) {
+        Live t(guests::conditions_of(file));
         t.ready();
-        return t.conditions();
+        return std::make_pair(t.conditions(), t.glance());
     };
     const auto row = [](std::vector<std::string> may) {
         guests::GuestRow r;
@@ -1053,8 +1055,7 @@ TEST_CASE("a development host and each row's losses stand as conditions on Atten
     old.version = 1;
     old.rows.push_back(row({guests::kPowerInput, guests::kPowerCapture}));
     {
-        Live t;
-        const std::vector<Condition> now = stand(old, t);
+        const auto [now, glance] = stand(old);
         // ITS LOSSES, AND ITS `capture` WIDENED TO THE DESK READ WHOLE, each a condition of its own.
         REQUIRE(now.size() == 2);
         const auto lost = std::find_if(now.begin(), now.end(),
@@ -1071,7 +1072,7 @@ TEST_CASE("a development host and each row's losses stand as conditions on Atten
         CHECK(lost->detail.find("the editor, the Terminal, the Hotkeys pane and the quick setup") != std::string::npos);
         CHECK(gained->compact == "guest 'agent' (version 1) reaches more here than its powers once did");
         CHECK(gained->detail.find("`capture` also reads the desk's words") != std::string::npos);
-        CHECK(t.glance() == now[0].compact + " (+1 more)");
+        CHECK(glance == now[0].compact + " (+1 more)");
     }
 
     // A DEVELOPMENT FILE OF VERSION 2 stands as the host it names, and a row stands only for what
@@ -1084,15 +1085,14 @@ TEST_CASE("a development host and each row's losses stand as conditions on Atten
     own.rows.push_back(row({guests::kPowerInput, guests::kPowerBuild}));
     own.rows.push_back(row({guests::kPowerInput}));
     {
-        Live t;
-        const std::vector<Condition> now = stand(own, t);
+        const auto [now, glance] = stand(own);
         REQUIRE(now.size() == 2);
         CHECK(now[0].key == "guests.host"); // same loudness: by key
         CHECK(now[0].compact == "a development host: guests may write and build here");
         CHECK(now[1].key == "guests.row/1");
         CHECK(now[1].compact == "guest 'agent' (version 2) does not reach everything its powers name here");
         CHECK(now[1].detail == "not here: the Builder's builds and loads: the row has no `build`");
-        CHECK(t.glance() == "a development host: guests may write and build here (+1 more)");
+        CHECK(glance == "a development host: guests may write and build here (+1 more)");
     }
 }
 

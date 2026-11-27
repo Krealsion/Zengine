@@ -131,7 +131,7 @@ struct OutputRig {
         recipe.cmake_target =
             bld::CMakeTargetRecipe{"/zen/build", "zengine-attention-pane", "", "/zen/src/pane.cpp"};
         r.host_recipes.hold("/zen/runtime/development-build-recipes.json", {recipe},
-                            &HostContext::so_in);
+                            &so_in);
 
         loom::Grant order;
         order.allow_to_role(bld::RunBuild::zen_name, bld::RunBuild::zen_version,
@@ -475,8 +475,8 @@ TEST_CASE("a build that worked and a realization that was refused read as two an
         recipe.cmake_target =
             bld::CMakeTargetRecipe{"/zen/build", "zengine-attention-pane", "", "/zen/src/pane.cpp"};
         o.r.host_recipes.hold("/zen/runtime/development-build-recipes.json", {recipe},
-                              &HostContext::so_in);
-        std::ofstream out(HostContext::so_in(artifacts.generic_string(), "zengine-attention-pane"),
+                              &so_in);
+        std::ofstream out(so_in(artifacts.generic_string(), "zengine-attention-pane"),
                           std::ios::binary | std::ios::trunc);
         out << "image";
         REQUIRE(out.good());

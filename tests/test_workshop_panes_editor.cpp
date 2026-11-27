@@ -209,7 +209,7 @@ struct EditorRig {
     std::unique_ptr<zengine::testing::pane_window::Window> slow_window;
     zengine::testing::pane_window::PaneWindow* slow = nullptr;
     /// What the host's recipe seam answers -- the fact the read-only project door spends.
-    HostContext::RecipeSource next_source{};
+    RecipeSource next_source{};
     /// AUTHORED KEYMAP ROWS, written to a file this rig's host reads on its first surface --
     /// how a case moves a binding the way a weaver does.
     std::vector<std::pair<std::string, std::string>> overrides;
@@ -2703,7 +2703,7 @@ TEST_CASE("recipes come from the saved file, never from an unsaved Editor buffer
     // THE DURABLE FILE IS WHAT IS READ.
     CurrentRecipes owner;
     const Written installed = install_recipes(owner, path, e.root.generic_string(),
-                                              e.r.host.project_dir, &HostContext::so_in);
+                                              e.r.host.project_dir, &so_in);
     REQUIRE_MESSAGE(installed.accepted, installed.refusal);
     REQUIRE(owner.all().size() == 1);
     CHECK(owner.all()[0].id == "beta");
@@ -2718,7 +2718,7 @@ TEST_CASE("recipes come from the saved file, never from an unsaved Editor buffer
     REQUIRE(e.clean());
     CHECK(bytes_of(e.root / "b.json") != durable);
     const Written reread = install_recipes(owner, path, e.root.generic_string(),
-                                           e.r.host.project_dir, &HostContext::so_in);
+                                           e.r.host.project_dir, &so_in);
     CHECK_FALSE(reread.accepted);
     CHECK(owner.all().size() == 1); // a refused candidate installs nothing
 }
@@ -3167,7 +3167,7 @@ TEST_CASE("both acquisition routes end in one transaction") {
     e.open(160, 48, /*pick_it=*/false);
     put_bytes(e.root / "r.cpp", "recipe\n");
     // THE BUILDER'S ROUTE: the project door resolves the recipe, then the Editor's door opens.
-    e.next_source = HostContext::RecipeSource{true, "single_source",
+    e.next_source = RecipeSource{true, "single_source",
                                               (e.root / "r.cpp").generic_string()};
     RecipeSourceSaid said;
     e.asker_says([&said](DoorAsker& a, loom::Mail& mail) {
@@ -5641,7 +5641,7 @@ TEST_CASE("a Workshop that does not hold its role says so and starts no quit, an
     // stamp and the quit's own number -- the host's watch writes it down like any other, and
     // Workshop, not quitting, discards it and keeps its own sentence.
     PaneRig r;
-    auto weave = std::make_unique<WorkshopWeave>(r.host);
+    auto weave = std::make_unique<WorkshopWeave>(r.host.made(), r.host);
     r.w = weave.get();
     loom::Grant speak;
     speak.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
@@ -5791,11 +5791,11 @@ TEST_CASE("the shipped host mounts the quit watch from Workshop's own mount, aft
     // rigs mount it the same way; a host that stopped would be the one Workshop left whose quit
     // waits on a question Loom refused to deliver.
     const std::string host = code_only(file_source(WORKSHOP_HOST_CPP));
-    const std::size_t context = host.find("HostContext host;");
+    const std::size_t context = host.find("HostContext context;");
     const std::size_t bus = host.find("loom::Switchboard bus;");
     const std::size_t mount = host.find("const loom::WeaveId workshop_id =");
     const std::size_t watch =
-        host.find("const QuitDeliveryWatch quit_watch(bus, workshop_id, host.undelivered_quits);");
+        host.find("const QuitDeliveryWatch quit_watch(bus, workshop_id, context.undelivered_quits);");
     REQUIRE(context != std::string::npos);
     REQUIRE(bus != std::string::npos);
     REQUIRE(mount != std::string::npos);
@@ -6079,8 +6079,8 @@ TEST_CASE("an orderly close writes the window file and the session, and a refuse
     TempDir dir("quit-writes");
     const std::string path = dir.file("session.json");
     EditorRig e("quit-writes-edit");
+    e.r.host.session_path = path; // the launch's, which Workshop is made with
     e.open();
-    e.r.host.session_path = path;
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);
     e.type("!");

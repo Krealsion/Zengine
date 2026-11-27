@@ -308,7 +308,7 @@ retired Skin or `zengine-input-sdl` is refused by name before anything opens
 
 A row names a **stem**: `zengine-timer`, not `zengine-timer.so` and not a path. The host owns the
 one rule that turns a stem into a file — a directory, a separator and the platform's suffix
-(`HostContext::so`) — which is what makes one plan legal on Linux and on Windows with no platform
+(`so_in`) — which is what makes one plan legal on Linux and on Windows with no platform
 matrix, no per-OS field and no package locator. No shipped plan contains `.so`, `.dll` or a
 path separator, and a test asserts it.
 

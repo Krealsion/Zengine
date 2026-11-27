@@ -212,7 +212,9 @@ row its own credential admitted"
 `workshop/actor_scope.hpp` judge judge_all GuestRowFacts HostFact
 `pane/operation.hpp` PaneOperationRequested
 `workshop/weave_operation.cpp` approve_gesture judge_classes on(PaneOperationRequested)
-`workshop/weave.hpp` HostContext::host_fact
+`workshop/guest_seam_vocabulary.hpp` GuestHost
+`workshop/guest_acts.hpp` host_fact_now GuestActs::host_fact
+`workshop/guest_door.hpp` GuestDoor::open
 `tests/test_workshop_guests.cpp` "action classes: a guest builds only with build, writes nothing and
 opens no guests file on a weaver's host, and no class narrows a participant no door admitted"
 `tests/test_workshop_panes_builder.cpp` "a guest without build is refused b, B, f and load-built in

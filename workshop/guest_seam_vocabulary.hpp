@@ -175,6 +175,16 @@ struct GuestRowDescribed {
 };
 } // namespace v2
 
+/// WHOSE HOST THIS IS, claimed by the guest door as `zengine.guests` once it is open: whether its
+/// guests file names a development host, and that file, absolute. A host with no guest door
+/// claims none, and is a weaver's. Read by this host's own roles as they judge a guest's act.
+// WL-GUEST-03 -- agents/workshop/guests.md
+struct GuestHost {
+    bool development = false;
+    std::string guests_file;
+    ZEN_SHAPE(GuestHost, 1, ZEN_FIELD(development), ZEN_FIELD(guests_file));
+};
+
 /// WHICH ROW ADMITTED A SESSION, asked by this host's own roles -- Workshop's and the layouts'
 /// owner's -- to judge that session's act: the row the door recorded as it admitted `session`,
 /// never a row found by name. A participant it never admitted is answered `admitted` false, and

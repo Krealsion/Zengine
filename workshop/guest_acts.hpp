@@ -57,7 +57,18 @@ struct GuestFacts {
     loom::WeaveId guest;
     scope::GuestRowFacts row;
     std::vector<std::pair<AuthorityQuestion, bool>> permits;
+    scope::HostFact host; ///< whose host this is, as the guest door claims it as the act runs
 };
+
+/// WHOSE HOST THIS IS NOW, read from the guest door's claim (`GuestHost`) in `mail`'s delivery: a
+/// weaver's when no door claims it or the reader may not observe it.
+// WL-GUEST-03 -- agents/workshop/guests.md
+inline scope::HostFact host_fact_now(loom::Mail& mail) {
+    const loom::SenseReading read = mail.latest_from_role<GuestHost>(kGuestsRole);
+    if (!read || !read.value.has_value()) return {};
+    const GuestHost said = loom::from_value<GuestHost>(*read.value);
+    return scope::HostFact{said.development, said.guests_file};
+}
 
 /// The bus an act runs again on: Loom's own, but for the answer right, which is the one the act
 /// held when it came. An answer the run gives spends it; a run that defers its answer is handed
@@ -218,6 +229,12 @@ public:
         return unasked;
     }
 
+    /// WHOSE HOST THIS IS, as the guest door claimed it for `who`'s act running now; a weaver's for
+    /// any other, the host that narrows a guest most.
+    scope::HostFact host_fact(loom::WeaveId who) const {
+        return told(who) ? now_->host : scope::HostFact{};
+    }
+
     /// Whether the authority reader said `who` may do `asked`, for the act running now; no when
     /// it was not asked.
     bool permits(loom::WeaveId who, const AuthorityQuestion& asked) const {
@@ -281,7 +298,7 @@ public:
         const auto line_of = acts_.find(guest.value);
         if (!door && (line_of == acts_.end() || line_of->second.empty()) &&
             (!needs || needs(scope::GuestRowFacts{}).empty())) {
-            GuestFacts facts{guest, {}, {}};
+            GuestFacts facts{guest, {}, {}, {}};
             const Told told(now_, &facts);
             again(mail);
             return Held::kRan;
@@ -454,7 +471,8 @@ private:
         Act act = std::move(line->second.front());
         line->second.pop_front();
         --held_;
-        GuestFacts facts{guest, std::move(act.row), {}};
+        GuestFacts facts{guest, std::move(act.row), {}, {}};
+        if (facts.row.admitted) facts.host = host_fact_now(mail);
         for (std::size_t i = 0; i < act.questions.size(); ++i) {
             facts.permits.emplace_back(act.questions[i], act.said[i].value_or(false));
         }

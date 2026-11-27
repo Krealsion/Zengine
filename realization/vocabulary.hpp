@@ -5,9 +5,9 @@
 #define ZENGINE_REALIZATION_VOCABULARY_HPP
 
 // What the realization owner claims as its role, `zengine.realization` (builder/vocabulary.hpp):
-// where the plan is, which authored choice holds each switchable role, and which weave each row
-// realized. Latest claims, read by whoever the host grants observing them
-// (`loom::Grant::allow_observe`), never by a reference to the owner
+// where the plan is, which authored choice holds each switchable role, which weave each row
+// realized, and what the plan could not load. Latest claims, read by whoever the host grants
+// observing them (`loom::Grant::allow_observe`), never by a reference to the owner
 // (realization/docs/zengine.realization.md, "Follow").
 
 #include "builder/vocabulary.hpp" // `kRealizationRole`, the role these are claimed as
@@ -93,6 +93,31 @@ struct RealizedRow {
 struct RealizedRows {
     std::vector<RealizedRow> rows;
     ZEN_SHAPE(RealizedRows, 1, ZEN_FIELD(rows));
+};
+
+/// AN OPTIONAL ROW STEPPED OVER: its artifact, and the owner's sentence for why it did not load.
+struct RowSteppedOver {
+    std::string stem;
+    std::string said;
+    ZEN_SHAPE(RowSteppedOver, 1, ZEN_FIELD(stem), ZEN_FIELD(said));
+};
+
+/// AN ARTIFACT A ROW COULD NOT LOAD AND GAVE WAY FROM: it, the artifact tried next in its row, and
+/// why it did not load, in a weaver's words.
+struct RowGaveWay {
+    std::string stem;
+    std::string next;
+    std::string why;
+    ZEN_SHAPE(RowGaveWay, 1, ZEN_FIELD(stem), ZEN_FIELD(next), ZEN_FIELD(why));
+};
+
+/// WHAT THE PLAN COULD NOT LOAD, claimed after every change to it: the optional rows stepped over
+/// and the artifacts rows gave way from, each in the order met -- what a desk says stands for the
+/// whole run.
+struct RowsNotLoaded {
+    std::vector<RowSteppedOver> stepped_over;
+    std::vector<RowGaveWay> gave_way;
+    ZEN_SHAPE(RowsNotLoaded, 1, ZEN_FIELD(stepped_over), ZEN_FIELD(gave_way));
 };
 
 /// THE REALIZATION OWNER'S LATEST CLAIM OF `Claim`, read in a delivery by the reader's grant; empty

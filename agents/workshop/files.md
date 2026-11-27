@@ -166,7 +166,7 @@ WHY — `agents/decisions/files-is-a-weave.md`
 door" "Files reloaded in place keeps the place it shows and the row the weaver was on"
 
 ### WL-FILES-02
-`workshop/weave.hpp` HostContext::project_dir
+`workshop/workshop.cpp` launch_project_dir
 `files/files.cpp` ask_project_root
 `files/marks.hpp` LocationMarks::origin LocationMarks::settled
 `files/vocabulary.hpp` FilesState::current_dir

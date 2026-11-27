@@ -165,7 +165,7 @@ void WorkshopWeave::guide_requested(const GuideRequested& asked, loom::WeaveId s
                                                    "weaver's hand reaches: " + only});
         return;
     }
-    const KeymapShown keys = keymap_shown(session_, host_->keymap_path, keymap_standing_);
+    const KeymapShown keys = keymap_shown(session_, made_.keymap_path, keymap_standing_);
     const ShownBinding* binding = nullptr;
     for (const ShownBinding& b : keys.rows) {
         if (!id.empty() && b.id == id && b.role == role && b.pane == pane) binding = &b;

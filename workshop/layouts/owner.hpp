@@ -82,6 +82,24 @@ struct LayoutsOwnerHost {
     std::function<LayoutsHost()> store;
 };
 
+/// THE OWNER'S HOST READING OVER `files`, whatever holds them -- the host's own locals, a suite's
+/// rig: its `setup_path`, `session_path`, `prefs_path` and `conversions`, each read at the ask, so
+/// `files` outlives the owner.
+// WL-SETTING-09 -- agents/workshop/settings.md
+template <class Files>
+LayoutsOwnerHost layouts_owner_host(const Files& files) {
+    LayoutsOwnerHost out;
+    out.store = [&files] {
+        LayoutsHost readings;
+        readings.setup_path = files.setup_path;
+        readings.session_path = files.session_path;
+        readings.prefs_path = files.prefs_path;
+        readings.conversions = files.conversions;
+        return readings;
+    };
+    return out;
+}
+
 /// How many settings asks the owner holds at once while the guest door says each asker's row.
 inline constexpr std::size_t kMaxHeldSettingsAsks = 16;
 

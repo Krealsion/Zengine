@@ -126,7 +126,7 @@ struct TutorDesk {
                 if (t->id == who) return guests::facts_of(t->row, file);
             }
             return scope::GuestRowFacts{};
-        });
+        }, [this] { return b.r.host.host_fact; }); // ...and whose host this is, as the door claims it
         b.tool->catalog = catalog_of({{"tally", "tally"}});
         // A MARK IS A POOL COLOUR, so the desk wears the look a terminal draws each pool colour in:
         // `block`, which the theme weave lays.

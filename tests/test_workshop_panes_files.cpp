@@ -554,9 +554,9 @@ struct FilesRig {
 
     void wire_recipes() {
         r.project.use_recipes = [this](const std::string& path) {
-            HostContext::RecipeSwap done;
+            RecipeSwap done;
             const Written read = install_recipes(recipes, path, root.generic_string(),
-                                                 r.host.project_dir, &HostContext::so_in);
+                                                 r.host.project_dir, &so_in);
             done.accepted = read.accepted;
             done.refusal = read.refusal;
             done.path = recipes.source();
@@ -567,7 +567,7 @@ struct FilesRig {
         kept.push_back(std::make_unique<authoring::RecipeAuthor>(authoring::RecipeAuthor{
             root.generic_string(), r.host.project_dir, &recipes, r.project.use_recipes}));
         authoring::RecipeAuthor* author = kept.back().get();
-        r.project.author_recipe = [author](const HostContext::RecipeDraft& draft) {
+        r.project.author_recipe = [author](const RecipeDraft& draft) {
             return authoring::author_recipe(*author, draft);
         };
     }

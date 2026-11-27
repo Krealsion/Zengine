@@ -183,6 +183,7 @@ GuestConnectionsRequested v1 0xc4ff99356b7b4054
 GuestConnectionsRequested v2 0xb1f9da8da4ba8917
 GuestConnectionsRequested v3 0x62fbc4c591a570d6
 GuestDoorState v1 0x6b3cb41abf5fe4ce
+GuestHost v1 0xfc25e04bdae56c65
 GuestObserve v1 0xa2bb1484d3dd0533
 GuestPlanRequested v1 0x6482b7a79d02e085
 GuestPlanSaid v1 0x4bf8b2d39c233f69
@@ -276,6 +277,7 @@ KeymapShown v5 0xaa3a792e43fb4f93
 Launch v1 0x264acc9298caf3f0
 LaunchCatalog v1 0xd775746b4fd96e27
 LaunchCatalogRequested v1 0x92c7abb224c6900a
+LaunchCondition v1 0x32ce88b9618c2b50
 LaunchEntry v1 0xc3aadb8d2f36a563
 Launched v1 0x038a9ec908caf910
 LauncherState v1 0x77d638e6de58fe46
@@ -512,8 +514,11 @@ RoleSettingsDeclared v1 0x359331529f81040a
 RoleSettingsKept v1 0x3af9cea7510c158f
 RoleSettingsRequested v1 0x70fe1fee462ceb72
 RoomAsked v1 0x32f9e73dd294ff95
+RowGaveWay v1 0xa47a4ac1b03d2b51
 RowSettingUnused v1 0x967fcee5b511fbf8
+RowSteppedOver v1 0x14036619867d72ab
 RowThemeWrite v1 0x08eaad5bc54498ca
+RowsNotLoaded v1 0x94d18dabfea2acb9
 RunBuild v3 0x10e579949b857b4b
 RunnerState v2 0xad71e1a017392225
 SampleDoorState v1 0x7f0334531407024f
@@ -692,6 +697,7 @@ WorkshopLoadFile v3 0x4adfb735cc88cf8d
 WorkshopLoadFile v4 0x762b2d553b89be84
 WorkshopLoadProvider v1 0x5381a4616c222e5b
 WorkshopLoadWeave v1 0xe8407a1d3f5d54d8
+WorkshopMade v1 0x6ebe4fefc93f9047
 WorkshopMark v1 0x0f1dbd2943659fc7
 WorkshopMarks v1 0x4e1fffeb1b1f28d1
 WorkshopPanePlace v1 0xdf6db00a45b681bd

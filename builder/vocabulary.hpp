@@ -29,7 +29,7 @@
 namespace zengine::builder {
 
 /// What a stem ends with when its product is a WebAssembly module, a pane built boxed: the same
-/// file on every platform, so the stem is the file's name (the host's rule, `HostContext::so_in`,
+/// file on every platform, so the stem is the file's name (the host's rule, `so_in`,
 /// adds no suffix to it), and Loom's kernel holds it in a box.
 inline constexpr std::string_view kModuleSuffix = ".wasm";
 

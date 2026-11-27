@@ -35,7 +35,7 @@ and order are fixed.
 - *A resolved path, recipe, artifact or build state on a row* — none.
 
 **Consequences.** Browsing, marking, jumping and choosing a foreign recipe catalog leave
-`HostContext::project_dir` exactly where it was, structurally. `kMaxListedEntries` stops the walk
+the host's project directory exactly where it was, structurally. `kMaxListedEntries` stops the walk
 and the header says `stopped counting`. A directory that cannot be listed is a refusal, not an
 empty listing. A UNC share is reachable by spelling and in no drive list. A fact inside a pane is
 a fact `close_kind` can destroy, which is why the marks live on the session.

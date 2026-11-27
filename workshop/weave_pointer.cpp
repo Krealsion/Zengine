@@ -259,7 +259,8 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     }
     // ON A WEAVER'S HOST A GUEST'S TYPED TEXT RESTS NOWHERE: no pane's field and no line of this
     // host's holds words the weaver would then commit as the weaver's own.
-    if (const std::string why = scope::refuse_text(facet<GuestActsFacet>().row(guest_hand(input_actor_)), host_->host_fact);
+    if (const std::string why = scope::refuse_text(facet<GuestActsFacet>().row(guest_hand(input_actor_)),
+                                                   facet<GuestActsFacet>().host_fact(guest_hand(input_actor_)));
         !why.empty()) {
         const KeyContext ctx = keyboard_context(session_);
         if (ctx == KeyContext::kNaming || ctx == KeyContext::kPane) refuse_input(why, mail);
@@ -605,7 +606,7 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
         if (changed_row || !session_.pane_drag.active || !session_.arrange.open ||
             session_.arrange.pane != addressed || session_.notice != notice ||
             session_.notice_is_bad != bad ||
-            conditions_taken_ != host_->conditions_generation) {
+            conditions_taken_.moved(mail)) {
             repaint(mail);
         }
         return;

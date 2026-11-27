@@ -63,7 +63,7 @@ WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 compose_recipe field_at field_count
 `workshop/project_seam_vocabulary.hpp` RecipeAuthorRequested RecipeOutcome
 `workshop/pane_doors.hpp` ProjectDoor
-`workshop/weave.hpp` HostContext::RecipeDraft
+`workshop/project_acts.hpp` RecipeDraft
 `workshop/workshop.cpp` author_recipe
 `workshop/authoring.hpp` RecipeAuthor author_recipe
 `workshop/recipe_persist.hpp` kProjectRecipesName
@@ -84,7 +84,7 @@ catalog, which is installed, and the shipped file keeps its bytes"
 `builder/builder-pane/modes.hpp` begin_load_it open_role commit_role say_role
 `workshop/builder_seam_vocabulary.hpp` PlanNamesRequested PlanNames PlanRowRequested PlanRowWritten
 `workshop/pane_doors.hpp` ProjectDoor
-`workshop/weave.hpp` HostContext::PlanAppend
+`workshop/project_acts.hpp` PlanAppend
 `workshop/workshop.cpp` append_plan_row plan_names
 `workshop/authoring.hpp` PlanAuthor plan_names append_plan_row
 `workshop/staging.hpp` product_of
@@ -107,7 +107,7 @@ behind another frontier and absent when nothing is built"
 
 ### WL-AUTH-03
 `realization/owner.hpp` Owner::append Owner::Appended
-`workshop/weave.hpp` HostContext::PlanAppend
+`workshop/project_acts.hpp` PlanAppend
 `workshop/authoring.hpp` append_plan_row
 `tests/test_workshop_load.cpp` "`append` in Complete performs the new row by the ordinary three
 steps, and Complete means complete again" "`append` while Waiting queues the row behind the frontier

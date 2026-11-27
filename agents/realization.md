@@ -59,7 +59,7 @@ one artifact = one record, with ZERO OR MORE optional surfaces
 - **A stem carries no path separator and no `..`**, and that is an authority rule: a plan is
   an execution-authority document, and a stem that could climb out of the host's artifact
   directory would make *which files may run* a question about the plan's text. The host owns
-  the one rule that spells a stem as a file (`HostContext::so`), which is why ONE plan is
+  the one rule that spells a stem as a file (`so_in`, `workshop/project_acts.hpp`), which is why ONE plan is
   legal on Linux and Windows with no platform field.
 - **`--load-plan` is the door, and there is no compiled-in fallback plan**: a missing file
   refuses by path and the host exits without mounting or loading anything.

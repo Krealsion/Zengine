@@ -2224,7 +2224,7 @@ TEST_CASE("`edit source` in the recipe list opens the row the list is standing o
     put_source(b.root / "one.cpp", "// one\n");
     put_source(b.root / "two.cpp", "// two\n");
     for (const char* recipe : {"one", "two"}) {
-        HostContext::RecipeSource said;
+        RecipeSource said;
         said.known = true;
         said.kind = "single_source";
         said.source = (b.root / (std::string(recipe) + ".cpp")).generic_string();

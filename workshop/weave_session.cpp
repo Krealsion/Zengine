@@ -452,10 +452,10 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     }
     restore_asked_ = true;
     // THE WINDOW'S FACTS ARE WORKSHOP'S OWN FILE; while none exists, an older session's, once.
-    const std::string window_path = window_persist::path_beside(host_->session_path);
+    const std::string window_path = window_persist::path_beside(made_.session_path);
     window_persist::LoadedWindow window = window_persist::load_file(window_path);
     if (!window.present) {
-        window = window_persist::import_from_session(host_->session_path,
+        window = window_persist::import_from_session(made_.session_path,
                                                      session_persist::kMaxSessionBytes);
     }
     if (window.present && !window.outcome.accepted) {
@@ -569,8 +569,8 @@ void WorkshopWeave::say_restored(const LiveLayout& live, loom::Mail&) {
     }
     notice.tail += live.restore_tail;
     // ...and once, a choice it remembered that this plan no longer authors (WL-SWITCH-08).
-    if (!host_->choice_note.empty()) {
-        notice.tail += "; " + host_->choice_note;
+    if (!made_.choice_note.empty()) {
+        notice.tail += "; " + made_.choice_note;
     }
     notice.bad = !window_declined_.empty();
     // SAID ONCE, IN THE FIRST WINDOW'S UNIT: now if a window has offered a room, else when one does.
@@ -625,7 +625,7 @@ bool WorkshopWeave::save_last_session(loom::Mail& mail) {
     // the GUI window, else the one the file carried.
     // THE WINDOW FILE FIRST, Workshop's own; then the owner is asked to save the run. Neither is
     // written where the session could not be read: the window's facts belong to that session.
-    const std::string window_path = window_persist::path_beside(host_->session_path);
+    const std::string window_path = window_persist::path_beside(made_.session_path);
     if (!window_path.empty() && !session_refusal_said_) {
         // WRITTEN FROM THE STATE: the room as it stands, the file's own value.
         state_ = declared_state(session_, window_name_);
@@ -646,7 +646,7 @@ void WorkshopWeave::on(const SessionSaveAnswered& answered, loom::Mail& mail) {
         return;
     }
     saving_ = false;
-    if (!answered.written && !host_->session_path.empty() && !session_refusal_said_) {
+    if (!answered.written && !made_.session_path.empty() && !session_refusal_said_) {
         // Where a failure goes when the screen is what is leaving: the notice, because nothing
         // fails silently and a suite reads it, and stderr, because the weaver will never see it.
         say(answered.refusal, true);

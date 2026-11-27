@@ -126,7 +126,7 @@ TEST_CASE("a file too large to be what it claims is refused before it is read") 
 TEST_CASE("an old object document is left exactly as it is: a launch names it once, and nothing reads, rewrites or deletes it") {
     // AN OLD OBJECT-DOCUMENT FILE, HANDLED OUT LOUD. A weaver may have one saved with `^s`, and
     // a launch line may still say `--document <it>`. The host says once that it is left alone
-    // (`HostContext::retired_document`, WL-DOC-22), and every door of this run leaves its bytes
+    // (`WorkshopMade::retired_document`, WL-DOC-22), and every door of this run leaves its bytes
     // exactly as they were.
     TempDir dir("retired-document");
     const std::string path = dir.file("workshop.json");
@@ -2077,6 +2077,7 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
     {
         Live k;
         k.host.session_path = session;
+        k.remake_if_host_moved(); // made with the launch's session, before any window comes up
         k.windows.room(0, 0);
         k.bus.drain_until_idle();
         k.key(input::scan::kT);
@@ -7628,7 +7629,7 @@ TEST_CASE("a reload carries the bindings, the room and the run: a Workshop and a
     const loom::Value workshop_state = t.w->snapshot();
     const loom::Value owner_state = t.owner->snapshot();
 
-    WorkshopWeave workshop(t.host);
+    WorkshopWeave workshop(t.host.made(), t.host);
     workshop.revive(workshop_state);
     // THE BINDINGS, as authored, and the keymap derived from them.
     const auto rows = [](const Keymap& k) {

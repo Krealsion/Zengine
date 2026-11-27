@@ -725,6 +725,7 @@ TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor a
         "this is a weaver's host: the editor answers only the weaver's hand, and guest 'agent' is not the weaver";
 
     s.r.host.host_fact.development = false;
+    s.r.guests.say_host(s.r.bus);
     s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, s.chrome() + 0, 1);
     INFO(s.r.last_notice());
     CHECK(s.r.last_notice().find("a guest's carried item rests in no pane") != std::string::npos);
@@ -738,6 +739,7 @@ TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor a
     // (A host is one or the other for a whole run: the desk is laid out again here, so the window
     // places the Editor's area as the host now says, for the weaver's hand alone or for any.)
     s.r.host.host_fact.development = true;
+    s.r.guests.say_host(s.r.bus); // the guest door says it, as a host of that kind would
     s.r.extent(181, 60);
     s.r.extent(180, 60);
     wheel();

@@ -18,6 +18,7 @@
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
 #include "staging.hpp"
+#include "project_acts.hpp" // what the host's owners answer a recipe read and act
 #include "weave.hpp"
 
 #include "builder/recipe.hpp"
@@ -36,12 +37,12 @@ struct RecipeAuthor {
     std::string host_dir;
     std::string project_dir;
     const CurrentRecipes* recipes = nullptr;
-    std::function<HostContext::RecipeSwap(const std::string&)> use_recipes;
+    std::function<RecipeSwap(const std::string&)> use_recipes;
 };
 
 /// COMPOSE A RECIPE FROM THE DRAFT. Strings in, a typed row out; the law is applied by
 /// the caller.
-inline builder::Recipe compose(const HostContext::RecipeDraft& draft) {
+inline builder::Recipe compose(const RecipeDraft& draft) {
     builder::Recipe r;
     r.id = draft.id;
     r.artifact = draft.artifact;
@@ -113,9 +114,9 @@ inline Target recipe_target(const RecipeAuthor& host) {
 /// AUTHOR ONE RECIPE ROW: compose, check, choose the file, read its rows as written,
 /// append, check the whole, save atomically, install through the one seam.
 // WL-AUTH-01 -- agents/workshop/authoring.md
-inline HostContext::RecipeSwap author_recipe(const RecipeAuthor& host,
-                                             const HostContext::RecipeDraft& draft) {
-    HostContext::RecipeSwap out;
+inline RecipeSwap author_recipe(const RecipeAuthor& host,
+                                             const RecipeDraft& draft) {
+    RecipeSwap out;
     out.path = host.recipes != nullptr ? host.recipes->source() : std::string();
     out.recipes = host.recipes != nullptr ? host.recipes->all().size() : 0;
     const builder::Recipe row = compose(draft);
@@ -169,10 +170,10 @@ inline bool plan_names(const PlanAuthor& plan, const std::string& stem) {
 /// AUTHOR THE MINIMUM PLAN ROW: the running project first, then the file, then where the
 /// chosen recipe's product is when the row is the frontier and the product exists.
 // WL-AUTH-02, WL-AUTH-03 -- agents/workshop/authoring.md
-inline HostContext::PlanAppend append_plan_row(PlanAuthor& plan, const std::string& stem,
+inline PlanAppend append_plan_row(PlanAuthor& plan, const std::string& stem,
                                                const std::string& role,
                                                const std::string& recipe) {
-    HostContext::PlanAppend out;
+    PlanAppend out;
     realization::ArtifactIntent row;
     row.stem = stem;
     row.weave = realization::WeaveIntent{role};

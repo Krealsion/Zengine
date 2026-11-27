@@ -35,7 +35,8 @@ class RealizationStandIn
     : public loom::WeaveBase<RealizationStandIn, RealizationStandInState, loom::Accept<>, loom::Emit<>,
                              loom::Claims<zengine::realization::PlanStatus,
                                           zengine::realization::ChoicesHeld,
-                                          zengine::realization::RealizedRows>> {};
+                                          zengine::realization::RealizedRows,
+                                          zengine::realization::RowsNotLoaded>> {};
 
 /// WHAT THE REALIZATION OWNER CLAIMS THE PROJECT WAITS ON, read off the bus as a host reads it.
 inline zengine::workshop::ProjectFrontier frontier_claimed(const loom::Switchboard& bus) {
@@ -84,6 +85,11 @@ struct RealizationClaims {
     /// Claim the authored choices.
     void choices(const zengine::realization::ChoicesHeld& held) const {
         REQUIRE(bus->role_claim_as(id, zengine::builder::kRealizationRole, loom::to_value(held))
+                    .accepted);
+    }
+    /// Claim what the plan could not load.
+    void not_loaded(const zengine::realization::RowsNotLoaded& rows) const {
+        REQUIRE(bus->role_claim_as(id, zengine::builder::kRealizationRole, loom::to_value(rows))
                     .accepted);
     }
     /// Claim the rows realized into weaves.

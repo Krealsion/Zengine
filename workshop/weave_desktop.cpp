@@ -707,15 +707,15 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
     // changed since this host read it is never overwritten; a write that fails says so. In each
     // case the live change stands for this run only, and a standing condition says the next
     // launch will not have it.
-    if (host_->keymap_path.empty()) {
+    if (made_.keymap_path.empty()) {
         answer.file_refusal = "isolated run -- no keymap file; the change stands for this run";
     } else {
         std::error_code ec;
-        const bool exists = std::filesystem::exists(host_->keymap_path, ec);
+        const bool exists = std::filesystem::exists(made_.keymap_path, ec);
         bool changed = exists != keymap_file_present_;
         if (!changed && exists) {
             const persist::FileText now = persist::read_file(
-                host_->keymap_path, keymap_persist::kMaxKeymapBytes, "a Workshop keymap");
+                made_.keymap_path, keymap_persist::kMaxKeymapBytes, "a Workshop keymap");
             changed = !now.outcome.accepted || now.text != keymap_bytes_;
         }
         if (changed) {
@@ -725,7 +725,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
             // WRITTEN FROM THE STATE: the bindings as the edit leaves them, the file's own value.
             state_ = declared_state(session_, window_name_);
             const std::string text = loom::compat::serialize(loom::to_value(state_.bindings));
-            const Written wrote = persist::write_file(host_->keymap_path, text);
+            const Written wrote = persist::write_file(made_.keymap_path, text);
             if (wrote.accepted) {
                 answer.written = true;
                 keymap_bytes_ = text;
@@ -1045,7 +1045,7 @@ bool same_keymap(const KeymapShown& a, const KeymapShown& b) {
 } // namespace
 
 void WorkshopWeave::publish_keymap(loom::Mail& mail) {
-    KeymapShown said = keymap_shown(session_, host_->keymap_path, keymap_standing_);
+    KeymapShown said = keymap_shown(session_, made_.keymap_path, keymap_standing_);
     // COMPARED BEFORE IT IS PUBLISHED, `publish_inventory`'s rule: derived at every gesture,
     // said only when it moved, and said again after a presenter arrives.
     if (keymap_published_ && same_keymap(said, keymap_said_)) {
@@ -1064,7 +1064,7 @@ void WorkshopWeave::on(const KeymapRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty() && !facet<GuestActsFacet>().row(mail.sender()).may(scope::kPowerCapture)) {
         return; // a role asks, or a guest session holding `capture`
     }
-    KeymapShown said = keymap_shown(session_, host_->keymap_path, keymap_standing_);
+    KeymapShown said = keymap_shown(session_, made_.keymap_path, keymap_standing_);
     // A ROW THAT READS BY PANE hears the rows above every pane and its own panes' rows and modes:
     // what a press of a control it may read could cause, and no other pane's (WL-GUIDE-02).
     if (facet<GuestActsFacet>().row(mail.sender()).reads_by_pane) {

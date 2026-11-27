@@ -185,6 +185,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::realization::PlanStatus>(), // PlanStatus v1
         shape<::zengine::realization::RealizedRow>(), // RealizedRow v1
         shape<::zengine::realization::RealizedRows>(), // RealizedRows v1
+        shape<::zengine::realization::RowGaveWay>(), // RowGaveWay v1
+        shape<::zengine::realization::RowSteppedOver>(), // RowSteppedOver v1
+        shape<::zengine::realization::RowsNotLoaded>(), // RowsNotLoaded v1
+        shape<::zengine::workshop::GuestHost>(), // GuestHost v1
+        shape<::zengine::workshop::LaunchCondition>(), // LaunchCondition v1
+        shape<::zengine::workshop::WorkshopMade>(), // WorkshopMade v1
         shape<::zengine::workshop::RecipeInForce>(), // RecipeInForce v1
         shape<::zengine::workshop::RecipesInForce>(), // RecipesInForce v1
         shape<::zengine::realization::load_persist::WorkshopLoadAlternative>(), // WorkshopLoadAlternative v1

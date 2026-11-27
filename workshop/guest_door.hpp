@@ -66,7 +66,7 @@ using GuestDoorBase =
     loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections, GuestRowDescribed,
                v2::GuestRowDescribed, GuestPlanSaid, ActorScopeJudged, GuestRowOf, loom::Refused,
                input::InputSessionClosed>,
-    loom::WeaveBase, loom::Claims<loom::host::WaitSet>>;
+    loom::WeaveBase, loom::Claims<loom::host::WaitSet, GuestHost>>;
 
 class GuestDoor final : public GuestDoorBase {
 public:
@@ -86,9 +86,13 @@ public:
 
     /// MOUNTED: what the crossing waits on, claimed as `kGuestsRole` by the door itself, `self` the
     /// id the bus gave it, so the host's wait holds the listener from the first turn. Every
-    /// delivery after claims it again (`after_delivery`).
+    /// delivery after claims it again (`after_delivery`). Whose host this is, its file's words, is
+    /// claimed once beside it (`GuestHost`).
     void open(loom::Switchboard& bus, loom::WeaveId self) {
         (void)bus.role_claim_as(self, kGuestsRole, loom::to_value(server_->wait_set()));
+        const scope::HostFact host = guests::host_fact_of(file_);
+        (void)bus.role_claim_as(self, kGuestsRole,
+                                loom::to_value(GuestHost{host.development, host.guests_file}));
     }
 
     /// What the host's one wait said about the door, with the time on its clock: a connection, a

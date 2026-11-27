@@ -125,7 +125,9 @@ state (`PlanState`: `loading`, `waiting`, `complete` or `refused`), the row it w
 stepped over or given way from, the roles still to come -- `ChoicesHeld` v1, every authored choice
 and whether it holds its role, and `RealizedRows` v1, each row that loaded a weave: the weave, the
 artifact it was loaded from and why a rebuilt image of it cannot reload in place, or nothing when it
-can ([`realization/vocabulary.hpp`](../vocabulary.hpp)), for whoever its host grants observing
+can, and `RowsNotLoaded` v1, what the plan could not load: each optional row stepped over, in its
+words, and each artifact a row gave way from, with the one tried next and why
+([`realization/vocabulary.hpp`](../vocabulary.hpp)), for whoever its host grants observing
 them.
 
 ## Files

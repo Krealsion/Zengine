@@ -76,7 +76,7 @@ CURRENT data"
 ### WL-LAYOUT-10
 `workshop/keymap.hpp` layout.rename setup.name setup.restore
 `workshop/weave_session.cpp` open_layout_rename commit_layout_rename save_setup restore_setup
-`workshop/weave.hpp` HostContext::setup_path
+`workshop/layouts/owner.hpp` layouts_owner_host
 `workshop/layouts/run.hpp` rename_layout
 `workshop/live_desk.hpp` LayoutNaming
 `tests/test_workshop_host.cpp` "a double-click on a tab renames THAT layout, and writes no file"

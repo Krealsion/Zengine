@@ -144,7 +144,8 @@ as its successor, once, and the load says which rename to make"
 `workshop/keymap_persist.hpp` zengine-workshop-keymap kFormatVersion kFormatVersionOne
 keymap_rows_in to_keymap from_text load_file
 `workshop/weave_handlers.cpp` load_keymap
-`workshop/weave.hpp` HostContext::keymap_path keymap_bytes_
+`workshop/made.hpp` WorkshopMade::keymap_path
+`workshop/weave.hpp` keymap_bytes_
 `workshop/workshop.cpp` Arguments::keymap
 `workshop/keymap.hpp` Keymap::authored
 `tests/test_workshop_document.cpp` "an override survives restart, and deleting the file restores
@@ -159,7 +160,8 @@ authored_gestures_for join_app_rows join_pane_rows
 `workshop/keymap_persist.hpp` from_text
 `workshop/screen_hotkeys.cpp` keymap_shown
 `workshop/weave_handlers.cpp` load_keymap
-`workshop/weave.hpp` WorkshopWeave::unsaid_gaps WorkshopWeave::set_posix_layer HostContext::posix_terminal
+`workshop/weave.hpp` WorkshopWeave::unsaid_gaps WorkshopWeave::set_posix_layer
+`workshop/made.hpp` WorkshopMade::posix_terminal
 `workshop/weave_seam.cpp` unsaid_gaps declare_pane_actions rejoin_pane_rows set_posix_layer
 `pane/vocabulary.hpp` v4::PaneActionRow v4::PaneActions
 `workshop/keymap.hpp` Keymap::posix_layer PaneRow::posix

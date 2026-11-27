@@ -78,7 +78,7 @@ using zengine::persist::Written;
 // Real artifacts, staged once, and deliberately MORE than any plan here names: with a lookup
 // table "not in the plan" and "not reachable" would be one thing, and whether a valid provider
 // beside the host gains anything by being there could not be asked. The suffix rule is
-// `HostContext::so`'s, the host's; a plan carries a stem.
+// `so_in` (`workshop/project_acts.hpp`)'s, the host's; a plan carries a stem.
 
 #if defined(_WIN32)
 constexpr const char* kArtifactSuffix = ".dll";
@@ -6194,7 +6194,7 @@ TEST_CASE("the project plan `load it` writes carries the window row as it was re
     std::filesystem::remove(plan_file, ec);
     // ...AND THE AUTHOR IS SEEDED FROM THE PLAN AS READ, as the host seeds it (`main`).
     workshop::authoring::PlanAuthor author{plan_file.generic_string(), read, &rig.executor};
-    const workshop::HostContext::PlanAppend done = workshop::authoring::append_plan_row(
+    const workshop::PlanAppend done = workshop::authoring::append_plan_row(
         author, "zengine-plain-weave", "zen.plain", "recipe-zengine-plain-weave");
     REQUIRE_MESSAGE(done.accepted, done.refusal);
     rig.drain(16);
@@ -6222,7 +6222,7 @@ TEST_CASE("the minimum row is written as authored, the plan round-trips byte for
     REQUIRE(workshop::authoring::plan_names(author, "zengine-operators-basic"));
     REQUIRE_FALSE(workshop::authoring::plan_names(author, "zengine-plain-weave"));
 
-    const workshop::HostContext::PlanAppend done =
+    const workshop::PlanAppend done =
         workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.plain",
                                          "recipe-zengine-plain-weave");
     REQUIRE_MESSAGE(done.accepted, done.refusal);
@@ -6250,7 +6250,7 @@ TEST_CASE("the minimum row is written as authored, the plan round-trips byte for
 
     // A DUPLICATE STEM IS REFUSED BY THE PLAN'S OWN LAW, BEFORE THE OWNER IS ASKED: the
     // running project and the file are exactly what they were.
-    const workshop::HostContext::PlanAppend twice =
+    const workshop::PlanAppend twice =
         workshop::authoring::append_plan_row(author, "zengine-plain-weave", "zen.again",
                                          "recipe-zengine-plain-weave");
     CHECK_FALSE(twice.accepted);
@@ -6261,7 +6261,7 @@ TEST_CASE("the minimum row is written as authored, the plan round-trips byte for
     CHECK(same == bytes);
     // ...AND WITH NO PROJECT, NOTHING IS APPENDED AND NOTHING IS WRITTEN.
     workshop::authoring::PlanAuthor nowhere{std::string(), rig.executor.plan(), &rig.executor};
-    const workshop::HostContext::PlanAppend refused =
+    const workshop::PlanAppend refused =
         workshop::authoring::append_plan_row(nowhere, "zengine-provider-min", "zen.min",
                                          "recipe-zengine-provider-min");
     CHECK_FALSE(refused.accepted);
@@ -6269,7 +6269,7 @@ TEST_CASE("the minimum row is written as authored, the plan round-trips byte for
     CHECK(rig.executor.plan().artifacts.size() == 2);
     // ...AND THE PLAN'S LAW GOES FIRST, before the path and before the owner: a duplicate on
     // the nowhere author is refused as a duplicate, not as a missing project.
-    const workshop::HostContext::PlanAppend nowhere_twice =
+    const workshop::PlanAppend nowhere_twice =
         workshop::authoring::append_plan_row(nowhere, "zengine-plain-weave", "zen.again",
                                          "recipe-zengine-plain-weave");
     CHECK_FALSE(nowhere_twice.accepted);
@@ -6285,7 +6285,7 @@ TEST_CASE("the minimum row is written as authored, the plan round-trips byte for
     std::filesystem::remove(mid_file, ec);
     workshop::authoring::PlanAuthor mid_author{mid_file.generic_string(), mid.executor.plan(),
                                                &mid.executor};
-    const workshop::HostContext::PlanAppend under =
+    const workshop::PlanAppend under =
         workshop::authoring::append_plan_row(mid_author, "zengine-operators-basic", "zen.basic",
                                          "recipe-zengine-operators-basic");
     CHECK_FALSE(under.accepted);
@@ -6323,7 +6323,7 @@ TEST_CASE("the writer says where the frontier row's product is, through the stag
     rig.waiting = {kBuiltLate};
     rig.product(kBuiltLate, PLAIN_WEAVE_SO);
     const std::string late_recipe = "recipe-" + std::string(kBuiltLate);
-    const workshop::HostContext::PlanAppend built =
+    const workshop::PlanAppend built =
         workshop::authoring::append_plan_row(author, kBuiltLate, "zen.late", late_recipe);
     REQUIRE_MESSAGE(built.accepted, built.refusal);
     CHECK(built.frontier);
@@ -6339,7 +6339,7 @@ TEST_CASE("the writer says where the frontier row's product is, through the stag
     // BEHIND THAT FRONTIER: the file is on disk and the answer is still empty, because the
     // row is authored, not looked at, and an ask to realize it would be refused.
     rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
-    const workshop::HostContext::PlanAppend behind = workshop::authoring::append_plan_row(
+    const workshop::PlanAppend behind = workshop::authoring::append_plan_row(
         author, "zengine-plain-weave", "zen.plain", "recipe-zengine-plain-weave");
     REQUIRE_MESSAGE(behind.accepted, behind.refusal);
     CHECK_FALSE(behind.frontier);
@@ -6355,7 +6355,7 @@ TEST_CASE("the writer says where the frontier row's product is, through the stag
     rig.product(kUnbuilt, PLAIN_WEAVE_SO);
     std::filesystem::remove(rig.products() / (std::string(kUnbuilt) + kArtifactSuffix), ec);
     REQUIRE(!ec);
-    const workshop::HostContext::PlanAppend bare = workshop::authoring::append_plan_row(
+    const workshop::PlanAppend bare = workshop::authoring::append_plan_row(
         author, kUnbuilt, "zen.oven", "recipe-" + std::string(kUnbuilt));
     REQUIRE_MESSAGE(bare.accepted, bare.refusal);
     CHECK(bare.frontier);
