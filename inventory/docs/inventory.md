@@ -45,7 +45,7 @@ v1, below, and `CaptureRequest` v1 or `CaptureAddRequest` v1, the typed request.
 | `requested_role` | a supplier claim: what the caller asked Inventory to query |
 | `request_shape`, `request_version` | what Inventory actually sent (`zen.PokeDescribe v1`) |
 | `answered_by` | an **observed** fact: the `WeaveId` Loom itself attested as the sender of the reply -- never read from the reply's own payload, and never a durable identity across a restart or a role that changes holders |
-| `captured_at_epoch_s` | this process's own clock at the moment the answer settled -- a local reading, not a claim that anything else in the pair was observed at the same time |
+| `captured_at_epoch_s` | the date of the turn the answer settled in, in seconds since 1970 UTC, or 0 when the turn carried none -- a record for a person, not a claim that anything else in the pair was observed at the same time |
 
 After a restart the same `answered_by` can name a different participant: a saved capture is a past
 observation. To inspect a supplier now, resolve the role again and record the new answer. Neither

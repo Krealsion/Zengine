@@ -26,7 +26,6 @@
 
 #include <zen/weave/shape.hpp>
 
-#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -138,9 +137,11 @@ inline Material read_material(std::string_view pair_bytes) {
     return m;
 }
 
-inline std::int64_t clock_now() {
-    return static_cast<std::int64_t>(std::chrono::duration_cast<std::chrono::seconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count());
+/// WHEN A CAPTURE WAS MADE, for the person who reads it: the date of the turn it was made in
+/// (`mail.turn_date_ms()`), in whole seconds since 1970-01-01 UTC, and 0 when that turn carried
+/// none. An Editor reads no clock of its own, so a capture's date is the bus's, as its sender is.
+inline std::int64_t captured_at(std::optional<std::int64_t> turn_date_ms) {
+    return turn_date_ms ? *turn_date_ms / 1000 : 0;
 }
 
 /// A CAPTURE'S PAIR: the item and its one observation, or why it cannot be carried.

@@ -466,7 +466,7 @@ inline void EditorPaneWeave::acquire(Take what, bool drag, std::uint64_t gesture
         s.end_column = static_cast<std::int64_t>(to.byte) + 1;
         s.line_ending = e_.convention == ws::line_ending::kCRLF ? "CRLF" : "LF";
         s.unsaved = e_.dirty();
-        s.captured_at_epoch_s = st::clock_now();
+        s.captured_at_epoch_s = st::captured_at(mail.turn_date_ms());
         const std::string text = e_.buffer.selected_text();
         pair = st::text_pair(text, s);
         const st::Lines lines = st::standard_lines(text);
@@ -483,7 +483,7 @@ inline void EditorPaneWeave::acquire(Take what, bool drag, std::uint64_t gesture
         c.relative = st::relative_to(e_.path, c.project_root);
         c.line_text = st::observe_line(e_.buffer.line(row));
         c.unsaved = e_.dirty();
-        c.captured_at_epoch_s = st::clock_now();
+        c.captured_at_epoch_s = st::captured_at(mail.turn_date_ms());
         pair = st::location_pair(loc, c);
         what_words = "the location of " + file_name(e_.path) + " at line " + std::to_string(row + 1);
         label = file_name(e_.path) + ":" + std::to_string(row + 1) + " (location)";

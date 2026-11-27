@@ -32,7 +32,8 @@ convention is recorded in the observation instead.
 file, or empty for a buffer with no file), `project_root`, `kind` (`characters`, `lines` or
 `block`; the standard Editor always records `characters`), the range, `line_ending` (`LF` or
 `CRLF`), `unsaved` (the buffer differed from its file when copied) and `captured_at_epoch_s` (the
-local clock, as a fact about the copy and nothing more). The range is `first_line`,
+date of the turn the copy was made in, in seconds since 1970 UTC, or 0 when the turn carried none:
+a fact about the copy for a person, and nothing more). The range is `first_line`,
 `first_column` (1-based) and `end_line`, `end_column`, exclusive: for `lines` it ends on the line
 after the last one, column 1; for `block` the two positions are the opposite corners Neovim held,
 and the block spans the columns between them.

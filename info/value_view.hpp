@@ -569,8 +569,8 @@ public:
         const auto original = sample_route().second.empty() ? recorded_responder() : std::string();
         try {
             // A NEW OBSERVATION: the answer this delivery carried, recorded with Loom's attested
-            // sender and this process's clock. Nothing stored changes until Save or Save copy.
-            const auto context = inventory::observed_structure(sample_.role, c.mail.sender());
+            // sender and its turn's date. Nothing stored changes until Save or Save copy.
+            const auto context = inventory::observed_structure(sample_.role, c.mail.sender(), c.mail.turn_date_ms());
             const auto encoded = inventory::encode_pair(loom::to_value(structure), {loom::to_value(context)});
             const auto before = field_list();
             load(inventory::decode_pair(encoded), true); // the draft was frozen: nothing local is lost
